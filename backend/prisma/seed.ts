@@ -1,22 +1,28 @@
-import { PrismaMySQL } from '@prisma/adapter-mysql';
 import * as bcrypt from 'bcrypt';
-import mysql from 'mysql2/promise';
 import { PrismaClient } from '../generated/prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error('DATABASE_URL is not set');
 }
 
-const pool = mysql.createPool(databaseUrl);
-const adapter = new PrismaMySQL(pool);
+const url = new URL(databaseUrl);
+const adapter = new PrismaMariaDb({
+  host: url.hostname,
+  port: url.port ? Number(url.port) : 3306,
+  user: decodeURIComponent(url.username),
+  password: decodeURIComponent(url.password),
+  database: url.pathname.replace(/^\//, ''),
+});
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const tenantId = 'tenant-default';
   const tenant = await prisma.tenant.upsert({
-    where: { name: 'Instituicao Exemplo' },
-    update: {},
-    create: { name: 'Instituicao Exemplo' },
+    where: { id: tenantId },
+    update: { name: 'Instituicao Exemplo' },
+    create: { id: tenantId, name: 'Instituicao Exemplo' },
   });
 
   const permissions = [

@@ -1,7 +1,6 @@
-import { PrismaMySQL } from '@prisma/adapter-mysql';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import mysql from 'mysql2/promise';
 import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 @Injectable()
 export class PrismaService
@@ -14,8 +13,14 @@ export class PrismaService
       throw new Error('DATABASE_URL is not set');
     }
 
-    const pool = mysql.createPool(databaseUrl);
-    const adapter = new PrismaMySQL(pool);
+    const url = new URL(databaseUrl);
+    const adapter = new PrismaMariaDb({
+      host: url.hostname,
+      port: url.port ? Number(url.port) : 3306,
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+    });
 
     super({ adapter });
   }
