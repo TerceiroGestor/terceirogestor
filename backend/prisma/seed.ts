@@ -1,24 +1,17 @@
 import * as bcrypt from 'bcrypt';
+import { createPrismaAdapter } from './prisma-adapter';
 import { PrismaClient } from '../generated/prisma/client';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error('DATABASE_URL is not set');
 }
 
-const url = new URL(databaseUrl);
-const adapter = new PrismaMariaDb({
-  host: url.hostname,
-  port: url.port ? Number(url.port) : 3306,
-  user: decodeURIComponent(url.username),
-  password: decodeURIComponent(url.password),
-  database: url.pathname.replace(/^\//, ''),
-});
+const adapter = createPrismaAdapter(databaseUrl);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const tenantId = 'tenant-default';
+  const tenantId = '11111111-1111-1111-1111-111111111111';
   const tenant = await prisma.tenant.upsert({
     where: { id: tenantId },
     update: { name: 'Instituicao Exemplo' },
@@ -117,19 +110,31 @@ async function main() {
   });
 
   const people = [
-    { fullName: 'Ana Pereira', document: '111.222.333-44' },
-    { fullName: 'Carlos Souza', document: '222.333.444-55' },
-    { fullName: 'Marina Lima', document: '333.444.555-66' },
+    {
+      id: '22222222-2222-2222-2222-222222222222',
+      fullName: 'Ana Pereira',
+      document: '111.222.333-44',
+    },
+    {
+      id: '33333333-3333-3333-3333-333333333333',
+      fullName: 'Carlos Souza',
+      document: '222.333.444-55',
+    },
+    {
+      id: '44444444-4444-4444-4444-444444444444',
+      fullName: 'Marina Lima',
+      document: '333.444.555-66',
+    },
   ];
 
   for (const person of people) {
     await prisma.person.upsert({
       where: {
-        id: `${tenant.id}-${person.document ?? person.fullName}`,
+        id: person.id,
       },
       update: {},
       create: {
-        id: `${tenant.id}-${person.document ?? person.fullName}`,
+        id: person.id,
         tenantId: tenant.id,
         fullName: person.fullName,
         document: person.document,
