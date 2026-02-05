@@ -1,0 +1,21 @@
+export type Customer = {
+  id: string;
+  name: string;
+  avatar?: string;
+  email: string;
+  company: string;
+  country: string;
+  region: "Americas" | "EMEA" | "APAC";
+  industry: "SaaS" | "Fintech" | "Health" | "Retail" | "Media";
+  segment: "SMB" | "Mid-Market" | "Enterprise";
+  plan: "Starter" | "Growth" | "Enterprise";
+  status: "Active" | "Trial" | "Paused";
+  seats: number;
+  lastActive: string;
+  revenue: number;
+  mrr: number;
+  arr: number;
+  health: "Healthy" | "Needs Attention" | "At Risk";
+  owner: string;
+  nps: number;
+};
