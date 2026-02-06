@@ -72,6 +72,18 @@ const useChartState = <TData,>({
     [],
   );
 
+  const resolveValueLabel = React.useCallback(
+    (columnId: string, value: unknown) => {
+      const column = columns.find((col) => col.id === columnId);
+      const meta = column?.columnDef.meta as
+        | { valueMap?: Record<string, string> }
+        | undefined;
+      const key = value === undefined || value === null ? "N/A" : String(value);
+      return meta?.valueMap?.[key] ?? key;
+    },
+    [columns],
+  );
+
   React.useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -107,14 +119,14 @@ const useChartState = <TData,>({
     const counts = new Map<string, number>();
     rows.forEach((row) => {
       const raw = getRowValue(row, chartColumnId);
-      const key = raw === undefined || raw === null ? "N/A" : String(raw);
+      const key = resolveValueLabel(chartColumnId, raw);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     });
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([label, value]) => ({ label, value }));
-  }, [chartColumnId, rows, getRowValue]);
+  }, [chartColumnId, rows, getRowValue, resolveValueLabel]);
 
   const chartTitle = React.useMemo(() => {
     const column = columns.find((col) => col.id === chartColumnId);

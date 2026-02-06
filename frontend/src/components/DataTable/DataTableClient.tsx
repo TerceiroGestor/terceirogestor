@@ -87,6 +87,13 @@ export type DataTableClientProps<TData> = {
     pdf?: string;
     csv?: string;
   };
+  exportMeta?: {
+    title?: string;
+    subtitle?: string;
+    tenant?: string;
+    issuedBy?: string;
+    issuedAt?: string;
+  };
   actions?: (ctx: {
     visibleColumnIds: string[];
     visibleColumns: Column<TData, unknown>[];
@@ -108,6 +115,7 @@ export function DataTableClient<TData>({
   summaryCards,
   showExportMenu = false,
   exportLabels,
+  exportMeta,
   actions,
   manualPagination = false,
   pageCount,
@@ -242,13 +250,55 @@ export function DataTableClient<TData>({
       };
 
       if (operator === "isEmpty") {
+        if (Array.isArray(rawValue)) {
+          return rawValue.length === 0;
+        }
         return rawValue === undefined || rawValue === null || rawValue === "";
       }
       if (operator === "isNotEmpty") {
+        if (Array.isArray(rawValue)) {
+          return rawValue.length > 0;
+        }
         return !(rawValue === undefined || rawValue === null || rawValue === "");
       }
       if (filterRaw === "") return true;
       if (rawValue === undefined || rawValue === null) return false;
+
+      if (Array.isArray(rawValue)) {
+        const normalizedValues = rawValue
+          .map((item) => String(item).trim().toLowerCase())
+          .filter(Boolean);
+        const filterLower = filterRaw.toLowerCase();
+
+        if (operator === "contains") {
+          return normalizedValues.some((value) => value.includes(filterLower));
+        }
+        if (operator === "equals") {
+          return normalizedValues.includes(filterLower);
+        }
+        if (operator === "in" || operator === "notIn") {
+          const values = filterRaw
+            .split(",")
+            .map((value) => value.trim().toLowerCase())
+            .filter(Boolean);
+          const match = normalizedValues.some((value) =>
+            values.includes(value),
+          );
+          return operator === "in" ? match : !match;
+        }
+        if (operator === "starts") {
+          return normalizedValues.some((value) =>
+            value.startsWith(filterLower),
+          );
+        }
+        if (operator === "ends") {
+          return normalizedValues.some((value) =>
+            value.endsWith(filterLower),
+          );
+        }
+
+        return true;
+      }
 
       const rowValue =
         typeof rawValue === "number"
@@ -498,6 +548,7 @@ export function DataTableClient<TData>({
     rowModel,
     visibleColumnIds,
     getRowValue,
+    exportMeta,
   });
 
   const groupLabels = React.useMemo(() => {
@@ -559,17 +610,87 @@ export function DataTableClient<TData>({
 
   const buildQuickFilterOptions = React.useCallback(
     (columnId: string) => {
+      const column = table.getColumn(columnId);
+      const meta = column?.columnDef.meta as
+        | { valueMap?: Record<string, string>; dataType?: string }
+        | undefined;
+      const labelFor = (value: string) => {
+        if (meta?.dataType === "boolean") {
+          if (value.toLowerCase() === "true") return "Sim";
+          if (value.toLowerCase() === "false") return "Nao";
+        }
+        return meta?.valueMap?.[value] ?? value;
+      };
       const counts = new Map<string, number>();
+      let nonEmptyCount = 0;
       table.getPreFilteredRowModel().rows.forEach((row) => {
         const value = row.getValue(columnId);
         if (value === undefined || value === null || value === "") return;
+        if (Array.isArray(value)) {
+          if (value.length) nonEmptyCount += 1;
+          value
+            .map((item) => String(item).trim())
+            .filter(Boolean)
+            .forEach((item) => {
+              counts.set(item, (counts.get(item) ?? 0) + 1);
+            });
+          return;
+        }
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed)) {
+                if (parsed.length) nonEmptyCount += 1;
+                parsed
+                  .map((item) => String(item).trim())
+                  .filter(Boolean)
+                  .forEach((item) => {
+                    counts.set(item, (counts.get(item) ?? 0) + 1);
+                  });
+                return;
+              }
+            } catch {
+              // fallthrough
+            }
+          }
+          if (trimmed.includes(",")) {
+            const parts = trimmed
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean);
+            if (parts.length) nonEmptyCount += 1;
+            trimmed
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)
+              .forEach((item) => {
+                counts.set(item, (counts.get(item) ?? 0) + 1);
+              });
+            return;
+          }
+        }
+        nonEmptyCount += 1;
         const key = String(value);
         counts.set(key, (counts.get(key) ?? 0) + 1);
       });
-      return Array.from(counts.entries())
+      const options = Array.from(counts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8)
-        .map(([value, count]) => ({ value, label: value, count }));
+        .map(([value, count]) => ({
+          value,
+          label: labelFor(value),
+          count,
+        }));
+      if (nonEmptyCount > 0) {
+        options.unshift({
+          value: "__not_empty__",
+          label: "Com valor",
+          count: nonEmptyCount,
+        });
+      }
+      return options;
     },
     [table],
   );
@@ -578,7 +699,9 @@ export function DataTableClient<TData>({
     (columnId: string, value: string) => {
       const nextFilters: AdvancedFilter[] = [
         ...advancedFilters.filter((filter) => filter.columnId !== columnId),
-        { columnId, operator: "equals", value },
+        value === "__not_empty__"
+          ? { columnId, operator: "isNotEmpty", value: "1" }
+          : { columnId, operator: "equals", value },
       ];
       const validFilters = nextFilters.filter(
         (filter) => filter.columnId && filter.value.trim() !== "",

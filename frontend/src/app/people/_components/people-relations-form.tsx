@@ -8,6 +8,7 @@ type PeopleRelationsFormProps = {
   onSubmit: (values: PersonFormData) => void;
   onCancel?: () => void;
   submitLabel?: string;
+  tagSuggestions?: string[];
 };
 
 export function PeopleRelationsForm({
@@ -15,6 +16,7 @@ export function PeopleRelationsForm({
   onSubmit,
   onCancel,
   submitLabel,
+  tagSuggestions,
 }: PeopleRelationsFormProps) {
   return (
     <PeopleForm
@@ -22,6 +24,7 @@ export function PeopleRelationsForm({
       onSubmit={onSubmit}
       onCancel={onCancel}
       submitLabel={submitLabel}
+      tagSuggestions={tagSuggestions}
     />
   );
 }

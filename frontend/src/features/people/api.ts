@@ -8,7 +8,9 @@ export type ApiPerson = {
   fullName: string;
   socialName: string | null;
   birthDate: string | null;
+  sex: string | null;
   gender: string | null;
+  raceColor: string | null;
   maritalStatus: string | null;
   nationality: string | null;
   email: string | null;
@@ -17,7 +19,10 @@ export type ApiPerson = {
   rg: string | null;
   nis: string | null;
   status: string | null;
+  departureReason: string | null;
   notes: string | null;
+  tags: string[] | null;
+  hasHealthIssue: boolean | null;
   profileSummary: string | null;
   avatarUrl: string | null;
   createdAt: string;
@@ -37,8 +42,10 @@ export type PeopleListResponse = {
 export type PersonInput = {
   fullName?: string;
   birthDate?: string | null;
+  sex?: string | null;
   socialName?: string | null;
   gender?: string | null;
+  raceColor?: string | null;
   maritalStatus?: string | null;
   nationality?: string | null;
   email?: string | null;
@@ -47,7 +54,10 @@ export type PersonInput = {
   rg?: string | null;
   nis?: string | null;
   status?: string | null;
+  departureReason?: string | null;
   notes?: string | null;
+  tags?: string[] | null;
+  hasHealthIssue?: boolean | null;
   profileSummary?: string | null;
   avatarUrl?: string | null;
 };

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
@@ -16,15 +16,48 @@ import {
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 1000;
 
+type PersonRecord = Prisma.PersonGetPayload<{}>;
+
+const normalizeTags = (tags?: string[] | null) => {
+  if (!tags) return null;
+  const cleaned = tags.map((tag) => tag.trim()).filter(Boolean);
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+};
+
+const parseTags = (raw?: string | null) => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item)).filter(Boolean);
+    }
+  } catch {
+    // fallback to csv
+  }
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+};
+
+const mapPerson = (person: PersonRecord) => ({
+  ...person,
+  tags: parseTags(person.tags),
+});
+
 const buildCreateData = (
   tenantId: string,
   dto: CreatePersonDto,
-): Prisma.PersonUncheckedCreateInput => ({
+): Prisma.PersonUncheckedCreateInput => {
+  const normalizedStatus = normalizeString(dto.status);
+  return ({
   tenantId,
   fullName: dto.fullName.trim(),
   socialName: normalizeString(dto.socialName),
   birthDate: dto.birthDate ?? null,
+  sex: normalizeString(dto.sex),
   gender: normalizeString(dto.gender),
+  raceColor: normalizeString(dto.raceColor),
   maritalStatus: normalizeString(dto.maritalStatus),
   nationality: normalizeString(dto.nationality),
   email: normalizeString(dto.email),
@@ -32,11 +65,18 @@ const buildCreateData = (
   document: normalizeString(dto.document),
   rg: normalizeString(dto.rg),
   nis: normalizeString(dto.nis),
-  status: normalizeString(dto.status),
+  status: normalizedStatus,
+  departureReason:
+    normalizedStatus === 'Desligado'
+      ? normalizeString(dto.departureReason)
+      : null,
   notes: normalizeString(dto.notes),
+  tags: normalizeTags(dto.tags),
+  hasHealthIssue: dto.hasHealthIssue ?? false,
   profileSummary: normalizeString(dto.profileSummary),
   avatarUrl: normalizeString(dto.avatarUrl),
 });
+};
 
 const buildUpdateData = (
   dto: UpdatePersonDto,
@@ -49,8 +89,14 @@ const buildUpdateData = (
   if (dto.socialName !== undefined) {
     data.socialName = normalizeString(dto.socialName);
   }
+  if (dto.sex !== undefined) {
+    data.sex = normalizeString(dto.sex);
+  }
   if (dto.gender !== undefined) {
     data.gender = normalizeString(dto.gender);
+  }
+  if (dto.raceColor !== undefined) {
+    data.raceColor = normalizeString(dto.raceColor);
   }
   if (dto.maritalStatus !== undefined) {
     data.maritalStatus = normalizeString(dto.maritalStatus);
@@ -79,8 +125,17 @@ const buildUpdateData = (
   if (dto.status !== undefined) {
     data.status = normalizeString(dto.status);
   }
+  if (dto.departureReason !== undefined) {
+    data.departureReason = normalizeString(dto.departureReason);
+  }
   if (dto.notes !== undefined) {
     data.notes = normalizeString(dto.notes);
+  }
+  if (dto.tags !== undefined) {
+    data.tags = normalizeTags(dto.tags);
+  }
+  if (dto.hasHealthIssue !== undefined) {
+    data.hasHealthIssue = dto.hasHealthIssue ?? false;
   }
   if (dto.profileSummary !== undefined) {
     data.profileSummary = normalizeString(dto.profileSummary);
@@ -97,9 +152,16 @@ export class PeopleService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, dto: CreatePersonDto) {
-    return this.prisma.person.create({
+    if (
+      normalizeString(dto.status) === 'Desligado' &&
+      !normalizeString(dto.departureReason)
+    ) {
+      throw new BadRequestException('Informe o motivo do desligamento.');
+    }
+    const person = await this.prisma.person.create({
       data: buildCreateData(tenantId, dto),
     });
+    return mapPerson(person);
   }
 
   async findAll(tenantId: string, query: ListPeopleQueryDto) {
@@ -130,7 +192,7 @@ export class PeopleService {
     const total = await this.prisma.person.count({ where });
 
     return {
-      data,
+      data: data.map(mapPerson),
       pagination: buildPaginationMeta({
         page,
         limit,
@@ -149,16 +211,30 @@ export class PeopleService {
       throw new NotFoundException('Person not found');
     }
 
-    return person;
+    return mapPerson(person);
   }
 
   async update(tenantId: string, id: string, dto: UpdatePersonDto) {
     await this.findById(tenantId, id);
 
-    return this.prisma.person.update({
+    const nextStatus = normalizeString(dto.status);
+    if (
+      nextStatus === 'Desligado' &&
+      !normalizeString(dto.departureReason)
+    ) {
+      throw new BadRequestException('Informe o motivo do desligamento.');
+    }
+
+    const data = buildUpdateData(dto);
+    if (dto.status !== undefined && nextStatus !== 'Desligado') {
+      data.departureReason = null;
+    }
+
+    const person = await this.prisma.person.update({
       where: { id },
-      data: buildUpdateData(dto),
+      data,
     });
+    return mapPerson(person);
   }
 
   async remove(tenantId: string, id: string) {

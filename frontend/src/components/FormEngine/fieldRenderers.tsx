@@ -14,11 +14,13 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RichText } from "@/components/ui/richtext/RichText";
 import { Textarea } from "@/components/ui/textarea";
+import { TagInput } from "@/components/ui/tag-input";
 
 interface FieldRendererProps<T = any> {
   field: FormField<T>;
   value: any;
   disabled?: boolean;
+  required?: boolean;
   onChange: (value: any) => void;
 }
 
@@ -49,7 +51,13 @@ function toDateInputValue(value: unknown) {
   return String(value);
 }
 
-export function FieldRenderer<T>({ field, value, disabled, onChange }: FieldRendererProps<T>) {
+export function FieldRenderer<T>({
+  field,
+  value,
+  disabled,
+  required = false,
+  onChange,
+}: FieldRendererProps<T>) {
   const isDisabled = disabled || field.disabled;
   const handleChange = normalizeChange(onChange);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
@@ -79,7 +87,10 @@ export function FieldRenderer<T>({ field, value, disabled, onChange }: FieldRend
 
   const renderLabeledField = (content: React.ReactNode) => (
     <div className="space-y-2">
-      <Label className="text-sm font-medium">{field.label}</Label>
+      <Label className="text-sm font-medium">
+        {field.label}
+        {required ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
       {content}
       {renderHelperText()}
     </div>
@@ -265,6 +276,20 @@ export function FieldRenderer<T>({ field, value, disabled, onChange }: FieldRend
             );
           })}
         </div>
+      );
+    }
+
+    case "tags": {
+      const tagsValue = Array.isArray(value) ? value : [];
+      return renderLabeledField(
+        <TagInput
+          value={tagsValue}
+          onChange={onChange}
+          disabled={isDisabled}
+          placeholder={"placeholder" in field ? field.placeholder : undefined}
+          maxTags={"maxTags" in field ? field.maxTags : undefined}
+          suggestions={"suggestions" in field ? field.suggestions : undefined}
+        />
       );
     }
 

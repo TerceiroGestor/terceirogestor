@@ -21,11 +21,16 @@ function mapApiPersonToPerson(person: ApiPerson): Person {
     rg: person.rg ?? null,
     nis: person.nis ?? null,
     birthDate: person.birthDate ?? null,
+    sex: person.sex ?? null,
     gender: person.gender ?? null,
+    raceColor: person.raceColor ?? null,
     maritalStatus: person.maritalStatus ?? null,
     nationality: person.nationality ?? null,
     status: person.status as Person["status"],
+    departureReason: person.departureReason ?? null,
     notes: person.notes ?? null,
+    tags: person.tags ?? [],
+    hasHealthIssue: person.hasHealthIssue ?? false,
     profileSummary: person.profileSummary ?? null,
     avatarUrl: person.avatarUrl ?? null,
     createdAt: person.createdAt ?? null,
@@ -62,6 +67,9 @@ export default function PeopleDetailPage() {
   const handleUpdate = React.useCallback(
     async (values: PersonFormData) => {
       if (!token || !person) return;
+      if (values.status === "Desligado" && !values.departureReason?.trim()) {
+        throw new Error("Informe o motivo do desligamento.");
+      }
       const avatarUrl =
         typeof values.avatarUrl === "string"
           ? stripApiUrl(values.avatarUrl)
@@ -74,7 +82,9 @@ export default function PeopleDetailPage() {
         fullName: values.fullName,
         socialName: values.socialName || null,
         birthDate: values.birthDate || null,
+        sex: values.sex || null,
         gender: values.gender || null,
+        raceColor: values.raceColor || null,
         maritalStatus: values.maritalStatus || null,
         nationality: values.nationality || null,
         email: values.email || null,
@@ -83,6 +93,9 @@ export default function PeopleDetailPage() {
         rg: values.rg || null,
         nis: values.nis || null,
         status: values.status || null,
+        departureReason: values.departureReason || null,
+        tags: values.tags ?? [],
+        hasHealthIssue: values.hasHealthIssue ?? false,
         profileSummary: values.profileSummary || null,
         avatarUrl: resolvedAvatarUrl,
       };

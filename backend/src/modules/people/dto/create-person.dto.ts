@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  IsArray,
+  IsBoolean,
   IsDate,
   IsEmail,
   IsIn,
@@ -6,7 +9,11 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
+const SEX_OPTIONS = ['M', 'F', 'I', 'N'] as const;
+const GENDER_OPTIONS = ['H', 'M', 'NB', 'GF', 'AG', 'O', 'PNI'] as const;
+const RACE_COLOR_OPTIONS = ['BR', 'PR', 'PA', 'AM', 'IN', 'PNI'] as const;
+const STATUS_OPTIONS = ['Ativo', 'Inativo', 'Em analise', 'Desligado'] as const;
 
 export class CreatePersonDto {
   @IsString()
@@ -24,11 +31,22 @@ export class CreatePersonDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(SEX_OPTIONS)
+  sex?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(GENDER_OPTIONS)
   gender?: string | null;
 
   @IsOptional()
   @IsString()
   maritalStatus?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(RACE_COLOR_OPTIONS)
+  raceColor?: string | null;
 
   @IsOptional()
   @IsString()
@@ -56,12 +74,26 @@ export class CreatePersonDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['Ativo', 'Inativo', 'Em analise'])
+  @IsIn(STATUS_OPTIONS)
   status?: string | null;
 
   @IsOptional()
   @IsString()
+  departureReason?: string | null;
+
+  @IsOptional()
+  @IsString()
   notes?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[] | null;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasHealthIssue?: boolean | null;
 
   @IsOptional()
   @IsString()

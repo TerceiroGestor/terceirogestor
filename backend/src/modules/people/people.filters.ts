@@ -34,7 +34,9 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'fullName',
   'socialName',
   'birthDate',
+  'sex',
   'gender',
+  'raceColor',
   'maritalStatus',
   'nationality',
   'email',
@@ -43,9 +45,12 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'rg',
   'nis',
   'status',
+  'departureReason',
   'notes',
   'profileSummary',
   'avatarUrl',
+  'tags',
+  'hasHealthIssue',
   'createdAt',
   'updatedAt',
 ]);
@@ -184,6 +189,67 @@ const buildAdvancedFilter = (
     }
   }
 
+  if (field === 'hasHealthIssue') {
+    const normalized = rawValue?.toLowerCase();
+    if (!normalized) return null;
+    if (['true', '1', 'sim', 'yes'].includes(normalized)) {
+      return { hasHealthIssue: true };
+    }
+    if (['false', '0', 'nao', 'não', 'no'].includes(normalized)) {
+      return { hasHealthIssue: false };
+    }
+    return null;
+  }
+
+  if (field === 'tags') {
+    if (filter.operator === 'isEmpty') {
+      return {
+        OR: [{ tags: null }, { tags: '' }, { tags: '[]' }],
+      } as Prisma.PersonWhereInput;
+    }
+    if (filter.operator === 'isNotEmpty') {
+      return {
+        AND: [{ NOT: { tags: null } }, { NOT: { tags: '' } }, { NOT: { tags: '[]' } }],
+      } as Prisma.PersonWhereInput;
+    }
+    if (!rawValue) return null;
+
+    const tagList = parseList(rawValue)
+      .map((tag) => tag.replace(/"/g, '').trim())
+      .filter(Boolean);
+
+    if (!tagList.length) return null;
+
+    const buildTagContains = (tag: string) =>
+      ({
+        tags: { contains: `"${tag}"` },
+      }) as Prisma.PersonWhereInput;
+
+    if (filter.operator === 'in') {
+      const tags = tagList;
+      return {
+        OR: tags.map((tag) => buildTagContains(tag)),
+      } as Prisma.PersonWhereInput;
+    }
+    if (filter.operator === 'notIn') {
+      const tags = tagList;
+      return {
+        AND: tags.map((tag) => ({ NOT: buildTagContains(tag) })),
+      } as Prisma.PersonWhereInput;
+    }
+    if (filter.operator === 'between') {
+      return null;
+    }
+
+    if (tagList.length > 1) {
+      return {
+        OR: tagList.map((tag) => buildTagContains(tag)),
+      } as Prisma.PersonWhereInput;
+    }
+
+    return buildTagContains(tagList[0]);
+  }
+
   switch (filter.operator) {
     case 'contains':
       return { [field]: { contains: String(rawValue) } } as Prisma.PersonWhereInput;
@@ -237,4 +303,3 @@ const buildAdvancedFilter = (
       return null;
   }
 };
-

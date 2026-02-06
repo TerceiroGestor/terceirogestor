@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { FormEngine } from "@/components/FormEngine/FormEngine";
 import type { PersonFormData } from "../types";
 import { personFormFields, personFormSteps } from "../people-form-config";
@@ -9,6 +10,7 @@ type PeopleFormProps = {
   onSubmit: (values: PersonFormData) => void;
   onCancel?: () => void;
   submitLabel?: string;
+  tagSuggestions?: string[];
 };
 
 export function PeopleForm({
@@ -16,10 +18,21 @@ export function PeopleForm({
   onSubmit,
   onCancel,
   submitLabel = "Salvar",
+  tagSuggestions,
 }: PeopleFormProps) {
+  const fields = useMemo(
+    () =>
+      personFormFields.map((field) =>
+        field.name === "tags"
+          ? { ...field, suggestions: tagSuggestions ?? [] }
+          : field,
+      ),
+    [tagSuggestions],
+  );
+
   return (
     <FormEngine
-      fields={personFormFields}
+      fields={fields}
       steps={personFormSteps}
       initialValues={initialValues}
       onSubmit={onSubmit}

@@ -1,6 +1,32 @@
 import type { FormField, FormStep } from "@/components/FormEngine/types";
 import type { PersonFormData } from "./types";
 
+const SEX_OPTIONS = [
+  { label: "Masculino", value: "M" },
+  { label: "Feminino", value: "F" },
+  { label: "Intersexo", value: "I" },
+  { label: "Nao informado", value: "N" },
+];
+
+const GENDER_OPTIONS = [
+  { label: "Homem", value: "H" },
+  { label: "Mulher", value: "M" },
+  { label: "Nao-binario", value: "NB" },
+  { label: "Genero fluido", value: "GF" },
+  { label: "Agenero", value: "AG" },
+  { label: "Outro", value: "O" },
+  { label: "Prefiro nao informar", value: "PNI" },
+];
+
+const RACE_COLOR_OPTIONS = [
+  { label: "Branca", value: "BR" },
+  { label: "Preta", value: "PR" },
+  { label: "Parda", value: "PA" },
+  { label: "Amarela", value: "AM" },
+  { label: "Indigena", value: "IN" },
+  { label: "Prefiro nao informar", value: "PNI" },
+];
+
 export const personFormFields: FormField<PersonFormData>[] = [
   {
     name: "avatarUrl",
@@ -13,6 +39,7 @@ export const personFormFields: FormField<PersonFormData>[] = [
     label: "Nome completo",
     type: "text",
     placeholder: "Nome completo",
+    required: true,
   },
   {
     name: "socialName",
@@ -34,14 +61,22 @@ export const personFormFields: FormField<PersonFormData>[] = [
   },
   { name: "birthDate", label: "Data de nascimento", type: "date" },
   {
+    name: "sex",
+    label: "Sexo",
+    type: "select",
+    options: SEX_OPTIONS,
+  },
+  {
     name: "gender",
     label: "Genero",
     type: "select",
-    options: [
-      { label: "Feminino", value: "Feminino" },
-      { label: "Masculino", value: "Masculino" },
-      { label: "Outro", value: "Outro" },
-    ],
+    options: GENDER_OPTIONS,
+  },
+  {
+    name: "raceColor",
+    label: "Raca/Cor",
+    type: "select",
+    options: RACE_COLOR_OPTIONS,
   },
   {
     name: "maritalStatus",
@@ -59,6 +94,12 @@ export const personFormFields: FormField<PersonFormData>[] = [
   { name: "rg", label: "RG", type: "text" },
   { name: "nis", label: "NIS", type: "text" },
   {
+    name: "tags",
+    label: "Tags",
+    type: "tags",
+    placeholder: "Digite uma tag e pressione Enter",
+  },
+  {
     name: "profileSummary",
     label: "Resumo dinamico",
     type: "richtext",
@@ -71,7 +112,21 @@ export const personFormFields: FormField<PersonFormData>[] = [
       { label: "Ativo", value: "Ativo" },
       { label: "Em analise", value: "Em analise" },
       { label: "Inativo", value: "Inativo" },
+      { label: "Desligado", value: "Desligado" },
     ],
+  },
+  {
+    name: "departureReason",
+    label: "Motivo do desligamento",
+    type: "textarea",
+    placeholder: "Descreva o motivo do desligamento",
+    requiredWhen: (values) => values.status === "Desligado",
+  },
+  {
+    name: "hasHealthIssue",
+    label: "Existe alguma questao de saude?",
+    type: "boolean",
+    defaultValue: false,
   },
 ];
 
@@ -83,7 +138,9 @@ export const personFormSteps: FormStep[] = [
       "fullName",
       "socialName",
       "birthDate",
+      "sex",
       "gender",
+      "raceColor",
       "maritalStatus",
       "nationality",
     ],
@@ -94,7 +151,15 @@ export const personFormSteps: FormStep[] = [
   },
   {
     title: "Documentos",
-    fields: ["document", "rg", "nis", "status"],
+    fields: ["document", "rg", "nis"],
+  },
+  {
+    title: "Organizacao",
+    fields: ["tags", "status", "departureReason"],
+  },
+  {
+    title: "Saude",
+    fields: ["hasHealthIssue"],
   },
   {
     title: "Observacoes",

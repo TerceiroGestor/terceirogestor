@@ -18,6 +18,9 @@ export function PeopleCreateClient() {
     <PeopleRelationsForm
       onSubmit={async (values: PersonFormData) => {
         if (!token) return;
+        if (values.status === "Desligado" && !values.departureReason?.trim()) {
+          throw new Error("Informe o motivo do desligamento.");
+        }
         let avatarUrl =
           typeof values.avatarUrl === "string"
             ? stripApiUrl(values.avatarUrl)
@@ -30,7 +33,9 @@ export function PeopleCreateClient() {
           fullName: values.fullName,
           socialName: values.socialName || null,
           birthDate: values.birthDate || null,
+          sex: values.sex || null,
           gender: values.gender || null,
+          raceColor: values.raceColor || null,
           maritalStatus: values.maritalStatus || null,
           nationality: values.nationality || null,
           email: values.email || null,
@@ -39,6 +44,9 @@ export function PeopleCreateClient() {
           rg: values.rg || null,
           nis: values.nis || null,
           status: values.status || null,
+          departureReason: values.departureReason || null,
+          tags: values.tags ?? [],
+          hasHealthIssue: values.hasHealthIssue ?? false,
           profileSummary: values.profileSummary || null,
           avatarUrl,
         });
@@ -46,6 +54,7 @@ export function PeopleCreateClient() {
       }}
       onCancel={() => router.push("/people")}
       submitLabel="Cadastrar"
+      tagSuggestions={[]}
     />
   );
 }

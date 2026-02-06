@@ -19,6 +19,7 @@ type PeopleFormDialogProps = {
   initialValues?: Partial<PersonFormData>;
   submitLabel?: string;
   onSubmit?: (values: PersonFormData) => void | Promise<void>;
+  tagSuggestions?: string[];
 };
 
 export function PeopleFormDialog({
@@ -29,6 +30,7 @@ export function PeopleFormDialog({
   initialValues,
   submitLabel,
   onSubmit,
+  tagSuggestions,
 }: PeopleFormDialogProps) {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -78,6 +80,7 @@ export function PeopleFormDialog({
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
             submitLabel={submitLabel}
+            tagSuggestions={tagSuggestions}
           />
         </div>
       </DialogContent>

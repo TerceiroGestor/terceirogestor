@@ -17,6 +17,7 @@ export type FieldType =
   | "boolean"
   | "select"
   | "multiselect"
+  | "tags"
   | "richtext"
   | "textarea"
   | "date"
@@ -45,6 +46,12 @@ export interface BaseField<T = any> {
 
   /** Valor padrão (usado quando não há initialValues) */
   defaultValue?: any;
+
+  /** Campo obrigatório */
+  required?: boolean;
+
+  /** Campo obrigatório condicional */
+  requiredWhen?: (values: T) => boolean;
 
   /** Texto auxiliar (hint, help, description) */
   helperText?: string;
@@ -119,6 +126,13 @@ export interface SelectField<T = any> extends BaseField<T> {
   options: SelectOption[];
 }
 
+export interface TagsField<T = any> extends BaseField<T> {
+  type: "tags";
+  placeholder?: string;
+  maxTags?: number;
+  suggestions?: string[];
+}
+
 /* ======================================================
  * RICHTEXT
  * ====================================================== */
@@ -135,6 +149,7 @@ export type FormField<T = any> =
   | TextField<T>
   | BooleanField<T>
   | SelectField<T>
+  | TagsField<T>
   | RichTextField<T>
   | DateField<T>
   | DateRangeField<T>

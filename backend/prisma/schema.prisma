@@ -106,7 +106,9 @@ model Person {
   fullName  String
   birthDate DateTime?
   socialName     String?
+  sex            String?
   gender         String?
+  raceColor      String?
   maritalStatus  String?
   nationality    String?
   email          String?
@@ -115,6 +117,9 @@ model Person {
   rg             String?
   nis            String?
   status         String?
+  departureReason String? @db.Text
+  tags           String? @db.Text
+  hasHealthIssue Boolean  @default(false)
   notes          String? @db.Text
   profileSummary String? @db.Text
   avatarUrl      String?

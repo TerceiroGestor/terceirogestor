@@ -67,6 +67,8 @@ export function FormEngine<T>({
         return false;
       case "multiselect":
         return [];
+      case "tags":
+        return [];
       case "date_range":
         return { start: "", end: "" };
       case "number_range":
@@ -87,10 +89,42 @@ export function FormEngine<T>({
     }));
   }
 
+  function isFieldRequired(field: FormField<T>) {
+    const conditional = field.requiredWhen?.(values) ?? false;
+    return Boolean(field.required || conditional);
+  }
+
+  function isFieldFilled(field: FormField<T>, value: any) {
+    switch (field.type) {
+      case "boolean":
+        return value !== undefined && value !== null;
+      case "multiselect":
+      case "tags":
+        return Array.isArray(value) && value.length > 0;
+      case "date_range":
+        return Boolean(value?.start) && Boolean(value?.end);
+      case "number_range":
+      case "currency_range":
+        return value?.min !== "" && value?.min !== undefined && value?.max !== "" && value?.max !== undefined;
+      case "file":
+      case "image":
+        return Boolean(value);
+      default:
+        return String(value ?? "").trim() !== "";
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     console.log("submit", { currentStep, steps });
+
+    if (steps && !isCurrentStepValid) {
+      return;
+    }
+    if (!steps && !isFormValid) {
+      return;
+    }
 
     if (steps) {
       const isLastStep = currentStep === steps.length - 1;
@@ -99,6 +133,10 @@ export function FormEngine<T>({
         setCurrentStep((s) => s + 1);
         return;
       }
+    }
+
+    if (!isFormValid) {
+      return;
     }
 
     onSubmit(values);
@@ -114,6 +152,20 @@ export function FormEngine<T>({
     const step = steps[currentStep];
     return fields.filter((field) => step.fields.includes(field.name));
   }, [fields, steps, currentStep]);
+
+  const isCurrentStepValid = useMemo(() => {
+    return visibleFields.every((field) => {
+      if (!isFieldRequired(field)) return true;
+      return isFieldFilled(field, values[field.name]);
+    });
+  }, [visibleFields, values]);
+
+  const isFormValid = useMemo(() => {
+    return fields.every((field) => {
+      if (!isFieldRequired(field)) return true;
+      return isFieldFilled(field, values[field.name]);
+    });
+  }, [fields, values]);
 
   const stepItems = useMemo(() => {
     if (!steps) return [];
@@ -197,6 +249,7 @@ export function FormEngine<T>({
             field={field}
             value={values[field.name]}
             disabled={disabled}
+            required={isFieldRequired(field)}
             onChange={(value) => handleChange(field.name, value)}
           />
         ))}
@@ -234,6 +287,7 @@ export function FormEngine<T>({
                       ? "secondary"
                       : (actions?.submit?.variant ?? "primary")
                   )}
+                  disabled={!isCurrentStepValid || disabled || (currentStep === steps.length - 1 && !isFormValid)}
                 >
                   {currentStep < steps.length - 1
                     ? "Proximo"
@@ -259,6 +313,7 @@ export function FormEngine<T>({
                   <Button
                     type="submit"
                     variant={resolveButtonVariant(actions.submit.variant ?? "primary")}
+                    disabled={!isFormValid || disabled}
                   >
                     {actions.submit.label ?? "Salvar"}
                   </Button>

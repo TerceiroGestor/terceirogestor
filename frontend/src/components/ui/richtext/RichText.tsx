@@ -50,8 +50,12 @@ export function RichText({ value, disabled, onChange }: Props) {
 
   return (
     <div className="richtext-root">
-      <RichTextMenuBar editor={editor} />
-      <EditorContent editor={editor} className="tiptap" />
+      <div className="richtext-toolbar">
+        <RichTextMenuBar editor={editor} />
+      </div>
+      <div className="richtext-body">
+        <EditorContent editor={editor} className="tiptap" />
+      </div>
     </div>
   );
 }

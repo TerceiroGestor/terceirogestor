@@ -13,6 +13,13 @@ type ExportContext<TData> = {
   rowModel: RowModel<TData>;
   visibleColumnIds: string[];
   getRowValue: (row: Row<TData>, columnId: string) => unknown;
+  exportMeta?: {
+    title?: string;
+    subtitle?: string;
+    tenant?: string;
+    issuedBy?: string;
+    issuedAt?: string;
+  };
 };
 
 export function useDataTableExport<TData>({
@@ -20,7 +27,17 @@ export function useDataTableExport<TData>({
   rowModel,
   visibleColumnIds,
   getRowValue,
+  exportMeta,
 }: ExportContext<TData>) {
+  const escapeHtml = React.useCallback((value: string) => {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }, []);
+
   const getColumnHeader = React.useCallback(
     (columnId: string) => {
       const column = table.getColumn(columnId);
@@ -29,6 +46,83 @@ export function useDataTableExport<TData>({
       return typeof header === "string" ? header : columnId;
     },
     [table],
+  );
+
+  const getColumnMeta = React.useCallback(
+    (columnId: string) => {
+      const column = table.getColumn(columnId);
+      const meta = column?.columnDef.meta as
+        | {
+            dataType?: "string" | "number" | "date" | "boolean";
+            valueMap?: Record<string, string>;
+          }
+        | undefined;
+      return meta;
+    },
+    [table],
+  );
+
+  const formatDateValue = React.useCallback((value: unknown) => {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return new Intl.DateTimeFormat("pt-BR").format(value);
+    }
+    if (typeof value === "string") {
+      if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return value;
+      return new Intl.DateTimeFormat("pt-BR").format(parsed);
+    }
+    return String(value);
+  }, []);
+
+  const formatExportCell = React.useCallback(
+    (value: unknown, columnId: string) => {
+      if (value === null || value === undefined) {
+        return { text: "", html: "" };
+      }
+      const meta = getColumnMeta(columnId);
+      const metaType = meta?.dataType;
+      let textValue = "";
+      let badgeClass = "";
+
+      if (Array.isArray(value)) {
+        textValue = value.map((item) => String(item)).join(", ");
+      } else if (meta?.valueMap) {
+        const mapped = meta.valueMap[String(value)];
+        textValue = mapped ?? String(value);
+      } else if (metaType === "boolean") {
+        const normalized =
+          typeof value === "boolean"
+            ? value
+            : String(value).toLowerCase() === "true";
+        textValue = normalized ? "Sim" : "Nao";
+        badgeClass = normalized ? "badge-success" : "badge-muted";
+      } else if (metaType === "date") {
+        textValue = formatDateValue(value);
+      } else {
+        textValue = String(value);
+      }
+
+      if (columnId === "status") {
+        const normalized = textValue.toLowerCase();
+        if (normalized.includes("ativo")) badgeClass = "badge-success";
+        if (normalized.includes("inativo")) badgeClass = "badge-muted";
+        if (normalized.includes("desligado")) badgeClass = "badge-danger";
+        if (normalized.includes("analise")) badgeClass = "badge-warning";
+      }
+
+      if (badgeClass) {
+        return {
+          text: textValue,
+          html: `<span class="badge ${badgeClass}">${escapeHtml(
+            textValue,
+          )}</span>`,
+        };
+      }
+
+      return { text: textValue, html: escapeHtml(textValue) };
+    },
+    [escapeHtml, formatDateValue, getColumnMeta],
   );
 
   const toCsvValue = React.useCallback((value: unknown) => {
@@ -66,7 +160,9 @@ export function useDataTableExport<TData>({
       items.forEach((row) => {
         const values = selectedColumns.map((columnId, index) => {
           const value = getRowValue(row, columnId);
-          const stringValue = toCsvValue(value ?? "");
+          const stringValue = toCsvValue(
+            formatExportCell(value, columnId).text ?? "",
+          );
           if (index === 0 && row.depth > 0) {
             return `${"  ".repeat(row.depth)}${stringValue}`;
           }
@@ -81,7 +177,14 @@ export function useDataTableExport<TData>({
     };
 
     return { headers, rows: collectRows(rowModel.rows) };
-  }, [getColumnHeader, getRowValue, getSelectedExportColumns, rowModel.rows, toCsvValue]);
+  }, [
+    formatExportCell,
+    getColumnHeader,
+    getRowValue,
+    getSelectedExportColumns,
+    rowModel.rows,
+    toCsvValue,
+  ]);
 
   const buildPdfRows = React.useCallback(() => {
     const selectedColumns = getSelectedExportColumns();
@@ -108,7 +211,10 @@ export function useDataTableExport<TData>({
         if (isGroupRow && groupingColumnId) {
           const headerLabel =
             columnHeaderMap.get(groupingColumnId) ?? groupingColumnId;
-          const value = String(getRowValue(row, groupingColumnId) ?? "");
+          const value = formatExportCell(
+            getRowValue(row, groupingColumnId),
+            groupingColumnId,
+          ).text;
           result.push({
             cells: [],
             isGroup: true,
@@ -118,7 +224,7 @@ export function useDataTableExport<TData>({
         } else {
           result.push({
             cells: selectedColumns.map((columnId) =>
-              String(getRowValue(row, columnId) ?? ""),
+              formatExportCell(getRowValue(row, columnId), columnId).html,
             ),
             isGroup: false,
             depth: row.depth,
@@ -134,7 +240,13 @@ export function useDataTableExport<TData>({
     };
 
     return { headers, rows: collectRows(rowModel.rows) };
-  }, [getColumnHeader, getRowValue, getSelectedExportColumns, rowModel.rows]);
+  }, [
+    formatExportCell,
+    getColumnHeader,
+    getRowValue,
+    getSelectedExportColumns,
+    rowModel.rows,
+  ]);
 
   const exportCsv = React.useCallback(() => {
     const { headers, rows } = buildExportRows();
@@ -154,25 +266,74 @@ export function useDataTableExport<TData>({
 
   const exportPdf = React.useCallback(() => {
     const { headers, rows } = buildPdfRows();
+    const title = exportMeta?.title ?? "Relatorio";
+    const subtitle = exportMeta?.subtitle ?? "";
+    const issuedAt =
+      exportMeta?.issuedAt ??
+      new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date());
+    const metaLines = [
+      exportMeta?.tenant
+        ? `<div><strong>Instituicao:</strong> ${escapeHtml(
+            exportMeta.tenant,
+          )}</div>`
+        : "",
+      exportMeta?.issuedBy
+        ? `<div><strong>Emitido por:</strong> ${escapeHtml(
+            exportMeta.issuedBy,
+          )}</div>`
+        : "",
+      issuedAt
+        ? `<div><strong>Data:</strong> ${escapeHtml(issuedAt)}</div>`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("");
     const html = `
       <html>
         <head>
-          <title>Export</title>
+          <title>${escapeHtml(title)}</title>
           <style>
             body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
+              font-family: "Inter", "Segoe UI", Arial, sans-serif;
+              padding: 28px;
+              color: #0f172a;
+              background: #f8fafc;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-            h1 { font-size: 18px; margin: 0 0 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-            th { background-color: #eef2f7; }
+            .header {
+              background: linear-gradient(135deg, #e0f2fe 0%, #ecfdf3 100%);
+              border: 1px solid #cbd5f5;
+              border-radius: 12px;
+              padding: 16px 18px;
+              margin-bottom: 16px;
+            }
+            .title { font-size: 20px; margin: 0 0 6px; }
+            .subtitle { font-size: 12px; color: #475569; margin: 0 0 8px; }
+            .meta { font-size: 12px; color: #1e293b; display: grid; gap: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; background: #ffffff; border-radius: 12px; overflow: hidden; }
+            th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+            th { background-color: #f1f5f9; color: #0f172a; font-weight: 600; }
+            tr:nth-child(even) td { background-color: #f8fafc; }
+            .badge {
+              display: inline-block;
+              padding: 2px 8px;
+              border-radius: 999px;
+              font-size: 11px;
+              font-weight: 600;
+              border: 1px solid transparent;
+            }
+            .badge-success { background: #dcfce7; color: #166534; border-color: #86efac; }
+            .badge-muted { background: #f1f5f9; color: #334155; border-color: #cbd5f5; }
+            .badge-danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+            .badge-warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
             .group-row { font-weight: 600; }
-            .group-0 { background-color: #e7effa; }
-            .group-1 { background-color: #edf7f6; }
-            .group-2 { background-color: #f6f3e9; }
+            .group-0 { background-color: #e2e8f0; }
+            .group-1 { background-color: #f1f5f9; }
+            .group-2 { background-color: #f8fafc; }
             .group-label { padding-left: 8px; }
             @media print {
               * {
@@ -183,7 +344,11 @@ export function useDataTableExport<TData>({
           </style>
         </head>
         <body>
-          <h1>Export</h1>
+          <div class="header">
+            <h1 class="title">${escapeHtml(title)}</h1>
+            ${subtitle ? `<p class="subtitle">${escapeHtml(subtitle)}</p>` : ""}
+            <div class="meta">${metaLines}</div>
+          </div>
           <table>
             <thead>
               <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
@@ -232,4 +397,3 @@ export function useDataTableExport<TData>({
     getColumnHeader,
   };
 }
-

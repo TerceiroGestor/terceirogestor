@@ -6,7 +6,12 @@ import { DataTable } from "@/components/DataTable";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import type { PeopleTableItem, PersonFormData } from "./types";
 import { usePeopleColumns } from "./columns";
-import { toDateInputValue } from "./utils";
+import {
+  getAgeFromBirthDate,
+  isBirthdayInCurrentMonth,
+  isBirthdayToday,
+  toDateInputValue,
+} from "./utils";
 import { PeopleFormDialog } from "./_components/people-form-dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -15,10 +20,24 @@ import {
   deletePerson,
   listPeople,
   updatePerson,
+  type ApiPerson,
 } from "@/features/people/api";
 import { uploadAvatar } from "@/features/uploads/api";
 import { resolveMediaUrl, stripApiUrl } from "@/lib/api";
 import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+
+const decodeJwtPayload = (token: string) => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const json = atob(padded);
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
 
 export default function PeoplePage() {
   const router = useRouter();
@@ -28,6 +47,7 @@ export default function PeoplePage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PeopleTableItem | null>(null);
   const [rows, setRows] = useState<PeopleTableItem[]>([]);
+  const [updatingIds, setUpdatingIds] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [pagination, setPagination] = useState({
@@ -95,6 +115,35 @@ export default function PeoplePage() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [shouldFetchAll]);
 
+  const mapApiToRow = useCallback((person: ApiPerson): PeopleTableItem => ({
+    id: person.id,
+    fullName: person.fullName,
+    socialName: person.socialName,
+    sex: person.sex,
+    gender: person.gender,
+    raceColor: person.raceColor,
+    maritalStatus: person.maritalStatus,
+    nationality: person.nationality,
+    email: person.email,
+    phone: person.phone,
+    document: person.document,
+    rg: person.rg,
+    nis: person.nis,
+    status: person.status as PeopleTableItem["status"],
+    departureReason: person.departureReason,
+    notes: person.notes,
+    tags: person.tags ?? [],
+    hasHealthIssue: person.hasHealthIssue ?? false,
+    profileSummary: person.profileSummary,
+    birthDate: person.birthDate,
+    age: getAgeFromBirthDate(person.birthDate),
+    isBirthdayMonth: isBirthdayInCurrentMonth(person.birthDate),
+    isBirthdayToday: isBirthdayToday(person.birthDate),
+    avatarUrl: person.avatarUrl ?? "/avatar.jpg",
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt,
+  }), []);
+
   const loadPeople = useCallback(async (force = false) => {
     if (!token) return;
     if (!force) {
@@ -115,26 +164,7 @@ export default function PeoplePage() {
           : undefined,
         groupBy: grouping.length ? JSON.stringify(grouping) : undefined,
       });
-      const mapped = response.data.map((person) => ({
-        id: person.id,
-        fullName: person.fullName,
-        socialName: person.socialName,
-        gender: person.gender,
-        maritalStatus: person.maritalStatus,
-        nationality: person.nationality,
-        email: person.email,
-        phone: person.phone,
-        document: person.document,
-        rg: person.rg,
-        nis: person.nis,
-        status: person.status as PeopleTableItem["status"],
-        notes: person.notes,
-        profileSummary: person.profileSummary,
-        birthDate: person.birthDate,
-        avatarUrl: person.avatarUrl ?? "/avatar.jpg",
-        createdAt: person.createdAt,
-        updatedAt: person.updatedAt,
-      }));
+      const mapped = response.data.map(mapApiToRow);
       setRows(mapped);
       setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
@@ -159,6 +189,7 @@ export default function PeoplePage() {
     grouping,
     shouldFetchAll,
     requestKey,
+    mapApiToRow,
   ]);
 
   useEffect(() => {
@@ -185,7 +216,73 @@ export default function PeoplePage() {
     [router],
   );
 
-  const columns = usePeopleColumns();
+  const updatingSet = useMemo(() => new Set(updatingIds), [updatingIds]);
+  const tagSuggestions = useMemo(() => {
+    const tags = new Set<string>();
+    rows.forEach((row) => {
+      (row.tags ?? []).forEach((tag) => {
+        const cleaned = tag.trim();
+        if (cleaned) tags.add(cleaned);
+      });
+    });
+    return Array.from(tags);
+  }, [rows]);
+  const exportMeta = useMemo(() => {
+    if (!token) return undefined;
+    const payload = decodeJwtPayload(token);
+    const tenant =
+      (payload?.tenantName as string | undefined) ??
+      (payload?.tenantId as string | undefined) ??
+      "";
+    const issuedBy = (payload?.email as string | undefined) ?? "";
+    const issuedAt = new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date());
+    return {
+      title: "Relatorio de pessoas",
+      subtitle: "Cadastro de pessoas",
+      tenant,
+      issuedBy,
+      issuedAt,
+    };
+  }, [token]);
+  const columns = usePeopleColumns({
+    onInlineUpdate: async (personId, patch) => {
+      if (!token) return;
+      let nextPatch = patch;
+      if (patch.status === "Desligado" && !patch.departureReason) {
+        const reason = window.prompt(
+          "Informe o motivo do desligamento:",
+        )?.trim();
+        if (!reason) {
+          return;
+        }
+        nextPatch = { ...patch, departureReason: reason };
+      }
+      setUpdatingIds((prev) =>
+        prev.includes(personId) ? prev : [...prev, personId],
+      );
+      try {
+        const updated = await updatePerson(token, personId, nextPatch);
+        setRows((prev) =>
+          prev.map((item) =>
+            item.id === personId ? mapApiToRow(updated) : item,
+          ),
+        );
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao atualizar pessoa.";
+        setError(message);
+      } finally {
+        setUpdatingIds((prev) => prev.filter((id) => id !== personId));
+      }
+    },
+    updatingIds: updatingSet,
+    tagSuggestions,
+  });
   const initialValues = useMemo<Partial<PersonFormData> | undefined>(() => {
     if (!editing) return undefined;
     return {
@@ -194,12 +291,17 @@ export default function PeoplePage() {
       email: editing.email ?? "",
       phone: editing.phone ?? "",
       gender: editing.gender ?? "",
+      sex: editing.sex ?? "",
+      raceColor: editing.raceColor ?? "",
       maritalStatus: editing.maritalStatus ?? "",
       nationality: editing.nationality ?? "",
       document: editing.document ?? "",
       rg: editing.rg ?? "",
       nis: editing.nis ?? "",
       status: editing.status ?? null,
+      departureReason: editing.departureReason ?? "",
+      tags: editing.tags ?? [],
+      hasHealthIssue: editing.hasHealthIssue ?? false,
       profileSummary: editing.profileSummary ?? "",
       birthDate: toDateInputValue(editing.birthDate),
       avatarUrl: resolveMediaUrl(editing.avatarUrl ?? "/avatar.jpg"),
@@ -210,6 +312,11 @@ export default function PeoplePage() {
     async (values: PersonFormData) => {
       if (!token) return;
       setError(null);
+      if (values.status === "Desligado" && !values.departureReason?.trim()) {
+        const message = "Informe o motivo do desligamento.";
+        setError(message);
+        throw new Error(message);
+      }
       let avatarUrl =
         typeof values.avatarUrl === "string"
           ? stripApiUrl(values.avatarUrl)
@@ -222,7 +329,9 @@ export default function PeoplePage() {
         fullName: values.fullName,
         socialName: values.socialName || null,
         birthDate: values.birthDate || null,
+        sex: values.sex || null,
         gender: values.gender || null,
+        raceColor: values.raceColor || null,
         maritalStatus: values.maritalStatus || null,
         nationality: values.nationality || null,
         email: values.email || null,
@@ -231,6 +340,9 @@ export default function PeoplePage() {
         rg: values.rg || null,
         nis: values.nis || null,
         status: values.status || null,
+        departureReason: values.departureReason || null,
+        tags: values.tags ?? [],
+        hasHealthIssue: values.hasHealthIssue ?? false,
         profileSummary: values.profileSummary || null,
         avatarUrl,
       };
@@ -297,6 +409,7 @@ export default function PeoplePage() {
         onAdvancedFiltersApply={setAppliedFilters}
         onGroupingChange={setGrouping}
         onChartOpenChange={setChartOpen}
+        exportMeta={exportMeta}
         searchPlaceholder="Pesquisar pessoas"
         summaryCards={{
           totalLabel: "Total",
@@ -336,6 +449,7 @@ export default function PeoplePage() {
         initialValues={initialValues}
         submitLabel={editing ? "Salvar" : "Cadastrar"}
         onSubmit={handleSubmit}
+        tagSuggestions={tagSuggestions}
       />
     </div>
   );

@@ -20,6 +20,11 @@ export function PeopleDetailClientPage({
 }: PeopleDetailClientPageProps) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [tabValue, setTabValue] = React.useState("geral");
+  const tagSuggestions = React.useMemo(
+    () => (person.tags ? Array.from(new Set(person.tags)) : []),
+    [person.tags],
+  );
+
   const initialValues = React.useMemo<Partial<PersonFormData>>(
     () => ({
       ...person,
@@ -63,6 +68,7 @@ export function PeopleDetailClientPage({
         initialValues={initialValues}
         submitLabel="Salvar"
         onSubmit={onUpdate}
+        tagSuggestions={tagSuggestions}
       />
     </>
   );
