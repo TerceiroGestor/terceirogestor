@@ -11,22 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import {
-  Activity,
-  AlertTriangle,
-  BookOpen,
-  CalendarCheck,
-  ChevronDown,
-  ClipboardList,
-  FileText,
-  GraduationCap,
-  Layers,
-  MapPin,
-  Phone,
-  User,
-  UsersRound,
-  Wallet,
-} from "lucide-react";
+import { ChevronDown, FileText, User } from "lucide-react";
 
 type PeopleDetailTabsProps = {
   value: string;
@@ -35,32 +20,10 @@ type PeopleDetailTabsProps = {
 
 const tabGroups = [
   {
-    label: "Pessoais",
+    label: "Perfil",
     items: [
       { value: "geral", label: "Geral", icon: User },
-      { value: "endereco", label: "Endereco", icon: MapPin },
-      { value: "renda", label: "Renda", icon: Wallet },
-      { value: "familia", label: "Familia", icon: UsersRound },
-      { value: "contatos", label: "Contato", icon: Phone },
-      { value: "educacao", label: "Educacional", icon: GraduationCap },
-    ],
-  },
-  {
-    label: "Sociais",
-    items: [
       { value: "resumo", label: "Resumo", icon: FileText },
-      { value: "atendimento", label: "Atendimentos", icon: ClipboardList },
-      { value: "avaliacao", label: "Avaliacoes", icon: BookOpen },
-      { value: "ocorrencias", label: "Ocorrencias", icon: AlertTriangle },
-    ],
-  },
-  {
-    label: "Atividades",
-    items: [
-      { value: "diario", label: "Diario", icon: FileText },
-      { value: "grupo", label: "Grupos", icon: Layers },
-      { value: "presencas", label: "Presencas", icon: CalendarCheck },
-      { value: "atividades", label: "Atividades", icon: Activity },
     ],
   },
 ] as const;

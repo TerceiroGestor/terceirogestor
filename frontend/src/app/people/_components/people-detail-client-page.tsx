@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import type { Person } from "../types";
+import type { Person, PersonFormData } from "../types";
+import { resolveMediaUrl } from "@/lib/api";
+import { toDateInputValue } from "../utils";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { PeopleDetail } from "./people-detail";
 import { PeopleFormDialog } from "./people-form-dialog";
@@ -9,11 +11,23 @@ import { PeopleDetailTabs } from "./people-detail-tabs";
 
 type PeopleDetailClientPageProps = {
   person: Person;
+  onUpdate: (values: PersonFormData) => Promise<void>;
 };
 
-export function PeopleDetailClientPage({ person }: PeopleDetailClientPageProps) {
+export function PeopleDetailClientPage({
+  person,
+  onUpdate,
+}: PeopleDetailClientPageProps) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [tabValue, setTabValue] = React.useState("geral");
+  const initialValues = React.useMemo<Partial<PersonFormData>>(
+    () => ({
+      ...person,
+      birthDate: toDateInputValue(person.birthDate),
+      avatarUrl: resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg"),
+    }),
+    [person],
+  );
 
   return (
     <>
@@ -46,9 +60,9 @@ export function PeopleDetailClientPage({ person }: PeopleDetailClientPageProps) 
         onOpenChange={setFormOpen}
         title="Editar cadastro"
         description="Atualize os dados da pessoa selecionada."
-        initialValues={person}
+        initialValues={initialValues}
         submitLabel="Salvar"
-        onSubmit={(values) => console.log(values)}
+        onSubmit={onUpdate}
       />
     </>
   );

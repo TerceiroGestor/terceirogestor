@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User, ChevronUp } from "lucide-react";
+import { useAuth } from "@/features/auth/auth-context";
 
 const userActions = [
   { label: "Profile", icon: User },
@@ -15,6 +16,8 @@ const userActions = [
 ];
 
 export function AppSidebarUserMenu() {
+  const { logout, isAuthenticated } = useAuth();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,7 +45,7 @@ export function AppSidebarUserMenu() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">
+        <DropdownMenuItem variant="destructive" onClick={logout} disabled={!isAuthenticated}>
           <LogOut />
           <span>Sign out</span>
         </DropdownMenuItem>

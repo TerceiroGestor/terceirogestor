@@ -4,6 +4,7 @@ import * as React from "react";
 import type {
   ColumnFiltersState,
   ColumnPinningState,
+  ExpandedState,
   GroupingState,
   PaginationState,
   SortingState,
@@ -15,6 +16,7 @@ type Setters = {
   setGlobalFilter: React.Dispatch<React.SetStateAction<string>>;
   setColumnFilters: React.Dispatch<React.SetStateAction<ColumnFiltersState>>;
   setGrouping: React.Dispatch<React.SetStateAction<GroupingState>>;
+  setExpanded: React.Dispatch<React.SetStateAction<ExpandedState>>;
   setColumnVisibility: React.Dispatch<React.SetStateAction<VisibilityState>>;
   setColumnPinning: React.Dispatch<React.SetStateAction<ColumnPinningState>>;
   setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
@@ -27,6 +29,7 @@ export function useSafeSetters<TAdvancedFilter>({
   setGlobalFilter,
   setColumnFilters,
   setGrouping,
+  setExpanded,
   setColumnVisibility,
   setColumnPinning,
   setPagination,
@@ -57,6 +60,7 @@ export function useSafeSetters<TAdvancedFilter>({
     safeSetGlobalFilter: React.useCallback(safe(setGlobalFilter), [setGlobalFilter]),
     safeSetColumnFilters: React.useCallback(safe(setColumnFilters), [setColumnFilters]),
     safeSetGrouping: React.useCallback(safe(setGrouping), [setGrouping]),
+    safeSetExpanded: React.useCallback(safe(setExpanded), [setExpanded]),
     safeSetColumnVisibility: React.useCallback(safe(setColumnVisibility), [setColumnVisibility]),
     safeSetColumnPinning: React.useCallback(safe(setColumnPinning), [setColumnPinning]),
     safeSetPagination: React.useCallback(safe(setPagination), [setPagination]),

@@ -1,0 +1,13 @@
+-- AlterTable
+ALTER TABLE `Person` ADD COLUMN `avatarUrl` VARCHAR(191) NULL,
+    ADD COLUMN `email` VARCHAR(191) NULL,
+    ADD COLUMN `gender` VARCHAR(191) NULL,
+    ADD COLUMN `maritalStatus` VARCHAR(191) NULL,
+    ADD COLUMN `nationality` VARCHAR(191) NULL,
+    ADD COLUMN `nis` VARCHAR(191) NULL,
+    ADD COLUMN `notes` TEXT NULL,
+    ADD COLUMN `phone` VARCHAR(191) NULL,
+    ADD COLUMN `profileSummary` TEXT NULL,
+    ADD COLUMN `rg` VARCHAR(191) NULL,
+    ADD COLUMN `socialName` VARCHAR(191) NULL,
+    ADD COLUMN `status` VARCHAR(191) NULL;

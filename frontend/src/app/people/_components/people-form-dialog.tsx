@@ -18,7 +18,7 @@ type PeopleFormDialogProps = {
   description?: string;
   initialValues?: Partial<PersonFormData>;
   submitLabel?: string;
-  onSubmit?: (values: PersonFormData) => void;
+  onSubmit?: (values: PersonFormData) => void | Promise<void>;
 };
 
 export function PeopleFormDialog({
@@ -30,10 +30,30 @@ export function PeopleFormDialog({
   submitLabel,
   onSubmit,
 }: PeopleFormDialogProps) {
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+
   const handleSubmit = React.useCallback(
-    (values: PersonFormData) => {
-      onSubmit?.(values);
-      onOpenChange(false);
+    async (values: PersonFormData) => {
+      try {
+        setSubmitError(null);
+        await onSubmit?.(values);
+        onOpenChange(false);
+      } catch (error) {
+        const message = (() => {
+          if (error && typeof error === "object" && "message" in error) {
+            const raw = (error as { message?: unknown }).message;
+            if (Array.isArray(raw)) {
+              const joined = raw.map(String).join(", ");
+              return joined || "Falha ao salvar.";
+            }
+            if (raw === null || raw === undefined) return "Falha ao salvar.";
+            return String(raw);
+          }
+          return "Falha ao salvar.";
+        })();
+        setSubmitError(message);
+        console.error(error);
+      }
     },
     [onOpenChange, onSubmit],
   );
@@ -48,6 +68,11 @@ export function PeopleFormDialog({
           ) : null}
         </DialogHeader>
         <div className="max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+          {submitError ? (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {submitError}
+            </div>
+          ) : null}
           <PeopleForm
             initialValues={initialValues}
             onSubmit={handleSubmit}

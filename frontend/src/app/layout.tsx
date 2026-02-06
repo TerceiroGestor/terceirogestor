@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/Sidebar/AppSidebar";
-import { BreadcrumbProvider } from "@/components/layout/BreadcrumbContext";
-import { AppHeader } from "@/components/layout/AppHeader";
+import { AppProviders } from "@/components/layout/AppProviders";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -21,15 +16,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <BreadcrumbProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-              <AppHeader />
-              {children}
-            </SidebarInset>
-          </SidebarProvider>
-        </BreadcrumbProvider>
+        <AppProviders>
+          <AppShell>{children}</AppShell>
+        </AppProviders>
       </body>
     </html>
   );

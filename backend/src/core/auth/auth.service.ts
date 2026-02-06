@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../../modules/users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthTokenPayload } from './types/auth-token-payload';
 
@@ -15,12 +15,12 @@ export class AuthService {
   async validateUser(tenantId: string, email: string, password: string) {
     const user = await this.usersService.findByEmailAndTenant(tenantId, email);
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('Credenciais invalidas');
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('Credenciais invalidas');
     }
 
     return user;
@@ -40,3 +40,7 @@ export class AuthService {
     };
   }
 }
+
+
+
+

@@ -5,6 +5,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type Column,
+  type ExpandedState,
   type FilterFn,
   type GroupingState,
   type SortingState,
@@ -21,14 +22,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  MoreHorizontal,
-  PinOff,
-  PinIcon,
-  GripVertical,
-  Printer,
-} from "lucide-react";
+import { Printer } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -39,22 +33,43 @@ import {
 } from "@/components/ui/table";
 import { DataTableToolbar } from "@/components/DataTable/DataTableToolbar";
 import { DataTableFilterSheet } from "@/components/DataTable/DataTableFilterSheet";
+import { DataTableColumnMenu } from "@/components/DataTable/DataTableColumnMenu";
+import { DataTablePagination } from "@/components/DataTable/DataTablePagination";
+import { DataTablePageSizeMenu } from "@/components/DataTable/DataTablePageSizeMenu";
 import { Button } from "@/components/ui/button";
 import { DataTableActionMenu } from "@/components/DataTable/DataTableActionMenu";
+import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSafeSetters } from "@/components/DataTable/hooks/useSafeSetters";
+import { useDataTableExport } from "@/components/DataTable/hooks/useDataTableExport";
+import {
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_PINNING,
+} from "@/components/DataTable/constants";
+import {
+  getInitialFilterColumnId,
+  getPinnedStyles,
+} from "@/components/DataTable/utils";
 
 export type DataTableClientProps<TData> = {
   columns: ColumnDef<TData, any>[];
   data: TData[];
   searchPlaceholder?: string;
   groupableColumns?: string[];
+  manualPagination?: boolean;
+  pageCount?: number;
+  pagination?: PaginationState;
+  onPaginationChange?: (next: PaginationState) => void;
+  onGlobalFilterChange?: (value: string) => void;
+  onAdvancedFiltersApply?: (filters: AdvancedFilter[]) => void;
+  onGroupingChange?: (grouping: string[]) => void;
+  onChartOpenChange?: (open: boolean) => void;
+  totalCount?: number;
   rowActions?: {
     id: string;
     label: string;
@@ -83,36 +98,6 @@ export type DataTableClientProps<TData> = {
   }) => React.ReactNode;
 };
 
-type AdvancedFilter = {
-  columnId: string;
-  operator:
-    | "equals"
-    | "contains"
-    | "gt"
-    | "lt"
-    | "gte"
-    | "lte"
-    | "starts"
-    | "ends";
-  value: string;
-};
-
-const DEFAULT_PINNING: ColumnPinningState = { left: ["actions"] };
-const DEFAULT_PAGE_SIZE = 10;
-
-const getInitialFilterColumnId = <TData,>(
-  columns: ColumnDef<TData, any>[],
-) => {
-  for (const column of columns) {
-    if ("accessorKey" in column && column.accessorKey) {
-      return String(column.accessorKey);
-    }
-    if ("id" in column && column.id) {
-      return String(column.id);
-    }
-  }
-  return "";
-};
 
 export function DataTableClient<TData>({
   columns,
@@ -124,6 +109,15 @@ export function DataTableClient<TData>({
   showExportMenu = false,
   exportLabels,
   actions,
+  manualPagination = false,
+  pageCount,
+  pagination: paginationProp,
+  onPaginationChange,
+  onGlobalFilterChange,
+  onAdvancedFiltersApply,
+  onGroupingChange,
+  onChartOpenChange,
+  totalCount,
 }: DataTableClientProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -131,15 +125,17 @@ export function DataTableClient<TData>({
     [],
   );
   const [grouping, setGrouping] = React.useState<GroupingState>([]);
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
-    DEFAULT_PINNING,
+  const [columnPinning, setColumnPinning] =
+    React.useState<ColumnPinningState>(DEFAULT_PINNING);
+  const [pagination, setPagination] = React.useState<PaginationState>(
+    paginationProp ?? {
+      pageIndex: 0,
+      pageSize: DEFAULT_PAGE_SIZE,
+    },
   );
-  const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
-  });
   const [advancedFilters, setAdvancedFilters] = React.useState<
     AdvancedFilter[]
   >(() => {
@@ -161,6 +157,7 @@ export function DataTableClient<TData>({
     safeSetGlobalFilter,
     safeSetColumnFilters,
     safeSetGrouping,
+    safeSetExpanded,
     safeSetColumnVisibility,
     safeSetColumnPinning,
     safeSetPagination,
@@ -171,6 +168,7 @@ export function DataTableClient<TData>({
     setGlobalFilter,
     setColumnFilters,
     setGrouping,
+    setExpanded,
     setColumnVisibility,
     setColumnPinning,
     setPagination,
@@ -179,7 +177,19 @@ export function DataTableClient<TData>({
   });
 
   React.useEffect(() => {
+    if (!paginationProp) return;
+    safeSetPagination(paginationProp);
+  }, [paginationProp, safeSetPagination]);
+
+  React.useEffect(() => {
+    if (onGroupingChange) {
+      onGroupingChange(grouping);
+    }
+  }, [grouping, onGroupingChange]);
+
+  React.useEffect(() => {
     if (!mountedRef.current) return;
+    if (manualPagination) return;
     if (grouping.length > 0) {
       const fullSize = Math.max(data.length, 1);
       if (pagination.pageSize !== fullSize || pagination.pageIndex !== 0) {
@@ -187,20 +197,59 @@ export function DataTableClient<TData>({
       }
       return;
     }
-    if (pagination.pageSize !== DEFAULT_PAGE_SIZE && data.length >= DEFAULT_PAGE_SIZE) {
+    if (
+      pagination.pageSize !== DEFAULT_PAGE_SIZE &&
+      data.length >= DEFAULT_PAGE_SIZE
+    ) {
       safeSetPagination((prev) => ({ ...prev, pageSize: DEFAULT_PAGE_SIZE }));
     }
-  }, [data.length, grouping.length, pagination.pageIndex, pagination.pageSize, safeSetPagination]);
+  }, [
+    data.length,
+    grouping.length,
+    manualPagination,
+    pagination.pageIndex,
+    pagination.pageSize,
+    safeSetPagination,
+  ]);
 
   const filterFn = React.useCallback<FilterFn<TData>>(
     (row, columnId, filterValue) => {
       const typedFilter = filterValue as AdvancedFilter | undefined;
-      if (!typedFilter || typedFilter.value.trim() === "") return true;
+      if (!typedFilter) return true;
       const rawValue = row.getValue(columnId);
-      if (rawValue === undefined || rawValue === null) return false;
-
       const operator = typedFilter.operator;
       const filterRaw = typedFilter.value.trim();
+
+      const parseDate = (value: unknown) => {
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+          return value;
+        }
+        if (typeof value === "string") {
+          if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return null;
+          const parsed = new Date(value);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+        return null;
+      };
+
+      const parseNumber = (value: unknown) => {
+        if (typeof value === "number" && !Number.isNaN(value)) return value;
+        if (typeof value === "string") {
+          const parsed = Number(value);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+        return null;
+      };
+
+      if (operator === "isEmpty") {
+        return rawValue === undefined || rawValue === null || rawValue === "";
+      }
+      if (operator === "isNotEmpty") {
+        return !(rawValue === undefined || rawValue === null || rawValue === "");
+      }
+      if (filterRaw === "") return true;
+      if (rawValue === undefined || rawValue === null) return false;
+
       const rowValue =
         typeof rawValue === "number"
           ? rawValue
@@ -211,11 +260,55 @@ export function DataTableClient<TData>({
       }
 
       if (operator === "equals") {
-        if (typeof rowValue === "number") {
-          const numeric = Number(filterRaw);
-          return Number.isNaN(numeric) ? false : rowValue === numeric;
+        const rowDate = parseDate(rawValue);
+        const filterDate = parseDate(filterRaw);
+        if (rowDate && filterDate) {
+          return rowDate.getTime() === filterDate.getTime();
+        }
+        const rowNumber = parseNumber(rawValue);
+        const filterNumber = parseNumber(filterRaw);
+        if (rowNumber !== null && filterNumber !== null) {
+          return rowNumber === filterNumber;
         }
         return String(rowValue) === filterRaw.toLowerCase();
+      }
+
+      if (operator === "in" || operator === "notIn") {
+        const values = filterRaw
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+        const match = values.includes(String(rowValue).toLowerCase());
+        return operator === "in" ? match : !match;
+      }
+
+      if (operator === "between") {
+        const [startRaw, endRaw] = filterRaw
+          .split("..")
+          .flatMap((part) => part.split(","))
+          .map((value) => value.trim())
+          .filter(Boolean);
+        if (!startRaw || !endRaw) return true;
+        const rowDate = parseDate(rawValue);
+        const startDate = parseDate(startRaw);
+        const endDate = parseDate(endRaw);
+        if (rowDate && startDate && endDate) {
+          return (
+            rowDate.getTime() >= startDate.getTime() &&
+            rowDate.getTime() <= endDate.getTime()
+          );
+        }
+        const rowNumber = parseNumber(rawValue);
+        const startNumber = parseNumber(startRaw);
+        const endNumber = parseNumber(endRaw);
+        if (
+          rowNumber === null ||
+          startNumber === null ||
+          endNumber === null
+        ) {
+          return true;
+        }
+        return rowNumber >= startNumber && rowNumber <= endNumber;
       }
 
       if (operator === "starts") {
@@ -226,10 +319,20 @@ export function DataTableClient<TData>({
         return String(rowValue).endsWith(filterRaw.toLowerCase());
       }
 
-      const rowNumber =
-        typeof rowValue === "number" ? rowValue : Number(rowValue);
-      const filterNumber = Number(filterRaw);
-      if (Number.isNaN(rowNumber) || Number.isNaN(filterNumber)) {
+      const rowDate = parseDate(rawValue);
+      const filterDate = parseDate(filterRaw);
+      if (rowDate && filterDate) {
+        const rowTime = rowDate.getTime();
+        const filterTime = filterDate.getTime();
+        if (operator === "gt") return rowTime > filterTime;
+        if (operator === "gte") return rowTime >= filterTime;
+        if (operator === "lte") return rowTime <= filterTime;
+        return rowTime < filterTime;
+      }
+
+      const rowNumber = parseNumber(rawValue);
+      const filterNumber = parseNumber(filterRaw);
+      if (rowNumber === null || filterNumber === null) {
         return false;
       }
       if (operator === "gt") return rowNumber > filterNumber;
@@ -240,13 +343,23 @@ export function DataTableClient<TData>({
     [],
   );
 
+  const handleGlobalFilterChange = React.useCallback(
+    (value: string) => {
+      safeSetGlobalFilter(value);
+      onGlobalFilterChange?.(value);
+    },
+    [onGlobalFilterChange, safeSetGlobalFilter],
+  );
+
   const columnsWithFilter = React.useMemo<ColumnDef<TData, any>[]>(() => {
     const withFilter = columns.map((column) => ({
       ...column,
       filterFn,
     }));
 
-    const hasActionsColumn = withFilter.some((column) => column.id === "actions");
+    const hasActionsColumn = withFilter.some(
+      (column) => column.id === "actions",
+    );
     if (!rowActions.length || hasActionsColumn) return withFilter;
 
     return [
@@ -284,16 +397,27 @@ export function DataTableClient<TData>({
       globalFilter,
       columnFilters,
       grouping,
+      expanded,
       columnVisibility,
       columnPinning,
-      pagination,
+      pagination: paginationProp ?? pagination,
     },
     onSortingChange: safeSetSorting,
     onColumnFiltersChange: safeSetColumnFilters,
     onGroupingChange: safeSetGrouping,
+    onExpandedChange: safeSetExpanded,
     onColumnVisibilityChange: safeSetColumnVisibility,
     onColumnPinningChange: safeSetColumnPinning,
-    onPaginationChange: safeSetPagination,
+    onPaginationChange: (updater) => {
+      const next =
+        typeof updater === "function"
+          ? updater(paginationProp ?? pagination)
+          : updater;
+      safeSetPagination(next);
+      onPaginationChange?.(next);
+    },
+    manualPagination,
+    pageCount,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     getFilteredRowModel: getFilteredRowModel(),
@@ -301,7 +425,8 @@ export function DataTableClient<TData>({
     getExpandedRowModel: getExpandedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: grouping.length ? undefined : getPaginationRowModel(),
+    getPaginationRowModel:
+      grouping.length || manualPagination ? undefined : getPaginationRowModel(),
     globalFilterFn: (row, columnId, filterValue) => {
       const value = row.getValue(columnId);
       if (value === undefined || value === null) return false;
@@ -342,7 +467,9 @@ export function DataTableClient<TData>({
         .map((column) => column.id),
     [visibleColumns],
   );
-  const rowModel = grouping.length ? table.getExpandedRowModel() : table.getRowModel();
+  const rowModel = grouping.length
+    ? table.getExpandedRowModel()
+    : table.getRowModel();
   const filteredRows =
     table.getFilteredRowModel().flatRows ?? table.getFilteredRowModel().rows;
   const showPagination = grouping.length === 0;
@@ -366,15 +493,12 @@ export function DataTableClient<TData>({
     [],
   );
 
-  const getColumnHeader = React.useCallback(
-    (columnId: string) => {
-      const column = table.getColumn(columnId);
-      if (!column) return columnId;
-      const header = column.columnDef.header;
-      return typeof header === "string" ? header : columnId;
-    },
-    [table],
-  );
+  const { exportCsv, exportPdf, getColumnHeader } = useDataTableExport({
+    table,
+    rowModel,
+    visibleColumnIds,
+    getRowValue,
+  });
 
   const groupLabels = React.useMemo(() => {
     if (grouping.length === 0) return "";
@@ -384,214 +508,25 @@ export function DataTableClient<TData>({
       .join(", ");
   }, [grouping, getColumnHeader]);
 
-  const toCsvValue = React.useCallback((value: unknown) => {
-    if (value === null || value === undefined) return "";
-    const stringValue = String(value);
-    if (/[",\n]/.test(stringValue)) {
-      return `"${stringValue.replace(/"/g, '""')}"`;
-    }
-    return stringValue;
-  }, []);
-
-  const getSelectedExportColumns = React.useCallback(() => {
-    const left = table
-      .getLeftLeafColumns()
-      .map((column) => column.id)
-      .filter((id) => id !== "actions");
-    const right = table
-      .getRightLeafColumns()
-      .map((column) => column.id)
-      .filter((id) => id !== "actions");
-    const allVisible = visibleColumnIds.filter((id) => id !== "actions");
-    const pinned = new Set([...left, ...right]);
-    const center = allVisible.filter((id) => !pinned.has(id));
-    return [...left, ...center, ...right];
-  }, [table, visibleColumnIds]);
-
-  const buildExportRows = React.useCallback(() => {
-    const selectedColumns = getSelectedExportColumns();
-    const headers = selectedColumns.map((columnId) =>
-      getColumnHeader(columnId),
-    );
-
-    const collectRows = (items: Row<TData>[]) => {
-      const result: string[][] = [];
-      items.forEach((row) => {
-        const values = selectedColumns.map((columnId, index) => {
-          const value = getRowValue(row, columnId);
-          const stringValue = toCsvValue(value ?? "");
-          if (index === 0 && row.depth > 0) {
-            return `${"  ".repeat(row.depth)}${stringValue}`;
-          }
-          return stringValue;
-        });
-        result.push(values);
-        if (row.subRows?.length) {
-          result.push(...collectRows(row.subRows));
-        }
-      });
-      return result;
-    };
-
-    return { headers, rows: collectRows(rowModel.rows) };
-  }, [
-    getColumnHeader,
-    getRowValue,
-    getSelectedExportColumns,
-    rowModel.rows,
-    toCsvValue,
-  ]);
-
-  const buildPdfRows = React.useCallback(() => {
-    const selectedColumns = getSelectedExportColumns();
-    const headers = selectedColumns.map((columnId) =>
-      getColumnHeader(columnId),
-    );
-    const columnHeaderMap = new Map(
-      selectedColumns.map((columnId) => [columnId, getColumnHeader(columnId)]),
-    );
-
-    const collectRows = (items: Row<TData>[]) => {
-      const result: {
-        cells: string[];
-        isGroup: boolean;
-        depth: number;
-        label?: string;
-      }[] = [];
-
-      items.forEach((row) => {
-        const groupingColumnId = (row as any).groupingColumnId as
-          | string
-          | undefined;
-        const isGroupRow = Boolean(groupingColumnId);
-        if (isGroupRow && groupingColumnId) {
-          const headerLabel =
-            columnHeaderMap.get(groupingColumnId) ?? groupingColumnId;
-          const value = String(getRowValue(row, groupingColumnId) ?? "");
-          result.push({
-            cells: [],
-            isGroup: true,
-            depth: row.depth,
-            label: `${headerLabel}: ${value} (${row.subRows?.length ?? 0})`,
-          });
-        } else {
-          result.push({
-            cells: selectedColumns.map((columnId) =>
-              String(getRowValue(row, columnId) ?? ""),
-            ),
-            isGroup: false,
-            depth: row.depth,
-          });
-        }
-
-        if (row.subRows?.length) {
-          result.push(...collectRows(row.subRows));
-        }
-      });
-
-      return result;
-    };
-
-    return { headers, rows: collectRows(rowModel.rows) };
-  }, [getColumnHeader, getRowValue, getSelectedExportColumns, rowModel.rows]);
-
-  const exportCsv = React.useCallback(() => {
-    const { headers, rows } = buildExportRows();
-    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
-      "\n",
-    );
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "customers.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }, [buildExportRows]);
-
-  const exportPdf = React.useCallback(() => {
-    const { headers, rows } = buildPdfRows();
-    const html = `
-      <html>
-        <head>
-          <title>Export</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            h1 { font-size: 18px; margin: 0 0 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-            th { background-color: #eef2f7; }
-            .group-row { font-weight: 600; }
-            .group-0 { background-color: #e7effa; }
-            .group-1 { background-color: #edf7f6; }
-            .group-2 { background-color: #f6f3e9; }
-            .group-label { padding-left: 8px; }
-            @media print {
-              * {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Export</h1>
-          <table>
-            <thead>
-              <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
-            </thead>
-            <tbody>
-              ${rows
-                .map((row) => {
-                  if (row.isGroup) {
-                    const level = Math.min(row.depth, 2);
-                    const pad = 8 + row.depth * 12;
-                    return `<tr class="group-row group-${level}">
-                      <td class="group-label" style="padding-left:${pad}px;" colspan="${
-                        headers.length
-                      }">${row.label ?? ""}</td>
-                    </tr>`;
-                  }
-                  return `<tr>${row.cells
-                    .map((cell) => `<td>${cell}</td>`)
-                    .join("")}</tr>`;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    const triggerPrint = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-    // Ensure styles are applied before printing
-    if (printWindow.document.readyState === "complete") {
-      setTimeout(triggerPrint, 50);
-    } else {
-      printWindow.onload = () => setTimeout(triggerPrint, 50);
-    }
-  }, [buildPdfRows]);
-
   const applyAdvancedFilter = () => {
-    const validFilters = advancedFilters.filter(
-      (filter) => filter.columnId && filter.value.trim() !== "",
-    );
+    const validFilters = advancedFilters.filter((filter) => {
+      if (!filter.columnId) return false;
+      if (filter.operator === "isEmpty" || filter.operator === "isNotEmpty") {
+        return true;
+      }
+      if (filter.operator === "between") {
+        const [startRaw, endRaw] = filter.value
+          .split("..")
+          .flatMap((part) => part.split(","))
+          .map((value) => value.trim())
+          .filter(Boolean);
+        return Boolean(startRaw && endRaw);
+      }
+      return filter.value.trim() !== "";
+    });
     if (!validFilters.length) {
       safeSetColumnFilters([]);
+      onAdvancedFiltersApply?.([]);
       return;
     }
     safeSetColumnFilters(
@@ -600,6 +535,7 @@ export function DataTableClient<TData>({
         value: filter,
       })),
     );
+    onAdvancedFiltersApply?.(validFilters);
   };
 
   const clearAdvancedFilter = () => {
@@ -607,154 +543,87 @@ export function DataTableClient<TData>({
       prev.length ? prev.map((filter) => ({ ...filter, value: "" })) : prev,
     );
     safeSetColumnFilters([]);
+    onAdvancedFiltersApply?.([]);
   };
 
   const resetAll = () => {
     safeSetGlobalFilter("");
+    onGlobalFilterChange?.("");
     clearAdvancedFilter();
     safeSetGrouping([]);
+    safeSetExpanded({});
     safeSetColumnVisibility({});
     safeSetColumnPinning(DEFAULT_PINNING);
     safeSetPagination({ pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
   };
 
-  const getPinnedStyles = (column: Column<TData, unknown>) => {
-    const pinned = column.getIsPinned();
-    if (!pinned) return undefined;
+  const buildQuickFilterOptions = React.useCallback(
+    (columnId: string) => {
+      const counts = new Map<string, number>();
+      table.getPreFilteredRowModel().rows.forEach((row) => {
+        const value = row.getValue(columnId);
+        if (value === undefined || value === null || value === "") return;
+        const key = String(value);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      });
+      return Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([value, count]) => ({ value, label: value, count }));
+    },
+    [table],
+  );
 
-    if (pinned === "left") {
-      const size = column.getSize();
-      const leftColumns = table.getLeftLeafColumns();
-      let offset = 0;
-      for (const col of leftColumns) {
-        if (col.id === column.id) break;
-        offset += col.getSize();
-      }
-      return {
-        position: "sticky" as const,
-        left: offset,
-        zIndex: 1,
-        background: "var(--color-muted)",
-        width: size,
-        minWidth: size,
-        maxWidth: size,
-      };
-    }
-
-    if (pinned === "right") {
-      const size = column.getSize();
-      const rightColumns = table.getRightLeafColumns();
-      let offset = 0;
-      for (const col of rightColumns) {
-        if (col.id === column.id) break;
-        offset += col.getSize();
-      }
-      return {
-        position: "sticky" as const,
-        right: offset,
-        zIndex: 1,
-        background: "var(--color-muted)",
-        width: size,
-        minWidth: size,
-        maxWidth: size,
-      };
-    }
-
-    return undefined;
-  };
-
-  const ensureActionsLeft = React.useCallback((next: ColumnPinningState) => {
-    return {
-      left: ["actions", ...(next.left ?? []).filter((id) => id !== "actions")],
-      right: (next.right ?? []).filter((id) => id !== "actions"),
-    };
-  }, []);
-
-  const ColumnMenu = ({ column }: { column: Column<TData, unknown> }) => {
-    const isActions = column.id === "actions";
-    const pinLeft = () => {
-      if (isActions) return;
-      const current = table.getState().columnPinning.left ?? ["actions"];
-      const withoutActions = current.filter((id) => id !== "actions");
-      const next = withoutActions.includes(column.id)
-        ? ["actions", ...withoutActions]
-        : ["actions", ...withoutActions, column.id];
-      table.setColumnPinning(
-        ensureActionsLeft({
-          left: next,
-          right: table.getState().columnPinning.right ?? [],
-        }),
+  const applyQuickFilter = React.useCallback(
+    (columnId: string, value: string) => {
+      const nextFilters: AdvancedFilter[] = [
+        ...advancedFilters.filter((filter) => filter.columnId !== columnId),
+        { columnId, operator: "equals", value },
+      ];
+      const validFilters = nextFilters.filter(
+        (filter) => filter.columnId && filter.value.trim() !== "",
       );
-    };
-
-    const pinRight = () => {
-      if (isActions) return;
-      const current = table.getState().columnPinning.right ?? [];
-      const nextRight = current.includes(column.id) ? [] : [column.id];
-      table.setColumnPinning(
-        ensureActionsLeft({
-          left: table.getState().columnPinning.left ?? ["actions"],
-          right: nextRight,
-        }),
+      safeSetAdvancedFilters(nextFilters);
+      safeSetColumnFilters(
+        validFilters.map((filter) => ({
+          id: filter.columnId,
+          value: filter,
+        })),
       );
-    };
+      onAdvancedFiltersApply?.(validFilters);
+    },
+    [
+      advancedFilters,
+      onAdvancedFiltersApply,
+      safeSetAdvancedFilters,
+      safeSetColumnFilters,
+    ],
+  );
 
-    const unpin = () => {
-      if (isActions) return;
-      const left = (table.getState().columnPinning.left ?? ["actions"]).filter(
-        (id) => id !== column.id,
+  const clearQuickFilter = React.useCallback(
+    (columnId: string) => {
+      const nextFilters = advancedFilters.filter(
+        (filter) => filter.columnId !== columnId,
       );
-      const right = (table.getState().columnPinning.right ?? []).filter(
-        (id) => id !== column.id,
+      const validFilters = nextFilters.filter(
+        (filter) => filter.columnId && filter.value.trim() !== "",
       );
-      table.setColumnPinning(ensureActionsLeft({ left, right }));
-    };
-
-    return (
-      isActions ? (
-        <span className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground">
-          <GripVertical className="size-4" />
-        </span>
-      ) : (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <MoreHorizontal className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => column.toggleSorting(false)}
-            disabled={!column.getCanSort()}
-          >
-            <ArrowUpDown className="size-4" />
-            Ordenar A-Z
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => column.toggleSorting(true)}
-            disabled={!column.getCanSort()}
-          >
-            <ArrowUpDown className="size-4" />
-            Ordenar Z-A
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={pinLeft} disabled={isActions}>
-            <PinIcon className="size-4" />
-            Fixar a esquerda
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={pinRight} disabled={isActions}>
-            <PinIcon className="size-4" />
-            Fixar a direita
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={unpin} disabled={isActions}>
-            <PinOff className="size-4" />
-            Soltar coluna
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      )
-    );
-  };
+      safeSetAdvancedFilters(nextFilters);
+      safeSetColumnFilters(
+        validFilters.map((filter) => ({
+          id: filter.columnId,
+          value: filter,
+        })),
+      );
+      onAdvancedFiltersApply?.(validFilters);
+    },
+    [
+      advancedFilters,
+      onAdvancedFiltersApply,
+      safeSetAdvancedFilters,
+      safeSetColumnFilters,
+    ],
+  );
 
   const actionsNode = actions
     ? actions({
@@ -791,9 +660,14 @@ export function DataTableClient<TData>({
     </DropdownMenu>
   ) : null;
 
+  const pageSizeMenuNode = showPagination ? (
+    <DataTablePageSizeMenu table={table} />
+  ) : null;
+
   const toolbarActions =
-    exportMenuNode || actionsNode ? (
+    pageSizeMenuNode || exportMenuNode || actionsNode ? (
       <div className="flex flex-wrap items-center gap-2">
+        {pageSizeMenuNode}
         {exportMenuNode}
         {actionsNode}
       </div>
@@ -804,7 +678,7 @@ export function DataTableClient<TData>({
       <DataTableToolbar
         globalFilter={globalFilter}
         searchPlaceholder={searchPlaceholder}
-        onGlobalFilterChange={safeSetGlobalFilter}
+        onGlobalFilterChange={handleGlobalFilterChange}
         onOpenFilters={() => safeSetFiltersOpen((prev) => !prev)}
         actions={toolbarActions}
         rightContent={
@@ -815,7 +689,7 @@ export function DataTableClient<TData>({
                   {summaryCards.totalLabel ?? "Total"}
                 </p>
                 <p className="text-base font-semibold text-foreground">
-                  {data.length}
+                  {totalCount ?? data.length}
                 </p>
               </div>
               <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
@@ -842,7 +716,6 @@ export function DataTableClient<TData>({
         }
       />
 
-
       <div className="space-y-2">
         <div className="rounded-xl border border-border/40 bg-card/40 max-w-full [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:max-w-full [&_[data-slot=table-container]]:overflow-auto">
           <Table className="min-w-[900px] sm:min-w-[1200px] md:min-w-[1600px] [&_th]:whitespace-normal [&_td]:whitespace-normal sm:[&_th]:whitespace-nowrap sm:[&_td]:whitespace-nowrap">
@@ -850,39 +723,49 @@ export function DataTableClient<TData>({
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="bg-muted/20">
                   {headerGroup.headers.map((header) => {
-                    const pinnedStyles = getPinnedStyles(header.column);
+                    const pinnedStyles = getPinnedStyles(header.column, table);
                     return (
-                    <TableHead
-                      key={header.id}
-                      style={{
-                        ...pinnedStyles,
-                        top: 0,
-                        position: "sticky",
-                        zIndex: pinnedStyles ? 4 : 3,
-                        background: pinnedStyles?.background ?? "var(--color-card)",
-                      }}
-                      className="relative"
-                    >
-                      {header.isPlaceholder ? null : (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                          </span>
-                          <ColumnMenu column={header.column} />
-                        </div>
-                      )}
-                      {header.column.getCanResize() &&
-                      header.column.id !== "actions" ? (
-                        <div
-                          onMouseDown={header.getResizeHandler()}
-                          onTouchStart={header.getResizeHandler()}
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none"
-                        />
-                      ) : null}
-                    </TableHead>
+                      <TableHead
+                        key={header.id}
+                        style={{
+                          ...pinnedStyles,
+                          top: 0,
+                          position: "sticky",
+                          zIndex: pinnedStyles ? 4 : 3,
+                          background:
+                            pinnedStyles?.background ?? "var(--color-card)",
+                        }}
+                        className="relative"
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </span>
+                            <DataTableColumnMenu
+                              column={header.column}
+                              table={table}
+                              advancedFilters={advancedFilters}
+                              quickFilterOptions={buildQuickFilterOptions(
+                                header.column.id,
+                              )}
+                              onApplyQuickFilter={applyQuickFilter}
+                              onClearQuickFilter={clearQuickFilter}
+                            />
+                          </div>
+                        )}
+                        {header.column.getCanResize() &&
+                        header.column.id !== "actions" ? (
+                          <div
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none touch-none"
+                          />
+                        ) : null}
+                      </TableHead>
                     );
                   })}
                 </TableRow>
@@ -900,7 +783,7 @@ export function DataTableClient<TData>({
                       return (
                         <TableCell
                           key={cell.id}
-                          style={getPinnedStyles(cell.column)}
+                          style={getPinnedStyles(cell.column, table)}
                         >
                           {cell.getIsGrouped() ? (
                             <div className="flex items-center gap-2">
@@ -950,28 +833,7 @@ export function DataTableClient<TData>({
             </TableBody>
           </Table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>Click a header to sort the column.</p>
-          {showPagination ? (
-            <div className="flex items-center gap-1">
-              {Array.from({ length: table.getPageCount() }, (_, index) => (
-                <Button
-                  key={index}
-                  size="sm"
-                  variant={
-                    table.getState().pagination.pageIndex === index
-                      ? "default"
-                      : "outline"
-                  }
-                  className="h-8 min-w-8 px-2"
-                  onClick={() => table.setPageIndex(index)}
-                >
-                  {index + 1}
-                </Button>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <DataTablePagination table={table} showPagination={showPagination} />
       </div>
 
       <DataTableFilterSheet
@@ -990,6 +852,7 @@ export function DataTableClient<TData>({
           safeSetFiltersOpen(false);
         }}
         onClear={clearAdvancedFilter}
+        onChartOpenChange={onChartOpenChange}
       />
     </div>
   );

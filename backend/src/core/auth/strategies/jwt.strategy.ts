@@ -12,17 +12,22 @@ export type JwtUser = {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
+    const secret = config.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET is not set');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET'),
+      secretOrKey: secret,
     });
   }
 
   async validate(payload: AuthTokenPayload): Promise<JwtUser> {
     if (!payload?.sub || !payload.tenantId) {
-      throw new UnauthorizedException('Token inválido');
+      throw new UnauthorizedException('Token invalido');
     }
 
     return {
@@ -32,3 +37,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
+

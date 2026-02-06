@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FormEngineProps, FormField } from "./types";
 import { FieldRenderer } from "./fieldRenderers";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,15 @@ export function FormEngine<T>({
 
   const [values, setValues] = useState<T>(initialState);
   const [currentStep, setCurrentStep] = useState(0);
+  const initialStateKey = useMemo(
+    () => JSON.stringify(initialState),
+    [initialState],
+  );
+
+  useEffect(() => {
+    setValues(initialState);
+    setCurrentStep(0);
+  }, [initialStateKey]);
 
   /* ======================================================
    * HELPERS

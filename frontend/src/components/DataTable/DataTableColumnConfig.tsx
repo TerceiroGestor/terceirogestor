@@ -6,7 +6,7 @@ export type ColumnConfig<TData, TType extends string = string> = {
   id: Extract<keyof TData, string>;
   label: string;
   type: TType;
-  meta?: unknown;
+  meta?: ColumnDef<TData, any>["meta"];
 };
 
 export type ColumnRenderer<TData, TType extends string> = (
@@ -16,14 +16,15 @@ export type ColumnRenderer<TData, TType extends string> = (
 export function createColumns<TData, TType extends string>(
   configs: ColumnConfig<TData, TType>[],
   renderers: Record<TType, ColumnRenderer<TData, TType>>,
-) {
+): ColumnDef<TData, any>[] {
   return configs.map((config) => {
     const base: ColumnDef<TData> = {
       accessorKey: config.id,
       header: config.label,
+      meta: config.meta,
     };
     const renderer = renderers[config.type];
     if (!renderer) return base;
-    return { ...base, ...renderer(config) };
+    return { ...base, ...renderer(config) } as ColumnDef<TData, any>;
   });
 }

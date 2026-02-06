@@ -11,6 +11,11 @@ export type AdvancedFilter = {
   operator:
     | "equals"
     | "contains"
+    | "in"
+    | "notIn"
+    | "isEmpty"
+    | "isNotEmpty"
+    | "between"
     | "gt"
     | "lt"
     | "gte"
@@ -24,6 +29,11 @@ const FILTER_OPERATORS: { value: AdvancedFilter["operator"]; label: string }[] =
   [
     { value: "equals", label: "= Igual" },
     { value: "contains", label: "Contem" },
+    { value: "in", label: "Dentro de (lista)" },
+    { value: "notIn", label: "Fora da lista" },
+    { value: "isEmpty", label: "Vazio" },
+    { value: "isNotEmpty", label: "Nao vazio" },
+    { value: "between", label: "Entre" },
     { value: "starts", label: "Comeca com" },
     { value: "ends", label: "Termina com" },
     { value: "gt", label: "Maior que" },
@@ -54,6 +64,29 @@ export function DataTableFilterSheetFilters<TData>({
   );
   const selectedFilterColumnId =
     advancedFilters[0]?.columnId ?? columns[0]?.id ?? "";
+  const columnMeta = React.useCallback(
+    (columnId: string) => {
+      const column = columns.find((item) => item.id === columnId);
+      if (!column) return undefined;
+      const meta = column.columnDef.meta as
+        | { dataType?: "string" | "number" | "date" | "boolean" }
+        | undefined;
+      return meta?.dataType;
+    },
+    [columns],
+  );
+  const inferredDataType = React.useCallback(
+    (columnId: string) => {
+      const metaType = columnMeta(columnId);
+      if (metaType) return metaType;
+      if (/(date|at)$/i.test(columnId)) return "date";
+      if (/(count|total|age|qty|amount|price|number)/i.test(columnId)) {
+        return "number";
+      }
+      return "string";
+    },
+    [columnMeta],
+  );
 
   const addFilter = () => {
     const nextColumn = columns[0]?.id ?? "";
@@ -117,7 +150,31 @@ export function DataTableFilterSheetFilters<TData>({
         </div>
 
         <div className="space-y-2.5">
-          {advancedFilters.map((filter, index) => (
+          {advancedFilters.map((filter, index) => {
+            const betweenParts = filter.value
+              .split("..")
+              .flatMap((part) => part.split(","))
+              .map((value) => value.trim());
+            const betweenStart = betweenParts[0] ?? "";
+            const betweenEnd = betweenParts[1] ?? "";
+            const dataType = inferredDataType(filter.columnId);
+            const betweenInputType = dataType === "date" ? "date" : "text";
+            const inputType =
+              dataType === "number" &&
+              filter.operator !== "in" &&
+              filter.operator !== "notIn"
+                ? "number"
+                : dataType === "date" &&
+                    filter.operator !== "in" &&
+                    filter.operator !== "notIn"
+                  ? "date"
+                  : "text";
+            const showBetweenError =
+              filter.operator === "between" &&
+              Boolean(betweenStart || betweenEnd) &&
+              (!betweenStart || !betweenEnd);
+
+            return (
             <div key={`${filter.columnId}-${index}`} className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-muted-foreground">
@@ -156,23 +213,68 @@ export function DataTableFilterSheetFilters<TData>({
                   })
                 }
               >
-                {FILTER_OPERATORS.map((operator) => (
-                  <option key={operator.value} value={operator.value}>
-                    {operator.label}
-                  </option>
-                ))}
+            {FILTER_OPERATORS.map((operator) => (
+              <option key={operator.value} value={operator.value}>
+                {operator.label}
+              </option>
+            ))}
               </select>
 
-              <Input
-                value={filter.value}
-                onChange={(event) =>
-                  updateFilter(index, { value: event.target.value })
-                }
-                placeholder="Digite o valor"
-                className="h-8 text-xs"
-              />
+              {filter.operator === "between" ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={betweenStart}
+                    onChange={(event) =>
+                      updateFilter(index, {
+                        value: `${event.target.value}..${betweenEnd}`,
+                      })
+                    }
+                    type={betweenInputType}
+                    placeholder="Inicio"
+                    className="h-8 text-xs"
+                  />
+                  <Input
+                    value={betweenEnd}
+                    onChange={(event) =>
+                      updateFilter(index, {
+                        value: `${betweenStart}..${event.target.value}`,
+                      })
+                    }
+                    type={betweenInputType}
+                    placeholder="Fim"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              ) : (
+                <Input
+                  value={filter.value}
+                  onChange={(event) =>
+                    updateFilter(index, { value: event.target.value })
+                  }
+                  placeholder={
+                    filter.operator === "in" || filter.operator === "notIn"
+                      ? "valor1, valor2"
+                      : filter.operator === "isEmpty" ||
+                          filter.operator === "isNotEmpty"
+                        ? "-"
+                        : "Digite o valor"
+                  }
+                  disabled={
+                    filter.operator === "isEmpty" ||
+                    filter.operator === "isNotEmpty"
+                  }
+                  type={inputType}
+                  className="h-8 text-xs"
+                />
+              )}
+              {showBetweenError ? (
+                <p className="text-[11px] text-destructive">
+                  Informe inicio e fim para aplicar o intervalo.
+                </p>
+              ) : null}
             </div>
-          ))}
+          );
+          })}
         </div>
         <div className="sticky bottom-0 -mx-3 mt-2 border-t border-border bg-background/95 px-3 py-2 backdrop-blur">
           <Button

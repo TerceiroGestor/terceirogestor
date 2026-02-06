@@ -36,6 +36,7 @@ type DataTableFilterSheetProps<TData> = {
   onAdvancedFiltersChange: (next: AdvancedFilter[]) => void;
   onApply: () => void;
   onClear: () => void;
+  onChartOpenChange?: (open: boolean) => void;
 };
 
 export function DataTableFilterSheet<TData>({
@@ -51,6 +52,7 @@ export function DataTableFilterSheet<TData>({
   onAdvancedFiltersChange,
   onApply,
   onClear,
+  onChartOpenChange,
 }: DataTableFilterSheetProps<TData>) {
   const [openSection, setOpenSection] = React.useState<
     "columns" | "groups" | "filters" | "chart" | null
@@ -64,6 +66,12 @@ export function DataTableFilterSheet<TData>({
     rows: chartRows,
     getRowValue,
   });
+
+  React.useEffect(() => {
+    if (onChartOpenChange) {
+      onChartOpenChange(chart.chartOpen);
+    }
+  }, [chart.chartOpen, onChartOpenChange]);
 
   return (
     <>
