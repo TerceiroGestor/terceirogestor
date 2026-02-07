@@ -10,7 +10,7 @@ export default function RootPage() {
 
   React.useEffect(() => {
     if (isLoading) return;
-    router.replace(isAuthenticated ? "/dashboard" : "/login");
+    router.replace(isAuthenticated ? "/dashboard" : "/auth/login");
   }, [isAuthenticated, isLoading, router]);
 
   return (

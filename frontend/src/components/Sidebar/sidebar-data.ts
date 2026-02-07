@@ -27,29 +27,15 @@ export type NavGroup = {
 
 export const navGroups: NavGroup[] = [
   {
-    label: "Main",
-    items: [
-      { title: "Overview", href: "/", icon: Home, exact: true },
-      { title: "Analytics", href: "/analytics", icon: BarChart3 },
-      { title: "Calendar", href: "/calendar", icon: Calendar, badge: "2" },
-      { title: "Table", href: "/table", icon: Table },
-      { title: "Form", href: "/form", icon: FormIcon },
-    ],
+    label: "Análises",
+    items: [{ title: "Visão Geral", href: "/", icon: Home, exact: true }],
   },
   {
-    label: "Management",
-    items: [
-      { title: "Pessoas", href: "/people", icon: Users },
-      { title: "Team", href: "/team", icon: Users },
-      { title: "Inbox", href: "/inbox", icon: Inbox, badge: "4" },
-      { title: "Documents", href: "/documents", icon: FileText },
-    ],
+    label: "Móduloes",
+    items: [{ title: "Pessoas", href: "/people", icon: Users }],
   },
   {
-    label: "Settings",
-    items: [
-      { title: "Billing", href: "/billing", icon: CreditCard },
-      { title: "Preferences", href: "/settings", icon: Cog },
-    ],
+    label: "Configurações",
+    items: [{ title: "Users", href: "/billing", icon: CreditCard }],
   },
 ];

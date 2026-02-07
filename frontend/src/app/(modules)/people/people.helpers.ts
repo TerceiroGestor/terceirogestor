@@ -1,24 +1,3 @@
-export const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("");
-
-export const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-
-export const formatDate = (value?: string | null) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("pt-BR").format(date);
-};
-
 const parseBirthDateParts = (value?: string | null) => {
   if (!value) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -66,9 +45,22 @@ export const isBirthdayToday = (value?: string | null) => {
   const parts = parseBirthDateParts(value);
   if (!parts) return false;
   const today = new Date();
-  return (
-    parts.month === today.getMonth() + 1 && parts.day === today.getDate()
-  );
+  return parts.month === today.getMonth() + 1 && parts.day === today.getDate();
+};
+
+export const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("");
+
+export const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("pt-BR").format(date);
 };
 
 export const toDateInputValue = (value?: string | null) => {
@@ -79,32 +71,6 @@ export const toDateInputValue = (value?: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
-};
-
-export const SEX_LABELS: Record<string, string> = {
-  M: "Masculino",
-  F: "Feminino",
-  I: "Intersexo",
-  N: "Nao informado",
-};
-
-export const GENDER_LABELS: Record<string, string> = {
-  H: "Homem",
-  M: "Mulher",
-  NB: "Nao binario",
-  GF: "Genero fluido",
-  AG: "Agenero",
-  O: "Outro",
-  PNI: "Prefiro nao informar",
-};
-
-export const RACE_COLOR_LABELS: Record<string, string> = {
-  BR: "Branca",
-  PR: "Preta",
-  PA: "Parda",
-  AM: "Amarela",
-  IN: "Indigena",
-  PNI: "Prefiro nao informar",
 };
 
 export const resolveLabel = (

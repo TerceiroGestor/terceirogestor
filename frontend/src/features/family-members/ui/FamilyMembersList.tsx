@@ -26,7 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatCurrency } from "@/app/people/utils";
+import { formatCurrency } from "@/app/(modules)/people/utils";
 
 type FamilyMembersListProps = {
   peopleId: string;
@@ -151,7 +151,7 @@ export function FamilyMembersList({ peopleId }: FamilyMembersListProps) {
                     <th className="py-2 text-left font-medium">Nome</th>
                     <th className="py-2 text-left font-medium">Parentesco</th>
                     <th className="py-2 text-left font-medium">Mora junto</th>
-                    <th className="py-2 text-left font-medium">Compõe renda</th>
+                    <th className="py-2 text-left font-medium">Comp??e renda</th>
                     <th className="py-2 text-left font-medium">Renda</th>
                     <th className="py-2 text-left font-medium">Observacoes</th>
                     <th className="py-2 text-right font-medium">Acoes</th>
@@ -226,3 +226,4 @@ export function FamilyMembersList({ peopleId }: FamilyMembersListProps) {
     </div>
   );
 }
+

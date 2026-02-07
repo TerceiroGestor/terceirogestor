@@ -9,11 +9,12 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-
-const SEX_OPTIONS = ['M', 'F', 'I', 'N'] as const;
-const GENDER_OPTIONS = ['H', 'M', 'NB', 'GF', 'AG', 'O', 'PNI'] as const;
-const RACE_COLOR_OPTIONS = ['BR', 'PR', 'PA', 'AM', 'IN', 'PNI'] as const;
-const STATUS_OPTIONS = ['Ativo', 'Inativo', 'Em analise', 'Desligado'] as const;
+import {
+  SEX_OPTIONS,
+  GENDER_OPTIONS,
+  RACE_COLOR_OPTIONS,
+  STATUS_OPTIONS,
+} from '../people.constants';
 
 export class CreatePersonDto {
   @IsString()

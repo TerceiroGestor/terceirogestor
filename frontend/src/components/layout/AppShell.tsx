@@ -6,7 +6,7 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/auth/login", "/auth/register"];
 
 type AppShellProps = {
   children: ReactNode;

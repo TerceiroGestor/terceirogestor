@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { getPerson, updatePerson, type ApiPerson } from "@/features/people/api";
-import { PeopleDetailClientPage } from "../_components/people-detail-client-page";
-import type { Person, PersonFormData } from "../types";
+import { PeopleDetailClientPage } from "@/app/(modules)/people/_components/people-detail-client-page";
+import type { Person, PersonFormData } from "@/app/(modules)/people/types";
 import { uploadAvatar } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
 
@@ -105,6 +105,24 @@ export default function PeopleDetailPage() {
     [token, person],
   );
 
+  const handleUpdateTags = React.useCallback(
+    async (tags: string[]) => {
+      if (!token || !person) return;
+      setError(null);
+      try {
+        const updated = await updatePerson(token, person.id, { tags });
+        setPerson(mapApiPersonToPerson(updated));
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao atualizar tags.";
+        setError(message);
+      }
+    },
+    [token, person],
+  );
+
   if (isLoading) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -128,6 +146,12 @@ export default function PeopleDetailPage() {
   }
 
   return (
-    <PeopleDetailClientPage person={person} onUpdate={handleUpdate} />
+    <PeopleDetailClientPage
+      person={person}
+      onUpdate={handleUpdate}
+      onUpdateTags={handleUpdateTags}
+    />
   );
 }
+
+

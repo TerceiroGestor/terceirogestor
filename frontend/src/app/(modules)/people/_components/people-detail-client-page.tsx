@@ -7,19 +7,20 @@ import { toDateInputValue } from "../utils";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { PeopleDetail } from "./people-detail";
 import { PeopleFormDialog } from "./people-form-dialog";
-import { PeopleDetailTabs } from "./people-detail-tabs";
 
 type PeopleDetailClientPageProps = {
   person: Person;
   onUpdate: (values: PersonFormData) => Promise<void>;
+  onUpdateTags?: (tags: string[]) => Promise<void> | void;
 };
 
 export function PeopleDetailClientPage({
   person,
   onUpdate,
+  onUpdateTags,
 }: PeopleDetailClientPageProps) {
   const [formOpen, setFormOpen] = React.useState(false);
-  const [tabValue, setTabValue] = React.useState("geral");
+  const [tabValue, setTabValue] = React.useState("resumo");
   const tagSuggestions = React.useMemo(
     () => (person.tags ? Array.from(new Set(person.tags)) : []),
     [person.tags],
@@ -48,17 +49,13 @@ export function PeopleDetailClientPage({
           variant: "default",
           size: "sm",
         }}
-        actionSlot={
-          <PeopleDetailTabs
-            value={tabValue}
-            onValueChange={setTabValue}
-          />
-        }
       />
       <PeopleDetail
         person={person}
         tabValue={tabValue}
         onTabChange={setTabValue}
+        tagSuggestions={tagSuggestions}
+        onUpdateTags={onUpdateTags}
       />
       <PeopleFormDialog
         open={formOpen}

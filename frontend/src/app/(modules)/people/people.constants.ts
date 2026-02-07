@@ -1,0 +1,9 @@
+export {
+  SEX_OPTIONS,
+  GENDER_OPTIONS,
+  RACE_COLOR_OPTIONS,
+  STATUS_OPTIONS,
+  SEX_LABELS,
+  GENDER_LABELS,
+  RACE_COLOR_LABELS,
+} from "@/shared/people.constants";

@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/app/people/utils";
+import { formatCurrency } from "@/app/(modules)/people/utils";
 
 type IncomesListProps = {
   peopleId: string;
@@ -175,3 +175,4 @@ export function IncomesList({ peopleId }: IncomesListProps) {
     </Card>
   );
 }
+

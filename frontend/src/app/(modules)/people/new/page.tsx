@@ -1,4 +1,4 @@
-import { PeopleCreateClient } from "../_components/people-create-client";
+import { PeopleCreateClient } from "@/app/(modules)/people/_components/people-create-client";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 
 export default function PeopleCreatePage() {
@@ -15,3 +15,5 @@ export default function PeopleCreatePage() {
     </div>
   );
 }
+
+

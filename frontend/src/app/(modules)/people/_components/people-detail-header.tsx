@@ -1,0 +1,37 @@
+"use client";
+
+import type { TagEditorProps } from "./people-detail-tags";
+import { TagEditor } from "./people-detail-tags";
+import type { FamilyMember } from "./people-detail-family-preview";
+import { FamilyPreview } from "./people-detail-family-preview";
+
+type PeopleDetailHeaderProps = TagEditorProps & {
+  familyMembers: FamilyMember[];
+};
+
+export function PeopleDetailHeader({
+  tags,
+  suggestions,
+  disabled,
+  onSave,
+  familyMembers,
+}: PeopleDetailHeaderProps) {
+  return (
+    <div className="shrink-0">
+      <div className="rounded-2xl border border-border/60 bg-background px-4 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-[220px] space-y-1">
+            <p className="text-[11px] text-muted-foreground">Tags</p>
+            <TagEditor
+              tags={tags}
+              suggestions={suggestions}
+              onSave={onSave}
+              disabled={disabled}
+            />
+          </div>
+          <FamilyPreview members={familyMembers} />
+        </div>
+      </div>
+    </div>
+  );
+}

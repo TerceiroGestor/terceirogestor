@@ -1,31 +1,13 @@
 import type { FormField, FormStep } from "@/components/FormEngine/types";
 import type { PersonFormData } from "./types";
+import {
+  GENDER_OPTIONS,
+  RACE_COLOR_OPTIONS,
+  SEX_OPTIONS,
+} from "./people.constants";
 
-const SEX_OPTIONS = [
-  { label: "Masculino", value: "M" },
-  { label: "Feminino", value: "F" },
-  { label: "Intersexo", value: "I" },
-  { label: "Nao informado", value: "N" },
-];
-
-const GENDER_OPTIONS = [
-  { label: "Homem", value: "H" },
-  { label: "Mulher", value: "M" },
-  { label: "Nao-binario", value: "NB" },
-  { label: "Genero fluido", value: "GF" },
-  { label: "Agenero", value: "AG" },
-  { label: "Outro", value: "O" },
-  { label: "Prefiro nao informar", value: "PNI" },
-];
-
-const RACE_COLOR_OPTIONS = [
-  { label: "Branca", value: "BR" },
-  { label: "Preta", value: "PR" },
-  { label: "Parda", value: "PA" },
-  { label: "Amarela", value: "AM" },
-  { label: "Indigena", value: "IN" },
-  { label: "Prefiro nao informar", value: "PNI" },
-];
+const buildOptions = (values: readonly string[]) =>
+  values.map((value) => ({ label: value, value }));
 
 export const personFormFields: FormField<PersonFormData>[] = [
   {
@@ -64,19 +46,19 @@ export const personFormFields: FormField<PersonFormData>[] = [
     name: "sex",
     label: "Sexo",
     type: "select",
-    options: SEX_OPTIONS,
+    options: buildOptions(SEX_OPTIONS),
   },
   {
     name: "gender",
     label: "Genero",
     type: "select",
-    options: GENDER_OPTIONS,
+    options: buildOptions(GENDER_OPTIONS),
   },
   {
     name: "raceColor",
     label: "Raca/Cor",
     type: "select",
-    options: RACE_COLOR_OPTIONS,
+    options: buildOptions(RACE_COLOR_OPTIONS),
   },
   {
     name: "maritalStatus",

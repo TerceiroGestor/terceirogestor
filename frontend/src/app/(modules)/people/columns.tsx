@@ -54,29 +54,29 @@ const badgeTone = {
 };
 
 const sexBadgeClass: Record<string, string> = {
-  M: badgeTone.blue,
-  F: badgeTone.rose,
-  I: badgeTone.amber,
-  N: badgeTone.slate,
+  Masculino: badgeTone.blue,
+  Feminino: badgeTone.rose,
+  Intersexo: badgeTone.amber,
+  "Nao informado": badgeTone.slate,
 };
 
 const genderBadgeClass: Record<string, string> = {
-  H: badgeTone.blue,
-  M: badgeTone.rose,
-  NB: badgeTone.violet,
-  GF: badgeTone.teal,
-  AG: badgeTone.slate,
-  O: badgeTone.amber,
-  PNI: badgeTone.slate,
+  Homem: badgeTone.blue,
+  Mulher: badgeTone.rose,
+  "Nao binario": badgeTone.violet,
+  "Genero fluido": badgeTone.teal,
+  Agenero: badgeTone.slate,
+  Outro: badgeTone.amber,
+  "Prefiro nao informar": badgeTone.slate,
 };
 
 const raceBadgeClass: Record<string, string> = {
-  BR: badgeTone.slate,
-  PR: badgeTone.brown,
-  PA: badgeTone.amber,
-  AM: badgeTone.amber,
-  IN: badgeTone.teal,
-  PNI: badgeTone.slate,
+  Branca: badgeTone.slate,
+  Preta: badgeTone.brown,
+  Parda: badgeTone.amber,
+  Amarela: badgeTone.amber,
+  Indigena: badgeTone.teal,
+  "Prefiro nao informar": badgeTone.slate,
 };
 
 function TagsCell({
@@ -163,12 +163,12 @@ export function usePeopleColumns({
               {person.hasHealthIssue || person.isBirthdayToday ? (
                 <span className="absolute -bottom-1 -right-1 flex items-center gap-1">
                   {person.hasHealthIssue ? (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 shadow-sm">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-rose-200 bg-rose-500 text-white shadow-sm">
                       <HeartPulse className="h-3 w-3" />
                     </span>
                   ) : null}
                   {person.isBirthdayToday ? (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-600 shadow-sm">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-amber-500 text-white shadow-sm">
                       <Cake className="h-3 w-3" />
                     </span>
                   ) : null}

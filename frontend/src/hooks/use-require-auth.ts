@@ -13,7 +13,7 @@ export function useRequireAuth() {
     if (isLoading) return;
     if (!isAuthenticated) {
       const next = pathname ? `?next=${encodeURIComponent(pathname)}` : "";
-      router.replace(`/login${next}`);
+      router.replace(`/auth/login${next}`);
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 

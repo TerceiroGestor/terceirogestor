@@ -8,22 +8,103 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, FileText, User } from "lucide-react";
+import {
+  ChevronDown,
+  ClipboardList,
+  FileText,
+  FolderOpen,
+  HeartPulse,
+  History,
+  Pill,
+  User,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 type PeopleDetailTabsProps = {
   value: string;
   onValueChange: (value: string) => void;
 };
 
-const tabGroups = [
+type TabItem = {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+  disabled?: boolean;
+};
+
+type TabGroup = {
+  label: string;
+  items: TabItem[];
+};
+
+const tabGroups: TabGroup[] = [
   {
     label: "Perfil",
     items: [
-      { value: "geral", label: "Geral", icon: User },
       { value: "resumo", label: "Resumo", icon: FileText },
+    ],
+  },
+  {
+    label: "Vinculos",
+    items: [
+      {
+        value: "familia",
+        label: "Familiares",
+        icon: Users,
+        disabled: true,
+      },
+      {
+        value: "responsaveis",
+        label: "Responsaveis",
+        icon: UserRound,
+        disabled: true,
+      },
+    ],
+  },
+  {
+    label: "Saude",
+    items: [
+      {
+        value: "saude",
+        label: "Condicoes",
+        icon: HeartPulse,
+        disabled: true,
+      },
+      {
+        value: "medicacoes",
+        label: "Medicacoes",
+        icon: Pill,
+        disabled: true,
+      },
+    ],
+  },
+  {
+    label: "Registros",
+    items: [
+      {
+        value: "atendimentos",
+        label: "Atendimentos",
+        icon: ClipboardList,
+        disabled: true,
+      },
+      {
+        value: "documentos",
+        label: "Documentos",
+        icon: FolderOpen,
+        disabled: true,
+      },
+      {
+        value: "historico",
+        label: "Historico",
+        icon: History,
+        disabled: true,
+      },
     ],
   },
 ] as const;
@@ -62,9 +143,18 @@ export function PeopleDetailTabs({
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <DropdownMenuRadioItem key={item.value} value={item.value}>
+                    <DropdownMenuRadioItem
+                      key={item.value}
+                      value={item.value}
+                      disabled={item.disabled}
+                    >
                       <Icon className="size-4" />
                       {item.label}
+                      {item.disabled ? (
+                        <DropdownMenuShortcut className="text-[10px] tracking-wide">
+                          Em breve
+                        </DropdownMenuShortcut>
+                      ) : null}
                     </DropdownMenuRadioItem>
                   );
                 })}

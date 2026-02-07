@@ -4,15 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/DataTable";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
-import type { PeopleTableItem, PersonFormData } from "./types";
-import { usePeopleColumns } from "./columns";
+import type { PeopleTableItem, PersonFormData } from "@/app/(modules)/people/types";
+import { usePeopleColumns } from "@/app/(modules)/people/columns";
 import {
   getAgeFromBirthDate,
   isBirthdayInCurrentMonth,
   isBirthdayToday,
   toDateInputValue,
-} from "./utils";
-import { PeopleFormDialog } from "./_components/people-form-dialog";
+} from "@/app/(modules)/people/utils";
+import { PeopleFormDialog } from "@/app/(modules)/people/_components/people-form-dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
@@ -24,20 +24,8 @@ import {
 } from "@/features/people/api";
 import { uploadAvatar } from "@/features/uploads/api";
 import { resolveMediaUrl, stripApiUrl } from "@/lib/api";
+import { buildExportMeta } from "@/lib/auth-utils";
 import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
-
-const decodeJwtPayload = (token: string) => {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const json = atob(padded);
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-};
 
 export default function PeoplePage() {
   const router = useRouter();
@@ -229,22 +217,12 @@ export default function PeoplePage() {
   }, [rows]);
   const exportMeta = useMemo(() => {
     if (!token) return undefined;
-    const payload = decodeJwtPayload(token);
-    const tenant =
-      (payload?.tenantName as string | undefined) ??
-      (payload?.tenantId as string | undefined) ??
-      "";
-    const issuedBy = (payload?.email as string | undefined) ?? "";
-    const issuedAt = new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(new Date());
     return {
-      title: "Relatorio de pessoas",
-      subtitle: "Cadastro de pessoas",
-      tenant,
-      issuedBy,
-      issuedAt,
+      ...buildExportMeta({
+        token,
+        title: "Relatorio de pessoas",
+        subtitle: "Cadastro de pessoas",
+      }),
     };
   }, [token]);
   const columns = usePeopleColumns({
@@ -454,3 +432,5 @@ export default function PeoplePage() {
     </div>
   );
 }
+
+
