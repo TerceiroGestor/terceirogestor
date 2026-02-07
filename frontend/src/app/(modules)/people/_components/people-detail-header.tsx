@@ -2,19 +2,15 @@
 
 import type { TagEditorProps } from "./people-detail-tags";
 import { TagEditor } from "./people-detail-tags";
-import type { FamilyMember } from "./people-detail-family-preview";
-import { FamilyPreview } from "./people-detail-family-preview";
+import { FamilyHeaderPreview } from "@/features/family-members/ui/family-header-preview";
 
-type PeopleDetailHeaderProps = TagEditorProps & {
-  familyMembers: FamilyMember[];
-};
+type PeopleDetailHeaderProps = TagEditorProps;
 
 export function PeopleDetailHeader({
   tags,
   suggestions,
   disabled,
   onSave,
-  familyMembers,
 }: PeopleDetailHeaderProps) {
   return (
     <div className="shrink-0">
@@ -29,7 +25,7 @@ export function PeopleDetailHeader({
               disabled={disabled}
             />
           </div>
-          <FamilyPreview members={familyMembers} />
+          <FamilyHeaderPreview />
         </div>
       </div>
     </div>

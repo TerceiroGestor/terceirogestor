@@ -12,6 +12,14 @@ enum TenantStatus {
   INACTIVE
 }
 
+enum IncomeFrequency {
+  MONTHLY
+  WEEKLY
+  BIWEEKLY
+  ANNUAL
+  ONCE
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
@@ -24,6 +32,13 @@ model Tenant {
   people          Person[]
   rolePermissions RolePermission[]
   userRoles       UserRole[]
+  households      Household[]
+  householdMembers HouseholdMember[]
+  householdProfiles HouseholdProfile[]
+  personRelations PersonRelation[]
+  personIncomes   PersonIncome[]
+  householdAssets HouseholdAsset[]
+  personAssets    PersonAsset[]
 
   @@index([status])
 }
@@ -127,7 +142,152 @@ model Person {
   updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  householdMembers HouseholdMember[]
+  relations PersonRelation[] @relation("PersonRelationPerson")
+  relatedRelations PersonRelation[] @relation("PersonRelationRelated")
+  incomes PersonIncome[]
+  assets  PersonAsset[]
 
   @@index([tenantId])
   @@index([fullName])
+}
+
+model Household {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id])
+  members HouseholdMember[]
+  profile HouseholdProfile?
+  assets  HouseholdAsset[]
+
+  @@index([tenantId])
+}
+
+model HouseholdMember {
+  id                  String   @id @default(uuid()) @db.Char(36)
+  tenantId            String   @db.Char(36)
+  householdId         String   @db.Char(36)
+  personId            String   @db.Char(36)
+  role                String?
+  isLegalGuardian     Boolean  @default(false)
+  isIncomeContributor Boolean  @default(false)
+  isProvider          Boolean  @default(false)
+  isDependent         Boolean  @default(false)
+  notes               String?  @db.Text
+  startDate           DateTime?
+  endDate             DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  household Household @relation(fields: [householdId], references: [id])
+  person    Person    @relation(fields: [personId], references: [id])
+
+  @@unique([householdId, personId])
+  @@index([tenantId])
+  @@index([householdId])
+  @@index([personId])
+}
+
+model HouseholdProfile {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  householdId String   @unique @db.Char(36)
+  type        String?
+  condition   String?
+  ownership   String?
+  areaM2      Float?
+  rooms       Int?
+  bathrooms   Int?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  household Household @relation(fields: [householdId], references: [id])
+
+  @@index([tenantId])
+}
+
+model HouseholdAsset {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  householdId String   @db.Char(36)
+  category    String
+  item        String
+  quantity    Int?     @default(1)
+  condition   String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  household Household @relation(fields: [householdId], references: [id])
+
+  @@index([tenantId])
+  @@index([householdId])
+}
+
+model PersonAsset {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  personId  String   @db.Char(36)
+  category  String
+  item      String
+  quantity  Int?     @default(1)
+  condition String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+}
+
+model PersonIncome {
+  id                     String          @id @default(uuid()) @db.Char(36)
+  tenantId               String          @db.Char(36)
+  personId               String          @db.Char(36)
+  type                   String
+  amount                 Decimal         @db.Decimal(10, 2)
+  frequency              IncomeFrequency @default(MONTHLY)
+  isHouseholdContribution Boolean        @default(true)
+  notes                  String?         @db.Text
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+}
+
+model PersonRelation {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  personId         String   @db.Char(36)
+  relatedPersonId  String   @db.Char(36)
+  type             String
+  livesTogether    Boolean  @default(false)
+  isLegalGuardian  Boolean  @default(false)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id])
+  person        Person @relation("PersonRelationPerson", fields: [personId], references: [id])
+  relatedPerson Person @relation("PersonRelationRelated", fields: [relatedPersonId], references: [id])
+
+  @@unique([tenantId, personId, relatedPersonId, type])
+  @@index([tenantId])
+  @@index([personId])
+  @@index([relatedPersonId])
 }

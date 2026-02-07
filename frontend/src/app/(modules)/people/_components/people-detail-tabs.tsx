@@ -57,7 +57,7 @@ const tabGroups: TabGroup[] = [
         value: "familia",
         label: "Familiares",
         icon: Users,
-        disabled: true,
+        disabled: false,
       },
       {
         value: "responsaveis",

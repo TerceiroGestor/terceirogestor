@@ -683,6 +683,432 @@ async function main() {
       },
     });
   }
+
+  const householdIds = {
+    ana: "11111111-1111-1111-1111-111111111110",
+    carlos: "22222222-2222-2222-2222-222222222220",
+  };
+
+  const householdSeeds = [
+    {
+      id: householdIds.ana,
+      name: "Residencia Ana Pereira",
+    },
+    {
+      id: householdIds.carlos,
+      name: "Residencia Carlos Souza",
+    },
+  ];
+
+  for (const household of householdSeeds) {
+    await prisma.household.upsert({
+      where: { id: household.id },
+      update: { name: household.name, tenantId: tenant.id },
+      create: {
+        id: household.id,
+        tenantId: tenant.id,
+        name: household.name,
+      },
+    });
+  }
+
+  const householdProfiles = [
+    {
+      id: "e2c8a7d6-1a7b-4fdd-9d8a-1df6b1c0a111",
+      householdId: householdIds.ana,
+      type: "Alvenaria",
+      condition: "Rebocada",
+      ownership: "Cedida",
+      areaM2: 75,
+      rooms: 3,
+      bathrooms: 1,
+      notes: "Residencia em bom estado.",
+    },
+    {
+      id: "4b5e1c3a-0c2f-4b66-9a7d-4f74a3b7c222",
+      householdId: householdIds.carlos,
+      type: "Madeira",
+      condition: "Parcial",
+      ownership: "Alugada",
+      areaM2: 58,
+      rooms: 2,
+      bathrooms: 1,
+      notes: "Moradia com manutencao pendente.",
+    },
+  ];
+
+  for (const profile of householdProfiles) {
+    await prisma.householdProfile.upsert({
+      where: { householdId: profile.householdId },
+      update: {
+        type: profile.type,
+        condition: profile.condition,
+        ownership: profile.ownership,
+        areaM2: profile.areaM2,
+        rooms: profile.rooms,
+        bathrooms: profile.bathrooms,
+        notes: profile.notes,
+      },
+      create: {
+        id: profile.id,
+        tenantId: tenant.id,
+        householdId: profile.householdId,
+        type: profile.type,
+        condition: profile.condition,
+        ownership: profile.ownership,
+        areaM2: profile.areaM2,
+        rooms: profile.rooms,
+        bathrooms: profile.bathrooms,
+        notes: profile.notes,
+      },
+    });
+  }
+
+  const upsertHouseholdMember = async (data: {
+    householdId: string;
+    personId: string;
+    role?: string | null;
+    isLegalGuardian?: boolean;
+    isIncomeContributor?: boolean;
+    isProvider?: boolean;
+    isDependent?: boolean;
+    notes?: string | null;
+  }) => {
+    await prisma.householdMember.upsert({
+      where: {
+        householdId_personId: {
+          householdId: data.householdId,
+          personId: data.personId,
+        },
+      },
+      update: {
+        role: data.role ?? null,
+        isLegalGuardian: data.isLegalGuardian ?? false,
+        isIncomeContributor: data.isIncomeContributor ?? false,
+        isProvider: data.isProvider ?? false,
+        isDependent: data.isDependent ?? false,
+        notes: data.notes ?? null,
+      },
+      create: {
+        tenantId: tenant.id,
+        householdId: data.householdId,
+        personId: data.personId,
+        role: data.role ?? null,
+        isLegalGuardian: data.isLegalGuardian ?? false,
+        isIncomeContributor: data.isIncomeContributor ?? false,
+        isProvider: data.isProvider ?? false,
+        isDependent: data.isDependent ?? false,
+        notes: data.notes ?? null,
+      },
+    });
+  };
+
+  const upsertRelation = async (data: {
+    personId: string;
+    relatedPersonId: string;
+    type: string;
+    livesTogether?: boolean;
+    isLegalGuardian?: boolean;
+    notes?: string | null;
+  }) => {
+    await prisma.personRelation.upsert({
+      where: {
+        tenantId_personId_relatedPersonId_type: {
+          tenantId: tenant.id,
+          personId: data.personId,
+          relatedPersonId: data.relatedPersonId,
+          type: data.type,
+        },
+      },
+      update: {
+        livesTogether: data.livesTogether ?? false,
+        isLegalGuardian: data.isLegalGuardian ?? false,
+        notes: data.notes ?? null,
+      },
+      create: {
+        tenantId: tenant.id,
+        personId: data.personId,
+        relatedPersonId: data.relatedPersonId,
+        type: data.type,
+        livesTogether: data.livesTogether ?? false,
+        isLegalGuardian: data.isLegalGuardian ?? false,
+        notes: data.notes ?? null,
+      },
+    });
+  };
+
+  await upsertHouseholdMember({
+    householdId: householdIds.ana,
+    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    role: "Moradora",
+    isDependent: true,
+  });
+  await upsertHouseholdMember({
+    householdId: householdIds.ana,
+    personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+    role: "Responsavel",
+    isLegalGuardian: true,
+    isProvider: true,
+    isIncomeContributor: true,
+  });
+  await upsertHouseholdMember({
+    householdId: householdIds.ana,
+    personId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
+    role: "Moradora",
+  });
+
+  await upsertRelation({
+    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    relatedPersonId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+    type: "Mae",
+    livesTogether: true,
+    isLegalGuardian: true,
+  });
+  await upsertRelation({
+    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    relatedPersonId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
+    type: "Irma",
+    livesTogether: true,
+  });
+  await upsertRelation({
+    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    relatedPersonId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
+    type: "Pai",
+    livesTogether: false,
+    isLegalGuardian: true,
+  });
+  await upsertRelation({
+    personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    type: "Filha",
+    livesTogether: true,
+    isLegalGuardian: true,
+  });
+  await upsertRelation({
+    personId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
+    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    type: "Irma",
+    livesTogether: true,
+  });
+  await upsertRelation({
+    personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
+    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+    type: "Filha",
+    livesTogether: false,
+    isLegalGuardian: true,
+  });
+
+  await upsertHouseholdMember({
+    householdId: householdIds.carlos,
+    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+    role: "Morador",
+    isProvider: true,
+    isIncomeContributor: true,
+  });
+  await upsertHouseholdMember({
+    householdId: householdIds.carlos,
+    personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+    role: "Conjuge",
+    isLegalGuardian: true,
+    isIncomeContributor: true,
+  });
+  await upsertHouseholdMember({
+    householdId: householdIds.carlos,
+    personId: "583145fa-138e-47d0-a758-9732a9653172",
+    role: "Dependente",
+    isDependent: true,
+  });
+
+  await upsertRelation({
+    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+    relatedPersonId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+    type: "Conjuge",
+    livesTogether: true,
+  });
+  await upsertRelation({
+    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+    relatedPersonId: "583145fa-138e-47d0-a758-9732a9653172",
+    type: "Filha",
+    livesTogether: true,
+    isLegalGuardian: true,
+  });
+  await upsertRelation({
+    personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+    relatedPersonId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+    type: "Conjuge",
+    livesTogether: true,
+  });
+  await upsertRelation({
+    personId: "583145fa-138e-47d0-a758-9732a9653172",
+    relatedPersonId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+    type: "Pai",
+    livesTogether: true,
+    isLegalGuardian: true,
+  });
+
+  const incomeSeeds = [
+    {
+      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3001",
+      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+      type: "Salario",
+      amount: 2500,
+      frequency: "MONTHLY",
+      isHouseholdContribution: true,
+      notes: "Renda principal da residencia.",
+    },
+    {
+      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3002",
+      personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
+      type: "Pensao",
+      amount: 600,
+      frequency: "MONTHLY",
+      isHouseholdContribution: true,
+      notes: "Pensao paga para o nucleo.",
+    },
+    {
+      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3003",
+      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+      type: "Salario",
+      amount: 3200,
+      frequency: "MONTHLY",
+      isHouseholdContribution: true,
+    },
+    {
+      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3004",
+      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+      type: "Beneficio",
+      amount: 400,
+      frequency: "MONTHLY",
+      isHouseholdContribution: true,
+    },
+  ];
+
+  for (const income of incomeSeeds) {
+    await prisma.personIncome.upsert({
+      where: { id: income.id },
+      update: {
+        type: income.type,
+        amount: income.amount,
+        frequency: income.frequency as any,
+        isHouseholdContribution: income.isHouseholdContribution,
+        notes: income.notes ?? null,
+      },
+      create: {
+        id: income.id,
+        tenantId: tenant.id,
+        personId: income.personId,
+        type: income.type,
+        amount: income.amount,
+        frequency: income.frequency as any,
+        isHouseholdContribution: income.isHouseholdContribution,
+        notes: income.notes ?? null,
+      },
+    });
+  }
+
+  const householdAssets = [
+    {
+      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4001",
+      householdId: householdIds.ana,
+      category: "Eletrodomesticos",
+      item: "Geladeira",
+      quantity: 1,
+      condition: "Bom",
+    },
+    {
+      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4002",
+      householdId: householdIds.ana,
+      category: "Moveis",
+      item: "Sofa",
+      quantity: 1,
+      condition: "Usado",
+    },
+    {
+      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4003",
+      householdId: householdIds.carlos,
+      category: "Servicos",
+      item: "Internet",
+      quantity: 1,
+      condition: "Ativo",
+    },
+    {
+      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4004",
+      householdId: householdIds.carlos,
+      category: "Aparelhos",
+      item: "Televisao",
+      quantity: 1,
+      condition: "Bom",
+    },
+  ];
+
+  for (const asset of householdAssets) {
+    await prisma.householdAsset.upsert({
+      where: { id: asset.id },
+      update: {
+        category: asset.category,
+        item: asset.item,
+        quantity: asset.quantity,
+        condition: asset.condition ?? null,
+      },
+      create: {
+        id: asset.id,
+        tenantId: tenant.id,
+        householdId: asset.householdId,
+        category: asset.category,
+        item: asset.item,
+        quantity: asset.quantity,
+        condition: asset.condition ?? null,
+      },
+    });
+  }
+
+  const personAssets = [
+    {
+      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5001",
+      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+      category: "Pessoal",
+      item: "Celular",
+      quantity: 1,
+      condition: "Bom",
+    },
+    {
+      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5002",
+      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+      category: "Veiculo",
+      item: "Moto",
+      quantity: 1,
+      condition: "Usado",
+    },
+    {
+      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5003",
+      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+      category: "Pessoal",
+      item: "Notebook",
+      quantity: 1,
+      condition: "Bom",
+    },
+  ];
+
+  for (const asset of personAssets) {
+    await prisma.personAsset.upsert({
+      where: { id: asset.id },
+      update: {
+        category: asset.category,
+        item: asset.item,
+        quantity: asset.quantity,
+        condition: asset.condition ?? null,
+      },
+      create: {
+        id: asset.id,
+        tenantId: tenant.id,
+        personId: asset.personId,
+        category: asset.category,
+        item: asset.item,
+        quantity: asset.quantity,
+        condition: asset.condition ?? null,
+      },
+    });
+  }
 }
 
 main()
