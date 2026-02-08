@@ -192,6 +192,7 @@ model HouseholdMember {
   personId            String   @db.Char(36)
   role                String?
   isLegalGuardian     Boolean  @default(false)
+  isHouseholdHead     Boolean  @default(false)
   isIncomeContributor Boolean  @default(false)
   isProvider          Boolean  @default(false)
   isDependent         Boolean  @default(false)

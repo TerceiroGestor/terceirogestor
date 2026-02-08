@@ -78,6 +78,7 @@ export type HouseholdMember = {
   personId: string;
   role?: string | null;
   isLegalGuardian: boolean;
+  isHouseholdHead?: boolean;
   isIncomeContributor: boolean;
   isProvider: boolean;
   isDependent: boolean;
@@ -119,6 +120,7 @@ export type PersonRelationInput = {
   type: string;
   livesTogether?: boolean;
   isLegalGuardian?: boolean;
+  isHouseholdHead?: boolean;
   notes?: string | null;
   householdRole?: string | null;
   isIncomeContributor?: boolean;

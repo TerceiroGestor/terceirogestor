@@ -785,6 +785,7 @@ async function main() {
     personId: string;
     role?: string | null;
     isLegalGuardian?: boolean;
+    isHouseholdHead?: boolean;
     isIncomeContributor?: boolean;
     isProvider?: boolean;
     isDependent?: boolean;
@@ -800,6 +801,7 @@ async function main() {
       update: {
         role: data.role ?? null,
         isLegalGuardian: data.isLegalGuardian ?? false,
+        isHouseholdHead: data.isHouseholdHead ?? false,
         isIncomeContributor: data.isIncomeContributor ?? false,
         isProvider: data.isProvider ?? false,
         isDependent: data.isDependent ?? false,
@@ -811,6 +813,7 @@ async function main() {
         personId: data.personId,
         role: data.role ?? null,
         isLegalGuardian: data.isLegalGuardian ?? false,
+        isHouseholdHead: data.isHouseholdHead ?? false,
         isIncomeContributor: data.isIncomeContributor ?? false,
         isProvider: data.isProvider ?? false,
         isDependent: data.isDependent ?? false,
@@ -864,6 +867,7 @@ async function main() {
     personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
     role: "Responsavel",
     isLegalGuardian: true,
+    isHouseholdHead: true,
     isProvider: true,
     isIncomeContributor: true,
   });
@@ -920,6 +924,7 @@ async function main() {
     personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
     role: "Responsavel",
     isLegalGuardian: true,
+    isHouseholdHead: true,
     isProvider: true,
     isIncomeContributor: true,
   });
@@ -967,6 +972,7 @@ async function main() {
     householdId: householdIds.carlos,
     personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
     role: "Morador",
+    isHouseholdHead: true,
     isProvider: true,
     isIncomeContributor: true,
   });

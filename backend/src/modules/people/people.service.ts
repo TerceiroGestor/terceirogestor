@@ -1202,7 +1202,7 @@ export class PeopleService {
       return sum;
     }, 0);
     const pensionTransferTotal = incomingTransfers.reduce((sum, transfer) => {
-      if (transfer.type === HouseholdTransferType.PENSION) {
+      if (String(transfer.type).toUpperCase() === 'PENSION') {
         return sum + Number(transfer.amount);
       }
       return sum;
@@ -1298,21 +1298,20 @@ export class PeopleService {
             name: householdMember.household.name,
           }
         : null,
-      householdMembers: householdMembers
-        .filter((member) => member.personId !== personId)
-        .map((member) => ({
-          id: member.id,
-          personId: member.personId,
-          role: member.role,
-          isLegalGuardian: member.isLegalGuardian,
-          isIncomeContributor: member.isIncomeContributor,
-          isProvider: member.isProvider,
-          isDependent: member.isDependent,
-          notes: member.notes,
-          startDate: member.startDate,
-          endDate: member.endDate,
-          person: mapPersonSummary(member.person),
-        })),
+      householdMembers: householdMembers.map((member) => ({
+        id: member.id,
+        personId: member.personId,
+        role: member.role,
+        isLegalGuardian: member.isLegalGuardian,
+        isHouseholdHead: member.isHouseholdHead,
+        isIncomeContributor: member.isIncomeContributor,
+        isProvider: member.isProvider,
+        isDependent: member.isDependent,
+        notes: member.notes,
+        startDate: member.startDate,
+        endDate: member.endDate,
+        person: mapPersonSummary(member.person),
+      })),
       relations: relations.map((relation) => ({
         id: relation.id,
         personId: relation.personId,
@@ -1549,6 +1548,7 @@ export class PeopleService {
         householdId: household.id,
         personId,
         role: 'Morador',
+        isHouseholdHead: true,
       },
     });
     return household.id;
@@ -1566,6 +1566,7 @@ export class PeopleService {
       | 'isProvider'
       | 'isDependent'
       | 'isLegalGuardian'
+      | 'isHouseholdHead'
     >,
   ) {
     await tx.householdMember.upsert({
@@ -1579,6 +1580,7 @@ export class PeopleService {
         isProvider: dto.isProvider ?? false,
         isDependent: dto.isDependent ?? false,
         isLegalGuardian: dto.isLegalGuardian ?? false,
+        isHouseholdHead: dto.isHouseholdHead ?? false,
       },
       update: {
         role:
@@ -1596,6 +1598,10 @@ export class PeopleService {
         isLegalGuardian:
           dto.isLegalGuardian !== undefined
             ? dto.isLegalGuardian
+            : undefined,
+        isHouseholdHead:
+          dto.isHouseholdHead !== undefined
+            ? dto.isHouseholdHead
             : undefined,
       },
     });

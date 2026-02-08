@@ -27,7 +27,7 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
         </div>
 
         <section className="space-y-3">
-          <FamilyRelationsSection />
+          <FamilyRelationsSection personId={person.id} />
         </section>
 
         <section className="space-y-3">

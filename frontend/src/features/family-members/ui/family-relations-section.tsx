@@ -2,7 +2,7 @@
 
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 import { FamilyRelationsList } from "@/features/family-members/ui/family-relations-list";
-export function FamilyRelationsSection() {
+export function FamilyRelationsSection({ personId }: { personId: string }) {
   const {
     data,
     isLoading,
@@ -28,6 +28,7 @@ export function FamilyRelationsSection() {
         incomeContributorIds={incomeContributorIds}
         isLoading={isLoading}
         error={error}
+        currentPersonId={personId}
         onRefresh={refresh}
         onCreate={create}
         onUpdate={update}

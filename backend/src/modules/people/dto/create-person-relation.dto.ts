@@ -16,6 +16,10 @@ export class CreatePersonRelationDto {
   isLegalGuardian?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isHouseholdHead?: boolean;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 

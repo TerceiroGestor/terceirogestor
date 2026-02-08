@@ -58,6 +58,7 @@ type FamilyRelationsListProps = {
   incomeContributorIds: string[];
   isLoading: boolean;
   error?: string | null;
+  currentPersonId: string;
   onRefresh: () => void;
   onCreate: (payload: PersonRelationInput) => Promise<void>;
   onUpdate: (
@@ -116,6 +117,7 @@ const buildInitialForm = (
     livesTogether: relation?.livesTogether ?? Boolean(householdMember),
     isLegalGuardian:
       relation?.isLegalGuardian ?? householdMember?.isLegalGuardian ?? false,
+    isHouseholdHead: householdMember?.isHouseholdHead ?? false,
     notes: relation?.notes ?? "",
     householdRole: householdMember?.role ?? "",
     isIncomeContributor: householdMember?.isIncomeContributor ?? false,
@@ -161,15 +163,15 @@ const FamilyRow = ({
   onEdit?: () => void;
   onDelete?: () => void;
 }) => (
-  <div className="group relative flex flex-col gap-2 border-b border-border/30 py-2 pr-2 lg:flex-row lg:items-center">
-    <Avatar className="h-10 w-10">
+  <div className="group relative flex flex-col gap-2 border-b border-border/30 py-1.5 pr-2 lg:flex-row lg:items-center">
+    <Avatar className="h-9 w-9">
       <AvatarImage src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")} />
       <AvatarFallback>
         {person.fullName.slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>
     <div className="flex flex-1 flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-foreground">
         <Link
           href={`/people/${person.id}`}
           className="hover:text-foreground/80"
@@ -178,11 +180,11 @@ const FamilyRow = ({
         </Link>
         {relationType ? <RelationBadge label={relationType} /> : null}
       </div>
-      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
         {badges.map((badge) => (
           <span
             key={badge}
-            className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[11px]"
+            className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
             {badge}
@@ -343,13 +345,25 @@ const RelationDialog = ({
                 </div>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
-                    <Label>Responsavel legal</Label>
+                    <Label>Respons\u00e1vel legal</Label>
                     <Switch
                       checked={Boolean(form.isLegalGuardian)}
                       onCheckedChange={(checked) =>
                         setForm((prev) => ({
                           ...prev,
                           isLegalGuardian: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label>Respons\u00e1vel principal</Label>
+                    <Switch
+                      checked={Boolean(form.isHouseholdHead)}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          isHouseholdHead: checked,
                         }))
                       }
                     />
@@ -420,6 +434,7 @@ export function FamilyRelationsList({
   incomeContributorIds,
   isLoading,
   error,
+  currentPersonId,
   onRefresh,
   onCreate,
   onUpdate,
@@ -516,6 +531,9 @@ export function FamilyRelationsList({
   const guardiansCount =
     householdMembers.filter((member) => member.isLegalGuardian).length +
     externalRelations.filter((relation) => relation.isLegalGuardian).length;
+  const headCount = householdMembers.filter(
+    (member) => member.isHouseholdHead,
+  ).length;
   const providersCount = householdMembers.filter(
     (member) => member.isProvider,
   ).length;
@@ -529,7 +547,7 @@ export function FamilyRelationsList({
 
   return (
     <Card>
-      <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+      <CardHeader className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -550,34 +568,36 @@ export function FamilyRelationsList({
           </DropdownMenu>
         </div>
         <RelationDialog
-          title="Adicionar vinculo"
-          description="Registre um familiar e as informacoes sociais."
+          title="Adicionar v\u00ednculo"
+          description="Registre um familiar e as informa\u00e7\u00f5es sociais."
           peopleOptions={peopleOptions}
           initial={createInitial}
           open={createOpen}
           onOpenChange={setCreateOpen}
-          triggerLabel="Novo vinculo"
+          triggerLabel="Novo v\u00ednculo"
           onSubmit={handleCreate}
         />
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-2">
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 lg:grid-cols-2">
           <section className="space-y-1">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">
+              <p className="text-[11px] font-medium text-muted-foreground">
                 Moram juntos
               </p>
             </div>
             <div className="space-y-1">
               {livingMembers.length ? (
                 livingMembers.map(({ member, relation }) => {
+                  const isSelf = member.personId === currentPersonId;
                   const contributesIncome =
                     member.isIncomeContributor ||
                     incomeContributorIds.includes(member.personId);
                   const contributionAmount =
                     contributionMap.get(member.personId) ?? 0;
                   const badges = [
-                    member.isLegalGuardian ? "Responsavel legal" : null,
+                    member.isLegalGuardian ? "Respons\u00e1vel legal" : null,
+                    member.isHouseholdHead ? "Respons\u00e1vel principal" : null,
                     member.isProvider ? "Provedor" : null,
                     contributionAmount > 0
                       ? `Contribui ${formatCurrency(contributionAmount)}`
@@ -590,29 +610,35 @@ export function FamilyRelationsList({
                     <FamilyRow
                       key={member.id}
                       person={member.person}
-                      relationType={relation?.type}
+                      relationType={relation?.type ?? member.role ?? "Morador"}
                       badges={badges}
-                      onEdit={() => {
-                        setEditing({ relation, member });
-                        setEditOpen(true);
-                      }}
+                      onEdit={
+                        !isSelf
+                          ? () => {
+                              setEditing({ relation, member });
+                              setEditOpen(true);
+                            }
+                          : undefined
+                      }
                       onDelete={
-                        relation ? () => handleDelete(relation.id) : undefined
+                        relation && !isSelf
+                          ? () => handleDelete(relation.id)
+                          : undefined
                       }
                     />
                   );
                 })
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado na residencia.
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhum familiar registrado na resid\u00eancia.
                 </p>
               )}
             </div>
           </section>
           <section className="space-y-1">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">
-                Nao moram juntos
+              <p className="text-[11px] font-medium text-muted-foreground">
+                N\u00e3o moram juntos
               </p>
             </div>
             <div className="space-y-1">
@@ -621,7 +647,7 @@ export function FamilyRelationsList({
                   const contributionAmount =
                     contributionMap.get(relation.relatedPersonId) ?? 0;
                   const badges = [
-                    relation.isLegalGuardian ? "Responsavel legal" : null,
+                    relation.isLegalGuardian ? "Respons\u00e1vel legal" : null,
                     contributionAmount > 0
                       ? `Contribui ${formatCurrency(contributionAmount)}`
                       : incomeContributorIds.includes(relation.relatedPersonId)
@@ -643,27 +669,28 @@ export function FamilyRelationsList({
                   );
                 })
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado fora da residencia.
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhum familiar registrado fora da resid\u00eancia.
                 </p>
               )}
             </div>
           </section>
         </div>
       </CardContent>
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-2 text-[11px]">
         <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
-        <Badge variant="secondary">Fora da residencia: {externalCount}</Badge>
-        <Badge variant="outline">Responsaveis legais: {guardiansCount}</Badge>
+        <Badge variant="secondary">Fora da resid\u00eancia: {externalCount}</Badge>
+        <Badge variant="outline">Respons\u00e1vel ({guardiansCount})</Badge>
+        <Badge variant="outline">Cabe\u00e7a ({headCount})</Badge>
         <Badge variant="outline">Provedores: {providersCount}</Badge>
         <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
         <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
-        <Badge variant="outline">Vinculos totais: {totalRelations}</Badge>
+        <Badge variant="outline">V\u00ednculos totais: {totalRelations}</Badge>
       </div>
       {editing && (
         <RelationDialog
-          title="Editar vinculo"
-          description="Atualize as informacoes do familiar."
+          title="Editar v\u00ednculo"
+          description="Atualize as informa\u00e7\u00f5es do familiar."
           peopleOptions={peopleOptions}
           initial={buildInitialForm(
             peopleOptions,
