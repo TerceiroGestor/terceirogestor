@@ -9,6 +9,8 @@ import { FamilyHouseholdReport } from "@/features/family-members/ui/family-house
 import { FamilyAssetsReport } from "@/features/family-members/ui/family-assets-report";
 import { FamilyPatrimonialCard } from "@/features/family-members/ui/family-patrimonial-card";
 import { PeopleFinancialPanel } from "@/features/people-financial/ui/people-financial-panel";
+import { HealthConditionsPanel } from "@/features/health-conditions/ui/health-conditions-panel";
+import { MedicationsPanel } from "@/features/medications/ui/medications-panel";
 
 type PeopleDetailContentProps = {
   person: Person;
@@ -50,6 +52,14 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
 
       <TabsContent value="financeiro" className="space-y-6">
         <PeopleFinancialPanel personId={person.id} />
+      </TabsContent>
+
+      <TabsContent value="saude" className="space-y-6">
+        <HealthConditionsPanel personId={person.id} />
+      </TabsContent>
+
+      <TabsContent value="medicacoes" className="space-y-6">
+        <MedicationsPanel personId={person.id} />
       </TabsContent>
     </div>
   );

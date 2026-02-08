@@ -1369,6 +1369,143 @@ async function main() {
       },
     });
   }
+
+  const healthConditions = [
+    {
+      id: "c820b9b1-3b58-4f1a-b0e0-4dfc0c5d9001",
+      personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+      type: "Deficiencia Auditiva",
+      description: "Perda de 70% da audicao.",
+      severity: "Moderada",
+      diagnosisDate: new Date("2012-06-10"),
+      documentUrl: "/uploads/health/parecer-medico-auditivo.pdf",
+      notes: "Acompanhamento com fonoaudiologia.",
+    },
+    {
+      id: "c820b9b1-3b58-4f1a-b0e0-4dfc0c5d9002",
+      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+      type: "Deficiencia Visual",
+      description: "Perda parcial da visao.",
+      severity: "Leve",
+      diagnosisDate: new Date("2018-03-12"),
+      documentUrl: "/uploads/health/parecer-medico-visao.pdf",
+      notes: "Uso de oculos com atualizacao anual.",
+    },
+  ];
+
+  for (const condition of healthConditions) {
+    await prisma.personHealthCondition.upsert({
+      where: { id: condition.id },
+      update: {
+        type: condition.type,
+        description: condition.description ?? null,
+        severity: condition.severity ?? null,
+        diagnosisDate: condition.diagnosisDate ?? null,
+        documentUrl: condition.documentUrl ?? null,
+        notes: condition.notes ?? null,
+      },
+      create: {
+        id: condition.id,
+        tenantId: tenant.id,
+        personId: condition.personId,
+        type: condition.type,
+        description: condition.description ?? null,
+        severity: condition.severity ?? null,
+        diagnosisDate: condition.diagnosisDate ?? null,
+        documentUrl: condition.documentUrl ?? null,
+        notes: condition.notes ?? null,
+      },
+    });
+  }
+
+  type MedicationSeed = {
+    id: string;
+    personId: string;
+    reason?: string;
+    medication: string;
+    dosage?: string;
+    schedule?: string;
+    startDate?: Date;
+    endDate?: Date;
+    prescribingDoctor?: string;
+    permissionDocumentUrl?: string;
+    documentUrl?: string;
+    notes?: string;
+  };
+
+  const medications: MedicationSeed[] = [
+    {
+      id: "d920b9b1-3b58-4f1a-b0e0-4dfc0c5d9101",
+      personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
+      reason: "TDAH",
+      medication: "Ritalina",
+      dosage: "10 mg",
+      schedule: "08h/08h",
+      startDate: new Date("2024-01-15"),
+      prescribingDoctor: "Dr. Gustavo Almeida",
+      permissionDocumentUrl: "/uploads/health/autorizacao-pais.pdf",
+      notes: "Uso somente em dias de atendimento.",
+    },
+    {
+      id: "d920b9b1-3b58-4f1a-b0e0-4dfc0c5d9102",
+      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
+      reason: "Hipertensao",
+      medication: "Losartana",
+      dosage: "50 mg",
+      schedule: "1 vez ao dia",
+      startDate: new Date("2022-05-20"),
+      prescribingDoctor: "Dra. Marcia Silveira",
+      documentUrl: "/uploads/health/receita-losartana.pdf",
+      notes: "Monitorar pressao semanalmente.",
+    },
+  ];
+
+  for (const medication of medications) {
+    await prisma.personMedication.upsert({
+      where: { id: medication.id },
+      update: {
+        reason: medication.reason ?? null,
+        medication: medication.medication,
+        dosage: medication.dosage ?? null,
+        schedule: medication.schedule ?? null,
+        startDate: medication.startDate ?? null,
+        endDate: medication.endDate ?? null,
+        prescribingDoctor: medication.prescribingDoctor ?? null,
+        permissionDocumentUrl: medication.permissionDocumentUrl ?? null,
+        documentUrl: medication.documentUrl ?? null,
+        notes: medication.notes ?? null,
+      },
+      create: {
+        id: medication.id,
+        tenantId: tenant.id,
+        personId: medication.personId,
+        reason: medication.reason ?? null,
+        medication: medication.medication,
+        dosage: medication.dosage ?? null,
+        schedule: medication.schedule ?? null,
+        startDate: medication.startDate ?? null,
+        endDate: medication.endDate ?? null,
+        prescribingDoctor: medication.prescribingDoctor ?? null,
+        permissionDocumentUrl: medication.permissionDocumentUrl ?? null,
+        documentUrl: medication.documentUrl ?? null,
+        notes: medication.notes ?? null,
+      },
+    });
+  }
+
+  const peopleWithHealthIssues = Array.from(
+    new Set([
+      ...healthConditions.map((condition) => condition.personId),
+      ...medications.map((medication) => medication.personId),
+    ]),
+  );
+
+  if (peopleWithHealthIssues.length) {
+    await prisma.person.updateMany({
+      where: { id: { in: peopleWithHealthIssues } },
+      data: { hasHealthIssue: true },
+    });
+  }
 }
 
 main()

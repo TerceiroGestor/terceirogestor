@@ -95,19 +95,19 @@ const tabGroups: TabGroup[] = [
     ],
   },
   {
-    label: "Saude",
+    label: "Saúde",
     items: [
       {
         value: "saude",
-        label: "Condicoes",
+        label: "Condições",
         icon: HeartPulse,
-        disabled: true,
+        disabled: false,
       },
       {
         value: "medicacoes",
-        label: "Medicacoes",
+        label: "Medicações",
         icon: Pill,
-        disabled: true,
+        disabled: false,
       },
     ],
   },

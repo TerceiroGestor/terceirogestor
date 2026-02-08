@@ -8,7 +8,9 @@ import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
+import { CreatePersonHealthConditionDto } from './dto/create-person-health-condition.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
+import { CreatePersonMedicationDto } from './dto/create-person-medication.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
 import { CreateHouseholdTransferDto } from './dto/create-household-transfer.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
@@ -16,7 +18,9 @@ import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
+import { UpdatePersonHealthConditionDto } from './dto/update-person-health-condition.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
+import { UpdatePersonMedicationDto } from './dto/update-person-medication.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
@@ -55,6 +59,8 @@ type HouseholdProfileRecord = Prisma.HouseholdProfileGetPayload<{}>;
 type HouseholdAssetRecord = Prisma.HouseholdAssetGetPayload<{}>;
 type PersonAssetRecord = Prisma.PersonAssetGetPayload<{}>;
 type HouseholdTransferRecord = Prisma.HouseholdTransferGetPayload<{}>;
+type PersonHealthConditionRecord = Prisma.PersonHealthConditionGetPayload<{}>;
+type PersonMedicationRecord = Prisma.PersonMedicationGetPayload<{}>;
 
 const normalizeTags = (tags?: string[] | null) => {
   if (!tags) return null;
@@ -181,6 +187,36 @@ const mapPersonAsset = (asset: PersonAssetRecord) => ({
   notes: asset.notes,
   createdAt: asset.createdAt,
   updatedAt: asset.updatedAt,
+});
+
+const mapHealthCondition = (condition: PersonHealthConditionRecord) => ({
+  id: condition.id,
+  personId: condition.personId,
+  type: condition.type,
+  description: condition.description,
+  severity: condition.severity,
+  diagnosisDate: condition.diagnosisDate,
+  documentUrl: condition.documentUrl,
+  notes: condition.notes,
+  createdAt: condition.createdAt,
+  updatedAt: condition.updatedAt,
+});
+
+const mapMedication = (medication: PersonMedicationRecord) => ({
+  id: medication.id,
+  personId: medication.personId,
+  reason: medication.reason,
+  medication: medication.medication,
+  dosage: medication.dosage,
+  schedule: medication.schedule,
+  startDate: medication.startDate,
+  endDate: medication.endDate,
+  prescribingDoctor: medication.prescribingDoctor,
+  permissionDocumentUrl: medication.permissionDocumentUrl,
+  documentUrl: medication.documentUrl,
+  notes: medication.notes,
+  createdAt: medication.createdAt,
+  updatedAt: medication.updatedAt,
 });
 
 const normalizeRelationKey = (value?: string | null) =>
@@ -483,7 +519,11 @@ export class PeopleService {
       where: { id },
       data,
     });
-    return mapPerson(person);
+    await this.syncHealthIssueFlag(tenantId, id);
+    const refreshed = await this.prisma.person.findFirst({
+      where: { id, tenantId },
+    });
+    return mapPerson(refreshed ?? person);
   }
 
   async listIncomes(tenantId: string, personId: string) {
@@ -691,6 +731,232 @@ export class PeopleService {
       throw new NotFoundException('Renda nao encontrada.');
     }
     await this.prisma.personIncome.delete({ where: { id: incomeId } });
+    return { deleted: true };
+  }
+
+  async listHealthConditions(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+    const conditions = await this.prisma.personHealthCondition.findMany({
+      where: { tenantId, personId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return conditions.map(mapHealthCondition);
+  }
+
+  async createHealthCondition(
+    tenantId: string,
+    personId: string,
+    dto: CreatePersonHealthConditionDto,
+  ) {
+    await this.findById(tenantId, personId);
+    return this.prisma.$transaction(async (tx) => {
+      const condition = await tx.personHealthCondition.create({
+        data: {
+          tenantId,
+          personId,
+          type: normalizeString(dto.type) ?? dto.type,
+          description:
+            dto.description !== undefined
+              ? normalizeString(dto.description)
+              : null,
+          severity:
+            dto.severity !== undefined ? normalizeString(dto.severity) : null,
+          diagnosisDate: dto.diagnosisDate
+            ? new Date(dto.diagnosisDate)
+            : null,
+          documentUrl:
+            dto.documentUrl !== undefined
+              ? normalizeString(dto.documentUrl)
+              : null,
+          notes: dto.notes !== undefined ? normalizeString(dto.notes) : null,
+        },
+      });
+      await this.syncHealthIssueFlag(tenantId, personId, tx);
+      return mapHealthCondition(condition);
+    });
+  }
+
+  async updateHealthCondition(
+    tenantId: string,
+    personId: string,
+    conditionId: string,
+    dto: UpdatePersonHealthConditionDto,
+  ) {
+    const condition = await this.prisma.personHealthCondition.findFirst({
+      where: { id: conditionId, tenantId, personId },
+    });
+    if (!condition) {
+      throw new NotFoundException('Condicao de saude nao encontrada.');
+    }
+    const updated = await this.prisma.personHealthCondition.update({
+      where: { id: conditionId },
+      data: {
+        type:
+          dto.type !== undefined
+            ? normalizeString(dto.type) ?? undefined
+            : undefined,
+        description:
+          dto.description !== undefined
+            ? normalizeString(dto.description)
+            : undefined,
+        severity:
+          dto.severity !== undefined
+            ? normalizeString(dto.severity)
+            : undefined,
+        diagnosisDate:
+          dto.diagnosisDate !== undefined
+            ? dto.diagnosisDate
+              ? new Date(dto.diagnosisDate)
+              : null
+            : undefined,
+        documentUrl:
+          dto.documentUrl !== undefined
+            ? normalizeString(dto.documentUrl)
+            : undefined,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+      },
+    });
+    return mapHealthCondition(updated);
+  }
+
+  async removeHealthCondition(
+    tenantId: string,
+    personId: string,
+    conditionId: string,
+  ) {
+    const condition = await this.prisma.personHealthCondition.findFirst({
+      where: { id: conditionId, tenantId, personId },
+    });
+    if (!condition) {
+      throw new NotFoundException('Condicao de saude nao encontrada.');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.personHealthCondition.delete({ where: { id: conditionId } });
+      await this.syncHealthIssueFlag(tenantId, personId, tx);
+    });
+    return { deleted: true };
+  }
+
+  async listMedications(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+    const medications = await this.prisma.personMedication.findMany({
+      where: { tenantId, personId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return medications.map(mapMedication);
+  }
+
+  async createMedication(
+    tenantId: string,
+    personId: string,
+    dto: CreatePersonMedicationDto,
+  ) {
+    await this.findById(tenantId, personId);
+    return this.prisma.$transaction(async (tx) => {
+      const medication = await tx.personMedication.create({
+        data: {
+          tenantId,
+          personId,
+          reason:
+            dto.reason !== undefined ? normalizeString(dto.reason) : null,
+          medication: normalizeString(dto.medication) ?? dto.medication,
+          dosage: dto.dosage !== undefined ? normalizeString(dto.dosage) : null,
+          schedule:
+            dto.schedule !== undefined ? normalizeString(dto.schedule) : null,
+          startDate: dto.startDate ? new Date(dto.startDate) : null,
+          endDate: dto.endDate ? new Date(dto.endDate) : null,
+          prescribingDoctor:
+            dto.prescribingDoctor !== undefined
+              ? normalizeString(dto.prescribingDoctor)
+              : null,
+          permissionDocumentUrl:
+            dto.permissionDocumentUrl !== undefined
+              ? normalizeString(dto.permissionDocumentUrl)
+              : null,
+          documentUrl:
+            dto.documentUrl !== undefined
+              ? normalizeString(dto.documentUrl)
+              : null,
+          notes: dto.notes !== undefined ? normalizeString(dto.notes) : null,
+        },
+      });
+      await this.syncHealthIssueFlag(tenantId, personId, tx);
+      return mapMedication(medication);
+    });
+  }
+
+  async updateMedication(
+    tenantId: string,
+    personId: string,
+    medicationId: string,
+    dto: UpdatePersonMedicationDto,
+  ) {
+    const medication = await this.prisma.personMedication.findFirst({
+      where: { id: medicationId, tenantId, personId },
+    });
+    if (!medication) {
+      throw new NotFoundException('Medicacao nao encontrada.');
+    }
+    const updated = await this.prisma.personMedication.update({
+      where: { id: medicationId },
+      data: {
+        reason:
+          dto.reason !== undefined ? normalizeString(dto.reason) : undefined,
+        medication:
+          dto.medication !== undefined
+            ? normalizeString(dto.medication) ?? undefined
+            : undefined,
+        dosage:
+          dto.dosage !== undefined ? normalizeString(dto.dosage) : undefined,
+        schedule:
+          dto.schedule !== undefined
+            ? normalizeString(dto.schedule)
+            : undefined,
+        startDate:
+          dto.startDate !== undefined
+            ? dto.startDate
+              ? new Date(dto.startDate)
+              : null
+            : undefined,
+        endDate:
+          dto.endDate !== undefined
+            ? dto.endDate
+              ? new Date(dto.endDate)
+              : null
+            : undefined,
+        prescribingDoctor:
+          dto.prescribingDoctor !== undefined
+            ? normalizeString(dto.prescribingDoctor)
+            : undefined,
+        permissionDocumentUrl:
+          dto.permissionDocumentUrl !== undefined
+            ? normalizeString(dto.permissionDocumentUrl)
+            : undefined,
+        documentUrl:
+          dto.documentUrl !== undefined
+            ? normalizeString(dto.documentUrl)
+            : undefined,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+      },
+    });
+    return mapMedication(updated);
+  }
+
+  async removeMedication(
+    tenantId: string,
+    personId: string,
+    medicationId: string,
+  ) {
+    const medication = await this.prisma.personMedication.findFirst({
+      where: { id: medicationId, tenantId, personId },
+    });
+    if (!medication) {
+      throw new NotFoundException('Medicacao nao encontrada.');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.personMedication.delete({ where: { id: medicationId } });
+      await this.syncHealthIssueFlag(tenantId, personId, tx);
+    });
     return { deleted: true };
   }
 
@@ -1671,6 +1937,22 @@ export class PeopleService {
         isLegalGuardian: relation.isLegalGuardian ?? false,
         notes: relation.notes ?? null,
       },
+    });
+  }
+
+  private async syncHealthIssueFlag(
+    tenantId: string,
+    personId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const [conditionCount, medicationCount] = await Promise.all([
+      tx.personHealthCondition.count({ where: { tenantId, personId } }),
+      tx.personMedication.count({ where: { tenantId, personId } }),
+    ]);
+    const hasHealthIssue = conditionCount + medicationCount > 0;
+    await tx.person.update({
+      where: { id: personId },
+      data: { hasHealthIssue },
     });
   }
 }

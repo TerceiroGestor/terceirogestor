@@ -47,6 +47,8 @@ model Tenant {
   householdAssets HouseholdAsset[]
   personAssets    PersonAsset[]
   householdTransfers HouseholdTransfer[]
+  personHealthConditions PersonHealthCondition[]
+  personMedications PersonMedication[]
   userSessions    UserSession[]
   accessLogs      AccessLog[]
 
@@ -161,6 +163,8 @@ model Person {
   expenses PersonExpense[]
   assets  PersonAsset[]
   transfers HouseholdTransfer[]
+  healthConditions PersonHealthCondition[]
+  medications PersonMedication[]
 
   @@index([tenantId])
   @@index([fullName])
@@ -335,6 +339,50 @@ model PersonExpense {
   @@index([tenantId])
   @@index([personId])
   @@index([householdId])
+}
+
+model PersonHealthCondition {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  personId      String   @db.Char(36)
+  type          String
+  description   String?  @db.Text
+  severity      String?
+  diagnosisDate DateTime?
+  documentUrl   String?
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+}
+
+model PersonMedication {
+  id                   String   @id @default(uuid()) @db.Char(36)
+  tenantId             String   @db.Char(36)
+  personId             String   @db.Char(36)
+  reason               String?
+  medication           String
+  dosage               String?
+  schedule             String?
+  startDate            DateTime?
+  endDate              DateTime?
+  prescribingDoctor    String?
+  permissionDocumentUrl String?
+  documentUrl          String?
+  notes                String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
 }
 
 enum HouseholdTransferType {

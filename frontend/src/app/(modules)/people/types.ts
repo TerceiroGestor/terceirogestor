@@ -209,6 +209,36 @@ export type PersonAssetsGroup = {
   assets: PersonAsset[];
 };
 
+export type HealthCondition = {
+  id: string;
+  personId: string;
+  type: string;
+  description?: string | null;
+  severity?: string | null;
+  diagnosisDate?: string | null;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type Medication = {
+  id: string;
+  personId: string;
+  reason?: string | null;
+  medication: string;
+  dosage?: string | null;
+  schedule?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  prescribingDoctor?: string | null;
+  permissionDocumentUrl?: string | null;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
 export type FamilyIncomeSummary = {
   totalIncome: number;
   perCapitaIncome: number;

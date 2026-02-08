@@ -200,6 +200,36 @@ export type ApiPersonAssetsGroup = {
   assets: ApiPersonAsset[];
 };
 
+export type ApiHealthCondition = {
+  id: string;
+  personId: string;
+  type: string;
+  description?: string | null;
+  severity?: string | null;
+  diagnosisDate?: string | null;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiMedication = {
+  id: string;
+  personId: string;
+  reason?: string | null;
+  medication: string;
+  dosage?: string | null;
+  schedule?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  prescribingDoctor?: string | null;
+  permissionDocumentUrl?: string | null;
+  documentUrl?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ApiFamilyIncomeSummary = {
   totalIncome: number;
   perCapitaIncome: number;
@@ -636,6 +666,112 @@ export async function deletePersonAsset(
 ) {
   return apiRequest<{ deleted: boolean }>(
     `/people/${id}/person-assets/${assetId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
+export async function getPersonHealthConditions(token: string, id: string) {
+  return apiRequest<ApiHealthCondition[]>(
+    `/people/${id}/health-conditions`,
+    {},
+    token,
+  );
+}
+
+export async function createPersonHealthCondition(
+  token: string,
+  id: string,
+  payload: Omit<ApiHealthCondition, "id" | "personId" | "createdAt" | "updatedAt">,
+) {
+  return apiRequest<ApiHealthCondition>(
+    `/people/${id}/health-conditions`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function updatePersonHealthCondition(
+  token: string,
+  id: string,
+  conditionId: string,
+  payload: Partial<
+    Omit<ApiHealthCondition, "id" | "personId" | "createdAt" | "updatedAt">
+  >,
+) {
+  return apiRequest<ApiHealthCondition>(
+    `/people/${id}/health-conditions/${conditionId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deletePersonHealthCondition(
+  token: string,
+  id: string,
+  conditionId: string,
+) {
+  return apiRequest<{ deleted: boolean }>(
+    `/people/${id}/health-conditions/${conditionId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
+export async function getPersonMedications(token: string, id: string) {
+  return apiRequest<ApiMedication[]>(`/people/${id}/medications`, {}, token);
+}
+
+export async function createPersonMedication(
+  token: string,
+  id: string,
+  payload: Omit<ApiMedication, "id" | "personId" | "createdAt" | "updatedAt">,
+) {
+  return apiRequest<ApiMedication>(
+    `/people/${id}/medications`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function updatePersonMedication(
+  token: string,
+  id: string,
+  medicationId: string,
+  payload: Partial<
+    Omit<ApiMedication, "id" | "personId" | "createdAt" | "updatedAt">
+  >,
+) {
+  return apiRequest<ApiMedication>(
+    `/people/${id}/medications/${medicationId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deletePersonMedication(
+  token: string,
+  id: string,
+  medicationId: string,
+) {
+  return apiRequest<{ deleted: boolean }>(
+    `/people/${id}/medications/${medicationId}`,
     {
       method: "DELETE",
     },

@@ -1,63 +1,86 @@
-# Arquitetura do Projeto
+﻿# Arquitetura do Projeto
 
-## Visão geral
+## Visao geral
 - Backend: NestJS + Prisma (MySQL).
 - Frontend: Next.js (App Router).
-- Estrutura organizada por módulos (app) e features (shared).
+- Estrutura organizada por modulos (app) e features (shared).
 
 ## Estrutura de pastas (resumo)
 
 ### Backend
 - `backend/src/core`
-  - `auth`: autenticação e estratégia JWT.
+  - `auth`: autenticacao e estrategia JWT.
   - `prisma`: PrismaService e adapter.
-  - outros utilitários/infra.
+  - outros utilitarios/infra.
 - `backend/src/modules`
-  - `people`: CRUD de pessoas e vínculos familiares.
+  - `people`: CRUD de pessoas e vinculos familiares.
   - `users`, `roles`, `permissions`, `tenants`.
 - `backend/prisma`
   - `schema.prisma`: modelo de dados.
-  - `seed.ts`: carga base (tenant/roles/users/people/vínculos).
+  - `seed.ts`: carga base (tenant/roles/users/people/vinculos).
 
 ### Frontend
 - `frontend/src/app/(modules)`
-  - `people`: páginas e componentes do domínio people.
+  - `people`: paginas e componentes do dominio people.
   - `auth/login`: fluxo de login (fora do layout principal).
 - `frontend/src/features`
-  - `people`: integração com API de people.
-  - `family-members`: feature de família (context, data hook, UI).
+  - `people`: integracao com API de people.
+  - `family-members`: feature de familia (context, data hook, UI).
 
-## Módulo People (frontend)
+## Padronizacao do frontend
+
+### Modulo
+1. Responsavel por renderizar e gerenciar os dados simples.
+2. Quando necessario, chama as features que trabalham dados relacionais.
+
+### Feature
+1. Responsavel por renderizar e gerenciar seus dados relacionados ao modulo.
+2. Responsavel pela renderizacao das paginas com sections, lists, tables e form.
+3. Sempre usar os componentes padrao:
+   - Section: `SectionCard`
+   - List: `SectionList`
+   - Group list: `SectionListCollapse`
+   - Table: `DataTable`
+   - Form: `FormEngine`
+
+### Componentes padrao
+- `SectionCard`: card padrao de secao.
+- `SectionList`: lista compacta com hover actions.
+- `SectionListCollapse`: lista com colapso, visual padrao de item.
+- `DataTable`: tabela com filtros/agrupamento/exportacao.
+- `FormEngine`: formularios dinamicos com validacao.
+- Futuro: `FeatureMenu` (menu de features do modulo).
+
+## Modulo People (frontend)
 - `people` orquestra telas e integra features.
-- Feature de família concentra toda a lógica de família:
-  - `data/use-family-relations.ts`: busca/criação/atualização/remoção.
+- Feature de familia concentra toda a logica de familia:
+  - `data/use-family-relations.ts`: busca/criacao/atualizacao/remocao.
   - `context/family-relations-context.tsx`: provider + hook.
-  - `ui/*`: header preview, resumo, lista e diálogos.
-  - Relatórios: rendas, moradia e bens (itens compartilhados e individuais).
+  - `ui/*`: header preview, resumo, lista e dialogos.
+  - Relatorios: rendas, moradia e bens (itens compartilhados e individuais).
 
 Fluxo principal (PeopleDetail):
-1. `PeopleDetailClientPage` recebe a pessoa e controla edição.
-2. `PeopleDetail` cria o contexto de família.
-3. `PeopleDetailHeader` usa preview da feature de família.
-4. Aba `família` renderiza `FamilyRelationsSection`.
+1. `PeopleDetailClientPage` recebe a pessoa e controla edicao.
+2. `PeopleDetail` cria o contexto de familia.
+3. `PeopleDetailHeader` usa preview da feature de familia.
+4. Aba `familia` renderiza `FamilyRelationsSection`.
 
-## Convenções
+## Convencoes
 - Pages ficam em `app/(modules)/<modulo>`.
-- Lógica de feature fica em `features/<feature>`.
+- Logica de feature fica em `features/<feature>`.
 - Componentes do modulo podem re-exportar features para manter compatibilidade.
-- Nomes claros e responsabilidade única por arquivo.
+- Nomes claros e responsabilidade unica por arquivo.
 
 ## Como adicionar uma nova feature
-1. Modelagem no banco de dados (Prisma) e migração.
-2. Módulo backend (controller/service/dto).
+1. Modelagem no banco de dados (Prisma) e migracao.
+2. Modulo backend (controller/service/dto).
 3. Feature frontend:
-   - `data/`: hooks e integração de API.
+   - `data/`: hooks e integracao de API.
    - `context/`: provider para estado compartilhado.
    - `ui/`: componentes.
-4. Orquestração no módulo `app/(modules)/...`.
-5. Ajustar seed quando necessário.
+4. Orquestracao no modulo `app/(modules)/...`.
+5. Ajustar seed quando necessario.
 
 ## Testes e build
 - Backend: `npm run build`.
 - Frontend: `npm run build`.
-

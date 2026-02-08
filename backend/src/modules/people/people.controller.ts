@@ -19,7 +19,9 @@ import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
+import { CreatePersonHealthConditionDto } from './dto/create-person-health-condition.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
+import { CreatePersonMedicationDto } from './dto/create-person-medication.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
 import { CreateHouseholdTransferDto } from './dto/create-household-transfer.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
@@ -27,7 +29,9 @@ import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
+import { UpdatePersonHealthConditionDto } from './dto/update-person-health-condition.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
+import { UpdatePersonMedicationDto } from './dto/update-person-medication.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
@@ -157,6 +161,100 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.removeExpense(tenantId, id, expenseId);
+  }
+
+  @Get(':id/health-conditions')
+  async listHealthConditions(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listHealthConditions(tenantId, id);
+  }
+
+  @Post(':id/health-conditions')
+  async createHealthCondition(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonHealthConditionDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createHealthCondition(tenantId, id, dto);
+  }
+
+  @Patch(':id/health-conditions/:conditionId')
+  async updateHealthCondition(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('conditionId', new ParseUUIDPipe({ version: '4' }))
+    conditionId: string,
+    @Body() dto: UpdatePersonHealthConditionDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateHealthCondition(
+      tenantId,
+      id,
+      conditionId,
+      dto,
+    );
+  }
+
+  @Delete(':id/health-conditions/:conditionId')
+  async removeHealthCondition(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('conditionId', new ParseUUIDPipe({ version: '4' }))
+    conditionId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeHealthCondition(tenantId, id, conditionId);
+  }
+
+  @Get(':id/medications')
+  async listMedications(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listMedications(tenantId, id);
+  }
+
+  @Post(':id/medications')
+  async createMedication(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonMedicationDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createMedication(tenantId, id, dto);
+  }
+
+  @Patch(':id/medications/:medicationId')
+  async updateMedication(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('medicationId', new ParseUUIDPipe({ version: '4' }))
+    medicationId: string,
+    @Body() dto: UpdatePersonMedicationDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateMedication(
+      tenantId,
+      id,
+      medicationId,
+      dto,
+    );
+  }
+
+  @Delete(':id/medications/:medicationId')
+  async removeMedication(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('medicationId', new ParseUUIDPipe({ version: '4' }))
+    medicationId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeMedication(tenantId, id, medicationId);
   }
 
   @Get(':id/transfers')
