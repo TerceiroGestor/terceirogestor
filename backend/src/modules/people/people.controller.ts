@@ -21,6 +21,7 @@ import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
+import { CreateHouseholdTransferDto } from './dto/create-household-transfer.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
 import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
@@ -28,6 +29,7 @@ import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
+import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
 import { PeopleService } from './people.service';
 
@@ -155,6 +157,48 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.removeExpense(tenantId, id, expenseId);
+  }
+
+  @Get(':id/transfers')
+  async listTransfers(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listTransfers(tenantId, id);
+  }
+
+  @Post(':id/transfers')
+  async createTransfer(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreateHouseholdTransferDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createTransfer(tenantId, id, dto);
+  }
+
+  @Patch(':id/transfers/:transferId')
+  async updateTransfer(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('transferId', new ParseUUIDPipe({ version: '4' }))
+    transferId: string,
+    @Body() dto: UpdateHouseholdTransferDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateTransfer(tenantId, id, transferId, dto);
+  }
+
+  @Delete(':id/transfers/:transferId')
+  async removeTransfer(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('transferId', new ParseUUIDPipe({ version: '4' }))
+    transferId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeTransfer(tenantId, id, transferId);
   }
 
   @Get(':id/household-assets')

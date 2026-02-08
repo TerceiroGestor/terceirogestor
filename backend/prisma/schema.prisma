@@ -46,6 +46,7 @@ model Tenant {
   personExpenses  PersonExpense[]
   householdAssets HouseholdAsset[]
   personAssets    PersonAsset[]
+  householdTransfers HouseholdTransfer[]
   userSessions    UserSession[]
   accessLogs      AccessLog[]
 
@@ -159,6 +160,7 @@ model Person {
   incomes PersonIncome[]
   expenses PersonExpense[]
   assets  PersonAsset[]
+  transfers HouseholdTransfer[]
 
   @@index([tenantId])
   @@index([fullName])
@@ -177,6 +179,8 @@ model Household {
   assets  HouseholdAsset[]
   incomes PersonIncome[]
   expenses PersonExpense[]
+  outgoingTransfers HouseholdTransfer[] @relation("HouseholdTransferFrom")
+  incomingTransfers HouseholdTransfer[] @relation("HouseholdTransferTo")
 
   @@index([tenantId])
 }
@@ -273,6 +277,7 @@ model PersonIncome {
   type                   String
   amount                 Decimal         @db.Decimal(10, 2)
   frequency              IncomeFrequency @default(MONTHLY)
+  contractType           String?
   isHouseholdContribution Boolean        @default(true)
   notes                  String?         @db.Text
   createdAt              DateTime        @default(now())
@@ -329,6 +334,35 @@ model PersonExpense {
   @@index([tenantId])
   @@index([personId])
   @@index([householdId])
+}
+
+enum HouseholdTransferType {
+  PENSION
+  TRANSFER
+}
+
+model HouseholdTransfer {
+  id              String                @id @default(uuid()) @db.Char(36)
+  tenantId        String                @db.Char(36)
+  personId        String                @db.Char(36)
+  fromHouseholdId String                @db.Char(36)
+  toHouseholdId   String                @db.Char(36)
+  type            HouseholdTransferType @default(PENSION)
+  amount          Decimal               @db.Decimal(10, 2)
+  frequency       IncomeFrequency       @default(MONTHLY)
+  notes           String?               @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  person        Person    @relation(fields: [personId], references: [id])
+  fromHousehold Household @relation("HouseholdTransferFrom", fields: [fromHouseholdId], references: [id])
+  toHousehold   Household @relation("HouseholdTransferTo", fields: [toHouseholdId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([fromHouseholdId])
+  @@index([toHouseholdId])
 }
 
 

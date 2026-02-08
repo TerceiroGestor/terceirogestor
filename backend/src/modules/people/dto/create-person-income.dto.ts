@@ -15,6 +15,10 @@ export class CreatePersonIncomeDto {
 
   @IsOptional()
   @IsString()
+  contractType?: string;
+
+  @IsOptional()
+  @IsString()
   householdId?: string;
 
   @IsOptional()

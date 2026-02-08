@@ -109,6 +109,14 @@ export type ApiPersonRelationsResponse = {
   household?: ApiHouseholdInfo | null;
   householdMembers: ApiHouseholdMember[];
   relations: ApiPersonRelation[];
+  relatedHouseholds?: {
+    householdId: string;
+    householdName?: string | null;
+    personId: string;
+    personName: string;
+    relationType?: string | null;
+    livesTogether: boolean;
+  }[];
 };
 
 export type ApiPersonIncome = {
@@ -118,6 +126,7 @@ export type ApiPersonIncome = {
   type: string;
   amount: number;
   frequency: string;
+  contractType?: string | null;
   isHouseholdContribution: boolean;
   notes?: string | null;
   createdAt?: string;
@@ -132,6 +141,19 @@ export type ApiPersonExpense = {
   amount: number;
   frequency: string;
   isHouseholdExpense: boolean;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiHouseholdTransfer = {
+  id: string;
+  personId: string;
+  fromHouseholdId: string;
+  toHouseholdId: string;
+  type: string;
+  amount: number;
+  frequency: string;
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -404,6 +426,60 @@ export async function deletePersonExpense(
 ) {
   return apiRequest<{ deleted: boolean }>(
     `/people/${id}/expenses/${expenseId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
+export async function getPersonTransfers(token: string, id: string) {
+  return apiRequest<ApiHouseholdTransfer[]>(`/people/${id}/transfers`, {}, token);
+}
+
+export async function createPersonTransfer(
+  token: string,
+  id: string,
+  payload: Omit<
+    ApiHouseholdTransfer,
+    "id" | "personId" | "createdAt" | "updatedAt"
+  >,
+) {
+  return apiRequest<ApiHouseholdTransfer>(
+    `/people/${id}/transfers`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function updatePersonTransfer(
+  token: string,
+  id: string,
+  transferId: string,
+  payload: Partial<
+    Omit<ApiHouseholdTransfer, "id" | "personId" | "createdAt" | "updatedAt">
+  >,
+) {
+  return apiRequest<ApiHouseholdTransfer>(
+    `/people/${id}/transfers/${transferId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deletePersonTransfer(
+  token: string,
+  id: string,
+  transferId: string,
+) {
+  return apiRequest<{ deleted: boolean }>(
+    `/people/${id}/transfers/${transferId}`,
     {
       method: "DELETE",
     },

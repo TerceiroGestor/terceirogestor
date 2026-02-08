@@ -17,6 +17,10 @@ export class UpdatePersonIncomeDto {
 
   @IsOptional()
   @IsString()
+  contractType?: string;
+
+  @IsOptional()
+  @IsString()
   householdId?: string;
 
   @IsOptional()

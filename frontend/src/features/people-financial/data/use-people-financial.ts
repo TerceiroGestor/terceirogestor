@@ -5,18 +5,27 @@ import { useAuth } from "@/features/auth/auth-context";
 import {
   createPersonExpense,
   createPersonIncome,
+  createPersonTransfer,
   deletePersonExpense,
   deletePersonIncome,
+  deletePersonTransfer,
   getPersonExpenses,
   getPersonIncomes,
+  getPersonTransfers,
   updatePersonExpense,
   updatePersonIncome,
+  updatePersonTransfer,
 } from "@/features/people/api";
-import type { PersonExpense, PersonIncome } from "@/app/(modules)/people/types";
+import type {
+  HouseholdTransfer,
+  PersonExpense,
+  PersonIncome,
+} from "@/app/(modules)/people/types";
 
 type UsePeopleFinancialResult = {
   incomes: PersonIncome[];
   expenses: PersonExpense[];
+  transfers: HouseholdTransfer[];
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -32,12 +41,21 @@ type UsePeopleFinancialResult = {
     payload: Partial<Omit<PersonExpense, "id" | "personId">>,
   ) => Promise<void>;
   deleteExpense: (expenseId: string) => Promise<void>;
+  createTransfer: (
+    payload: Omit<HouseholdTransfer, "id" | "personId">,
+  ) => Promise<void>;
+  updateTransfer: (
+    transferId: string,
+    payload: Partial<Omit<HouseholdTransfer, "id" | "personId">>,
+  ) => Promise<void>;
+  deleteTransfer: (transferId: string) => Promise<void>;
 };
 
 export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
   const { token } = useAuth();
   const [incomes, setIncomes] = React.useState<PersonIncome[]>([]);
   const [expenses, setExpenses] = React.useState<PersonExpense[]>([]);
+  const [transfers, setTransfers] = React.useState<HouseholdTransfer[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -46,12 +64,14 @@ export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
     setIsLoading(true);
     setError(null);
     try {
-      const [incomeData, expenseData] = await Promise.all([
+      const [incomeData, expenseData, transferData] = await Promise.all([
         getPersonIncomes(token, personId),
         getPersonExpenses(token, personId),
+        getPersonTransfers(token, personId),
       ]);
       setIncomes(incomeData);
       setExpenses(expenseData);
+      setTransfers(transferData);
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
@@ -128,9 +148,40 @@ export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
     [token, personId, refresh],
   );
 
+  const createTransfer = React.useCallback(
+    async (payload: Omit<HouseholdTransfer, "id" | "personId">) => {
+      if (!token) return;
+      await createPersonTransfer(token, personId, payload);
+      await refresh();
+    },
+    [token, personId, refresh],
+  );
+
+  const updateTransfer = React.useCallback(
+    async (
+      transferId: string,
+      payload: Partial<Omit<HouseholdTransfer, "id" | "personId">>,
+    ) => {
+      if (!token) return;
+      await updatePersonTransfer(token, personId, transferId, payload);
+      await refresh();
+    },
+    [token, personId, refresh],
+  );
+
+  const deleteTransfer = React.useCallback(
+    async (transferId: string) => {
+      if (!token) return;
+      await deletePersonTransfer(token, personId, transferId);
+      await refresh();
+    },
+    [token, personId, refresh],
+  );
+
   return {
     incomes,
     expenses,
+    transfers,
     isLoading,
     error,
     refresh,
@@ -140,5 +191,8 @@ export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
     createExpense,
     updateExpense,
     deleteExpense,
+    createTransfer,
+    updateTransfer,
+    deleteTransfer,
   };
 }

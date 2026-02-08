@@ -98,10 +98,20 @@ export type PersonRelation = {
   relatedPerson: PersonSummary;
 };
 
+export type RelatedHousehold = {
+  householdId: string;
+  householdName?: string | null;
+  personId: string;
+  personName: string;
+  relationType?: string | null;
+  livesTogether: boolean;
+};
+
 export type PersonRelationsResponse = {
   household?: HouseholdInfo | null;
   householdMembers: HouseholdMember[];
   relations: PersonRelation[];
+  relatedHouseholds?: RelatedHousehold[];
 };
 
 export type PersonRelationInput = {
@@ -123,6 +133,7 @@ export type PersonIncome = {
   type: string;
   amount: number;
   frequency: string;
+  contractType?: string | null;
   isHouseholdContribution: boolean;
   notes?: string | null;
   createdAt?: string | null;
@@ -137,6 +148,19 @@ export type PersonExpense = {
   amount: number;
   frequency: string;
   isHouseholdExpense: boolean;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type HouseholdTransfer = {
+  id: string;
+  personId: string;
+  fromHouseholdId: string;
+  toHouseholdId: string;
+  type: string;
+  amount: number;
+  frequency: string;
   notes?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

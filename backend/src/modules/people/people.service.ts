@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma';
-import { IncomeFrequency } from '../../../generated/prisma';
+import { HouseholdTransferType, IncomeFrequency } from '../../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
@@ -10,6 +10,7 @@ import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
+import { CreateHouseholdTransferDto } from './dto/create-household-transfer.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
 import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
@@ -17,6 +18,7 @@ import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
+import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
 import {
   buildPeopleOrderBy,
@@ -52,6 +54,7 @@ type PersonExpenseRecord = Prisma.PersonExpenseGetPayload<{}>;
 type HouseholdProfileRecord = Prisma.HouseholdProfileGetPayload<{}>;
 type HouseholdAssetRecord = Prisma.HouseholdAssetGetPayload<{}>;
 type PersonAssetRecord = Prisma.PersonAssetGetPayload<{}>;
+type HouseholdTransferRecord = Prisma.HouseholdTransferGetPayload<{}>;
 
 const normalizeTags = (tags?: string[] | null) => {
   if (!tags) return null;
@@ -109,6 +112,7 @@ const mapIncome = (income: PersonIncomeRecord) => ({
   type: income.type,
   amount: Number(income.amount),
   frequency: income.frequency,
+  contractType: income.contractType,
   isHouseholdContribution: income.isHouseholdContribution,
   notes: income.notes,
   createdAt: income.createdAt,
@@ -126,6 +130,19 @@ const mapExpense = (expense: PersonExpenseRecord) => ({
   notes: expense.notes,
   createdAt: expense.createdAt,
   updatedAt: expense.updatedAt,
+});
+
+const mapTransfer = (transfer: HouseholdTransferRecord) => ({
+  id: transfer.id,
+  personId: transfer.personId,
+  fromHouseholdId: transfer.fromHouseholdId,
+  toHouseholdId: transfer.toHouseholdId,
+  type: transfer.type,
+  amount: Number(transfer.amount),
+  frequency: transfer.frequency,
+  notes: transfer.notes,
+  createdAt: transfer.createdAt,
+  updatedAt: transfer.updatedAt,
 });
 
 const mapHouseholdProfile = (profile: HouseholdProfileRecord) => ({
@@ -210,6 +227,22 @@ const resolveIncomeFrequency = (value?: string | null): IncomeFrequency => {
       ONCE: "ONCE",
     } as const)) as Record<string, string>;
   const values = Object.values(enumValues) as IncomeFrequency[];
+  const match = values.find((item) => item === normalized);
+  return match ?? fallback;
+};
+
+const resolveTransferType = (
+  value?: string | null,
+): HouseholdTransferType => {
+  const fallback = HouseholdTransferType.PENSION;
+  if (!value) return fallback;
+  const normalized = value.toString().toUpperCase();
+  const enumValues = (HouseholdTransferType ??
+    ({
+      PENSION: 'PENSION',
+      TRANSFER: 'TRANSFER',
+    } as const)) as Record<string, string>;
+  const values = Object.values(enumValues) as HouseholdTransferType[];
   const match = values.find((item) => item === normalized);
   return match ?? fallback;
 };
@@ -474,6 +507,7 @@ export class PeopleService {
         type: normalizeString(dto.type) ?? 'Outro',
         amount: dto.amount,
         frequency: resolveIncomeFrequency(dto.frequency),
+        contractType: normalizeString(dto.contractType),
         isHouseholdContribution: dto.isHouseholdContribution ?? true,
         notes: normalizeString(dto.notes),
       },
@@ -509,6 +543,10 @@ export class PeopleService {
         frequency:
           dto.frequency !== undefined
             ? resolveIncomeFrequency(dto.frequency)
+            : undefined,
+        contractType:
+          dto.contractType !== undefined
+            ? normalizeString(dto.contractType)
             : undefined,
         isHouseholdContribution:
           dto.isHouseholdContribution !== undefined
@@ -606,6 +644,122 @@ export class PeopleService {
       throw new NotFoundException('Renda nao encontrada.');
     }
     await this.prisma.personIncome.delete({ where: { id: incomeId } });
+    return { deleted: true };
+  }
+
+  async listTransfers(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+    const transfers = await this.prisma.householdTransfer.findMany({
+      where: { tenantId, personId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return transfers.map(mapTransfer);
+  }
+
+  async createTransfer(
+    tenantId: string,
+    personId: string,
+    dto: CreateHouseholdTransferDto,
+  ) {
+    await this.findById(tenantId, personId);
+    if (dto.fromHouseholdId === dto.toHouseholdId) {
+      throw new BadRequestException(
+        'Residencias de origem e destino devem ser diferentes.',
+      );
+    }
+
+    const [fromHousehold, toHousehold] = await Promise.all([
+      this.prisma.household.findFirst({
+        where: { id: dto.fromHouseholdId, tenantId },
+      }),
+      this.prisma.household.findFirst({
+        where: { id: dto.toHouseholdId, tenantId },
+      }),
+    ]);
+
+    if (!fromHousehold || !toHousehold) {
+      throw new BadRequestException('Residencia nao encontrada.');
+    }
+
+    const transfer = await this.prisma.householdTransfer.create({
+      data: {
+        tenantId,
+        personId,
+        fromHouseholdId: dto.fromHouseholdId,
+        toHouseholdId: dto.toHouseholdId,
+        type: resolveTransferType(dto.type),
+        amount: dto.amount,
+        frequency: resolveIncomeFrequency(dto.frequency),
+        notes: normalizeString(dto.notes),
+      },
+    });
+
+    return mapTransfer(transfer);
+  }
+
+  async updateTransfer(
+    tenantId: string,
+    personId: string,
+    transferId: string,
+    dto: UpdateHouseholdTransferDto,
+  ) {
+    const transfer = await this.prisma.householdTransfer.findFirst({
+      where: { id: transferId, tenantId, personId },
+    });
+    if (!transfer) {
+      throw new NotFoundException('Transferencia nao encontrada.');
+    }
+
+    const fromHouseholdId =
+      dto.fromHouseholdId !== undefined ? dto.fromHouseholdId : transfer.fromHouseholdId;
+    const toHouseholdId =
+      dto.toHouseholdId !== undefined ? dto.toHouseholdId : transfer.toHouseholdId;
+    if (fromHouseholdId === toHouseholdId) {
+      throw new BadRequestException(
+        'Residencias de origem e destino devem ser diferentes.',
+      );
+    }
+
+    const [fromHousehold, toHousehold] = await Promise.all([
+      this.prisma.household.findFirst({
+        where: { id: fromHouseholdId, tenantId },
+      }),
+      this.prisma.household.findFirst({
+        where: { id: toHouseholdId, tenantId },
+      }),
+    ]);
+    if (!fromHousehold || !toHousehold) {
+      throw new BadRequestException('Residencia nao encontrada.');
+    }
+
+    const updated = await this.prisma.householdTransfer.update({
+      where: { id: transferId },
+      data: {
+        fromHouseholdId:
+          dto.fromHouseholdId !== undefined ? dto.fromHouseholdId : undefined,
+        toHouseholdId:
+          dto.toHouseholdId !== undefined ? dto.toHouseholdId : undefined,
+        type: dto.type !== undefined ? resolveTransferType(dto.type) : undefined,
+        amount: dto.amount !== undefined ? dto.amount : undefined,
+        frequency:
+          dto.frequency !== undefined
+            ? resolveIncomeFrequency(dto.frequency)
+            : undefined,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+      },
+    });
+
+    return mapTransfer(updated);
+  }
+
+  async removeTransfer(tenantId: string, personId: string, transferId: string) {
+    const transfer = await this.prisma.householdTransfer.findFirst({
+      where: { id: transferId, tenantId, personId },
+    });
+    if (!transfer) {
+      throw new NotFoundException('Transferencia nao encontrada.');
+    }
+    await this.prisma.householdTransfer.delete({ where: { id: transferId } });
     return { deleted: true };
   }
 
@@ -953,13 +1107,30 @@ export class PeopleService {
           : { householdId: null }),
       },
     });
+    const transfers = householdId
+      ? await this.prisma.householdTransfer.findMany({
+          where: {
+            tenantId,
+            OR: [{ fromHouseholdId: householdId }, { toHouseholdId: householdId }],
+          },
+        })
+      : [];
+    const incomingTransfers = householdId
+      ? transfers.filter((transfer) => transfer.toHouseholdId === householdId)
+      : [];
+    const outgoingTransfers = householdId
+      ? transfers.filter((transfer) => transfer.fromHouseholdId === householdId)
+      : [];
 
     const totalIncome = incomes.reduce(
       (sum, income) => sum + Number(income.amount),
       0,
-    );
+    ) + incomingTransfers.reduce((sum, transfer) => sum + Number(transfer.amount), 0);
     const contributors = Array.from(
-      new Set(incomes.map((income) => income.personId)),
+      new Set([
+        ...incomes.map((income) => income.personId),
+        ...incomingTransfers.map((transfer) => transfer.personId),
+      ]),
     );
 
     const benefitsTotal = incomes.reduce((sum, income) => {
@@ -970,17 +1141,24 @@ export class PeopleService {
       return sum;
     }, 0);
 
-    const pensionTotal = incomes.reduce((sum, income) => {
+    const pensionIncomeTotal = incomes.reduce((sum, income) => {
       const category = normalizeCategory(income.type);
       if (category.includes('pensao')) {
         return sum + Number(income.amount);
       }
       return sum;
     }, 0);
+    const pensionTransferTotal = incomingTransfers.reduce((sum, transfer) => {
+      if (transfer.type === HouseholdTransferType.PENSION) {
+        return sum + Number(transfer.amount);
+      }
+      return sum;
+    }, 0);
+    const pensionTotal = pensionIncomeTotal + pensionTransferTotal;
     const totalExpenses = expenses.reduce(
       (sum, expense) => sum + Number(expense.amount),
       0,
-    );
+    ) + outgoingTransfers.reduce((sum, transfer) => sum + Number(transfer.amount), 0);
 
     const householdSize = householdMemberIds.length || 1;
     const perCapitaIncome = householdSize > 0 ? totalIncome / householdSize : 0;
@@ -1028,6 +1206,32 @@ export class PeopleService {
       include: { relatedPerson: true },
     });
 
+    const relationMap = new Map(
+      relations.map((relation) => [relation.relatedPersonId, relation]),
+    );
+    const relatedIds = relations.map((relation) => relation.relatedPersonId);
+    const relatedHouseholdMembers = relatedIds.length
+      ? await this.prisma.householdMember.findMany({
+          where: {
+            tenantId,
+            personId: { in: relatedIds },
+            endDate: null,
+          },
+          include: { household: true, person: true },
+        })
+      : [];
+    const relatedHouseholds = relatedHouseholdMembers.map((member) => {
+      const relation = relationMap.get(member.personId);
+      return {
+        householdId: member.householdId,
+        householdName: member.household?.name ?? null,
+        personId: member.personId,
+        personName: member.person.fullName,
+        relationType: relation?.type ?? null,
+        livesTogether: relation?.livesTogether ?? false,
+      };
+    });
+
     return {
       household: householdMember?.household
         ? {
@@ -1062,6 +1266,7 @@ export class PeopleService {
         updatedAt: relation.updatedAt,
         relatedPerson: mapPersonSummary(relation.relatedPerson),
       })),
+      relatedHouseholds,
     };
   }
 

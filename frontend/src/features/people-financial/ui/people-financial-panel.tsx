@@ -30,6 +30,7 @@ import { formatCurrency } from "@/app/(modules)/people/utils";
 import type { PersonExpense, PersonIncome } from "@/app/(modules)/people/types";
 import { usePeopleFinancial } from "@/features/people-financial/data/use-people-financial";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
+import type { HouseholdTransfer } from "@/app/(modules)/people/types";
 
 const frequencyOptions = [
   { value: "MONTHLY", label: "Mensal" },
@@ -37,6 +38,30 @@ const frequencyOptions = [
   { value: "BIWEEKLY", label: "Quinzenal" },
   { value: "ANNUAL", label: "Anual" },
   { value: "ONCE", label: "Avulso" },
+];
+
+const incomeTypeOptions = [
+  { value: "Salario", label: "Salario" },
+  { value: "Renda extra", label: "Renda extra" },
+  { value: "Pensão", label: "Pensao" },
+  { value: "Bolsa Familia", label: "Bolsa Familia" },
+  { value: "Auxilio", label: "Auxilio" },
+  { value: "BPC", label: "BPC" },
+  { value: "Beneficio eventual", label: "Beneficio eventual" },
+  { value: "Outro", label: "Outro" },
+];
+
+const contractTypeOptions = [
+  { value: "CLT", label: "CLT" },
+  { value: "PJ", label: "PJ" },
+  { value: "Informal", label: "Informal" },
+  { value: "Autonomo", label: "Autonomo" },
+  { value: "Outro", label: "Outro" },
+];
+
+const transferTypeOptions = [
+  { value: "PENSION", label: "Pensao" },
+  { value: "TRANSFER", label: "Transferencia" },
 ];
 
 const getFrequencyLabel = (value: string) =>
@@ -48,6 +73,7 @@ type FinancialFormState = {
   frequency: string;
   isHousehold: boolean;
   householdId: string;
+  contractType: string;
   notes: string;
 };
 
@@ -66,6 +92,7 @@ type FinancialDialogProps = {
     frequency: string;
     isHousehold: boolean;
     householdId?: string;
+    contractType?: string | null;
     notes?: string | null;
   }) => Promise<void>;
 };
@@ -97,11 +124,19 @@ function FinancialDialog({
         (initial as PersonIncome | PersonExpense | undefined)?.householdId ??
         defaultHouseholdId ??
         "",
+      contractType:
+        (initial as PersonIncome | undefined)?.contractType ?? "",
       notes: initial?.notes ?? "",
     }),
     [initial, isExpense, defaultHouseholdId],
   );
   const [form, setForm] = useState<FinancialFormState>(formDefaults);
+
+  const incomeTypeValue = useMemo(() => {
+    if (isExpense) return "";
+    const exists = incomeTypeOptions.some((option) => option.value === form.type);
+    return exists ? form.type : "Outro";
+  }, [form.type, isExpense]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -119,6 +154,7 @@ function FinancialDialog({
       frequency: form.frequency,
       isHousehold: form.isHousehold,
       householdId: form.householdId || undefined,
+      contractType: form.contractType || null,
       notes: form.notes.trim() || null,
     });
     setOpen(false);
@@ -141,16 +177,51 @@ function FinancialDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label>Descricao</Label>
-            <Input
-              value={form.type}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, type: event.target.value }))
-              }
-              placeholder="Ex: Salario, pensao, aluguel"
-            />
-          </div>
+          {isExpense ? (
+            <div className="grid gap-2">
+              <Label>Descricao</Label>
+              <Input
+                value={form.type}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, type: event.target.value }))
+                }
+                placeholder="Ex: Aluguel, mercado"
+              />
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <Label>Tipo de renda</Label>
+              <Select
+                value={incomeTypeValue}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    type: value === "Outro" ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {incomeTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {incomeTypeValue === "Outro" ? (
+                <Input
+                  value={form.type}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, type: event.target.value }))
+                  }
+                  placeholder="Descreva a renda"
+                />
+              ) : null}
+            </div>
+          )}
           <div className="grid gap-2">
             <Label>Valor</Label>
             <Input
@@ -183,6 +254,28 @@ function FinancialDialog({
               </SelectContent>
             </Select>
           </div>
+          {!isExpense ? (
+            <div className="grid gap-2">
+              <Label>Forma contratual</Label>
+              <Select
+                value={form.contractType}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, contractType: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contractTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           {householdOptions.length ? (
             <div className="grid gap-2">
               <Label>Familia</Label>
@@ -246,6 +339,215 @@ function FinancialDialog({
   );
 }
 
+type TransferFormState = {
+  fromHouseholdId: string;
+  toHouseholdId: string;
+  amount: string;
+  frequency: string;
+  type: string;
+  notes: string;
+};
+
+type TransferDialogProps = {
+  trigger?: React.ReactNode;
+  triggerLabel?: string;
+  householdOptions: { id: string; label: string }[];
+  initial?: Partial<HouseholdTransfer>;
+  onSubmit: (payload: {
+    fromHouseholdId: string;
+    toHouseholdId: string;
+    amount: number;
+    frequency: string;
+    type: string;
+    notes?: string | null;
+  }) => Promise<void>;
+};
+
+function TransferDialog({
+  trigger,
+  triggerLabel,
+  householdOptions,
+  initial,
+  onSubmit,
+}: TransferDialogProps) {
+  const [open, setOpen] = useState(false);
+  const formDefaults: TransferFormState = useMemo(
+    () => ({
+      fromHouseholdId: initial?.fromHouseholdId ?? "",
+      toHouseholdId: initial?.toHouseholdId ?? "",
+      amount:
+        typeof initial?.amount === "number"
+          ? String(initial.amount)
+          : "",
+      frequency: initial?.frequency ?? "MONTHLY",
+      type: initial?.type ?? "PENSION",
+      notes: initial?.notes ?? "",
+    }),
+    [initial],
+  );
+  const [form, setForm] = useState<TransferFormState>(formDefaults);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setForm(formDefaults);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const amount = Number(form.amount.replace(",", "."));
+    if (
+      !form.fromHouseholdId ||
+      !form.toHouseholdId ||
+      Number.isNaN(amount)
+    ) {
+      return;
+    }
+    await onSubmit({
+      fromHouseholdId: form.fromHouseholdId,
+      toHouseholdId: form.toHouseholdId,
+      amount,
+      frequency: form.frequency,
+      type: form.type,
+      notes: form.notes.trim() || null,
+    });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="h-8 gap-2 text-xs">
+            <Plus className="size-3.5" />
+            {triggerLabel}
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Transferencia entre familias</DialogTitle>
+          <DialogDescription>
+            Registre pensao ou transferencias financeiras.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Residencia de origem</Label>
+            <Select
+              value={form.fromHouseholdId}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, fromHouseholdId: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {householdOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Residencia de destino</Label>
+            <Select
+              value={form.toHouseholdId}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, toHouseholdId: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {householdOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Tipo</Label>
+            <Select
+              value={form.type}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, type: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {transferTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Valor</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, amount: event.target.value }))
+              }
+              placeholder="0.00"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Frequencia</Label>
+            <Select
+              value={form.frequency}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, frequency: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {frequencyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Observacoes</Label>
+            <Textarea
+              rows={3}
+              value={form.notes}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, notes: event.target.value }))
+              }
+              placeholder="Detalhes adicionais"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" onClick={handleSubmit}>
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 type PeopleFinancialPanelProps = {
   personId: string;
 };
@@ -255,6 +557,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
   const {
     incomes,
     expenses,
+    transfers,
     isLoading,
     error,
     createIncome,
@@ -263,18 +566,45 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     createExpense,
     updateExpense,
     deleteExpense,
+    createTransfer,
+    updateTransfer,
+    deleteTransfer,
   } = usePeopleFinancial(personId);
 
   const householdOptions = useMemo(() => {
-    if (!familyData?.household?.id) return [];
-    return [
-      {
-        id: familyData.household.id,
-        label: familyData.household.name ?? "Residencia atual",
-      },
-    ];
+    const options: { id: string; label: string }[] = [];
+    const currentId = familyData?.household?.id ?? null;
+    if (currentId) {
+      options.push({
+        id: currentId,
+        label: familyData?.household?.name ?? "Residencia atual",
+      });
+    }
+    const related = familyData?.relatedHouseholds ?? [];
+    related.forEach((item) => {
+      if (!item.householdId) return;
+      if (item.householdId === currentId) return;
+      const base =
+        item.householdName ??
+        `Residencia de ${item.personName}`;
+      const label = item.relationType ? `${base} (${item.relationType})` : base;
+      options.push({ id: item.householdId, label });
+    });
+    const seen = new Set<string>();
+    return options.filter((option) => {
+      if (seen.has(option.id)) return false;
+      seen.add(option.id);
+      return true;
+    });
   }, [familyData]);
   const defaultHouseholdId = householdOptions[0]?.id ?? null;
+  const householdLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    householdOptions.forEach((option) => {
+      map.set(option.id, option.label);
+    });
+    return map;
+  }, [householdOptions]);
 
   const incomeTotal = incomes.reduce((sum, income) => sum + income.amount, 0);
   const expenseTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -326,6 +656,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                   frequency: payload.frequency,
                   isHouseholdContribution: payload.isHousehold,
                   householdId: payload.householdId ?? null,
+                  contractType: payload.contractType ?? null,
                   notes: payload.notes ?? null,
                 })
               }
@@ -346,8 +677,17 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                       <Badge variant="outline">
                         {getFrequencyLabel(income.frequency)}
                       </Badge>
+                      {income.contractType ? (
+                        <Badge variant="outline">{income.contractType}</Badge>
+                      ) : null}
                       {income.isHouseholdContribution ? (
                         <Badge variant="secondary">Familia</Badge>
+                      ) : null}
+                      {income.householdId &&
+                      householdLabelById.has(income.householdId) ? (
+                        <Badge variant="secondary">
+                          {householdLabelById.get(income.householdId)}
+                        </Badge>
                       ) : null}
                     </div>
                   </div>
@@ -370,6 +710,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                           frequency: payload.frequency,
                           isHouseholdContribution: payload.isHousehold,
                           householdId: payload.householdId ?? null,
+                          contractType: payload.contractType ?? null,
                           notes: payload.notes ?? null,
                         })
                       }
@@ -433,6 +774,12 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                       {expense.isHouseholdExpense ? (
                         <Badge variant="secondary">Familia</Badge>
                       ) : null}
+                      {expense.householdId &&
+                      householdLabelById.has(expense.householdId) ? (
+                        <Badge variant="secondary">
+                          {householdLabelById.get(expense.householdId)}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -477,6 +824,100 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
           </div>
         </FamilyCard>
       </div>
+
+      <FamilyCard
+        title="Transferencias"
+        subtitle="Pensao ou repasse entre familias"
+        actions={
+          householdOptions.length >= 2 ? (
+            <TransferDialog
+              triggerLabel="Nova transferencia"
+              householdOptions={householdOptions}
+              onSubmit={(payload) =>
+                createTransfer({
+                  fromHouseholdId: payload.fromHouseholdId,
+                  toHouseholdId: payload.toHouseholdId,
+                  amount: payload.amount,
+                  frequency: payload.frequency,
+                  type: payload.type,
+                  notes: payload.notes ?? null,
+                })
+              }
+            />
+          ) : null
+        }
+      >
+        {householdOptions.length < 2 ? (
+          <p className="text-xs text-muted-foreground">
+            Cadastre outra residencia para registrar transferencias.
+          </p>
+        ) : transfers.length ? (
+          <div className="space-y-3">
+            {transfers.map((transfer) => {
+              const fromLabel =
+                householdLabelById.get(transfer.fromHouseholdId) ??
+                transfer.fromHouseholdId;
+              const toLabel =
+                householdLabelById.get(transfer.toHouseholdId) ??
+                transfer.toHouseholdId;
+              return (
+                <div
+                  key={transfer.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {transfer.type === "PENSION"
+                        ? "Pensao"
+                        : "Transferencia"}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{formatCurrency(transfer.amount)}</span>
+                      <Badge variant="outline">
+                        {getFrequencyLabel(transfer.frequency)}
+                      </Badge>
+                      <Badge variant="secondary">{fromLabel}</Badge>
+                      <Badge variant="secondary">{toLabel}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TransferDialog
+                      householdOptions={householdOptions}
+                      initial={transfer}
+                      trigger={
+                        <Button variant="ghost" size="icon">
+                          <Pencil className="size-4" />
+                        </Button>
+                      }
+                      onSubmit={(payload) =>
+                        updateTransfer(transfer.id, {
+                          fromHouseholdId: payload.fromHouseholdId,
+                          toHouseholdId: payload.toHouseholdId,
+                          amount: payload.amount,
+                          frequency: payload.frequency,
+                          type: payload.type,
+                          notes: payload.notes ?? null,
+                        })
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteTransfer(transfer.id)}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Nenhuma transferencia cadastrada.
+          </p>
+        )}
+      </FamilyCard>
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Carregando dados...</p>
