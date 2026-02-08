@@ -57,7 +57,11 @@ export function PeopleDetail({
             className="flex h-full flex-col gap-4"
           >
             <div className="shrink-0">
-              <PeopleDetailTabs value={tabValue} onValueChange={onTabChange} />
+              <PeopleDetailTabs
+                value={tabValue}
+                onValueChange={onTabChange}
+                person={person}
+              />
             </div>
 
             <PeopleDetailHeader

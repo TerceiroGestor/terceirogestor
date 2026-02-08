@@ -2,9 +2,7 @@
 
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 import { FamilyRelationsList } from "@/features/family-members/ui/family-relations-list";
-import type { Person } from "@/app/(modules)/people/types";
-
-export function FamilyRelationsSection({ person }: { person: Person }) {
+export function FamilyRelationsSection() {
   const {
     data,
     isLoading,
@@ -34,7 +32,6 @@ export function FamilyRelationsSection({ person }: { person: Person }) {
         onCreate={create}
         onUpdate={update}
         onDelete={remove}
-        currentPerson={person}
         incomeSummary={incomeSummary}
         householdProfile={householdProfile}
         householdAssets={householdAssets}

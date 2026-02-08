@@ -6,7 +6,6 @@ import type {
   HouseholdAsset,
   HouseholdMember,
   HouseholdProfile,
-  Person,
   PersonAssetsGroup,
   PersonRelation,
   PersonRelationInput,
@@ -26,7 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +41,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Download,
-  FileText,
   Menu,
   Plus,
   RefreshCw,
@@ -53,11 +49,6 @@ import {
 } from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
-import { useAuth } from "@/features/auth/auth-context";
-import {
-  downloadFamilyCsv,
-  exportFamilyPdf,
-} from "@/features/family-members/utils/family-export-actions";
 import { formatCurrency } from "@/app/(modules)/people/utils";
 
 type FamilyRelationsListProps = {
@@ -67,7 +58,6 @@ type FamilyRelationsListProps = {
   incomeContributorIds: string[];
   isLoading: boolean;
   error?: string | null;
-  currentPerson: Person;
   onRefresh: () => void;
   onCreate: (payload: PersonRelationInput) => Promise<void>;
   onUpdate: (
@@ -430,7 +420,6 @@ export function FamilyRelationsList({
   incomeContributorIds,
   isLoading,
   error,
-  currentPerson,
   onRefresh,
   onCreate,
   onUpdate,
@@ -440,7 +429,6 @@ export function FamilyRelationsList({
   householdAssets,
   personAssetsByMember,
 }: FamilyRelationsListProps) {
-  const { token } = useAuth();
   const relationByPerson = React.useMemo(() => {
     const map = new Map<string, PersonRelation>();
     relations.forEach((relation) => {
@@ -539,31 +527,6 @@ export function FamilyRelationsList({
   ).length;
   const totalRelations = relations.length;
 
-  const handleExportPdf = () => {
-    exportFamilyPdf({
-      token,
-      person: currentPerson,
-      householdMembers,
-      relations,
-      incomeSummary,
-      householdProfile,
-      householdAssets,
-      personAssetsByMember,
-    });
-  };
-
-  const handleDownloadCsv = () => {
-    downloadFamilyCsv({
-      person: currentPerson,
-      householdMembers,
-      relations,
-      incomeContributorIds,
-      incomeSummary,
-      householdAssets,
-      personAssetsByMember,
-    });
-  };
-
   return (
     <Card>
       <CardHeader className="flex flex-wrap items-center justify-between gap-3">
@@ -582,15 +545,6 @@ export function FamilyRelationsList({
               <DropdownMenuItem onSelect={onRefresh}>
                 <RefreshCw className="mr-2 size-4" />
                 Atualizar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleExportPdf}>
-                <FileText className="mr-2 size-4" />
-                Exportar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleDownloadCsv}>
-                <Download className="mr-2 size-4" />
-                Exportar CSV
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

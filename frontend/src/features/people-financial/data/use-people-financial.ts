@@ -51,8 +51,12 @@ type UsePeopleFinancialResult = {
   deleteTransfer: (transferId: string) => Promise<void>;
 };
 
-export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
+export function usePeopleFinancial(
+  personId: string,
+  options?: { enabled?: boolean },
+): UsePeopleFinancialResult {
   const { token } = useAuth();
+  const enabled = options?.enabled ?? true;
   const [incomes, setIncomes] = React.useState<PersonIncome[]>([]);
   const [expenses, setExpenses] = React.useState<PersonExpense[]>([]);
   const [transfers, setTransfers] = React.useState<HouseholdTransfer[]>([]);
@@ -84,9 +88,9 @@ export function usePeopleFinancial(personId: string): UsePeopleFinancialResult {
   }, [token, personId]);
 
   React.useEffect(() => {
-    if (!token) return;
+    if (!token || !enabled) return;
     refresh();
-  }, [token, refresh]);
+  }, [token, refresh, enabled]);
 
   const createIncome = React.useCallback(
     async (payload: Omit<PersonIncome, "id" | "personId">) => {

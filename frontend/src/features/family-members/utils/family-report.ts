@@ -10,6 +10,8 @@ import type {
   HouseholdMember,
 } from "@/app/(modules)/people/types";
 
+export type FamilyReportType = "full" | "composition" | "residential";
+
 const escapeHtml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -42,6 +44,7 @@ export function printFamilyReport({
   householdProfile,
   householdAssets,
   personAssetsByMember,
+  reportType = "full",
 }: {
   token: string;
   person: Person;
@@ -51,10 +54,25 @@ export function printFamilyReport({
   householdProfile: HouseholdProfile | null;
   householdAssets: HouseholdAsset[];
   personAssetsByMember: PersonAssetsGroup[];
+  reportType?: FamilyReportType;
 }) {
+  const contributionMap = new Map<string, number>();
+  incomeSummary?.contributions?.forEach((item) => {
+    contributionMap.set(item.personId, item.amount);
+  });
+
+  const showComposition = reportType === "full" || reportType === "composition";
+  const showResidential = reportType === "full" || reportType === "residential";
+  const showFinancial = reportType === "full";
+
   const meta = buildExportMeta({
     token,
-    title: "Relatorio do nucleo familiar",
+    title:
+      reportType === "composition"
+        ? "Relatorio de composicao familiar"
+        : reportType === "residential"
+        ? "Relatorio residencial"
+        : "Relatorio do nucleo familiar",
     subtitle: person.fullName,
   });
 
@@ -62,13 +80,19 @@ export function printFamilyReport({
     const relation = relations.find(
       (item) => item.relatedPersonId === member.personId && item.livesTogether,
     );
+    const contributionAmount = contributionMap.get(member.personId) ?? 0;
     const flags = [
       member.isLegalGuardian ? "Responsavel legal" : null,
       member.isProvider ? "Provedor" : null,
-      member.isIncomeContributor ? "Contribui renda" : null,
+      contributionAmount > 0
+        ? `Contribui ${formatCurrency(contributionAmount)}`
+        : member.isIncomeContributor
+        ? "Contribui renda"
+        : null,
       member.isDependent ? "Dependente" : null,
     ].filter(Boolean) as string[];
     return {
+      id: member.personId,
       name: member.person.fullName,
       relation: relation?.type ?? member.role ?? "Morador",
       flags,
@@ -77,10 +101,16 @@ export function printFamilyReport({
 
   const externalRelations = relations.filter((relation) => !relation.livesTogether);
   const externalRows = externalRelations.map((relation) => {
-    const flags = [relation.isLegalGuardian ? "Responsavel legal" : null].filter(
-      Boolean,
-    ) as string[];
+    const contributionAmount =
+      contributionMap.get(relation.relatedPersonId) ?? 0;
+    const flags = [
+      relation.isLegalGuardian ? "Responsavel legal" : null,
+      contributionAmount > 0
+        ? `Contribui ${formatCurrency(contributionAmount)}`
+        : null,
+    ].filter(Boolean) as string[];
     return {
+      id: relation.relatedPersonId,
       name: relation.relatedPerson.fullName,
       relation: relation.type,
       flags,
@@ -187,87 +217,93 @@ export function printFamilyReport({
           </div>
         </div>
 
-        <div class="section">
-          <h2 class="section-title">Moram juntos</h2>
-          ${livingMembers.length ? `
-            <table>
-              <thead>
-                <tr><th>Nome</th><th>Parentesco</th><th>Indicadores</th></tr>
-              </thead>
-              <tbody>
-                ${livingMembers
-                  .map(
-                    (member) => `
-                    <tr>
-                      <td>${escapeHtml(member.name)}</td>
-                      <td>${escapeHtml(member.relation)}</td>
-                      <td>${formatFlags(member.flags)}</td>
-                    </tr>`
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          ` : `<p class="muted">Nenhum familiar registrado na residencia.</p>`}
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">Nao moram juntos</h2>
-          ${externalRows.length ? `
-            <table>
-              <thead>
-                <tr><th>Nome</th><th>Parentesco</th><th>Indicadores</th></tr>
-              </thead>
-              <tbody>
-                ${externalRows
-                  .map(
-                    (member) => `
-                    <tr>
-                      <td>${escapeHtml(member.name)}</td>
-                      <td>${escapeHtml(member.relation)}</td>
-                      <td>${formatFlags(member.flags)}</td>
-                    </tr>`
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          ` : `<p class="muted">Nenhum familiar registrado fora da residencia.</p>`}
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">Computacao das rendas</h2>
-          <div class="grid">
-            <div class="metric"><strong>Renda total</strong>${formatCurrency(summary.totalIncome)}</div>
-            <div class="metric"><strong>Renda per capita</strong>${formatCurrency(summary.perCapitaIncome)}</div>
-            <div class="metric"><strong>Gastos totais</strong>${formatCurrency(summary.totalExpenses)}</div>
-            <div class="metric"><strong>Gasto per capita</strong>${formatCurrency(summary.perCapitaExpenses)}</div>
-            <div class="metric"><strong>Beneficios</strong>${formatCurrency(summary.benefitsTotal)}</div>
-            <div class="metric"><strong>Pensao</strong>${formatCurrency(summary.pensionTotal)}</div>
+        ${showComposition ? `
+          <div class="section">
+            <h2 class="section-title">Moram juntos</h2>
+            ${livingMembers.length ? `
+              <table>
+                <thead>
+                  <tr><th>Nome</th><th>Parentesco</th><th>Indicadores</th></tr>
+                </thead>
+                <tbody>
+                  ${livingMembers
+                    .map(
+                      (member) => `
+                      <tr>
+                        <td>${escapeHtml(member.name)}</td>
+                        <td>${escapeHtml(member.relation)}</td>
+                        <td>${formatFlags(member.flags)}</td>
+                      </tr>`
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            ` : `<p class="muted">Nenhum familiar registrado na residencia.</p>`}
           </div>
-        </div>
 
-        <div class="section">
-          <h2 class="section-title">Relatorio da moradia</h2>
-          ${householdProfile ? `
+          <div class="section">
+            <h2 class="section-title">Nao moram juntos</h2>
+            ${externalRows.length ? `
+              <table>
+                <thead>
+                  <tr><th>Nome</th><th>Parentesco</th><th>Indicadores</th></tr>
+                </thead>
+                <tbody>
+                  ${externalRows
+                    .map(
+                      (member) => `
+                      <tr>
+                        <td>${escapeHtml(member.name)}</td>
+                        <td>${escapeHtml(member.relation)}</td>
+                        <td>${formatFlags(member.flags)}</td>
+                      </tr>`
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            ` : `<p class="muted">Nenhum familiar registrado fora da residencia.</p>`}
+          </div>
+        ` : ""}
+
+        ${showFinancial ? `
+          <div class="section">
+            <h2 class="section-title">Computacao das rendas</h2>
             <div class="grid">
-              <div class="metric"><strong>Tipo</strong>${escapeHtml(householdProfile.type ?? "-")}</div>
-              <div class="metric"><strong>Condicao</strong>${escapeHtml(householdProfile.condition ?? "-")}</div>
-              <div class="metric"><strong>Propriedade</strong>${escapeHtml(householdProfile.ownership ?? "-")}</div>
-              <div class="metric"><strong>Area (m2)</strong>${householdProfile.areaM2 ?? "-"}</div>
-              <div class="metric"><strong>Comodos</strong>${householdProfile.rooms ?? "-"}</div>
-              <div class="metric"><strong>Banheiros</strong>${householdProfile.bathrooms ?? "-"}</div>
+              <div class="metric"><strong>Renda total</strong>${formatCurrency(summary.totalIncome)}</div>
+              <div class="metric"><strong>Renda per capita</strong>${formatCurrency(summary.perCapitaIncome)}</div>
+              <div class="metric"><strong>Gastos totais</strong>${formatCurrency(summary.totalExpenses)}</div>
+              <div class="metric"><strong>Gasto per capita</strong>${formatCurrency(summary.perCapitaExpenses)}</div>
+              <div class="metric"><strong>Beneficios</strong>${formatCurrency(summary.benefitsTotal)}</div>
+              <div class="metric"><strong>Pensao</strong>${formatCurrency(summary.pensionTotal)}</div>
             </div>
-          ` : `<p class="muted">Nenhuma informacao de moradia cadastrada.</p>`}
-        </div>
+          </div>
+        ` : ""}
 
-        <div class="section">
-          <h2 class="section-title">Bens e servicos compartilhados</h2>
-          ${assetsHtml || `<p class="muted">Nenhum item compartilhado cadastrado.</p>`}
-        </div>
+        ${showResidential ? `
+          <div class="section">
+            <h2 class="section-title">Relatorio da moradia</h2>
+            ${householdProfile ? `
+              <div class="grid">
+                <div class="metric"><strong>Tipo</strong>${escapeHtml(householdProfile.type ?? "-")}</div>
+                <div class="metric"><strong>Condicao</strong>${escapeHtml(householdProfile.condition ?? "-")}</div>
+                <div class="metric"><strong>Propriedade</strong>${escapeHtml(householdProfile.ownership ?? "-")}</div>
+                <div class="metric"><strong>Area (m2)</strong>${householdProfile.areaM2 ?? "-"}</div>
+                <div class="metric"><strong>Comodos</strong>${householdProfile.rooms ?? "-"}</div>
+                <div class="metric"><strong>Banheiros</strong>${householdProfile.bathrooms ?? "-"}</div>
+              </div>
+            ` : `<p class="muted">Nenhuma informacao de moradia cadastrada.</p>`}
+          </div>
 
-        <div class="section">
-          <h2 class="section-title">Itens individuais</h2>
-          ${peopleAssetsHtml || `<p class="muted">Nenhum item individual cadastrado.</p>`}
-        </div>
+          <div class="section">
+            <h2 class="section-title">Bens e servicos compartilhados</h2>
+            ${assetsHtml || `<p class="muted">Nenhum item compartilhado cadastrado.</p>`}
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Itens individuais</h2>
+            ${peopleAssetsHtml || `<p class="muted">Nenhum item individual cadastrado.</p>`}
+          </div>
+        ` : ""}
       </body>
     </html>
   `;

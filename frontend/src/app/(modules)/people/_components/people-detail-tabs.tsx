@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -26,10 +27,24 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import type { Person } from "../types";
+import { useAuth } from "@/features/auth/auth-context";
+import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
+import {
+  downloadFamilyCsv,
+  exportFamilyPdf,
+} from "@/features/family-members/utils/family-export-actions";
+import { usePeopleFinancial } from "@/features/people-financial/data/use-people-financial";
+import {
+  downloadPeopleFinancialCsv,
+  exportPeopleFinancialPdf,
+} from "@/features/people-financial/utils/people-financial-export-actions";
+import type { FamilyReportType } from "@/features/family-members/utils/family-report";
 
 type PeopleDetailTabsProps = {
   value: string;
   onValueChange: (value: string) => void;
+  person: Person;
 };
 
 type TabItem = {
@@ -128,8 +143,133 @@ const allItems = tabGroups.flatMap((group) =>
 export function PeopleDetailTabs({
   value,
   onValueChange,
+  person,
 }: PeopleDetailTabsProps) {
   const current = allItems.find((item) => item.value === value) ?? allItems[0];
+  const { token } = useAuth();
+  const {
+    data,
+    incomeSummary,
+    householdProfile,
+    householdAssets,
+    personAssetsByMember,
+  } = useFamilyRelationsContext();
+  const { incomes, expenses, transfers } = usePeopleFinancial(person.id, {
+    enabled: value === "financeiro",
+  });
+
+  const incomeContributorIds = incomeSummary?.contributors ?? [];
+
+  const canExportFamily = Boolean(data && token);
+  const canExportFinancial = Boolean(token);
+
+  const reportItems = useMemo(() => {
+    if (value === "familia") {
+      const items: {
+        label: string;
+        onSelect: () => void;
+        disabled?: boolean;
+      }[] = [];
+      const handleFamilyPdf = (reportType: FamilyReportType) => () => {
+        if (!canExportFamily || !data) return;
+        exportFamilyPdf({
+          token,
+          person,
+          householdMembers: data.householdMembers ?? [],
+          relations: data.relations ?? [],
+          incomeSummary,
+          householdProfile,
+          householdAssets,
+          personAssetsByMember,
+          reportType,
+        });
+      };
+      const handleFamilyCsv = () => {
+        if (!data) return;
+        downloadFamilyCsv({
+          person,
+          householdMembers: data.householdMembers ?? [],
+          relations: data.relations ?? [],
+          incomeContributorIds,
+          incomeSummary,
+          householdAssets,
+          personAssetsByMember,
+        });
+      };
+      items.push({
+        label: "Relatorio de composicao familiar (PDF)",
+        onSelect: handleFamilyPdf("composition"),
+        disabled: !canExportFamily,
+      });
+      items.push({
+        label: "Relatorio residencial (PDF)",
+        onSelect: handleFamilyPdf("residential"),
+        disabled: !canExportFamily,
+      });
+      items.push({
+        label: "Exportar CSV (familia)",
+        onSelect: handleFamilyCsv,
+        disabled: !data,
+      });
+      return items;
+    }
+
+    if (value === "financeiro") {
+      const handleFinancialPdf = () => {
+        if (!canExportFinancial) return;
+        exportPeopleFinancialPdf({
+          token,
+          person,
+          incomes,
+          expenses,
+          transfers,
+        });
+      };
+      const handleFinancialCsv = () => {
+        downloadPeopleFinancialCsv({
+          person,
+          incomes,
+          expenses,
+          transfers,
+        });
+      };
+      return [
+        {
+          label: "Relatorio financeiro (PDF)",
+          onSelect: handleFinancialPdf,
+          disabled: !canExportFinancial,
+        },
+        {
+          label: "Exportar CSV (financeiro)",
+          onSelect: handleFinancialCsv,
+          disabled: false,
+        },
+      ];
+    }
+
+    return [
+      {
+        label: "Sem relatorios disponiveis",
+        onSelect: () => {},
+        disabled: true,
+      },
+    ];
+  }, [
+    value,
+    canExportFamily,
+    canExportFinancial,
+    data,
+    token,
+    person,
+    incomeSummary,
+    householdProfile,
+    householdAssets,
+    personAssetsByMember,
+    incomeContributorIds,
+    incomes,
+    expenses,
+    transfers,
+  ]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -176,6 +316,42 @@ export function PeopleDetailTabs({
               </Fragment>
             ))}
           </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-2 px-3 text-xs"
+          >
+            <FileText className="size-3.5 text-muted-foreground" />
+            <span className="font-medium text-foreground">Relatorios</span>
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
+            {value === "familia"
+              ? "Familia"
+              : value === "financeiro"
+              ? "Financeiro"
+              : "Relatorios"}
+          </DropdownMenuLabel>
+          {reportItems.map((item, index) => (
+            <Fragment key={item.label}>
+              <DropdownMenuItem
+                onSelect={item.onSelect}
+                disabled={item.disabled}
+              >
+                {item.label}
+              </DropdownMenuItem>
+              {index < reportItems.length - 1 ? (
+                <DropdownMenuSeparator />
+              ) : null}
+            </Fragment>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

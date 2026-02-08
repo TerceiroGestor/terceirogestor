@@ -34,7 +34,7 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
               </p>
             </div>
           </div>
-          <FamilyRelationsSection person={person} />
+          <FamilyRelationsSection />
         </section>
 
         <section className="space-y-3">

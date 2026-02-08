@@ -1,4 +1,7 @@
-import { printFamilyReport } from "@/features/family-members/utils/family-report";
+import {
+  printFamilyReport,
+  type FamilyReportType,
+} from "@/features/family-members/utils/family-report";
 import type {
   FamilyIncomeSummary,
   HouseholdAsset,
@@ -24,6 +27,7 @@ export function exportFamilyPdf(params: {
   householdProfile: HouseholdProfile | null;
   householdAssets: HouseholdAsset[];
   personAssetsByMember: PersonAssetsGroup[];
+  reportType?: FamilyReportType;
 }) {
   if (!params.token) return;
   printFamilyReport({
@@ -35,6 +39,7 @@ export function exportFamilyPdf(params: {
     householdProfile: params.householdProfile,
     householdAssets: params.householdAssets,
     personAssetsByMember: params.personAssetsByMember,
+    reportType: params.reportType,
   });
 }
 
@@ -50,15 +55,24 @@ export function buildFamilyCsv(params: {
   params.relations.forEach((relation) => {
     relationMap.set(relation.relatedPersonId, relation);
   });
+  const contributionMap = new Map<string, number>();
+  params.incomeSummary?.contributions?.forEach((item) => {
+    contributionMap.set(item.personId, item.amount);
+  });
 
   const rows: string[][] = [];
 
   params.householdMembers.forEach((member) => {
     const relation = relationMap.get(member.personId);
+    const contributionAmount = contributionMap.get(member.personId) ?? 0;
     const indicators = formatIndicators([
       member.isLegalGuardian ? "Responsavel legal" : null,
       member.isProvider ? "Provedor" : null,
-      member.isIncomeContributor ? "Contribui renda" : null,
+      contributionAmount > 0
+        ? `Contribui ${formatCurrency(contributionAmount)}`
+        : member.isIncomeContributor
+        ? "Contribui renda"
+        : null,
       member.isDependent ? "Dependente" : null,
     ]);
     rows.push([
@@ -72,9 +86,13 @@ export function buildFamilyCsv(params: {
   params.relations
     .filter((relation) => !relation.livesTogether)
     .forEach((relation) => {
+      const contributionAmount =
+        contributionMap.get(relation.relatedPersonId) ?? 0;
       const indicators = formatIndicators([
         relation.isLegalGuardian ? "Responsavel legal" : null,
-        params.incomeContributorIds.includes(relation.relatedPersonId)
+        contributionAmount > 0
+          ? `Contribui ${formatCurrency(contributionAmount)}`
+          : params.incomeContributorIds.includes(relation.relatedPersonId)
           ? "Contribui renda"
           : null,
       ]);
