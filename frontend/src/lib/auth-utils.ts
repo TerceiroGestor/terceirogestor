@@ -14,6 +14,19 @@ export const decodeJwtPayload = (token: string): JwtPayload | null => {
   }
 };
 
+export const getTokenExpirationMs = (token: string) => {
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== "number") return null;
+  return exp * 1000;
+};
+
+export const isTokenExpired = (token: string, skewSeconds = 30) => {
+  const expiresAt = getTokenExpirationMs(token);
+  if (!expiresAt) return true;
+  return Date.now() >= expiresAt - skewSeconds * 1000;
+};
+
 export const buildExportMeta = ({
   token,
   title,

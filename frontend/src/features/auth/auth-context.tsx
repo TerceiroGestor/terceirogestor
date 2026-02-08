@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, refreshAccessToken } from "@/lib/api";
+import { getTokenExpirationMs, isTokenExpired } from "@/lib/auth-utils";
 
 type LoginInput = {
   tenantId: string;
@@ -21,14 +22,49 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 const STORAGE_KEY = "terceirogestor:token";
 
+const readStoredToken = () => {
+  const sessionToken = window.sessionStorage.getItem(STORAGE_KEY);
+  if (window.localStorage.getItem(STORAGE_KEY)) {
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
+  if (!sessionToken) return null;
+  if (isTokenExpired(sessionToken)) {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+  return sessionToken;
+};
+
+const clearStoredToken = () => {
+  window.sessionStorage.removeItem(STORAGE_KEY);
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    setToken(stored);
-    setIsLoading(false);
+    let active = true;
+    const init = async () => {
+      const stored = readStoredToken();
+      if (active) {
+        setToken(stored);
+      }
+      if (!stored) {
+        const refreshed = await refreshAccessToken();
+        if (active && refreshed) {
+          setToken(refreshed);
+          window.sessionStorage.setItem(STORAGE_KEY, refreshed);
+        }
+      }
+      if (active) {
+        setIsLoading(false);
+      }
+    };
+    init();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = React.useCallback(async (input: LoginInput) => {
@@ -37,16 +73,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {
         method: "POST",
         body: JSON.stringify(input),
+        credentials: "include",
       },
     );
     setToken(payload.accessToken);
-    window.localStorage.setItem(STORAGE_KEY, payload.accessToken);
+    window.sessionStorage.setItem(STORAGE_KEY, payload.accessToken);
   }, []);
 
   const logout = React.useCallback(() => {
+    if (token) {
+      apiRequest(
+        "/auth/logout",
+        { method: "POST", credentials: "include" },
+        token,
+      ).catch(() => undefined);
+    }
     setToken(null);
-    window.localStorage.removeItem(STORAGE_KEY);
+    clearStoredToken();
+  }, [token]);
+
+  React.useEffect(() => {
+    const handleUnauthorized = () => logout();
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    };
+  }, [logout]);
+
+  React.useEffect(() => {
+    const handleToken = (event: Event) => {
+      const customEvent = event as CustomEvent<{ token?: string }>;
+      const nextToken = customEvent.detail?.token;
+      if (typeof nextToken !== "string" || !nextToken) return;
+      setToken(nextToken);
+      window.sessionStorage.setItem(STORAGE_KEY, nextToken);
+    };
+    window.addEventListener("auth:token", handleToken);
+    return () => {
+      window.removeEventListener("auth:token", handleToken);
+    };
   }, []);
+
+  React.useEffect(() => {
+    if (!token) return undefined;
+    const expiresAt = getTokenExpirationMs(token);
+    if (!expiresAt) return undefined;
+    const timeoutMs = Math.max(expiresAt - Date.now(), 0);
+    const handle = window.setTimeout(() => logout(), timeoutMs);
+    return () => window.clearTimeout(handle);
+  }, [token, logout]);
 
   const value = React.useMemo<AuthContextValue>(
     () => ({

@@ -1,15 +1,27 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
+import type { AccessLogAction } from '../../../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../../modules/users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthTokenPayload } from './types/auth-token-payload';
+import type { JwtUser } from './strategies/jwt.strategy';
+
+type AuthRequestMeta = {
+  ipAddress?: string;
+  userAgent?: string;
+};
+
+const REFRESH_TOKEN_DAYS = 14;
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async validateUser(tenantId: string, email: string, password: string) {
@@ -27,17 +39,196 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.validateUser(dto.tenantId, dto.email, dto.password);
+    return this.loginWithMeta(dto);
+  }
 
+  async loginWithMeta(dto: LoginDto, meta?: AuthRequestMeta) {
+    const user = await this.validateUser(dto.tenantId, dto.email, dto.password);
     const payload: AuthTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
       email: user.email,
     };
 
-    return {
-      accessToken: await this.jwtService.signAsync(payload),
+    const accessToken = await this.jwtService.signAsync(payload);
+    const refreshToken = this.createRefreshToken();
+    const expiresAt = this.buildRefreshExpiration();
+    await this.prisma.userSession.create({
+      data: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        tokenHash: this.hashToken(refreshToken),
+        expiresAt,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      },
+    });
+    await this.createAccessLog(user.id, user.tenantId, 'LOGIN', meta);
+
+    return { accessToken, refreshToken };
+  }
+
+  async refresh(refreshToken: string, meta?: AuthRequestMeta) {
+    const tokenHash = this.hashToken(refreshToken);
+    const session = await this.prisma.userSession.findFirst({
+      where: { tokenHash },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('Refresh token invalido');
+    }
+
+    if (session.revokedAt || session.expiresAt <= new Date()) {
+      await this.prisma.userSession.updateMany({
+        where: { userId: session.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException('Refresh token reutilizado');
+    }
+
+    const user = await this.usersService.findById(session.userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Credenciais invalidas');
+    }
+
+    const payload: AuthTokenPayload = {
+      sub: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
     };
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    const nextRefreshToken = this.createRefreshToken();
+    const expiresAt = this.buildRefreshExpiration();
+    await this.prisma.userSession.update({
+      where: { id: session.id },
+      data: {
+        revokedAt: new Date(),
+        lastUsedAt: new Date(),
+      },
+    });
+    await this.prisma.userSession.create({
+      data: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        tokenHash: this.hashToken(nextRefreshToken),
+        expiresAt,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+        lastUsedAt: new Date(),
+      },
+    });
+    await this.createAccessLog(user.id, user.tenantId, 'REFRESH', meta);
+
+    return { accessToken, refreshToken: nextRefreshToken };
+  }
+
+  async logout(
+    refreshToken: string | null,
+    user: JwtUser,
+    meta?: AuthRequestMeta,
+  ) {
+    if (refreshToken) {
+      await this.prisma.userSession.updateMany({
+        where: {
+          tokenHash: this.hashToken(refreshToken),
+          userId: user.userId,
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+    }
+    await this.createAccessLog(user.userId, user.tenantId, 'LOGOUT', meta);
+  }
+
+  async getAccessLogs(
+    user: JwtUser,
+    params: {
+      page?: number;
+      limit?: number;
+      action?: AccessLogAction;
+      search?: string;
+    },
+  ) {
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const skip = (page - 1) * limit;
+    const action = params.action;
+    const search = params.search?.trim();
+    const searchAction = search ? search.toUpperCase() : undefined;
+    const actionCandidate =
+      searchAction === 'LOGIN' ||
+      searchAction === 'REFRESH' ||
+      searchAction === 'LOGOUT'
+        ? (searchAction as AccessLogAction)
+        : undefined;
+
+    const where = {
+      userId: user.userId,
+      tenantId: user.tenantId,
+      ...(action ? { action } : {}),
+      ...(search
+        ? {
+            OR: [
+              { ipAddress: { contains: search, mode: 'insensitive' as const } },
+              { userAgent: { contains: search, mode: 'insensitive' as const } },
+              ...(actionCandidate
+                ? [{ action: { equals: actionCandidate } }]
+                : []),
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.accessLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.accessLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  private createRefreshToken() {
+    return randomBytes(48).toString('base64url');
+  }
+
+  private buildRefreshExpiration() {
+    return new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  }
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async createAccessLog(
+    userId: string,
+    tenantId: string,
+    action: AccessLogAction,
+    meta?: AuthRequestMeta,
+  ) {
+    await this.prisma.accessLog.create({
+      data: {
+        userId,
+        tenantId,
+        action,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      },
+    });
   }
 }
 

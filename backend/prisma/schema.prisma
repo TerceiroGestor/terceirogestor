@@ -20,6 +20,12 @@ enum IncomeFrequency {
   ONCE
 }
 
+enum AccessLogAction {
+  LOGIN
+  REFRESH
+  LOGOUT
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
@@ -39,6 +45,8 @@ model Tenant {
   personIncomes   PersonIncome[]
   householdAssets HouseholdAsset[]
   personAssets    PersonAsset[]
+  userSessions    UserSession[]
+  accessLogs      AccessLog[]
 
   @@index([status])
 }
@@ -54,6 +62,8 @@ model User {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   roles  UserRole[]
+  sessions UserSession[]
+  accessLogs AccessLog[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -290,4 +300,43 @@ model PersonRelation {
   @@index([tenantId])
   @@index([personId])
   @@index([relatedPersonId])
+}
+
+
+model UserSession {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  tokenHash String   @db.VarChar(128)
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  lastUsedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AccessLog {
+  id        String          @id @default(uuid()) @db.Char(36)
+  tenantId  String          @db.Char(36)
+  userId    String          @db.Char(36)
+  action    AccessLogAction
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { isTokenExpired } from "@/lib/auth-utils";
+
 const DEFAULT_API_URL = "http://localhost:3001";
 
 export const API_URL =
@@ -25,6 +27,46 @@ export type ApiError = {
   details?: unknown;
 };
 
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function refreshAccessToken() {
+  const response = await fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Cache-Control": "no-store",
+      Pragma: "no-cache",
+    },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null);
+  const accessToken = payload?.accessToken;
+  if (typeof accessToken !== "string" || !accessToken) {
+    return null;
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("auth:token", { detail: { token: accessToken } }),
+    );
+  }
+
+  return accessToken;
+}
+
+async function getRefreshedToken() {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 export function buildQuery(
   params?: Record<string, string | number | boolean | undefined>,
 ) {
@@ -43,41 +85,74 @@ export async function apiRequest<T>(
   options: RequestInit = {},
   token?: string | null,
 ): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (!headers.has("Cache-Control")) {
-    headers.set("Cache-Control", "no-store");
-  }
-  if (!headers.has("Pragma")) {
-    headers.set("Pragma", "no-cache");
-  }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  const execute = async (
+    accessToken: string | null,
+    allowRefresh: boolean,
+  ): Promise<T> => {
+    let nextToken = accessToken;
+    if (nextToken && isTokenExpired(nextToken) && allowRefresh) {
+      nextToken = await getRefreshedToken();
+    }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-    cache: "no-store",
-  });
+    if (nextToken && isTokenExpired(nextToken)) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      }
+      const error: ApiError = {
+        message: "Sessao expirada. Faca login novamente.",
+        status: 401,
+      };
+      throw error;
+    }
 
-  const contentType = response.headers.get("content-type") ?? "";
-  const isJson = contentType.includes("application/json");
-  const payload = isJson ? await response.json().catch(() => ({})) : null;
+    const headers = new Headers(options.headers);
+    if (!headers.has("Content-Type") && options.body) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (!headers.has("Cache-Control")) {
+      headers.set("Cache-Control", "no-store");
+    }
+    if (!headers.has("Pragma")) {
+      headers.set("Pragma", "no-cache");
+    }
+    if (nextToken) {
+      headers.set("Authorization", `Bearer ${nextToken}`);
+    }
 
-  if (!response.ok) {
-    const message =
-      (payload && typeof payload.message === "string" && payload.message) ||
-      `Request failed (${response.status})`;
-    const error: ApiError = {
-      message,
-      status: response.status,
-      details: payload,
-    };
-    throw error;
-  }
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+      cache: "no-store",
+      credentials: "include",
+    });
 
-  return payload as T;
+    const contentType = response.headers.get("content-type") ?? "";
+    const isJson = contentType.includes("application/json");
+    const payload = isJson ? await response.json().catch(() => ({})) : null;
+
+    if (!response.ok) {
+      if (response.status === 401 && allowRefresh) {
+        const refreshed = await getRefreshedToken();
+        if (refreshed) {
+          return execute(refreshed, false);
+        }
+      }
+      if (response.status === 401 && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      }
+      const message =
+        (payload && typeof payload.message === "string" && payload.message) ||
+        `Request failed (${response.status})`;
+      const error: ApiError = {
+        message,
+        status: response.status,
+        details: payload,
+      };
+      throw error;
+    }
+
+    return payload as T;
+  };
+
+  return execute(token ?? null, true);
 }
