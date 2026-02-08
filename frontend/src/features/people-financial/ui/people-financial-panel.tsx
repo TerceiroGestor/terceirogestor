@@ -43,7 +43,7 @@ const frequencyOptions = [
 const incomeTypeOptions = [
   { value: "Salario", label: "Salario" },
   { value: "Renda extra", label: "Renda extra" },
-  { value: "Pensão", label: "Pensao" },
+  { value: "Pensao", label: "Pensao" },
   { value: "Bolsa Familia", label: "Bolsa Familia" },
   { value: "Auxilio", label: "Auxilio" },
   { value: "BPC", label: "BPC" },
