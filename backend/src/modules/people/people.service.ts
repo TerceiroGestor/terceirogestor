@@ -234,7 +234,7 @@ const resolveIncomeFrequency = (value?: string | null): IncomeFrequency => {
 const resolveTransferType = (
   value?: string | null,
 ): HouseholdTransferType => {
-  const fallback = HouseholdTransferType.PENSION;
+  const fallback = 'PENSION' as HouseholdTransferType;
   if (!value) return fallback;
   const normalized = value.toString().toUpperCase();
   const enumValues = (HouseholdTransferType ??
@@ -1122,16 +1122,22 @@ export class PeopleService {
       ? transfers.filter((transfer) => transfer.fromHouseholdId === householdId)
       : [];
 
-    const totalIncome = incomes.reduce(
-      (sum, income) => sum + Number(income.amount),
-      0,
-    ) + incomingTransfers.reduce((sum, transfer) => sum + Number(transfer.amount), 0);
-    const contributors = Array.from(
-      new Set([
-        ...incomes.map((income) => income.personId),
-        ...incomingTransfers.map((transfer) => transfer.personId),
-      ]),
-    );
+    const contributionMap = new Map<string, number>();
+    incomes.forEach((income) => {
+      const current = contributionMap.get(income.personId) ?? 0;
+      contributionMap.set(income.personId, current + Number(income.amount));
+    });
+    incomingTransfers.forEach((transfer) => {
+      const current = contributionMap.get(transfer.personId) ?? 0;
+      contributionMap.set(transfer.personId, current + Number(transfer.amount));
+    });
+    const totalIncome =
+      incomes.reduce((sum, income) => sum + Number(income.amount), 0) +
+      incomingTransfers.reduce(
+        (sum, transfer) => sum + Number(transfer.amount),
+        0,
+      );
+    const contributors = Array.from(contributionMap.keys());
 
     const benefitsTotal = incomes.reduce((sum, income) => {
       const category = normalizeCategory(income.type);
@@ -1174,6 +1180,12 @@ export class PeopleService {
       pensionTotal,
       householdSize,
       contributors,
+      contributions: Array.from(contributionMap.entries()).map(
+        ([personId, amount]) => ({
+          personId,
+          amount,
+        }),
+      ),
     };
   }
 

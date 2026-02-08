@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type {
@@ -89,11 +89,11 @@ const RELATION_TYPE_OPTIONS = [
   "Pai",
   "Mae",
   "Filho(a)",
-  "Irmao(ã)",
+  "Irmao(Ã£)",
   "Conjuge",
   "Responsavel",
   "Dependente",
-  "Avo(ó)",
+  "Avo(Ã³)",
   "Tio(a)",
   "Primo(a)",
   "Sobrinho(a)",
@@ -448,6 +448,13 @@ export function FamilyRelationsList({
     });
     return map;
   }, [relations]);
+  const contributionMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    incomeSummary?.contributions?.forEach((item) => {
+      map.set(item.personId, item.amount);
+    });
+    return map;
+  }, [incomeSummary]);
 
   const livingMembers = householdMembers.map((member) => ({
     member,
@@ -500,7 +507,7 @@ export function FamilyRelationsList({
     return (
       <Card>
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Carregando relações familiares...
+          Carregando relaÃ§Ãµes familiares...
         </CardContent>
       </Card>
     );
@@ -524,9 +531,9 @@ export function FamilyRelationsList({
   const providersCount = householdMembers.filter(
     (member) => member.isProvider,
   ).length;
-  const incomeCount = householdMembers.filter(
-    (member) => member.isIncomeContributor,
-  ).length;
+  const incomeCount =
+    incomeSummary?.contributions?.filter((item) => item.amount > 0).length ??
+    householdMembers.filter((member) => member.isIncomeContributor).length;
   const dependentsCount = householdMembers.filter(
     (member) => member.isDependent,
   ).length;
@@ -589,13 +596,13 @@ export function FamilyRelationsList({
           </DropdownMenu>
         </div>
         <RelationDialog
-          title="Adicionar vínculo"
-          description="Registre um familiar e as informações sociais."
+          title="Adicionar vÃ­nculo"
+          description="Registre um familiar e as informaÃ§Ãµes sociais."
           peopleOptions={peopleOptions}
           initial={createInitial}
           open={createOpen}
           onOpenChange={setCreateOpen}
-          triggerLabel="Novo vínculo"
+          triggerLabel="Novo vÃ­nculo"
           onSubmit={handleCreate}
         />
       </CardHeader>
@@ -613,10 +620,16 @@ export function FamilyRelationsList({
                   const contributesIncome =
                     member.isIncomeContributor ||
                     incomeContributorIds.includes(member.personId);
+                  const contributionAmount =
+                    contributionMap.get(member.personId) ?? 0;
                   const badges = [
-                    member.isLegalGuardian ? "Responsável legal" : null,
+                    member.isLegalGuardian ? "ResponsÃ¡vel legal" : null,
                     member.isProvider ? "Provedor" : null,
-                    contributesIncome ? "Contribui renda" : null,
+                    contributionAmount > 0
+                      ? `Contribui ${formatCurrency(contributionAmount)}`
+                      : contributesIncome
+                      ? "Contribui renda"
+                      : null,
                     member.isDependent ? "Dependente" : null,
                   ].filter(Boolean) as string[];
                   return (
@@ -637,7 +650,7 @@ export function FamilyRelationsList({
                 })
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado na residência.
+                  Nenhum familiar registrado na residÃªncia.
                 </p>
               )}
             </div>
@@ -645,15 +658,19 @@ export function FamilyRelationsList({
           <section className="space-y-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">
-                Não moram juntos
+                NÃ£o moram juntos
               </p>
             </div>
             <div className="space-y-1">
               {externalRelations.length ? (
                 externalRelations.map((relation) => {
+                  const contributionAmount =
+                    contributionMap.get(relation.relatedPersonId) ?? 0;
                   const badges = [
-                    relation.isLegalGuardian ? "Responsável legal" : null,
-                    incomeContributorIds.includes(relation.relatedPersonId)
+                    relation.isLegalGuardian ? "ResponsÃ¡vel legal" : null,
+                    contributionAmount > 0
+                      ? `Contribui ${formatCurrency(contributionAmount)}`
+                      : incomeContributorIds.includes(relation.relatedPersonId)
                       ? "Contribui renda"
                       : null,
                   ].filter(Boolean) as string[];
@@ -673,7 +690,7 @@ export function FamilyRelationsList({
                 })
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado fora da residência.
+                  Nenhum familiar registrado fora da residÃªncia.
                 </p>
               )}
             </div>
@@ -682,17 +699,17 @@ export function FamilyRelationsList({
       </CardContent>
       <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 text-xs">
         <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
-        <Badge variant="secondary">Fora da residência: {externalCount}</Badge>
-        <Badge variant="outline">Responsáveis legais: {guardiansCount}</Badge>
+        <Badge variant="secondary">Fora da residÃªncia: {externalCount}</Badge>
+        <Badge variant="outline">ResponsÃ¡veis legais: {guardiansCount}</Badge>
         <Badge variant="outline">Provedores: {providersCount}</Badge>
         <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
         <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
-        <Badge variant="outline">Vínculos totais: {totalRelations}</Badge>
+        <Badge variant="outline">VÃ­nculos totais: {totalRelations}</Badge>
       </div>
       {editing && (
         <RelationDialog
-          title="Editar vínculo"
-          description="Atualize as informações do familiar."
+          title="Editar vÃ­nculo"
+          description="Atualize as informaÃ§Ãµes do familiar."
           peopleOptions={peopleOptions}
           initial={buildInitialForm(
             peopleOptions,
@@ -711,3 +728,4 @@ export function FamilyRelationsList({
     </Card>
   );
 }
+

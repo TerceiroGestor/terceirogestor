@@ -216,4 +216,8 @@ export type FamilyIncomeSummary = {
   pensionTotal: number;
   householdSize: number;
   contributors: string[];
+  contributions?: {
+    personId: string;
+    amount: number;
+  }[];
 };

@@ -209,6 +209,10 @@ export type ApiFamilyIncomeSummary = {
   pensionTotal: number;
   householdSize: number;
   contributors: string[];
+  contributions?: {
+    personId: string;
+    amount: number;
+  }[];
 };
 
 export type PersonRelationInput = {
