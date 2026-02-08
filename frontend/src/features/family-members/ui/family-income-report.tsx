@@ -1,6 +1,6 @@
 "use client";
 
-import { FamilyCard } from "@/features/family-members/ui/family-card";
+import { FamilyCard } from "@/components/family-card";
 import {
   FamilyMetricBadge,
   FamilyMetricField,
@@ -30,7 +30,7 @@ export function FamilyIncomeReport() {
   return (
     <FamilyCard
       title="Renda familiar"
-      subtitle="Total, per capita e beneficios registrados"
+      subtitle="Total, per capita e benefícios registrados"
       footer={
         <div className="flex flex-wrap gap-2">
           <FamilyMetricBadge
@@ -64,13 +64,13 @@ export function FamilyIncomeReport() {
         />
         {summary.benefitsTotal > 0 && (
           <FamilyMetricField
-            label="Beneficios"
+          label="Benefícios"
             value={formatCurrency(summary.benefitsTotal)}
           />
         )}
         {summary.pensionTotal > 0 && (
           <FamilyMetricField
-            label="Pensao"
+          label="Pensão"
             value={formatCurrency(summary.pensionTotal)}
           />
         )}
@@ -81,3 +81,4 @@ export function FamilyIncomeReport() {
     </FamilyCard>
   );
 }
+

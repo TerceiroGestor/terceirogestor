@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { FamilyCard } from "@/features/family-members/ui/family-card";
+import { FamilyCard } from "@/components/family-card";
 import { FamilyMetricField } from "@/features/family-members/ui/family-metrics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -925,3 +925,4 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     </div>
   );
 }
+

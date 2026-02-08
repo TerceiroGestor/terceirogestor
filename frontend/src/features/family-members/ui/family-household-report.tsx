@@ -1,6 +1,6 @@
 "use client";
 
-import { FamilyCard } from "@/features/family-members/ui/family-card";
+import { FamilyCard } from "@/components/family-card";
 import { FamilyMetricBadge, FamilyMetricField } from "@/features/family-members/ui/family-metrics";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 
@@ -60,3 +60,4 @@ export function FamilyHouseholdReport() {
     </FamilyCard>
   );
 }
+

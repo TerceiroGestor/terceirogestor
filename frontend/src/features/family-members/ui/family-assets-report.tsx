@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FamilyCard } from "@/components/family-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,7 +132,7 @@ const AssetDialog = ({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Condicao</Label>
+            <Label>Condição</Label>
             <Input
               value={condition}
               onChange={(event) => setCondition(event.target.value)}
@@ -140,7 +140,7 @@ const AssetDialog = ({
             />
           </div>
           <div className="grid gap-2 sm:col-span-2">
-            <Label>Observacoes</Label>
+            <Label>Observações</Label>
             <Textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -354,8 +354,11 @@ export function FamilyAssetsReport() {
   const [createOpenIndividual, setCreateOpenIndividual] = React.useState(false);
 
   return (
-    <Card>
-      <CardContent className="space-y-6">
+    <FamilyCard
+      title="Bens e serviços"
+      subtitle="Itens compartilhados e individuais da residência"
+      contentClassName="space-y-6"
+    >
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
             <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
@@ -507,8 +510,7 @@ export function FamilyAssetsReport() {
             }
           />
         ) : null}
-      </CardContent>
-    </Card>
+    </FamilyCard>
   );
 }
 

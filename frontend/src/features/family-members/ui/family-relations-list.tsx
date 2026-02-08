@@ -21,13 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FamilyCard } from "@/components/family-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -40,13 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Menu,
-  Plus,
-  RefreshCw,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
 import { formatCurrency } from "@/app/(modules)/people/utils";
@@ -78,13 +66,13 @@ type RelationFormState = PersonRelationInput & {
 
 const RELATION_TYPE_OPTIONS = [
   "Pai",
-  "Mae",
+  "Mãe",
   "Filho(a)",
-  "Irmao(a)",
-  "Conjuge",
-  "Responsavel",
+  "Irmão(a)",
+  "Cônjuge",
+  "Responsável",
   "Dependente",
-  "Avo(a)",
+  "Avô(a)",
   "Tio(a)",
   "Primo(a)",
   "Sobrinho(a)",
@@ -94,7 +82,7 @@ const RELATION_TYPE_OPTIONS = [
 
 const HOUSEHOLD_ROLE_OPTIONS = [
   "Morador",
-  "Responsavel",
+  "Responsável",
   "Dependente",
   "Provedor",
   "Outro",
@@ -291,7 +279,7 @@ const RelationDialog = ({
           </div>
 
           <div className="grid gap-2">
-            <Label>Tipo de vinculo</Label>
+            <Label>Tipo de vínculo</Label>
             <Select
               value={form.type}
               onValueChange={(value) =>
@@ -324,7 +312,7 @@ const RelationDialog = ({
             {form.livesTogether ? (
               <div className="grid gap-3">
                 <div className="grid gap-2">
-                  <Label>Papel no domicilio</Label>
+                  <Label>Papel no domicílio</Label>
                   <Select
                     value={form.householdRole ?? ""}
                     onValueChange={(value) =>
@@ -345,7 +333,7 @@ const RelationDialog = ({
                 </div>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
-                    <Label>Respons\u00e1vel legal</Label>
+                    <Label>Responsável legal</Label>
                     <Switch
                       checked={Boolean(form.isLegalGuardian)}
                       onCheckedChange={(checked) =>
@@ -357,7 +345,7 @@ const RelationDialog = ({
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label>Respons\u00e1vel principal</Label>
+                    <Label>Responsável principal</Label>
                     <Switch
                       checked={Boolean(form.isHouseholdHead)}
                       onCheckedChange={(checked) =>
@@ -404,7 +392,7 @@ const RelationDialog = ({
           </div>
 
           <div className="grid gap-2">
-            <Label>Observacoes</Label>
+            <Label>Observações</Label>
             <Textarea
               value={form.notes ?? ""}
               onChange={(event) =>
@@ -508,21 +496,25 @@ export function FamilyRelationsList({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="py-8 text-sm text-muted-foreground">
-          Carregando relacoes familiares...
-        </CardContent>
-      </Card>
+      <FamilyCard
+        title="Núcleo familiar"
+        subtitle="Membros, vínculos e contribuições"
+      >
+        <p className="text-sm text-muted-foreground">
+          Carregando relações familiares...
+        </p>
+      </FamilyCard>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-6 text-sm text-destructive">
-          {error}
-        </CardContent>
-      </Card>
+      <FamilyCard
+        title="Núcleo familiar"
+        subtitle="Membros, vínculos e contribuições"
+      >
+        <p className="text-sm text-destructive">{error}</p>
+      </FamilyCard>
     );
   }
 
@@ -546,151 +538,148 @@ export function FamilyRelationsList({
   const totalRelations = relations.length;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+    <FamilyCard
+      title="Núcleo familiar"
+      subtitle="Membros, vínculos e contribuições"
+      actions={
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Menu className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={onRefresh}>
-                <RefreshCw className="mr-2 size-4" />
-                Atualizar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RelationDialog
+            title="Adicionar vínculo"
+            description="Registre um familiar e as informações sociais."
+            peopleOptions={peopleOptions}
+            initial={createInitial}
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            triggerLabel="Novo vínculo"
+            onSubmit={handleCreate}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8"
+            onClick={onRefresh}
+            title="Atualizar"
+          >
+            <RefreshCw className="size-4" />
+          </Button>
         </div>
-        <RelationDialog
-          title="Adicionar v\u00ednculo"
-          description="Registre um familiar e as informa\u00e7\u00f5es sociais."
-          peopleOptions={peopleOptions}
-          initial={createInitial}
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          triggerLabel="Novo v\u00ednculo"
-          onSubmit={handleCreate}
-        />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 lg:grid-cols-2">
-          <section className="space-y-1">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-medium text-muted-foreground">
-                Moram juntos
-              </p>
-            </div>
-            <div className="space-y-1">
-              {livingMembers.length ? (
-                livingMembers.map(({ member, relation }) => {
-                  const isSelf = member.personId === currentPersonId;
-                  const contributesIncome =
-                    member.isIncomeContributor ||
-                    incomeContributorIds.includes(member.personId);
-                  const contributionAmount =
-                    contributionMap.get(member.personId) ?? 0;
-                  const badges = [
-                    member.isLegalGuardian ? "Respons\u00e1vel legal" : null,
-                    member.isHouseholdHead ? "Respons\u00e1vel principal" : null,
-                    member.isProvider ? "Provedor" : null,
-                    contributionAmount > 0
-                      ? `Contribui ${formatCurrency(contributionAmount)}`
-                      : contributesIncome
+      }
+      footer={
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
+          <Badge variant="secondary">
+            Fora da residência: {externalCount}
+          </Badge>
+          <Badge variant="outline">Responsável ({guardiansCount})</Badge>
+          <Badge variant="outline">Cabeça ({headCount})</Badge>
+          <Badge variant="outline">Provedores: {providersCount}</Badge>
+          <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
+          <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
+          <Badge variant="outline">Vínculos totais: {totalRelations}</Badge>
+        </div>
+      }
+    >
+      <div className="grid gap-3 lg:grid-cols-2">
+        <section className="space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Moram juntos
+            </p>
+          </div>
+          <div className="space-y-1">
+            {livingMembers.length ? (
+              livingMembers.map(({ member, relation }) => {
+                const isSelf = member.personId === currentPersonId;
+                const contributesIncome =
+                  member.isIncomeContributor ||
+                  incomeContributorIds.includes(member.personId);
+                const contributionAmount =
+                  contributionMap.get(member.personId) ?? 0;
+                const badges = [
+                  member.isLegalGuardian ? "Responsável legal" : null,
+                  member.isHouseholdHead ? "Responsável principal" : null,
+                  member.isProvider ? "Provedor" : null,
+                  contributionAmount > 0
+                    ? `Contribui ${formatCurrency(contributionAmount)}`
+                    : contributesIncome
                       ? "Contribui renda"
                       : null,
-                    member.isDependent ? "Dependente" : null,
-                  ].filter(Boolean) as string[];
-                  return (
-                    <FamilyRow
-                      key={member.id}
-                      person={member.person}
-                      relationType={relation?.type ?? member.role ?? "Morador"}
-                      badges={badges}
-                      onEdit={
-                        !isSelf
-                          ? () => {
-                              setEditing({ relation, member });
-                              setEditOpen(true);
-                            }
-                          : undefined
-                      }
-                      onDelete={
-                        relation && !isSelf
-                          ? () => handleDelete(relation.id)
-                          : undefined
-                      }
-                    />
-                  );
-                })
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  Nenhum familiar registrado na resid\u00eancia.
-                </p>
-              )}
-            </div>
-          </section>
-          <section className="space-y-1">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-medium text-muted-foreground">
-                N\u00e3o moram juntos
+                  member.isDependent ? "Dependente" : null,
+                ].filter(Boolean) as string[];
+                return (
+                  <FamilyRow
+                    key={member.id}
+                    person={member.person}
+                    relationType={relation?.type ?? member.role ?? "Morador"}
+                    badges={badges}
+                    onEdit={
+                      !isSelf
+                        ? () => {
+                            setEditing({ relation, member });
+                            setEditOpen(true);
+                          }
+                        : undefined
+                    }
+                    onDelete={
+                      relation && !isSelf
+                        ? () => handleDelete(relation.id)
+                        : undefined
+                    }
+                  />
+                );
+              })
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Nenhum familiar registrado na residência.
               </p>
-            </div>
-            <div className="space-y-1">
-              {externalRelations.length ? (
-                externalRelations.map((relation) => {
-                  const contributionAmount =
-                    contributionMap.get(relation.relatedPersonId) ?? 0;
-                  const badges = [
-                    relation.isLegalGuardian ? "Respons\u00e1vel legal" : null,
-                    contributionAmount > 0
-                      ? `Contribui ${formatCurrency(contributionAmount)}`
-                      : incomeContributorIds.includes(relation.relatedPersonId)
+            )}
+          </div>
+        </section>
+        <section className="space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Não moram juntos
+            </p>
+          </div>
+          <div className="space-y-1">
+            {externalRelations.length ? (
+              externalRelations.map((relation) => {
+                const contributionAmount =
+                  contributionMap.get(relation.relatedPersonId) ?? 0;
+                const badges = [
+                  relation.isLegalGuardian ? "Responsável legal" : null,
+                  contributionAmount > 0
+                    ? `Contribui ${formatCurrency(contributionAmount)}`
+                    : incomeContributorIds.includes(relation.relatedPersonId)
                       ? "Contribui renda"
                       : null,
-                  ].filter(Boolean) as string[];
-                  return (
-                    <FamilyRow
-                      key={relation.id}
-                      person={relation.relatedPerson}
-                      relationType={relation.type}
-                      badges={badges}
-                      onEdit={() => {
-                        setEditing({ relation });
-                        setEditOpen(true);
-                      }}
-                      onDelete={() => handleDelete(relation.id)}
-                    />
-                  );
-                })
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  Nenhum familiar registrado fora da resid\u00eancia.
-                </p>
-              )}
-            </div>
-          </section>
-        </div>
-      </CardContent>
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-2 text-[11px]">
-        <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
-        <Badge variant="secondary">Fora da resid\u00eancia: {externalCount}</Badge>
-        <Badge variant="outline">Respons\u00e1vel ({guardiansCount})</Badge>
-        <Badge variant="outline">Cabe\u00e7a ({headCount})</Badge>
-        <Badge variant="outline">Provedores: {providersCount}</Badge>
-        <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
-        <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
-        <Badge variant="outline">V\u00ednculos totais: {totalRelations}</Badge>
+                ].filter(Boolean) as string[];
+                return (
+                  <FamilyRow
+                    key={relation.id}
+                    person={relation.relatedPerson}
+                    relationType={relation.type}
+                    badges={badges}
+                    onEdit={() => {
+                      setEditing({ relation });
+                      setEditOpen(true);
+                    }}
+                    onDelete={() => handleDelete(relation.id)}
+                  />
+                );
+              })
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Nenhum familiar registrado fora da residência.
+              </p>
+            )}
+          </div>
+        </section>
       </div>
       {editing && (
         <RelationDialog
-          title="Editar v\u00ednculo"
-          description="Atualize as informa\u00e7\u00f5es do familiar."
+          title="Editar vínculo"
+          description="Atualize as informações do familiar."
           peopleOptions={peopleOptions}
           initial={buildInitialForm(
             peopleOptions,
@@ -706,7 +695,6 @@ export function FamilyRelationsList({
           onSubmit={handleEditSave}
         />
       )}
-    </Card>
+    </FamilyCard>
   );
 }
-
