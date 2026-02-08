@@ -128,6 +128,18 @@ export type PersonIncome = {
   updatedAt?: string | null;
 };
 
+export type PersonExpense = {
+  id: string;
+  personId: string;
+  type: string;
+  amount: number;
+  frequency: string;
+  isHouseholdExpense: boolean;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
 export type HouseholdProfile = {
   id: string;
   householdId: string;
@@ -172,6 +184,8 @@ export type PersonAssetsGroup = {
 export type FamilyIncomeSummary = {
   totalIncome: number;
   perCapitaIncome: number;
+  totalExpenses: number;
+  perCapitaExpenses: number;
   benefitsTotal: number;
   pensionTotal: number;
   householdSize: number;

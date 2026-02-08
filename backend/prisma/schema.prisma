@@ -43,6 +43,7 @@ model Tenant {
   householdProfiles HouseholdProfile[]
   personRelations PersonRelation[]
   personIncomes   PersonIncome[]
+  personExpenses  PersonExpense[]
   householdAssets HouseholdAsset[]
   personAssets    PersonAsset[]
   userSessions    UserSession[]
@@ -156,6 +157,7 @@ model Person {
   relations PersonRelation[] @relation("PersonRelationPerson")
   relatedRelations PersonRelation[] @relation("PersonRelationRelated")
   incomes PersonIncome[]
+  expenses PersonExpense[]
   assets  PersonAsset[]
 
   @@index([tenantId])
@@ -300,6 +302,25 @@ model PersonRelation {
   @@index([tenantId])
   @@index([personId])
   @@index([relatedPersonId])
+}
+
+model PersonExpense {
+  id        String          @id @default(uuid()) @db.Char(36)
+  tenantId  String          @db.Char(36)
+  personId  String          @db.Char(36)
+  type      String
+  amount    Decimal         @db.Decimal(10, 2)
+  frequency IncomeFrequency @default(MONTHLY)
+  isHouseholdExpense Boolean @default(true)
+  notes     String?         @db.Text
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
 }
 
 

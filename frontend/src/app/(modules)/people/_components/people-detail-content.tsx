@@ -8,6 +8,7 @@ import { FamilyIncomeReport } from "@/features/family-members/ui/family-income-r
 import { FamilyHouseholdReport } from "@/features/family-members/ui/family-household-report";
 import { FamilyAssetsReport } from "@/features/family-members/ui/family-assets-report";
 import { FamilyPatrimonialCard } from "@/features/family-members/ui/family-patrimonial-card";
+import { PeopleFinancialPanel } from "@/features/people-financial/ui/people-financial-panel";
 
 type PeopleDetailContentProps = {
   person: Person;
@@ -57,6 +58,10 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
             />
           </div>
         </div>
+      </TabsContent>
+
+      <TabsContent value="financeiro" className="space-y-6">
+        <PeopleFinancialPanel personId={person.id} />
       </TabsContent>
     </div>
   );

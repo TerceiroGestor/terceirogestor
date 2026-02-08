@@ -123,6 +123,18 @@ export type ApiPersonIncome = {
   updatedAt?: string;
 };
 
+export type ApiPersonExpense = {
+  id: string;
+  personId: string;
+  type: string;
+  amount: number;
+  frequency: string;
+  isHouseholdExpense: boolean;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ApiHouseholdProfile = {
   id: string;
   householdId: string;
@@ -167,6 +179,8 @@ export type ApiPersonAssetsGroup = {
 export type ApiFamilyIncomeSummary = {
   totalIncome: number;
   perCapitaIncome: number;
+  totalExpenses: number;
+  perCapitaExpenses: number;
   benefitsTotal: number;
   pensionTotal: number;
   householdSize: number;
@@ -337,6 +351,57 @@ export async function deletePersonIncome(
 ) {
   return apiRequest<{ deleted: boolean }>(
     `/people/${id}/incomes/${incomeId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
+export async function getPersonExpenses(token: string, id: string) {
+  return apiRequest<ApiPersonExpense[]>(`/people/${id}/expenses`, {}, token);
+}
+
+export async function createPersonExpense(
+  token: string,
+  id: string,
+  payload: Omit<ApiPersonExpense, "id" | "personId" | "createdAt" | "updatedAt">,
+) {
+  return apiRequest<ApiPersonExpense>(
+    `/people/${id}/expenses`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function updatePersonExpense(
+  token: string,
+  id: string,
+  expenseId: string,
+  payload: Partial<
+    Omit<ApiPersonExpense, "id" | "personId" | "createdAt" | "updatedAt">
+  >,
+) {
+  return apiRequest<ApiPersonExpense>(
+    `/people/${id}/expenses/${expenseId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deletePersonExpense(
+  token: string,
+  id: string,
+  expenseId: string,
+) {
+  return apiRequest<{ deleted: boolean }>(
+    `/people/${id}/expenses/${expenseId}`,
     {
       method: "DELETE",
     },

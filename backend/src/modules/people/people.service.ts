@@ -7,12 +7,14 @@ import { normalizeString } from '../../core/utils/strings';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
+import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
 import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
+import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
@@ -46,6 +48,7 @@ type PersonRelationRecord = Prisma.PersonRelationGetPayload<{
   include: { relatedPerson: true };
 }>;
 type PersonIncomeRecord = Prisma.PersonIncomeGetPayload<{}>;
+type PersonExpenseRecord = Prisma.PersonExpenseGetPayload<{}>;
 type HouseholdProfileRecord = Prisma.HouseholdProfileGetPayload<{}>;
 type HouseholdAssetRecord = Prisma.HouseholdAssetGetPayload<{}>;
 type PersonAssetRecord = Prisma.PersonAssetGetPayload<{}>;
@@ -109,6 +112,18 @@ const mapIncome = (income: PersonIncomeRecord) => ({
   notes: income.notes,
   createdAt: income.createdAt,
   updatedAt: income.updatedAt,
+});
+
+const mapExpense = (expense: PersonExpenseRecord) => ({
+  id: expense.id,
+  personId: expense.personId,
+  type: expense.type,
+  amount: Number(expense.amount),
+  frequency: expense.frequency,
+  isHouseholdExpense: expense.isHouseholdExpense,
+  notes: expense.notes,
+  createdAt: expense.createdAt,
+  updatedAt: expense.updatedAt,
 });
 
 const mapHouseholdProfile = (profile: HouseholdProfileRecord) => ({
@@ -389,6 +404,15 @@ export class PeopleService {
     return incomes.map(mapIncome);
   }
 
+  async listExpenses(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+    const expenses = await this.prisma.personExpense.findMany({
+      where: { tenantId, personId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return expenses.map(mapExpense);
+  }
+
   async createIncome(
     tenantId: string,
     personId: string,
@@ -443,6 +467,73 @@ export class PeopleService {
     });
 
     return mapIncome(updated);
+  }
+
+  async createExpense(
+    tenantId: string,
+    personId: string,
+    dto: CreatePersonExpenseDto,
+  ) {
+    await this.findById(tenantId, personId);
+    const expense = await this.prisma.personExpense.create({
+      data: {
+        tenantId,
+        personId,
+        type: normalizeString(dto.type) ?? 'Outro',
+        amount: dto.amount,
+        frequency: resolveIncomeFrequency(dto.frequency),
+        isHouseholdExpense: dto.isHouseholdExpense ?? true,
+        notes: normalizeString(dto.notes),
+      },
+    });
+    return mapExpense(expense);
+  }
+
+  async updateExpense(
+    tenantId: string,
+    personId: string,
+    expenseId: string,
+    dto: UpdatePersonExpenseDto,
+  ) {
+    const expense = await this.prisma.personExpense.findFirst({
+      where: { id: expenseId, tenantId, personId },
+    });
+    if (!expense) {
+      throw new NotFoundException('Gasto nao encontrado.');
+    }
+
+    const updated = await this.prisma.personExpense.update({
+      where: { id: expenseId },
+      data: {
+        type:
+          dto.type !== undefined
+            ? normalizeString(dto.type) ?? undefined
+            : undefined,
+        amount: dto.amount !== undefined ? dto.amount : undefined,
+        frequency:
+          dto.frequency !== undefined
+            ? resolveIncomeFrequency(dto.frequency)
+            : undefined,
+        isHouseholdExpense:
+          dto.isHouseholdExpense !== undefined
+            ? dto.isHouseholdExpense
+            : undefined,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+      },
+    });
+
+    return mapExpense(updated);
+  }
+
+  async removeExpense(tenantId: string, personId: string, expenseId: string) {
+    const expense = await this.prisma.personExpense.findFirst({
+      where: { id: expenseId, tenantId, personId },
+    });
+    if (!expense) {
+      throw new NotFoundException('Gasto nao encontrado.');
+    }
+    await this.prisma.personExpense.delete({ where: { id: expenseId } });
+    return { deleted: true };
   }
 
   async removeIncome(tenantId: string, personId: string, incomeId: string) {
@@ -776,6 +867,13 @@ export class PeopleService {
         isHouseholdContribution: true,
       },
     });
+    const expenses = await this.prisma.personExpense.findMany({
+      where: {
+        tenantId,
+        personId: { in: personIds },
+        isHouseholdExpense: true,
+      },
+    });
 
     const totalIncome = incomes.reduce(
       (sum, income) => sum + Number(income.amount),
@@ -800,13 +898,21 @@ export class PeopleService {
       }
       return sum;
     }, 0);
+    const totalExpenses = expenses.reduce(
+      (sum, expense) => sum + Number(expense.amount),
+      0,
+    );
 
     const householdSize = householdMemberIds.length || 1;
     const perCapitaIncome = householdSize > 0 ? totalIncome / householdSize : 0;
+    const perCapitaExpenses =
+      householdSize > 0 ? totalExpenses / householdSize : 0;
 
     return {
       totalIncome,
       perCapitaIncome,
+      totalExpenses,
+      perCapitaExpenses,
       benefitsTotal,
       pensionTotal,
       householdSize,

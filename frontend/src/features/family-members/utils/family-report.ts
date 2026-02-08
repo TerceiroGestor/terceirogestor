@@ -123,6 +123,8 @@ export function printFamilyReport({
   const summary = incomeSummary ?? {
     totalIncome: 0,
     perCapitaIncome: 0,
+    totalExpenses: 0,
+    perCapitaExpenses: 0,
     benefitsTotal: 0,
     pensionTotal: 0,
   };
@@ -236,6 +238,8 @@ export function printFamilyReport({
           <div class="grid">
             <div class="metric"><strong>Renda total</strong>${formatCurrency(summary.totalIncome)}</div>
             <div class="metric"><strong>Renda per capita</strong>${formatCurrency(summary.perCapitaIncome)}</div>
+            <div class="metric"><strong>Gastos totais</strong>${formatCurrency(summary.totalExpenses)}</div>
+            <div class="metric"><strong>Gasto per capita</strong>${formatCurrency(summary.perCapitaExpenses)}</div>
             <div class="metric"><strong>Beneficios</strong>${formatCurrency(summary.benefitsTotal)}</div>
             <div class="metric"><strong>Pensao</strong>${formatCurrency(summary.pensionTotal)}</div>
           </div>

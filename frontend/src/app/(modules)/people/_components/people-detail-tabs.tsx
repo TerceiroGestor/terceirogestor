@@ -23,6 +23,7 @@ import {
   User,
   UserRound,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +65,17 @@ const tabGroups: TabGroup[] = [
         label: "Responsaveis",
         icon: UserRound,
         disabled: true,
+      },
+    ],
+  },
+  {
+    label: "Financeiro",
+    items: [
+      {
+        value: "financeiro",
+        label: "Renda e gastos",
+        icon: Wallet,
+        disabled: false,
       },
     ],
   },

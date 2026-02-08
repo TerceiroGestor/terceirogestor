@@ -56,7 +56,7 @@ export function buildFamilyCsv(params: {
   params.householdMembers.forEach((member) => {
     const relation = relationMap.get(member.personId);
     const indicators = formatIndicators([
-      member.isLegalGuardian ? "Responsável legal" : null,
+      member.isLegalGuardian ? "Responsavel legal" : null,
       member.isProvider ? "Provedor" : null,
       member.isIncomeContributor ? "Contribui renda" : null,
       member.isDependent ? "Dependente" : null,
@@ -73,13 +73,13 @@ export function buildFamilyCsv(params: {
     .filter((relation) => !relation.livesTogether)
     .forEach((relation) => {
       const indicators = formatIndicators([
-        relation.isLegalGuardian ? "Responsável legal" : null,
+        relation.isLegalGuardian ? "Responsavel legal" : null,
         params.incomeContributorIds.includes(relation.relatedPersonId)
           ? "Contribui renda"
           : null,
       ]);
       rows.push([
-        "Não mora junto",
+        "Nao mora junto",
         relation.relatedPerson.fullName,
         relation.type,
         indicators,
@@ -89,8 +89,10 @@ export function buildFamilyCsv(params: {
   const summaryRows = [
     ["Resumo", "Renda total", "", formatCurrency(params.incomeSummary?.totalIncome ?? 0)],
     ["Resumo", "Per capita", "", formatCurrency(params.incomeSummary?.perCapitaIncome ?? 0)],
-    ["Resumo", "Benefícios", "", formatCurrency(params.incomeSummary?.benefitsTotal ?? 0)],
-    ["Resumo", "Pensão", "", formatCurrency(params.incomeSummary?.pensionTotal ?? 0)],
+    ["Resumo", "Gastos totais", "", formatCurrency(params.incomeSummary?.totalExpenses ?? 0)],
+    ["Resumo", "Gasto per capita", "", formatCurrency(params.incomeSummary?.perCapitaExpenses ?? 0)],
+    ["Resumo", "Beneficios", "", formatCurrency(params.incomeSummary?.benefitsTotal ?? 0)],
+    ["Resumo", "Pensao", "", formatCurrency(params.incomeSummary?.pensionTotal ?? 0)],
     ["Resumo", "Itens compartilhados", "", String(params.householdAssets?.length ?? 0)],
     [
       "Resumo",
@@ -105,11 +107,7 @@ export function buildFamilyCsv(params: {
     ],
   ];
 
-  const csv = [
-    ...summaryRows,
-    headers,
-    ...rows,
-  ]
+  const csv = [...summaryRows, headers, ...rows]
     .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
     .join("\n");
   return csv;
@@ -131,7 +129,7 @@ export function downloadFamilyCsv(params: {
   link.href = url;
   link.setAttribute(
     "download",
-    `${params.person.fullName.replace(/\s+/g, "_")}-familia.csv`,
+    `${params.person.fullName.replace(/\\s+/g, "_")}-familia.csv`,
   );
   document.body.appendChild(link);
   link.click();

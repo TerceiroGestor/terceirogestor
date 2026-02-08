@@ -1,7 +1,10 @@
 "use client";
 
 import { FamilyCard } from "@/features/family-members/ui/family-card";
-import { FamilyMetricBadge, FamilyMetricField } from "@/features/family-members/ui/family-metrics";
+import {
+  FamilyMetricBadge,
+  FamilyMetricField,
+} from "@/features/family-members/ui/family-metrics";
 import { formatCurrency } from "@/app/(modules)/people/utils";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 import type { FamilyIncomeSummary } from "@/app/(modules)/people/types";
@@ -11,6 +14,8 @@ export function FamilyIncomeReport() {
   const summary: FamilyIncomeSummary = incomeSummary ?? {
     totalIncome: 0,
     perCapitaIncome: 0,
+    totalExpenses: 0,
+    perCapitaExpenses: 0,
     benefitsTotal: 0,
     pensionTotal: 0,
     householdSize: 0,
@@ -19,12 +24,13 @@ export function FamilyIncomeReport() {
   const hasIncome =
     summary.totalIncome > 0 ||
     summary.benefitsTotal > 0 ||
-    summary.pensionTotal > 0;
+    summary.pensionTotal > 0 ||
+    summary.totalExpenses > 0;
 
   return (
     <FamilyCard
       title="Renda familiar"
-      subtitle="Total, per capita e benefícios registrados"
+      subtitle="Total, per capita e beneficios registrados"
       footer={
         <div className="flex flex-wrap gap-2">
           <FamilyMetricBadge
@@ -33,7 +39,7 @@ export function FamilyIncomeReport() {
             variant="secondary"
           />
           <FamilyMetricBadge
-            label="Famílias monitoradas"
+            label="Familiares monitorados"
             value={summary.householdSize ?? 0}
           />
         </div>
@@ -48,15 +54,23 @@ export function FamilyIncomeReport() {
           label="Per capita"
           value={formatCurrency(summary.perCapitaIncome)}
         />
+        <FamilyMetricField
+          label="Gastos totais"
+          value={formatCurrency(summary.totalExpenses)}
+        />
+        <FamilyMetricField
+          label="Gasto per capita"
+          value={formatCurrency(summary.perCapitaExpenses)}
+        />
         {summary.benefitsTotal > 0 && (
           <FamilyMetricField
-            label="Benefícios"
+            label="Beneficios"
             value={formatCurrency(summary.benefitsTotal)}
           />
         )}
         {summary.pensionTotal > 0 && (
           <FamilyMetricField
-            label="Pensão"
+            label="Pensao"
             value={formatCurrency(summary.pensionTotal)}
           />
         )}
