@@ -79,11 +79,11 @@ const RELATION_TYPE_OPTIONS = [
   "Pai",
   "Mae",
   "Filho(a)",
-  "Irmao(Ã£)",
+  "Irmao(a)",
   "Conjuge",
   "Responsavel",
   "Dependente",
-  "Avo(Ã³)",
+  "Avo(a)",
   "Tio(a)",
   "Primo(a)",
   "Sobrinho(a)",
@@ -112,7 +112,7 @@ const buildInitialForm = (
   return {
     relationId: relation?.id,
     relatedPersonId,
-    type: relation?.type ?? "Pai",
+    type: relation?.type ?? "",
     livesTogether: relation?.livesTogether ?? Boolean(householdMember),
     isLegalGuardian:
       relation?.isLegalGuardian ?? householdMember?.isLegalGuardian ?? false,
@@ -495,7 +495,7 @@ export function FamilyRelationsList({
     return (
       <Card>
         <CardContent className="py-8 text-sm text-muted-foreground">
-          Carregando relaÃ§Ãµes familiares...
+          Carregando relacoes familiares...
         </CardContent>
       </Card>
     );
@@ -550,13 +550,13 @@ export function FamilyRelationsList({
           </DropdownMenu>
         </div>
         <RelationDialog
-          title="Adicionar vÃ­nculo"
-          description="Registre um familiar e as informaÃ§Ãµes sociais."
+          title="Adicionar vinculo"
+          description="Registre um familiar e as informacoes sociais."
           peopleOptions={peopleOptions}
           initial={createInitial}
           open={createOpen}
           onOpenChange={setCreateOpen}
-          triggerLabel="Novo vÃ­nculo"
+          triggerLabel="Novo vinculo"
           onSubmit={handleCreate}
         />
       </CardHeader>
@@ -577,7 +577,7 @@ export function FamilyRelationsList({
                   const contributionAmount =
                     contributionMap.get(member.personId) ?? 0;
                   const badges = [
-                    member.isLegalGuardian ? "ResponsÃ¡vel legal" : null,
+                    member.isLegalGuardian ? "Responsavel legal" : null,
                     member.isProvider ? "Provedor" : null,
                     contributionAmount > 0
                       ? `Contribui ${formatCurrency(contributionAmount)}`
@@ -604,7 +604,7 @@ export function FamilyRelationsList({
                 })
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado na residÃªncia.
+                  Nenhum familiar registrado na residencia.
                 </p>
               )}
             </div>
@@ -612,7 +612,7 @@ export function FamilyRelationsList({
           <section className="space-y-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">
-                NÃ£o moram juntos
+                Nao moram juntos
               </p>
             </div>
             <div className="space-y-1">
@@ -621,7 +621,7 @@ export function FamilyRelationsList({
                   const contributionAmount =
                     contributionMap.get(relation.relatedPersonId) ?? 0;
                   const badges = [
-                    relation.isLegalGuardian ? "ResponsÃ¡vel legal" : null,
+                    relation.isLegalGuardian ? "Responsavel legal" : null,
                     contributionAmount > 0
                       ? `Contribui ${formatCurrency(contributionAmount)}`
                       : incomeContributorIds.includes(relation.relatedPersonId)
@@ -644,7 +644,7 @@ export function FamilyRelationsList({
                 })
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Nenhum familiar registrado fora da residÃªncia.
+                  Nenhum familiar registrado fora da residencia.
                 </p>
               )}
             </div>
@@ -653,17 +653,17 @@ export function FamilyRelationsList({
       </CardContent>
       <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 text-xs">
         <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
-        <Badge variant="secondary">Fora da residÃªncia: {externalCount}</Badge>
-        <Badge variant="outline">ResponsÃ¡veis legais: {guardiansCount}</Badge>
+        <Badge variant="secondary">Fora da residencia: {externalCount}</Badge>
+        <Badge variant="outline">Responsaveis legais: {guardiansCount}</Badge>
         <Badge variant="outline">Provedores: {providersCount}</Badge>
         <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
         <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
-        <Badge variant="outline">VÃ­nculos totais: {totalRelations}</Badge>
+        <Badge variant="outline">Vinculos totais: {totalRelations}</Badge>
       </div>
       {editing && (
         <RelationDialog
-          title="Editar vÃ­nculo"
-          description="Atualize as informaÃ§Ãµes do familiar."
+          title="Editar vinculo"
+          description="Atualize as informacoes do familiar."
           peopleOptions={peopleOptions}
           initial={buildInitialForm(
             peopleOptions,

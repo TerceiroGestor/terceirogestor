@@ -183,29 +183,76 @@ const mapPersonAsset = (asset: PersonAssetRecord) => ({
   updatedAt: asset.updatedAt,
 });
 
-const RELATION_INVERSE_TYPES: Record<string, string> = {
-  Pai: 'Filho(a)',
-  Mae: 'Filho(a)',
-  Mãe: 'Filho(a)',
-  Filho: 'Pai/Mae',
-  Filha: 'Pai/Mae',
-  'Filho(a)': 'Pai/Mae',
-  Irmao: 'Irmao(ã)',
-  Irma: 'Irmao(ã)',
-  'Irmao(ã)': 'Irmao(ã)',
-  'Irmão(ã)': 'Irmão(ã)',
-  Conjuge: 'Conjuge',
-  Responsavel: 'Dependente',
-  Dependente: 'Responsavel',
-  'Tio(a)': 'Sobrinho(a)',
-  'Sobrinho(a)': 'Tio(a)',
-  'Primo(a)': 'Primo(a)',
-  'Avo(ó)': 'Neto(a)',
-  'Neto(a)': 'Avo(ó)',
+const normalizeRelationKey = (value?: string | null) =>
+  (value ?? '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+const resolveParentTypeFromPerson = (
+  person?: { sex?: string | null; gender?: string | null } | null,
+) => {
+  const sexKey = normalizeRelationKey(person?.sex);
+  const genderKey = normalizeRelationKey(person?.gender);
+  if (sexKey.startsWith('f') || genderKey.includes('mulher')) {
+    return 'Mae';
+  }
+  if (sexKey.startsWith('m') || genderKey.includes('homem')) {
+    return 'Pai';
+  }
+  return 'Responsavel';
 };
 
-const resolveInverseType = (type: string) =>
-  RELATION_INVERSE_TYPES[type] ?? type;
+const resolveInverseType = async (
+  tx: Prisma.TransactionClient,
+  relation: Prisma.PersonRelationUncheckedCreateInput & {
+    relatedPersonId: string;
+    personId: string;
+    type: string;
+  },
+) => {
+  const key = normalizeRelationKey(relation.type);
+  if (key.startsWith('pai') || key.startsWith('mae') || key === 'paimae') {
+    return 'Filho(a)';
+  }
+  if (key.startsWith('filho') || key.startsWith('filha')) {
+    const person = await tx.person.findUnique({
+      where: { id: relation.personId },
+      select: { sex: true, gender: true },
+    });
+    return resolveParentTypeFromPerson(person);
+  }
+  if (key.startsWith('irma')) {
+    return 'Irmao(a)';
+  }
+  if (key.startsWith('conjuge')) {
+    return 'Conjuge';
+  }
+  if (key.startsWith('responsavel')) {
+    return 'Dependente';
+  }
+  if (key.startsWith('dependente')) {
+    return 'Responsavel';
+  }
+  if (key.startsWith('tio')) {
+    return 'Sobrinho(a)';
+  }
+  if (key.startsWith('sobrinho') || key.startsWith('sobrinha')) {
+    return 'Tio(a)';
+  }
+  if (key.startsWith('primo') || key.startsWith('prima')) {
+    return 'Primo(a)';
+  }
+  if (key.startsWith('avo')) {
+    return 'Neto(a)';
+  }
+  if (key.startsWith('neto') || key.startsWith('neta')) {
+    return 'Avo(a)';
+  }
+  return relation.type;
+};
 
 const normalizeCategory = (value?: string | null) =>
   (value ?? '')
@@ -1299,17 +1346,35 @@ export class PeopleService {
     const isLegalGuardian = dto.isLegalGuardian ?? false;
 
     const relation = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.personRelation.create({
-        data: {
+      const existing = await tx.personRelation.findFirst({
+        where: {
           tenantId,
           personId,
           relatedPersonId: dto.relatedPersonId,
-          type,
-          livesTogether,
-          isLegalGuardian,
-          notes: normalizeString(dto.notes),
         },
       });
+
+      const created = existing
+        ? await tx.personRelation.update({
+            where: { id: existing.id },
+            data: {
+              type,
+              livesTogether,
+              isLegalGuardian,
+              notes: normalizeString(dto.notes),
+            },
+          })
+        : await tx.personRelation.create({
+            data: {
+              tenantId,
+              personId,
+              relatedPersonId: dto.relatedPersonId,
+              type,
+              livesTogether,
+              isLegalGuardian,
+              notes: normalizeString(dto.notes),
+            },
+          });
 
       await this.syncInverseRelation(tx, tenantId, created);
 
@@ -1325,6 +1390,13 @@ export class PeopleService {
           householdId,
           dto.relatedPersonId,
           dto,
+        );
+      } else {
+        await this.removeHouseholdMember(
+          tx,
+          tenantId,
+          personId,
+          dto.relatedPersonId,
         );
       }
 
@@ -1355,6 +1427,21 @@ export class PeopleService {
       dto.isLegalGuardian !== undefined ? dto.isLegalGuardian : relation.isLegalGuardian;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.type) {
+        const duplicate = await tx.personRelation.findFirst({
+          where: {
+            tenantId,
+            personId,
+            relatedPersonId: relation.relatedPersonId,
+            type: nextType,
+            NOT: { id: relation.id },
+          },
+        });
+        if (duplicate) {
+          await tx.personRelation.delete({ where: { id: duplicate.id } });
+        }
+      }
+
       const saved = await tx.personRelation.update({
         where: { id: relation.id },
         data: {
@@ -1546,7 +1633,7 @@ export class PeopleService {
       notes?: string | null;
     },
   ) {
-    const inverseType = resolveInverseType(relation.type);
+    const inverseType = await resolveInverseType(tx, relation);
     const inverse = await tx.personRelation.findFirst({
       where: {
         tenantId,
@@ -1581,3 +1668,4 @@ export class PeopleService {
     });
   }
 }
+
