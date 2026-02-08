@@ -40,6 +40,7 @@
    - Section: `SectionCard`
    - List: `SectionList`
    - Group list: `SectionListCollapse`
+   - Dialog: `SectionDialog`
    - Table: `DataTable`
    - Form: `FormEngine`
 
@@ -47,6 +48,7 @@
 - `SectionCard`: card padrao de secao.
 - `SectionList`: lista compacta com hover actions.
 - `SectionListCollapse`: lista com colapso, visual padrao de item.
+- `SectionDialog`: dialog padrao com margem e scroll.
 - `DataTable`: tabela com filtros/agrupamento/exportacao.
 - `FormEngine`: formularios dinamicos com validacao.
 - Futuro: `FeatureMenu` (menu de features do modulo).

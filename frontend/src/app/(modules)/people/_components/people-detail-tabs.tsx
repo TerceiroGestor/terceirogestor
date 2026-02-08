@@ -39,6 +39,16 @@ import {
   downloadPeopleFinancialCsv,
   exportPeopleFinancialPdf,
 } from "@/features/people-financial/utils/people-financial-export-actions";
+import { useHealthConditions } from "@/features/health-conditions/data/use-health-conditions";
+import {
+  downloadHealthCsv,
+  exportHealthPdf,
+} from "@/features/health-conditions/utils/health-export-actions";
+import { useMedications } from "@/features/medications/data/use-medications";
+import {
+  downloadMedicationCsv,
+  exportMedicationPdf,
+} from "@/features/medications/utils/medication-export-actions";
 import type { FamilyReportType } from "@/features/family-members/utils/family-report";
 
 type PeopleDetailTabsProps = {
@@ -157,6 +167,12 @@ export function PeopleDetailTabs({
   const { incomes, expenses, transfers } = usePeopleFinancial(person.id, {
     enabled: value === "financeiro",
   });
+  const { conditions } = useHealthConditions(person.id, {
+    enabled: value === "saude",
+  });
+  const { medications } = useMedications(person.id, {
+    enabled: value === "medicacoes",
+  });
 
   const incomeContributorIds = incomeSummary?.contributors ?? [];
 
@@ -252,6 +268,50 @@ export function PeopleDetailTabs({
       ];
     }
 
+    if (value === "saude") {
+      const handleHealthPdf = () => {
+        if (!token) return;
+        exportHealthPdf({ token, person, conditions });
+      };
+      const handleHealthCsv = () => {
+        downloadHealthCsv({ person, conditions });
+      };
+      return [
+        {
+          label: "Relatorio de saude (PDF)",
+          onSelect: handleHealthPdf,
+          disabled: !token,
+        },
+        {
+          label: "Exportar CSV (saude)",
+          onSelect: handleHealthCsv,
+          disabled: false,
+        },
+      ];
+    }
+
+    if (value === "medicacoes") {
+      const handleMedicationPdf = () => {
+        if (!token) return;
+        exportMedicationPdf({ token, person, medications });
+      };
+      const handleMedicationCsv = () => {
+        downloadMedicationCsv({ person, medications });
+      };
+      return [
+        {
+          label: "Relatorio de medicacoes (PDF)",
+          onSelect: handleMedicationPdf,
+          disabled: !token,
+        },
+        {
+          label: "Exportar CSV (medicacoes)",
+          onSelect: handleMedicationCsv,
+          disabled: false,
+        },
+      ];
+    }
+
     return [
       {
         label: "Sem relatorios disponiveis",
@@ -274,6 +334,8 @@ export function PeopleDetailTabs({
     incomes,
     expenses,
     transfers,
+    conditions,
+    medications,
   ]);
 
   return (

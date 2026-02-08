@@ -4,22 +4,17 @@ import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
+import { SectionDialog } from "@/components/section-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { MedicationForm } from "@/features/medications/ui/medication-form";
 import type { MedicationFormValues } from "@/features/medications/config/medication-form-config";
 import { useMedications } from "@/features/medications/data/use-medications";
 import type { Medication } from "@/app/(modules)/people/types";
 import { formatDate, toDateInputValue } from "@/app/(modules)/people/utils";
 import { resolveMediaUrl } from "@/lib/api";
+import { uploadHealthDocument } from "@/features/uploads/api";
+import { useAuth } from "@/features/auth/auth-context";
 
 const buildFormValues = (medication?: Medication): MedicationFormValues => ({
   reason: medication?.reason ?? "",
@@ -30,7 +25,9 @@ const buildFormValues = (medication?: Medication): MedicationFormValues => ({
   endDate: toDateInputValue(medication?.endDate ?? null),
   prescribingDoctor: medication?.prescribingDoctor ?? "",
   permissionDocumentUrl: medication?.permissionDocumentUrl ?? "",
+  permissionDocumentFile: null,
   documentUrl: medication?.documentUrl ?? "",
+  documentFile: null,
   notes: medication?.notes ?? "",
 });
 
@@ -39,6 +36,7 @@ type MedicationsPanelProps = {
 };
 
 export function MedicationsPanel({ personId }: MedicationsPanelProps) {
+  const { token } = useAuth();
   const { medications, isLoading, error, create, update, remove } =
     useMedications(personId);
   const [open, setOpen] = useState(false);
@@ -57,6 +55,19 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
 
   const handleSubmit = async (values: MedicationFormValues) => {
     if (!values.medication.trim()) return;
+    let documentUrl = values.documentUrl?.trim() || null;
+    let permissionDocumentUrl = values.permissionDocumentUrl?.trim() || null;
+    if (values.documentFile && token) {
+      const uploaded = await uploadHealthDocument(token, values.documentFile);
+      documentUrl = uploaded.path;
+    }
+    if (values.permissionDocumentFile && token) {
+      const uploaded = await uploadHealthDocument(
+        token,
+        values.permissionDocumentFile,
+      );
+      permissionDocumentUrl = uploaded.path;
+    }
     const payload = {
       reason: values.reason?.trim() || null,
       medication: values.medication.trim(),
@@ -65,8 +76,8 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
       startDate: values.startDate || null,
       endDate: values.endDate || null,
       prescribingDoctor: values.prescribingDoctor?.trim() || null,
-      permissionDocumentUrl: values.permissionDocumentUrl?.trim() || null,
-      documentUrl: values.documentUrl?.trim() || null,
+      permissionDocumentUrl,
+      documentUrl,
       notes: values.notes?.trim() || null,
     };
     if (editing) {
@@ -82,30 +93,25 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
       title="Medicacoes"
       subtitle="Registro de medicamentos e cuidados"
       actions={
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
+        <SectionDialog
+          open={open}
+          onOpenChange={handleOpenChange}
+          title={editing ? "Editar medicacao" : "Adicionar medicacao"}
+          description="Registre tratamentos e orientacoes medicas."
+          trigger={
             <Button variant="outline" size="sm" className="h-8 gap-2 text-xs">
               <Plus className="size-3.5" />
               Novo medicamento
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[560px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editing ? "Editar medicacao" : "Adicionar medicacao"}
-              </DialogTitle>
-              <DialogDescription>
-                Registre tratamentos e orientacoes medicas.
-              </DialogDescription>
-            </DialogHeader>
-            <MedicationForm
-              initialValues={initialValues}
-              submitLabel={editing ? "Atualizar" : "Salvar"}
-              onSubmit={handleSubmit}
-              onCancel={() => handleOpenChange(false)}
-            />
-          </DialogContent>
-        </Dialog>
+          }
+        >
+          <MedicationForm
+            initialValues={initialValues}
+            submitLabel={editing ? "Atualizar" : "Salvar"}
+            onSubmit={handleSubmit}
+            onCancel={() => handleOpenChange(false)}
+          />
+        </SectionDialog>
       }
     >
       {error ? (
@@ -153,6 +159,19 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
                         className="text-[10px]"
                       >
                         Documento
+                      </a>
+                    </Badge>
+                  ) : null}
+                  {medication.permissionDocumentUrl ? (
+                    <Badge variant="secondary" className="gap-1">
+                      <FileText className="size-3" />
+                      <a
+                        href={resolveMediaUrl(medication.permissionDocumentUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px]"
+                      >
+                        Autorizacao
                       </a>
                     </Badge>
                   ) : null}

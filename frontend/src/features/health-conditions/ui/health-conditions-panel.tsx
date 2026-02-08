@@ -4,22 +4,17 @@ import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
+import { SectionDialog } from "@/components/section-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { HealthConditionForm } from "@/features/health-conditions/ui/health-condition-form";
 import type { HealthConditionFormValues } from "@/features/health-conditions/config/health-condition-form-config";
 import { useHealthConditions } from "@/features/health-conditions/data/use-health-conditions";
 import type { HealthCondition } from "@/app/(modules)/people/types";
 import { formatDate, toDateInputValue } from "@/app/(modules)/people/utils";
 import { resolveMediaUrl } from "@/lib/api";
+import { uploadHealthDocument } from "@/features/uploads/api";
+import { useAuth } from "@/features/auth/auth-context";
 
 const buildFormValues = (
   condition?: HealthCondition,
@@ -29,6 +24,7 @@ const buildFormValues = (
   severity: condition?.severity ?? "",
   diagnosisDate: toDateInputValue(condition?.diagnosisDate ?? null),
   documentUrl: condition?.documentUrl ?? "",
+  documentFile: null,
   notes: condition?.notes ?? "",
 });
 
@@ -37,6 +33,7 @@ type HealthConditionsPanelProps = {
 };
 
 export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) {
+  const { token } = useAuth();
   const { conditions, isLoading, error, create, update, remove } =
     useHealthConditions(personId);
   const [open, setOpen] = useState(false);
@@ -55,12 +52,17 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
 
   const handleSubmit = async (values: HealthConditionFormValues) => {
     if (!values.type.trim()) return;
+    let documentUrl = values.documentUrl?.trim() || null;
+    if (values.documentFile && token) {
+      const uploaded = await uploadHealthDocument(token, values.documentFile);
+      documentUrl = uploaded.path;
+    }
     const payload = {
       type: values.type.trim(),
       description: values.description?.trim() || null,
       severity: values.severity?.trim() || null,
       diagnosisDate: values.diagnosisDate || null,
-      documentUrl: values.documentUrl?.trim() || null,
+      documentUrl,
       notes: values.notes?.trim() || null,
     };
     if (editing) {
@@ -76,30 +78,25 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
       title="Saude"
       subtitle="Condicoes e necessidades de saude"
       actions={
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
+        <SectionDialog
+          open={open}
+          onOpenChange={handleOpenChange}
+          title={editing ? "Editar condicao" : "Adicionar condicao"}
+          description="Registre informacoes relevantes de saude."
+          trigger={
             <Button variant="outline" size="sm" className="h-8 gap-2 text-xs">
               <Plus className="size-3.5" />
               Nova condicao
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[560px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editing ? "Editar condicao" : "Adicionar condicao"}
-              </DialogTitle>
-              <DialogDescription>
-                Registre informacoes relevantes de saude.
-              </DialogDescription>
-            </DialogHeader>
-            <HealthConditionForm
-              initialValues={initialValues}
-              submitLabel={editing ? "Atualizar" : "Salvar"}
-              onSubmit={handleSubmit}
-              onCancel={() => handleOpenChange(false)}
-            />
-          </DialogContent>
-        </Dialog>
+          }
+        >
+          <HealthConditionForm
+            initialValues={initialValues}
+            submitLabel={editing ? "Atualizar" : "Salvar"}
+            onSubmit={handleSubmit}
+            onCancel={() => handleOpenChange(false)}
+          />
+        </SectionDialog>
       }
     >
       {error ? (
