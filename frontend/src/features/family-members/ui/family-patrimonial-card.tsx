@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
 import { FamilyMetricField } from "@/features/family-members/ui/family-metrics";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 
@@ -34,7 +34,7 @@ export function FamilyPatrimonialCard() {
   const individualSummary = buildSummary(individualTotals);
 
   return (
-    <FamilyCard
+    <SectionCard
       title="Bens patrimoniais"
       subtitle="Itens compartilhados e individuais monitorados"
     >
@@ -75,7 +75,8 @@ export function FamilyPatrimonialCard() {
           <p className="text-xs text-muted-foreground">Nenhum item individual</p>
         )}
       </div>
-    </FamilyCard>
+    </SectionCard>
   );
 }
+
 

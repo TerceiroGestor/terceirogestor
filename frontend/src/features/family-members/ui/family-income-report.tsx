@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
 import {
   FamilyMetricBadge,
   FamilyMetricField,
@@ -28,7 +28,7 @@ export function FamilyIncomeReport() {
     summary.totalExpenses > 0;
 
   return (
-    <FamilyCard
+    <SectionCard
       title="Renda familiar"
       subtitle="Total, per capita e benefícios registrados"
       footer={
@@ -78,7 +78,8 @@ export function FamilyIncomeReport() {
       {!hasIncome ? (
         <p className="text-xs text-muted-foreground">Sem rendas cadastradas.</p>
       ) : null}
-    </FamilyCard>
+    </SectionCard>
   );
 }
+
 

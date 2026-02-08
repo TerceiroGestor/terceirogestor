@@ -1,12 +1,21 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
+import { SectionList, SectionListItem } from "@/components/section-list";
+import { SectionListCollapse } from "@/components/section-list-collapse";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
-import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import type {
   HouseholdAsset,
   PersonAsset,
@@ -44,6 +53,24 @@ type AssetDialogProps = {
   trigger?: React.ReactNode;
 };
 
+const categoryOptions = [
+  "Móveis",
+  "Eletrodomésticos",
+  "Serviços",
+  "Veículos",
+  "Eletrônicos",
+  "Utensílios",
+  "Outro",
+];
+
+const conditionOptions = [
+  "Novo",
+  "Bom",
+  "Usado",
+  "Precisa de reparo",
+  "Outro",
+];
+
 const AssetDialog = ({
   title,
   description,
@@ -55,20 +82,44 @@ const AssetDialog = ({
   trigger,
 }: AssetDialogProps) => {
   const [category, setCategory] = React.useState(initial?.category ?? "");
+  const [categoryOption, setCategoryOption] = React.useState(
+    categoryOptions.includes(initial?.category ?? "")
+      ? (initial?.category as string)
+      : "Outro",
+  );
   const [item, setItem] = React.useState(initial?.item ?? "");
   const [quantity, setQuantity] = React.useState(
     initial?.quantity?.toString() ?? "",
   );
   const [condition, setCondition] = React.useState(initial?.condition ?? "");
+  const [conditionOption, setConditionOption] = React.useState(
+    conditionOptions.includes(initial?.condition ?? "")
+      ? (initial?.condition as string)
+      : initial?.condition
+        ? "Outro"
+        : "",
+  );
   const [notes, setNotes] = React.useState(initial?.notes ?? "");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
-    setCategory(initial?.category ?? "");
+    const nextCategory = initial?.category ?? "";
+    setCategory(nextCategory);
+    setCategoryOption(
+      categoryOptions.includes(nextCategory) ? nextCategory : "Outro",
+    );
     setItem(initial?.item ?? "");
     setQuantity(initial?.quantity?.toString() ?? "");
-    setCondition(initial?.condition ?? "");
+    const nextCondition = initial?.condition ?? "";
+    setCondition(nextCondition);
+    setConditionOption(
+      conditionOptions.includes(nextCondition)
+        ? nextCondition
+        : nextCondition
+          ? "Outro"
+          : "",
+    );
     setNotes(initial?.notes ?? "");
   }, [open, initial]);
 
@@ -108,18 +159,42 @@ const AssetDialog = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2 sm:col-span-2">
             <Label>Categoria</Label>
-            <Input
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              placeholder="Ex.: Moveis, Servicos, Veiculos"
-            />
+            <Select
+              value={categoryOption}
+              onValueChange={(value) => {
+                setCategoryOption(value);
+                if (value !== "Outro") {
+                  setCategory(value);
+                } else {
+                  setCategory("");
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {categoryOption === "Outro" ? (
+              <Input
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                placeholder="Descreva a categoria"
+              />
+            ) : null}
           </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label>Item</Label>
             <Input
               value={item}
               onChange={(event) => setItem(event.target.value)}
-              placeholder="Ex.: Sofa, Internet, Moto"
+              placeholder="Ex.: Sofá, Internet, Moto"
             />
           </div>
           <div className="grid gap-2">
@@ -133,11 +208,35 @@ const AssetDialog = ({
           </div>
           <div className="grid gap-2">
             <Label>Condição</Label>
-            <Input
-              value={condition}
-              onChange={(event) => setCondition(event.target.value)}
-              placeholder="Bom, usado..."
-            />
+            <Select
+              value={conditionOption}
+              onValueChange={(value) => {
+                setConditionOption(value);
+                if (value !== "Outro") {
+                  setCondition(value);
+                } else {
+                  setCondition("");
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {conditionOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {conditionOption === "Outro" ? (
+              <Input
+                value={condition}
+                onChange={(event) => setCondition(event.target.value)}
+                placeholder="Descreva a condição"
+              />
+            ) : null}
           </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label>Observações</Label>
@@ -165,57 +264,56 @@ const AssetRow = ({
   asset,
   onEdit,
   onDelete,
-  compact = false,
 }: {
   asset: HouseholdAsset | PersonAsset;
   onEdit: () => void;
   onDelete: () => void;
-  compact?: boolean;
 }) => (
-  <div
-    className={`group grid gap-3 border-b border-border/30 ${compact ? "py-1" : "py-2"} pr-2 md:grid-cols-[minmax(0,1fr)_auto_auto]`}
-  >
-    <div>
-      <p
-        className={`text-sm font-medium ${compact ? "text-foreground" : "text-foreground"}`}
-      >
-        {asset.item}
-      </p>
-      <p className="text-xs text-muted-foreground">{asset.category}</p>
-    </div>
-    <div className="flex flex-wrap gap-1">
-      {asset.quantity ? (
-        <Badge variant="outline" className="text-[10px]">
-          Qtd: {asset.quantity}
-        </Badge>
-      ) : null}
-      {asset.condition ? (
-        <Badge variant="secondary" className="text-[10px]">
-          {asset.condition}
-        </Badge>
-      ) : null}
-    </div>
-    <div
-      className={`flex items-center justify-end gap-1 transition-opacity duration-200 ${compact ? "opacity-100" : "opacity-0 group-hover:opacity-100 md:opacity-100"}`}
-    >
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-7 text-muted-foreground hover:text-foreground"
-        onClick={onEdit}
-      >
-        <Pencil className="size-3" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-7 text-destructive hover:text-destructive/80"
-        onClick={onDelete}
-      >
-        <Trash2 className="size-3" />
-      </Button>
-    </div>
-  </div>
+  <SectionListItem
+    title={
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-2 text-xs font-semibold">
+        <span className="truncate text-foreground">{asset.item}</span>
+        <span className="truncate text-[11px] text-muted-foreground">
+          {asset.category}
+        </span>
+        {asset.quantity ? (
+          <Badge variant="outline" className="text-[10px]">
+            Qtd: {asset.quantity}
+          </Badge>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">Qtd: -</span>
+        )}
+        {asset.condition ? (
+          <Badge variant="secondary" className="text-[10px]">
+            {asset.condition}
+          </Badge>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">-</span>
+        )}
+      </div>
+    }
+    inlineActions
+    actions={
+      <>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-muted-foreground hover:text-foreground"
+          onClick={onEdit}
+        >
+          <Pencil className="size-3" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-destructive hover:text-destructive/80"
+          onClick={onDelete}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </>
+    }
+  />
 );
 
 const SharedAssetsList = ({
@@ -227,10 +325,6 @@ const SharedAssetsList = ({
   onEditRequest: (asset: HouseholdAsset) => void;
   onDelete: (assetId: string) => void;
 }) => {
-  const [expandedCategories, setExpandedCategories] = React.useState<
-    Record<string, boolean>
-  >({});
-
   const grouped = React.useMemo(() => {
     return assets.reduce<Record<string, HouseholdAsset[]>>((acc, asset) => {
       const key = asset.category || "Sem categoria";
@@ -239,13 +333,6 @@ const SharedAssetsList = ({
       return acc;
     }, {});
   }, [assets]);
-
-  const toggleCategory = (category: string) =>
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
-
   const entries = Object.entries(grouped);
 
   if (!assets.length) {
@@ -257,49 +344,25 @@ const SharedAssetsList = ({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        {entries.map(([category, items]) => {
-          const isOpen = Boolean(expandedCategories[category]);
-          return (
-            <div
-              key={category}
-              className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2"
-            >
-              <button
-                type="button"
-                onClick={() => toggleCategory(category)}
-                className="flex w-full items-center justify-between gap-2 text-sm font-medium text-foreground"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm leading-tight">{category}</span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {items.length} itens
-                  </Badge>
-                </div>
-                {isOpen ? (
-                  <ChevronUp className="size-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-4 text-muted-foreground" />
-                )}
-              </button>
-              {isOpen ? (
-                <div className="space-y-1 border-t border-border/30 pt-2">
-                  {items.map((asset) => (
-                    <AssetRow
-                      key={asset.id}
-                      asset={asset}
-                      onEdit={() => onEditRequest(asset)}
-                      onDelete={() => onDelete(asset.id)}
-                      compact
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+    <div className="space-y-2">
+      {entries.map(([category, items]) => (
+        <SectionListCollapse
+          key={category}
+          title={category}
+          count={items.length}
+        >
+          <SectionList>
+            {items.map((asset) => (
+              <AssetRow
+                key={asset.id}
+                asset={asset}
+                onEdit={() => onEditRequest(asset)}
+                onDelete={() => onDelete(asset.id)}
+              />
+            ))}
+          </SectionList>
+        </SectionListCollapse>
+      ))}
     </div>
   );
 };
@@ -354,7 +417,7 @@ export function FamilyAssetsReport() {
   const [createOpenIndividual, setCreateOpenIndividual] = React.useState(false);
 
   return (
-    <FamilyCard
+    <SectionCard
       title="Bens e serviços"
       subtitle="Itens compartilhados e individuais da residência"
       contentClassName="space-y-6"
@@ -435,7 +498,7 @@ export function FamilyAssetsReport() {
               </p>
             </div>
             {personAssetsByMember.length ? (
-              <div className="space-y-3">
+              <SectionList className="space-y-3">
                 {personAssetsByMember.map((group) => (
                   <PersonAssetGroup
                     key={group.person.id}
@@ -452,7 +515,7 @@ export function FamilyAssetsReport() {
                     }
                   />
                 ))}
-              </div>
+              </SectionList>
             ) : (
               <p className="text-xs text-muted-foreground">
                 Nenhum item individual cadastrado.
@@ -510,7 +573,7 @@ export function FamilyAssetsReport() {
             }
           />
         ) : null}
-    </FamilyCard>
+    </SectionCard>
   );
 }
 
@@ -526,8 +589,6 @@ const PersonAssetGroup = ({
   onEditRequest: (asset: PersonAsset) => void;
 }) => {
   const [createOpen, setCreateOpen] = React.useState(false);
-  const [expanded, setExpanded] = React.useState(false);
-
   const initials = group.person.fullName
     .split(" ")
     .map((part) => part[0])
@@ -536,8 +597,8 @@ const PersonAssetGroup = ({
     .toUpperCase();
 
   return (
-    <div className="space-y-2 rounded-xl border border-border/60 bg-background/60 px-4 py-3">
-      <div className="flex items-center justify-between gap-2">
+    <SectionListCollapse
+      title={
         <div className="flex items-center gap-2">
           <Avatar className="size-7 border border-border/60">
             <AvatarImage src={group.person.avatarUrl ?? undefined} />
@@ -547,65 +608,47 @@ const PersonAssetGroup = ({
             <p className="text-sm font-medium text-foreground">
               {group.person.fullName}
             </p>
-            <p className="text-[11px] text-muted-foreground">
-              Itens individuais
-            </p>
+            <p className="text-[11px] text-muted-foreground">Itens individuais</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px]">
-            {group.assets.length}
-          </Badge>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7 text-muted-foreground hover:text-foreground"
-            onClick={() => setExpanded((prev) => !prev)}
-            aria-label={expanded ? "Ocultar itens" : "Mostrar itens"}
-          >
-            {expanded ? (
-              <ChevronUp className="size-4" />
-            ) : (
-              <ChevronDown className="size-4" />
-            )}
-          </Button>
-          <AssetDialog
-            title="Adicionar item pessoal"
-            description="Registre um item individual deste familiar."
-            open={createOpen}
-            onOpenChange={setCreateOpen}
-            onSubmit={(payload) => onCreate(group.person.id, payload)}
-            trigger={
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-7 text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="size-4" />
-              </Button>
-            }
-          />
-        </div>
-      </div>
-
-      {expanded ? (
-        group.assets.length ? (
-          <div className="space-y-2">
-            {group.assets.map((asset) => (
-              <AssetRow
-                key={asset.id}
-                asset={asset}
-                onEdit={() => onEditRequest(asset)}
-                onDelete={() => onDelete(asset.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Nenhum item individual cadastrado.
-          </p>
-        )
-      ) : null}
-    </div>
+      }
+      count={group.assets.length}
+      actions={
+        <AssetDialog
+          title="Adicionar item pessoal"
+          description="Registre um item individual deste familiar."
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onSubmit={(payload) => onCreate(group.person.id, payload)}
+          trigger={
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="size-4" />
+            </Button>
+          }
+        />
+      }
+    >
+      {group.assets.length ? (
+        <SectionList>
+          {group.assets.map((asset) => (
+            <AssetRow
+              key={asset.id}
+              asset={asset}
+              onEdit={() => onEditRequest(asset)}
+              onDelete={() => onDelete(asset.id)}
+            />
+          ))}
+        </SectionList>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Nenhum item individual cadastrado.
+        </p>
+      )}
+    </SectionListCollapse>
   );
 };
+

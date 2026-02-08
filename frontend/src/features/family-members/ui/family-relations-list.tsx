@@ -21,7 +21,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
+import { SectionList, SectionListItem } from "@/components/section-list";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -120,24 +121,6 @@ const RelationBadge = ({ label }: { label: string }) => (
   </Badge>
 );
 
-const SummaryMetric = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-2xl border border-border/60 bg-background px-3 py-2">
-    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-      {label}
-    </p>
-    <p className="text-sm font-semibold text-foreground">{value}</p>
-  </div>
-);
-
-const SummaryBadge = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center gap-2 rounded-full border border-border/40 bg-background/60 px-3 py-1 text-[11px] text-muted-foreground">
-    <span className="w-2.5 rounded-full bg-muted-foreground/80" />
-    <span className="font-medium text-foreground">
-      {label}: {value}
-    </span>
-  </div>
-);
-
 const FamilyRow = ({
   person,
   relationType,
@@ -151,58 +134,57 @@ const FamilyRow = ({
   onEdit?: () => void;
   onDelete?: () => void;
 }) => (
-  <div className="group relative flex flex-col gap-2 border-b border-border/30 py-1.5 pr-2 lg:flex-row lg:items-center">
-    <Avatar className="h-9 w-9">
-      <AvatarImage src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")} />
-      <AvatarFallback>
-        {person.fullName.slice(0, 1).toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
-    <div className="flex flex-1 flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-foreground">
-        <Link
-          href={`/people/${person.id}`}
-          className="hover:text-foreground/80"
-        >
+  <SectionListItem
+    leading={(
+      <Avatar className="h-9 w-9">
+        <AvatarImage src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")} />
+        <AvatarFallback>
+          {person.fullName.slice(0, 1).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    )}
+    title={(
+      <>
+        <Link href={`/people/${person.id}`} className="hover:text-foreground/80">
           {person.fullName}
         </Link>
         {relationType ? <RelationBadge label={relationType} /> : null}
-      </div>
-      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-        {badges.map((badge) => (
-          <span
-            key={badge}
-            className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px]"
+      </>
+    )}
+    meta={badges.map((badge) => (
+      <span
+        key={badge}
+        className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px]"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
+        {badge}
+      </span>
+    ))}
+    actions={(
+      <>
+        {onEdit ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-            {badge}
-          </span>
-        ))}
-      </div>
-    </div>
-    <div className="absolute right-0 top-1 hidden items-center gap-1 text-muted-foreground group-hover:flex">
-      {onEdit ? (
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7 text-muted-foreground hover:text-foreground"
-          onClick={onEdit}
-        >
-          <Pencil className="size-3" />
-        </Button>
-      ) : null}
-      {onDelete ? (
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7 text-destructive hover:text-destructive/80"
-          onClick={onDelete}
-        >
-          <Trash2 className="size-3" />
-        </Button>
-      ) : null}
-    </div>
-  </div>
+            <Pencil className="size-3" />
+          </Button>
+        ) : null}
+        {onDelete ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7 text-destructive hover:text-destructive/80"
+            onClick={onDelete}
+          >
+            <Trash2 className="size-3" />
+          </Button>
+        ) : null}
+      </>
+    )}
+  />
 );
 
 const RelationDialog = ({
@@ -496,25 +478,25 @@ export function FamilyRelationsList({
 
   if (isLoading) {
     return (
-      <FamilyCard
+      <SectionCard
         title="Núcleo familiar"
         subtitle="Membros, vínculos e contribuições"
       >
         <p className="text-sm text-muted-foreground">
           Carregando relações familiares...
         </p>
-      </FamilyCard>
+      </SectionCard>
     );
   }
 
   if (error) {
     return (
-      <FamilyCard
+      <SectionCard
         title="Núcleo familiar"
         subtitle="Membros, vínculos e contribuições"
       >
         <p className="text-sm text-destructive">{error}</p>
-      </FamilyCard>
+      </SectionCard>
     );
   }
 
@@ -538,7 +520,7 @@ export function FamilyRelationsList({
   const totalRelations = relations.length;
 
   return (
-    <FamilyCard
+    <SectionCard
       title="Núcleo familiar"
       subtitle="Membros, vínculos e contribuições"
       actions={
@@ -586,7 +568,7 @@ export function FamilyRelationsList({
               Moram juntos
             </p>
           </div>
-          <div className="space-y-1">
+          <SectionList>
             {livingMembers.length ? (
               livingMembers.map(({ member, relation }) => {
                 const isSelf = member.personId === currentPersonId;
@@ -633,7 +615,7 @@ export function FamilyRelationsList({
                 Nenhum familiar registrado na residência.
               </p>
             )}
-          </div>
+          </SectionList>
         </section>
         <section className="space-y-1">
           <div className="flex items-center justify-between">
@@ -641,7 +623,7 @@ export function FamilyRelationsList({
               Não moram juntos
             </p>
           </div>
-          <div className="space-y-1">
+          <SectionList>
             {externalRelations.length ? (
               externalRelations.map((relation) => {
                 const contributionAmount =
@@ -673,7 +655,7 @@ export function FamilyRelationsList({
                 Nenhum familiar registrado fora da residência.
               </p>
             )}
-          </div>
+          </SectionList>
         </section>
       </div>
       {editing && (
@@ -695,6 +677,10 @@ export function FamilyRelationsList({
           onSubmit={handleEditSave}
         />
       )}
-    </FamilyCard>
+    </SectionCard>
   );
 }
+
+
+
+

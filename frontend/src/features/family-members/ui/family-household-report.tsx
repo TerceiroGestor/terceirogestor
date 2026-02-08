@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
 import { FamilyMetricBadge, FamilyMetricField } from "@/features/family-members/ui/family-metrics";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 
@@ -8,7 +8,7 @@ export function FamilyHouseholdReport() {
   const { householdProfile } = useFamilyRelationsContext();
 
   return (
-    <FamilyCard
+    <SectionCard
       title="Relatório de moradia"
       subtitle="Características da residência monitorada"
     >
@@ -57,7 +57,8 @@ export function FamilyHouseholdReport() {
           Nenhuma informação de moradia cadastrada.
         </p>
       ) : null}
-    </FamilyCard>
+    </SectionCard>
   );
 }
+
 

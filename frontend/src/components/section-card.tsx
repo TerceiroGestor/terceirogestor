@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import clsx from "clsx";
 
-type FamilyCardProps = {
+type SectionCardProps = {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
@@ -22,7 +22,7 @@ type FamilyCardProps = {
   headerClassName?: string;
 };
 
-export function FamilyCard({
+export function SectionCard({
   title,
   subtitle,
   actions,
@@ -31,7 +31,7 @@ export function FamilyCard({
   className,
   contentClassName,
   headerClassName,
-}: FamilyCardProps) {
+}: SectionCardProps) {
   return (
     <Card className={clsx("border-border/60 shadow-none", className)}>
       <CardHeader
@@ -61,4 +61,4 @@ export function FamilyCard({
   );
 }
 
-export type { FamilyCardProps };
+export type { SectionCardProps };

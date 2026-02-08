@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { FamilyCard } from "@/components/family-card";
+import { SectionCard } from "@/components/section-card";
+import { SectionList, SectionListItem } from "@/components/section-list";
 import { FamilyMetricField } from "@/features/family-members/ui/family-metrics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,13 +42,13 @@ const frequencyOptions = [
 ];
 
 const incomeTypeOptions = [
-  { value: "Salario", label: "Salario" },
+  { value: "Salario", label: "Salário" },
   { value: "Renda extra", label: "Renda extra" },
-  { value: "Pensao", label: "Pensao" },
-  { value: "Bolsa Familia", label: "Bolsa Familia" },
-  { value: "Auxilio", label: "Auxilio" },
+  { value: "Pensao", label: "Pensão" },
+  { value: "Bolsa Familia", label: "Bolsa Família" },
+  { value: "Auxilio", label: "Auxílio" },
   { value: "BPC", label: "BPC" },
-  { value: "Beneficio eventual", label: "Beneficio eventual" },
+  { value: "Beneficio eventual", label: "Benefício eventual" },
   { value: "Outro", label: "Outro" },
 ];
 
@@ -55,17 +56,21 @@ const contractTypeOptions = [
   { value: "CLT", label: "CLT" },
   { value: "PJ", label: "PJ" },
   { value: "Informal", label: "Informal" },
-  { value: "Autonomo", label: "Autonomo" },
+  { value: "Autonomo", label: "Autônomo" },
   { value: "Outro", label: "Outro" },
 ];
 
 const transferTypeOptions = [
-  { value: "PENSION", label: "Pensao" },
-  { value: "TRANSFER", label: "Transferencia" },
+  { value: "PENSION", label: "Pensão" },
+  { value: "TRANSFER", label: "Transferência" },
 ];
 
 const getFrequencyLabel = (value: string) =>
   frequencyOptions.find((option) => option.value === value)?.label ?? value;
+const getIncomeTypeLabel = (value: string) =>
+  incomeTypeOptions.find((option) => option.value === value)?.label ?? value;
+const getContractTypeLabel = (value: string) =>
+  contractTypeOptions.find((option) => option.value === value)?.label ?? value;
 
 type FinancialFormState = {
   type: string;
@@ -179,7 +184,7 @@ function FinancialDialog({
         <div className="grid gap-4">
           {isExpense ? (
             <div className="grid gap-2">
-              <Label>Descricao</Label>
+              <Label>Descrição</Label>
               <Input
                 value={form.type}
                 onChange={(event) =>
@@ -235,7 +240,7 @@ function FinancialDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Frequencia</Label>
+            <Label>Frequência</Label>
             <Select
               value={form.frequency}
               onValueChange={(value) =>
@@ -278,7 +283,7 @@ function FinancialDialog({
           ) : null}
           {householdOptions.length ? (
             <div className="grid gap-2">
-              <Label>Familia</Label>
+              <Label>Família</Label>
               <Select
                 value={form.householdId}
                 onValueChange={(value) =>
@@ -305,8 +310,8 @@ function FinancialDialog({
               </p>
               <p className="text-xs text-muted-foreground">
                 {isExpense
-                  ? "Inclui este gasto no resumo da familia."
-                  : "Inclui esta renda no resumo da familia."}
+                  ? "Inclui este gasto no resumo da família."
+                  : "Inclui esta renda no resumo da família."}
               </p>
             </div>
             <Switch
@@ -317,7 +322,7 @@ function FinancialDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Observacoes</Label>
+            <Label>Observações</Label>
             <Textarea
               rows={3}
               value={form.notes}
@@ -426,15 +431,15 @@ function TransferDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Transferencia entre familias</DialogTitle>
+          <DialogTitle>Transferência entre famílias</DialogTitle>
           <DialogDescription>
-            Registre pensao ou transferencias financeiras.
+            Registre pensão ou transferências financeiras.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <Label>Residencia de origem</Label>
+            <Label>Residência de origem</Label>
             <Select
               value={form.fromHouseholdId}
               onValueChange={(value) =>
@@ -454,7 +459,7 @@ function TransferDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Residencia de destino</Label>
+            <Label>Residência de destino</Label>
             <Select
               value={form.toHouseholdId}
               onValueChange={(value) =>
@@ -506,7 +511,7 @@ function TransferDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Frequencia</Label>
+            <Label>Frequência</Label>
             <Select
               value={form.frequency}
               onValueChange={(value) =>
@@ -526,7 +531,7 @@ function TransferDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Observacoes</Label>
+            <Label>Observações</Label>
             <Textarea
               rows={3}
               value={form.notes}
@@ -577,7 +582,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     if (currentId) {
       options.push({
         id: currentId,
-        label: familyData?.household?.name ?? "Residencia atual",
+        label: familyData?.household?.name ?? "Residência atual",
       });
     }
     const related = familyData?.relatedHouseholds ?? [];
@@ -586,7 +591,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
       if (item.householdId === currentId) return;
       const base =
         item.householdName ??
-        `Residencia de ${item.personName}`;
+        `Residência de ${item.personName}`;
       const label = item.relationType ? `${base} (${item.relationType})` : base;
       options.push({ id: item.householdId, label });
     });
@@ -618,7 +623,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
         </div>
       ) : null}
 
-      <FamilyCard
+      <SectionCard
         title="Resumo financeiro"
         subtitle="Renda, gastos e saldo da pessoa"
       >
@@ -636,10 +641,10 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
             value={formatCurrency(balance)}
           />
         </div>
-      </FamilyCard>
+      </SectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <FamilyCard
+        <SectionCard
           title="Rendas"
           subtitle="Fontes de renda cadastradas"
           actions={
@@ -663,25 +668,25 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
             />
           }
         >
-          <div className="space-y-3">
-            {incomes.length ? (
-              incomes.map((income) => (
-                <div
+          {incomes.length ? (
+            <SectionList>
+              {incomes.map((income) => (
+                <SectionListItem
                   key={income.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{income.type}</p>
+                  title={<span>{getIncomeTypeLabel(income.type)}</span>}
+                  subtitle={
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatCurrency(income.amount)}</span>
                       <Badge variant="outline">
                         {getFrequencyLabel(income.frequency)}
                       </Badge>
                       {income.contractType ? (
-                        <Badge variant="outline">{income.contractType}</Badge>
+                        <Badge variant="outline">
+                          {getContractTypeLabel(income.contractType)}
+                        </Badge>
                       ) : null}
                       {income.isHouseholdContribution ? (
-                        <Badge variant="secondary">Familia</Badge>
+                        <Badge variant="secondary">Família</Badge>
                       ) : null}
                       {income.householdId &&
                       householdLabelById.has(income.householdId) ? (
@@ -690,50 +695,52 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                         </Badge>
                       ) : null}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FinancialDialog
-                      title="Editar renda"
-                      description="Atualize a renda selecionada."
-                      initial={income}
-                      householdOptions={householdOptions}
-                      defaultHouseholdId={defaultHouseholdId}
-                      trigger={
-                        <Button variant="ghost" size="icon">
-                          <Pencil className="size-4" />
-                        </Button>
-                      }
-                      onSubmit={(payload) =>
-                        updateIncome(income.id, {
-                          type: payload.type,
-                          amount: payload.amount,
-                          frequency: payload.frequency,
-                          isHouseholdContribution: payload.isHousehold,
-                          householdId: payload.householdId ?? null,
-                          contractType: payload.contractType ?? null,
-                          notes: payload.notes ?? null,
-                        })
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteIncome(income.id)}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Nenhuma renda cadastrada.
-              </p>
-            )}
-          </div>
-        </FamilyCard>
+                  }
+                  actions={
+                    <div className="flex items-center gap-1">
+                      <FinancialDialog
+                        title="Editar renda"
+                        description="Atualize a renda selecionada."
+                        initial={income}
+                        householdOptions={householdOptions}
+                        defaultHouseholdId={defaultHouseholdId}
+                        trigger={
+                          <Button variant="ghost" size="icon">
+                            <Pencil className="size-4" />
+                          </Button>
+                        }
+                        onSubmit={(payload) =>
+                          updateIncome(income.id, {
+                            type: payload.type,
+                            amount: payload.amount,
+                            frequency: payload.frequency,
+                            isHouseholdContribution: payload.isHousehold,
+                            householdId: payload.householdId ?? null,
+                            contractType: payload.contractType ?? null,
+                            notes: payload.notes ?? null,
+                          })
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteIncome(income.id)}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  }
+                />
+              ))}
+            </SectionList>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma renda cadastrada.
+            </p>
+          )}
+        </SectionCard>
 
-        <FamilyCard
+        <SectionCard
           title="Gastos"
           subtitle="Despesas cadastradas"
           actions={
@@ -757,22 +764,20 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
             />
           }
         >
-          <div className="space-y-3">
-            {expenses.length ? (
-              expenses.map((expense) => (
-                <div
+          {expenses.length ? (
+            <SectionList>
+              {expenses.map((expense) => (
+                <SectionListItem
                   key={expense.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{expense.type}</p>
+                  title={<span>{expense.type}</span>}
+                  subtitle={
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatCurrency(expense.amount)}</span>
                       <Badge variant="outline">
                         {getFrequencyLabel(expense.frequency)}
                       </Badge>
                       {expense.isHouseholdExpense ? (
-                        <Badge variant="secondary">Familia</Badge>
+                        <Badge variant="secondary">Família</Badge>
                       ) : null}
                       {expense.householdId &&
                       householdLabelById.has(expense.householdId) ? (
@@ -781,57 +786,59 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                         </Badge>
                       ) : null}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FinancialDialog
-                      title="Editar gasto"
-                      description="Atualize o gasto selecionado."
-                      isExpense
-                      initial={expense}
-                      householdOptions={householdOptions}
-                      defaultHouseholdId={defaultHouseholdId}
-                      trigger={
-                        <Button variant="ghost" size="icon">
-                          <Pencil className="size-4" />
-                        </Button>
-                      }
-                      onSubmit={(payload) =>
-                        updateExpense(expense.id, {
-                          type: payload.type,
-                          amount: payload.amount,
-                          frequency: payload.frequency,
-                          isHouseholdExpense: payload.isHousehold,
-                          householdId: payload.householdId ?? null,
-                          notes: payload.notes ?? null,
-                        })
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteExpense(expense.id)}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Nenhum gasto cadastrado.
-              </p>
-            )}
-          </div>
-        </FamilyCard>
+                  }
+                  actions={
+                    <div className="flex items-center gap-1">
+                      <FinancialDialog
+                        title="Editar gasto"
+                        description="Atualize o gasto selecionado."
+                        isExpense
+                        initial={expense}
+                        householdOptions={householdOptions}
+                        defaultHouseholdId={defaultHouseholdId}
+                        trigger={
+                          <Button variant="ghost" size="icon">
+                            <Pencil className="size-4" />
+                          </Button>
+                        }
+                        onSubmit={(payload) =>
+                          updateExpense(expense.id, {
+                            type: payload.type,
+                            amount: payload.amount,
+                            frequency: payload.frequency,
+                            isHouseholdExpense: payload.isHousehold,
+                            householdId: payload.householdId ?? null,
+                            notes: payload.notes ?? null,
+                          })
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteExpense(expense.id)}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  }
+                />
+              ))}
+            </SectionList>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Nenhum gasto cadastrado.
+            </p>
+          )}
+        </SectionCard>
       </div>
 
-      <FamilyCard
-        title="Transferencias"
-        subtitle="Pensao ou repasse entre familias"
+      <SectionCard
+        title="Transferências"
+        subtitle="Pensão ou repasse entre famílias"
         actions={
           householdOptions.length >= 2 ? (
             <TransferDialog
-              triggerLabel="Nova transferencia"
+              triggerLabel="Nova transferência"
               householdOptions={householdOptions}
               onSubmit={(payload) =>
                 createTransfer({
@@ -849,10 +856,10 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
       >
         {householdOptions.length < 2 ? (
           <p className="text-xs text-muted-foreground">
-            Cadastre outra residencia para registrar transferencias.
+            Cadastre outra residência para registrar transferências.
           </p>
         ) : transfers.length ? (
-          <div className="space-y-3">
+          <SectionList>
             {transfers.map((transfer) => {
               const fromLabel =
                 householdLabelById.get(transfer.fromHouseholdId) ??
@@ -861,16 +868,14 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                 householdLabelById.get(transfer.toHouseholdId) ??
                 transfer.toHouseholdId;
               return (
-                <div
+                <SectionListItem
                   key={transfer.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {transfer.type === "PENSION"
-                        ? "Pensao"
-                        : "Transferencia"}
-                    </p>
+                  title={
+                    <span>
+                      {transfer.type === "PENSION" ? "Pensão" : "Transferência"}
+                    </span>
+                  }
+                  subtitle={
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatCurrency(transfer.amount)}</span>
                       <Badge variant="outline">
@@ -879,45 +884,47 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                       <Badge variant="secondary">{fromLabel}</Badge>
                       <Badge variant="secondary">{toLabel}</Badge>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TransferDialog
-                      householdOptions={householdOptions}
-                      initial={transfer}
-                      trigger={
-                        <Button variant="ghost" size="icon">
-                          <Pencil className="size-4" />
-                        </Button>
-                      }
-                      onSubmit={(payload) =>
-                        updateTransfer(transfer.id, {
-                          fromHouseholdId: payload.fromHouseholdId,
-                          toHouseholdId: payload.toHouseholdId,
-                          amount: payload.amount,
-                          frequency: payload.frequency,
-                          type: payload.type,
-                          notes: payload.notes ?? null,
-                        })
-                      }
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteTransfer(transfer.id)}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
+                  }
+                  actions={
+                    <div className="flex items-center gap-1">
+                      <TransferDialog
+                        householdOptions={householdOptions}
+                        initial={transfer}
+                        trigger={
+                          <Button variant="ghost" size="icon">
+                            <Pencil className="size-4" />
+                          </Button>
+                        }
+                        onSubmit={(payload) =>
+                          updateTransfer(transfer.id, {
+                            fromHouseholdId: payload.fromHouseholdId,
+                            toHouseholdId: payload.toHouseholdId,
+                            amount: payload.amount,
+                            frequency: payload.frequency,
+                            type: payload.type,
+                            notes: payload.notes ?? null,
+                          })
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteTransfer(transfer.id)}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  }
+                />
               );
             })}
-          </div>
+          </SectionList>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Nenhuma transferencia cadastrada.
+            Nenhuma transferência cadastrada.
           </p>
         )}
-      </FamilyCard>
+      </SectionCard>
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Carregando dados...</p>
@@ -925,4 +932,5 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     </div>
   );
 }
+
 
