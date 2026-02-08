@@ -5,7 +5,6 @@ export type HealthConditionFormValues = {
   description?: string;
   severity?: string;
   diagnosisDate?: string;
-  documentUrl?: string;
   documentFile?: File | null;
   notes?: string;
 };
@@ -51,16 +50,11 @@ export const healthConditionFormFields: FormField<HealthConditionFormValues>[] =
   },
   { name: "diagnosisDate", label: "Data do diagnostico", type: "date" },
   {
-    name: "documentUrl",
-    label: "Documento",
-    type: "url",
-    placeholder: "uploads/health/parecer-medico.pdf",
-  },
-  {
     name: "documentFile",
     label: "Upload do documento",
     type: "file",
     accept: ".pdf,image/*",
+    helperText: "PDF ou imagem. Opcional.",
   },
   {
     name: "notes",
@@ -78,7 +72,7 @@ export const healthConditionFormSteps: FormStep[] = [
       "description",
       "severity",
       "diagnosisDate",
-      "documentUrl",
+      "documentFile",
       "notes",
     ],
   },

@@ -24,9 +24,7 @@ const buildFormValues = (medication?: Medication): MedicationFormValues => ({
   startDate: toDateInputValue(medication?.startDate ?? null),
   endDate: toDateInputValue(medication?.endDate ?? null),
   prescribingDoctor: medication?.prescribingDoctor ?? "",
-  permissionDocumentUrl: medication?.permissionDocumentUrl ?? "",
   permissionDocumentFile: null,
-  documentUrl: medication?.documentUrl ?? "",
   documentFile: null,
   notes: medication?.notes ?? "",
 });
@@ -55,8 +53,8 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
 
   const handleSubmit = async (values: MedicationFormValues) => {
     if (!values.medication.trim()) return;
-    let documentUrl = values.documentUrl?.trim() || null;
-    let permissionDocumentUrl = values.permissionDocumentUrl?.trim() || null;
+    let documentUrl: string | null = null;
+    let permissionDocumentUrl: string | null = null;
     if (values.documentFile && token) {
       const uploaded = await uploadHealthDocument(token, values.documentFile);
       documentUrl = uploaded.path;

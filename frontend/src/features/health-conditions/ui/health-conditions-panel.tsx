@@ -23,7 +23,6 @@ const buildFormValues = (
   description: condition?.description ?? "",
   severity: condition?.severity ?? "",
   diagnosisDate: toDateInputValue(condition?.diagnosisDate ?? null),
-  documentUrl: condition?.documentUrl ?? "",
   documentFile: null,
   notes: condition?.notes ?? "",
 });
@@ -52,7 +51,7 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
 
   const handleSubmit = async (values: HealthConditionFormValues) => {
     if (!values.type.trim()) return;
-    let documentUrl = values.documentUrl?.trim() || null;
+    let documentUrl: string | null = null;
     if (values.documentFile && token) {
       const uploaded = await uploadHealthDocument(token, values.documentFile);
       documentUrl = uploaded.path;
