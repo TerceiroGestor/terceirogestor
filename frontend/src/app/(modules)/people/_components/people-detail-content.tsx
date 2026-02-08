@@ -27,22 +27,10 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
         </div>
 
         <section className="space-y-3">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                Núcleo familiar
-              </p>
-            </div>
-          </div>
           <FamilyRelationsSection />
         </section>
 
         <section className="space-y-3">
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-              Bens e serviços
-            </p>
-          </div>
           <FamilyAssetsReport />
         </section>
       </TabsContent>

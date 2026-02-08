@@ -197,6 +197,11 @@ export function PeopleDetailTabs({
         });
       };
       items.push({
+        label: "Relatorio completo (PDF)",
+        onSelect: handleFamilyPdf("full"),
+        disabled: !canExportFamily,
+      });
+      items.push({
         label: "Relatorio de composicao familiar (PDF)",
         onSelect: handleFamilyPdf("composition"),
         disabled: !canExportFamily,

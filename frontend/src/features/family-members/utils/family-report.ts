@@ -1,5 +1,5 @@
 import { buildExportMeta } from "@/lib/auth-utils";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+import { formatCurrency, getAgeFromBirthDate } from "@/app/(modules)/people/utils";
 import type {
   FamilyIncomeSummary,
   HouseholdAsset,
@@ -75,6 +75,14 @@ export function printFamilyReport({
         : "Relatorio do nucleo familiar",
     subtitle: person.fullName,
   });
+  const personAge = getAgeFromBirthDate(person.birthDate);
+  const personDetails = [
+    person.document ? `Documento: ${person.document}` : null,
+    person.birthDate ? `Nascimento: ${person.birthDate}` : null,
+    personAge !== null ? `Idade: ${personAge} anos` : null,
+    person.email ? `Email: ${person.email}` : null,
+    person.phone ? `Telefone: ${person.phone}` : null,
+  ].filter(Boolean) as string[];
 
   const livingMembers = householdMembers.map((member) => {
     const relation = relations.find(
@@ -215,6 +223,13 @@ export function printFamilyReport({
             ${meta.issuedBy ? `<div><strong>Emitido por:</strong> ${escapeHtml(meta.issuedBy)}</div>` : ""}
             ${meta.issuedAt ? `<div><strong>Data:</strong> ${escapeHtml(meta.issuedAt)}</div>` : ""}
           </div>
+          ${
+            personDetails.length
+              ? `<div class="meta">${personDetails
+                  .map((item) => `<div>${escapeHtml(item)}</div>`)
+                  .join("")}</div>`
+              : ""
+          }
         </div>
 
         ${showComposition ? `
