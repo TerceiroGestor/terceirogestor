@@ -29,6 +29,7 @@ import {
 import { formatCurrency } from "@/app/(modules)/people/utils";
 import type { PersonExpense, PersonIncome } from "@/app/(modules)/people/types";
 import { usePeopleFinancial } from "@/features/people-financial/data/use-people-financial";
+import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 
 const frequencyOptions = [
   { value: "MONTHLY", label: "Mensal" },
@@ -46,6 +47,7 @@ type FinancialFormState = {
   amount: string;
   frequency: string;
   isHousehold: boolean;
+  householdId: string;
   notes: string;
 };
 
@@ -56,11 +58,14 @@ type FinancialDialogProps = {
   trigger?: React.ReactNode;
   isExpense?: boolean;
   initial?: Partial<PersonIncome | PersonExpense>;
+  householdOptions?: { id: string; label: string }[];
+  defaultHouseholdId?: string | null;
   onSubmit: (payload: {
     type: string;
     amount: number;
     frequency: string;
     isHousehold: boolean;
+    householdId?: string;
     notes?: string | null;
   }) => Promise<void>;
 };
@@ -72,6 +77,8 @@ function FinancialDialog({
   trigger,
   isExpense,
   initial,
+  householdOptions = [],
+  defaultHouseholdId,
   onSubmit,
 }: FinancialDialogProps) {
   const [open, setOpen] = useState(false);
@@ -86,9 +93,13 @@ function FinancialDialog({
       isHousehold: isExpense
         ? (initial as PersonExpense | undefined)?.isHouseholdExpense ?? true
         : (initial as PersonIncome | undefined)?.isHouseholdContribution ?? true,
+      householdId:
+        (initial as PersonIncome | PersonExpense | undefined)?.householdId ??
+        defaultHouseholdId ??
+        "",
       notes: initial?.notes ?? "",
     }),
-    [initial, isExpense],
+    [initial, isExpense, defaultHouseholdId],
   );
   const [form, setForm] = useState<FinancialFormState>(formDefaults);
 
@@ -107,6 +118,7 @@ function FinancialDialog({
       amount,
       frequency: form.frequency,
       isHousehold: form.isHousehold,
+      householdId: form.householdId || undefined,
       notes: form.notes.trim() || null,
     });
     setOpen(false);
@@ -171,6 +183,28 @@ function FinancialDialog({
               </SelectContent>
             </Select>
           </div>
+          {householdOptions.length ? (
+            <div className="grid gap-2">
+              <Label>Familia</Label>
+              <Select
+                value={form.householdId}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, householdId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {householdOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
             <div>
               <p className="text-sm font-medium">
@@ -217,6 +251,7 @@ type PeopleFinancialPanelProps = {
 };
 
 export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
+  const { data: familyData } = useFamilyRelationsContext();
   const {
     incomes,
     expenses,
@@ -229,6 +264,17 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     updateExpense,
     deleteExpense,
   } = usePeopleFinancial(personId);
+
+  const householdOptions = useMemo(() => {
+    if (!familyData?.household?.id) return [];
+    return [
+      {
+        id: familyData.household.id,
+        label: familyData.household.name ?? "Residencia atual",
+      },
+    ];
+  }, [familyData]);
+  const defaultHouseholdId = householdOptions[0]?.id ?? null;
 
   const incomeTotal = incomes.reduce((sum, income) => sum + income.amount, 0);
   const expenseTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -271,12 +317,15 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
               title="Adicionar renda"
               description="Registre a renda da pessoa."
               triggerLabel="Nova renda"
+              householdOptions={householdOptions}
+              defaultHouseholdId={defaultHouseholdId}
               onSubmit={(payload) =>
                 createIncome({
                   type: payload.type,
                   amount: payload.amount,
                   frequency: payload.frequency,
                   isHouseholdContribution: payload.isHousehold,
+                  householdId: payload.householdId ?? null,
                   notes: payload.notes ?? null,
                 })
               }
@@ -307,6 +356,8 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                       title="Editar renda"
                       description="Atualize a renda selecionada."
                       initial={income}
+                      householdOptions={householdOptions}
+                      defaultHouseholdId={defaultHouseholdId}
                       trigger={
                         <Button variant="ghost" size="icon">
                           <Pencil className="size-4" />
@@ -318,6 +369,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                           amount: payload.amount,
                           frequency: payload.frequency,
                           isHouseholdContribution: payload.isHousehold,
+                          householdId: payload.householdId ?? null,
                           notes: payload.notes ?? null,
                         })
                       }
@@ -349,12 +401,15 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
               description="Registre um gasto da pessoa."
               triggerLabel="Novo gasto"
               isExpense
+              householdOptions={householdOptions}
+              defaultHouseholdId={defaultHouseholdId}
               onSubmit={(payload) =>
                 createExpense({
                   type: payload.type,
                   amount: payload.amount,
                   frequency: payload.frequency,
                   isHouseholdExpense: payload.isHousehold,
+                  householdId: payload.householdId ?? null,
                   notes: payload.notes ?? null,
                 })
               }
@@ -386,6 +441,8 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                       description="Atualize o gasto selecionado."
                       isExpense
                       initial={expense}
+                      householdOptions={householdOptions}
+                      defaultHouseholdId={defaultHouseholdId}
                       trigger={
                         <Button variant="ghost" size="icon">
                           <Pencil className="size-4" />
@@ -397,6 +454,7 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
                           amount: payload.amount,
                           frequency: payload.frequency,
                           isHouseholdExpense: payload.isHousehold,
+                          householdId: payload.householdId ?? null,
                           notes: payload.notes ?? null,
                         })
                       }

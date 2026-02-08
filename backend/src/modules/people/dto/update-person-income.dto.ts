@@ -16,6 +16,10 @@ export class UpdatePersonIncomeDto {
   frequency?: string;
 
   @IsOptional()
+  @IsString()
+  householdId?: string;
+
+  @IsOptional()
   @IsBoolean()
   isHouseholdContribution?: boolean;
 

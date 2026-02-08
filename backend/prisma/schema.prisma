@@ -175,6 +175,8 @@ model Household {
   members HouseholdMember[]
   profile HouseholdProfile?
   assets  HouseholdAsset[]
+  incomes PersonIncome[]
+  expenses PersonExpense[]
 
   @@index([tenantId])
 }
@@ -267,6 +269,7 @@ model PersonIncome {
   id                     String          @id @default(uuid()) @db.Char(36)
   tenantId               String          @db.Char(36)
   personId               String          @db.Char(36)
+  householdId            String?         @db.Char(36)
   type                   String
   amount                 Decimal         @db.Decimal(10, 2)
   frequency              IncomeFrequency @default(MONTHLY)
@@ -277,9 +280,11 @@ model PersonIncome {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
+  household Household? @relation(fields: [householdId], references: [id])
 
   @@index([tenantId])
   @@index([personId])
+  @@index([householdId])
 }
 
 model PersonRelation {
@@ -308,6 +313,7 @@ model PersonExpense {
   id        String          @id @default(uuid()) @db.Char(36)
   tenantId  String          @db.Char(36)
   personId  String          @db.Char(36)
+  householdId String?       @db.Char(36)
   type      String
   amount    Decimal         @db.Decimal(10, 2)
   frequency IncomeFrequency @default(MONTHLY)
@@ -318,9 +324,11 @@ model PersonExpense {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
+  household Household? @relation(fields: [householdId], references: [id])
 
   @@index([tenantId])
   @@index([personId])
+  @@index([householdId])
 }
 
 
@@ -335,6 +343,7 @@ model UserSession {
   lastUsedAt DateTime?
   revokedAt DateTime?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])

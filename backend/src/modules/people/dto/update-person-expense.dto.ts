@@ -16,6 +16,10 @@ export class UpdatePersonExpenseDto {
   frequency?: string;
 
   @IsOptional()
+  @IsString()
+  householdId?: string;
+
+  @IsOptional()
   @IsBoolean()
   isHouseholdExpense?: boolean;
 

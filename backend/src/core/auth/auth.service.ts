@@ -61,6 +61,7 @@ export class AuthService {
         expiresAt,
         ipAddress: meta?.ipAddress,
         userAgent: meta?.userAgent,
+        updatedAt: new Date(),
       },
     });
     await this.createAccessLog(user.id, user.tenantId, 'LOGIN', meta);
@@ -116,6 +117,7 @@ export class AuthService {
         ipAddress: meta?.ipAddress,
         userAgent: meta?.userAgent,
         lastUsedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
     await this.createAccessLog(user.id, user.tenantId, 'REFRESH', meta);

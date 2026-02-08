@@ -114,6 +114,7 @@ export type ApiPersonRelationsResponse = {
 export type ApiPersonIncome = {
   id: string;
   personId: string;
+  householdId?: string | null;
   type: string;
   amount: number;
   frequency: string;
@@ -126,6 +127,7 @@ export type ApiPersonIncome = {
 export type ApiPersonExpense = {
   id: string;
   personId: string;
+  householdId?: string | null;
   type: string;
   amount: number;
   frequency: string;

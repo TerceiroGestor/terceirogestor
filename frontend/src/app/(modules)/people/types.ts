@@ -119,6 +119,7 @@ export type PersonRelationInput = {
 export type PersonIncome = {
   id: string;
   personId: string;
+  householdId?: string | null;
   type: string;
   amount: number;
   frequency: string;
@@ -131,6 +132,7 @@ export type PersonIncome = {
 export type PersonExpense = {
   id: string;
   personId: string;
+  householdId?: string | null;
   type: string;
   amount: number;
   frequency: string;

@@ -105,6 +105,7 @@ const mapPersonSummaryFromRecord = (person: PersonRecord) => ({
 const mapIncome = (income: PersonIncomeRecord) => ({
   id: income.id,
   personId: income.personId,
+  householdId: income.householdId ?? null,
   type: income.type,
   amount: Number(income.amount),
   frequency: income.frequency,
@@ -117,6 +118,7 @@ const mapIncome = (income: PersonIncomeRecord) => ({
 const mapExpense = (expense: PersonExpenseRecord) => ({
   id: expense.id,
   personId: expense.personId,
+  householdId: expense.householdId ?? null,
   type: expense.type,
   amount: Number(expense.amount),
   frequency: expense.frequency,
@@ -413,6 +415,37 @@ export class PeopleService {
     return incomes.map(mapIncome);
   }
 
+  private async resolveHouseholdId(
+    tenantId: string,
+    personId: string,
+    householdId?: string | null,
+  ) {
+    if (householdId === null) return null;
+    if (householdId) {
+      const household = await this.prisma.household.findFirst({
+        where: { id: householdId, tenantId },
+      });
+      if (!household) {
+        throw new BadRequestException('Residencia nao encontrada.');
+      }
+      return householdId;
+    }
+
+    const currentMember = await this.prisma.householdMember.findFirst({
+      where: { tenantId, personId, endDate: null },
+      orderBy: { startDate: 'desc' },
+    });
+    if (currentMember) {
+      return currentMember.householdId;
+    }
+
+    const anyMember = await this.prisma.householdMember.findFirst({
+      where: { tenantId, personId },
+      orderBy: { startDate: 'desc' },
+    });
+    return anyMember?.householdId ?? null;
+  }
+
   async listExpenses(tenantId: string, personId: string) {
     await this.findById(tenantId, personId);
     const expenses = await this.prisma.personExpense.findMany({
@@ -428,10 +461,16 @@ export class PeopleService {
     dto: CreatePersonIncomeDto,
   ) {
     await this.findById(tenantId, personId);
+    const householdId = await this.resolveHouseholdId(
+      tenantId,
+      personId,
+      dto.householdId,
+    );
     const income = await this.prisma.personIncome.create({
       data: {
         tenantId,
         personId,
+        householdId,
         type: normalizeString(dto.type) ?? 'Outro',
         amount: dto.amount,
         frequency: resolveIncomeFrequency(dto.frequency),
@@ -458,6 +497,10 @@ export class PeopleService {
     const updated = await this.prisma.personIncome.update({
       where: { id: incomeId },
       data: {
+        householdId:
+          dto.householdId !== undefined
+            ? await this.resolveHouseholdId(tenantId, personId, dto.householdId)
+            : undefined,
         type:
           dto.type !== undefined
             ? normalizeString(dto.type) ?? undefined
@@ -484,10 +527,16 @@ export class PeopleService {
     dto: CreatePersonExpenseDto,
   ) {
     await this.findById(tenantId, personId);
+    const householdId = await this.resolveHouseholdId(
+      tenantId,
+      personId,
+      dto.householdId,
+    );
     const expense = await this.prisma.personExpense.create({
       data: {
         tenantId,
         personId,
+        householdId,
         type: normalizeString(dto.type) ?? 'Outro',
         amount: dto.amount,
         frequency: resolveIncomeFrequency(dto.frequency),
@@ -514,6 +563,10 @@ export class PeopleService {
     const updated = await this.prisma.personExpense.update({
       where: { id: expenseId },
       data: {
+        householdId:
+          dto.householdId !== undefined
+            ? await this.resolveHouseholdId(tenantId, personId, dto.householdId)
+            : undefined,
         type:
           dto.type !== undefined
             ? normalizeString(dto.type) ?? undefined
@@ -850,10 +903,11 @@ export class PeopleService {
     const householdMember = await this.prisma.householdMember.findFirst({
       where: { tenantId, personId },
     });
-    const householdMemberIds = householdMember
+    const householdId = householdMember?.householdId ?? null;
+    const householdMemberIds = householdId
       ? (
           await this.prisma.householdMember.findMany({
-            where: { tenantId, householdId: householdMember.householdId },
+            where: { tenantId, householdId },
             select: { personId: true },
           })
         ).map((member) => member.personId)
@@ -874,6 +928,14 @@ export class PeopleService {
         tenantId,
         personId: { in: personIds },
         isHouseholdContribution: true,
+        ...(householdId
+          ? {
+              OR: [
+                { householdId },
+                { householdId: null, personId: { in: householdMemberIds } },
+              ],
+            }
+          : { householdId: null }),
       },
     });
     const expenses = await this.prisma.personExpense.findMany({
@@ -881,6 +943,14 @@ export class PeopleService {
         tenantId,
         personId: { in: personIds },
         isHouseholdExpense: true,
+        ...(householdId
+          ? {
+              OR: [
+                { householdId },
+                { householdId: null, personId: { in: householdMemberIds } },
+              ],
+            }
+          : { householdId: null }),
       },
     });
 
