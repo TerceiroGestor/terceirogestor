@@ -196,11 +196,20 @@ const normalizeCategory = (value?: string | null) =>
     .toLowerCase();
 
 const resolveIncomeFrequency = (value?: string | null): IncomeFrequency => {
-  if (!value) return IncomeFrequency.MONTHLY;
+  const fallback = "MONTHLY" as IncomeFrequency;
+  if (!value) return fallback;
   const normalized = value.toString().toUpperCase();
-  const values = Object.values(IncomeFrequency) as IncomeFrequency[];
+  const enumValues = (IncomeFrequency ??
+    ({
+      MONTHLY: "MONTHLY",
+      WEEKLY: "WEEKLY",
+      BIWEEKLY: "BIWEEKLY",
+      ANNUAL: "ANNUAL",
+      ONCE: "ONCE",
+    } as const)) as Record<string, string>;
+  const values = Object.values(enumValues) as IncomeFrequency[];
   const match = values.find((item) => item === normalized);
-  return match ?? IncomeFrequency.MONTHLY;
+  return match ?? fallback;
 };
 
 const buildCreateData = (
