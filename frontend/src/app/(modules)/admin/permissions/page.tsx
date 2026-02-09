@@ -112,8 +112,8 @@ export default function AdminPermissionsPage() {
       <PageBreadcrumb
         title="Permissoes por feature"
         items={[
-          { label: "Dashboard", href: "/dashboard" },
           { label: "Configuracoes", href: "/settings" },
+          { label: "Permissoes", href: "/admin/permissions" },
         ]}
       />
       {error ? (

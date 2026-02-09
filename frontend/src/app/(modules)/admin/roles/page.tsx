@@ -4,11 +4,11 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/DataTable";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { SectionList, SectionListItem } from "@/components/section-list";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -26,8 +26,9 @@ import {
 type RoleFormValues = {
   name: string;
   description?: string;
-  permissionKeys?: string[];
 };
+
+const ACTION_ORDER = ["read", "create", "update", "delete", "manage"];
 
 const ACTION_LABELS: Record<string, string> = {
   read: "Visualizar",
@@ -83,17 +84,6 @@ const buildModulesFromPermissions = (permissions: PermissionSummary[]) => {
     .sort((a, b) => a.label.localeCompare(b.label));
 };
 
-const buildPermissionOptions = (permissions: PermissionSummary[]) =>
-  permissions.map((permission) => {
-    const [moduleKey, action] = permission.key.split(".");
-    const moduleLabel = MODULE_LABELS[moduleKey] ?? moduleKey;
-    const actionLabel = ACTION_LABELS[action] ?? action;
-    return {
-      label: `${moduleLabel} - ${actionLabel}`,
-      value: permission.key,
-    };
-  });
-
 const buildRoleRows = (roles: RoleSummary[], modules: ModuleDefinition[]) =>
   roles.flatMap((role) => {
     const permissionSet = new Set(role.permissions.map((permission) => permission.key));
@@ -110,27 +100,6 @@ const buildRoleRows = (roles: RoleSummary[], modules: ModuleDefinition[]) =>
     }));
   });
 
-const buildRoleFields = (options: { label: string; value: string }[]): FormField<RoleFormValues>[] => [
-  {
-    name: "name",
-    label: "Nome do perfil",
-    type: "text",
-    required: true,
-  },
-  {
-    name: "description",
-    label: "Descricao",
-    type: "textarea",
-    rows: 3,
-  },
-  {
-    name: "permissionKeys",
-    label: "Permissoes",
-    type: "multiselect",
-    options,
-  },
-];
-
 export default function AdminRolesPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
@@ -142,12 +111,13 @@ export default function AdminRolesPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingRole, setEditingRole] = React.useState<RoleSummary | null>(null);
+  const [formValues, setFormValues] = React.useState<RoleFormValues>({ name: "" });
+  const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(new Set());
 
   const canManageRoles = permissions.includes("roles.manage");
 
   const modules = React.useMemo(() => buildModulesFromPermissions(permissionsList), [permissionsList]);
   const rows = React.useMemo(() => buildRoleRows(roles, modules), [roles, modules]);
-  const permissionOptions = React.useMemo(() => buildPermissionOptions(permissionsList), [permissionsList]);
 
   const columns = React.useMemo<ColumnDef<RoleModuleRow>[]>(
     () => [
@@ -244,21 +214,43 @@ export default function AdminRolesPage() {
 
   const openCreate = () => {
     setEditingRole(null);
+    setFormValues({ name: "", description: "" });
+    setSelectedPermissions(new Set());
     setDialogOpen(true);
   };
 
   const openEdit = (roleId: string) => {
     const role = roles.find((item) => item.id === roleId) ?? null;
     setEditingRole(role);
+    if (role) {
+      setFormValues({
+        name: role.name,
+        description: role.description ?? "",
+      });
+      setSelectedPermissions(new Set(role.permissions.map((permission) => permission.key)));
+    }
     setDialogOpen(true);
   };
 
-  const handleSubmit = async (values: RoleFormValues) => {
+  const togglePermission = (key: string, checked: boolean) => {
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!token) return;
     const payload = {
-      name: values.name.trim(),
-      description: values.description?.trim() || undefined,
-      permissionKeys: values.permissionKeys,
+      name: formValues.name.trim(),
+      description: formValues.description?.trim() || undefined,
+      permissionKeys: Array.from(selectedPermissions),
     };
 
     if (editingRole) {
@@ -284,8 +276,8 @@ export default function AdminRolesPage() {
       <PageBreadcrumb
         title="Perfis"
         items={[
-          { label: "Dashboard", href: "/dashboard" },
           { label: "Configuracoes", href: "/settings" },
+          { label: "Perfis", href: "/admin/roles" },
         ]}
       />
 
@@ -305,6 +297,7 @@ export default function AdminRolesPage() {
           data={rows}
           searchPlaceholder="Pesquisar perfis"
           showExportMenu={false}
+          initialColumnPinning={{ left: ["actions"], right: ["canCreate"] }}
           rowActions={[
             {
               id: "edit",
@@ -346,33 +339,100 @@ export default function AdminRolesPage() {
             ? "Atualize o nome e as permissoes do perfil."
             : "Crie um perfil com permissoes por modulo."
         }
+        contentClassName="max-w-[920px]"
       >
-        <FormEngine<RoleFormValues>
-          fields={buildRoleFields(permissionOptions)}
-          initialValues={
-            editingRole
-              ? {
-                  name: editingRole.name,
-                  description: editingRole.description ?? "",
-                  permissionKeys: editingRole.permissions.map((permission) => permission.key),
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Nome do perfil</label>
+              <input
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                value={formValues.name}
+                onChange={(event) =>
+                  setFormValues((prev) => ({ ...prev, name: event.target.value }))
                 }
-              : { name: "" }
-          }
-          onSubmit={handleSubmit}
-          actions={{
-            cancel: {
-              label: "Cancelar",
-              variant: "ghost",
-              onClick: () => {
+                placeholder="Ex.: Atendimento"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Descricao</label>
+              <textarea
+                className="min-h-[36px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={formValues.description}
+                onChange={(event) =>
+                  setFormValues((prev) => ({ ...prev, description: event.target.value }))
+                }
+                placeholder="Resumo do perfil"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Modulos e permissoes
+            </p>
+            <SectionList>
+              {modules.map((module) => {
+                const moduleActions = ACTION_ORDER.filter((action) =>
+                  module.actions.includes(action),
+                );
+                return (
+                  <SectionListItem
+                    key={module.key}
+                    title={module.label}
+                    subtitle=""
+                    meta={
+                      <div className="flex flex-wrap gap-4">
+                        {moduleActions.map((action) => {
+                          const key = `${module.key}.${action}`;
+                          const checked = selectedPermissions.has(key);
+                          return (
+                            <label
+                              key={key}
+                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(next) =>
+                                  togglePermission(key, Boolean(next))
+                                }
+                              />
+                              <span className="text-foreground">
+                                {ACTION_LABELS[action] ?? action}
+                              </span>
+                            </label>
+                          );
+                        })}
+                        {moduleActions.length === 0 ? (
+                          <Badge variant="outline">Sem permissoes</Badge>
+                        ) : null}
+                      </div>
+                    }
+                    showActionsOnHover={false}
+                  />
+                );
+              })}
+            </SectionList>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t pt-4">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => {
                 setDialogOpen(false);
                 setEditingRole(null);
-              },
-            },
-            submit: {
-              label: editingRole ? "Salvar alteracoes" : "Criar perfil",
-            },
-          }}
-        />
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">
+              {editingRole ? "Salvar alteracoes" : "Criar perfil"}
+            </Button>
+          </div>
+        </form>
       </SectionDialog>
     </div>
   );

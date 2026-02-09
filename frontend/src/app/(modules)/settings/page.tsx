@@ -65,7 +65,7 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
         title="Configuracoes"
-        items={[{ label: "Dashboard", href: "/dashboard" }]}
+        items={[{ label: "Configuracoes", href: "/settings" }]}
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard

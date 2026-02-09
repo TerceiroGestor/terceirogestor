@@ -287,8 +287,8 @@ export default function AdminUsersPage() {
       <PageBreadcrumb
         title="Usuarios"
         items={[
-          { label: "Dashboard", href: "/dashboard" },
           { label: "Configuracoes", href: "/settings" },
+          { label: "Usuarios", href: "/admin/users" },
         ]}
       />
       <SectionCard

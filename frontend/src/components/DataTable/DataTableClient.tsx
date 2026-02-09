@@ -59,6 +59,7 @@ import {
 export type DataTableClientProps<TData> = {
   columns: ColumnDef<TData, any>[];
   data: TData[];
+  initialColumnPinning?: ColumnPinningState;
   searchPlaceholder?: string;
   groupableColumns?: string[];
   manualPagination?: boolean;
@@ -109,6 +110,7 @@ export type DataTableClientProps<TData> = {
 export function DataTableClient<TData>({
   columns,
   data,
+  initialColumnPinning,
   searchPlaceholder = "Search...",
   groupableColumns = [],
   rowActions = [],
@@ -136,8 +138,9 @@ export function DataTableClient<TData>({
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [columnPinning, setColumnPinning] =
-    React.useState<ColumnPinningState>(DEFAULT_PINNING);
+  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
+    initialColumnPinning ?? DEFAULT_PINNING,
+  );
   const [pagination, setPagination] = React.useState<PaginationState>(
     paginationProp ?? {
       pageIndex: 0,

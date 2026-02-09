@@ -106,8 +106,8 @@ export default function AdminTenantPage() {
       <PageBreadcrumb
         title="Instituicao"
         items={[
-          { label: "Dashboard", href: "/dashboard" },
           { label: "Configuracoes", href: "/settings" },
+          { label: "Instituicao", href: "/admin/tenant" },
         ]}
       />
       <SectionCard
