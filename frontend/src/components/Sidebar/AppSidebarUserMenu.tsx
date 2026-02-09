@@ -13,30 +13,12 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 
 const userActions = [
-  { label: "Perfil", icon: User, href: "/auth/profile" },
-  {
-    label: "Tenant",
-    icon: Settings,
-    href: "/admin/tenant",
-    permissions: ["tenants.read"],
-  },
-  {
-    label: "Usuarios",
-    icon: User,
-    href: "/admin/users",
-    permissions: ["users.read"],
-  },
-  {
-    label: "Permissoes",
-    icon: Settings,
-    href: "/admin/permissions",
-    permissions: ["roles.manage"],
-  },
+  { label: "Configuracoes", icon: Settings, href: "/settings" },
 ];
 
 export function AppSidebarUserMenu() {
   const { logout, isAuthenticated, token } = useAuth();
-  const { user, permissions } = useCurrentUser();
+  const { user } = useCurrentUser();
   const email = user?.email ?? "";
   const name = user?.name ?? email.split("@")[0] ?? "Usuario";
   const initials = name
@@ -64,23 +46,14 @@ export function AppSidebarUserMenu() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-56">
-        {userActions
-          .filter((action) => {
-            if (!action.permissions || action.permissions.length === 0) {
-              return true;
-            }
-            return action.permissions.every((permission) =>
-              permissions.includes(permission),
-            );
-          })
-          .map((action) => (
-            <DropdownMenuItem key={action.label} asChild>
-              <Link href={action.href}>
-                <action.icon />
-                <span>{action.label}</span>
-              </Link>
-            </DropdownMenuItem>
-          ))}
+        {userActions.map((action) => (
+          <DropdownMenuItem key={action.label} asChild>
+            <Link href={action.href}>
+              <action.icon />
+              <span>{action.label}</span>
+            </Link>
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"

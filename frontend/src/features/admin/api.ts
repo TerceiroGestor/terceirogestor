@@ -99,6 +99,14 @@ export async function updateUser(
   );
 }
 
+export async function deleteUser(token: string, userId: string) {
+  return apiRequest<{ ok: boolean }>(
+    `/users/${userId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
 export async function listRoles(token: string) {
   return apiRequest<RoleSummary[]>("/roles", {}, token);
 }

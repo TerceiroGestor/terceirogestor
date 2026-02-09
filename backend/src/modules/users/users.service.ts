@@ -176,6 +176,30 @@ export class UsersService {
     return this.getProfile(tenantId, userId);
   }
 
+  async deleteUser(tenantId: string, userId: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
+
+    await this.prisma.userRole.deleteMany({
+      where: { tenantId, userId },
+    });
+    await this.prisma.userSession.deleteMany({
+      where: { tenantId, userId },
+    });
+    await this.prisma.accessLog.deleteMany({
+      where: { tenantId, userId },
+    });
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return { ok: true };
+  }
+
   async getUserPermissions(tenantId: string, userId: string) {
     const roles = await this.prisma.role.findMany({
       where: {

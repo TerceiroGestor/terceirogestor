@@ -24,6 +24,7 @@
   - `people`: paginas e componentes do dominio people.
   - `auth/login`: fluxo de login (fora do layout principal).
   - `auth/profile`: perfil do usuario + historico de acessos.
+  - `settings`: navegacao centralizada de configuracoes.
   - `admin/users`: administracao de usuarios.
   - `admin/roles`: perfis e permissoes.
   - `admin/tenant`: dados da instituicao (nome/logo).

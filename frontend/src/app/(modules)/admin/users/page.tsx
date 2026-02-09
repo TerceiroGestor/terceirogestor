@@ -14,6 +14,7 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
   createUser,
+  deleteUser,
   listRoles,
   listUsers,
   updateUser,
@@ -287,6 +288,21 @@ export default function AdminUsersPage() {
                       await loadData();
                     },
                   },
+                  {
+                    id: "delete",
+                    label: "Excluir",
+                    destructive: true,
+                    onSelect: async (row) => {
+                      const target = row as AdminUser;
+                      if (!token) return;
+                      const confirmed = window.confirm(
+                        `Excluir o usuario ${target.email}?`,
+                      );
+                      if (!confirmed) return;
+                      await deleteUser(token, target.id);
+                      await loadData();
+                    },
+                  },
                 ]
               : []
           }
@@ -326,6 +342,19 @@ export default function AdminUsersPage() {
                 }
           }
           onSubmit={handleSubmit}
+          actions={{
+            cancel: {
+              label: "Cancelar",
+              onClick: () => {
+                setDialogOpen(false);
+                setEditingUser(null);
+              },
+              variant: "ghost",
+            },
+            submit: {
+              label: editingUser ? "Salvar alteracoes" : "Criar usuario",
+            },
+          }}
         />
       </SectionDialog>
     </div>

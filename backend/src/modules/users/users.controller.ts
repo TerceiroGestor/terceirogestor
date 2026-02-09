@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -59,5 +60,12 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.updateUser(user.tenantId, id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('users.delete')
+  async deleteUser(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.usersService.deleteUser(user.tenantId, id);
   }
 }
