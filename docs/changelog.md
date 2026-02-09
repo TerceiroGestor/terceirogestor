@@ -1,18 +1,35 @@
-"## 2026-02-07 — Família expandida\n"+
-"\n"+
-"### Frontend\n"+
-"- Padronizamos os cards de Renda, Patrimônio e Moradia usando `FamilyCard` e `FamilyMetricField/Badge`, alinhando títulos, subtítulos, grades e rodapés (`family-card.tsx`, `family-metrics.tsx`).\n"+
-"- Reordenamos o `PeopleDetailContent`: três cards no topo e explicações adicionais para Núcleo Familiar e Bens/Serviços antes das listas.\n"+
-"- Simplificamos os componentes de ativos e relações familiares, adicionando listagens colapsáveis, triggers de ícone e cabeçalhos compactos em `family-assets-report.tsx`, `family-household-report.tsx` e demais páginas associadas.\n"+
-"\n"+
-"### Backend\n"+
-"- Iniciadas as novas migrations (`family_phase1`, `family_assets`) e DTOs para rendas, bens patrimoniais e vínculos familiares.\n"+
-"- Preparados serviços e migrations adicionais para sincronizar `people` com o novo módulo de família.\n"+
-"\n"+
-"### Testes\n"+
-"- `frontend`: `npm run build` (Next.js 16.1.6) para garantir que a nova composição compile.\n"+
-"\n"+
-"### Próximos passos\n"+
-"1. Refletir as novas APIs do backend na documentação e nos testes automatizados.\n"+
-"2. Criar oficialmente o PR com esta etapa e delegar a revisão.\n"+
-"3. Continuar a fase 2 (contas financeiras) usando os helpers extraídos.\n"
+﻿# Changelog
+
+## 2026-02-09 — Admin e sessões
+
+### Frontend
+- Tela de configurações centralizando Tenant, Usuários e Permissões.
+- Páginas admin para usuários, perfis e permissões com `SectionCard` + `DataTable`.
+- Menu do usuário ajustado para perfil/configurações, com dados do tenant no header.
+- Melhorias no formulário de usuários (normalização + mensagens de erro). 
+
+### Backend
+- Novos campos de perfil (tenant logo, nome/avatares de usuário) e endpoints `/tenants/me`.
+- Endpoints administrativos para usuários, perfis e permissões.
+- Upload de logo do tenant.
+- JWT com `name` e `tenantName` no payload.
+
+### Correções
+- Validação mais resiliente para atualização de usuário (trim e ignorar vazios).
+
+### Testes
+- `backend`: `npm run build`.
+- `frontend`: `npm run build`.
+
+## 2026-02-07 — Família expandida
+
+### Frontend
+- Padronização de cards e métricas de renda, patrimônio e moradia.
+- Ajustes de layout no PeopleDetailContent com seções explicativas.
+- Listas colapsáveis e cabeçalhos compactos nas seções de bens e relações familiares.
+
+### Backend
+- Início das migrations de família e DTOs para rendas, bens e vínculos.
+
+### Testes
+- `frontend`: `npm run build`.

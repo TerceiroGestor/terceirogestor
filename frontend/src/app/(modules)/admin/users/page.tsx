@@ -30,6 +30,16 @@ type UserFormValues = {
   isActive?: boolean;
 };
 
+const normalizeUserValues = (values: UserFormValues) => {
+  const name = values.name?.trim() ?? "";
+  const email = values.email?.trim() ?? "";
+  const password = values.password?.trim() || undefined;
+  const roleIds = Array.isArray(values.roleIds)
+    ? values.roleIds.map((id) => String(id)).filter(Boolean)
+    : undefined;
+  return { name, email, password, roleIds };
+};
+
 const buildUserFields = (
   roleOptions: { label: string; value: string }[],
   isEdit: boolean,
@@ -86,6 +96,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   const canReadUsers = permissions.includes("users.read");
   const canEditUsers = permissions.includes("users.update");
@@ -196,37 +207,68 @@ export default function AdminUsersPage() {
 
   const openCreate = () => {
     setEditingUser(null);
+    setFormError(null);
     setDialogOpen(true);
   };
 
   const openEdit = (user: AdminUser) => {
     setEditingUser(user);
+    setFormError(null);
     setDialogOpen(true);
   };
 
   const handleSubmit = async (values: UserFormValues) => {
     if (!token) return;
-    if (editingUser) {
+    const normalized = normalizeUserValues(values);
+    setFormError(null);
+    if (!editingUser) {
+      if (!normalized.name || !normalized.email || !normalized.password) {
+        setFormError("Preencha nome, email e senha antes de salvar.");
+        return;
+      }
+    }
+    const createPassword = normalized.password;
+    try {
+      if (editingUser) {
       const payload = {
-        name: values.name,
-        email: values.email,
-        password: values.password?.trim() || undefined,
+        name: normalized.name || undefined,
+        email: normalized.email || undefined,
+        password: normalized.password,
         isActive: values.isActive ?? editingUser.isActive,
-        roleIds: values.roleIds,
+        roleIds: normalized.roleIds,
       };
       await updateUser(token, editingUser.id, payload);
     } else {
+      if (!createPassword) {
+        setFormError("Preencha nome, email e senha antes de salvar.");
+        return;
+      }
       await createUser(token, {
-        name: values.name,
-        email: values.email,
-        password: values.password ?? "",
+        name: normalized.name,
+        email: normalized.email,
+        password: createPassword,
         isActive: values.isActive ?? true,
-        roleIds: values.roleIds,
+        roleIds: normalized.roleIds,
       });
     }
     setDialogOpen(false);
     setEditingUser(null);
     await loadData();
+    } catch (err) {
+      const details =
+        err && typeof err === "object" && "details" in err
+          ? (err as { details?: any }).details
+          : null;
+      const message =
+        Array.isArray(details?.message)
+          ? details.message.join(", ")
+          : typeof details?.message === "string"
+            ? details.message
+            : err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Falha ao salvar usuario.";
+      setFormError(message);
+    }
   };
 
   if (!canReadUsers) {
@@ -318,7 +360,10 @@ export default function AdminUsersPage() {
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open) setEditingUser(null);
+          if (!open) {
+            setEditingUser(null);
+            setFormError(null);
+          }
         }}
         title={editingUser ? "Editar usuario" : "Novo usuario"}
         description={
@@ -327,6 +372,11 @@ export default function AdminUsersPage() {
             : "Cadastre um novo usuario para o sistema."
         }
       >
+        {formError ? (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {formError}
+          </div>
+        ) : null}
         <FormEngine<UserFormValues>
           fields={buildUserFields(roleOptions, Boolean(editingUser))}
           initialValues={

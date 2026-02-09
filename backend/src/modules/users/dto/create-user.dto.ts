@@ -1,15 +1,19 @@
-﻿import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsArray, IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
   @MinLength(2)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   name: string;
 
   @IsEmail()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   email: string;
 
   @IsString()
   @MinLength(6)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   password: string;
 
   @IsOptional()
