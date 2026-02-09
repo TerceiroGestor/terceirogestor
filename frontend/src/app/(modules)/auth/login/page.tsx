@@ -43,12 +43,12 @@ function LoginForm() {
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Login</CardTitle>
+          <CardTitle>Acesso</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tenant ID</label>
+              <label className="text-sm font-medium">Instituicao (ID)</label>
               <Input
                 value={tenantId}
                 onChange={(event) => setTenantId(event.target.value)}

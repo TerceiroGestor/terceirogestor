@@ -29,6 +29,7 @@ enum AccessLogAction {
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
+  logoUrl   String?
   status    TenantStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -58,8 +59,10 @@ model Tenant {
 model User {
   id           String   @id @default(uuid()) @db.Char(36)
   tenantId     String   @db.Char(36)
+  name         String?
   email        String
   passwordHash String
+  avatarUrl    String?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

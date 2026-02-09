@@ -10,6 +10,33 @@ export type AccessLog = {
   createdAt: string;
 };
 
+export type CurrentUserRole = {
+  id: string;
+  name: string;
+  description?: string | null;
+};
+
+export type CurrentUserProfile = {
+  id: string;
+  name?: string | null;
+  email: string;
+  avatarUrl?: string | null;
+  isActive: boolean;
+  roles: CurrentUserRole[];
+  permissions: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TenantProfile = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type AccessLogListResponse = {
   data: AccessLog[];
   pagination: {
@@ -31,4 +58,12 @@ export async function getAccessLogs(
 ) {
   const query = buildQuery(params);
   return apiRequest<AccessLogListResponse>(`/auth/access-logs${query}`, {}, token);
+}
+
+export async function getCurrentUser(token: string) {
+  return apiRequest<CurrentUserProfile>('/users/me', {}, token);
+}
+
+export async function getTenantProfile(token: string) {
+  return apiRequest<TenantProfile>('/tenants/me', {}, token);
 }

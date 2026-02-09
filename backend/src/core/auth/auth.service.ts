@@ -44,10 +44,16 @@ export class AuthService {
 
   async loginWithMeta(dto: LoginDto, meta?: AuthRequestMeta) {
     const user = await this.validateUser(dto.tenantId, dto.email, dto.password);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { name: true },
+    });
     const payload: AuthTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
       email: user.email,
+      name: user.name ?? null,
+      tenantName: tenant?.name ?? null,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -91,11 +97,17 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Credenciais invalidas');
     }
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { name: true },
+    });
 
     const payload: AuthTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
       email: user.email,
+      name: user.name ?? null,
+      tenantName: tenant?.name ?? null,
     };
     const accessToken = await this.jwtService.signAsync(payload);
 

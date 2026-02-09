@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User, ChevronUp } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { decodeJwtPayload } from "@/lib/auth-utils";
+import { useCurrentUser } from "@/features/auth/current-user-context";
 
 const userActions = [
   { label: "Perfil", icon: User, href: "/auth/profile" },
@@ -19,13 +19,9 @@ const userActions = [
 
 export function AppSidebarUserMenu() {
   const { logout, isAuthenticated, token } = useAuth();
-  const payload = token ? decodeJwtPayload(token) : null;
-  const email = (payload?.email as string | undefined) ?? "";
-  const name =
-    (payload?.name as string | undefined) ??
-    (payload?.fullName as string | undefined) ??
-    email.split("@")[0] ??
-    "Usuario";
+  const { user } = useCurrentUser();
+  const email = user?.email ?? "";
+  const name = user?.name ?? email.split("@")[0] ?? "Usuario";
   const initials = name
     .split(" ")
     .filter(Boolean)

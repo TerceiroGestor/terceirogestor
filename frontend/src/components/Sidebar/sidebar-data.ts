@@ -1,15 +1,4 @@
-import {
-  BarChart3,
-  Calendar,
-  Cog,
-  CreditCard,
-  FileText,
-  Home,
-  Inbox,
-  Users,
-  Table,
-  FormIcon,
-} from "lucide-react";
+﻿import { Cog, Home, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type NavItem = {
@@ -18,6 +7,7 @@ export type NavItem = {
   icon: LucideIcon;
   badge?: string;
   exact?: boolean;
+  permissions?: string[];
 };
 
 export type NavGroup = {
@@ -27,15 +17,28 @@ export type NavGroup = {
 
 export const navGroups: NavGroup[] = [
   {
-    label: "Análises",
-    items: [{ title: "Visão Geral", href: "/", icon: Home, exact: true }],
+    label: "Analises",
+    items: [{ title: "Visao Geral", href: "/", icon: Home, exact: true }],
   },
   {
-    label: "Móduloes",
+    label: "Modulos",
     items: [{ title: "Pessoas", href: "/people", icon: Users }],
   },
   {
-    label: "Configurações",
-    items: [{ title: "Users", href: "/billing", icon: CreditCard }],
+    label: "Administracao",
+    items: [
+      {
+        title: "Usuarios",
+        href: "/admin/users",
+        icon: Users,
+        permissions: ["users.read"],
+      },
+      {
+        title: "Perfis e Permissoes",
+        href: "/admin/roles",
+        icon: Cog,
+        permissions: ["roles.manage"],
+      },
+    ],
   },
 ];

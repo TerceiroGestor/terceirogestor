@@ -1,0 +1,333 @@
+﻿"use client";
+
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SectionCard } from "@/components/section-card";
+import { SectionDialog } from "@/components/section-dialog";
+import { FormEngine } from "@/components/FormEngine";
+import type { FormField } from "@/components/FormEngine/types";
+import { useAuth } from "@/features/auth/auth-context";
+import { useCurrentUser } from "@/features/auth/current-user-context";
+import { useRequireAuth } from "@/hooks/use-require-auth";
+import {
+  createUser,
+  listRoles,
+  listUsers,
+  updateUser,
+  type AdminUser,
+  type RoleSummary,
+} from "@/features/admin/api";
+
+type UserFormValues = {
+  name: string;
+  email: string;
+  password?: string;
+  roleIds?: string[];
+  isActive?: boolean;
+};
+
+const buildUserFields = (
+  roleOptions: { label: string; value: string }[],
+  isEdit: boolean,
+): FormField<UserFormValues>[] => [
+  {
+    name: "name",
+    label: "Nome",
+    type: "text",
+    required: true,
+  },
+  {
+    name: "email",
+    label: "Email",
+    type: "email",
+    required: true,
+  },
+  {
+    name: "password",
+    label: "Senha",
+    type: "text",
+    required: !isEdit,
+    helperText: isEdit
+      ? "Deixe vazio para manter a senha atual"
+      : "Minimo de 6 caracteres",
+  },
+  {
+    name: "roleIds",
+    label: "Perfis",
+    type: "multiselect",
+    options: roleOptions,
+  },
+  {
+    name: "isActive",
+    label: "Ativo",
+    type: "boolean",
+  },
+];
+
+export default function AdminUsersPage() {
+  const { token } = useAuth();
+  const { permissions } = useCurrentUser();
+  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+
+  const [rows, setRows] = React.useState<AdminUser[]>([]);
+  const [roles, setRoles] = React.useState<RoleSummary[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pageCount, setPageCount] = React.useState(0);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [search, setSearch] = React.useState("");
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<AdminUser | null>(null);
+
+  const canReadUsers = permissions.includes("users.read");
+  const canEditUsers = permissions.includes("users.update");
+  const canCreateUsers = permissions.includes("users.create");
+
+  const roleOptions = React.useMemo(
+    () => roles.map((role) => ({ label: role.name, value: role.id })),
+    [roles],
+  );
+
+  const columns = React.useMemo<ColumnDef<AdminUser>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Nome",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground">
+              {row.original.name || "Sem nome"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {row.original.email}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "roles",
+        header: "Perfis",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            {row.original.roles.length ? (
+              row.original.roles.map((role) => (
+                <Badge key={role.id} variant="outline">
+                  {role.name}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Sem perfil</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "isActive",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? "secondary" : "outline"}>
+            {row.original.isActive ? "Ativo" : "Inativo"}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Criado",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {new Intl.DateTimeFormat("pt-BR", {
+              dateStyle: "short",
+            }).format(new Date(row.original.createdAt))}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const loadData = React.useCallback(async () => {
+    if (!token || !canReadUsers) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [usersResponse, rolesResponse] = await Promise.all([
+        listUsers(token, {
+          page: pagination.pageIndex + 1,
+          limit: pagination.pageSize,
+          search: search.trim() || undefined,
+        }),
+        listRoles(token),
+      ]);
+      setRows(usersResponse.data);
+      setTotalCount(usersResponse.pagination.total);
+      setPageCount(usersResponse.pagination.pages);
+      setRoles(rolesResponse);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao carregar usuarios.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, canReadUsers, pagination.pageIndex, pagination.pageSize, search]);
+
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!token || !isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    loadData();
+  }, [authLoading, token, isAuthenticated, loadData]);
+
+  React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [search]);
+
+  const openCreate = () => {
+    setEditingUser(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (user: AdminUser) => {
+    setEditingUser(user);
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (values: UserFormValues) => {
+    if (!token) return;
+    if (editingUser) {
+      const payload = {
+        name: values.name,
+        email: values.email,
+        password: values.password?.trim() || undefined,
+        isActive: values.isActive ?? editingUser.isActive,
+        roleIds: values.roleIds,
+      };
+      await updateUser(token, editingUser.id, payload);
+    } else {
+      await createUser(token, {
+        name: values.name,
+        email: values.email,
+        password: values.password ?? "",
+        isActive: values.isActive ?? true,
+        roleIds: values.roleIds,
+      });
+    }
+    setDialogOpen(false);
+    setEditingUser(null);
+    await loadData();
+  };
+
+  if (!canReadUsers) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        Voce nao tem permissao para acessar esta area.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 px-4 py-4">
+      <SectionCard
+        title="Usuarios"
+        subtitle="Gerencie os usuarios e seus perfis de acesso."
+        actions={
+          canCreateUsers ? (
+            <Button onClick={openCreate}>Novo usuario</Button>
+          ) : null
+        }
+      >
+        {error ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : null}
+
+        <DataTable
+          columns={columns}
+          data={rows}
+          manualPagination
+          pageCount={pageCount}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          totalCount={totalCount}
+          onGlobalFilterChange={setSearch}
+          searchPlaceholder="Pesquisar usuarios"
+          summaryCards={{
+            totalLabel: "Total",
+            filteredLabel: "Filtrados",
+          }}
+          rowActions={
+            canEditUsers
+              ? [
+                  {
+                    id: "edit",
+                    label: "Editar",
+                    onSelect: (row) => openEdit(row as AdminUser),
+                  },
+                  {
+                    id: "toggle",
+                    label: "Ativar/Inativar",
+                    onSelect: async (row) => {
+                      const target = row as AdminUser;
+                      if (!token) return;
+                      await updateUser(token, target.id, {
+                        isActive: !target.isActive,
+                      });
+                      await loadData();
+                    },
+                  },
+                ]
+              : []
+          }
+          showExportMenu={false}
+        />
+
+        {loading ? (
+          <p className="text-xs text-muted-foreground">Carregando...</p>
+        ) : null}
+      </SectionCard>
+
+      <SectionDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingUser(null);
+        }}
+        title={editingUser ? "Editar usuario" : "Novo usuario"}
+        description={
+          editingUser
+            ? "Atualize os dados e perfis de acesso."
+            : "Cadastre um novo usuario para o sistema."
+        }
+      >
+        <FormEngine<UserFormValues>
+          fields={buildUserFields(roleOptions, Boolean(editingUser))}
+          initialValues={
+            editingUser
+              ? {
+                  name: editingUser.name ?? "",
+                  email: editingUser.email,
+                  roleIds: editingUser.roles.map((role) => role.id),
+                  isActive: editingUser.isActive,
+                }
+              : {
+                  isActive: true,
+                }
+          }
+          onSubmit={handleSubmit}
+        />
+      </SectionDialog>
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/DataTable";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/features/auth/auth-context";
+import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
   getAccessLogs,
@@ -24,6 +25,7 @@ const actionLabels: Record<AccessLogAction, string> = {
 
 export default function ProfilePage() {
   const { token } = useAuth();
+  const { user } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const [rows, setRows] = useState<AccessLogRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -127,6 +129,24 @@ export default function ProfilePage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <aside className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-4 space-y-1">
+            <p className="text-sm font-semibold">
+              {user?.name ?? "Usuario"}
+            </p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            {user?.roles?.length ? (
+              <div className="flex flex-wrap gap-1 pt-2">
+                {user.roles.map((role) => (
+                  <span
+                    key={role.id}
+                    className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {role.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <p className="text-xs font-semibold uppercase text-muted-foreground">
             Conta
           </p>

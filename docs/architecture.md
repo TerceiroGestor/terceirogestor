@@ -23,9 +23,14 @@
 - `frontend/src/app/(modules)`
   - `people`: paginas e componentes do dominio people.
   - `auth/login`: fluxo de login (fora do layout principal).
+  - `auth/profile`: perfil do usuario + historico de acessos.
+  - `admin/users`: administracao de usuarios.
+  - `admin/roles`: perfis e permissoes.
 - `frontend/src/features`
   - `people`: integracao com API de people.
   - `family-members`: feature de familia (context, data hook, UI).
+  - `auth`: login, refresh, contexto de usuario/tenant.
+  - `admin`: integracao de usuarios, perfis e permissoes.
 
 ## Padronizacao do frontend
 
@@ -66,6 +71,16 @@ Fluxo principal (PeopleDetail):
 2. `PeopleDetail` cria o contexto de familia.
 3. `PeopleDetailHeader` usa preview da feature de familia.
 4. Aba `familia` renderiza `FamilyRelationsSection`.
+
+## Modulo Admin (frontend)
+- `admin/users`: lista, cria e atualiza usuarios (perfis e status).
+- `admin/roles`: lista perfis e permissoes vinculadas.
+- Usa `DataTable` + `SectionCard` para padronizacao.
+
+## Autenticacao e contexto do usuario
+- `AuthProvider`: controla token e refresh.
+- `CurrentUserProvider`: carrega usuario/tenant e permisssoes.
+- Sidebar usa o tenant para header e o usuario no menu.
 
 ## Convencoes
 - Pages ficam em `app/(modules)/<modulo>`.

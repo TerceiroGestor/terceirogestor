@@ -50,8 +50,15 @@ async function main() {
 
   const tenant = await prisma.tenant.upsert({
     where: { id: tenantId },
-    update: { name: 'Instituicao Exemplo' },
-    create: { id: tenantId, name: 'Instituicao Exemplo' },
+    update: {
+      name: 'Instituicao Exemplo',
+      logoUrl: '/avatar-female.jpg',
+    },
+    create: {
+      id: tenantId,
+      name: 'Instituicao Exemplo',
+      logoUrl: '/avatar-female.jpg',
+    },
   });
 
   const permissions = [
@@ -154,30 +161,35 @@ async function main() {
   const users = [
     {
       id: userIds.admin,
+      name: 'Administrador',
       email: 'admin@exemplo.com',
       passwordHash: adminPasswordHash,
       roleId: roleIds.admin,
     },
     {
       id: userIds.gestor,
+      name: 'Gestor Operacional',
       email: 'gestor@exemplo.com',
       passwordHash: userPasswordHash,
       roleId: roleIds.gestor,
     },
     {
       id: userIds.atendimento1,
+      name: 'Atendimento Silva',
       email: 'atendimento1@exemplo.com',
       passwordHash: userPasswordHash,
       roleId: roleIds.atendimento,
     },
     {
       id: userIds.atendimento2,
+      name: 'Atendimento Souza',
       email: 'atendimento2@exemplo.com',
       passwordHash: userPasswordHash,
       roleId: roleIds.atendimento,
     },
     {
       id: userIds.leitor,
+      name: 'Leitor Junior',
       email: 'leitor@exemplo.com',
       passwordHash: userPasswordHash,
       roleId: roleIds.leitor,
@@ -193,12 +205,14 @@ async function main() {
         },
       },
       update: {
+        name: user.name,
         passwordHash: user.passwordHash,
         isActive: true,
       },
       create: {
         id: user.id,
         tenantId: tenant.id,
+        name: user.name,
         email: user.email,
         passwordHash: user.passwordHash,
         isActive: true,

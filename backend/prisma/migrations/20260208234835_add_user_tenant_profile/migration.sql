@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `Tenant` ADD COLUMN `logoUrl` VARCHAR(191) NULL;
+
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `avatarUrl` VARCHAR(191) NULL,
+    ADD COLUMN `name` VARCHAR(191) NULL;
