@@ -4,6 +4,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -71,6 +72,10 @@ export default function AdminRolesPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
+      <PageBreadcrumb
+        title="Perfis e permissoes"
+        items={[{ label: "Configuracoes", href: "/settings" }]}
+      />
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}

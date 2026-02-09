@@ -44,6 +44,32 @@ export class UsersController {
     });
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('users.read')
+  async getUser(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.usersService.getUserDetail(user.tenantId, id);
+  }
+
+  @Get(':id/access-logs')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('users.read')
+  async getUserAccessLogs(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('action') action?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.getAccessLogsForUser(user.tenantId, id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      action: action ? (action as 'LOGIN' | 'REFRESH' | 'LOGOUT') : undefined,
+      search,
+    });
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('users.create')

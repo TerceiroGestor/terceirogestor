@@ -53,11 +53,17 @@ async function main() {
     update: {
       name: 'Instituicao Exemplo',
       logoUrl: '/avatar-female.jpg',
+      cnpj: '12.345.678/0001-90',
+      startYear: 2010,
+      description: '<p>Instituicao voltada ao atendimento social e desenvolvimento familiar.</p>',
     },
     create: {
       id: tenantId,
       name: 'Instituicao Exemplo',
       logoUrl: '/avatar-female.jpg',
+      cnpj: '12.345.678/0001-90',
+      startYear: 2010,
+      description: '<p>Instituicao voltada ao atendimento social e desenvolvimento familiar.</p>',
     },
   });
 

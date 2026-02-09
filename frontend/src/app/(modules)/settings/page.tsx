@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -8,26 +9,26 @@ import { useRequireAuth } from "@/hooks/use-require-auth";
 
 const settingsLinks = [
   {
-    title: "Administracao do tenant",
-    description: "Logo, nome e dados basicos da instituicao.",
+    title: "Instituicao",
+    description: "Logo, CNPJ e dados institucionais.",
     href: "/admin/tenant",
     permission: "tenants.read",
   },
   {
     title: "Usuarios",
-    description: "Gerencie usuarios, perfis e status.",
+    description: "Gerencie usuarios, perfis e acessos.",
     href: "/admin/users",
     permission: "users.read",
   },
   {
-    title: "Permissoes por feature",
-    description: "Visualize permissoes agrupadas por feature.",
+    title: "Perfis e permissoes",
+    description: "Controle de acesso por modulo e feature.",
     href: "/admin/permissions",
     permission: "roles.manage",
   },
   {
-    title: "Perfil do usuario",
-    description: "Historico de acessos e configuracoes pessoais.",
+    title: "Perfil",
+    description: "Historico de acessos e dados do usuario.",
     href: "/auth/profile",
   },
 ];
@@ -51,30 +52,62 @@ export default function SettingsPage() {
     return permissions.includes(link.permission);
   });
 
+  const adminLinks = visibleLinks.filter((link) => link.href !== "/auth/profile");
+  const profileLinks = visibleLinks.filter((link) => link.href === "/auth/profile");
+
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <SectionCard
+      <PageBreadcrumb
         title="Configuracoes"
-        subtitle="Acesse as configuracoes administrativas e do seu perfil."
-      >
-        <SectionList>
-          {visibleLinks.map((link) => (
-            <SectionListItem
-              key={link.title}
-              title={
-                <Link
-                  href={link.href}
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {link.title}
-                </Link>
-              }
-              subtitle={link.description}
-              showActionsOnHover={false}
-            />
-          ))}
-        </SectionList>
-      </SectionCard>
+        items={[{ label: "Dashboard", href: "/dashboard" }]}
+      />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard
+          title="Administracao"
+          subtitle="Gerencie instituicao, usuarios e permissoes."
+        >
+          <SectionList>
+            {adminLinks.map((link) => (
+              <SectionListItem
+                key={link.title}
+                title={
+                  <Link
+                    href={link.href}
+                    className="text-sm font-semibold text-foreground"
+                  >
+                    {link.title}
+                  </Link>
+                }
+                subtitle={link.description}
+                showActionsOnHover={false}
+              />
+            ))}
+          </SectionList>
+        </SectionCard>
+
+        <SectionCard
+          title="Perfil"
+          subtitle="Acesse seu historico de acessos e dados pessoais."
+        >
+          <SectionList>
+            {profileLinks.map((link) => (
+              <SectionListItem
+                key={link.title}
+                title={
+                  <Link
+                    href={link.href}
+                    className="text-sm font-semibold text-foreground"
+                  >
+                    {link.title}
+                  </Link>
+                }
+                subtitle={link.description}
+                showActionsOnHover={false}
+              />
+            ))}
+          </SectionList>
+        </SectionCard>
+      </div>
     </div>
   );
 }

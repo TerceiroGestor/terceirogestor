@@ -9,9 +9,11 @@ import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { FormEngine } from "@/components/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
+import { useRouter } from "next/navigation";
 import {
   createUser,
   deleteUser,
@@ -82,6 +84,7 @@ export default function AdminUsersPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const router = useRouter();
 
   const [rows, setRows] = React.useState<AdminUser[]>([]);
   const [roles, setRoles] = React.useState<RoleSummary[]>([]);
@@ -281,6 +284,10 @@ export default function AdminUsersPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
+      <PageBreadcrumb
+        title="Usuarios"
+        items={[{ label: "Configuracoes", href: "/settings" }]}
+      />
       <SectionCard
         title="Usuarios"
         subtitle="Gerencie os usuarios e seus perfis de acesso."
@@ -313,6 +320,14 @@ export default function AdminUsersPage() {
           rowActions={
             canEditUsers
               ? [
+                  {
+                    id: "detail",
+                    label: "Detalhes",
+                    onSelect: (row) => {
+                      const target = row as AdminUser;
+                      router.push(`/admin/users/${target.id}`);
+                    },
+                  },
                   {
                     id: "edit",
                     label: "Editar",

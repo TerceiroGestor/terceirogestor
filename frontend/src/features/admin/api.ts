@@ -17,8 +17,28 @@ export type AdminUser = {
   updatedAt: string;
 };
 
+export type AdminAccessLogAction = "LOGIN" | "REFRESH" | "LOGOUT";
+
+export type AdminAccessLog = {
+  id: string;
+  action: AdminAccessLogAction;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+};
+
 export type AdminUserListResponse = {
   data: AdminUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+};
+
+export type AdminAccessLogListResponse = {
+  data: AdminAccessLog[];
   pagination: {
     page: number;
     limit: number;
@@ -95,6 +115,28 @@ export async function updateUser(
       method: "PATCH",
       body: JSON.stringify(payload),
     },
+    token,
+  );
+}
+
+export async function getUserById(token: string, userId: string) {
+  return apiRequest<AdminUser>(`/users/${userId}`, {}, token);
+}
+
+export async function getUserAccessLogs(
+  token: string,
+  userId: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    action?: AdminAccessLogAction;
+    search?: string;
+  },
+) {
+  const query = buildQuery(params);
+  return apiRequest<AdminAccessLogListResponse>(
+    `/users/${userId}/access-logs${query}`,
+    {},
     token,
   );
 }

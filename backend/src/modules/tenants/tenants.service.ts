@@ -17,6 +17,9 @@ export class TenantsService {
       id: tenant.id,
       name: tenant.name,
       logoUrl: tenant.logoUrl,
+      cnpj: tenant.cnpj,
+      startYear: tenant.startYear,
+      description: tenant.description,
       status: tenant.status,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
@@ -36,6 +39,9 @@ export class TenantsService {
       data: {
         name: dto.name ?? existing.name,
         logoUrl: dto.logoUrl ?? existing.logoUrl,
+        cnpj: dto.cnpj ?? existing.cnpj,
+        startYear: dto.startYear ?? existing.startYear,
+        description: dto.description ?? existing.description,
       },
     });
 
@@ -43,6 +49,9 @@ export class TenantsService {
       id: updated.id,
       name: updated.name,
       logoUrl: updated.logoUrl,
+      cnpj: updated.cnpj,
+      startYear: updated.startYear,
+      description: updated.description,
       status: updated.status,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,

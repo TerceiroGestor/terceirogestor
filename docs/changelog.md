@@ -7,12 +7,17 @@
 - Páginas admin para usuários, perfis e permissões com `SectionCard` + `DataTable`.
 - Menu do usuário ajustado para perfil/configurações, com dados do tenant no header.
 - Melhorias no formulário de usuários (normalização + mensagens de erro). 
+- Breadcrumbs adicionados nas telas de admin/configuracoes.
+- Detalhe de usuario com historico de acessos no admin.
+- Tela de Instituicao com CNPJ, ano de inicio e descricao (richtext).
+- Permissoes exibidas por modulo/feature.
 
 ### Backend
 - Novos campos de perfil (tenant logo, nome/avatares de usuário) e endpoints `/tenants/me`.
 - Endpoints administrativos para usuários, perfis e permissões.
 - Upload de logo do tenant.
 - JWT com `name` e `tenantName` no payload.
+- Campos extras de instituicao (cnpj, startYear, description) e novos endpoints de access-logs por usuario.
 
 ### Correções
 - Validação mais resiliente para atualização de usuário (trim e ignorar vazios).

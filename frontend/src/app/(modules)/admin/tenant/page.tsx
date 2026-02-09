@@ -5,6 +5,7 @@ import { SectionCard } from "@/components/section-card";
 import { FormEngine } from "@/components/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
 import { Button } from "@/components/ui/button";
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { updateTenantProfile } from "@/features/auth/api";
@@ -15,6 +16,9 @@ import { resolveMediaUrl } from "@/lib/api";
 type TenantFormValues = {
   name: string;
   logoFile?: File | null;
+  cnpj?: string;
+  startYear?: number | null;
+  description?: string;
 };
 
 const tenantFields: FormField<TenantFormValues>[] = [
@@ -25,10 +29,25 @@ const tenantFields: FormField<TenantFormValues>[] = [
     required: true,
   },
   {
+    name: "cnpj",
+    label: "CNPJ",
+    type: "text",
+  },
+  {
+    name: "startYear",
+    label: "Ano de inicio",
+    type: "number",
+  },
+  {
     name: "logoFile",
     label: "Logo",
     type: "image",
     helperText: "PNG/JPG/WEBP ate 3MB",
+  },
+  {
+    name: "description",
+    label: "Descricao",
+    type: "richtext",
   },
 ];
 
@@ -54,6 +73,9 @@ export default function AdminTenantPage() {
       await updateTenantProfile(token, {
         name: values.name,
         logoUrl,
+        cnpj: values.cnpj,
+        startYear: values.startYear ? Number(values.startYear) : undefined,
+        description: values.description,
       });
       await refresh();
     } catch (err) {
@@ -81,8 +103,14 @@ export default function AdminTenantPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
+      <PageBreadcrumb
+        title="Instituicao"
+        items={[
+          { label: "Configuracoes", href: "/settings" },
+        ]}
+      />
       <SectionCard
-        title="Administracao do tenant"
+        title="Instituicao"
         subtitle="Atualize os dados da instituicao e a identidade visual."
       >
         <div className="flex items-center gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
@@ -118,6 +146,9 @@ export default function AdminTenantPage() {
           initialValues={{
             name: tenant?.name ?? "",
             logoFile: null,
+            cnpj: tenant?.cnpj ?? "",
+            startYear: tenant?.startYear ?? null,
+            description: tenant?.description ?? "",
           }}
           onSubmit={handleSubmit}
           actions={{

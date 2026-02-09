@@ -32,6 +32,9 @@ export type TenantProfile = {
   id: string;
   name: string;
   logoUrl?: string | null;
+  cnpj?: string | null;
+  startYear?: number | null;
+  description?: string | null;
   status?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -70,7 +73,13 @@ export async function getTenantProfile(token: string) {
 
 export async function updateTenantProfile(
   token: string,
-  payload: { name?: string; logoUrl?: string },
+  payload: {
+    name?: string;
+    logoUrl?: string;
+    cnpj?: string;
+    startYear?: number;
+    description?: string;
+  },
 ) {
   return apiRequest<TenantProfile>(
     '/tenants/me',

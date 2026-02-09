@@ -23,6 +23,31 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
+  async getUserDetail(tenantId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      isActive: user.isActive,
+      roles: user.roles.map((entry) => ({
+        id: entry.role.id,
+        name: entry.role.name,
+        description: entry.role.description,
+      })),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
   async getProfile(tenantId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
@@ -198,6 +223,58 @@ export class UsersService {
     });
 
     return { ok: true };
+  }
+
+  async getAccessLogsForUser(
+    tenantId: string,
+    userId: string,
+    params: { page?: number; limit?: number; action?: 'LOGIN' | 'REFRESH' | 'LOGOUT'; search?: string },
+  ) {
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const skip = (page - 1) * limit;
+    const action = params.action;
+    const search = params.search?.trim();
+    const searchAction = search ? search.toUpperCase() : undefined;
+    const actionCandidate =
+      searchAction === 'LOGIN' || searchAction === 'REFRESH' || searchAction === 'LOGOUT'
+        ? (searchAction as 'LOGIN' | 'REFRESH' | 'LOGOUT')
+        : undefined;
+
+    const where = {
+      userId,
+      tenantId,
+      ...(action ? { action } : {}),
+      ...(search
+        ? {
+            OR: [
+              { ipAddress: { contains: search, mode: 'insensitive' as const } },
+              { userAgent: { contains: search, mode: 'insensitive' as const } },
+              ...(actionCandidate ? [{ action: { equals: actionCandidate } }] : []),
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.accessLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.accessLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async getUserPermissions(tenantId: string, userId: string) {
