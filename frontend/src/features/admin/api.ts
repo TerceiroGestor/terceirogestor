@@ -153,6 +153,53 @@ export async function listRoles(token: string) {
   return apiRequest<RoleSummary[]>("/roles", {}, token);
 }
 
+export async function createRole(
+  token: string,
+  payload: {
+    name: string;
+    description?: string;
+    permissionKeys?: string[];
+  },
+) {
+  return apiRequest<RoleSummary>(
+    "/roles",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function updateRole(
+  token: string,
+  roleId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    permissionKeys?: string[];
+  },
+) {
+  return apiRequest<RoleSummary>(
+    `/roles/${roleId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deleteRole(token: string, roleId: string) {
+  return apiRequest<{ ok: boolean }>(
+    `/roles/${roleId}`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
 export async function listPermissions(token: string) {
   return apiRequest<PermissionSummary[]>("/permissions", {}, token);
 }

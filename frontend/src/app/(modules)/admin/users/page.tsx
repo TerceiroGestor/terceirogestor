@@ -286,7 +286,10 @@ export default function AdminUsersPage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
         title="Usuarios"
-        items={[{ label: "Configuracoes", href: "/settings" }]}
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Configuracoes", href: "/settings" },
+        ]}
       />
       <SectionCard
         title="Usuarios"

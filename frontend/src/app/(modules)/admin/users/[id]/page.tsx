@@ -155,6 +155,7 @@ export default function AdminUserDetailPage() {
       <PageBreadcrumb
         title="Detalhes do usuario"
         items={[
+          { label: "Dashboard", href: "/dashboard" },
           { label: "Configuracoes", href: "/settings" },
           { label: "Usuarios", href: "/admin/users" },
         ]}

@@ -79,7 +79,7 @@ Fluxo principal (PeopleDetail):
 ## Modulo Admin (frontend)
 - `admin/users`: lista, cria e atualiza usuarios (perfis e status).
 - `admin/users/[id]`: detalhe do usuario com logs de acesso.
-- `admin/roles`: lista perfis e permissoes vinculadas.
+- `admin/roles`: CRUD de perfis e permissoes por modulo.
 - `admin/tenant`: atualiza dados da instituicao.
 - `admin/permissions`: visao de permissoes por feature e modulo.
 - Usa `DataTable` + `SectionCard` para padronizacao.

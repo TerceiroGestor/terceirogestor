@@ -111,7 +111,10 @@ export default function AdminPermissionsPage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
         title="Permissoes por feature"
-        items={[{ label: "Configuracoes", href: "/settings" }]}
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Configuracoes", href: "/settings" },
+        ]}
       />
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

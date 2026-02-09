@@ -11,6 +11,7 @@
 - Detalhe de usuario com historico de acessos no admin.
 - Tela de Instituicao com CNPJ, ano de inicio e descricao (richtext).
 - Permissoes exibidas por modulo/feature.
+- Tela de Perfis com DataTable e CRUD de perfis.
 
 ### Backend
 - Novos campos de perfil (tenant logo, nome/avatares de usuário) e endpoints `/tenants/me`.
@@ -18,6 +19,7 @@
 - Upload de logo do tenant.
 - JWT com `name` e `tenantName` no payload.
 - Campos extras de instituicao (cnpj, startYear, description) e novos endpoints de access-logs por usuario.
+- CRUD de perfis com permissões por modulo.
 
 ### Correções
 - Validação mais resiliente para atualização de usuário (trim e ignorar vazios).

@@ -21,8 +21,14 @@ const settingsLinks = [
     permission: "users.read",
   },
   {
-    title: "Perfis e permissoes",
-    description: "Controle de acesso por modulo e feature.",
+    title: "Perfis",
+    description: "Crie e edite perfis com permissoes por modulo.",
+    href: "/admin/roles",
+    permission: "roles.manage",
+  },
+  {
+    title: "Permissoes",
+    description: "Visao geral das permissoes por feature.",
     href: "/admin/permissions",
     permission: "roles.manage",
   },
