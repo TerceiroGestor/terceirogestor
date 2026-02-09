@@ -47,9 +47,12 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const requestTenantId = (req as Request & { tenantId?: string }).tenantId;
+    const payload: LoginDto = { ...dto, tenantId: dto.tenantId ?? requestTenantId };
     const { accessToken, refreshToken } = await this.authService.loginWithMeta(
-      dto,
+      payload,
       getRequestMeta(req),
+      requestTenantId,
     );
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, getCookieOptions());
     return { accessToken };
@@ -61,8 +64,9 @@ export class AuthController {
     if (!refreshToken) {
       return { accessToken: null };
     }
+    const requestTenantId = (req as Request & { tenantId?: string }).tenantId;
     const { accessToken, refreshToken: nextRefresh } =
-      await this.authService.refresh(refreshToken, getRequestMeta(req));
+      await this.authService.refresh(refreshToken, getRequestMeta(req), requestTenantId);
     res.cookie(REFRESH_COOKIE_NAME, nextRefresh, getCookieOptions());
     return { accessToken };
   }

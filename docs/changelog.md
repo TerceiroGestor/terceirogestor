@@ -1,5 +1,41 @@
 ﻿# Changelog
 
+## 2026-02-09 — Plano de segurança (fases)
+
+### Fase 1 — Contexto de tenant e rotas
+- `Tenant.slug` único e uso de rota `/t/:slug/...` no frontend.
+- Resolução do `tenantId` no backend via slug (middleware/guard).
+- Validação de compatibilidade `tenantId` do token vs rota.
+
+### Fase 2 — Sessão e refresh
+- Tabela `UserSession` com refresh token hash, device, IP, exp e revogação.
+- Rotação de refresh + detecção de reuse (revoga todas as sessões).
+- Logout global por usuario/tenant.
+
+### Fase 3 — Logs + Audit (com diff) + soft delete
+- `AccessLog` global (endpoint, status, IP, user agent).
+- `AuditLog` por mutação com before/after.
+- Soft delete em todos os modulos (`deletedAt`, `deletedBy`).
+
+### Fase 4 — LGPD e dados sensíveis
+- Mascaramento em UI (CPF, documentos), redação por role.
+- Retenção configurável por tenant.
+- Base para criptografia de campos sensíveis.
+
+### Fase 5 — Hardening
+- Rate limit em login/refresh.
+- Security headers e CSP.
+- Revisão de permissões por feature/role.
+
+### Frontend — /settings (estrutura)
+- Visão geral (status de segurança, última atividade).
+- Instituição (logo, CNPJ, descrição).
+- Usuários (CRUD + detalhe com logs).
+- Perfis e permissões por módulo (matriz).
+- Sessões (ativas, revogar).
+- Logs de acesso e auditoria.
+- Políticas LGPD (retenção, mascaramento).
+
 ## 2026-02-09 — Admin e sessões
 
 ### Frontend
@@ -40,3 +76,4 @@
 
 ### Testes
 - `frontend`: `npm run build`.
+

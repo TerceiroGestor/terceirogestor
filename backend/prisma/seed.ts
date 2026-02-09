@@ -52,6 +52,7 @@ async function main() {
     where: { id: tenantId },
     update: {
       name: 'Instituicao Exemplo',
+      slug: 'instituicao-exemplo',
       logoUrl: '/avatar-female.jpg',
       cnpj: '12.345.678/0001-90',
       startYear: 2010,
@@ -60,6 +61,7 @@ async function main() {
     create: {
       id: tenantId,
       name: 'Instituicao Exemplo',
+      slug: 'instituicao-exemplo',
       logoUrl: '/avatar-female.jpg',
       cnpj: '12.345.678/0001-90',
       startYear: 2010,

@@ -16,6 +16,7 @@ export class TenantsService {
     return {
       id: tenant.id,
       name: tenant.name,
+      slug: tenant.slug,
       logoUrl: tenant.logoUrl,
       cnpj: tenant.cnpj,
       startYear: tenant.startYear,
@@ -38,6 +39,7 @@ export class TenantsService {
       where: { id: tenantId },
       data: {
         name: dto.name ?? existing.name,
+        slug: dto.slug ?? existing.slug,
         logoUrl: dto.logoUrl ?? existing.logoUrl,
         cnpj: dto.cnpj ?? existing.cnpj,
         startYear: dto.startYear ?? existing.startYear,
@@ -48,6 +50,7 @@ export class TenantsService {
     return {
       id: updated.id,
       name: updated.name,
+      slug: updated.slug,
       logoUrl: updated.logoUrl,
       cnpj: updated.cnpj,
       startYear: updated.startYear,
@@ -55,6 +58,23 @@ export class TenantsService {
       status: updated.status,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
+    };
+  }
+
+  async getTenantBySlug(slug: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { slug },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Instituicao nao encontrada');
+    }
+
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      logoUrl: tenant.logoUrl,
+      status: tenant.status,
     };
   }
 }

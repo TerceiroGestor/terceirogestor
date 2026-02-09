@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
@@ -15,6 +15,11 @@ export class TenantsController {
   @UseGuards(JwtAuthGuard)
   async getCurrentTenant(@CurrentUser() user: JwtUser) {
     return this.tenantsService.getTenant(user.tenantId);
+  }
+
+  @Get('slug/:slug')
+  async getTenantBySlug(@Param('slug') slug: string) {
+    return this.tenantsService.getTenantBySlug(slug);
   }
 
   @Patch('me')

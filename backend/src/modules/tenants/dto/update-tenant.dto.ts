@@ -9,6 +9,11 @@ export class UpdateTenantDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(2)
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
   logoUrl?: string;
 
   @IsOptional()

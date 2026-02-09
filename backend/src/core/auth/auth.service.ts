@@ -42,15 +42,28 @@ export class AuthService {
     return this.loginWithMeta(dto);
   }
 
-  async loginWithMeta(dto: LoginDto, meta?: AuthRequestMeta) {
-    const user = await this.validateUser(dto.tenantId, dto.email, dto.password);
+  async loginWithMeta(
+    dto: LoginDto,
+    meta?: AuthRequestMeta,
+    expectedTenantId?: string,
+  ) {
+    if (expectedTenantId && dto.tenantId && dto.tenantId !== expectedTenantId) {
+      throw new UnauthorizedException('Instituicao invalida');
+    }
+    const tenantId = expectedTenantId ?? dto.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Instituicao invalida');
+    }
+
+    const user = await this.validateUser(tenantId, dto.email, dto.password);
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { name: true },
+      select: { name: true, slug: true },
     });
     const payload: AuthTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
+      tenantSlug: tenant?.slug ?? null,
       email: user.email,
       name: user.name ?? null,
       tenantName: tenant?.name ?? null,
@@ -75,7 +88,11 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async refresh(refreshToken: string, meta?: AuthRequestMeta) {
+  async refresh(
+    refreshToken: string,
+    meta?: AuthRequestMeta,
+    expectedTenantId?: string,
+  ) {
     const tokenHash = this.hashToken(refreshToken);
     const session = await this.prisma.userSession.findFirst({
       where: { tokenHash },
@@ -97,14 +114,18 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Credenciais invalidas');
     }
+    if (expectedTenantId && user.tenantId !== expectedTenantId) {
+      throw new UnauthorizedException('Instituicao invalida');
+    }
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { name: true },
+      select: { name: true, slug: true },
     });
 
     const payload: AuthTokenPayload = {
       sub: user.id,
       tenantId: user.tenantId,
+      tenantSlug: tenant?.slug ?? null,
       email: user.email,
       name: user.name ?? null,
       tenantName: tenant?.name ?? null,
