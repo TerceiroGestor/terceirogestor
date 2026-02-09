@@ -28,6 +28,12 @@ export const navGroups: NavGroup[] = [
     label: "Administracao",
     items: [
       {
+        title: "Tenant",
+        href: "/admin/tenant",
+        icon: Cog,
+        permissions: ["tenants.read"],
+      },
+      {
         title: "Usuarios",
         href: "/admin/users",
         icon: Users,
@@ -36,6 +42,12 @@ export const navGroups: NavGroup[] = [
       {
         title: "Perfis e Permissoes",
         href: "/admin/roles",
+        icon: Cog,
+        permissions: ["roles.manage"],
+      },
+      {
+        title: "Permissoes por feature",
+        href: "/admin/permissions",
         icon: Cog,
         permissions: ["roles.manage"],
       },

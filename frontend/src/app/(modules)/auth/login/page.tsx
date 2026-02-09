@@ -46,6 +46,9 @@ function LoginForm() {
           <CardTitle>Acesso</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Ambiente de desenvolvimento. Use as credenciais de seed para entrar.
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Instituicao (ID)</label>

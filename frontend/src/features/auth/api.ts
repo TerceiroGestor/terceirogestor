@@ -67,3 +67,17 @@ export async function getCurrentUser(token: string) {
 export async function getTenantProfile(token: string) {
   return apiRequest<TenantProfile>('/tenants/me', {}, token);
 }
+
+export async function updateTenantProfile(
+  token: string,
+  payload: { name?: string; logoUrl?: string },
+) {
+  return apiRequest<TenantProfile>(
+    '/tenants/me',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}

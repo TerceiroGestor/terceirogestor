@@ -26,6 +26,8 @@
   - `auth/profile`: perfil do usuario + historico de acessos.
   - `admin/users`: administracao de usuarios.
   - `admin/roles`: perfis e permissoes.
+  - `admin/tenant`: dados da instituicao (nome/logo).
+  - `admin/permissions`: permissoes agrupadas por feature.
 - `frontend/src/features`
   - `people`: integracao com API de people.
   - `family-members`: feature de familia (context, data hook, UI).
@@ -75,6 +77,8 @@ Fluxo principal (PeopleDetail):
 ## Modulo Admin (frontend)
 - `admin/users`: lista, cria e atualiza usuarios (perfis e status).
 - `admin/roles`: lista perfis e permissoes vinculadas.
+- `admin/tenant`: atualiza dados do tenant.
+- `admin/permissions`: visao de permissoes por feature.
 - Usa `DataTable` + `SectionCard` para padronizacao.
 
 ## Autenticacao e contexto do usuario
