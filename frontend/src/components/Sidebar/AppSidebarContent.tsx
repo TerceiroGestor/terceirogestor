@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/sidebar";
 import { navGroups } from "@/components/Sidebar/sidebar-data";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export function AppSidebarContent() {
   const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { permissions } = useCurrentUser();
 
   const canAccess = (item: { permissions?: string[] }) => {
@@ -42,12 +44,14 @@ export function AppSidebarContent() {
                       asChild
                       isActive={
                         item.exact
-                          ? pathname === item.href
-                          : pathname.startsWith(item.href)
+                          ? pathname === withTenantPath(item.href, tenantSlug)
+                          : pathname.startsWith(
+                              withTenantPath(item.href, tenantSlug),
+                            )
                       }
                       tooltip={item.title}
                     >
-                      <Link href={item.href}>
+                      <Link href={withTenantPath(item.href, tenantSlug)}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>

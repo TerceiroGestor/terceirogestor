@@ -5,7 +5,7 @@ import { apiRequest, refreshAccessToken } from "@/lib/api";
 import { getTokenExpirationMs, isTokenExpired } from "@/lib/auth-utils";
 
 type LoginInput = {
-  tenantId: string;
+  tenantId?: string;
   email: string;
   password: string;
 };

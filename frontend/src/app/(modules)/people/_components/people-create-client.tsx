@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PeopleRelationsForm } from "./people-relations-form";
 import type { PersonFormData } from "../types";
 import { createPerson } from "@/features/people/api";
@@ -8,9 +8,12 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { uploadAvatar } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export function PeopleCreateClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { token } = useAuth();
   useRequireAuth();
 
@@ -50,9 +53,9 @@ export function PeopleCreateClient() {
           profileSummary: values.profileSummary || null,
           avatarUrl,
         });
-        router.push("/people");
+        router.push(withTenantPath("/people", tenantSlug));
       }}
-      onCancel={() => router.push("/people")}
+      onCancel={() => router.push(withTenantPath("/people", tenantSlug))}
       submitLabel="Cadastrar"
       tagSuggestions={[]}
     />

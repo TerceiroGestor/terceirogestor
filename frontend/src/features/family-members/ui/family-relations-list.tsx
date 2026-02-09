@@ -38,6 +38,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { formatCurrency } from "@/app/(modules)/people/utils";
 
 type FamilyRelationsListProps = {
@@ -125,12 +127,14 @@ const FamilyRow = ({
   person,
   relationType,
   badges,
+  tenantSlug,
   onEdit,
   onDelete,
 }: {
   person: PersonSummary;
   relationType?: string;
   badges: string[];
+  tenantSlug?: string | null;
   onEdit?: () => void;
   onDelete?: () => void;
 }) => (
@@ -145,7 +149,10 @@ const FamilyRow = ({
     )}
     title={(
       <>
-        <Link href={`/people/${person.id}`} className="hover:text-foreground/80">
+        <Link
+          href={withTenantPath(`/people/${person.id}`, tenantSlug)}
+          className="hover:text-foreground/80"
+        >
           {person.fullName}
         </Link>
         {relationType ? <RelationBadge label={relationType} /> : null}
@@ -414,6 +421,8 @@ export function FamilyRelationsList({
   householdAssets,
   personAssetsByMember,
 }: FamilyRelationsListProps) {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const relationByPerson = React.useMemo(() => {
     const map = new Map<string, PersonRelation>();
     relations.forEach((relation) => {
@@ -593,6 +602,7 @@ export function FamilyRelationsList({
                     key={member.id}
                     person={member.person}
                     relationType={relation?.type ?? member.role ?? "Morador"}
+                    tenantSlug={tenantSlug}
                     badges={badges}
                     onEdit={
                       !isSelf
@@ -641,6 +651,7 @@ export function FamilyRelationsList({
                     key={relation.id}
                     person={relation.relatedPerson}
                     relationType={relation.type}
+                    tenantSlug={tenantSlug}
                     badges={badges}
                     onEdit={() => {
                       setEditing({ relation });

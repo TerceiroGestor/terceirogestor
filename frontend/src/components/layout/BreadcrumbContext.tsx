@@ -39,7 +39,7 @@ const BreadcrumbContext = React.createContext<BreadcrumbContextValue | null>(nul
 
 const defaultBreadcrumb: BreadcrumbState = {
   title: "Dashboard",
-  items: [{ label: "Dashboard", href: "/" }],
+  items: [{ label: "Dashboard", href: "/dashboard" }],
 };
 
 export function BreadcrumbProvider({ children }: { children: React.ReactNode }) {
@@ -55,7 +55,7 @@ export function BreadcrumbProvider({ children }: { children: React.ReactNode }) 
       actionSlot?: React.ReactNode,
     ) => {
       const normalized = items.length
-        ? [{ label: "Dashboard", href: "/" }, ...items]
+        ? [{ label: "Dashboard", href: "/dashboard" }, ...items]
         : [{ label: "Dashboard" }];
       setBreadcrumb({
         title,

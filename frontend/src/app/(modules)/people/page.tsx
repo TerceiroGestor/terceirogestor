@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { DataTable } from "@/components/DataTable";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import type { PeopleTableItem, PersonFormData } from "@/app/(modules)/people/types";
@@ -25,10 +25,13 @@ import {
 import { uploadAvatar } from "@/features/uploads/api";
 import { resolveMediaUrl, stripApiUrl } from "@/lib/api";
 import { buildExportMeta } from "@/lib/auth-utils";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
 
 export default function PeoplePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { setPageBreadcrumb } = useBreadcrumb();
   const { token } = useAuth();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
@@ -199,7 +202,7 @@ export default function PeoplePage() {
 
   const openView = useCallback(
     (person: PeopleTableItem) => {
-      router.push(`/people/${person.id}`);
+      router.push(withTenantPath(`/people/${person.id}`, tenantSlug));
     },
     [router],
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { isTokenExpired } from "@/lib/auth-utils";
+import { getTenantSlug, withTenantPath } from "@/lib/tenant-path";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 
@@ -30,7 +31,9 @@ export type ApiError = {
 let refreshPromise: Promise<string | null> | null = null;
 
 export async function refreshAccessToken() {
-  const response = await fetch(`${API_URL}/auth/refresh`, {
+  const slug = getTenantSlug();
+  const path = withTenantPath("/auth/refresh", slug);
+  const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: {
       "Cache-Control": "no-store",
@@ -119,7 +122,9 @@ export async function apiRequest<T>(
       headers.set("Authorization", `Bearer ${nextToken}`);
     }
 
-    const response = await fetch(`${API_URL}${path}`, {
+    const tenantSlug = getTenantSlug();
+    const resolvedPath = withTenantPath(path, tenantSlug);
+    const response = await fetch(`${API_URL}${resolvedPath}`, {
       ...options,
       headers,
       cache: "no-store",

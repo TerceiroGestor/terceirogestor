@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export type FamilyPreviewMember = {
   id?: string;
@@ -11,6 +13,8 @@ export type FamilyPreviewMember = {
 };
 
 export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   if (!members.length) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -27,7 +31,7 @@ export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
             <div className="text-xs text-right">
               {member.id ? (
                 <Link
-                  href={`/people/${member.id}`}
+                  href={withTenantPath(`/people/${member.id}`, tenantSlug)}
                   className="font-medium text-foreground hover:text-foreground/80"
                 >
                   {member.name}

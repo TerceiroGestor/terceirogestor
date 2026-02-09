@@ -31,6 +31,7 @@ export type CurrentUserProfile = {
 export type TenantProfile = {
   id: string;
   name: string;
+  slug?: string;
   logoUrl?: string | null;
   cnpj?: string | null;
   startYear?: number | null;
@@ -75,6 +76,7 @@ export async function updateTenantProfile(
   token: string,
   payload: {
     name?: string;
+    slug?: string;
     logoUrl?: string;
     cnpj?: string;
     startYear?: number;

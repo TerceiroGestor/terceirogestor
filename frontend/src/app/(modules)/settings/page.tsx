@@ -1,11 +1,13 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 const settingsLinks = [
   {
@@ -42,6 +44,8 @@ const settingsLinks = [
 export default function SettingsPage() {
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading } = useRequireAuth();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   if (isLoading) {
     return (
@@ -78,7 +82,7 @@ export default function SettingsPage() {
                 key={link.title}
                 title={
                   <Link
-                    href={link.href}
+                    href={withTenantPath(link.href, tenantSlug)}
                     className="text-sm font-semibold text-foreground"
                   >
                     {link.title}
@@ -101,7 +105,7 @@ export default function SettingsPage() {
                 key={link.title}
                 title={
                   <Link
-                    href={link.href}
+                    href={withTenantPath(link.href, tenantSlug)}
                     className="text-sm font-semibold text-foreground"
                   >
                     {link.title}

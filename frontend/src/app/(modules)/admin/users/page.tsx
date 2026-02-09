@@ -13,7 +13,8 @@ import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   createUser,
   deleteUser,
@@ -85,6 +86,8 @@ export default function AdminUsersPage() {
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   const [rows, setRows] = React.useState<AdminUser[]>([]);
   const [roles, setRoles] = React.useState<RoleSummary[]>([]);
@@ -328,7 +331,9 @@ export default function AdminUsersPage() {
                     label: "Detalhes",
                     onSelect: (row) => {
                       const target = row as AdminUser;
-                      router.push(`/admin/users/${target.id}`);
+                      router.push(
+                        withTenantPath(`/admin/users/${target.id}`, tenantSlug),
+                      );
                     },
                   },
                   {

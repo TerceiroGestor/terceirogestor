@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { usePathname } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,6 +17,8 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export function AppHeader() {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { breadcrumb } = useBreadcrumb();
   const items = breadcrumb.items;
   const action = breadcrumb.action;
@@ -38,7 +42,11 @@ export function AppHeader() {
                         </BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink asChild>
-                          <Link href={item.href}>{item.label}</Link>
+                          <Link
+                            href={withTenantPath(item.href, tenantSlug)}
+                          >
+                            {item.label}
+                          </Link>
                         </BreadcrumbLink>
                       )}
                     </BreadcrumbItem>
@@ -59,7 +67,9 @@ export function AppHeader() {
                   variant={action.variant ?? "default"}
                   asChild
                 >
-                  <Link href={action.href}>{action.label}</Link>
+                  <Link href={withTenantPath(action.href, tenantSlug)}>
+                    {action.label}
+                  </Link>
                 </Button>
               ) : (
                 <Button

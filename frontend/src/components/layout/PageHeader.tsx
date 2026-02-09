@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import type { BreadcrumbItem as BreadcrumbItemType } from "@/components/layout/BreadcrumbContext";
 import {
@@ -12,6 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 type PageHeaderProps = {
   title: string;
@@ -32,6 +34,8 @@ export function PageHeader({
 }: PageHeaderProps) {
   const { breadcrumb } = useBreadcrumb();
   const items = breadcrumbs ?? breadcrumb.items;
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -51,7 +55,9 @@ export function PageHeader({
                           </BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink asChild>
-                            <Link href={item.href}>{item.label}</Link>
+                            <Link href={withTenantPath(item.href, tenantSlug)}>
+                              {item.label}
+                            </Link>
                           </BreadcrumbLink>
                         )}
                       </BreadcrumbItem>

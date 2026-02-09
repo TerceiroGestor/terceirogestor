@@ -3,6 +3,11 @@
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
+import {
+  getTenantSlugFromPath,
+  readStoredTenantSlug,
+  withTenantPath,
+} from "@/lib/tenant-path";
 
 export function useRequireAuth() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -12,8 +17,10 @@ export function useRequireAuth() {
   React.useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
+      const tenantSlug =
+        getTenantSlugFromPath(pathname) ?? readStoredTenantSlug();
       const next = pathname ? `?next=${encodeURIComponent(pathname)}` : "";
-      router.replace(`/auth/login${next}`);
+      router.replace(`${withTenantPath("/login", tenantSlug)}${next}`);
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 

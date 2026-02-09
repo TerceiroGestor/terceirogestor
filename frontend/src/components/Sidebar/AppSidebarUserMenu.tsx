@@ -11,12 +11,16 @@ import {
 import { LogOut, Settings, User, ChevronUp } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { usePathname } from "next/navigation";
 
 const userActions = [
   { label: "Configuracoes", icon: Settings, href: "/settings" },
 ];
 
 export function AppSidebarUserMenu() {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { logout, isAuthenticated, token } = useAuth();
   const { user } = useCurrentUser();
   const email = user?.email ?? "";
@@ -48,7 +52,7 @@ export function AppSidebarUserMenu() {
       <DropdownMenuContent side="top" align="start" className="w-56">
         {userActions.map((action) => (
           <DropdownMenuItem key={action.label} asChild>
-            <Link href={action.href}>
+            <Link href={withTenantPath(action.href, tenantSlug)}>
               <action.icon />
               <span>{action.label}</span>
             </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
@@ -12,6 +12,7 @@ import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   getUserAccessLogs,
   getUserById,
@@ -26,7 +27,9 @@ export default function AdminUserDetailPage() {
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const userId = typeof params?.id === "string" ? params.id : "";
 
   const [user, setUser] = React.useState<AdminUser | null>(null);
@@ -161,7 +164,8 @@ export default function AdminUserDetailPage() {
         ]}
         action={{
           label: "Voltar",
-          onClick: () => router.push("/admin/users"),
+          onClick: () =>
+            router.push(withTenantPath("/admin/users", tenantSlug)),
         }}
       />
 
