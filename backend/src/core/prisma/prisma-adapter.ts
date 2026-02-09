@@ -6,6 +6,8 @@ type AdapterInput = {
   user: string;
   password: string;
   database: string;
+  allowPublicKeyRetrieval?: boolean;
+  cachingRsaPublicKey?: string;
 };
 
 function parseDatabaseUrl(databaseUrl: string): AdapterInput {
@@ -25,12 +27,23 @@ function parseDatabaseUrl(databaseUrl: string): AdapterInput {
     throw new Error('DATABASE_URL must include a database name');
   }
 
+  const allowPublicKeyRetrievalParam = url.searchParams.get(
+    'allowPublicKeyRetrieval',
+  );
+  const allowPublicKeyRetrieval =
+    allowPublicKeyRetrievalParam !== null
+      ? allowPublicKeyRetrievalParam === 'true'
+      : ['localhost', '127.0.0.1'].includes(url.hostname);
+  const cachingRsaPublicKey = url.searchParams.get('cachingRsaPublicKey');
+
   return {
     host: url.hostname,
     port: url.port ? Number(url.port) : 3306,
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database,
+    allowPublicKeyRetrieval,
+    ...(cachingRsaPublicKey ? { cachingRsaPublicKey } : {}),
   };
 }
 
