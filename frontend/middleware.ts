@@ -17,12 +17,33 @@ const RESERVED_SEGMENTS = new Set([
   "sitemap.xml",
 ]);
 
+const LEGACY_PREFIXES = [
+  "/dashboard",
+  "/people",
+  "/settings",
+  "/admin",
+  "/auth/profile",
+  "/auth/login",
+];
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const legacyMatch = pathname.match(/^\/t\/([^/]+)\/?$/);
-  if (legacyMatch) {
-    const slug = legacyMatch[1];
+  const legacyPath = LEGACY_PREFIXES.find((prefix) =>
+    pathname.startsWith(prefix),
+  );
+  if (legacyPath) {
+    const slug = req.cookies.get("terceirogestor_tenant")?.value;
+    if (slug) {
+      const url = req.nextUrl.clone();
+      url.pathname = `/${slug}${pathname}`;
+      return NextResponse.redirect(url);
+    }
+  }
+
+  const legacyTenantMatch = pathname.match(/^\/t\/([^/]+)\/?$/);
+  if (legacyTenantMatch) {
+    const slug = legacyTenantMatch[1];
     const url = req.nextUrl.clone();
     url.pathname = `/${slug}/dashboard`;
     return NextResponse.redirect(url);
@@ -42,5 +63,16 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/t/:slug", "/t/:slug/", "/:slug", "/:slug/"],
+  matcher: [
+    "/t/:slug",
+    "/t/:slug/",
+    "/:slug",
+    "/:slug/",
+    "/dashboard",
+    "/people/:path*",
+    "/settings/:path*",
+    "/admin/:path*",
+    "/auth/profile",
+    "/auth/login",
+  ],
 };

@@ -1,4 +1,5 @@
 const TENANT_STORAGE_KEY = "terceirogestor:tenantSlug";
+const TENANT_COOKIE_KEY = "terceirogestor_tenant";
 const RESERVED_SEGMENTS = new Set([
   "",
   "_next",
@@ -30,13 +31,24 @@ export function getTenantSlugFromPath(pathname?: string | null) {
 
 export function readStoredTenantSlug() {
   if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(TENANT_STORAGE_KEY);
+  const stored = window.sessionStorage.getItem(TENANT_STORAGE_KEY);
+  if (stored) return stored;
+  const cookie = document.cookie
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${TENANT_COOKIE_KEY}=`));
+  if (!cookie) return null;
+  const value = cookie.split("=").slice(1).join("=");
+  return value ? decodeURIComponent(value) : null;
 }
 
 export function storeTenantSlug(slug: string) {
   if (typeof window === "undefined") return;
   if (!slug) return;
   window.sessionStorage.setItem(TENANT_STORAGE_KEY, slug);
+  document.cookie = `${TENANT_COOKIE_KEY}=${encodeURIComponent(
+    slug,
+  )}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=lax`;
 }
 
 export function getTenantSlug() {
