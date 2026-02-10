@@ -430,6 +430,17 @@ export class PeopleController {
     return this.peopleService.listRelations(tenantId, id);
   }
 
+  @Get(':id/relations-tree')
+  async listRelationsTree(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('depth') depth?: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    const parsedDepth = depth ? Number(depth) : undefined;
+    return this.peopleService.listRelationsTree(tenantId, id, parsedDepth);
+  }
+
   @Post(':id/relations')
   async createRelation(
     @CurrentUser() user: JwtUser | undefined,

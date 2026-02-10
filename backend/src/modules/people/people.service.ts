@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '../../../generated/prisma';
-import { HouseholdTransferType, IncomeFrequency } from '../../../generated/prisma';
+import type { Prisma, HouseholdTransferType, IncomeFrequency } from '../../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
@@ -33,6 +32,19 @@ import {
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 1000;
+
+const IncomeFrequencyEnum = {
+  MONTHLY: 'MONTHLY',
+  WEEKLY: 'WEEKLY',
+  BIWEEKLY: 'BIWEEKLY',
+  ANNUAL: 'ANNUAL',
+  ONCE: 'ONCE',
+} as const;
+
+const HouseholdTransferTypeEnum = {
+  PENSION: 'PENSION',
+  TRANSFER: 'TRANSFER',
+} as const;
 
 type PersonRecord = Prisma.PersonGetPayload<{}>;
 type PersonWithHealthCounts = Prisma.PersonGetPayload<{
@@ -251,6 +263,14 @@ const normalizeRelationKey = (value?: string | null) =>
     .toLowerCase()
     .replace(/[^a-z]/g, '');
 
+const GENEALOGY_RELATION_KEYS = ['pai', 'mae', 'filho', 'filha', 'irma', 'conjuge'];
+
+const isGenealogyRelation = (value?: string | null) => {
+  if (!value) return false;
+  const key = normalizeRelationKey(value);
+  return GENEALOGY_RELATION_KEYS.some((prefix) => key.startsWith(prefix));
+};
+
 const resolveParentTypeFromPerson = (
   person?: { sex?: string | null; gender?: string | null } | null,
 ) => {
@@ -322,17 +342,10 @@ const normalizeCategory = (value?: string | null) =>
     .toLowerCase();
 
 const resolveIncomeFrequency = (value?: string | null): IncomeFrequency => {
-  const fallback = "MONTHLY" as IncomeFrequency;
+  const fallback = 'MONTHLY' as IncomeFrequency;
   if (!value) return fallback;
   const normalized = value.toString().toUpperCase();
-  const enumValues = (IncomeFrequency ??
-    ({
-      MONTHLY: "MONTHLY",
-      WEEKLY: "WEEKLY",
-      BIWEEKLY: "BIWEEKLY",
-      ANNUAL: "ANNUAL",
-      ONCE: "ONCE",
-    } as const)) as Record<string, string>;
+  const enumValues = IncomeFrequencyEnum as Record<string, string>;
   const values = Object.values(enumValues) as IncomeFrequency[];
   const match = values.find((item) => item === normalized);
   return match ?? fallback;
@@ -344,11 +357,7 @@ const resolveTransferType = (
   const fallback = 'PENSION' as HouseholdTransferType;
   if (!value) return fallback;
   const normalized = value.toString().toUpperCase();
-  const enumValues = (HouseholdTransferType ??
-    ({
-      PENSION: 'PENSION',
-      TRANSFER: 'TRANSFER',
-    } as const)) as Record<string, string>;
+  const enumValues = HouseholdTransferTypeEnum as Record<string, string>;
   const values = Object.values(enumValues) as HouseholdTransferType[];
   const match = values.find((item) => item === normalized);
   return match ?? fallback;
@@ -1634,6 +1643,106 @@ export class PeopleService {
         relatedPerson: mapPersonSummary(relation.relatedPerson),
       })),
       relatedHouseholds,
+    };
+  }
+
+  async listRelationsTree(
+    tenantId: string,
+    personId: string,
+    depth = 2,
+  ) {
+    const root = await this.prisma.person.findFirst({
+      where: { id: personId, tenantId },
+    });
+    if (!root) {
+      throw new NotFoundException('Pessoa nao encontrada.');
+    }
+
+    const maxDepth = Math.max(1, Math.min(Number(depth) || 2, 4));
+    const maxNodes = 200;
+    const depthMap = new Map<string, number>([[personId, 0]]);
+    const visited = new Set<string>([personId]);
+    let frontier = new Set<string>([personId]);
+
+    for (let level = 0; level < maxDepth; level += 1) {
+      if (!frontier.size) break;
+      const ids = Array.from(frontier);
+      const relations = await this.prisma.personRelation.findMany({
+        where: {
+          tenantId,
+          OR: [{ personId: { in: ids } }, { relatedPersonId: { in: ids } }],
+        },
+        select: { personId: true, relatedPersonId: true, type: true },
+      });
+      const nextFrontier = new Set<string>();
+      for (const relation of relations) {
+        if (!isGenealogyRelation(relation.type)) continue;
+        const fromFrontier = frontier.has(relation.personId);
+        const toFrontier = frontier.has(relation.relatedPersonId);
+        if (!fromFrontier && !toFrontier) continue;
+        const neighborId = fromFrontier
+          ? relation.relatedPersonId
+          : relation.personId;
+        if (visited.has(neighborId)) continue;
+        const nextDepth = level + 1;
+        if (nextDepth > maxDepth) continue;
+        visited.add(neighborId);
+        depthMap.set(neighborId, nextDepth);
+        nextFrontier.add(neighborId);
+        if (visited.size >= maxNodes) break;
+      }
+      frontier = nextFrontier;
+      if (visited.size >= maxNodes) break;
+    }
+
+    const nodeIds = Array.from(depthMap.keys());
+    const people = await this.prisma.person.findMany({
+      where: { tenantId, id: { in: nodeIds } },
+      include: {
+        _count: {
+          select: { healthConditions: true, medications: true },
+        },
+      },
+    });
+
+    const nodes = people.map((person) => ({
+      id: person.id,
+      fullName: person.fullName,
+      socialName: person.socialName,
+      birthDate: person.birthDate,
+      avatarUrl: person.avatarUrl,
+      sex: person.sex,
+      gender: person.gender,
+      raceColor: person.raceColor,
+      status: person.status,
+      personType: person.personType,
+      hasHealthCondition: person._count.healthConditions > 0,
+      hasMedication: person._count.medications > 0,
+      depth: depthMap.get(person.id) ?? 0,
+    }));
+
+    const edges = await this.prisma.personRelation.findMany({
+      where: {
+        tenantId,
+        personId: { in: nodeIds },
+        relatedPersonId: { in: nodeIds },
+      },
+      select: { id: true, personId: true, relatedPersonId: true, type: true },
+    });
+
+    return {
+      rootId: personId,
+      depth: maxDepth,
+      truncated: visited.size >= maxNodes,
+      nodes,
+      edges: edges
+        .filter((relation) => isGenealogyRelation(relation.type))
+        .map((relation) => ({
+          id: relation.id,
+          fromId: relation.personId,
+          toId: relation.relatedPersonId,
+          type: relation.type,
+        })),
     };
   }
 

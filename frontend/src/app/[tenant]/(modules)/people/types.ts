@@ -72,6 +72,27 @@ export type PersonSummary = {
   raceColor?: string | null;
   status?: string | null;
   personType?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
+};
+
+export type PersonTreeNode = PersonSummary & {
+  depth: number;
+};
+
+export type PersonTreeEdge = {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: string;
+};
+
+export type PersonRelationsTree = {
+  rootId: string;
+  depth: number;
+  truncated: boolean;
+  nodes: PersonTreeNode[];
+  edges: PersonTreeEdge[];
 };
 
 export type HouseholdInfo = {

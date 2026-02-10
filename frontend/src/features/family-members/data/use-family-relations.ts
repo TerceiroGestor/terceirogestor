@@ -27,6 +27,7 @@ import {
   updateHouseholdAsset,
   updatePersonAsset,
   updatePersonRelation,
+  type ApiPerson,
 } from "@/features/people/api";
 
 type AssetInput = {
@@ -68,12 +69,56 @@ type UseFamilyRelationsResult = {
   removePersonAsset: (personId: string, assetId: string) => Promise<void>;
 };
 
+const buildPeopleIndex = (people: ApiPerson[]) =>
+  people.reduce<Record<string, ApiPerson>>((acc, person) => {
+    acc[person.id] = person;
+    return acc;
+  }, {});
+
+const mergePersonSummary = (
+  person: PersonSummary,
+  index: Record<string, ApiPerson>,
+): PersonSummary => {
+  const details = index[person.id];
+  if (!details) return person;
+  return {
+    ...person,
+    avatarUrl: person.avatarUrl ?? details.avatarUrl ?? null,
+    birthDate: person.birthDate ?? details.birthDate ?? null,
+    sex: person.sex ?? details.sex ?? null,
+    gender: person.gender ?? details.gender ?? null,
+    raceColor: person.raceColor ?? details.raceColor ?? null,
+    status: person.status ?? details.status ?? null,
+    personType: person.personType ?? details.personType ?? null,
+    hasHealthCondition:
+      person.hasHealthCondition ?? details.hasHealthCondition ?? null,
+    hasMedication: person.hasMedication ?? details.hasMedication ?? null,
+  };
+};
+
+const mergeRelationsResponse = (
+  response: PersonRelationsResponse,
+  index: Record<string, ApiPerson>,
+): PersonRelationsResponse => ({
+  ...response,
+  householdMembers: response.householdMembers.map((member) => ({
+    ...member,
+    person: mergePersonSummary(member.person, index),
+  })),
+  relations: response.relations.map((relation) => ({
+    ...relation,
+    relatedPerson: mergePersonSummary(relation.relatedPerson, index),
+  })),
+});
+
 export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
   const { token } = useAuth();
   const [data, setData] = React.useState<PersonRelationsResponse | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [peopleOptions, setPeopleOptions] = React.useState<PersonSummary[]>([]);
+  const [peopleIndex, setPeopleIndex] = React.useState<Record<string, ApiPerson>>({});
+  const peopleIndexRef = React.useRef<Record<string, ApiPerson>>({});
   const [incomeSummary, setIncomeSummary] =
     React.useState<FamilyIncomeSummary | null>(null);
   const [householdProfile, setHouseholdProfile] =
@@ -104,7 +149,11 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
         getHouseholdAssets(token, personId),
         getHouseholdPersonAssets(token, personId),
       ]);
-      setData(relationsResponse);
+      const enriched = mergeRelationsResponse(
+        relationsResponse,
+        peopleIndexRef.current,
+      );
+      setData(enriched);
       setIncomeSummary(incomeResponse);
       setHouseholdProfile(profileResponse);
       setHouseholdAssets(householdAssetsResponse);
@@ -131,6 +180,8 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
     if (!token) return;
     listPeople(token, { all: true })
       .then((response) => {
+        const index = buildPeopleIndex(response.data);
+        setPeopleIndex(index);
         const options = response.data
           .filter((item) => item.id !== personId)
           .map((item) => ({
@@ -142,13 +193,23 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
             gender: item.gender,
             raceColor: item.raceColor,
             status: item.status,
+            personType: item.personType ?? null,
+            hasHealthCondition: item.hasHealthCondition ?? null,
+            hasMedication: item.hasMedication ?? null,
           }));
         setPeopleOptions(options);
+        setData((prev) =>
+          prev ? mergeRelationsResponse(prev, index) : prev,
+        );
       })
       .catch(() => {
         setPeopleOptions([]);
       });
   }, [token, personId]);
+
+  React.useEffect(() => {
+    peopleIndexRef.current = peopleIndex;
+  }, [peopleIndex]);
 
   const create = React.useCallback(
     async (payload: PersonRelationInput) => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { resolveMediaUrl } from "@/lib/api";
 import { resolvePersonDisplayNames } from "@/app/[tenant]/(modules)/people/utils";
 import {
   FamilyPreview,
@@ -30,8 +29,13 @@ export function FamilyHeaderPreview() {
       member.person.fullName,
       member.person.socialName,
     ).primary,
+    fullName: member.person.fullName,
+    socialName: member.person.socialName ?? null,
+    birthDate: member.person.birthDate ?? null,
     role: relationByPerson.get(member.personId) ?? member.role ?? "Mora junto",
-    avatar: resolveMediaUrl(member.person.avatarUrl ?? "/avatar.jpg"),
+    avatarUrl: member.person.avatarUrl ?? null,
+    hasHealthCondition: member.person.hasHealthCondition ?? null,
+    hasMedication: member.person.hasMedication ?? null,
   }));
 
   return <FamilyPreview members={members} />;

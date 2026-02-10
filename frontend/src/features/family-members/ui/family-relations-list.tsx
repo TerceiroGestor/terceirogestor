@@ -23,9 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { PersonIdentityCard } from "@/components/person-identity-card";
+import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -37,7 +36,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, RefreshCw, Pencil, Trash2 } from "lucide-react";
-import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
@@ -158,40 +156,18 @@ const FamilyRow = ({
   return (
     <SectionListItem
       leading={(
-        <Dialog>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-label="Ver identificacao da pessoa"
-            >
-              <Avatar className="h-9 w-9">
-                <AvatarImage
-                  src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
-                />
-                <AvatarFallback>
-                  {displayNames.primary.slice(0, 1).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
-                Ver perfil
-              </span>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-xl">
-            <PersonIdentityCard
-              personId={person.id}
-              tenantSlug={tenantSlug}
-              fullName={person.fullName}
-              socialName={person.socialName}
-              ageLabel={ageLabel}
-              avatarUrl={person.avatarUrl}
-              hasHealthCondition={false}
-              hasMedication={false}
-              isBirthdayToday={isBirthday}
-            />
-          </DialogContent>
-        </Dialog>
+        <PersonIdentityAvatarTrigger
+          personId={person.id}
+          tenantSlug={tenantSlug}
+          fullName={person.fullName}
+          socialName={person.socialName}
+          birthDate={person.birthDate ?? null}
+          ageLabel={ageLabel}
+          avatarUrl={person.avatarUrl}
+          hasHealthCondition={person.hasHealthCondition}
+          hasMedication={person.hasMedication}
+          isBirthdayToday={isBirthday}
+        />
       )}
       title={(
         <div className="flex flex-col">

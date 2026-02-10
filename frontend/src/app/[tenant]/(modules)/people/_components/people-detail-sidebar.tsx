@@ -1,13 +1,10 @@
 "use client";
 
 import type { Person } from "../types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resolveMediaUrl } from "@/lib/api";
 import {
   formatDate,
-  getInitials,
   GENDER_LABELS,
   RACE_COLOR_LABELS,
   SEX_LABELS,
@@ -17,6 +14,9 @@ import {
 import { Cake, HeartPulse, MessageCircle, Pill } from "lucide-react";
 import { Field } from "./people-detail-field";
 import { SectionDivider } from "./people-detail-section-divider";
+import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
+import { usePathname } from "next/navigation";
+import { getTenantSlugFromPath } from "@/lib/tenant-path";
 
 type PeopleDetailSidebarProps = {
   person: Person;
@@ -33,12 +33,14 @@ export function PeopleDetailSidebar({
   whatsappUrl,
   onCopy,
 }: PeopleDetailSidebarProps) {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const displayNames = resolvePersonDisplayNames(
     person.fullName,
     person.socialName,
   );
+  const typeBadge = person.personType || "Tipo";
   const infoBadges = [
-    person.personType || "Tipo",
     resolveLabel(person.sex, SEX_LABELS),
     resolveLabel(person.gender, GENDER_LABELS),
     resolveLabel(person.raceColor, RACE_COLOR_LABELS),
@@ -46,15 +48,23 @@ export function PeopleDetailSidebar({
   ];
 
   return (
-    <Card className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
       <CardHeader className="flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-3">
-          <Avatar className="h-40 w-40">
-            <AvatarImage
-              src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
-            />
-            <AvatarFallback>{getInitials(displayNames.primary)}</AvatarFallback>
-          </Avatar>
+          <PersonIdentityAvatarTrigger
+            personId={person.id}
+            tenantSlug={tenantSlug}
+            fullName={person.fullName}
+            socialName={person.socialName}
+            birthDate={person.birthDate ?? null}
+            ageLabel={ageLabel}
+            avatarUrl={person.avatarUrl ?? "/avatar.jpg"}
+            hasHealthCondition={person.hasHealthCondition}
+            hasMedication={person.hasMedication}
+            isBirthdayToday={isTodayBirthday}
+            avatarClassName="h-40 w-40"
+            tooltipLabel={null}
+          />
           {(person.hasHealthCondition ||
             person.hasMedication ||
             isTodayBirthday) ? (
@@ -94,8 +104,11 @@ export function PeopleDetailSidebar({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex flex-wrap items-center gap-0.5 lg:flex-nowrap">
+      <CardContent className="flex-1 min-h-0 space-y-2 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Badge variant="outline">{typeBadge}</Badge>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
           {infoBadges.map((label, index) => (
             <Badge key={`${label}-${index}`} variant="outline">
               {label}

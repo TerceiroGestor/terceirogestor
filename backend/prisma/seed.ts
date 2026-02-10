@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from '../generated/prisma';
 import { createPrismaAdapter } from '../src/core/prisma/prisma-adapter';
 
 const databaseUrl = process.env.DATABASE_URL;

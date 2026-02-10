@@ -1,12 +1,16 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { Person, PersonFormData } from "../types";
 import { resolveMediaUrl } from "@/lib/api";
 import { resolvePersonDisplayNames, toDateInputValue } from "../utils";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { PeopleDetail } from "./people-detail";
 import { PeopleFormDialog } from "./people-form-dialog";
+import { Button } from "@/components/ui/button";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 type PeopleDetailClientPageProps = {
   person: Person;
@@ -21,6 +25,8 @@ export function PeopleDetailClientPage({
 }: PeopleDetailClientPageProps) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [tabValue, setTabValue] = React.useState("resumo");
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const tagSuggestions = React.useMemo(
     () => (person.tags ? Array.from(new Set(person.tags)) : []),
     [person.tags],
@@ -38,6 +44,7 @@ export function PeopleDetailClientPage({
     person.fullName,
     person.socialName,
   );
+  const treeHref = withTenantPath(`/people/${person.id}/tree`, tenantSlug);
 
   return (
     <>
@@ -53,6 +60,11 @@ export function PeopleDetailClientPage({
           variant: "default",
           size: "sm",
         }}
+        actionSlot={
+          <Button variant="outline" size="sm" asChild>
+            <Link href={treeHref}>Arvore genealogica</Link>
+          </Button>
+        }
       />
       <PeopleDetail
         person={person}

@@ -75,6 +75,8 @@ export type ApiPersonSummary = {
   raceColor: string | null;
   status: string | null;
   personType?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
 };
 
 export type ApiHouseholdInfo = {
@@ -107,6 +109,37 @@ export type ApiPersonRelation = {
   createdAt?: string;
   updatedAt?: string;
   relatedPerson: ApiPersonSummary;
+};
+
+export type ApiPersonTreeNode = {
+  id: string;
+  fullName: string;
+  socialName?: string | null;
+  birthDate: string | null;
+  avatarUrl: string | null;
+  sex?: string | null;
+  gender?: string | null;
+  raceColor?: string | null;
+  status?: string | null;
+  personType?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
+  depth: number;
+};
+
+export type ApiPersonTreeEdge = {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: string;
+};
+
+export type ApiPersonRelationsTreeResponse = {
+  rootId: string;
+  depth: number;
+  truncated: boolean;
+  nodes: ApiPersonTreeNode[];
+  edges: ApiPersonTreeEdge[];
 };
 
 export type ApiPersonRelationsResponse = {
@@ -319,6 +352,19 @@ export async function deletePerson(token: string, id: string) {
 export async function getPersonRelations(token: string, id: string) {
   return apiRequest<ApiPersonRelationsResponse>(
     `/people/${id}/relations`,
+    {},
+    token,
+  );
+}
+
+export async function getPersonRelationsTree(
+  token: string,
+  id: string,
+  params?: { depth?: number },
+) {
+  const query = buildQuery(params);
+  return apiRequest<ApiPersonRelationsTreeResponse>(
+    `/people/${id}/relations-tree${query}`,
     {},
     token,
   );

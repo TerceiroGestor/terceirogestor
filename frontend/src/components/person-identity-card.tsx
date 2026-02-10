@@ -1,21 +1,40 @@
 "use client";
 
-import { Cake, HeartPulse, Pill, ArrowUpRight } from "lucide-react";
+import * as React from "react";
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  Cake,
+  HeartPulse,
+  Pill,
+  XIcon,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { FamilyRelationsProvider } from "@/features/family-members/context/family-relations-context";
+import { FamilyHeaderPreview } from "@/features/family-members/ui/family-header-preview";
 import { resolveMediaUrl } from "@/lib/api";
 import {
+  getAgeFromBirthDate,
   getInitials,
+  isBirthdayToday,
   resolvePersonDisplayNames,
 } from "@/app/[tenant]/(modules)/people/utils";
-import Link from "next/link";
 import { withTenantPath } from "@/lib/tenant-path";
 
-type PersonIdentityCardProps = {
+export type PersonIdentityCardProps = {
   personId?: string;
   tenantSlug?: string | null;
   fullName: string;
   socialName?: string | null;
+  birthDate?: string | null;
   ageLabel?: string | null;
   avatarUrl?: string | null;
   hasHealthCondition?: boolean | null;
@@ -28,28 +47,38 @@ export function PersonIdentityCard({
   tenantSlug,
   fullName,
   socialName,
+  birthDate,
   ageLabel,
   avatarUrl,
   hasHealthCondition,
   hasMedication,
-  isBirthdayToday,
+  isBirthdayToday: isBirthdayTodayProp,
 }: PersonIdentityCardProps) {
   const { primary, secondary } = resolvePersonDisplayNames(
     fullName,
     socialName,
   );
   const avatarSrc = resolveMediaUrl(avatarUrl || "/avatar.jpg");
+  const resolvedAgeLabel = React.useMemo(() => {
+    if (ageLabel) return ageLabel;
+    const ageValue = getAgeFromBirthDate(birthDate);
+    return ageValue !== null ? `${ageValue} anos` : "Idade nao informada";
+  }, [ageLabel, birthDate]);
+  const isBirthday = React.useMemo(() => {
+    if (typeof isBirthdayTodayProp === "boolean") return isBirthdayTodayProp;
+    return isBirthdayToday(birthDate);
+  }, [isBirthdayTodayProp, birthDate]);
 
   return (
-    <div className="flex w-full items-center gap-4 rounded-2xl border border-border bg-muted/30 px-4 py-3">
-      <div className="relative">
-        <Avatar className="h-36 w-36">
+    <div className="flex w-full flex-col gap-4 rounded-2xl border border-border/60 bg-muted/20 px-4 py-4 sm:flex-row sm:items-center">
+      <div className="relative shrink-0 self-center sm:self-start">
+        <Avatar className="h-28 w-28 sm:h-32 sm:w-32">
           <AvatarImage src={avatarSrc} />
           <AvatarFallback>{getInitials(fullName)}</AvatarFallback>
         </Avatar>
       </div>
       <div className="flex-1">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="text-base font-semibold text-foreground">
               {primary}
@@ -57,6 +86,9 @@ export function PersonIdentityCard({
             {secondary ? (
               <div className="text-sm text-muted-foreground">{secondary}</div>
             ) : null}
+            <div className="mt-1 text-sm text-muted-foreground">
+              {resolvedAgeLabel}
+            </div>
           </div>
           {personId ? (
             <Link
@@ -68,10 +100,7 @@ export function PersonIdentityCard({
             </Link>
           ) : null}
         </div>
-        <div className="mt-1 text-sm text-muted-foreground">
-          {ageLabel ?? "Idade nao informada"}
-        </div>
-        <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
           {hasHealthCondition ? (
             <Badge variant="outline" className="gap-1">
               <HeartPulse className="h-3.5 w-3.5 text-rose-500" />
@@ -84,13 +113,13 @@ export function PersonIdentityCard({
               Medicacao
             </Badge>
           ) : null}
-          {isBirthdayToday ? (
+          {isBirthday ? (
             <Badge variant="outline" className="gap-1">
               <Cake className="h-3.5 w-3.5 text-amber-500" />
               Aniversario
             </Badge>
           ) : null}
-          {!hasHealthCondition && !hasMedication && !isBirthdayToday ? (
+          {!hasHealthCondition && !hasMedication && !isBirthday ? (
             <span className="text-xs text-muted-foreground">
               Sem sinalizadores no momento
             </span>
@@ -98,5 +127,128 @@ export function PersonIdentityCard({
         </div>
       </div>
     </div>
+  );
+}
+
+type PersonIdentityDialogProps = PersonIdentityCardProps & {
+  trigger: React.ReactNode;
+  title?: string;
+  subtitle?: string;
+};
+
+export function PersonIdentityDialog({
+  trigger,
+  title = "Identificacao",
+  subtitle = "Perfil da pessoa",
+  ...cardProps
+}: PersonIdentityDialogProps) {
+  const familyPreview = cardProps.personId ? (
+    <FamilyRelationsProvider personId={cardProps.personId}>
+      <FamilyHeaderPreview />
+    </FamilyRelationsProvider>
+  ) : null;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent
+        className="max-w-2xl border-none bg-transparent p-0 shadow-none sm:max-w-2xl"
+        showCloseButton={false}
+      >
+        <div className="rounded-3xl border border-border/60 bg-background p-5 shadow-lg">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                {title}
+              </p>
+              <h2 className="text-lg font-semibold text-foreground">
+                {subtitle}
+              </h2>
+            </div>
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                aria-label="Fechar"
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </div>
+          {familyPreview ? (
+            <div className="mt-3 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                  Moram juntos
+                </p>
+                {familyPreview}
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-4">
+            <PersonIdentityCard {...cardProps} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type PersonIdentityAvatarTriggerProps = PersonIdentityCardProps & {
+  avatarClassName?: string;
+  buttonClassName?: string;
+  tooltipLabel?: string | null;
+  tooltipClassName?: string;
+};
+
+export function PersonIdentityAvatarTrigger({
+  avatarClassName,
+  buttonClassName,
+  tooltipLabel = "Ver perfil",
+  tooltipClassName,
+  ...cardProps
+}: PersonIdentityAvatarTriggerProps) {
+  const { fullName, socialName, avatarUrl } = cardProps;
+  const displayNames = resolvePersonDisplayNames(fullName, socialName);
+  const avatarSrc = resolveMediaUrl(avatarUrl || "/avatar.jpg");
+
+  return (
+    <PersonIdentityDialog
+      {...cardProps}
+      trigger={(
+        <button
+          type="button"
+          className={[
+            "group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            buttonClassName,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label="Ver identificacao da pessoa"
+        >
+          <Avatar
+            className={["h-9 w-9", avatarClassName].filter(Boolean).join(" ")}
+          >
+            <AvatarImage src={avatarSrc} />
+            <AvatarFallback>
+              {getInitials(displayNames.primary)}
+            </AvatarFallback>
+          </Avatar>
+          {tooltipLabel ? (
+            <span
+              className={[
+                "pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100",
+                tooltipClassName,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {tooltipLabel}
+            </span>
+          ) : null}
+        </button>
+      )}
+    />
   );
 }

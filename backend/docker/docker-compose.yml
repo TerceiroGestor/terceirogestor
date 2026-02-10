@@ -6,7 +6,7 @@ services:
     container_name: mysql-terceirogestor
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 'i"^Ak88E8N)D3EZ:V`_+'
+      MYSQL_ROOT_PASSWORD: '#uiY&98rT54%kjJgd6$@'
       MYSQL_DATABASE: terceirogestor
     ports:
       - '3306:3306'

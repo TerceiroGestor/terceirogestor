@@ -5,8 +5,19 @@ import { getTenantSlug, withTenantApiPath } from "@/lib/tenant-path";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ?? "";
+const fallbackApiUrl =
+  typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:3001`
+    : DEFAULT_API_URL;
+const isLocalEnv =
+  envApiUrl.includes("localhost") || envApiUrl.includes("127.0.0.1");
+const isRemoteBrowser =
+  typeof window !== "undefined" &&
+  !["localhost", "127.0.0.1"].includes(window.location.hostname);
+
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
+  envApiUrl && (!isLocalEnv || !isRemoteBrowser) ? envApiUrl : fallbackApiUrl;
 
 export function resolveMediaUrl(url?: string | null) {
   if (!url) return "";

@@ -1,12 +1,12 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PrismaClient as PrismaClientType } from '../../../generated/prisma/client';
+import type { PrismaClient as PrismaClientType } from '../../../generated/prisma';
 import { createPrismaAdapter } from './prisma-adapter';
 import { join } from 'path';
 
 const { PrismaClient } = require(join(
   process.cwd(),
-  'generated/prisma/client',
+  'generated/prisma',
 )) as { PrismaClient: typeof PrismaClientType };
 
 @Injectable()

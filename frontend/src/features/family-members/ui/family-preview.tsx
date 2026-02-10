@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export type FamilyPreviewMember = {
   id?: string;
   name: string;
+  fullName: string;
+  socialName?: string | null;
+  birthDate?: string | null;
   role: string;
-  avatar: string;
+  avatarUrl?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
 };
 
 export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
@@ -41,12 +46,18 @@ export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
               )}
               <p className="text-[11px] text-muted-foreground">{member.role}</p>
             </div>
-            <Avatar className="h-9 w-9 ring-2 ring-background">
-              <AvatarImage src={member.avatar} />
-              <AvatarFallback>
-                {member.name.slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <PersonIdentityAvatarTrigger
+              personId={member.id}
+              tenantSlug={tenantSlug}
+              fullName={member.fullName}
+              socialName={member.socialName}
+              birthDate={member.birthDate}
+              avatarUrl={member.avatarUrl}
+              hasHealthCondition={member.hasHealthCondition}
+              hasMedication={member.hasMedication}
+              avatarClassName="h-9 w-9 ring-2 ring-background"
+              tooltipLabel={null}
+            />
           </div>
         ))}
       </div>

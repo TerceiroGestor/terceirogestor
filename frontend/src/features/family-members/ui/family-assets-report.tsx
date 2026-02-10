@@ -25,18 +25,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import type {
   HouseholdAsset,
   PersonAsset,
   PersonAssetsGroup,
 } from "@/app/[tenant]/(modules)/people/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  getInitials,
-  resolvePersonDisplayNames,
-} from "@/app/[tenant]/(modules)/people/utils";
+import { resolvePersonDisplayNames } from "@/app/[tenant]/(modules)/people/utils";
+import { getTenantSlugFromPath } from "@/lib/tenant-path";
 
 type AssetPayload = {
   category: string;
@@ -372,6 +371,8 @@ const SharedAssetsList = ({
 };
 
 export function FamilyAssetsReport() {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const {
     householdAssets,
     personAssetsByMember,
@@ -507,6 +508,7 @@ export function FamilyAssetsReport() {
                   <PersonAssetGroup
                     key={group.person.id}
                     group={group}
+                    tenantSlug={tenantSlug}
                     onCreate={createPersonAsset}
                     onDelete={(assetId) =>
                       removePersonAsset(group.person.id, assetId)
@@ -583,11 +585,13 @@ export function FamilyAssetsReport() {
 
 const PersonAssetGroup = ({
   group,
+  tenantSlug,
   onCreate,
   onDelete,
   onEditRequest,
 }: {
   group: PersonAssetsGroup;
+  tenantSlug?: string | null;
   onCreate: (personId: string, payload: AssetPayload) => Promise<void>;
   onDelete: (assetId: string) => Promise<void>;
   onEditRequest: (asset: PersonAsset) => void;
@@ -597,16 +601,23 @@ const PersonAssetGroup = ({
     group.person.fullName,
     group.person.socialName,
   );
-  const initials = getInitials(displayNames.primary).toUpperCase();
 
   return (
     <SectionListCollapse
       title={
         <div className="flex items-center gap-2">
-          <Avatar className="size-7 border border-border/60">
-            <AvatarImage src={group.person.avatarUrl ?? undefined} />
-            <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-          </Avatar>
+          <PersonIdentityAvatarTrigger
+            personId={group.person.id}
+            tenantSlug={tenantSlug}
+            fullName={group.person.fullName}
+            socialName={group.person.socialName}
+            birthDate={group.person.birthDate ?? null}
+            avatarUrl={group.person.avatarUrl}
+            hasHealthCondition={group.person.hasHealthCondition}
+            hasMedication={group.person.hasMedication}
+            avatarClassName="size-7 border border-border/60"
+            tooltipLabel={null}
+          />
           <div>
             <p className="text-sm font-medium text-foreground">
               {displayNames.primary}
@@ -621,6 +632,7 @@ const PersonAssetGroup = ({
         </div>
       }
       count={group.assets.length}
+      toggleOnTitle={false}
       actions={
         <AssetDialog
           title="Adicionar item pessoal"

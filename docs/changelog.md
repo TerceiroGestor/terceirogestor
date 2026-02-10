@@ -4,32 +4,20 @@
 
 ### O que fizemos hoje
 
-- Padronização do PersonIdentityCard para uso em tabelas, listas e detalhes.
-- Nome social como principal e nome completo como secundário em todas as views de pessoa.
-- Ajustes em listas de familiares e itens individuais para refletir o mesmo padrão de identificação.
-- Commit e push das alterações de identidade de pessoa.
-- Estrutura de tenant > [tenant]/login....
+- Nova árvore genealógica: endpoint `/people/:id/relations-tree` com BFS e filtros (pai/mãe/filho/irmão/cônjuge).
+- Nova página `/people/[id]/tree` com profundidade configurável e botão de acesso no detalhe.
+- Layout vertical da árvore com scroll e indicação visual de conexão entre pessoas.
+- Ajuste do `API_URL` no frontend para funcionar em intranet quando o env aponta para `localhost`.
+- Builds de backend e frontend executados.
 
 ### O que vamos fazer amanhã
 
+- Validar a árvore com dados reais, ajustes finos de ordenação e relações.
+- Se necessário, aprimorar linhas de conexão entre cards (SVG) e agrupamentos visuais.
 - Finalizar logs, audits e autorização com middlewares respeitando roles e permissões granulares.
 - Revisar e padronizar toda a feature de Pessoa para fechamento.
 - Iniciar novas features: Atendimentos, Encaminhamentos, Diário, Vulnerabilidades, Qualidades.
 - Próximos dias: Módulo de Projetos com matrícula e submódulos (Presenças, Atividades, Oficinas, Eventos, Ocorrências, Avaliação de Destaques).
-
-### O que fizemos hoje
-
-- Padronizacao do PersonIdentityCard para uso em tabelas, listas e detalhes.
-- Nome social como principal e nome completo como secundario em todas as views de pessoa.
-- Ajustes em listas de familiares e itens individuais para refletir o mesmo padrao de identificacao.
-- Commit e push das alteracoes de identidade de pessoa.
-
-### O que vamos fazer amanha
-
-- Finalizar logs, audits e autorizacao com middlewares respeitando roles e permissoes granulares.
-- Revisar e padronizar toda a feature de Pessoa para fechamento.
-- Iniciar novas features: Atendimentos, Encaminhamentos, Diario, Vulnerabilidades, Qualidades.
-- Proximos dias: Modulo de Projetos com matricula e submodulos (Presencas, Atividades, Oficinas, Eventos, Ocorrencias, Avaliacao de Destaques).
 
 ## 2026-02-09 — Plano de segurança (fases)
 

@@ -3,7 +3,6 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,18 +15,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TagInput } from "@/components/ui/tag-input";
-import { PersonIdentityCard } from "@/components/person-identity-card";
+import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
 import type { PeopleTableItem, PersonFormData } from "./types";
 import {
   formatDate,
-  getInitials,
   GENDER_LABELS,
   RACE_COLOR_LABELS,
   SEX_LABELS,
   resolvePersonDisplayNames,
   resolveLabel,
 } from "./utils";
-import { resolveMediaUrl } from "@/lib/api";
 import { usePathname } from "next/navigation";
 import { getTenantSlugFromPath } from "@/lib/tenant-path";
 
@@ -154,49 +151,28 @@ export function usePeopleColumns({
       meta: { dataType: "string" },
       cell: ({ row }) => {
         const person = row.original;
-        const avatarSrc = resolveMediaUrl(person.avatarUrl || "/avatar.jpg");
         const displayNames = resolvePersonDisplayNames(
           person.fullName,
           person.socialName,
         );
-        const ageLabel =
-          person.age !== null && person.age !== undefined
-            ? `${person.age} anos`
-            : "Idade nao informada";
         return (
           <div className="flex items-center gap-3">
-            <Dialog>
-              <DialogTrigger asChild>
-                <button
-                  type="button"
-                  className="group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  aria-label="Ver identificacao da pessoa"
-                >
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={avatarSrc} />
-                    <AvatarFallback>
-                      {getInitials(displayNames.primary)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
-                    Ver perfil
-                  </span>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="max-w-xl">
-                <PersonIdentityCard
-                  personId={person.id}
-                  tenantSlug={tenantSlug}
-                  fullName={person.fullName}
-                  socialName={person.socialName}
-                  ageLabel={ageLabel}
-                  avatarUrl={person.avatarUrl}
-                  hasHealthCondition={person.hasHealthCondition}
-                  hasMedication={person.hasMedication}
-                  isBirthdayToday={person.isBirthdayToday}
-                />
-              </DialogContent>
-            </Dialog>
+            <PersonIdentityAvatarTrigger
+              personId={person.id}
+              tenantSlug={tenantSlug}
+              fullName={person.fullName}
+              socialName={person.socialName}
+              birthDate={person.birthDate ?? null}
+              ageLabel={
+                person.age !== null && person.age !== undefined
+                  ? `${person.age} anos`
+                  : null
+              }
+              avatarUrl={person.avatarUrl}
+              hasHealthCondition={person.hasHealthCondition}
+              hasMedication={person.hasMedication}
+              isBirthdayToday={person.isBirthdayToday}
+            />
             <div className="leading-tight">
               <div className="flex items-center gap-2">
                 <p className="font-medium">{displayNames.primary}</p>

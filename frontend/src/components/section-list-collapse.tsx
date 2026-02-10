@@ -12,6 +12,7 @@ type SectionListCollapseProps = {
   defaultOpen?: boolean;
   actions?: ReactNode;
   showActionsOnHover?: boolean;
+  toggleOnTitle?: boolean;
   children: ReactNode;
   className?: string;
   headerClassName?: string;
@@ -24,6 +25,7 @@ export function SectionListCollapse({
   defaultOpen = false,
   actions,
   showActionsOnHover = true,
+  toggleOnTitle = true,
   children,
   className,
   headerClassName,
@@ -41,18 +43,29 @@ export function SectionListCollapse({
       <div
         className={clsx("flex items-center justify-between gap-2", headerClassName)}
       >
-        <button
-          type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="flex flex-1 items-center gap-2 text-left text-xs font-semibold text-foreground"
-        >
-          <span className="text-sm leading-tight">{title}</span>
-          {typeof count === "number" ? (
-            <Badge variant="outline" className="text-[10px]">
-              {count}
-            </Badge>
-          ) : null}
-        </button>
+        {toggleOnTitle ? (
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            className="flex flex-1 items-center gap-2 text-left text-xs font-semibold text-foreground"
+          >
+            <span className="text-sm leading-tight">{title}</span>
+            {typeof count === "number" ? (
+              <Badge variant="outline" className="text-[10px]">
+                {count}
+              </Badge>
+            ) : null}
+          </button>
+        ) : (
+          <div className="flex flex-1 items-center gap-2 text-left text-xs font-semibold text-foreground">
+            <span className="text-sm leading-tight">{title}</span>
+            {typeof count === "number" ? (
+              <Badge variant="outline" className="text-[10px]">
+                {count}
+              </Badge>
+            ) : null}
+          </div>
+        )}
         <div className="flex items-center gap-1">
           {actions ? (
             <div
