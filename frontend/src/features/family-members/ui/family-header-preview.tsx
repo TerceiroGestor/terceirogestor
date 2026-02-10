@@ -1,6 +1,7 @@
 "use client";
 
 import { resolveMediaUrl } from "@/lib/api";
+import { resolvePersonDisplayNames } from "@/app/[tenant]/(modules)/people/utils";
 import {
   FamilyPreview,
   type FamilyPreviewMember,
@@ -25,7 +26,10 @@ export function FamilyHeaderPreview() {
   );
   const members: FamilyPreviewMember[] = householdMembers.map((member) => ({
     id: member.person.id,
-    name: member.person.fullName,
+    name: resolvePersonDisplayNames(
+      member.person.fullName,
+      member.person.socialName,
+    ).primary,
     role: relationByPerson.get(member.personId) ?? member.role ?? "Mora junto",
     avatar: resolveMediaUrl(member.person.avatarUrl ?? "/avatar.jpg"),
   }));

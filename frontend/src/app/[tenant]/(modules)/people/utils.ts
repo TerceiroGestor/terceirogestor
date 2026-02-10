@@ -4,6 +4,7 @@ export {
   getInitials,
   isBirthdayInCurrentMonth,
   isBirthdayToday,
+  resolvePersonDisplayNames,
   resolveLabel,
   toDateInputValue,
 } from "./people.helpers";

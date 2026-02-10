@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { Person, PersonFormData } from "../types";
 import { resolveMediaUrl } from "@/lib/api";
-import { toDateInputValue } from "../utils";
+import { resolvePersonDisplayNames, toDateInputValue } from "../utils";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { PeopleDetail } from "./people-detail";
 import { PeopleFormDialog } from "./people-form-dialog";
@@ -34,6 +34,10 @@ export function PeopleDetailClientPage({
     }),
     [person],
   );
+  const displayNames = resolvePersonDisplayNames(
+    person.fullName,
+    person.socialName,
+  );
 
   return (
     <>
@@ -41,7 +45,7 @@ export function PeopleDetailClientPage({
         title="Detalhes da pessoa"
         items={[
           { label: "Pessoas", href: "/people" },
-          { label: person.fullName },
+          { label: displayNames.primary },
         ]}
         action={{
           label: "Editar cadastro",

@@ -24,6 +24,7 @@ import {
   GENDER_LABELS,
   RACE_COLOR_LABELS,
   SEX_LABELS,
+  resolvePersonDisplayNames,
   resolveLabel,
 } from "./utils";
 import { resolveMediaUrl } from "@/lib/api";
@@ -120,11 +121,7 @@ function TagsCell({
             Use tags para organizar e filtrar pessoas.
           </DialogDescription>
         </DialogHeader>
-        <TagInput
-          value={draft}
-          onChange={setDraft}
-          suggestions={suggestions}
-        />
+        <TagInput value={draft} onChange={setDraft} suggestions={suggestions} />
         <DialogFooter className="gap-2">
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancelar
@@ -158,6 +155,10 @@ export function usePeopleColumns({
       cell: ({ row }) => {
         const person = row.original;
         const avatarSrc = resolveMediaUrl(person.avatarUrl || "/avatar.jpg");
+        const displayNames = resolvePersonDisplayNames(
+          person.fullName,
+          person.socialName,
+        );
         const ageLabel =
           person.age !== null && person.age !== undefined
             ? `${person.age} anos`
@@ -173,14 +174,16 @@ export function usePeopleColumns({
                 >
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={avatarSrc} />
-                    <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
+                    <AvatarFallback>
+                      {getInitials(displayNames.primary)}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
                     Ver perfil
                   </span>
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-xl">
                 <PersonIdentityCard
                   personId={person.id}
                   tenantSlug={tenantSlug}
@@ -196,11 +199,13 @@ export function usePeopleColumns({
             </Dialog>
             <div className="leading-tight">
               <div className="flex items-center gap-2">
-                <p className="font-medium">{person.fullName}</p>
+                <p className="font-medium">{displayNames.primary}</p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {person.socialName ?? "-"}
-              </p>
+              {displayNames.secondary ? (
+                <p className="text-xs text-muted-foreground">
+                  {displayNames.secondary}
+                </p>
+              ) : null}
             </div>
           </div>
         );
@@ -267,7 +272,9 @@ export function usePeopleColumns({
         return (
           <Badge
             variant="outline"
-            className={raceBadgeClass[person.raceColor ?? ""] ?? badgeTone.slate}
+            className={
+              raceBadgeClass[person.raceColor ?? ""] ?? badgeTone.slate
+            }
           >
             {label}
           </Badge>

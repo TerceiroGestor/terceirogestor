@@ -10,6 +10,7 @@ import {
   getAgeFromBirthDate,
   isBirthdayInCurrentMonth,
   isBirthdayToday,
+  resolvePersonDisplayNames,
   toDateInputValue,
 } from "@/app/[tenant]/(modules)/people/utils";
 import { PeopleFormDialog } from "@/app/[tenant]/(modules)/people/_components/people-form-dialog";
@@ -354,8 +355,12 @@ export default function PeoplePage() {
     async (person: PeopleTableItem) => {
       if (!token) return;
       setError(null);
+      const displayNames = resolvePersonDisplayNames(
+        person.fullName,
+        person.socialName,
+      );
       const confirmed = window.confirm(
-        `Remover o cadastro de ${person.fullName}?`,
+        `Remover o cadastro de ${displayNames.primary}?`,
       );
       if (!confirmed) return;
       try {
@@ -393,6 +398,10 @@ export default function PeoplePage() {
         onGroupingChange={setGrouping}
         onChartOpenChange={setChartOpen}
         exportMeta={exportMeta}
+        initialColumnPinning={{
+          left: ["actions", "fullName"],
+          right: ["createdAt", "status", "tags"],
+        }}
         searchPlaceholder="Pesquisar pessoas"
         summaryCards={{
           totalLabel: "Total",

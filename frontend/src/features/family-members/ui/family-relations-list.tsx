@@ -45,6 +45,7 @@ import {
   formatCurrency,
   getAgeFromBirthDate,
   isBirthdayToday,
+  resolvePersonDisplayNames,
 } from "@/app/[tenant]/(modules)/people/utils";
 
 type FamilyRelationsListProps = {
@@ -143,6 +144,10 @@ const FamilyRow = ({
   onEdit?: () => void;
   onDelete?: () => void;
 }) => {
+  const displayNames = resolvePersonDisplayNames(
+    person.fullName,
+    person.socialName,
+  );
   const ageValue = getAgeFromBirthDate(person.birthDate ?? null);
   const ageLabel =
     ageValue !== null && ageValue !== undefined
@@ -165,7 +170,7 @@ const FamilyRow = ({
                   src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
                 />
                 <AvatarFallback>
-                  {person.fullName.slice(0, 1).toUpperCase()}
+                  {displayNames.primary.slice(0, 1).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
@@ -173,11 +178,12 @@ const FamilyRow = ({
               </span>
             </button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-xl">
             <PersonIdentityCard
               personId={person.id}
               tenantSlug={tenantSlug}
               fullName={person.fullName}
+              socialName={person.socialName}
               ageLabel={ageLabel}
               avatarUrl={person.avatarUrl}
               hasHealthCondition={false}
@@ -188,15 +194,22 @@ const FamilyRow = ({
         </Dialog>
       )}
       title={(
-        <>
-          <Link
-            href={withTenantPath(`/people/${person.id}`, tenantSlug)}
-            className="hover:text-foreground/80"
-          >
-            {person.fullName}
-          </Link>
-          {relationType ? <RelationBadge label={relationType} /> : null}
-        </>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <Link
+              href={withTenantPath(`/people/${person.id}`, tenantSlug)}
+              className="hover:text-foreground/80"
+            >
+              {displayNames.primary}
+            </Link>
+            {relationType ? <RelationBadge label={relationType} /> : null}
+          </div>
+          {displayNames.secondary ? (
+            <span className="text-xs text-muted-foreground">
+              {displayNames.secondary}
+            </span>
+          ) : null}
+        </div>
       )}
       meta={badges.map((badge) => (
         <span
@@ -299,11 +312,22 @@ const RelationDialog = ({
                 <SelectValue placeholder="Selecione uma pessoa" />
               </SelectTrigger>
               <SelectContent>
-                {peopleOptions.map((person) => (
-                  <SelectItem key={person.id} value={person.id}>
-                    {person.fullName}
-                  </SelectItem>
-                ))}
+                {peopleOptions.map((person) => {
+                  const displayNames = resolvePersonDisplayNames(
+                    person.fullName,
+                    person.socialName,
+                  );
+                  return (
+                    <SelectItem key={person.id} value={person.id}>
+                      <span>{displayNames.primary}</span>
+                      {displayNames.secondary ? (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {displayNames.secondary}
+                        </span>
+                      ) : null}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

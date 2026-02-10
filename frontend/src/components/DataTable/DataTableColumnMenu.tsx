@@ -75,7 +75,9 @@ export function DataTableColumnMenu<TData>({
   const pinRight = () => {
     if (isActions) return;
     const current = table.getState().columnPinning.right ?? [];
-    const nextRight = current.includes(column.id) ? [] : [column.id];
+    const nextRight = current.includes(column.id)
+      ? current.filter((id) => id !== column.id)
+      : [...current, column.id];
     table.setColumnPinning(
       ensureActionsLeft({
         left: table.getState().columnPinning.left ?? ["actions"],
@@ -189,4 +191,3 @@ export function DataTableColumnMenu<TData>({
     </DropdownMenu>
   );
 }
-

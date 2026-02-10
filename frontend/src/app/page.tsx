@@ -75,7 +75,7 @@ export default function RootPage() {
           <div className="hidden md:flex items-center justify-center">
             <div className="w-full h-full max-w-sm bg-gray-50 rounded-lg flex items-center justify-center p-10">
               <img
-                src="/terceirogestor-identidade-visual.png"
+                src="/uploads/system/logo.png"
                 alt="TerceiroGestor"
                 className="w-60 object-contain"
               />

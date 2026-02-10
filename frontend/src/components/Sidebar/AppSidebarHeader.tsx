@@ -33,7 +33,7 @@ export function AppSidebarHeader() {
         )}
         <div className="leading-tight">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            Instituicao
+            Instituição
           </p>
           <p className="text-sm font-semibold">{tenantName}</p>
         </div>

@@ -11,6 +11,7 @@ import {
   GENDER_LABELS,
   RACE_COLOR_LABELS,
   SEX_LABELS,
+  resolvePersonDisplayNames,
   resolveLabel,
 } from "../utils";
 import { Cake, HeartPulse, MessageCircle, Pill } from "lucide-react";
@@ -32,7 +33,12 @@ export function PeopleDetailSidebar({
   whatsappUrl,
   onCopy,
 }: PeopleDetailSidebarProps) {
+  const displayNames = resolvePersonDisplayNames(
+    person.fullName,
+    person.socialName,
+  );
   const infoBadges = [
+    person.personType || "Tipo",
     resolveLabel(person.sex, SEX_LABELS),
     resolveLabel(person.gender, GENDER_LABELS),
     resolveLabel(person.raceColor, RACE_COLOR_LABELS),
@@ -47,7 +53,7 @@ export function PeopleDetailSidebar({
             <AvatarImage
               src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
             />
-            <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
+            <AvatarFallback>{getInitials(displayNames.primary)}</AvatarFallback>
           </Avatar>
           {(person.hasHealthCondition ||
             person.hasMedication ||
@@ -72,7 +78,14 @@ export function PeopleDetailSidebar({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <p className="text-sm font-semibold">{person.fullName}</p>
+          <div className="text-center">
+            <p className="text-sm font-semibold">{displayNames.primary}</p>
+            {displayNames.secondary ? (
+              <p className="text-xs text-muted-foreground">
+                {displayNames.secondary}
+              </p>
+            ) : null}
+          </div>
           <Badge
             variant="outline"
             className="inline-flex items-center gap-1 border-emerald-200 bg-emerald-50 text-emerald-700"

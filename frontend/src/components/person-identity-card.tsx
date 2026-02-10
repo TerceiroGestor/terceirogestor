@@ -4,7 +4,10 @@ import { Cake, HeartPulse, Pill, ArrowUpRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { resolveMediaUrl } from "@/lib/api";
-import { getInitials } from "@/app/[tenant]/(modules)/people/utils";
+import {
+  getInitials,
+  resolvePersonDisplayNames,
+} from "@/app/[tenant]/(modules)/people/utils";
 import Link from "next/link";
 import { withTenantPath } from "@/lib/tenant-path";
 
@@ -31,14 +34,16 @@ export function PersonIdentityCard({
   hasMedication,
   isBirthdayToday,
 }: PersonIdentityCardProps) {
-  const displaySocialName = socialName?.trim() || fullName;
-  const displayFullName = socialName?.trim() ? fullName : null;
+  const { primary, secondary } = resolvePersonDisplayNames(
+    fullName,
+    socialName,
+  );
   const avatarSrc = resolveMediaUrl(avatarUrl || "/avatar.jpg");
 
   return (
     <div className="flex w-full items-center gap-4 rounded-2xl border border-border bg-muted/30 px-4 py-3">
       <div className="relative">
-        <Avatar className="h-24 w-24">
+        <Avatar className="h-36 w-36">
           <AvatarImage src={avatarSrc} />
           <AvatarFallback>{getInitials(fullName)}</AvatarFallback>
         </Avatar>
@@ -47,12 +52,10 @@ export function PersonIdentityCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="text-base font-semibold text-foreground">
-              {displaySocialName}
+              {primary}
             </div>
-            {displayFullName ? (
-              <div className="text-sm text-muted-foreground">
-                {displayFullName}
-              </div>
+            {secondary ? (
+              <div className="text-sm text-muted-foreground">{secondary}</div>
             ) : null}
           </div>
           {personId ? (

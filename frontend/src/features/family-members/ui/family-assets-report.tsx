@@ -33,6 +33,10 @@ import type {
   PersonAssetsGroup,
 } from "@/app/[tenant]/(modules)/people/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  getInitials,
+  resolvePersonDisplayNames,
+} from "@/app/[tenant]/(modules)/people/utils";
 
 type AssetPayload = {
   category: string;
@@ -589,12 +593,11 @@ const PersonAssetGroup = ({
   onEditRequest: (asset: PersonAsset) => void;
 }) => {
   const [createOpen, setCreateOpen] = React.useState(false);
-  const initials = group.person.fullName
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const displayNames = resolvePersonDisplayNames(
+    group.person.fullName,
+    group.person.socialName,
+  );
+  const initials = getInitials(displayNames.primary).toUpperCase();
 
   return (
     <SectionListCollapse
@@ -606,8 +609,13 @@ const PersonAssetGroup = ({
           </Avatar>
           <div>
             <p className="text-sm font-medium text-foreground">
-              {group.person.fullName}
+              {displayNames.primary}
             </p>
+            {displayNames.secondary ? (
+              <p className="text-[11px] text-muted-foreground">
+                {displayNames.secondary}
+              </p>
+            ) : null}
             <p className="text-[11px] text-muted-foreground">Itens individuais</p>
           </div>
         </div>

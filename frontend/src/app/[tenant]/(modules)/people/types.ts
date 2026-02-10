@@ -64,6 +64,7 @@ export type PeopleTableItem = {
 export type PersonSummary = {
   id: string;
   fullName: string;
+  socialName?: string | null;
   avatarUrl?: string | null;
   birthDate?: string | null;
   sex?: string | null;

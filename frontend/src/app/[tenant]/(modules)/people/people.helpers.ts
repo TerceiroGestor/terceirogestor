@@ -56,6 +56,16 @@ export const getInitials = (name: string) =>
     .slice(0, 2)
     .join("");
 
+export const resolvePersonDisplayNames = (
+  fullName: string,
+  socialName?: string | null,
+) => {
+  const trimmedSocial = socialName?.trim() ?? "";
+  const primary = trimmedSocial || fullName;
+  const secondary = trimmedSocial ? fullName : null;
+  return { primary, secondary };
+};
+
 export const formatDate = (value?: string | null) => {
   if (!value) return "-";
   const date = new Date(value);
