@@ -18,8 +18,11 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FamilyRelationsProvider } from "@/features/family-members/context/family-relations-context";
-import { FamilyHeaderPreview } from "@/features/family-members/ui/family-header-preview";
+import {
+  FamilyRelationsProvider,
+  useFamilyRelationsContext,
+} from "@/features/family-members/context/family-relations-context";
+import { FamilyPreview } from "@/features/family-members/ui/family-preview";
 import { resolveMediaUrl } from "@/lib/api";
 import {
   getAgeFromBirthDate,
@@ -136,15 +139,85 @@ type PersonIdentityDialogProps = PersonIdentityCardProps & {
   subtitle?: string;
 };
 
+function PersonIdentityRelationsFooter() {
+  const { data, isLoading } = useFamilyRelationsContext();
+
+  if (isLoading) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Carregando relacionamentos...
+      </p>
+    );
+  }
+
+  const householdMembers = data?.householdMembers ?? [];
+  const relations = data?.relations ?? [];
+  const relationByPerson = new Map(
+    relations.map((relation) => [relation.relatedPersonId, relation.type]),
+  );
+
+  const livingMembers = householdMembers.map((member) => ({
+    id: member.person.id,
+    name: resolvePersonDisplayNames(
+      member.person.fullName,
+      member.person.socialName,
+    ).primary,
+    fullName: member.person.fullName,
+    socialName: member.person.socialName ?? null,
+    birthDate: member.person.birthDate ?? null,
+    role: relationByPerson.get(member.personId) ?? member.role ?? "Mora junto",
+    avatarUrl: member.person.avatarUrl ?? null,
+    hasHealthCondition: member.person.hasHealthCondition ?? null,
+    hasMedication: member.person.hasMedication ?? null,
+  }));
+
+  const livingIds = new Set(livingMembers.map((member) => member.id));
+  const nonLivingRelations = relations.filter(
+    (relation) =>
+      !relation.livesTogether && !livingIds.has(relation.relatedPersonId),
+  );
+  const nonLivingMembers = nonLivingRelations.map((relation) => ({
+    id: relation.relatedPerson.id,
+    name: resolvePersonDisplayNames(
+      relation.relatedPerson.fullName,
+      relation.relatedPerson.socialName,
+    ).primary,
+    fullName: relation.relatedPerson.fullName,
+    socialName: relation.relatedPerson.socialName ?? null,
+    birthDate: relation.relatedPerson.birthDate ?? null,
+    role: relation.type,
+    avatarUrl: relation.relatedPerson.avatarUrl ?? null,
+    hasHealthCondition: relation.relatedPerson.hasHealthCondition ?? null,
+    hasMedication: relation.relatedPerson.hasMedication ?? null,
+  }));
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          Moram juntos
+        </p>
+        <FamilyPreview members={livingMembers} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          Nao moram juntos
+        </p>
+        <FamilyPreview members={nonLivingMembers} />
+      </div>
+    </div>
+  );
+}
+
 export function PersonIdentityDialog({
   trigger,
   title = "Identificacao",
   subtitle = "Perfil da pessoa",
   ...cardProps
 }: PersonIdentityDialogProps) {
-  const familyPreview = cardProps.personId ? (
+  const relationsFooter = cardProps.personId ? (
     <FamilyRelationsProvider personId={cardProps.personId}>
-      <FamilyHeaderPreview />
+      <PersonIdentityRelationsFooter />
     </FamilyRelationsProvider>
   ) : null;
 
@@ -176,19 +249,14 @@ export function PersonIdentityDialog({
               </Button>
             </DialogClose>
           </div>
-          {familyPreview ? (
-            <div className="mt-3 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Moram juntos
-                </p>
-                {familyPreview}
-              </div>
-            </div>
-          ) : null}
           <div className="mt-4">
             <PersonIdentityCard {...cardProps} />
           </div>
+          {relationsFooter ? (
+            <div className="mt-4 rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
+              {relationsFooter}
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

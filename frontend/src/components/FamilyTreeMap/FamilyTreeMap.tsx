@@ -52,19 +52,20 @@ type FamilyTreeMapProps = {
 
 type Point = { x: number; y: number };
 
-const DEFAULT_MIN_SCALE = 0.6;
+const DEFAULT_MIN_SCALE = 0.2;
 const DEFAULT_MAX_SCALE = 2.4;
-const BASE_RADIUS = 220;
-const RING_SPACING = 220;
-const CANVAS_PADDING = 320;
-const NODE_CARD_WIDTH = 240;
-const NODE_CARD_HEIGHT = 150;
-const NODE_ARC_GAP = 32;
-const NODE_RADIAL_GAP = 190;
-const ROW_DISTANCE = 260;
-const ROW_STACK_GAP = 180;
-const COLUMN_SPACING = 320;
-const VERTICAL_SPACING = 190;
+const DEFAULT_INITIAL_SCALE = 0.9;
+const BASE_RADIUS = 200;
+const RING_SPACING = 200;
+const CANVAS_PADDING = 300;
+const NODE_CARD_WIDTH = 260;
+const NODE_CARD_HEIGHT = 160;
+const NODE_ARC_GAP = 40;
+const NODE_RADIAL_GAP = 220;
+const ROW_DISTANCE = 220;
+const ROW_STACK_GAP = 160;
+const COLUMN_SPACING = 280;
+const VERTICAL_SPACING = 160;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -82,9 +83,14 @@ export function FamilyTreeMap({
 }: FamilyTreeMapProps) {
   const outerRef = React.useRef<HTMLDivElement | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = React.useState(1);
+  const [scale, setScale] = React.useState(DEFAULT_INITIAL_SCALE);
   const [offset, setOffset] = React.useState<Point>({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [nodeOverrides, setNodeOverrides] = React.useState<
+    Record<string, Point>
+  >({});
+  const draggingNodeRef = React.useRef<string | null>(null);
+  const dragOffsetRef = React.useRef<Point>({ x: 0, y: 0 });
   const isPanningRef = React.useRef(false);
   const panStartRef = React.useRef<Point>({ x: 0, y: 0 });
   const offsetStartRef = React.useRef<Point>({ x: 0, y: 0 });
@@ -102,7 +108,6 @@ export function FamilyTreeMap({
     }));
   }, [nodes, rootId]);
 
-
   const normalizeRelationKey = React.useCallback((value?: string | null) => {
     return (value ?? "")
       .toString()
@@ -115,10 +120,18 @@ export function FamilyTreeMap({
   const resolveInverseRelation = React.useCallback(
     (value?: string | null) => {
       const key = normalizeRelationKey(value);
-      if (key.startsWith("pai") || key.startsWith("mae") || key.startsWith("avo")) {
+      if (
+        key.startsWith("pai") ||
+        key.startsWith("mae") ||
+        key.startsWith("avo")
+      ) {
         return "Filho(a)";
       }
-      if (key.startsWith("filho") || key.startsWith("filha") || key.startsWith("neto")) {
+      if (
+        key.startsWith("filho") ||
+        key.startsWith("filha") ||
+        key.startsWith("neto")
+      ) {
         return "Pai/Mae";
       }
       if (key.startsWith("irma")) {
@@ -235,8 +248,16 @@ export function FamilyTreeMap({
     parents.sort((a, b) => {
       const aKey = normalizeRelationKey(rootRelationById.relationMap.get(a));
       const bKey = normalizeRelationKey(rootRelationById.relationMap.get(b));
-      const aOrder = aKey.startsWith("pai") ? 0 : aKey.startsWith("mae") ? 1 : 2;
-      const bOrder = bKey.startsWith("pai") ? 0 : bKey.startsWith("mae") ? 1 : 2;
+      const aOrder = aKey.startsWith("pai")
+        ? 0
+        : aKey.startsWith("mae")
+          ? 1
+          : 2;
+      const bOrder = bKey.startsWith("pai")
+        ? 0
+        : bKey.startsWith("mae")
+          ? 1
+          : 2;
       if (aOrder !== bOrder) return aOrder - bOrder;
       return aKey.localeCompare(bKey);
     });
@@ -317,9 +338,21 @@ export function FamilyTreeMap({
     return map;
   }, [normalizedNodes, rootId, rootRelationById, normalizeRelationKey]);
 
+  const resolveEdgePoint = React.useCallback((from: Point, to: Point) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (dx === 0 && dy === 0) return from;
+    const halfW = NODE_CARD_WIDTH / 2;
+    const halfH = NODE_CARD_HEIGHT / 2;
+    const scale = 1 / Math.max(Math.abs(dx) / halfW, Math.abs(dy) / halfH);
+    return { x: from.x + dx * scale, y: from.y + dy * scale };
+  }, []);
+
   const canvasSize = React.useMemo(() => {
     const points = Array.from(positions.values());
-    const radii = points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y)));
+    const radii = points.map((point) =>
+      Math.max(Math.abs(point.x), Math.abs(point.y)),
+    );
     const maxRadius = radii.length ? Math.max(...radii) : 0;
     const size = maxRadius * 2 + CANVAS_PADDING * 2;
     return Math.max(720, size);
@@ -330,13 +363,15 @@ export function FamilyTreeMap({
   const nodePoints = React.useMemo(() => {
     const map = new Map<string, Point>();
     positions.forEach((point, id) => {
-      map.set(id, {
+      const base = {
         x: center + point.x,
         y: center + point.y,
-      });
+      };
+      const override = nodeOverrides[id];
+      map.set(id, override ?? base);
     });
     return map;
-  }, [positions, center]);
+  }, [positions, center, nodeOverrides]);
 
   React.useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -346,7 +381,7 @@ export function FamilyTreeMap({
       x: rect.width / 2 - center,
       y: rect.height / 2 - center,
     });
-    setScale(1);
+    setScale(DEFAULT_INITIAL_SCALE);
     initializedRef.current = rootId;
   }, [center, rootId]);
 
@@ -365,7 +400,10 @@ export function FamilyTreeMap({
     if (!containerRef.current) return;
     const delta = -event.deltaY;
     const rect = containerRef.current.getBoundingClientRect();
-    const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const cursor = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
     const nextScale = clamp(scale * (1 + delta * 0.0015), minScale, maxScale);
     const ratio = nextScale / scale;
     setOffset((prev) => ({
@@ -407,7 +445,7 @@ export function FamilyTreeMap({
       x: rect.width / 2 - center,
       y: rect.height / 2 - center,
     });
-    setScale(1);
+    setScale(DEFAULT_INITIAL_SCALE);
   };
 
   const zoomAtCenter = (nextScale: number) => {
@@ -425,10 +463,8 @@ export function FamilyTreeMap({
     setScale(nextScale);
   };
 
-  const onZoomIn = () =>
-    zoomAtCenter(clamp(scale + 0.1, minScale, maxScale));
-  const onZoomOut = () =>
-    zoomAtCenter(clamp(scale - 0.1, minScale, maxScale));
+  const onZoomIn = () => zoomAtCenter(clamp(scale + 0.1, minScale, maxScale));
+  const onZoomOut = () => zoomAtCenter(clamp(scale - 0.1, minScale, maxScale));
 
   const toggleFullscreen = async () => {
     if (!allowFullscreen) return;
@@ -444,6 +480,57 @@ export function FamilyTreeMap({
     } catch {
       // ignore
     }
+  };
+
+  const getCanvasPointFromEvent = (event: React.PointerEvent<HTMLElement>) => {
+    if (!containerRef.current) return { x: 0, y: 0 };
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (event.clientX - rect.left - offset.x) / scale;
+    const y = (event.clientY - rect.top - offset.y) / scale;
+    return { x, y };
+  };
+
+  const startNodeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    nodeId: string,
+  ) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button, a, [data-map-action]")) return;
+    event.stopPropagation();
+    draggingNodeRef.current = nodeId;
+    const point = nodePoints.get(nodeId);
+    if (!point) return;
+    const pointer = getCanvasPointFromEvent(event);
+    dragOffsetRef.current = {
+      x: point.x - pointer.x,
+      y: point.y - pointer.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveNodeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    nodeId: string,
+  ) => {
+    if (draggingNodeRef.current !== nodeId) return;
+    const pointer = getCanvasPointFromEvent(event);
+    const nextPoint = {
+      x: pointer.x + dragOffsetRef.current.x,
+      y: pointer.y + dragOffsetRef.current.y,
+    };
+    setNodeOverrides((prev) => ({
+      ...prev,
+      [nodeId]: nextPoint,
+    }));
+  };
+
+  const endNodeDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    nodeId: string,
+  ) => {
+    if (draggingNodeRef.current !== nodeId) return;
+    draggingNodeRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
   return (
@@ -474,7 +561,7 @@ export function FamilyTreeMap({
           }}
         >
           <svg
-            className="absolute inset-0 z-0 pointer-events-none"
+            className="absolute inset-0 z-30 pointer-events-none text-primary"
             width={canvasSize}
             height={canvasSize}
           >
@@ -482,34 +569,43 @@ export function FamilyTreeMap({
               const from = nodePoints.get(edge.fromId);
               const to = nodePoints.get(edge.toId);
               if (!from || !to) return null;
+              const start = resolveEdgePoint(from, to);
+              const end = resolveEdgePoint(to, from);
               return (
                 <g key={edge.id}>
                   <line
-                    x1={from.x}
-                    y1={from.y}
-                    x2={to.x}
-                    y2={to.y}
-                    stroke="hsl(var(--primary))"
-                    strokeOpacity="0.6"
-                    strokeWidth="2"
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke="currentColor"
+                    strokeOpacity="0.25"
+                    strokeWidth="6"
                     strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
+                  />
+                  <line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke="currentColor"
+                    strokeOpacity="0.9"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
                   />
                   <circle
-                    cx={from.x}
-                    cy={from.y}
-                    r={3}
-                    fill="hsl(var(--primary))"
-                    fillOpacity="0.6"
-                    vectorEffect="non-scaling-stroke"
+                    cx={start.x}
+                    cy={start.y}
+                    r={3.6}
+                    fill="currentColor"
+                    fillOpacity="0.9"
                   />
                   <circle
-                    cx={to.x}
-                    cy={to.y}
-                    r={3}
-                    fill="hsl(var(--primary))"
-                    fillOpacity="0.6"
-                    vectorEffect="non-scaling-stroke"
+                    cx={end.x}
+                    cy={end.y}
+                    r={3.6}
+                    fill="currentColor"
+                    fillOpacity="0.9"
                   />
                 </g>
               );
@@ -533,10 +629,14 @@ export function FamilyTreeMap({
                 key={node.id}
                 data-map-node
                 className={cn(
-                  "absolute z-10 w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/80 bg-card p-3 shadow-md ring-1 ring-border/40",
+                  "absolute z-20 w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/80 bg-card p-3 shadow-md ring-1 ring-border/40",
                   node.id === rootId && "border-primary/60 bg-primary/10",
                 )}
                 style={{ left: point.x, top: point.y }}
+                onPointerDown={(event) => startNodeDrag(event, node.id)}
+                onPointerMove={(event) => moveNodeDrag(event, node.id)}
+                onPointerUp={(event) => endNodeDrag(event, node.id)}
+                onPointerLeave={(event) => endNodeDrag(event, node.id)}
               >
                 <div className="flex items-start gap-3">
                   <div
