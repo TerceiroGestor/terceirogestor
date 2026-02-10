@@ -483,18 +483,35 @@ export function FamilyTreeMap({
               const to = nodePoints.get(edge.toId);
               if (!from || !to) return null;
               return (
-                <line
-                  key={edge.id}
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  stroke="hsl(var(--primary))"
-                  strokeOpacity="0.35"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
+                <g key={edge.id}>
+                  <line
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke="hsl(var(--primary))"
+                    strokeOpacity="0.6"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx={from.x}
+                    cy={from.y}
+                    r={3}
+                    fill="hsl(var(--primary))"
+                    fillOpacity="0.6"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx={to.x}
+                    cy={to.y}
+                    r={3}
+                    fill="hsl(var(--primary))"
+                    fillOpacity="0.6"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
               );
             })}
           </svg>
@@ -516,8 +533,8 @@ export function FamilyTreeMap({
                 key={node.id}
                 data-map-node
                 className={cn(
-                  "absolute z-10 w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/60 bg-background/90 p-3 shadow-sm",
-                  node.id === rootId && "border-primary/40 bg-primary/5",
+                  "absolute z-10 w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/80 bg-card p-3 shadow-md ring-1 ring-border/40",
+                  node.id === rootId && "border-primary/60 bg-primary/10",
                 )}
                 style={{ left: point.x, top: point.y }}
               >
