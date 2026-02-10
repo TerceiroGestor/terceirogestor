@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
-import type { Person } from "@/app/(modules)/people/types";
+import type { Person } from "@/app/[tenant]/(modules)/people/types";
 import { printFamilyReport } from "@/features/family-members/utils/family-report";
 
 export function FamilySummary({ person }: { person: Person }) {
@@ -92,3 +92,4 @@ export function FamilySummary({ person }: { person: Person }) {
     </div>
   );
 }
+

@@ -1,10 +1,10 @@
-import type {
+﻿import type {
   HouseholdTransfer,
   Person,
   PersonExpense,
   PersonIncome,
-} from "@/app/(modules)/people/types";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+} from "@/app/[tenant]/(modules)/people/types";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 import { printPeopleFinancialReport } from "@/features/people-financial/utils/people-financial-report";
 
 const csvHeaders = [
@@ -103,3 +103,4 @@ export function downloadPeopleFinancialCsv(params: {
   link.click();
   document.body.removeChild(link);
 }
+

@@ -1,11 +1,11 @@
-import { buildExportMeta } from "@/lib/auth-utils";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+﻿import { buildExportMeta } from "@/lib/auth-utils";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 import type {
   HouseholdTransfer,
   Person,
   PersonExpense,
   PersonIncome,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 
 const escapeHtml = (value: string) =>
   value
@@ -201,3 +201,4 @@ export function printPeopleFinancialReport({
     printWindow.onload = () => setTimeout(triggerPrint, 50);
   }
 }
+

@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { getPerson, updatePerson, type ApiPerson } from "@/features/people/api";
-import { PeopleDetailClientPage } from "@/app/(modules)/people/_components/people-detail-client-page";
-import type { Person, PersonFormData } from "@/app/(modules)/people/types";
+import { PeopleDetailClientPage } from "@/app/[tenant]/(modules)/people/_components/people-detail-client-page";
+import type { Person, PersonFormData } from "@/app/[tenant]/(modules)/people/types";
 import { uploadAvatar } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
 
@@ -153,5 +153,6 @@ export default function PeopleDetailPage() {
     />
   );
 }
+
 
 

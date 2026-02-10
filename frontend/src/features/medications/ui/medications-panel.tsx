@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, FileText } from "lucide-react";
@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { MedicationForm } from "@/features/medications/ui/medication-form";
 import type { MedicationFormValues } from "@/features/medications/config/medication-form-config";
 import { useMedications } from "@/features/medications/data/use-medications";
-import type { Medication } from "@/app/(modules)/people/types";
-import { formatDate, toDateInputValue } from "@/app/(modules)/people/utils";
+import type { Medication } from "@/app/[tenant]/(modules)/people/types";
+import { formatDate, toDateInputValue } from "@/app/[tenant]/(modules)/people/utils";
 import { resolveMediaUrl } from "@/lib/api";
 import { uploadHealthDocument } from "@/features/uploads/api";
 import { useAuth } from "@/features/auth/auth-context";
@@ -211,3 +211,4 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
     </SectionCard>
   );
 }
+

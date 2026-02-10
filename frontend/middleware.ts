@@ -1,31 +1,46 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-function extractTenantPath(pathname: string) {
-  const match = pathname.match(/^\/t\/([^/]+)(\/.*)?$/);
-  if (!match) return null;
-  const slug = match[1];
-  const rest = match[2] && match[2].length > 0 ? match[2] : "/";
-  return { slug, rest };
-}
+const RESERVED_SEGMENTS = new Set([
+  "_next",
+  "api",
+  "auth",
+  "dashboard",
+  "people",
+  "settings",
+  "admin",
+  "login",
+  "register",
+  "t",
+  "favicon.ico",
+  "robots.txt",
+  "sitemap.xml",
+]);
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const tenantPath = extractTenantPath(pathname);
-  if (!tenantPath) {
-    return NextResponse.next();
+  const legacyMatch = pathname.match(/^\/t\/([^/]+)\/?$/);
+  if (legacyMatch) {
+    const slug = legacyMatch[1];
+    const url = req.nextUrl.clone();
+    url.pathname = `/${slug}/dashboard`;
+    return NextResponse.redirect(url);
   }
 
-  if (tenantPath.rest.startsWith("/login") || tenantPath.rest.startsWith("/register")) {
+  const segments = pathname.split("/");
+  const first = segments[1] ?? "";
+  if (!first || RESERVED_SEGMENTS.has(first)) {
     return NextResponse.next();
   }
-
-  const url = req.nextUrl.clone();
-  url.pathname = tenantPath.rest === "/" ? "/dashboard" : tenantPath.rest;
-  return NextResponse.rewrite(url);
+  if (segments.length === 2 || (segments.length === 3 && segments[2] === "")) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/${first}/dashboard`;
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/t/:slug/:path*"],
+  matcher: ["/t/:slug", "/t/:slug/", "/:slug", "/:slug/"],
 };

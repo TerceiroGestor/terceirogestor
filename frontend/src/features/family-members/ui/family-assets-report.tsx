@@ -31,7 +31,7 @@ import type {
   HouseholdAsset,
   PersonAsset,
   PersonAssetsGroup,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type AssetPayload = {
@@ -651,4 +651,5 @@ const PersonAssetGroup = ({
     </SectionListCollapse>
   );
 };
+
 

@@ -27,11 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/app/(modules)/people/utils";
-import type { PersonExpense, PersonIncome } from "@/app/(modules)/people/types";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
+import type { PersonExpense, PersonIncome } from "@/app/[tenant]/(modules)/people/types";
 import { usePeopleFinancial } from "@/features/people-financial/data/use-people-financial";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
-import type { HouseholdTransfer } from "@/app/(modules)/people/types";
+import type { HouseholdTransfer } from "@/app/[tenant]/(modules)/people/types";
 
 const frequencyOptions = [
   { value: "MONTHLY", label: "Mensal" },
@@ -932,5 +932,6 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     </div>
   );
 }
+
 
 

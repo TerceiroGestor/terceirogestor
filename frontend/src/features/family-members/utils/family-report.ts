@@ -1,5 +1,5 @@
-import { buildExportMeta } from "@/lib/auth-utils";
-import { formatCurrency, getAgeFromBirthDate } from "@/app/(modules)/people/utils";
+﻿import { buildExportMeta } from "@/lib/auth-utils";
+import { formatCurrency, getAgeFromBirthDate } from "@/app/[tenant]/(modules)/people/utils";
 import type {
   FamilyIncomeSummary,
   HouseholdAsset,
@@ -8,7 +8,7 @@ import type {
   PersonAssetsGroup,
   PersonRelation,
   HouseholdMember,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 
 export type FamilyReportType = "full" | "composition" | "residential";
 
@@ -338,3 +338,4 @@ export function printFamilyReport({
     printWindow.onload = () => setTimeout(triggerPrint, 50);
   }
 }
+

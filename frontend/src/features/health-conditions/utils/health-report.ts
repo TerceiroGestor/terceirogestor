@@ -1,6 +1,6 @@
-import { buildExportMeta } from "@/lib/auth-utils";
-import { formatDate } from "@/app/(modules)/people/utils";
-import type { HealthCondition, Person } from "@/app/(modules)/people/types";
+﻿import { buildExportMeta } from "@/lib/auth-utils";
+import { formatDate } from "@/app/[tenant]/(modules)/people/utils";
+import type { HealthCondition, Person } from "@/app/[tenant]/(modules)/people/types";
 
 const escapeHtml = (value: string) =>
   value
@@ -128,3 +128,4 @@ export function printHealthReport({
     printWindow.onload = () => setTimeout(triggerPrint, 50);
   }
 }
+

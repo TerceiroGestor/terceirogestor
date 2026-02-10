@@ -7,9 +7,29 @@ import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
+const RESERVED_SEGMENTS = new Set([
+  "",
+  "_next",
+  "api",
+  "auth",
+  "dashboard",
+  "people",
+  "settings",
+  "admin",
+  "t",
+  "favicon.ico",
+  "robots.txt",
+  "sitemap.xml",
+]);
 
 function isTenantAuthRoute(pathname: string) {
-  return /^\/t\/[^/]+\/(login|register)/.test(pathname);
+  if (/^\/t\/[^/]+\/(login|register)/.test(pathname)) {
+    return true;
+  }
+  const match = pathname.match(/^\/([^/]+)\/(login|register)/);
+  if (!match) return false;
+  const slug = match[1];
+  return !RESERVED_SEGMENTS.has(slug);
 }
 
 type AppShellProps = {
@@ -22,7 +42,7 @@ export function AppShell({ children }: AppShellProps) {
     AUTH_ROUTES.some((route) => pathname?.startsWith(route)) ||
     (pathname ? isTenantAuthRoute(pathname) : false);
 
-  if (isAuthRoute) {
+  if (!pathname || isAuthRoute || pathname === "/") {
     return <>{children}</>;
   }
 

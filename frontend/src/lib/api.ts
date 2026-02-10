@@ -1,7 +1,7 @@
 "use client";
 
 import { isTokenExpired } from "@/lib/auth-utils";
-import { getTenantSlug, withTenantPath } from "@/lib/tenant-path";
+import { getTenantSlug, withTenantApiPath } from "@/lib/tenant-path";
 
 const DEFAULT_API_URL = "http://localhost:3001";
 
@@ -32,7 +32,7 @@ let refreshPromise: Promise<string | null> | null = null;
 
 export async function refreshAccessToken() {
   const slug = getTenantSlug();
-  const path = withTenantPath("/auth/refresh", slug);
+  const path = withTenantApiPath("/auth/refresh", slug);
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: {
@@ -123,7 +123,7 @@ export async function apiRequest<T>(
     }
 
     const tenantSlug = getTenantSlug();
-    const resolvedPath = withTenantPath(path, tenantSlug);
+    const resolvedPath = withTenantApiPath(path, tenantSlug);
     const response = await fetch(`${API_URL}${resolvedPath}`, {
       ...options,
       headers,

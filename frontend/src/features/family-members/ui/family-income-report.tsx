@@ -5,9 +5,9 @@ import {
   FamilyMetricBadge,
   FamilyMetricField,
 } from "@/features/family-members/ui/family-metrics";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
-import type { FamilyIncomeSummary } from "@/app/(modules)/people/types";
+import type { FamilyIncomeSummary } from "@/app/[tenant]/(modules)/people/types";
 
 export function FamilyIncomeReport() {
   const { incomeSummary } = useFamilyRelationsContext();
@@ -81,5 +81,6 @@ export function FamilyIncomeReport() {
     </SectionCard>
   );
 }
+
 
 

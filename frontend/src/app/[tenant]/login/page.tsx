@@ -6,7 +6,7 @@ import { LoginForm } from "@/features/auth/login-form";
 
 export default function TenantLoginPage() {
   const params = useParams();
-  const slug = typeof params?.slug === "string" ? params.slug : "";
+  const slug = typeof params?.tenant === "string" ? params.tenant : "";
   return (
     <React.Suspense
       fallback={

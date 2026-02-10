@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
@@ -8,7 +8,7 @@ import {
   getPersonHealthConditions,
   updatePersonHealthCondition,
 } from "@/features/people/api";
-import type { HealthCondition } from "@/app/(modules)/people/types";
+import type { HealthCondition } from "@/app/[tenant]/(modules)/people/types";
 
 type UseHealthConditionsResult = {
   conditions: HealthCondition[];
@@ -88,3 +88,4 @@ export function useHealthConditions(
 
   return { conditions, isLoading, error, refresh, create, update, remove };
 }
+

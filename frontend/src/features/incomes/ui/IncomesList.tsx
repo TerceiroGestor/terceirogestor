@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { IncomeProfile } from "@/features/incomes/domain/types";
@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 
 type IncomesListProps = {
   peopleId: string;
@@ -175,4 +175,5 @@ export function IncomesList({ peopleId }: IncomesListProps) {
     </Card>
   );
 }
+
 

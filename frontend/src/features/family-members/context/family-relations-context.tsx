@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type {
@@ -9,7 +9,7 @@ import type {
   PersonRelationInput,
   PersonRelationsResponse,
   PersonSummary,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 import { useFamilyRelations } from "@/features/family-members/data/use-family-relations";
 
 type AssetInput = {
@@ -78,3 +78,4 @@ export function useFamilyRelationsContext() {
   }
   return context;
 }
+

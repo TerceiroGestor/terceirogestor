@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
@@ -8,7 +8,7 @@ import {
   getPersonMedications,
   updatePersonMedication,
 } from "@/features/people/api";
-import type { Medication } from "@/app/(modules)/people/types";
+import type { Medication } from "@/app/[tenant]/(modules)/people/types";
 
 type UseMedicationsResult = {
   medications: Medication[];
@@ -88,3 +88,4 @@ export function useMedications(
 
   return { medications, isLoading, error, refresh, create, update, remove };
 }
+

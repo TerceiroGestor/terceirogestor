@@ -1,5 +1,5 @@
-import type { HealthCondition, Person } from "@/app/(modules)/people/types";
-import { formatDate } from "@/app/(modules)/people/utils";
+﻿import type { HealthCondition, Person } from "@/app/[tenant]/(modules)/people/types";
+import { formatDate } from "@/app/[tenant]/(modules)/people/utils";
 import { printHealthReport } from "@/features/health-conditions/utils/health-report";
 
 const csvHeaders = [
@@ -56,3 +56,4 @@ export function downloadHealthCsv(params: {
   link.click();
   document.body.removeChild(link);
 }
+

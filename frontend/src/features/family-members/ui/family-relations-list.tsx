@@ -10,7 +10,7 @@ import type {
   PersonRelation,
   PersonRelationInput,
   PersonSummary,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +40,7 @@ import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 
 type FamilyRelationsListProps = {
   peopleOptions: PersonSummary[];
@@ -691,6 +691,7 @@ export function FamilyRelationsList({
     </SectionCard>
   );
 }
+
 
 
 

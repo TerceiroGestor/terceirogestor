@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, FileText } from "lucide-react";
@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { HealthConditionForm } from "@/features/health-conditions/ui/health-condition-form";
 import type { HealthConditionFormValues } from "@/features/health-conditions/config/health-condition-form-config";
 import { useHealthConditions } from "@/features/health-conditions/data/use-health-conditions";
-import type { HealthCondition } from "@/app/(modules)/people/types";
-import { formatDate, toDateInputValue } from "@/app/(modules)/people/utils";
+import type { HealthCondition } from "@/app/[tenant]/(modules)/people/types";
+import { formatDate, toDateInputValue } from "@/app/[tenant]/(modules)/people/utils";
 import { resolveMediaUrl } from "@/lib/api";
 import { uploadHealthDocument } from "@/features/uploads/api";
 import { useAuth } from "@/features/auth/auth-context";
@@ -172,3 +172,4 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
     </SectionCard>
   );
 }
+

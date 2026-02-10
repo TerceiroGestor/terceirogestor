@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import { getPersonById } from "../../data";
-import { PeopleEditClient } from "@/app/(modules)/people/_components/people-edit-client";
+import { PeopleEditClient } from "@/app/[tenant]/(modules)/people/_components/people-edit-client";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 
 type PageProps = {
@@ -28,5 +28,6 @@ export default async function PeopleEditPage({ params }: PageProps) {
     </div>
   );
 }
+
 
 

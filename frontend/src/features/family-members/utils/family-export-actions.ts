@@ -1,4 +1,4 @@
-import {
+﻿import {
   printFamilyReport,
   type FamilyReportType,
 } from "@/features/family-members/utils/family-report";
@@ -10,8 +10,8 @@ import type {
   Person,
   PersonAssetsGroup,
   PersonRelation,
-} from "@/app/(modules)/people/types";
-import { formatCurrency } from "@/app/(modules)/people/utils";
+} from "@/app/[tenant]/(modules)/people/types";
+import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
 
 const headers = ["Tipo", "Nome", "Parentesco", "Indicadores"];
 
@@ -153,3 +153,4 @@ export function downloadFamilyCsv(params: {
   link.click();
   document.body.removeChild(link);
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
@@ -10,7 +10,7 @@ import type {
   PersonRelationInput,
   PersonRelationsResponse,
   PersonSummary,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 import {
   createHouseholdAsset,
   createPersonAsset,
@@ -253,3 +253,4 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
     removePersonAsset: removePersonAssetHandler,
   };
 }
+

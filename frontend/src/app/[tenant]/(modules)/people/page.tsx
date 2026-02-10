@@ -1,18 +1,18 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { DataTable } from "@/components/DataTable";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
-import type { PeopleTableItem, PersonFormData } from "@/app/(modules)/people/types";
-import { usePeopleColumns } from "@/app/(modules)/people/columns";
+import type { PeopleTableItem, PersonFormData } from "@/app/[tenant]/(modules)/people/types";
+import { usePeopleColumns } from "@/app/[tenant]/(modules)/people/columns";
 import {
   getAgeFromBirthDate,
   isBirthdayInCurrentMonth,
   isBirthdayToday,
   toDateInputValue,
-} from "@/app/(modules)/people/utils";
-import { PeopleFormDialog } from "@/app/(modules)/people/_components/people-form-dialog";
+} from "@/app/[tenant]/(modules)/people/utils";
+import { PeopleFormDialog } from "@/app/[tenant]/(modules)/people/_components/people-form-dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
@@ -435,5 +435,6 @@ export default function PeoplePage() {
     </div>
   );
 }
+
 
 

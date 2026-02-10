@@ -3,10 +3,9 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
-import { apiRequest, resolveMediaUrl } from "@/lib/api";
+import { API_URL, apiRequest, resolveMediaUrl } from "@/lib/api";
 import {
   getTenantSlugFromPath,
   storeTenantSlug,
@@ -36,25 +35,42 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [tenant, setTenant] = React.useState<TenantPreview | null>(null);
+  const [tenantError, setTenantError] = React.useState<string | null>(null);
+
+  const fetchTenantBySlug = React.useCallback(async (slug: string) => {
+    const response = await fetch(`${API_URL}/tenants/slug/${slug}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error("Instituicao nao encontrada");
+    }
+    return response.json() as Promise<TenantPreview>;
+  }, []);
 
   React.useEffect(() => {
     if (!resolvedSlug) return;
     let active = true;
-    apiRequest<TenantPreview>(`/tenants/slug/${resolvedSlug}`)
+    setTenantError(null);
+    fetchTenantBySlug(resolvedSlug)
       .then((data) => {
         if (active) {
           setTenant(data);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (active) {
           setTenant(null);
+          setTenantError(
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Instituicao nao encontrada",
+          );
         }
       });
     return () => {
       active = false;
     };
-  }, [resolvedSlug]);
+  }, [resolvedSlug, fetchTenantBySlug]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -79,60 +95,89 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] px-4 py-10 flex items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            {tenant?.logoUrl ? (
-              <div className="flex size-11 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={resolveMediaUrl(tenant.logoUrl)}
-                  alt={tenant.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : null}
-            <div>
-              <CardTitle>Acesso</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {tenant?.name ?? "Informe as credenciais para entrar."}
+    <div className="bg-gray-100 min-h-screen w-full flex items-center justify-center p-4">
+      <div className="w-full max-w-5xl mx-auto bg-white [box-shadow:0_2px_10px_-3px_rgba(6,81,237,0.3)] p-4 lg:p-5 rounded-md">
+        <div className="grid md:grid-cols-[1.05fr_0.95fr] items-center gap-y-8 gap-x-8">
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-md mx-auto w-full p-4 md:p-6"
+          >
+            <div className="mb-6">
+              <h2 className="text-slate-900 text-lg font-semibold">
+                {tenant?.name ? `${tenant.name}` : ""}
+              </h2>
+              <p className="text-sm text-slate-500">
+                Informe as credenciais para entrar na instituicao.
               </p>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            Ambiente de desenvolvimento. Use as credenciais de seed para entrar.
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="email@exemplo.com"
-              />
+
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              Ambiente de desenvolvimento. Use as credenciais de seed para
+              entrar.
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Senha</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Senha"
-              />
-            </div>
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
+            {tenantError ? (
+              <p className="mb-3 text-xs text-red-600">{tenantError}</p>
             ) : null}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Entrando..." : "Entrar"}
-            </Button>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-slate-900 text-sm font-medium mb-2 block">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="email@exemplo.com"
+                  className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-slate-900 text-sm font-medium mb-2 block">
+                  Senha
+                </label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Senha"
+                  className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {error ? (
+              <p className="mt-3 text-sm text-red-600">{error}</p>
+            ) : null}
+
+            <div className="mt-8">
+              <Button
+                type="submit"
+                className="w-full shadow-xl py-2 px-4 text-[15px] tracking-wide font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Entrando..." : "Entrar"}
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+
+          <div className="w-full h-full">
+            <div className="aspect-square bg-gray-50 rounded-md overflow-hidden w-full h-full flex items-center justify-center">
+              {tenant?.logoUrl ? (
+                <img
+                  src={resolveMediaUrl(tenant.logoUrl)}
+                  className="max-h-52 w-auto object-contain"
+                  alt={tenant.name}
+                />
+              ) : (
+                <div className="text-sm text-slate-400">
+                  Logo da instituicao
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

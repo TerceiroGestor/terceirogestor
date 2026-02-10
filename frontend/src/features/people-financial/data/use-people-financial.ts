@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
@@ -20,7 +20,7 @@ import type {
   HouseholdTransfer,
   PersonExpense,
   PersonIncome,
-} from "@/app/(modules)/people/types";
+} from "@/app/[tenant]/(modules)/people/types";
 
 type UsePeopleFinancialResult = {
   incomes: PersonIncome[];
@@ -200,3 +200,4 @@ export function usePeopleFinancial(
     deleteTransfer,
   };
 }
+
