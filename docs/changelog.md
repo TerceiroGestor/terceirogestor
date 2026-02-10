@@ -13,7 +13,7 @@
 ### O que vamos fazer amanhã
 
 - Validar a árvore com dados reais, ajustes finos de ordenação e relações.
-- Se necessário, aprimorar linhas de conexão entre cards (SVG) e agrupamentos visuais.
+- Focar na linha de conexão entre cards (SVG) para deixar mais clara e elegante.
 - Finalizar logs, audits e autorização com middlewares respeitando roles e permissões granulares.
 - Revisar e padronizar toda a feature de Pessoa para fechamento.
 - Iniciar novas features: Atendimentos, Encaminhamentos, Diário, Vulnerabilidades, Qualidades.
