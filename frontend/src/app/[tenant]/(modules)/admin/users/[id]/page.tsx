@@ -40,7 +40,10 @@ export default function AdminUserDetailPage() {
   const [logError, setLogError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
-  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
+  const [pagination, setPagination] = React.useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
   const [search, setSearch] = React.useState("");
 
   const canReadUsers = permissions.includes("users.read");
@@ -128,7 +131,14 @@ export default function AdminUserDetailPage() {
     } finally {
       setLogLoading(false);
     }
-  }, [token, userId, canReadUsers, pagination.pageIndex, pagination.pageSize, search]);
+  }, [
+    token,
+    userId,
+    canReadUsers,
+    pagination.pageIndex,
+    pagination.pageSize,
+    search,
+  ]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -156,10 +166,10 @@ export default function AdminUserDetailPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
-        title="Detalhes do usuario"
+        title="Detalhes do usuário"
         items={[
-          { label: "Configuracoes", href: "/settings" },
-          { label: "Usuarios", href: "/admin/users" },
+          { label: "Configuracões", href: "/settings" },
+          { label: "Usuários", href: "/admin/users" },
           { label: "Detalhes", href: `/admin/users/${userId}` },
         ]}
         action={{
@@ -169,10 +179,7 @@ export default function AdminUserDetailPage() {
         }}
       />
 
-      <SectionCard
-        title={user?.name || "Usuario"}
-        subtitle={user?.email ?? ""}
-      >
+      <SectionCard title={user?.name || "Usuario"} subtitle={user?.email ?? ""}>
         {error ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
@@ -227,7 +234,11 @@ export default function AdminUserDetailPage() {
       <SectionCard
         title="Historico de acessos"
         subtitle="Acompanhamento de login, refresh e logout do usuario."
-        actions={<Button variant="outline" onClick={loadLogs}>Atualizar</Button>}
+        actions={
+          <Button variant="outline" onClick={loadLogs}>
+            Atualizar
+          </Button>
+        }
       >
         {logError ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

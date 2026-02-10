@@ -11,32 +11,32 @@ import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 const settingsLinks = [
   {
-    title: "Instituicao",
+    title: "Instituição",
     description: "Logo, CNPJ e dados institucionais.",
     href: "/admin/tenant",
     permission: "tenants.read",
   },
   {
-    title: "Usuarios",
-    description: "Gerencie usuarios, perfis e acessos.",
+    title: "Usuários",
+    description: "Gerencie usuários, perfis e acessos.",
     href: "/admin/users",
     permission: "users.read",
   },
   {
     title: "Perfis",
-    description: "Crie e edite perfis com permissoes por modulo.",
+    description: "Crie e edite perfis com permissões por modulo.",
     href: "/admin/roles",
     permission: "roles.manage",
   },
   {
-    title: "Permissoes",
-    description: "Visao geral das permissoes por feature.",
+    title: "Permissões",
+    description: "Visão geral das permissões por recursos.",
     href: "/admin/permissions",
     permission: "roles.manage",
   },
   {
     title: "Perfil",
-    description: "Historico de acessos e dados do usuario.",
+    description: "Histórico de acessos e dados do usuário.",
     href: "/auth/profile",
   },
 ];
@@ -62,14 +62,18 @@ export default function SettingsPage() {
     return permissions.includes(link.permission);
   });
 
-  const adminLinks = visibleLinks.filter((link) => link.href !== "/auth/profile");
-  const profileLinks = visibleLinks.filter((link) => link.href === "/auth/profile");
+  const adminLinks = visibleLinks.filter(
+    (link) => link.href !== "/auth/profile",
+  );
+  const profileLinks = visibleLinks.filter(
+    (link) => link.href === "/auth/profile",
+  );
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
-        title="Configuracoes"
-        items={[{ label: "Configuracoes", href: "/settings" }]}
+        title="Configuracões"
+        items={[{ label: "Configuracões", href: "/settings" }]}
       />
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard

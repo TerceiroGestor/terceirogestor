@@ -106,13 +106,13 @@ export default function AdminTenantPage() {
       <PageBreadcrumb
         title="Instituicao"
         items={[
-          { label: "Configuracoes", href: "/settings" },
+          { label: "Configuracões", href: "/settings" },
           { label: "Instituicao", href: "/admin/tenant" },
         ]}
       />
       <SectionCard
-        title="Instituicao"
-        subtitle="Atualize os dados da instituicao e a identidade visual."
+        title="Instituição"
+        subtitle="Atualize os dados da instituição e a identidade visual."
       >
         <div className="flex items-center gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
           <div className="flex size-12 items-center justify-center overflow-hidden rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
@@ -130,9 +130,7 @@ export default function AdminTenantPage() {
             <p className="text-sm font-semibold">
               {tenant?.name ?? "Instituicao"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {tenant?.id ?? ""}
-            </p>
+            <p className="text-xs text-muted-foreground">{tenant?.id ?? ""}</p>
           </div>
         </div>
 

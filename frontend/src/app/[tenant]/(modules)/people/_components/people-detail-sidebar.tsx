@@ -13,7 +13,7 @@ import {
   SEX_LABELS,
   resolveLabel,
 } from "../utils";
-import { Cake, HeartPulse, MessageCircle } from "lucide-react";
+import { Cake, HeartPulse, MessageCircle, Pill } from "lucide-react";
 import { Field } from "./people-detail-field";
 import { SectionDivider } from "./people-detail-section-divider";
 
@@ -42,16 +42,23 @@ export function PeopleDetailSidebar({
   return (
     <Card className="h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       <CardHeader className="flex flex-col items-center gap-2 text-center">
-        <div className="relative">
+        <div className="flex items-center gap-3">
           <Avatar className="h-40 w-40">
             <AvatarImage
               src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
             />
             <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
           </Avatar>
-          {person.hasHealthIssue || isTodayBirthday ? (
-            <span className="absolute -bottom-1 -right-1 flex items-center gap-1">
-              {person.hasHealthIssue ? (
+          {(person.hasHealthCondition ||
+            person.hasMedication ||
+            isTodayBirthday) ? (
+            <div className="flex flex-col items-center gap-2">
+              {person.hasMedication ? (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-blue-200 bg-blue-500 text-white shadow-sm">
+                  <Pill className="h-4.5 w-4.5" />
+                </span>
+              ) : null}
+              {person.hasHealthCondition ? (
                 <span className="flex h-7 w-7 items-center justify-center rounded-full border border-rose-200 bg-rose-500 text-white shadow-sm">
                   <HeartPulse className="h-4.5 w-4.5" />
                 </span>
@@ -61,7 +68,7 @@ export function PeopleDetailSidebar({
                   <Cake className="h-4.5 w-4.5" />
                 </span>
               ) : null}
-            </span>
+            </div>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">

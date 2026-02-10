@@ -86,7 +86,9 @@ const buildModulesFromPermissions = (permissions: PermissionSummary[]) => {
 
 const buildRoleRows = (roles: RoleSummary[], modules: ModuleDefinition[]) =>
   roles.flatMap((role) => {
-    const permissionSet = new Set(role.permissions.map((permission) => permission.key));
+    const permissionSet = new Set(
+      role.permissions.map((permission) => permission.key),
+    );
     return modules.map((module) => ({
       id: `${role.id}-${module.key}`,
       roleId: role.id,
@@ -106,18 +108,32 @@ export default function AdminRolesPage() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
 
   const [roles, setRoles] = React.useState<RoleSummary[]>([]);
-  const [permissionsList, setPermissionsList] = React.useState<PermissionSummary[]>([]);
+  const [permissionsList, setPermissionsList] = React.useState<
+    PermissionSummary[]
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingRole, setEditingRole] = React.useState<RoleSummary | null>(null);
-  const [formValues, setFormValues] = React.useState<RoleFormValues>({ name: "" });
-  const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(new Set());
+  const [editingRole, setEditingRole] = React.useState<RoleSummary | null>(
+    null,
+  );
+  const [formValues, setFormValues] = React.useState<RoleFormValues>({
+    name: "",
+  });
+  const [selectedPermissions, setSelectedPermissions] = React.useState<
+    Set<string>
+  >(new Set());
 
   const canManageRoles = permissions.includes("roles.manage");
 
-  const modules = React.useMemo(() => buildModulesFromPermissions(permissionsList), [permissionsList]);
-  const rows = React.useMemo(() => buildRoleRows(roles, modules), [roles, modules]);
+  const modules = React.useMemo(
+    () => buildModulesFromPermissions(permissionsList),
+    [permissionsList],
+  );
+  const rows = React.useMemo(
+    () => buildRoleRows(roles, modules),
+    [roles, modules],
+  );
 
   const columns = React.useMemo<ColumnDef<RoleModuleRow>[]>(
     () => [
@@ -134,7 +150,9 @@ export default function AdminRolesPage() {
         accessorKey: "moduleLabel",
         header: "Modulo",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">{row.original.moduleLabel}</span>
+          <span className="text-sm text-muted-foreground">
+            {row.original.moduleLabel}
+          </span>
         ),
       },
       {
@@ -227,7 +245,9 @@ export default function AdminRolesPage() {
         name: role.name,
         description: role.description ?? "",
       });
-      setSelectedPermissions(new Set(role.permissions.map((permission) => permission.key)));
+      setSelectedPermissions(
+        new Set(role.permissions.map((permission) => permission.key)),
+      );
     }
     setDialogOpen(true);
   };
@@ -276,7 +296,7 @@ export default function AdminRolesPage() {
       <PageBreadcrumb
         title="Perfis"
         items={[
-          { label: "Configuracoes", href: "/settings" },
+          { label: "Configuracões", href: "/settings" },
           { label: "Perfis", href: "/admin/roles" },
         ]}
       />
@@ -289,7 +309,7 @@ export default function AdminRolesPage() {
 
       <SectionCard
         title="Perfis"
-        subtitle="Controle os acessos por modulo e acao."
+        subtitle="Controle os acessos por módulo e acao."
         actions={<Button onClick={openCreate}>Novo perfil</Button>}
       >
         <DataTable
@@ -344,24 +364,34 @@ export default function AdminRolesPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">Nome do perfil</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Nome do perfil
+              </label>
               <input
                 className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
                 value={formValues.name}
                 onChange={(event) =>
-                  setFormValues((prev) => ({ ...prev, name: event.target.value }))
+                  setFormValues((prev) => ({
+                    ...prev,
+                    name: event.target.value,
+                  }))
                 }
                 placeholder="Ex.: Atendimento"
                 required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">Descricao</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Descricao
+              </label>
               <textarea
                 className="min-h-[36px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 value={formValues.description}
                 onChange={(event) =>
-                  setFormValues((prev) => ({ ...prev, description: event.target.value }))
+                  setFormValues((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
                 }
                 placeholder="Resumo do perfil"
                 rows={3}

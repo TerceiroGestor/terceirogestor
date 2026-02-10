@@ -24,9 +24,12 @@ export const RACE_COLOR_OPTIONS = [
 export const STATUS_OPTIONS = [
   "Ativo",
   "Inativo",
+  "Em espera",
   "Em analise",
   "Desligado",
 ] as const;
+
+export const PERSON_TYPE_OPTIONS = ["Atendido", "Familiar"] as const;
 
 export const SEX_LABELS: Record<(typeof SEX_OPTIONS)[number], string> = {
   Masculino: "Masculino",

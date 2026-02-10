@@ -47,9 +47,9 @@ export function PeopleCreateClient() {
           rg: values.rg || null,
           nis: values.nis || null,
           status: values.status || null,
+          personType: values.personType || null,
           departureReason: values.departureReason || null,
           tags: values.tags ?? [],
-          hasHealthIssue: values.hasHealthIssue ?? false,
           profileSummary: values.profileSummary || null,
           avatarUrl,
         });

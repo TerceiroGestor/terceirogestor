@@ -44,6 +44,7 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'document',
   'rg',
   'nis',
+  'personType',
   'status',
   'departureReason',
   'notes',
@@ -51,8 +52,16 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'avatarUrl',
   'tags',
   'hasHealthIssue',
+  'hasHealthCondition',
+  'hasMedication',
   'createdAt',
   'updatedAt',
+]);
+
+const VIRTUAL_FILTER_FIELDS = new Set([
+  'hasHealthIssue',
+  'hasHealthCondition',
+  'hasMedication',
 ]);
 
 const DATE_FIELDS = new Set(['birthDate', 'createdAt', 'updatedAt']);
@@ -113,7 +122,7 @@ export const buildPeopleOrderBy = (
   grouping
     .filter((field, index, arr) => arr.indexOf(field) === index)
     .forEach((field) => {
-      if (ALLOWED_FILTER_FIELDS.has(field)) {
+      if (ALLOWED_FILTER_FIELDS.has(field) && !VIRTUAL_FILTER_FIELDS.has(field)) {
         orderBy.push({ [field]: 'asc' } as Prisma.PersonOrderByWithRelationInput);
       }
     });
@@ -189,16 +198,42 @@ const buildAdvancedFilter = (
     }
   }
 
-  if (field === 'hasHealthIssue') {
+  if (
+    field === 'hasHealthIssue' ||
+    field === 'hasHealthCondition' ||
+    field === 'hasMedication'
+  ) {
     const normalized = rawValue?.toLowerCase();
     if (!normalized) return null;
-    if (['true', '1', 'sim', 'yes'].includes(normalized)) {
-      return { hasHealthIssue: true };
+    const isTrue = ['true', '1', 'sim', 'yes'].includes(normalized);
+    const isFalse = ['false', '0', 'nao', 'não', 'no'].includes(normalized);
+    if (!isTrue && !isFalse) return null;
+
+    if (field === 'hasHealthCondition') {
+      return isTrue
+        ? { healthConditions: { some: {} } }
+        : { healthConditions: { none: {} } };
     }
-    if (['false', '0', 'nao', 'não', 'no'].includes(normalized)) {
-      return { hasHealthIssue: false };
+
+    if (field === 'hasMedication') {
+      return isTrue
+        ? { medications: { some: {} } }
+        : { medications: { none: {} } };
     }
-    return null;
+
+    return isTrue
+      ? {
+          OR: [
+            { healthConditions: { some: {} } },
+            { medications: { some: {} } },
+          ],
+        }
+      : {
+          AND: [
+            { healthConditions: { none: {} } },
+            { medications: { none: {} } },
+          ],
+        };
   }
 
   if (field === 'tags') {

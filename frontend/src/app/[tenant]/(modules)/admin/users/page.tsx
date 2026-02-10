@@ -236,43 +236,42 @@ export default function AdminUsersPage() {
     const createPassword = normalized.password;
     try {
       if (editingUser) {
-      const payload = {
-        name: normalized.name || undefined,
-        email: normalized.email || undefined,
-        password: normalized.password,
-        isActive: values.isActive ?? editingUser.isActive,
-        roleIds: normalized.roleIds,
-      };
-      await updateUser(token, editingUser.id, payload);
-    } else {
-      if (!createPassword) {
-        setFormError("Preencha nome, email e senha antes de salvar.");
-        return;
+        const payload = {
+          name: normalized.name || undefined,
+          email: normalized.email || undefined,
+          password: normalized.password,
+          isActive: values.isActive ?? editingUser.isActive,
+          roleIds: normalized.roleIds,
+        };
+        await updateUser(token, editingUser.id, payload);
+      } else {
+        if (!createPassword) {
+          setFormError("Preencha nome, email e senha antes de salvar.");
+          return;
+        }
+        await createUser(token, {
+          name: normalized.name,
+          email: normalized.email,
+          password: createPassword,
+          isActive: values.isActive ?? true,
+          roleIds: normalized.roleIds,
+        });
       }
-      await createUser(token, {
-        name: normalized.name,
-        email: normalized.email,
-        password: createPassword,
-        isActive: values.isActive ?? true,
-        roleIds: normalized.roleIds,
-      });
-    }
-    setDialogOpen(false);
-    setEditingUser(null);
-    await loadData();
+      setDialogOpen(false);
+      setEditingUser(null);
+      await loadData();
     } catch (err) {
       const details =
         err && typeof err === "object" && "details" in err
           ? (err as { details?: any }).details
           : null;
-      const message =
-        Array.isArray(details?.message)
-          ? details.message.join(", ")
-          : typeof details?.message === "string"
-            ? details.message
-            : err && typeof err === "object" && "message" in err
-              ? String((err as { message?: string }).message)
-              : "Falha ao salvar usuario.";
+      const message = Array.isArray(details?.message)
+        ? details.message.join(", ")
+        : typeof details?.message === "string"
+          ? details.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao salvar usuario.";
       setFormError(message);
     }
   };
@@ -288,15 +287,15 @@ export default function AdminUsersPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
-        title="Usuarios"
+        title="Usuários"
         items={[
-          { label: "Configuracoes", href: "/settings" },
-          { label: "Usuarios", href: "/admin/users" },
+          { label: "Configuracões", href: "/settings" },
+          { label: "Usuários", href: "/admin/users" },
         ]}
       />
       <SectionCard
-        title="Usuarios"
-        subtitle="Gerencie os usuarios e seus perfis de acesso."
+        title="Usuários"
+        subtitle="Gerencie os usuários e seus perfis de acesso."
         actions={
           canCreateUsers ? (
             <Button onClick={openCreate}>Novo usuario</Button>

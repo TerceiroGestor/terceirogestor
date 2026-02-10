@@ -25,6 +25,7 @@ import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { PersonIdentityCard } from "@/components/person-identity-card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -40,7 +41,11 @@ import { resolveMediaUrl } from "@/lib/api";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import { formatCurrency } from "@/app/[tenant]/(modules)/people/utils";
+import {
+  formatCurrency,
+  getAgeFromBirthDate,
+  isBirthdayToday,
+} from "@/app/[tenant]/(modules)/people/utils";
 
 type FamilyRelationsListProps = {
   peopleOptions: PersonSummary[];
@@ -137,62 +142,98 @@ const FamilyRow = ({
   tenantSlug?: string | null;
   onEdit?: () => void;
   onDelete?: () => void;
-}) => (
-  <SectionListItem
-    leading={(
-      <Avatar className="h-9 w-9">
-        <AvatarImage src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")} />
-        <AvatarFallback>
-          {person.fullName.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    )}
-    title={(
-      <>
-        <Link
-          href={withTenantPath(`/people/${person.id}`, tenantSlug)}
-          className="hover:text-foreground/80"
+}) => {
+  const ageValue = getAgeFromBirthDate(person.birthDate ?? null);
+  const ageLabel =
+    ageValue !== null && ageValue !== undefined
+      ? `${ageValue} anos`
+      : "Idade nao informada";
+  const isBirthday = isBirthdayToday(person.birthDate ?? null);
+
+  return (
+    <SectionListItem
+      leading={(
+        <Dialog>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className="group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Ver identificacao da pessoa"
+            >
+              <Avatar className="h-9 w-9">
+                <AvatarImage
+                  src={resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg")}
+                />
+                <AvatarFallback>
+                  {person.fullName.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
+                Ver perfil
+              </span>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <PersonIdentityCard
+              personId={person.id}
+              tenantSlug={tenantSlug}
+              fullName={person.fullName}
+              ageLabel={ageLabel}
+              avatarUrl={person.avatarUrl}
+              hasHealthCondition={false}
+              hasMedication={false}
+              isBirthdayToday={isBirthday}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+      title={(
+        <>
+          <Link
+            href={withTenantPath(`/people/${person.id}`, tenantSlug)}
+            className="hover:text-foreground/80"
+          >
+            {person.fullName}
+          </Link>
+          {relationType ? <RelationBadge label={relationType} /> : null}
+        </>
+      )}
+      meta={badges.map((badge) => (
+        <span
+          key={badge}
+          className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px]"
         >
-          {person.fullName}
-        </Link>
-        {relationType ? <RelationBadge label={relationType} /> : null}
-      </>
-    )}
-    meta={badges.map((badge) => (
-      <span
-        key={badge}
-        className="flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px]"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-        {badge}
-      </span>
-    ))}
-    actions={(
-      <>
-        {onEdit ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7 text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-          >
-            <Pencil className="size-3" />
-          </Button>
-        ) : null}
-        {onDelete ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7 text-destructive hover:text-destructive/80"
-            onClick={onDelete}
-          >
-            <Trash2 className="size-3" />
-          </Button>
-        ) : null}
-      </>
-    )}
-  />
-);
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
+          {badge}
+        </span>
+      ))}
+      actions={(
+        <>
+          {onEdit ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              onClick={onEdit}
+            >
+              <Pencil className="size-3" />
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-7 text-destructive hover:text-destructive/80"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          ) : null}
+        </>
+      )}
+    />
+  );
+};
 
 const RelationDialog = ({
   title,

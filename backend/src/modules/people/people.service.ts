@@ -35,18 +35,29 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 1000;
 
 type PersonRecord = Prisma.PersonGetPayload<{}>;
+type PersonWithHealthCounts = Prisma.PersonGetPayload<{
+  include: {
+    _count: {
+      select: {
+        healthConditions: true;
+        medications: true;
+      };
+    };
+  };
+}>;
 type PersonSummary = Prisma.PersonGetPayload<{
   select: {
     id: true;
     fullName: true;
     avatarUrl: true;
     birthDate: true;
-    sex: true;
-    gender: true;
-    raceColor: true;
-    status: true;
-  };
-}>;
+      sex: true;
+      gender: true;
+      raceColor: true;
+      status: true;
+      personType: true;
+    };
+  }>;
 type HouseholdMemberRecord = Prisma.HouseholdMemberGetPayload<{
   include: { person: true };
 }>;
@@ -68,6 +79,11 @@ const normalizeTags = (tags?: string[] | null) => {
   return cleaned.length ? JSON.stringify(cleaned) : null;
 };
 
+const normalizeStatus = (status?: string | null) => {
+  const normalized = normalizeString(status);
+  return normalized === 'Em analise' ? 'Em espera' : normalized;
+};
+
 const parseTags = (raw?: string | null) => {
   if (!raw) return [];
   try {
@@ -84,10 +100,16 @@ const parseTags = (raw?: string | null) => {
     .filter(Boolean);
 };
 
-const mapPerson = (person: PersonRecord) => ({
-  ...person,
-  tags: parseTags(person.tags),
-});
+const mapPerson = (person: PersonWithHealthCounts) => {
+  const { _count, tags, ...rest } = person;
+  return {
+    ...rest,
+    tags: parseTags(tags),
+    hasHealthCondition: _count.healthConditions > 0,
+    hasMedication: _count.medications > 0,
+    hasHealthIssue: _count.healthConditions + _count.medications > 0,
+  };
+};
 
 const mapPersonSummary = (person: PersonSummary) => ({
   id: person.id,
@@ -98,6 +120,7 @@ const mapPersonSummary = (person: PersonSummary) => ({
   gender: person.gender,
   raceColor: person.raceColor,
   status: person.status,
+  personType: person.personType,
 });
 
 const mapPersonSummaryFromRecord = (person: PersonRecord) => ({
@@ -109,6 +132,7 @@ const mapPersonSummaryFromRecord = (person: PersonRecord) => ({
   gender: person.gender,
   raceColor: person.raceColor,
   status: person.status,
+  personType: person.personType,
 });
 
 const mapIncome = (income: PersonIncomeRecord) => ({
@@ -334,33 +358,33 @@ const buildCreateData = (
   tenantId: string,
   dto: CreatePersonDto,
 ): Prisma.PersonUncheckedCreateInput => {
-  const normalizedStatus = normalizeString(dto.status);
+  const normalizedStatus = normalizeStatus(dto.status);
   return ({
-  tenantId,
-  fullName: dto.fullName.trim(),
-  socialName: normalizeString(dto.socialName),
-  birthDate: dto.birthDate ?? null,
-  sex: normalizeString(dto.sex),
-  gender: normalizeString(dto.gender),
-  raceColor: normalizeString(dto.raceColor),
-  maritalStatus: normalizeString(dto.maritalStatus),
-  nationality: normalizeString(dto.nationality),
-  email: normalizeString(dto.email),
-  phone: normalizeString(dto.phone),
-  document: normalizeString(dto.document),
-  rg: normalizeString(dto.rg),
-  nis: normalizeString(dto.nis),
-  status: normalizedStatus,
-  departureReason:
-    normalizedStatus === 'Desligado'
-      ? normalizeString(dto.departureReason)
-      : null,
-  notes: normalizeString(dto.notes),
-  tags: normalizeTags(dto.tags),
-  hasHealthIssue: dto.hasHealthIssue ?? false,
-  profileSummary: normalizeString(dto.profileSummary),
-  avatarUrl: normalizeString(dto.avatarUrl),
-});
+    tenantId,
+    fullName: dto.fullName.trim(),
+    socialName: normalizeString(dto.socialName),
+    birthDate: dto.birthDate ?? null,
+    sex: normalizeString(dto.sex),
+    gender: normalizeString(dto.gender),
+    raceColor: normalizeString(dto.raceColor),
+    maritalStatus: normalizeString(dto.maritalStatus),
+    nationality: normalizeString(dto.nationality),
+    email: normalizeString(dto.email),
+    phone: normalizeString(dto.phone),
+    document: normalizeString(dto.document),
+    rg: normalizeString(dto.rg),
+    nis: normalizeString(dto.nis),
+    personType: normalizeString(dto.personType) ?? 'Atendido',
+    status: normalizedStatus,
+    departureReason:
+      normalizedStatus === 'Desligado'
+        ? normalizeString(dto.departureReason)
+        : null,
+    notes: normalizeString(dto.notes),
+    tags: normalizeTags(dto.tags),
+    profileSummary: normalizeString(dto.profileSummary),
+    avatarUrl: normalizeString(dto.avatarUrl),
+  });
 };
 
 const buildUpdateData = (
@@ -407,8 +431,12 @@ const buildUpdateData = (
   if (dto.nis !== undefined) {
     data.nis = normalizeString(dto.nis);
   }
+
+  if (dto.personType !== undefined) {
+    data.personType = normalizeString(dto.personType) ?? 'Atendido';
+  }
   if (dto.status !== undefined) {
-    data.status = normalizeString(dto.status);
+    data.status = normalizeStatus(dto.status);
   }
   if (dto.departureReason !== undefined) {
     data.departureReason = normalizeString(dto.departureReason);
@@ -418,9 +446,6 @@ const buildUpdateData = (
   }
   if (dto.tags !== undefined) {
     data.tags = normalizeTags(dto.tags);
-  }
-  if (dto.hasHealthIssue !== undefined) {
-    data.hasHealthIssue = dto.hasHealthIssue ?? false;
   }
   if (dto.profileSummary !== undefined) {
     data.profileSummary = normalizeString(dto.profileSummary);
@@ -438,13 +463,18 @@ export class PeopleService {
 
   async create(tenantId: string, dto: CreatePersonDto) {
     if (
-      normalizeString(dto.status) === 'Desligado' &&
+      normalizeStatus(dto.status) === 'Desligado' &&
       !normalizeString(dto.departureReason)
     ) {
       throw new BadRequestException('Informe o motivo do desligamento.');
     }
     const person = await this.prisma.person.create({
       data: buildCreateData(tenantId, dto),
+      include: {
+        _count: {
+          select: { healthConditions: true, medications: true },
+        },
+      },
     });
     return mapPerson(person);
   }
@@ -472,6 +502,11 @@ export class PeopleService {
       orderBy,
       skip: isAll ? undefined : skip,
       take: isAll ? undefined : take,
+      include: {
+        _count: {
+          select: { healthConditions: true, medications: true },
+        },
+      },
     });
 
     const total = await this.prisma.person.count({ where });
@@ -490,6 +525,11 @@ export class PeopleService {
   async findById(tenantId: string, id: string) {
     const person = await this.prisma.person.findFirst({
       where: { id, tenantId },
+      include: {
+        _count: {
+          select: { healthConditions: true, medications: true },
+        },
+      },
     });
 
     if (!person) {
@@ -502,7 +542,7 @@ export class PeopleService {
   async update(tenantId: string, id: string, dto: UpdatePersonDto) {
     await this.findById(tenantId, id);
 
-    const nextStatus = normalizeString(dto.status);
+    const nextStatus = normalizeStatus(dto.status);
     if (
       nextStatus === 'Desligado' &&
       !normalizeString(dto.departureReason)
@@ -519,11 +559,18 @@ export class PeopleService {
       where: { id },
       data,
     });
-    await this.syncHealthIssueFlag(tenantId, id);
     const refreshed = await this.prisma.person.findFirst({
       where: { id, tenantId },
+      include: {
+        _count: {
+          select: { healthConditions: true, medications: true },
+        },
+      },
     });
-    return mapPerson(refreshed ?? person);
+    return mapPerson(refreshed ?? {
+      ...person,
+      _count: { healthConditions: 0, medications: 0 },
+    });
   }
 
   async listIncomes(tenantId: string, personId: string) {
@@ -771,7 +818,6 @@ export class PeopleService {
           notes: dto.notes !== undefined ? normalizeString(dto.notes) : null,
         },
       });
-      await this.syncHealthIssueFlag(tenantId, personId, tx);
       return mapHealthCondition(condition);
     });
   }
@@ -832,7 +878,6 @@ export class PeopleService {
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.personHealthCondition.delete({ where: { id: conditionId } });
-      await this.syncHealthIssueFlag(tenantId, personId, tx);
     });
     return { deleted: true };
   }
@@ -880,7 +925,6 @@ export class PeopleService {
           notes: dto.notes !== undefined ? normalizeString(dto.notes) : null,
         },
       });
-      await this.syncHealthIssueFlag(tenantId, personId, tx);
       return mapMedication(medication);
     });
   }
@@ -955,7 +999,6 @@ export class PeopleService {
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.personMedication.delete({ where: { id: medicationId } });
-      await this.syncHealthIssueFlag(tenantId, personId, tx);
     });
     return { deleted: true };
   }
@@ -1940,20 +1983,5 @@ export class PeopleService {
     });
   }
 
-  private async syncHealthIssueFlag(
-    tenantId: string,
-    personId: string,
-    tx: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
-    const [conditionCount, medicationCount] = await Promise.all([
-      tx.personHealthCondition.count({ where: { tenantId, personId } }),
-      tx.personMedication.count({ where: { tenantId, personId } }),
-    ]);
-    const hasHealthIssue = conditionCount + medicationCount > 0;
-    await tx.person.update({
-      where: { id: personId },
-      data: { hasHealthIssue },
-    });
-  }
 }
 

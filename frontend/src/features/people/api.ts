@@ -19,10 +19,13 @@ export type ApiPerson = {
   rg: string | null;
   nis: string | null;
   status: string | null;
+  personType: "Atendido" | "Familiar" | null;
   departureReason: string | null;
   notes: string | null;
   tags: string[] | null;
-  hasHealthIssue: boolean | null;
+  hasHealthCondition: boolean | null;
+  hasMedication: boolean | null;
+  hasHealthIssue?: boolean | null;
   profileSummary: string | null;
   avatarUrl: string | null;
   createdAt: string;
@@ -54,10 +57,10 @@ export type PersonInput = {
   rg?: string | null;
   nis?: string | null;
   status?: string | null;
+  personType?: "Atendido" | "Familiar" | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
-  hasHealthIssue?: boolean | null;
   profileSummary?: string | null;
   avatarUrl?: string | null;
 };
@@ -71,6 +74,7 @@ export type ApiPersonSummary = {
   gender: string | null;
   raceColor: string | null;
   status: string | null;
+  personType?: string | null;
 };
 
 export type ApiHouseholdInfo = {

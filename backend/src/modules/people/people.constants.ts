@@ -27,6 +27,9 @@ export const RACE_COLOR_OPTIONS = [
 export const STATUS_OPTIONS = [
   'Ativo',
   'Inativo',
+  'Em espera',
   'Em analise',
   'Desligado',
 ] as const;
+
+export const PERSON_TYPE_OPTIONS = ['Atendido', 'Familiar'] as const;

@@ -2,8 +2,10 @@ import type { FormField, FormStep } from "@/components/FormEngine/types";
 import type { PersonFormData } from "./types";
 import {
   GENDER_OPTIONS,
+  PERSON_TYPE_OPTIONS,
   RACE_COLOR_OPTIONS,
   SEX_OPTIONS,
+  STATUS_OPTIONS,
 } from "./people.constants";
 
 const buildOptions = (values: readonly string[]) =>
@@ -49,6 +51,12 @@ export const personFormFields: FormField<PersonFormData>[] = [
     options: buildOptions(SEX_OPTIONS),
   },
   {
+    name: "personType",
+    label: "Tipo de pessoa",
+    type: "select",
+    options: buildOptions(PERSON_TYPE_OPTIONS),
+  },
+  {
     name: "gender",
     label: "Genero",
     type: "select",
@@ -90,12 +98,7 @@ export const personFormFields: FormField<PersonFormData>[] = [
     name: "status",
     label: "Status",
     type: "select",
-    options: [
-      { label: "Ativo", value: "Ativo" },
-      { label: "Em analise", value: "Em analise" },
-      { label: "Inativo", value: "Inativo" },
-      { label: "Desligado", value: "Desligado" },
-    ],
+    options: buildOptions(STATUS_OPTIONS.filter((status) => status !== "Em analise")),
   },
   {
     name: "departureReason",
@@ -103,12 +106,6 @@ export const personFormFields: FormField<PersonFormData>[] = [
     type: "textarea",
     placeholder: "Descreva o motivo do desligamento",
     requiredWhen: (values) => values.status === "Desligado",
-  },
-  {
-    name: "hasHealthIssue",
-    label: "Existe alguma questao de saude?",
-    type: "boolean",
-    defaultValue: false,
   },
 ];
 
@@ -121,6 +118,7 @@ export const personFormSteps: FormStep[] = [
       "socialName",
       "birthDate",
       "sex",
+      "personType",
       "gender",
       "raceColor",
       "maritalStatus",
@@ -138,10 +136,6 @@ export const personFormSteps: FormStep[] = [
   {
     title: "Organizacao",
     fields: ["tags", "status", "departureReason"],
-  },
-  {
-    title: "Saude",
-    fields: ["hasHealthIssue"],
   },
   {
     title: "Observacoes",

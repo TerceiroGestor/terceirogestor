@@ -15,7 +15,7 @@ import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { usePathname } from "next/navigation";
 
 const userActions = [
-  { label: "Configuracoes", icon: Settings, href: "/settings" },
+  { label: "Configuracões", icon: Settings, href: "/settings" },
 ];
 
 export function AppSidebarUserMenu() {
@@ -25,12 +25,13 @@ export function AppSidebarUserMenu() {
   const { user } = useCurrentUser();
   const email = user?.email ?? "";
   const name = user?.name ?? email.split("@")[0] ?? "Usuario";
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "US";
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "US";
 
   return (
     <DropdownMenu>

@@ -35,11 +35,16 @@ const MODULE_ACTIONS: Record<string, { label: string; actions: string[] }> = {
   users: { label: "Usuarios", actions: ["read", "create", "update", "delete"] },
   tenants: { label: "Instituicao", actions: ["read", "update"] },
   roles: { label: "Perfis", actions: ["manage"] },
-  financial: { label: "Financeiro", actions: ["read", "create", "update", "delete"] },
+  financial: {
+    label: "Financeiro",
+    actions: ["read", "create", "update", "delete"],
+  },
 };
 
 const buildRoleModules = (role: RoleSummary) => {
-  const permissionSet = new Set(role.permissions.map((permission) => permission.key));
+  const permissionSet = new Set(
+    role.permissions.map((permission) => permission.key),
+  );
   return Object.entries(MODULE_ACTIONS).map(([moduleKey, module]) => {
     const allowed = module.actions.filter((action) =>
       permissionSet.has(`${moduleKey}.${action}`),
@@ -110,9 +115,9 @@ export default function AdminPermissionsPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
-        title="Permissoes por feature"
+        title="Permissões por recursos"
         items={[
-          { label: "Configuracoes", href: "/settings" },
+          { label: "Configuracões", href: "/settings" },
           { label: "Permissoes", href: "/admin/permissions" },
         ]}
       />
@@ -123,7 +128,7 @@ export default function AdminPermissionsPage() {
       ) : null}
 
       <SectionCard
-        title="Perfis por modulo"
+        title="Perfis por módulo"
         subtitle="Visualize o que cada perfil pode executar em cada modulo."
       >
         <SectionList>
@@ -133,17 +138,23 @@ export default function AdminPermissionsPage() {
               <SectionListItem
                 key={role.id}
                 title={role.name}
-                subtitle={role.description ?? "Sem descricao"}
+                subtitle={role.description ?? "Sem descrição"}
                 meta={
                   <div className="flex flex-col gap-2">
                     {modules.map((module) => (
-                      <div key={module.moduleKey} className="flex flex-wrap items-center gap-2 text-xs">
+                      <div
+                        key={module.moduleKey}
+                        className="flex flex-wrap items-center gap-2 text-xs"
+                      >
                         <span className="text-xs font-semibold text-foreground">
                           {module.label}
                         </span>
                         {module.allowed.length ? (
                           module.allowed.map((action) => (
-                            <Badge key={`${module.moduleKey}-${action}`} variant="outline">
+                            <Badge
+                              key={`${module.moduleKey}-${action}`}
+                              variant="outline"
+                            >
                               {action}
                             </Badge>
                           ))

@@ -261,11 +261,11 @@ async function main() {
     maritalStatus: string;
     nationality: string;
     status: string;
+    personType?: string;
     notes?: string;
     profileSummary?: string;
     avatarUrl?: string;
     tags?: string[];
-    hasHealthIssue?: boolean;
     departureReason?: string;
   };
 
@@ -285,11 +285,11 @@ async function main() {
       gender: 'Mulher',
       raceColor: 'Branca',
       maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-      tags: ['Agendar reuniao com os pais'],
-      hasHealthIssue: false,
-    },
+        nationality: 'Brasileira',
+        status: 'Ativo',
+        personType: 'Atendido',
+        tags: ['Agendar reuniao com os pais'],
+      },
     {
       id: '5a6afec4-5165-4f20-b394-d95b4d603fdd',
       fullName: 'Carlos Souza',
@@ -304,11 +304,11 @@ async function main() {
       gender: 'Homem',
       raceColor: 'Parda',
       maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-      tags: ['Analisar mudanca de ciclo'],
-      hasHealthIssue: true,
-    },
+        nationality: 'Brasileira',
+        status: 'Ativo',
+        personType: 'Familiar',
+        tags: ['Analisar mudanca de ciclo'],
+      },
     {
       id: 'c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf',
       fullName: 'Marina Lima',
@@ -324,7 +324,7 @@ async function main() {
       raceColor: 'Preta',
       maritalStatus: 'Divorciada',
       nationality: 'Brasileira',
-      status: 'Em analise',
+      status: 'Em espera',
       tags: ['Entrevista de acompanhamento'],
     },
     {
@@ -410,7 +410,7 @@ async function main() {
       raceColor: 'Parda',
       maritalStatus: 'Divorciada',
       nationality: 'Brasileira',
-      status: 'Em analise',
+      status: 'Em espera',
     },
     {
       id: '76a90a40-2a7a-40c4-9b0f-9cee5a56d96a',
@@ -546,7 +546,7 @@ async function main() {
       raceColor: 'Branca',
       maritalStatus: 'Solteira',
       nationality: 'Brasileira',
-      status: 'Em analise',
+      status: 'Em espera',
     },
     {
       id: 'd79704f6-378f-439f-b40d-9eea794fbd5b',
@@ -648,7 +648,7 @@ async function main() {
       raceColor: 'Branca',
       maritalStatus: 'Casada',
       nationality: 'Brasileira',
-      status: 'Em analise',
+      status: 'Em espera',
     },
   ];
 
@@ -672,12 +672,12 @@ async function main() {
         maritalStatus: person.maritalStatus,
         nationality: person.nationality,
         status: person.status,
+        personType: person.personType ?? 'Atendido',
         departureReason: person.departureReason,
         notes: person.notes,
         profileSummary: person.profileSummary,
         avatarUrl: person.avatarUrl,
         tags: person.tags ? JSON.stringify(person.tags) : null,
-        hasHealthIssue: person.hasHealthIssue ?? false,
       },
       create: {
         id: person.id,
@@ -696,13 +696,13 @@ async function main() {
         maritalStatus: person.maritalStatus,
         nationality: person.nationality,
         status: person.status,
+        personType: person.personType ?? 'Atendido',
         departureReason: person.departureReason ?? null,
         notes: person.notes ?? 'Cadastro inicial.',
         profileSummary:
           person.profileSummary ?? '<p>Cadastro base para testes.</p>',
         avatarUrl: person.avatarUrl ?? defaultAvatarUrl,
         tags: person.tags ? JSON.stringify(person.tags) : null,
-        hasHealthIssue: person.hasHealthIssue ?? false,
       },
     });
   }
@@ -1516,19 +1516,6 @@ async function main() {
     });
   }
 
-  const peopleWithHealthIssues = Array.from(
-    new Set([
-      ...healthConditions.map((condition) => condition.personId),
-      ...medications.map((medication) => medication.personId),
-    ]),
-  );
-
-  if (peopleWithHealthIssues.length) {
-    await prisma.person.updateMany({
-      where: { id: { in: peopleWithHealthIssues } },
-      data: { hasHealthIssue: true },
-    });
-  }
 }
 
 main()
@@ -1540,6 +1527,7 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+
 
 
 

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Cake, HeartPulse, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TagInput } from "@/components/ui/tag-input";
+import { PersonIdentityCard } from "@/components/person-identity-card";
 import type { PeopleTableItem, PersonFormData } from "./types";
 import {
   formatDate,
@@ -26,6 +27,8 @@ import {
   resolveLabel,
 } from "./utils";
 import { resolveMediaUrl } from "@/lib/api";
+import { usePathname } from "next/navigation";
+import { getTenantSlugFromPath } from "@/lib/tenant-path";
 
 const getStatusVariant = (status?: PeopleTableItem["status"]) => {
   if (status === "Ativo") return "default";
@@ -145,6 +148,8 @@ export function usePeopleColumns({
   updatingIds,
   tagSuggestions,
 }: PeopleColumnsProps = {}) {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const columns: ColumnDef<PeopleTableItem>[] = [
     {
       accessorKey: "fullName",
@@ -153,28 +158,42 @@ export function usePeopleColumns({
       cell: ({ row }) => {
         const person = row.original;
         const avatarSrc = resolveMediaUrl(person.avatarUrl || "/avatar.jpg");
+        const ageLabel =
+          person.age !== null && person.age !== undefined
+            ? `${person.age} anos`
+            : "Idade nao informada";
         return (
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={avatarSrc} />
-                <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
-              </Avatar>
-              {person.hasHealthIssue || person.isBirthdayToday ? (
-                <span className="absolute -bottom-1 -right-1 flex items-center gap-1">
-                  {person.hasHealthIssue ? (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-rose-200 bg-rose-500 text-white shadow-sm">
-                      <HeartPulse className="h-3 w-3" />
-                    </span>
-                  ) : null}
-                  {person.isBirthdayToday ? (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-200 bg-amber-500 text-white shadow-sm">
-                      <Cake className="h-3 w-3" />
-                    </span>
-                  ) : null}
-                </span>
-              ) : null}
-            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label="Ver identificacao da pessoa"
+                >
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={avatarSrc} />
+                    <AvatarFallback>{getInitials(person.fullName)}</AvatarFallback>
+                  </Avatar>
+                  <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
+                    Ver perfil
+                  </span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <PersonIdentityCard
+                  personId={person.id}
+                  tenantSlug={tenantSlug}
+                  fullName={person.fullName}
+                  socialName={person.socialName}
+                  ageLabel={ageLabel}
+                  avatarUrl={person.avatarUrl}
+                  hasHealthCondition={person.hasHealthCondition}
+                  hasMedication={person.hasMedication}
+                  isBirthdayToday={person.isBirthdayToday}
+                />
+              </DialogContent>
+            </Dialog>
             <div className="leading-tight">
               <div className="flex items-center gap-2">
                 <p className="font-medium">{person.fullName}</p>
@@ -220,6 +239,23 @@ export function usePeopleColumns({
           </Badge>
         );
       },
+    },
+    {
+      accessorKey: "personType",
+      header: "Tipo",
+      meta: { dataType: "string" },
+      cell: ({ row }) => (
+        <Badge
+          variant="outline"
+          className={
+            row.original.personType === "Familiar"
+              ? badgeTone.violet
+              : badgeTone.blue
+          }
+        >
+          {row.original.personType ?? "-"}
+        </Badge>
+      ),
     },
     {
       accessorKey: "raceColor",
@@ -275,12 +311,24 @@ export function usePeopleColumns({
       cell: ({ row }) => row.original.phone ?? "-",
     },
     {
-      accessorKey: "hasHealthIssue",
-      header: "Saude",
+      accessorKey: "hasHealthCondition",
+      header: "Condicao",
       meta: { dataType: "boolean" },
       cell: ({ row }) => (
-        <Badge variant={row.original.hasHealthIssue ? "secondary" : "outline"}>
-          {row.original.hasHealthIssue ? "Sim" : "Nao"}
+        <Badge
+          variant={row.original.hasHealthCondition ? "secondary" : "outline"}
+        >
+          {row.original.hasHealthCondition ? "Sim" : "Nao"}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "hasMedication",
+      header: "Medicacao",
+      meta: { dataType: "boolean" },
+      cell: ({ row }) => (
+        <Badge variant={row.original.hasMedication ? "secondary" : "outline"}>
+          {row.original.hasMedication ? "Sim" : "Nao"}
         </Badge>
       ),
     },

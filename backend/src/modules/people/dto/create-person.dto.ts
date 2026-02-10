@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsDate,
   IsEmail,
   IsIn,
@@ -14,6 +13,7 @@ import {
   GENDER_OPTIONS,
   RACE_COLOR_OPTIONS,
   STATUS_OPTIONS,
+  PERSON_TYPE_OPTIONS,
 } from '../people.constants';
 
 export class CreatePersonDto {
@@ -80,6 +80,11 @@ export class CreatePersonDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(PERSON_TYPE_OPTIONS)
+  personType?: string | null;
+
+  @IsOptional()
+  @IsString()
   departureReason?: string | null;
 
   @IsOptional()
@@ -90,11 +95,6 @@ export class CreatePersonDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[] | null;
-
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  hasHealthIssue?: boolean | null;
 
   @IsOptional()
   @IsString()

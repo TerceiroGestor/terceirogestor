@@ -13,17 +13,19 @@ export type PersonFormData = {
   document?: string | null;
   rg?: string | null;
   nis?: string | null;
-  status?: "Ativo" | "Inativo" | "Em analise" | "Desligado" | null;
+  status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
+  personType?: "Atendido" | "Familiar" | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
-  hasHealthIssue?: boolean | null;
   profileSummary?: string | null;
 };
 
 export type Person = Omit<PersonFormData, "avatarUrl"> & {
   id: string;
   avatarUrl?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -42,11 +44,13 @@ export type PeopleTableItem = {
   nis?: string | null;
   email?: string | null;
   phone?: string | null;
-  status?: "Ativo" | "Inativo" | "Em analise" | "Desligado" | null;
+  status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
+  personType?: "Atendido" | "Familiar" | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
-  hasHealthIssue?: boolean | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
   profileSummary?: string | null;
   birthDate?: string | null;
   age?: number | null;
@@ -66,6 +70,7 @@ export type PersonSummary = {
   gender?: string | null;
   raceColor?: string | null;
   status?: string | null;
+  personType?: string | null;
 };
 
 export type HouseholdInfo = {
