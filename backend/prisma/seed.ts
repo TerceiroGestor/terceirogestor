@@ -79,6 +79,7 @@ async function main() {
     { key: 'users.update', description: 'Atualizar usuarios' },
     { key: 'users.delete', description: 'Excluir usuarios' },
     { key: 'roles.manage', description: 'Gerenciar perfis e permissoes' },
+    { key: 'audit.read', description: 'Ler auditoria de dados' },
     { key: 'tenants.read', description: 'Ler dados da instituicao' },
     { key: 'tenants.update', description: 'Atualizar dados da instituicao' },
   ];

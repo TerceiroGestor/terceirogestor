@@ -27,6 +27,29 @@ export type AdminAccessLog = {
   createdAt: string;
 };
 
+export type AdminAuditLogAction = "CREATE" | "UPDATE" | "DELETE";
+
+export type AdminAuditLogUser = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+export type AdminAuditLog = {
+  id: string;
+  action: AdminAuditLogAction;
+  entity: string;
+  entityId?: string | null;
+  before?: unknown;
+  after?: unknown;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  requestId?: string | null;
+  userId?: string | null;
+  createdAt: string;
+  user?: AdminAuditLogUser | null;
+};
+
 export type AdminUserListResponse = {
   data: AdminUser[];
   pagination: {
@@ -39,6 +62,16 @@ export type AdminUserListResponse = {
 
 export type AdminAccessLogListResponse = {
   data: AdminAccessLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+};
+
+export type AdminAuditLogListResponse = {
+  data: AdminAuditLog[];
   pagination: {
     page: number;
     limit: number;
@@ -136,6 +169,26 @@ export async function getUserAccessLogs(
   const query = buildQuery(params);
   return apiRequest<AdminAccessLogListResponse>(
     `/users/${userId}/access-logs${query}`,
+    {},
+    token,
+  );
+}
+
+export async function getAuditLogs(
+  token: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    action?: AdminAuditLogAction;
+    entity?: string;
+    entityId?: string;
+    userId?: string;
+    search?: string;
+  },
+) {
+  const query = buildQuery(params);
+  return apiRequest<AdminAuditLogListResponse>(
+    `/audit-logs${query}`,
     {},
     token,
   );

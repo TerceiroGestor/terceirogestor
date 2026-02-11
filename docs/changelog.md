@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-11 — Auditoria de dados (fase 2)
+
+### O que foi entregue
+- Painel de detalhes com before/after na auditoria.
+- Modelo AuditLog com before/after, metadados de request e indexes.
+- Middleware de auditoria com redacao de campos sensiveis e request context por requisicao.
+- Endpoint /audit-logs com filtros + tela administrativa para consulta.
+
 ## 2026-02-10 — Plano de estabilidade (v0.9 -> v1.0)
 
 ### Diagnostico do estado atual
@@ -135,3 +143,7 @@
 
 ### Testes
 - `frontend`: `npm run build`.
+
+
+
+

@@ -35,6 +35,12 @@ const settingsLinks = [
     permission: "roles.manage",
   },
   {
+    title: "Auditoria",
+    description: "Registro de alterações e histórico de dados.",
+    href: "/admin/audit-logs",
+    permission: "audit.read",
+  },
+  {
     title: "Perfil",
     description: "Histórico de acessos e dados do usuário.",
     href: "/auth/profile",

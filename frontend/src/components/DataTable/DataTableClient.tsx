@@ -104,6 +104,7 @@ export type DataTableClientProps<TData> = {
     exportCsv: () => void;
     exportPdf: () => void;
   }) => React.ReactNode;
+  onRowClick?: (row: TData) => void;
 };
 
 
@@ -119,6 +120,7 @@ export function DataTableClient<TData>({
   exportLabels,
   exportMeta,
   actions,
+  onRowClick,
   manualPagination = false,
   pageCount,
   pagination: paginationProp,
@@ -763,6 +765,22 @@ export function DataTableClient<TData>({
       })
     : undefined;
 
+  const handleRowClick = React.useCallback(
+    (row: Row<TData>) => (event: React.MouseEvent<HTMLTableRowElement>) => {
+      if (!onRowClick) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest(
+          "button, a, input, textarea, select, [role='button']",
+        )
+      ) {
+        return;
+      }
+      onRowClick(row.original as TData);
+    },
+    [onRowClick],
+  );
+
   const exportMenuNode = showExportMenu ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -903,7 +921,8 @@ export function DataTableClient<TData>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/10"
+                    className={`hover:bg-muted/10${onRowClick ? " cursor-pointer" : ""}`}
+                    onClick={onRowClick ? handleRowClick(row) : undefined}
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (

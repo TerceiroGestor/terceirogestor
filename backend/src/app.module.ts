@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,6 +14,10 @@ import { FilesModule } from './core/files/files.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TenancyMiddleware } from './core/tenancy/tenancy.middleware';
+import { AuditModule } from './core/audit/audit.module';
+import { RequestContextModule } from './core/request-context/request-context.module';
+import { RequestContextMiddleware } from './core/request-context/request-context.middleware';
+import { RequestContextInterceptor } from './core/request-context/request-context.interceptor';
 
 @Module({
   imports: [
@@ -29,14 +34,23 @@ import { TenancyMiddleware } from './core/tenancy/tenancy.middleware';
     TenantsModule,
     PeopleModule,
     FilesModule,
+    AuditModule,
+    RequestContextModule,
   ],
   controllers: [AppController],
-  providers: [AppService, TenancyMiddleware],
+  providers: [
+    AppService,
+    TenancyMiddleware,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestContextInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
-      .apply(TenancyMiddleware)
+      .apply(TenancyMiddleware, RequestContextMiddleware)
       .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }
