@@ -38,7 +38,7 @@ export function PeopleDetail({
   }, []);
 
   return (
-    <FamilyRelationsProvider personId={person.id}>
+    <FamilyRelationsProvider personId={person.id} initialMode="summary">
       <div className="grid gap-4 px-4 pt-4 pb-4 lg:grid-cols-[320px_1fr] lg:items-start lg:h-[calc(100svh-3.5rem)] lg:overflow-hidden">
         <div className="flex flex-col gap-5 lg:h-full lg:min-h-0">
           <PeopleDetailSidebar

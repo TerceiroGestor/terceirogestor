@@ -11,16 +11,14 @@ const formatValue = (value: string | number | null | undefined) => {
 
 export function FamilySummarySheet() {
   const {
-    data,
-    isLoading,
-    error,
+    summary,
+    summaryLoading,
+    summaryError,
     incomeSummary,
     householdProfile,
-    householdAssets,
-    personAssetsByMember,
   } = useFamilyRelationsContext();
 
-  if (isLoading) {
+  if (summaryLoading) {
     return (
       <div className="rounded-2xl border border-border/60 bg-background px-6 py-5 text-sm text-muted-foreground">
         Carregando resumo familiar...
@@ -28,69 +26,56 @@ export function FamilySummarySheet() {
     );
   }
 
-  if (error) {
+  if (summaryError) {
     return (
       <div className="rounded-2xl border border-border/60 bg-background px-6 py-5 text-sm text-destructive">
-        {error}
+        {summaryError}
       </div>
     );
   }
 
-  const householdMembers = data?.householdMembers ?? [];
-  const relations = data?.relations ?? [];
-  const externalRelations = relations.filter(
-    (relation) => !relation.livesTogether,
-  );
-  const livingCount = householdMembers.length;
-  const externalCount = externalRelations.length;
-  const guardiansCount =
-    householdMembers.filter((member) => member.isLegalGuardian).length +
-    externalRelations.filter((relation) => relation.isLegalGuardian).length;
-  const providersCount = householdMembers.filter(
-    (member) => member.isProvider,
-  ).length;
-  const dependentsCount = householdMembers.filter(
-    (member) => member.isDependent,
-  ).length;
-  const totalRelations = relations.length;
-
-  const summary = incomeSummary ?? {
-    totalIncome: 0,
-    perCapitaIncome: 0,
-    totalExpenses: 0,
-    perCapitaExpenses: 0,
-    benefitsTotal: 0,
-    pensionTotal: 0,
-    householdSize: 0,
-    contributors: [],
+  const relationsSummary = summary?.relations ?? {
+    livingCount: 0,
+    externalCount: 0,
+    guardiansCount: 0,
+    providersCount: 0,
+    dependentsCount: 0,
+    totalRelations: 0,
   };
+
+  const summaryIncome = summary?.incomeSummary ??
+    incomeSummary ?? {
+      totalIncome: 0,
+      perCapitaIncome: 0,
+      totalExpenses: 0,
+      perCapitaExpenses: 0,
+      benefitsTotal: 0,
+      pensionTotal: 0,
+      householdSize: 0,
+      contributors: [],
+    };
+
   const hasIncome =
-    summary.totalIncome > 0 ||
-    summary.benefitsTotal > 0 ||
-    summary.pensionTotal > 0 ||
-    summary.totalExpenses > 0;
+    summaryIncome.totalIncome > 0 ||
+    summaryIncome.benefitsTotal > 0 ||
+    summaryIncome.pensionTotal > 0 ||
+    summaryIncome.totalExpenses > 0;
 
-  const sharedCount = householdAssets.reduce(
-    (sum, asset) => sum + (asset.quantity ?? 1),
-    0,
-  );
-  const individualCount = personAssetsByMember.reduce((sum, group) => {
-    const groupTotal = group.assets.reduce(
-      (acc, asset) => acc + (asset.quantity ?? 1),
-      0,
-    );
-    return sum + groupTotal;
-  }, 0);
+  const assetsSummary = summary?.assets ?? {
+    sharedCount: 0,
+    individualCount: 0,
+  };
 
+  const profile = summary?.householdProfile ?? householdProfile;
   const hasHouseholdData = Boolean(
-    householdProfile &&
-      (householdProfile.type ||
-        householdProfile.condition ||
-        householdProfile.ownership ||
-        householdProfile.areaM2 != null ||
-        householdProfile.rooms != null ||
-        householdProfile.bathrooms != null ||
-        householdProfile.notes),
+    profile &&
+      (profile.type ||
+        profile.condition ||
+        profile.ownership ||
+        profile.areaM2 != null ||
+        profile.rooms != null ||
+        profile.bathrooms != null ||
+        profile.notes),
   );
 
   return (
@@ -110,18 +95,19 @@ export function FamilySummarySheet() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
           Núcleo familiar
         </p>
-        {totalRelations + livingCount === 0 ? (
+        {relationsSummary.totalRelations + relationsSummary.livingCount === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhum vínculo familiar registrado.
           </p>
         ) : (
           <p>
-            Moram juntos: <strong>{livingCount}</strong>. Fora da residência:{" "}
-            <strong>{externalCount}</strong>. Responsáveis legais:{" "}
-            <strong>{guardiansCount}</strong>. Provedores:{" "}
-            <strong>{providersCount}</strong>. Dependentes:{" "}
-            <strong>{dependentsCount}</strong>. Vínculos totais:{" "}
-            <strong>{totalRelations}</strong>.
+            Moram juntos: <strong>{relationsSummary.livingCount}</strong>. Fora
+            da residência: <strong>{relationsSummary.externalCount}</strong>.
+            Responsáveis legais:{" "}
+            <strong>{relationsSummary.guardiansCount}</strong>. Provedores:{" "}
+            <strong>{relationsSummary.providersCount}</strong>. Dependentes:{" "}
+            <strong>{relationsSummary.dependentsCount}</strong>. Vínculos
+            totais: <strong>{relationsSummary.totalRelations}</strong>.
           </p>
         )}
       </section>
@@ -135,23 +121,29 @@ export function FamilySummarySheet() {
         {hasIncome ? (
           <>
             <p>
-              Renda total: <strong>{formatCurrency(summary.totalIncome)}</strong>
-              . Renda per capita:{" "}
-              <strong>{formatCurrency(summary.perCapitaIncome)}</strong>.
+              Renda total:{" "}
+              <strong>{formatCurrency(summaryIncome.totalIncome)}</strong>.
+              Renda per capita:{" "}
+              <strong>{formatCurrency(summaryIncome.perCapitaIncome)}</strong>.
             </p>
             <p>
               Gastos totais:{" "}
-              <strong>{formatCurrency(summary.totalExpenses)}</strong>. Gasto per
-              capita:{" "}
-              <strong>{formatCurrency(summary.perCapitaExpenses)}</strong>.
+              <strong>{formatCurrency(summaryIncome.totalExpenses)}</strong>.
+              Gasto per capita:{" "}
+              <strong>
+                {formatCurrency(summaryIncome.perCapitaExpenses)}
+              </strong>
+              .
             </p>
             <p>
               Benefícios:{" "}
-              <strong>{formatCurrency(summary.benefitsTotal)}</strong>. Pensão:{" "}
-              <strong>{formatCurrency(summary.pensionTotal)}</strong>.{" "}
-              Contribuintes: <strong>{summary.contributors?.length ?? 0}</strong>
-              . Familiares monitorados:{" "}
-              <strong>{summary.householdSize ?? 0}</strong>.
+              <strong>{formatCurrency(summaryIncome.benefitsTotal)}</strong>.
+              Pensão:{" "}
+              <strong>{formatCurrency(summaryIncome.pensionTotal)}</strong>.
+              Contribuintes:{" "}
+              <strong>{summaryIncome.contributors?.length ?? 0}</strong>.
+              Familiares monitorados:{" "}
+              <strong>{summaryIncome.householdSize ?? 0}</strong>.
             </p>
           </>
         ) : (
@@ -167,14 +159,15 @@ export function FamilySummarySheet() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
           Bens e serviços
         </p>
-        {sharedCount + individualCount === 0 ? (
+        {assetsSummary.sharedCount + assetsSummary.individualCount === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhum item cadastrado.
           </p>
         ) : (
           <p>
-            Itens compartilhados: <strong>{sharedCount}</strong>. Itens
-            individuais: <strong>{individualCount}</strong>.
+            Itens compartilhados:{" "}
+            <strong>{assetsSummary.sharedCount}</strong>. Itens individuais:{" "}
+            <strong>{assetsSummary.individualCount}</strong>.
           </p>
         )}
       </section>
@@ -188,21 +181,18 @@ export function FamilySummarySheet() {
         {hasHouseholdData ? (
           <>
             <p>
-              Tipo: <strong>{formatValue(householdProfile?.type)}</strong>.
-              Condição:{" "}
-              <strong>{formatValue(householdProfile?.condition)}</strong>.
-              Propriedade:{" "}
-              <strong>{formatValue(householdProfile?.ownership)}</strong>.
+              Tipo: <strong>{formatValue(profile?.type)}</strong>. Condição:{" "}
+              <strong>{formatValue(profile?.condition)}</strong>. Propriedade:{" "}
+              <strong>{formatValue(profile?.ownership)}</strong>.
             </p>
             <p>
-              Área (m²):{" "}
-              <strong>{formatValue(householdProfile?.areaM2)}</strong>. Cômodos:{" "}
-              <strong>{formatValue(householdProfile?.rooms)}</strong>. Banheiros:{" "}
-              <strong>{formatValue(householdProfile?.bathrooms)}</strong>.
+              Área (m²): <strong>{formatValue(profile?.areaM2)}</strong>. Cômodos:{" "}
+              <strong>{formatValue(profile?.rooms)}</strong>. Banheiros:{" "}
+              <strong>{formatValue(profile?.bathrooms)}</strong>.
             </p>
-            {householdProfile?.notes ? (
+            {profile?.notes ? (
               <p>
-                Observações: <strong>{householdProfile.notes}</strong>.
+                Observações: <strong>{profile.notes}</strong>.
               </p>
             ) : null}
           </>

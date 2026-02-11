@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
@@ -558,7 +558,7 @@ type PeopleFinancialPanelProps = {
 };
 
 export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
-  const { data: familyData } = useFamilyRelationsContext();
+  const { data: familyData, loadDetailed } = useFamilyRelationsContext();
   const {
     incomes,
     expenses,
@@ -575,6 +575,12 @@ export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
     updateTransfer,
     deleteTransfer,
   } = usePeopleFinancial(personId);
+
+  useEffect(() => {
+    if (!familyData) {
+      loadDetailed();
+    }
+  }, [familyData, loadDetailed]);
 
   const householdOptions = useMemo(() => {
     const options: { id: string; label: string }[] = [];

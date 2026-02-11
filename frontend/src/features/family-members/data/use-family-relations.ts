@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import type {
   FamilyIncomeSummary,
+  FamilySummary,
   HouseholdProfile,
   HouseholdAsset,
   PersonAssetsGroup,
@@ -18,11 +19,12 @@ import {
   deleteHouseholdAsset,
   deletePersonAsset,
   deletePersonRelation,
-  getHouseholdAssets,
-  getPersonRelations,
   getFamilyIncomeSummary,
-  getHouseholdProfile,
+  getFamilySummary,
+  getHouseholdAssets,
   getHouseholdPersonAssets,
+  getHouseholdProfile,
+  getPersonRelations,
   listPeople,
   updateHouseholdAsset,
   updatePersonAsset,
@@ -39,16 +41,29 @@ type AssetInput = {
   notes?: string | null;
 };
 
+type LoadMode = "summary" | "detailed";
+
+type LoadTimes = {
+  summaryMs?: number;
+  detailedMs?: number;
+};
+
 type UseFamilyRelationsResult = {
   data: PersonRelationsResponse | null;
-  isLoading: boolean;
-  error: string | null;
   peopleOptions: PersonSummary[];
   incomeSummary: FamilyIncomeSummary | null;
   householdProfile: HouseholdProfile | null;
   householdAssets: HouseholdAsset[];
   personAssetsByMember: PersonAssetsGroup[];
+  summary: FamilySummary | null;
+  summaryLoading: boolean;
+  summaryError: string | null;
+  detailedLoading: boolean;
+  detailedError: string | null;
+  loadSummary: (force?: boolean) => Promise<void>;
+  loadDetailed: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
+  loadTimes: LoadTimes;
   create: (payload: PersonRelationInput) => Promise<void>;
   update: (
     relationId: string,
@@ -113,11 +128,17 @@ const mergeRelationsResponse = (
   })),
 });
 
-export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
+const shouldLogLoad = () => process.env.NODE_ENV !== "production";
+
+export function useFamilyRelations(
+  personId: string,
+  options?: { autoLoad?: boolean; initialMode?: LoadMode },
+): UseFamilyRelationsResult {
   const { token } = useAuth();
+  const autoLoad = options?.autoLoad ?? true;
+  const initialMode: LoadMode = options?.initialMode ?? "summary";
+
   const [data, setData] = React.useState<PersonRelationsResponse | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [peopleOptions, setPeopleOptions] = React.useState<PersonSummary[]>([]);
   const [peopleIndex, setPeopleIndex] = React.useState<Record<string, ApiPerson>>({});
   const peopleIndexRef = React.useRef<Record<string, ApiPerson>>({});
@@ -131,86 +152,171 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
   const [personAssetsByMember, setPersonAssetsByMember] = React.useState<
     PersonAssetsGroup[]
   >([]);
-  const [loaded, setLoaded] = React.useState(false);
+  const [summary, setSummary] = React.useState<FamilySummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = React.useState(false);
+  const [summaryError, setSummaryError] = React.useState<string | null>(null);
+  const [detailedLoading, setDetailedLoading] = React.useState(false);
+  const [detailedError, setDetailedError] = React.useState<string | null>(null);
+  const [summaryLoaded, setSummaryLoaded] = React.useState(false);
+  const [detailedLoaded, setDetailedLoaded] = React.useState(false);
+  const [peopleLoaded, setPeopleLoaded] = React.useState(false);
+  const [loadTimes, setLoadTimes] = React.useState<LoadTimes>({});
+
+  const logLoad = React.useCallback((mode: LoadMode, elapsed: number) => {
+    setLoadTimes((prev) => ({
+      ...prev,
+      [mode === "summary" ? "summaryMs" : "detailedMs"]: elapsed,
+    }));
+    if (shouldLogLoad()) {
+      const label = mode === "summary" ? "Resumo" : "Detalhado";
+      // eslint-disable-next-line no-console
+      console.info(`[Família] ${label} carregado em ${elapsed.toFixed(0)}ms`);
+    }
+  }, []);
+
+  const loadPeopleOptions = React.useCallback(async () => {
+    if (!token || peopleLoaded) return;
+    try {
+      const response = await listPeople(token, { all: true });
+      const index = buildPeopleIndex(response.data);
+      setPeopleIndex(index);
+      const options = response.data
+        .filter((item) => item.id !== personId)
+        .map((item) => ({
+          id: item.id,
+          fullName: item.fullName,
+          avatarUrl: item.avatarUrl,
+          birthDate: item.birthDate,
+          sex: item.sex,
+          gender: item.gender,
+          raceColor: item.raceColor,
+          status: item.status,
+          personType: item.personType ?? null,
+          hasHealthCondition: item.hasHealthCondition ?? null,
+          hasMedication: item.hasMedication ?? null,
+        }));
+      setPeopleOptions(options);
+      setPeopleLoaded(true);
+    } catch {
+      setPeopleOptions([]);
+    }
+  }, [token, peopleLoaded, personId]);
+
+  const loadSummary = React.useCallback(
+    async (force = false) => {
+      if (!token) return;
+      if (summaryLoaded && !force) return;
+      setSummaryLoading(true);
+      setSummaryError(null);
+      const start = performance.now();
+      try {
+        const response = await getFamilySummary(token, personId);
+        setSummary(response);
+        setIncomeSummary(response.incomeSummary ?? null);
+        setHouseholdProfile(response.householdProfile ?? null);
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar resumo familiar.";
+        setSummaryError(message);
+      } finally {
+        const elapsed = performance.now() - start;
+        logLoad("summary", elapsed);
+        setSummaryLoading(false);
+        setSummaryLoaded(true);
+      }
+    },
+    [token, personId, summaryLoaded, logLoad],
+  );
+
+  const loadDetailed = React.useCallback(
+    async (force = false) => {
+      if (!token) return;
+      if (detailedLoaded && !force) return;
+      setDetailedLoading(true);
+      setDetailedError(null);
+      const start = performance.now();
+      try {
+        const incomePromise =
+          incomeSummary && !force
+            ? Promise.resolve(incomeSummary)
+            : getFamilyIncomeSummary(token, personId);
+        const profilePromise =
+          householdProfile && !force
+            ? Promise.resolve(householdProfile)
+            : getHouseholdProfile(token, personId);
+
+        const [
+          relationsResponse,
+          householdAssetsResponse,
+          personAssetsResponse,
+          incomeResponse,
+          profileResponse,
+        ] = await Promise.all([
+          getPersonRelations(token, personId),
+          getHouseholdAssets(token, personId),
+          getHouseholdPersonAssets(token, personId),
+          incomePromise,
+          profilePromise,
+        ]);
+
+        const enriched = mergeRelationsResponse(
+          relationsResponse,
+          peopleIndexRef.current,
+        );
+        setData(enriched);
+        setHouseholdAssets(householdAssetsResponse);
+        setPersonAssetsByMember(personAssetsResponse);
+        setIncomeSummary(incomeResponse ?? null);
+        setHouseholdProfile(profileResponse ?? null);
+        loadPeopleOptions();
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar vínculos familiares.";
+        setDetailedError(message);
+      } finally {
+        const elapsed = performance.now() - start;
+        logLoad("detailed", elapsed);
+        setDetailedLoading(false);
+        setDetailedLoaded(true);
+      }
+    },
+    [
+      token,
+      personId,
+      detailedLoaded,
+      incomeSummary,
+      householdProfile,
+      loadPeopleOptions,
+      logLoad,
+    ],
+  );
 
   const refresh = React.useCallback(async () => {
-    if (!token) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [
-        relationsResponse,
-        incomeResponse,
-        profileResponse,
-        householdAssetsResponse,
-        personAssetsResponse,
-      ] = await Promise.all([
-        getPersonRelations(token, personId),
-        getFamilyIncomeSummary(token, personId),
-        getHouseholdProfile(token, personId),
-        getHouseholdAssets(token, personId),
-        getHouseholdPersonAssets(token, personId),
-      ]);
-      const enriched = mergeRelationsResponse(
-        relationsResponse,
-        peopleIndexRef.current,
-      );
-      setData(enriched);
-      setIncomeSummary(incomeResponse);
-      setHouseholdProfile(profileResponse);
-      setHouseholdAssets(householdAssetsResponse);
-      setPersonAssetsByMember(personAssetsResponse);
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha ao carregar vinculos familiares.";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-      setLoaded(true);
+    await Promise.all([loadSummary(true), loadDetailed(true)]);
+  }, [loadSummary, loadDetailed]);
+
+  React.useEffect(() => {
+    if (!autoLoad || !token) return;
+    if (initialMode === "detailed") {
+      loadDetailed();
+    } else {
+      loadSummary();
     }
-  }, [token, personId]);
-
-  React.useEffect(() => {
-    if (!token) return;
-    if (loaded || isLoading) return;
-    refresh();
-  }, [token, loaded, isLoading, refresh]);
-
-  React.useEffect(() => {
-    if (!token) return;
-    listPeople(token, { all: true })
-      .then((response) => {
-        const index = buildPeopleIndex(response.data);
-        setPeopleIndex(index);
-        const options = response.data
-          .filter((item) => item.id !== personId)
-          .map((item) => ({
-            id: item.id,
-            fullName: item.fullName,
-            avatarUrl: item.avatarUrl,
-            birthDate: item.birthDate,
-            sex: item.sex,
-            gender: item.gender,
-            raceColor: item.raceColor,
-            status: item.status,
-            personType: item.personType ?? null,
-            hasHealthCondition: item.hasHealthCondition ?? null,
-            hasMedication: item.hasMedication ?? null,
-          }));
-        setPeopleOptions(options);
-        setData((prev) =>
-          prev ? mergeRelationsResponse(prev, index) : prev,
-        );
-      })
-      .catch(() => {
-        setPeopleOptions([]);
-      });
-  }, [token, personId]);
+  }, [autoLoad, token, initialMode, loadDetailed, loadSummary]);
 
   React.useEffect(() => {
     peopleIndexRef.current = peopleIndex;
+  }, [peopleIndex]);
+
+  React.useEffect(() => {
+    if (!data || !peopleIndexRef.current) return;
+    setData((prev) =>
+      prev ? mergeRelationsResponse(prev, peopleIndexRef.current) : prev,
+    );
   }, [peopleIndex]);
 
   const create = React.useCallback(
@@ -306,14 +412,20 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
 
   return {
     data,
-    isLoading,
-    error,
     peopleOptions,
     incomeSummary,
     householdProfile,
     householdAssets,
     personAssetsByMember,
+    summary,
+    summaryLoading,
+    summaryError,
+    detailedLoading,
+    detailedError,
+    loadSummary,
+    loadDetailed,
     refresh,
+    loadTimes,
     create,
     update,
     remove,
@@ -326,4 +438,3 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
     removePersonAsset: removePersonAssetHandler,
   };
 }
-

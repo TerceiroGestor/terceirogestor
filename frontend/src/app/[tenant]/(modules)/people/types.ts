@@ -280,3 +280,24 @@ export type FamilyIncomeSummary = {
     amount: number;
   }[];
 };
+
+export type FamilyRelationsSummary = {
+  livingCount: number;
+  externalCount: number;
+  guardiansCount: number;
+  providersCount: number;
+  dependentsCount: number;
+  totalRelations: number;
+};
+
+export type FamilyAssetsSummary = {
+  sharedCount: number;
+  individualCount: number;
+};
+
+export type FamilySummary = {
+  relations: FamilyRelationsSummary;
+  assets: FamilyAssetsSummary;
+  incomeSummary: FamilyIncomeSummary;
+  householdProfile: HouseholdProfile | null;
+};

@@ -8,15 +8,46 @@ import {
 import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 
 export function FamilyHeaderPreview() {
-  const { data, isLoading } = useFamilyRelationsContext();
+  const { data, summary, summaryLoading, detailedLoading } =
+    useFamilyRelationsContext();
 
-  if (isLoading) {
+  if (detailedLoading) {
     return (
       <p className="text-xs text-muted-foreground">Carregando familiares...</p>
     );
   }
 
   const householdMembers = data?.householdMembers ?? [];
+  if (!householdMembers.length) {
+    const relationsSummary = summary?.relations;
+    if (summaryLoading) {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Carregando resumo familiar...
+        </p>
+      );
+    }
+    if (!relationsSummary) {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Sem resumo familiar disponível.
+        </p>
+      );
+    }
+    if (relationsSummary.totalRelations + relationsSummary.livingCount === 0) {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Nenhum vínculo familiar registrado.
+        </p>
+      );
+    }
+    return (
+      <p className="text-xs text-muted-foreground">
+        Moram juntos: {relationsSummary.livingCount} • Fora da residência:{" "}
+        {relationsSummary.externalCount}
+      </p>
+    );
+  }
   const relationByPerson = new Map(
     (data?.relations ?? []).map((relation) => [
       relation.relatedPersonId,

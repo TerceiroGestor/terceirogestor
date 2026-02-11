@@ -3,6 +3,7 @@
 import * as React from "react";
 import type {
   FamilyIncomeSummary,
+  FamilySummary,
   HouseholdProfile,
   HouseholdAsset,
   PersonAssetsGroup,
@@ -22,14 +23,20 @@ type AssetInput = {
 
 type FamilyRelationsContextValue = {
   data: PersonRelationsResponse | null;
-  isLoading: boolean;
-  error: string | null;
   peopleOptions: PersonSummary[];
   incomeSummary: FamilyIncomeSummary | null;
   householdProfile: HouseholdProfile | null;
   householdAssets: HouseholdAsset[];
   personAssetsByMember: PersonAssetsGroup[];
+  summary: FamilySummary | null;
+  summaryLoading: boolean;
+  summaryError: string | null;
+  detailedLoading: boolean;
+  detailedError: string | null;
+  loadSummary: (force?: boolean) => Promise<void>;
+  loadDetailed: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
+  loadTimes: { summaryMs?: number; detailedMs?: number };
   create: (payload: PersonRelationInput) => Promise<void>;
   update: (
     relationId: string,
@@ -57,12 +64,16 @@ const FamilyRelationsContext =
 
 export function FamilyRelationsProvider({
   personId,
+  initialMode = "summary",
+  autoLoad = true,
   children,
 }: {
   personId: string;
+  initialMode?: "summary" | "detailed";
+  autoLoad?: boolean;
   children: React.ReactNode;
 }) {
-  const value = useFamilyRelations(personId);
+  const value = useFamilyRelations(personId, { initialMode, autoLoad });
   return (
     <FamilyRelationsContext.Provider value={value}>
       {children}

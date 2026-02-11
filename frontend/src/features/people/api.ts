@@ -282,6 +282,23 @@ export type ApiFamilyIncomeSummary = {
   }[];
 };
 
+export type ApiFamilySummary = {
+  relations: {
+    livingCount: number;
+    externalCount: number;
+    guardiansCount: number;
+    providersCount: number;
+    dependentsCount: number;
+    totalRelations: number;
+  };
+  assets: {
+    sharedCount: number;
+    individualCount: number;
+  };
+  incomeSummary: ApiFamilyIncomeSummary;
+  householdProfile: ApiHouseholdProfile | null;
+};
+
 export type PersonRelationInput = {
   relatedPersonId: string;
   type: string;
@@ -597,6 +614,14 @@ export async function upsertHouseholdProfile(
 export async function getFamilyIncomeSummary(token: string, id: string) {
   return apiRequest<ApiFamilyIncomeSummary>(
     `/people/${id}/family-income-summary`,
+    {},
+    token,
+  );
+}
+
+export async function getFamilySummary(token: string, id: string) {
+  return apiRequest<ApiFamilySummary>(
+    `/people/${id}/family-summary`,
     {},
     token,
   );

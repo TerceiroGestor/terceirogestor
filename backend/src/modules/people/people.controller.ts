@@ -421,6 +421,15 @@ export class PeopleController {
     return this.peopleService.getFamilyIncomeSummary(tenantId, id);
   }
 
+  @Get(':id/family-summary')
+  async getFamilySummary(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.getFamilySummary(tenantId, id);
+  }
+
   @Get(':id/relations')
   async listRelations(
     @CurrentUser() user: JwtUser | undefined,

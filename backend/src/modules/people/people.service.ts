@@ -1554,6 +1554,121 @@ export class PeopleService {
     };
   }
 
+  async getFamilySummary(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+
+    const householdMember = await this.prisma.householdMember.findFirst({
+      where: { tenantId, personId },
+      select: { householdId: true },
+    });
+    const householdId = householdMember?.householdId ?? null;
+
+    const [
+      totalRelations,
+      externalCount,
+      externalGuardiansCount,
+      householdCount,
+      householdGuardiansCount,
+      householdProvidersCount,
+      householdDependentsCount,
+    ] = await Promise.all([
+      this.prisma.personRelation.count({
+        where: { tenantId, personId },
+      }),
+      this.prisma.personRelation.count({
+        where: { tenantId, personId, livesTogether: false },
+      }),
+      this.prisma.personRelation.count({
+        where: {
+          tenantId,
+          personId,
+          livesTogether: false,
+          isLegalGuardian: true,
+        },
+      }),
+      householdId
+        ? this.prisma.householdMember.count({
+            where: { tenantId, householdId },
+          })
+        : Promise.resolve(0),
+      householdId
+        ? this.prisma.householdMember.count({
+            where: { tenantId, householdId, isLegalGuardian: true },
+          })
+        : Promise.resolve(0),
+      householdId
+        ? this.prisma.householdMember.count({
+            where: { tenantId, householdId, isProvider: true },
+          })
+        : Promise.resolve(0),
+      householdId
+        ? this.prisma.householdMember.count({
+            where: { tenantId, householdId, isDependent: true },
+          })
+        : Promise.resolve(0),
+    ]);
+
+    const guardiansCount = householdGuardiansCount + externalGuardiansCount;
+
+    let sharedCount = 0;
+    let individualCount = 0;
+
+    if (householdId) {
+      const [sharedSum, sharedNulls, memberIds] = await Promise.all([
+        this.prisma.householdAsset.aggregate({
+          where: { tenantId, householdId },
+          _sum: { quantity: true },
+        }),
+        this.prisma.householdAsset.count({
+          where: { tenantId, householdId, quantity: null },
+        }),
+        this.prisma.householdMember.findMany({
+          where: { tenantId, householdId },
+          select: { personId: true },
+        }),
+      ]);
+
+      sharedCount = Number(sharedSum._sum.quantity ?? 0) + sharedNulls;
+
+      const personIds = memberIds.map((member) => member.personId);
+      if (personIds.length) {
+        const [individualSum, individualNulls] = await Promise.all([
+          this.prisma.personAsset.aggregate({
+            where: { tenantId, personId: { in: personIds } },
+            _sum: { quantity: true },
+          }),
+          this.prisma.personAsset.count({
+            where: { tenantId, personId: { in: personIds }, quantity: null },
+          }),
+        ]);
+        individualCount =
+          Number(individualSum._sum.quantity ?? 0) + individualNulls;
+      }
+    }
+
+    const [incomeSummary, householdProfile] = await Promise.all([
+      this.getFamilyIncomeSummary(tenantId, personId),
+      this.getHouseholdProfile(tenantId, personId),
+    ]);
+
+    return {
+      relations: {
+        livingCount: householdCount,
+        externalCount,
+        guardiansCount,
+        providersCount: householdProvidersCount,
+        dependentsCount: householdDependentsCount,
+        totalRelations,
+      },
+      assets: {
+        sharedCount,
+        individualCount,
+      },
+      incomeSummary,
+      householdProfile,
+    };
+  }
+
   async remove(tenantId: string, id: string) {
     await this.findById(tenantId, id);
     await this.prisma.person.delete({ where: { id } });

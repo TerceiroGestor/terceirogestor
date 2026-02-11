@@ -5,8 +5,8 @@ import { FamilyRelationsList } from "@/features/family-members/ui/family-relatio
 export function FamilyRelationsSection({ personId }: { personId: string }) {
   const {
     data,
-    isLoading,
-    error,
+    detailedLoading,
+    detailedError,
     peopleOptions,
     incomeSummary,
     refresh,
@@ -23,8 +23,8 @@ export function FamilyRelationsSection({ personId }: { personId: string }) {
         relations={data?.relations ?? []}
         householdMembers={data?.householdMembers ?? []}
         incomeContributorIds={incomeContributorIds}
-        isLoading={isLoading}
-        error={error}
+        isLoading={detailedLoading}
+        error={detailedError}
         currentPersonId={personId}
         onRefresh={refresh}
         onCreate={create}

@@ -8,6 +8,7 @@ import { FamilySummarySheet } from "@/features/family-members/ui/family-summary-
 import { FamilyIncomeReport } from "@/features/family-members/ui/family-income-report";
 import { FamilyHouseholdReport } from "@/features/family-members/ui/family-household-report";
 import { FamilyAssetsReport } from "@/features/family-members/ui/family-assets-report";
+import { useFamilyRelationsContext } from "@/features/family-members/context/family-relations-context";
 import { PeopleFinancialPanel } from "@/features/people-financial/ui/people-financial-panel";
 import { HealthConditionsPanel } from "@/features/health-conditions/ui/health-conditions-panel";
 import { MedicationsPanel } from "@/features/medications/ui/medications-panel";
@@ -18,8 +19,17 @@ type PeopleDetailContentProps = {
 
 export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
   const [familyView, setFamilyView] = React.useState<"resumo" | "detalhado">(
-    "detalhado",
+    "resumo",
   );
+  const { loadDetailed, loadSummary } = useFamilyRelationsContext();
+
+  React.useEffect(() => {
+    if (familyView === "detalhado") {
+      loadDetailed();
+      return;
+    }
+    loadSummary();
+  }, [familyView, loadDetailed, loadSummary]);
 
   return (
     <div className="flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">

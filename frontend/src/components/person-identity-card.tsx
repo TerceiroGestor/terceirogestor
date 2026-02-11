@@ -140,9 +140,9 @@ type PersonIdentityDialogProps = PersonIdentityCardProps & {
 };
 
 function PersonIdentityRelationsFooter() {
-  const { data, isLoading } = useFamilyRelationsContext();
+  const { data, detailedLoading } = useFamilyRelationsContext();
 
-  if (isLoading) {
+  if (detailedLoading) {
     return (
       <p className="text-xs text-muted-foreground">
         Carregando relacionamentos...
@@ -216,7 +216,10 @@ export function PersonIdentityDialog({
   ...cardProps
 }: PersonIdentityDialogProps) {
   const relationsFooter = cardProps.personId ? (
-    <FamilyRelationsProvider personId={cardProps.personId}>
+    <FamilyRelationsProvider
+      personId={cardProps.personId}
+      initialMode="detailed"
+    >
       <PersonIdentityRelationsFooter />
     </FamilyRelationsProvider>
   ) : null;
