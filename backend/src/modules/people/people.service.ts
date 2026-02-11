@@ -255,6 +255,13 @@ const mapMedication = (medication: PersonMedicationRecord) => ({
   updatedAt: medication.updatedAt,
 });
 
+const normalizeOptionalUrl = (value?: string | null) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const normalized = normalizeString(value);
+  return normalized ?? undefined;
+};
+
 const normalizeRelationKey = (value?: string | null) =>
   (value ?? '')
     .toString()
@@ -865,9 +872,7 @@ export class PeopleService {
               : null
             : undefined,
         documentUrl:
-          dto.documentUrl !== undefined
-            ? normalizeString(dto.documentUrl)
-            : undefined,
+          normalizeOptionalUrl(dto.documentUrl),
         notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
       },
     });
@@ -982,13 +987,8 @@ export class PeopleService {
             ? normalizeString(dto.prescribingDoctor)
             : undefined,
         permissionDocumentUrl:
-          dto.permissionDocumentUrl !== undefined
-            ? normalizeString(dto.permissionDocumentUrl)
-            : undefined,
-        documentUrl:
-          dto.documentUrl !== undefined
-            ? normalizeString(dto.documentUrl)
-            : undefined,
+          normalizeOptionalUrl(dto.permissionDocumentUrl),
+        documentUrl: normalizeOptionalUrl(dto.documentUrl),
         notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
       },
     });

@@ -3,6 +3,7 @@
 ## 2026-02-11 — Auditoria de dados (fase 2)
 
 ### O que foi entregue
+- Correção: atualização de condições/medicações não remove documento existente quando o campo não é enviado.
 - Painel de detalhes com before/after na auditoria.
 - Modelo AuditLog com before/after, metadados de request e indexes.
 - Middleware de auditoria com redacao de campos sensiveis e request context por requisicao.
@@ -143,6 +144,7 @@
 
 ### Testes
 - `frontend`: `npm run build`.
+
 
 
 
