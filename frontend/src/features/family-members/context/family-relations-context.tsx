@@ -36,6 +36,7 @@ type FamilyRelationsContextValue = {
     payload: Partial<PersonRelationInput>,
   ) => Promise<void>;
   remove: (relationId: string) => Promise<void>;
+  upsertHouseholdProfile: (payload: Partial<HouseholdProfile>) => Promise<void>;
   createHouseholdAsset: (payload: AssetInput) => Promise<void>;
   updateHouseholdAsset: (
     assetId: string,

@@ -31,6 +31,8 @@ export function FamilyIncomeReport() {
     <SectionCard
       title="Renda familiar"
       subtitle="Total, per capita e benefícios registrados"
+      collapsible
+      defaultOpen
       footer={
         <div className="flex flex-wrap gap-2">
           <FamilyMetricBadge

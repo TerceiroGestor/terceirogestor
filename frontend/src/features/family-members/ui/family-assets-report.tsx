@@ -384,31 +384,17 @@ export function FamilyAssetsReport() {
     removePersonAsset,
   } = useFamilyRelationsContext();
 
-  const sharedTotals = householdAssets.reduce<Record<string, number>>(
-    (acc, asset) => {
-      const key = asset.category || "Outros";
-      acc[key] = (acc[key] ?? 0) + (asset.quantity ?? 1);
-      return acc;
-    },
-    {},
+  const sharedCount = householdAssets.reduce(
+    (sum, asset) => sum + (asset.quantity ?? 1),
+    0,
   );
-
-  const individualTotals = personAssetsByMember.reduce<Record<string, number>>(
-    (acc, group) => {
-      group.assets.forEach((asset) => {
-        const key = asset.category || "Outros";
-        acc[key] = (acc[key] ?? 0) + (asset.quantity ?? 1);
-      });
-      return acc;
-    },
-    {},
-  );
-
-  const buildSummary = (data: Record<string, number>) =>
-    Object.entries(data).map(([label, value]) => ({ label, value }));
-
-  const sharedSummary = buildSummary(sharedTotals);
-  const individualSummary = buildSummary(individualTotals);
+  const individualCount = personAssetsByMember.reduce((sum, group) => {
+    const groupTotal = group.assets.reduce(
+      (acc, asset) => acc + (asset.quantity ?? 1),
+      0,
+    );
+    return sum + groupTotal;
+  }, 0);
 
   const [editingIndividual, setEditingIndividual] = React.useState<{
     personId: string;
@@ -425,49 +411,25 @@ export function FamilyAssetsReport() {
     <SectionCard
       title="Bens e serviços"
       subtitle="Itens compartilhados e individuais da residência"
+      collapsible
+      defaultOpen={false}
       contentClassName="space-y-6"
     >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">
+          Itens compartilhados: {sharedCount}
+        </Badge>
+        <Badge variant="secondary">
+          Itens individuais: {individualCount}
+        </Badge>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
               Itens compartilhados
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {sharedSummary.length ? (
-                sharedSummary.map((metric) => (
-                  <Badge key={`${metric.label}-shared`} variant="outline">
-                    {metric.label}: {metric.value}
-                  </Badge>
-                ))
-              ) : (
-                <Badge variant="secondary">Sem itens</Badge>
-              )}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-              Itens individuais
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {individualSummary.length ? (
-                individualSummary.map((metric) => (
-                  <Badge key={`${metric.label}-individual`} variant="outline">
-                    {metric.label}: {metric.value}
-                  </Badge>
-                ))
-              ) : (
-                <Badge variant="secondary">Sem itens pessoais</Badge>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">
-                Itens compartilhados
-              </p>
             <AssetDialog
               title="Adicionar item"
               description="Registre um item para a residência."
@@ -484,101 +446,101 @@ export function FamilyAssetsReport() {
                 </Button>
               }
             />
-            </div>
-            <SharedAssetsList
-              assets={householdAssets}
-              onEditRequest={(asset) =>
-                setEditingShared({
-                  id: asset.id,
-                  initial: asset,
-                })
-              }
-              onDelete={(id) => removeHouseholdAsset(id)}
-            />
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">
-                Itens individuais
-              </p>
-            </div>
-            {personAssetsByMember.length ? (
-              <SectionList className="space-y-3">
-                {personAssetsByMember.map((group) => (
-                  <PersonAssetGroup
-                    key={group.person.id}
-                    group={group}
-                    tenantSlug={tenantSlug}
-                    onCreate={createPersonAsset}
-                    onDelete={(assetId) =>
-                      removePersonAsset(group.person.id, assetId)
-                    }
-                    onEditRequest={(asset) =>
-                      setEditingIndividual({
-                        personId: group.person.id,
-                        asset,
-                      })
-                    }
-                  />
-                ))}
-              </SectionList>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Nenhum item individual cadastrado.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {editingShared ? (
-          <AssetDialog
-            title="Editar item"
-            description="Atualize as informações do item."
-            open={Boolean(editingShared)}
-            onOpenChange={(open) => {
-              if (!open) setEditingShared(null);
-            }}
-            initial={{
-              category: editingShared.initial.category,
-              item: editingShared.initial.item,
-              quantity: editingShared.initial.quantity ?? undefined,
-              condition: editingShared.initial.condition ?? undefined,
-              notes: editingShared.initial.notes ?? undefined,
-            }}
-            onSubmit={(payload) => {
-              const current = editingShared;
-              if (!current) return Promise.resolve();
-              return updateHouseholdAsset(current.id, payload).then(() =>
-                setEditingShared(null),
-              );
-            }}
-          />
-        ) : null}
-
-        {editingIndividual ? (
-          <AssetDialog
-            title="Editar item"
-            description="Atualize as informações do item."
-            open={Boolean(editingIndividual)}
-            onOpenChange={(open) => {
-              if (!open) setEditingIndividual(null);
-            }}
-            initial={{
-              category: editingIndividual.asset.category,
-              item: editingIndividual.asset.item,
-              quantity: editingIndividual.asset.quantity ?? undefined,
-              condition: editingIndividual.asset.condition ?? undefined,
-              notes: editingIndividual.asset.notes ?? undefined,
-            }}
-            onSubmit={(payload) =>
-              updatePersonAsset(
-                editingIndividual.personId,
-                editingIndividual.asset.id,
-                payload,
-              ).then(() => setEditingIndividual(null))
+          <SharedAssetsList
+            assets={householdAssets}
+            onEditRequest={(asset) =>
+              setEditingShared({
+                id: asset.id,
+                initial: asset,
+              })
             }
+            onDelete={(id) => removeHouseholdAsset(id)}
           />
-        ) : null}
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
+              Itens individuais
+            </p>
+          </div>
+          {personAssetsByMember.length ? (
+            <SectionList className="space-y-3">
+              {personAssetsByMember.map((group) => (
+                <PersonAssetGroup
+                  key={group.person.id}
+                  group={group}
+                  tenantSlug={tenantSlug}
+                  onCreate={createPersonAsset}
+                  onDelete={(assetId) =>
+                    removePersonAsset(group.person.id, assetId)
+                  }
+                  onEditRequest={(asset) =>
+                    setEditingIndividual({
+                      personId: group.person.id,
+                      asset,
+                    })
+                  }
+                />
+              ))}
+            </SectionList>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Nenhum item individual cadastrado.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {editingShared ? (
+        <AssetDialog
+          title="Editar item"
+          description="Atualize as informações do item."
+          open={Boolean(editingShared)}
+          onOpenChange={(open) => {
+            if (!open) setEditingShared(null);
+          }}
+          initial={{
+            category: editingShared.initial.category,
+            item: editingShared.initial.item,
+            quantity: editingShared.initial.quantity ?? undefined,
+            condition: editingShared.initial.condition ?? undefined,
+            notes: editingShared.initial.notes ?? undefined,
+          }}
+          onSubmit={(payload) => {
+            const current = editingShared;
+            if (!current) return Promise.resolve();
+            return updateHouseholdAsset(current.id, payload).then(() =>
+              setEditingShared(null),
+            );
+          }}
+        />
+      ) : null}
+
+      {editingIndividual ? (
+        <AssetDialog
+          title="Editar item"
+          description="Atualize as informações do item."
+          open={Boolean(editingIndividual)}
+          onOpenChange={(open) => {
+            if (!open) setEditingIndividual(null);
+          }}
+          initial={{
+            category: editingIndividual.asset.category,
+            item: editingIndividual.asset.item,
+            quantity: editingIndividual.asset.quantity ?? undefined,
+            condition: editingIndividual.asset.condition ?? undefined,
+            notes: editingIndividual.asset.notes ?? undefined,
+          }}
+          onSubmit={(payload) =>
+            updatePersonAsset(
+              editingIndividual.personId,
+              editingIndividual.asset.id,
+              payload,
+            ).then(() => setEditingIndividual(null))
+          }
+        />
+      ) : null}
     </SectionCard>
   );
 }

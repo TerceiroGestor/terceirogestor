@@ -9,9 +9,6 @@ export function FamilyRelationsSection({ personId }: { personId: string }) {
     error,
     peopleOptions,
     incomeSummary,
-    householdProfile,
-    householdAssets,
-    personAssetsByMember,
     refresh,
     create,
     update,
@@ -34,9 +31,6 @@ export function FamilyRelationsSection({ personId }: { personId: string }) {
         onUpdate={update}
         onDelete={remove}
         incomeSummary={incomeSummary}
-        householdProfile={householdProfile}
-        householdAssets={householdAssets}
-        personAssetsByMember={personAssetsByMember}
       />
     </div>
   );

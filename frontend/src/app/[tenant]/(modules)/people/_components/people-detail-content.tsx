@@ -7,7 +7,6 @@ import { FamilyRelationsSection } from "@/features/family-members/ui/family-rela
 import { FamilyIncomeReport } from "@/features/family-members/ui/family-income-report";
 import { FamilyHouseholdReport } from "@/features/family-members/ui/family-household-report";
 import { FamilyAssetsReport } from "@/features/family-members/ui/family-assets-report";
-import { FamilyPatrimonialCard } from "@/features/family-members/ui/family-patrimonial-card";
 import { PeopleFinancialPanel } from "@/features/people-financial/ui/people-financial-panel";
 import { HealthConditionsPanel } from "@/features/health-conditions/ui/health-conditions-panel";
 import { MedicationsPanel } from "@/features/medications/ui/medications-panel";
@@ -20,21 +19,18 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
   return (
     <div className="flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       <TabsContent value="familia" className="space-y-6">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <FamilyPatrimonialCard />
-          <FamilyHouseholdReport />
-        </div>
-        <div>
-          <FamilyIncomeReport />
-        </div>
-
         <section className="space-y-3">
           <FamilyRelationsSection personId={person.id} />
         </section>
-
+        <div>
+          <FamilyIncomeReport />
+        </div>
         <section className="space-y-3">
           <FamilyAssetsReport />
         </section>
+        <div>
+          <FamilyHouseholdReport />
+        </div>
       </TabsContent>
 
       <TabsContent value="resumo" className="mt-0">

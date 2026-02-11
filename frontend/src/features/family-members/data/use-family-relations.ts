@@ -27,6 +27,7 @@ import {
   updateHouseholdAsset,
   updatePersonAsset,
   updatePersonRelation,
+  upsertHouseholdProfile,
   type ApiPerson,
 } from "@/features/people/api";
 
@@ -54,6 +55,7 @@ type UseFamilyRelationsResult = {
     payload: Partial<PersonRelationInput>,
   ) => Promise<void>;
   remove: (relationId: string) => Promise<void>;
+  upsertHouseholdProfile: (payload: Partial<HouseholdProfile>) => Promise<void>;
   createHouseholdAsset: (payload: AssetInput) => Promise<void>;
   updateHouseholdAsset: (
     assetId: string,
@@ -235,6 +237,15 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
     [token, personId],
   );
 
+  const upsertHouseholdProfileHandler = React.useCallback(
+    async (payload: Partial<HouseholdProfile>) => {
+      if (!token) return;
+      await upsertHouseholdProfile(token, personId, payload);
+      await refresh();
+    },
+    [token, personId, refresh],
+  );
+
   const createHouseholdAssetHandler = React.useCallback(
     async (payload: AssetInput) => {
       if (!token) return;
@@ -306,6 +317,7 @@ export function useFamilyRelations(personId: string): UseFamilyRelationsResult {
     create,
     update,
     remove,
+    upsertHouseholdProfile: upsertHouseholdProfileHandler,
     createHouseholdAsset: createHouseholdAssetHandler,
     updateHouseholdAsset: updateHouseholdAssetHandler,
     removeHouseholdAsset: removeHouseholdAssetHandler,

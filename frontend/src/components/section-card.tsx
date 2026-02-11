@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardAction,
@@ -9,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import clsx from "clsx";
 
 type SectionCardProps = {
@@ -20,6 +23,9 @@ type SectionCardProps = {
   className?: string;
   contentClassName?: string;
   headerClassName?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  onToggleOpen?: (open: boolean) => void;
 };
 
 export function SectionCard({
@@ -31,7 +37,44 @@ export function SectionCard({
   className,
   contentClassName,
   headerClassName,
+  collapsible = false,
+  defaultOpen = true,
+  onToggleOpen,
 }: SectionCardProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = collapsible ? open : true;
+  const actionContent = useMemo(() => {
+    if (!actions && !collapsible) return null;
+    return (
+      <div className="flex items-center gap-2">
+        {actions}
+        {collapsible ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={() =>
+              setOpen((prev) => {
+                const next = !prev;
+                onToggleOpen?.(next);
+                return next;
+              })
+            }
+            aria-label={isOpen ? "Recolher" : "Expandir"}
+            title={isOpen ? "Recolher" : "Expandir"}
+          >
+            {isOpen ? (
+              <ChevronUp className="size-4" />
+            ) : (
+              <ChevronDown className="size-4" />
+            )}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }, [actions, collapsible, isOpen, onToggleOpen]);
+
   return (
     <Card className={clsx("border-border/60 shadow-none", className)}>
       <CardHeader
@@ -47,14 +90,16 @@ export function SectionCard({
             </CardDescription>
           ) : null}
         </div>
-        {actions ? <CardAction>{actions}</CardAction> : null}
+        {actionContent ? <CardAction>{actionContent}</CardAction> : null}
       </CardHeader>
-      <CardContent
-        className={clsx("space-y-4 px-5 pb-5 pt-3", contentClassName)}
-      >
-        {children}
-      </CardContent>
-      {footer ? (
+      {isOpen ? (
+        <CardContent
+          className={clsx("space-y-4 px-5 pb-5 pt-3", contentClassName)}
+        >
+          {children}
+        </CardContent>
+      ) : null}
+      {isOpen && footer ? (
         <div className="border-t border-border/40 px-5 py-3">{footer}</div>
       ) : null}
     </Card>

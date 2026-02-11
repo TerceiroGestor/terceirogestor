@@ -3,10 +3,7 @@
 import * as React from "react";
 import type {
   FamilyIncomeSummary,
-  HouseholdAsset,
   HouseholdMember,
-  HouseholdProfile,
-  PersonAssetsGroup,
   PersonRelation,
   PersonRelationInput,
   PersonSummary,
@@ -23,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
+import { SectionListCollapse } from "@/components/section-list-collapse";
 import { Badge } from "@/components/ui/badge";
 import { PersonIdentityAvatarTrigger } from "@/components/person-identity-card";
 import { Label } from "@/components/ui/label";
@@ -62,9 +60,6 @@ type FamilyRelationsListProps = {
   ) => Promise<void>;
   onDelete: (relationId: string) => Promise<void>;
   incomeSummary: FamilyIncomeSummary | null;
-  householdProfile: HouseholdProfile | null;
-  householdAssets: HouseholdAsset[];
-  personAssetsByMember: PersonAssetsGroup[];
 };
 
 type RelationFormState = PersonRelationInput & {
@@ -458,9 +453,6 @@ export function FamilyRelationsList({
   onUpdate,
   onDelete,
   incomeSummary,
-  householdProfile,
-  householdAssets,
-  personAssetsByMember,
 }: FamilyRelationsListProps) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
@@ -520,11 +512,6 @@ export function FamilyRelationsList({
     () => buildInitialForm(peopleOptions),
     [peopleOptions],
   );
-  const sharedAssetCount = householdAssets.length;
-  const individualAssetCount = personAssetsByMember.reduce(
-    (sum, group) => sum + group.assets.length,
-    0,
-  );
 
   if (isLoading) {
     return (
@@ -550,29 +537,12 @@ export function FamilyRelationsList({
     );
   }
 
-  const livingCount = livingMembers.length;
-  const externalCount = externalRelations.length;
-  const guardiansCount =
-    householdMembers.filter((member) => member.isLegalGuardian).length +
-    externalRelations.filter((relation) => relation.isLegalGuardian).length;
-  const headCount = householdMembers.filter(
-    (member) => member.isHouseholdHead,
-  ).length;
-  const providersCount = householdMembers.filter(
-    (member) => member.isProvider,
-  ).length;
-  const incomeCount =
-    incomeSummary?.contributions?.filter((item) => item.amount > 0).length ??
-    householdMembers.filter((member) => member.isIncomeContributor).length;
-  const dependentsCount = householdMembers.filter(
-    (member) => member.isDependent,
-  ).length;
-  const totalRelations = relations.length;
-
   return (
     <SectionCard
       title="Núcleo familiar"
       subtitle="Membros, vínculos e contribuições"
+      collapsible
+      defaultOpen={false}
       actions={
         <div className="flex items-center gap-2">
           <RelationDialog
@@ -596,28 +566,9 @@ export function FamilyRelationsList({
           </Button>
         </div>
       }
-      footer={
-        <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <Badge variant="secondary">Moram juntos: {livingCount}</Badge>
-          <Badge variant="secondary">
-            Fora da residência: {externalCount}
-          </Badge>
-          <Badge variant="outline">Responsável ({guardiansCount})</Badge>
-          <Badge variant="outline">Cabeça ({headCount})</Badge>
-          <Badge variant="outline">Provedores: {providersCount}</Badge>
-          <Badge variant="outline">Contribuem renda: {incomeCount}</Badge>
-          <Badge variant="outline">Dependentes: {dependentsCount}</Badge>
-          <Badge variant="outline">Vínculos totais: {totalRelations}</Badge>
-        </div>
-      }
     >
       <div className="grid gap-3 lg:grid-cols-2">
-        <section className="space-y-1">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              Moram juntos
-            </p>
-          </div>
+        <SectionListCollapse title="Moram juntos" count={livingMembers.length} defaultOpen>
           <SectionList>
             {livingMembers.length ? (
               livingMembers.map(({ member, relation }) => {
@@ -667,13 +618,12 @@ export function FamilyRelationsList({
               </p>
             )}
           </SectionList>
-        </section>
-        <section className="space-y-1">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              Não moram juntos
-            </p>
-          </div>
+        </SectionListCollapse>
+        <SectionListCollapse
+          title="Não moram juntos"
+          count={externalRelations.length}
+          defaultOpen={externalRelations.length > 0}
+        >
           <SectionList>
             {externalRelations.length ? (
               externalRelations.map((relation) => {
@@ -708,7 +658,7 @@ export function FamilyRelationsList({
               </p>
             )}
           </SectionList>
-        </section>
+        </SectionListCollapse>
       </div>
       {editing && (
         <RelationDialog
