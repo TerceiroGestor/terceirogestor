@@ -370,7 +370,11 @@ const SharedAssetsList = ({
   );
 };
 
-export function FamilyAssetsReport() {
+type FamilyAssetsReportProps = {
+  mode?: "summary" | "detailed";
+};
+
+export function FamilyAssetsReport({ mode = "detailed" }: FamilyAssetsReportProps) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const {
@@ -405,7 +409,29 @@ export function FamilyAssetsReport() {
     initial: HouseholdAsset;
   } | null>(null);
   const [createOpenShared, setCreateOpenShared] = React.useState(false);
-  const [createOpenIndividual, setCreateOpenIndividual] = React.useState(false);
+
+  if (mode === "summary") {
+    return (
+      <SectionCard
+        title="Bens e serviços"
+        subtitle="Resumo de itens cadastrados"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">
+            Itens compartilhados: {sharedCount}
+          </Badge>
+          <Badge variant="secondary">
+            Itens individuais: {individualCount}
+          </Badge>
+        </div>
+        {sharedCount + individualCount === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Nenhum item cadastrado.
+          </p>
+        ) : null}
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard

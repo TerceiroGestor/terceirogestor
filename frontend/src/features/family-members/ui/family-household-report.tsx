@@ -37,11 +37,16 @@ const toNumberOrNull = (value: string) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export function FamilyHouseholdReport() {
+type FamilyHouseholdReportProps = {
+  mode?: "summary" | "detailed";
+};
+
+export function FamilyHouseholdReport({ mode = "detailed" }: FamilyHouseholdReportProps) {
   const { householdProfile, upsertHouseholdProfile } = useFamilyRelationsContext();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<HouseholdProfileForm>(getEmptyForm());
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const showActions = mode === "detailed";
 
   const hasProfileData = Boolean(
     householdProfile &&
@@ -99,124 +104,126 @@ export function FamilyHouseholdReport() {
     <SectionCard
       title="Relatório de moradia"
       subtitle="Características da residência monitorada"
-      collapsible
+      collapsible={showActions}
       defaultOpen
       actions={
-        <SectionDialog
-          title="Editar moradia"
-          description="Atualize as informações da residência."
-          open={open}
-          onOpenChange={setOpen}
-          trigger={
-            <Button size="sm" variant="outline">
-              {hasProfileData ? "Editar" : "Adicionar"}
-            </Button>
-          }
-        >
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>Tipo</Label>
-              <Input
-                value={form.type}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, type: event.target.value }))
-                }
-                placeholder="Casa, apartamento, quarto..."
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Condição</Label>
-              <Input
-                value={form.condition}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    condition: event.target.value,
-                  }))
-                }
-                placeholder="Boa, regular, precisa de reforma..."
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Propriedade</Label>
-              <Input
-                value={form.ownership}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    ownership: event.target.value,
-                  }))
-                }
-                placeholder="Própria, alugada, cedida..."
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="grid gap-2">
-                <Label>Área (m²)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.areaM2}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      areaM2: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Cômodos</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.rooms}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      rooms: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Banheiros</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.bathrooms}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      bathrooms: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Observações</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, notes: event.target.value }))
-                }
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpen(false)}>
-                Cancelar
+        showActions ? (
+          <SectionDialog
+            title="Editar moradia"
+            description="Atualize as informações da residência."
+            open={open}
+            onOpenChange={setOpen}
+            trigger={
+              <Button size="sm" variant="outline">
+                {hasProfileData ? "Editar" : "Adicionar"}
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : "Salvar"}
-              </Button>
+            }
+          >
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label>Tipo</Label>
+                <Input
+                  value={form.type}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, type: event.target.value }))
+                  }
+                  placeholder="Casa, apartamento, quarto..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Condição</Label>
+                <Input
+                  value={form.condition}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      condition: event.target.value,
+                    }))
+                  }
+                  placeholder="Boa, regular, precisa de reforma..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Propriedade</Label>
+                <Input
+                  value={form.ownership}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      ownership: event.target.value,
+                    }))
+                  }
+                  placeholder="Própria, alugada, cedida..."
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label>Área (m²)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={form.areaM2}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        areaM2: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Cômodos</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.rooms}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        rooms: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Banheiros</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.bathrooms}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        bathrooms: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Observações</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, notes: event.target.value }))
+                  }
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </SectionDialog>
+          </SectionDialog>
+        ) : undefined
       }
     >
       {summaryBadges.length ? (
@@ -254,7 +261,7 @@ export function FamilyHouseholdReport() {
           }
         />
       </div>
-      {householdProfile?.notes ? (
+      {householdProfile?.notes && showActions ? (
         <p className="text-xs text-muted-foreground">
           {householdProfile.notes}
         </p>
