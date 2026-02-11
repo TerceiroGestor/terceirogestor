@@ -25,7 +25,9 @@ const buildFormValues = (medication?: Medication): MedicationFormValues => ({
   endDate: toDateInputValue(medication?.endDate ?? null),
   prescribingDoctor: medication?.prescribingDoctor ?? "",
   permissionDocumentFile: null,
+  removePermissionDocument: false,
   documentFile: null,
+  removeDocument: false,
   notes: medication?.notes ?? "",
 });
 
@@ -53,11 +55,13 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
 
   const handleSubmit = async (values: MedicationFormValues) => {
     if (!values.medication.trim()) return;
-    let documentUrl: string | null = null;
-    let permissionDocumentUrl: string | null = null;
+    let documentUrl: string | null | undefined = undefined;
+    let permissionDocumentUrl: string | null | undefined = undefined;
     if (values.documentFile && token) {
       const uploaded = await uploadHealthDocument(token, values.documentFile);
       documentUrl = uploaded.path;
+    } else if (values.removeDocument) {
+      documentUrl = null;
     }
     if (values.permissionDocumentFile && token) {
       const uploaded = await uploadHealthDocument(
@@ -65,6 +69,8 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
         values.permissionDocumentFile,
       );
       permissionDocumentUrl = uploaded.path;
+    } else if (values.removePermissionDocument) {
+      permissionDocumentUrl = null;
     }
     const payload = {
       reason: values.reason?.trim() || null,
@@ -108,6 +114,10 @@ export function MedicationsPanel({ personId }: MedicationsPanelProps) {
             submitLabel={editing ? "Atualizar" : "Salvar"}
             onSubmit={handleSubmit}
             onCancel={() => handleOpenChange(false)}
+            showRemoveDocument={Boolean(editing?.documentUrl)}
+            showRemovePermissionDocument={Boolean(
+              editing?.permissionDocumentUrl,
+            )}
           />
         </SectionDialog>
       }

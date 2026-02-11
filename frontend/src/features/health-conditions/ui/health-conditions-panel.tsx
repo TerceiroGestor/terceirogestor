@@ -24,6 +24,7 @@ const buildFormValues = (
   severity: condition?.severity ?? "",
   diagnosisDate: toDateInputValue(condition?.diagnosisDate ?? null),
   documentFile: null,
+  removeDocument: false,
   notes: condition?.notes ?? "",
 });
 
@@ -51,10 +52,12 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
 
   const handleSubmit = async (values: HealthConditionFormValues) => {
     if (!values.type.trim()) return;
-    let documentUrl: string | null = null;
+    let documentUrl: string | null | undefined = undefined;
     if (values.documentFile && token) {
       const uploaded = await uploadHealthDocument(token, values.documentFile);
       documentUrl = uploaded.path;
+    } else if (values.removeDocument) {
+      documentUrl = null;
     }
     const payload = {
       type: values.type.trim(),
@@ -94,6 +97,7 @@ export function HealthConditionsPanel({ personId }: HealthConditionsPanelProps) 
             submitLabel={editing ? "Atualizar" : "Salvar"}
             onSubmit={handleSubmit}
             onCancel={() => handleOpenChange(false)}
+            showRemoveDocument={Boolean(editing?.documentUrl)}
           />
         </SectionDialog>
       }

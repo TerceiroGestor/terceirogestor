@@ -6,6 +6,7 @@ export type HealthConditionFormValues = {
   severity?: string;
   diagnosisDate?: string;
   documentFile?: File | null;
+  removeDocument?: boolean;
   notes?: string;
 };
 

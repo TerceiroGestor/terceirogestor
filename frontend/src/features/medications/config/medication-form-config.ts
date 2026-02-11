@@ -9,7 +9,9 @@ export type MedicationFormValues = {
   endDate?: string;
   prescribingDoctor?: string;
   permissionDocumentFile?: File | null;
+  removePermissionDocument?: boolean;
   documentFile?: File | null;
+  removeDocument?: boolean;
   notes?: string;
 };
 
