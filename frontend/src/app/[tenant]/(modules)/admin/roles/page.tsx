@@ -40,6 +40,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 const MODULE_LABELS: Record<string, string> = {
   people: "Pessoas",
+  pantry: "Despensa",
   users: "Usuarios",
   tenants: "Instituicao",
   roles: "Perfis",

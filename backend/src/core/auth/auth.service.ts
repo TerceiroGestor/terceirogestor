@@ -27,12 +27,12 @@ export class AuthService {
   async validateUser(tenantId: string, email: string, password: string) {
     const user = await this.usersService.findByEmailAndTenant(tenantId, email);
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Credenciais invalidas');
+      throw new UnauthorizedException('Credenciais inválidas');
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedException('Credenciais invalidas');
+      throw new UnauthorizedException('Credenciais inválidas');
     }
 
     return user;
@@ -48,11 +48,11 @@ export class AuthService {
     expectedTenantId?: string,
   ) {
     if (expectedTenantId && dto.tenantId && dto.tenantId !== expectedTenantId) {
-      throw new UnauthorizedException('Instituicao invalida');
+      throw new UnauthorizedException('Instituição inválida');
     }
     const tenantId = expectedTenantId ?? dto.tenantId;
     if (!tenantId) {
-      throw new UnauthorizedException('Instituicao invalida');
+      throw new UnauthorizedException('Instituição inválida');
     }
 
     const user = await this.validateUser(tenantId, dto.email, dto.password);
@@ -112,7 +112,7 @@ export class AuthService {
 
     const user = await this.usersService.findById(session.userId);
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Credenciais invalidas');
+      throw new UnauthorizedException('Credenciais inválidas');
     }
     if (expectedTenantId && user.tenantId !== expectedTenantId) {
       throw new UnauthorizedException('Instituicao invalida');
@@ -266,7 +266,3 @@ export class AuthService {
     });
   }
 }
-
-
-
-

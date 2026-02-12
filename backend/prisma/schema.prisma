@@ -32,6 +32,19 @@ enum AuditLogAction {
   DELETE
 }
 
+enum PantryDonorType {
+  PERSON
+  COMPANY
+}
+
+enum PantryExitType {
+  ATTENDED
+  DONATION
+  EVENT
+  PARTY
+  CORRECTION
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
@@ -63,6 +76,11 @@ model Tenant {
   userSessions    UserSession[]
   accessLogs      AccessLog[]
   auditLogs       AuditLog[]
+  pantryItems     PantryItem[]
+  pantryEntries   PantryEntry[]
+  pantryExits     PantryExit[]
+  pantryDonors    PantryDonor[]
+  pantryExitAllocations PantryExitAllocation[]
 
   @@index([status])
 }
@@ -491,4 +509,115 @@ model AuditLog {
   @@index([entity])
   @@index([entityId])
   @@index([createdAt])
+}
+
+model PantryItem {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String
+  group     String?
+  unit      String
+  minStock  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  entries  PantryEntry[]
+  exits    PantryExit[]
+
+  @@index([tenantId])
+  @@index([name])
+}
+
+model PantryDonor {
+  id        String          @id @default(uuid()) @db.Char(36)
+  tenantId  String          @db.Char(36)
+  name      String
+  type      PantryDonorType @default(PERSON)
+  contact   String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  entries PantryEntry[]
+
+  @@index([tenantId])
+  @@index([name])
+}
+
+model PantryEntry {
+  id         String   @id @default(uuid()) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  itemId     String   @db.Char(36)
+  donorId    String?  @db.Char(36)
+  sector     String
+  quantity   Decimal  @db.Decimal(10, 2)
+  unit       String
+  entryDate  DateTime @default(now())
+  expiryDate DateTime?
+  notes      String?  @db.Text
+  reversalOfExitId String? @db.Char(36)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  item   PantryItem  @relation(fields: [itemId], references: [id])
+  donor  PantryDonor? @relation(fields: [donorId], references: [id])
+  exitAllocations PantryExitAllocation[]
+  reversalOfExit PantryExit? @relation("PantryEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
+  reversalExits PantryExit[] @relation("PantryExitReversalOfEntry")
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([donorId])
+  @@index([sector])
+  @@index([entryDate])
+  @@index([expiryDate])
+  @@index([reversalOfExitId])
+}
+
+model PantryExit {
+  id        String         @id @default(uuid()) @db.Char(36)
+  tenantId  String         @db.Char(36)
+  itemId    String         @db.Char(36)
+  sector    String
+  quantity  Decimal        @db.Decimal(10, 2)
+  unit      String
+  exitDate  DateTime       @default(now())
+  type      PantryExitType @default(ATTENDED)
+  eventName String?
+  notes     String?        @db.Text
+  reversalOfEntryId String? @db.Char(36)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  item   PantryItem @relation(fields: [itemId], references: [id])
+  allocations PantryExitAllocation[]
+  reversalOfEntry PantryEntry? @relation("PantryExitReversalOfEntry", fields: [reversalOfEntryId], references: [id])
+  reversalEntries PantryEntry[] @relation("PantryEntryReversalOfExit")
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([sector])
+  @@index([exitDate])
+  @@index([reversalOfEntryId])
+}
+
+model PantryExitAllocation {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  exitId    String   @db.Char(36)
+  entryId   String   @db.Char(36)
+  quantity  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  exit   PantryExit  @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  entry  PantryEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@unique([exitId, entryId])
+  @@index([tenantId])
+  @@index([exitId])
+  @@index([entryId])
 }

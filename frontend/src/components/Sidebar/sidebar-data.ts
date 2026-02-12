@@ -1,4 +1,4 @@
-﻿import { Home, Users } from "lucide-react";
+﻿import { Home, Package, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type NavItem = {
@@ -18,12 +18,18 @@ export type NavGroup = {
 export const navGroups: NavGroup[] = [
   {
     label: "Analises",
-    items: [
-      { title: "Visao Geral", href: "/dashboard", icon: Home, exact: true },
-    ],
+    items: [{ title: "Painel", href: "/dashboard", icon: Home, exact: true }],
   },
   {
-    label: "Modulos",
-    items: [{ title: "Pessoas", href: "/people", icon: Users }],
+    label: "Módulos",
+    items: [
+      { title: "Pessoas", href: "/people", icon: Users },
+      {
+        title: "Despensa",
+        href: "/pantry",
+        icon: Package,
+        permissions: ["pantry.read"],
+      },
+    ],
   },
 ];

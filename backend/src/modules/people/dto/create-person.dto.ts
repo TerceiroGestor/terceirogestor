@@ -1,9 +1,8 @@
-import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsDate,
   IsEmail,
   IsIn,
+  IsDateString,
   IsOptional,
   IsString,
   MinLength,
@@ -26,9 +25,8 @@ export class CreatePersonDto {
   socialName?: string | null;
 
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  birthDate?: Date | null;
+  @IsDateString()
+  birthDate?: string | null;
 
   @IsOptional()
   @IsString()

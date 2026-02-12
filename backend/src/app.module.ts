@@ -9,6 +9,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PeopleModule } from './modules/people/people.module';
+import { PantryModule } from './modules/pantry/pantry.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -33,6 +34,7 @@ import { RequestContextInterceptor } from './core/request-context/request-contex
     PermissionsModule,
     TenantsModule,
     PeopleModule,
+    PantryModule,
     FilesModule,
     AuditModule,
     RequestContextModule,

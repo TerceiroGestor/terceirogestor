@@ -1,4 +1,5 @@
 import type { Prisma } from '../../../generated/prisma';
+import { parseDateInput } from '../../core/utils/dates';
 import { parseJsonArray } from '../../core/utils/json';
 
 export type AdvancedFilter = {
@@ -166,8 +167,9 @@ const buildAdvancedFilter = (
     if (filter.operator === 'between') {
       const [startRaw, endRaw] = parseBetween(rawValue);
       if (!startRaw || !endRaw) return null;
-      const start = new Date(startRaw);
-      const end = new Date(endRaw);
+      const start = parseDateInput(startRaw);
+      const end = parseDateInput(endRaw, { endOfDay: true });
+      if (!start || !end) return null;
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
         return null;
       }
@@ -179,7 +181,8 @@ const buildAdvancedFilter = (
       } as Prisma.PersonWhereInput;
     }
 
-    const dateValue = new Date(rawValue);
+    const dateValue = parseDateInput(rawValue);
+    if (!dateValue) return null;
     if (Number.isNaN(dateValue.getTime())) return null;
 
     switch (filter.operator) {

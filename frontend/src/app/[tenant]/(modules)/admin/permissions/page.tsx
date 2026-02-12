@@ -32,6 +32,7 @@ const groupPermissions = (permissions: PermissionSummary[]) => {
 
 const MODULE_ACTIONS: Record<string, { label: string; actions: string[] }> = {
   people: { label: "People", actions: ["read", "create", "update", "delete"] },
+  pantry: { label: "Despensa", actions: ["read", "create", "update", "delete"] },
   users: { label: "Usuarios", actions: ["read", "create", "update", "delete"] },
   tenants: { label: "Instituicao", actions: ["read", "update"] },
   roles: { label: "Perfis", actions: ["manage"] },

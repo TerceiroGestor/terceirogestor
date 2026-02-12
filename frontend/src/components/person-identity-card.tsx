@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -237,9 +238,9 @@ export function PersonIdentityDialog({
               <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                 {title}
               </p>
-              <h2 className="text-lg font-semibold text-foreground">
+              <DialogTitle className="text-lg font-semibold text-foreground">
                 {subtitle}
-              </h2>
+              </DialogTitle>
             </div>
             <DialogClose asChild>
               <Button

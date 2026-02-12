@@ -181,24 +181,7 @@ export default function AuditLogsPage() {
             {error}
           </div>
         ) : null}
-        <DataTable
-          columns={columns}
-          data={rows}
-          manualPagination
-          pageCount={pageCount}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          totalCount={totalCount}
-          onGlobalFilterChange={setSearch}
-          searchPlaceholder="Pesquisar auditoria"
-          summaryCards={{
-            totalLabel: "Total",
-            filteredLabel: "Filtrados",
-          }}
-          showExportMenu={false}
-          onRowClick={(row) => setSelected(row)}
-        />
-        <div className="mt-4 rounded-xl border border-border/50 bg-card/60">
+        <div className="rounded-xl border border-border/50 bg-card/60">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-foreground">
@@ -269,6 +252,26 @@ export default function AuditLogsPage() {
             </div>
           )}
         </div>
+        <DataTable
+          columns={columns}
+          data={rows}
+          manualPagination
+          pageCount={pageCount}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          totalCount={totalCount}
+          onGlobalFilterChange={setSearch}
+          searchPlaceholder="Pesquisar auditoria"
+          summaryCards={{
+            totalLabel: "Total",
+            filteredLabel: "Filtrados",
+          }}
+          showExportMenu
+          exportLabels={{ title: "Relatorio", pdf: "Imprimir (PDF)", csv: "Baixar CSV" }}
+          exportMeta={{ title: "Auditoria de dados" }}
+          enableRowSelection
+          onRowClick={(row) => setSelected(row)}
+        />
         {loading ? (
           <p className="text-xs text-muted-foreground">Carregando auditoria...</p>
         ) : null}

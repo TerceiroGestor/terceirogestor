@@ -28,13 +28,29 @@ export function DataTableActionMenu({ items }: DataTableActionMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 border-border/60 bg-background hover:bg-muted/20"
+          data-dt-stop-row-click
+          aria-label="Ações"
+          title="Ações"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start">
         {primaryItems.map((item) => (
-          <DropdownMenuItem key={item.label} onSelect={item.onSelect}>
+          <DropdownMenuItem
+            key={item.label}
+            data-dt-stop-row-click
+            onSelect={(event) => {
+              event.preventDefault();
+              item.onSelect?.();
+            }}
+          >
             {item.label}
           </DropdownMenuItem>
         ))}
@@ -43,7 +59,11 @@ export function DataTableActionMenu({ items }: DataTableActionMenuProps) {
           <DropdownMenuItem
             key={item.label}
             variant="destructive"
-            onSelect={item.onSelect}
+            data-dt-stop-row-click
+            onSelect={(event) => {
+              event.preventDefault();
+              item.onSelect?.();
+            }}
           >
             {item.label}
           </DropdownMenuItem>

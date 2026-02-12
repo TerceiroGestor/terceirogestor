@@ -7,6 +7,7 @@ import type {
   ExpandedState,
   GroupingState,
   PaginationState,
+  RowSelectionState,
   SortingState,
   VisibilityState,
 } from "@tanstack/react-table";
@@ -20,6 +21,7 @@ type Setters = {
   setColumnVisibility: React.Dispatch<React.SetStateAction<VisibilityState>>;
   setColumnPinning: React.Dispatch<React.SetStateAction<ColumnPinningState>>;
   setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
+  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
   setAdvancedFilters: React.Dispatch<React.SetStateAction<any[]>>;
   setFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
@@ -33,6 +35,7 @@ export function useSafeSetters<TAdvancedFilter>({
   setColumnVisibility,
   setColumnPinning,
   setPagination,
+  setRowSelection,
   setAdvancedFilters,
   setFiltersOpen,
 }: Omit<Setters, "setAdvancedFilters"> & {
@@ -64,6 +67,7 @@ export function useSafeSetters<TAdvancedFilter>({
     safeSetColumnVisibility: React.useCallback(safe(setColumnVisibility), [setColumnVisibility]),
     safeSetColumnPinning: React.useCallback(safe(setColumnPinning), [setColumnPinning]),
     safeSetPagination: React.useCallback(safe(setPagination), [setPagination]),
+    safeSetRowSelection: React.useCallback(safe(setRowSelection), [setRowSelection]),
     safeSetAdvancedFilters: React.useCallback(
       safe(setAdvancedFilters),
       [setAdvancedFilters],

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma, HouseholdTransferType, IncomeFrequency } from '../../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
@@ -284,12 +285,21 @@ const resolveParentTypeFromPerson = (
   const sexKey = normalizeRelationKey(person?.sex);
   const genderKey = normalizeRelationKey(person?.gender);
   if (sexKey.startsWith('f') || genderKey.includes('mulher')) {
-    return 'Mae';
+    return 'Mãe';
   }
   if (sexKey.startsWith('m') || genderKey.includes('homem')) {
     return 'Pai';
   }
-  return 'Responsavel';
+  return 'Responsável';
+};
+
+const resolveStepParentTypeFromPerson = (
+  person?: { sex?: string | null; gender?: string | null } | null,
+) => {
+  const parentType = resolveParentTypeFromPerson(person);
+  if (parentType === 'Mãe') return 'Madrasta';
+  if (parentType === 'Pai') return 'Padrasto';
+  return 'Responsável';
 };
 
 const resolveInverseType = async (
@@ -311,17 +321,42 @@ const resolveInverseType = async (
     });
     return resolveParentTypeFromPerson(person);
   }
+  if (key.startsWith('padrasto') || key.startsWith('madrasta')) {
+    return 'Enteado(a)';
+  }
+  if (key.startsWith('enteado') || key.startsWith('enteada')) {
+    const person = await tx.person.findUnique({
+      where: { id: relation.personId },
+      select: { sex: true, gender: true },
+    });
+    return resolveStepParentTypeFromPerson(person);
+  }
+  if (key.startsWith('irmaosporafinidade')) {
+    return 'Irmãos por afinidade';
+  }
+  if (key.startsWith('bisavo')) {
+    return 'Bisneto(a)';
+  }
+  if (key.startsWith('bisneto') || key.startsWith('bisneta')) {
+    return 'Bisavô(ó)';
+  }
+  if (key.startsWith('tioavo')) {
+    return 'Sobrinho-neto(a)';
+  }
+  if (key.startsWith('sobrinhoneto') || key.startsWith('sobrinhoneta')) {
+    return 'Tio-avô(ó)';
+  }
   if (key.startsWith('irma')) {
-    return 'Irmao(a)';
+    return 'Irmão(a)';
   }
   if (key.startsWith('conjuge')) {
-    return 'Conjuge';
+    return 'Cônjuge';
   }
   if (key.startsWith('responsavel')) {
     return 'Dependente';
   }
   if (key.startsWith('dependente')) {
-    return 'Responsavel';
+    return 'Responsável';
   }
   if (key.startsWith('tio')) {
     return 'Sobrinho(a)';
@@ -336,7 +371,7 @@ const resolveInverseType = async (
     return 'Neto(a)';
   }
   if (key.startsWith('neto') || key.startsWith('neta')) {
-    return 'Avo(a)';
+    return 'Avô(a)';
   }
   return relation.type;
 };
@@ -379,7 +414,7 @@ const buildCreateData = (
     tenantId,
     fullName: dto.fullName.trim(),
     socialName: normalizeString(dto.socialName),
-    birthDate: dto.birthDate ?? null,
+    birthDate: dto.birthDate ? parseDateInput(dto.birthDate) ?? null : null,
     sex: normalizeString(dto.sex),
     gender: normalizeString(dto.gender),
     raceColor: normalizeString(dto.raceColor),
@@ -436,7 +471,7 @@ const buildUpdateData = (
     data.phone = normalizeString(dto.phone);
   }
   if (dto.birthDate !== undefined) {
-    data.birthDate = dto.birthDate;
+    data.birthDate = dto.birthDate ? parseDateInput(dto.birthDate) ?? null : null;
   }
   if (dto.document !== undefined) {
     data.document = normalizeString(dto.document);
@@ -825,7 +860,7 @@ export class PeopleService {
           severity:
             dto.severity !== undefined ? normalizeString(dto.severity) : null,
           diagnosisDate: dto.diagnosisDate
-            ? new Date(dto.diagnosisDate)
+            ? parseDateInput(dto.diagnosisDate)
             : null,
           documentUrl:
             dto.documentUrl !== undefined
@@ -868,7 +903,7 @@ export class PeopleService {
         diagnosisDate:
           dto.diagnosisDate !== undefined
             ? dto.diagnosisDate
-              ? new Date(dto.diagnosisDate)
+              ? parseDateInput(dto.diagnosisDate)
               : null
             : undefined,
         documentUrl:
@@ -922,8 +957,8 @@ export class PeopleService {
           dosage: dto.dosage !== undefined ? normalizeString(dto.dosage) : null,
           schedule:
             dto.schedule !== undefined ? normalizeString(dto.schedule) : null,
-          startDate: dto.startDate ? new Date(dto.startDate) : null,
-          endDate: dto.endDate ? new Date(dto.endDate) : null,
+          startDate: dto.startDate ? parseDateInput(dto.startDate) : null,
+          endDate: dto.endDate ? parseDateInput(dto.endDate) : null,
           prescribingDoctor:
             dto.prescribingDoctor !== undefined
               ? normalizeString(dto.prescribingDoctor)
@@ -973,13 +1008,13 @@ export class PeopleService {
         startDate:
           dto.startDate !== undefined
             ? dto.startDate
-              ? new Date(dto.startDate)
+              ? parseDateInput(dto.startDate)
               : null
             : undefined,
         endDate:
           dto.endDate !== undefined
             ? dto.endDate
-              ? new Date(dto.endDate)
+              ? parseDateInput(dto.endDate)
               : null
             : undefined,
         prescribingDoctor:

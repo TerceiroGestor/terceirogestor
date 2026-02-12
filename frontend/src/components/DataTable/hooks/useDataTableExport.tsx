@@ -7,6 +7,7 @@ import type {
   RowModel,
   Table,
 } from "@tanstack/react-table";
+import { formatDateOnlyPtBR } from "@/lib/date";
 
 type ExportContext<TData> = {
   table: Table<TData>;
@@ -68,6 +69,12 @@ export function useDataTableExport<TData>({
     }
     if (typeof value === "string") {
       if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+      const isDateOnly =
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ||
+        /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z$/.test(value);
+      if (isDateOnly) {
+        return formatDateOnlyPtBR(value);
+      }
       const parsed = new Date(value);
       if (Number.isNaN(parsed.getTime())) return value;
       return new Intl.DateTimeFormat("pt-BR").format(parsed);

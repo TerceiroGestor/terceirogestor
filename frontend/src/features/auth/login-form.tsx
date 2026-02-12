@@ -42,7 +42,7 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
       cache: "no-store",
     });
     if (!response.ok) {
-      throw new Error("Instituicao nao encontrada");
+      throw new Error("Instituição não encontrada");
     }
     return response.json() as Promise<TenantPreview>;
   }, []);
@@ -63,7 +63,7 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
           setTenantError(
             err && typeof err === "object" && "message" in err
               ? String((err as { message?: string }).message)
-              : "Instituicao nao encontrada",
+              : "Instituição não encontrada",
           );
         }
       });
@@ -98,6 +98,21 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
     <div className="bg-gray-100 min-h-screen w-full flex items-center justify-center p-4">
       <div className="w-full max-w-5xl mx-auto bg-white [box-shadow:0_2px_10px_-3px_rgba(6,81,237,0.3)] p-4 lg:p-5 rounded-md">
         <div className="grid md:grid-cols-[1.05fr_0.95fr] items-center gap-y-8 gap-x-8">
+          <div className="w-full h-full">
+            <div className="aspect-square rounded-md overflow-hidden w-full h-full flex items-center justify-center">
+              {tenant?.logoUrl ? (
+                <img
+                  src={resolveMediaUrl(tenant.logoUrl)}
+                  className="max-h-120 w-auto object-contain"
+                  alt={tenant.name}
+                />
+              ) : (
+                <div className="text-sm text-slate-400">
+                  Logo da instituição
+                </div>
+              )}
+            </div>
+          </div>
           <form
             onSubmit={handleSubmit}
             className="max-w-md mx-auto w-full p-4 md:p-6"
@@ -107,14 +122,10 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
                 {tenant?.name ? `${tenant.name}` : ""}
               </h2>
               <p className="text-sm text-slate-500">
-                Informe as credenciais para entrar na instituicao.
+                Informe as credenciais para entrar na instituição.
               </p>
             </div>
 
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              Ambiente de desenvolvimento. Use as credenciais de seed para
-              entrar.
-            </div>
             {tenantError ? (
               <p className="mb-3 text-xs text-red-600">{tenantError}</p>
             ) : null}
@@ -160,22 +171,6 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
               </Button>
             </div>
           </form>
-
-          <div className="w-full h-full">
-            <div className="aspect-square bg-gray-50 rounded-md overflow-hidden w-full h-full flex items-center justify-center">
-              {tenant?.logoUrl ? (
-                <img
-                  src={resolveMediaUrl(tenant.logoUrl)}
-                  className="max-h-52 w-auto object-contain"
-                  alt={tenant.name}
-                />
-              ) : (
-                <div className="text-sm text-slate-400">
-                  Logo da instituicao
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { DataTable } from "@/components/DataTable";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
-import type { PeopleTableItem, PersonFormData } from "@/app/[tenant]/(modules)/people/types";
+import type {
+  PeopleTableItem,
+  PersonFormData,
+} from "@/app/[tenant]/(modules)/people/types";
 import { usePeopleColumns } from "@/app/[tenant]/(modules)/people/columns";
 import {
   getAgeFromBirthDate,
@@ -78,17 +81,13 @@ export default function PeoplePage() {
   );
 
   useEffect(() => {
-    setPageBreadcrumb(
-      "Pessoas",
-      [{ label: "Pessoas" }],
-      {
-        label: "Novo cadastro",
-        onClick: () => {
-          setEditing(null);
-          setFormOpen(true);
-        },
+    setPageBreadcrumb("Pessoas", [{ label: "Pessoas" }], {
+      label: "Novo cadastro",
+      onClick: () => {
+        setEditing(null);
+        setFormOpen(true);
       },
-    );
+    });
   }, [setPageBreadcrumb, setFormOpen, setEditing]);
 
   useEffect(() => {
@@ -107,84 +106,90 @@ export default function PeoplePage() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [shouldFetchAll]);
 
-  const mapApiToRow = useCallback((person: ApiPerson): PeopleTableItem => ({
-    id: person.id,
-    fullName: person.fullName,
-    socialName: person.socialName,
-    sex: person.sex,
-    gender: person.gender,
-    raceColor: person.raceColor,
-    maritalStatus: person.maritalStatus,
-    nationality: person.nationality,
-    email: person.email,
-    phone: person.phone,
-    document: person.document,
-    rg: person.rg,
-    nis: person.nis,
-    status: person.status as PeopleTableItem["status"],
-    personType: person.personType ?? null,
-    departureReason: person.departureReason,
-    notes: person.notes,
-    tags: person.tags ?? [],
-    hasHealthCondition: person.hasHealthCondition ?? false,
-    hasMedication: person.hasMedication ?? false,
-    profileSummary: person.profileSummary,
-    birthDate: person.birthDate,
-    age: getAgeFromBirthDate(person.birthDate),
-    isBirthdayMonth: isBirthdayInCurrentMonth(person.birthDate),
-    isBirthdayToday: isBirthdayToday(person.birthDate),
-    avatarUrl: person.avatarUrl ?? "/avatar.jpg",
-    createdAt: person.createdAt,
-    updatedAt: person.updatedAt,
-  }), []);
+  const mapApiToRow = useCallback(
+    (person: ApiPerson): PeopleTableItem => ({
+      id: person.id,
+      fullName: person.fullName,
+      socialName: person.socialName,
+      sex: person.sex,
+      gender: person.gender,
+      raceColor: person.raceColor,
+      maritalStatus: person.maritalStatus,
+      nationality: person.nationality,
+      email: person.email,
+      phone: person.phone,
+      document: person.document,
+      rg: person.rg,
+      nis: person.nis,
+      status: person.status as PeopleTableItem["status"],
+      personType: person.personType ?? null,
+      departureReason: person.departureReason,
+      notes: person.notes,
+      tags: person.tags ?? [],
+      hasHealthCondition: person.hasHealthCondition ?? false,
+      hasMedication: person.hasMedication ?? false,
+      profileSummary: person.profileSummary,
+      birthDate: person.birthDate,
+      age: getAgeFromBirthDate(person.birthDate),
+      isBirthdayMonth: isBirthdayInCurrentMonth(person.birthDate),
+      isBirthdayToday: isBirthdayToday(person.birthDate),
+      avatarUrl: person.avatarUrl ?? "/avatar.jpg",
+      createdAt: person.createdAt,
+      updatedAt: person.updatedAt,
+    }),
+    [],
+  );
 
-  const loadPeople = useCallback(async (force = false) => {
-    if (!token) return;
-    if (!force) {
-      if (inFlightRequestRef.current === requestKey) return;
-      if (lastRequestRef.current === requestKey) return;
-    }
-    inFlightRequestRef.current = requestKey;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await listPeople(token, {
-        q: debouncedSearch || undefined,
-        page: shouldFetchAll ? undefined : pagination.pageIndex + 1,
-        limit: shouldFetchAll ? undefined : pagination.pageSize,
-        all: shouldFetchAll ? true : undefined,
-        filters: appliedFilters.length
-          ? JSON.stringify(appliedFilters)
-          : undefined,
-        groupBy: grouping.length ? JSON.stringify(grouping) : undefined,
-      });
-      const mapped = response.data.map(mapApiToRow);
-      setRows(mapped);
-      setTotalCount(response.pagination.total);
-      setPageCount(response.pagination.pages);
-      lastRequestRef.current = requestKey;
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha ao carregar pessoas.";
-      setError(message);
-      lastRequestRef.current = requestKey;
-    } finally {
-      inFlightRequestRef.current = null;
-      setIsLoading(false);
-    }
-  }, [
-    token,
-    pagination.pageIndex,
-    pagination.pageSize,
-    debouncedSearch,
-    appliedFilters,
-    grouping,
-    shouldFetchAll,
-    requestKey,
-    mapApiToRow,
-  ]);
+  const loadPeople = useCallback(
+    async (force = false) => {
+      if (!token) return;
+      if (!force) {
+        if (inFlightRequestRef.current === requestKey) return;
+        if (lastRequestRef.current === requestKey) return;
+      }
+      inFlightRequestRef.current = requestKey;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await listPeople(token, {
+          q: debouncedSearch || undefined,
+          page: shouldFetchAll ? undefined : pagination.pageIndex + 1,
+          limit: shouldFetchAll ? undefined : pagination.pageSize,
+          all: shouldFetchAll ? true : undefined,
+          filters: appliedFilters.length
+            ? JSON.stringify(appliedFilters)
+            : undefined,
+          groupBy: grouping.length ? JSON.stringify(grouping) : undefined,
+        });
+        const mapped = response.data.map(mapApiToRow);
+        setRows(mapped);
+        setTotalCount(response.pagination.total);
+        setPageCount(response.pagination.pages);
+        lastRequestRef.current = requestKey;
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar pessoas.";
+        setError(message);
+        lastRequestRef.current = requestKey;
+      } finally {
+        inFlightRequestRef.current = null;
+        setIsLoading(false);
+      }
+    },
+    [
+      token,
+      pagination.pageIndex,
+      pagination.pageSize,
+      debouncedSearch,
+      appliedFilters,
+      grouping,
+      shouldFetchAll,
+      requestKey,
+      mapApiToRow,
+    ],
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -226,7 +231,7 @@ export default function PeoplePage() {
     return {
       ...buildExportMeta({
         token,
-        title: "Relatorio de pessoas",
+        title: "Relatório de pessoas",
         subtitle: "Cadastro de pessoas",
       }),
     };
@@ -236,9 +241,9 @@ export default function PeoplePage() {
       if (!token) return;
       let nextPatch = patch;
       if (patch.status === "Desligado" && !patch.departureReason) {
-        const reason = window.prompt(
-          "Informe o motivo do desligamento:",
-        )?.trim();
+        const reason = window
+          .prompt("Informe o motivo do desligamento:")
+          ?.trim();
         if (!reason) {
           return;
         }
@@ -304,7 +309,7 @@ export default function PeoplePage() {
       let avatarUrl =
         typeof values.avatarUrl === "string"
           ? stripApiUrl(values.avatarUrl)
-          : editing?.avatarUrl ?? "/avatar.jpg";
+          : (editing?.avatarUrl ?? "/avatar.jpg");
       if (values.avatarUrl instanceof File) {
         const upload = await uploadAvatar(token, values.avatarUrl);
         avatarUrl = upload.path;
@@ -436,7 +441,7 @@ export default function PeoplePage() {
         description={
           editing
             ? "Atualize os dados da pessoa selecionada."
-            : "Preencha o formulario completo de perfil socioeconomico."
+            : "Preencha o formulário completo de perfil socioeconômico."
         }
         initialValues={initialValues}
         submitLabel={editing ? "Salvar" : "Cadastrar"}
@@ -446,6 +451,3 @@ export default function PeoplePage() {
     </div>
   );
 }
-
-
-

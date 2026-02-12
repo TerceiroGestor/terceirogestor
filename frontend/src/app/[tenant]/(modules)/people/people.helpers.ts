@@ -1,3 +1,5 @@
+import { formatDateOnlyPtBR } from "@/lib/date";
+
 const parseBirthDateParts = (value?: string | null) => {
   if (!value) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -68,9 +70,7 @@ export const resolvePersonDisplayNames = (
 
 export const formatDate = (value?: string | null) => {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("pt-BR").format(date);
+  return formatDateOnlyPtBR(value);
 };
 
 export const toDateInputValue = (value?: string | null) => {

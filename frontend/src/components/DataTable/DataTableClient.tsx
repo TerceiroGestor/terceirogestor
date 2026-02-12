@@ -12,6 +12,7 @@ import {
   type VisibilityState,
   type ColumnPinningState,
   type PaginationState,
+  type RowSelectionState,
   type Row,
   flexRender,
   getCoreRowModel,
@@ -55,6 +56,7 @@ import {
   getInitialFilterColumnId,
   getPinnedStyles,
 } from "@/components/DataTable/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type DataTableClientProps<TData> = {
   columns: ColumnDef<TData, any>[];
@@ -95,6 +97,7 @@ export type DataTableClientProps<TData> = {
     issuedBy?: string;
     issuedAt?: string;
   };
+  enableRowSelection?: boolean;
   actions?: (ctx: {
     visibleColumnIds: string[];
     visibleColumns: Column<TData, unknown>[];
@@ -119,6 +122,7 @@ export function DataTableClient<TData>({
   showExportMenu = false,
   exportLabels,
   exportMeta,
+  enableRowSelection = false,
   actions,
   onRowClick,
   manualPagination = false,
@@ -149,6 +153,7 @@ export function DataTableClient<TData>({
       pageSize: DEFAULT_PAGE_SIZE,
     },
   );
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [advancedFilters, setAdvancedFilters] = React.useState<
     AdvancedFilter[]
   >(() => {
@@ -174,6 +179,7 @@ export function DataTableClient<TData>({
     safeSetColumnVisibility,
     safeSetColumnPinning,
     safeSetPagination,
+    safeSetRowSelection,
     safeSetAdvancedFilters,
     safeSetFiltersOpen,
   } = useSafeSetters<AdvancedFilter>({
@@ -185,6 +191,7 @@ export function DataTableClient<TData>({
     setColumnVisibility,
     setColumnPinning,
     setPagination,
+    setRowSelection,
     setAdvancedFilters,
     setFiltersOpen,
   });
@@ -412,13 +419,44 @@ export function DataTableClient<TData>({
       filterFn,
     }));
 
+    const withSelection =
+      enableRowSelection && !withFilter.some((column) => column.id === "__select")
+        ? ([
+            {
+              id: "__select",
+              header: ({ table }) => (
+                <Checkbox
+                  checked={table.getIsAllPageRowsSelected()}
+                  onCheckedChange={(value) =>
+                    table.toggleAllPageRowsSelected(Boolean(value))
+                  }
+                  aria-label="Selecionar todos"
+                />
+              ),
+              cell: ({ row }) => (
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+                  aria-label="Selecionar linha"
+                />
+              ),
+              enableSorting: false,
+              enableHiding: false,
+              size: 44,
+              minSize: 44,
+              maxSize: 44,
+            } as ColumnDef<TData, any>,
+            ...withFilter,
+          ] as ColumnDef<TData, any>[])
+        : withFilter;
+
     const hasActionsColumn = withFilter.some(
       (column) => column.id === "actions",
     );
-    if (!rowActions.length || hasActionsColumn) return withFilter;
+    if (!rowActions.length || hasActionsColumn) return withSelection;
 
     return [
-      ...withFilter,
+      ...withSelection,
       {
         id: "actions",
         header: "",
@@ -437,7 +475,7 @@ export function DataTableClient<TData>({
         maxSize: 56,
       } as ColumnDef<TData, any>,
     ];
-  }, [columns, filterFn, rowActions]);
+  }, [columns, filterFn, rowActions, enableRowSelection]);
 
   const table = useReactTable({
     data,
@@ -456,6 +494,7 @@ export function DataTableClient<TData>({
       columnVisibility,
       columnPinning,
       pagination: paginationProp ?? pagination,
+      rowSelection,
     },
     onSortingChange: safeSetSorting,
     onColumnFiltersChange: safeSetColumnFilters,
@@ -463,6 +502,7 @@ export function DataTableClient<TData>({
     onExpandedChange: safeSetExpanded,
     onColumnVisibilityChange: safeSetColumnVisibility,
     onColumnPinningChange: safeSetColumnPinning,
+    onRowSelectionChange: safeSetRowSelection,
     onPaginationChange: (updater) => {
       const next =
         typeof updater === "function"
@@ -475,6 +515,7 @@ export function DataTableClient<TData>({
     pageCount,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
+    enableRowSelection,
     getFilteredRowModel: getFilteredRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
@@ -525,6 +566,9 @@ export function DataTableClient<TData>({
   const rowModel = grouping.length
     ? table.getExpandedRowModel()
     : table.getRowModel();
+  const selectedRowModel = table.getSelectedRowModel();
+  const exportRowModel =
+    enableRowSelection && selectedRowModel.rows.length ? selectedRowModel : rowModel;
   const filteredRows =
     table.getFilteredRowModel().flatRows ?? table.getFilteredRowModel().rows;
   const showPagination = grouping.length === 0;
@@ -550,7 +594,7 @@ export function DataTableClient<TData>({
 
   const { exportCsv, exportPdf, getColumnHeader } = useDataTableExport({
     table,
-    rowModel,
+    rowModel: exportRowModel,
     visibleColumnIds,
     getRowValue,
     exportMeta,
@@ -771,7 +815,7 @@ export function DataTableClient<TData>({
       const target = event.target as HTMLElement | null;
       if (
         target?.closest(
-          "button, a, input, textarea, select, [role='button']",
+          "button, a, input, textarea, select, [role='button'], [data-dt-stop-row-click]",
         )
       ) {
         return;
@@ -969,7 +1013,7 @@ export function DataTableClient<TData>({
                 <TableRow>
                   <TableCell
                     className="h-24 text-center"
-                    colSpan={columns.length}
+                    colSpan={table.getVisibleLeafColumns().length}
                   >
                     No results.
                   </TableCell>

@@ -1,0 +1,2079 @@
+﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '../../../generated/prisma';
+import { PrismaService } from '../../core/prisma/prisma.service';
+import { parseDateInput } from '../../core/utils/dates';
+import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import { normalizeString } from '../../core/utils/strings';
+import { CreatePantryDonorDto } from './dto/create-pantry-donor.dto';
+import { CreatePantryEntryDto } from './dto/create-pantry-entry.dto';
+import { CreatePantryExitDto } from './dto/create-pantry-exit.dto';
+import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
+import { ListPantryItemsQueryDto } from './dto/list-pantry-items-query.dto';
+import { UpdatePantryDonorDto } from './dto/update-pantry-donor.dto';
+import { UpdatePantryEntryDto } from './dto/update-pantry-entry.dto';
+import { UpdatePantryExitDto } from './dto/update-pantry-exit.dto';
+import { UpdatePantryItemDto } from './dto/update-pantry-item.dto';
+import { ReversePantryMovementDto } from './dto/reverse-pantry-movement.dto';
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 200;
+
+const toNumber = (value?: Prisma.Decimal | number | null) =>
+  value === null || value === undefined ? 0 : Number(value);
+
+const normalizeSector = (sector?: string | null) => {
+  const normalized = typeof sector === 'string' ? sector.trim() : '';
+  return normalized.length ? normalized : 'Geral';
+};
+
+const resolveValidityStatus = (expiry?: Date | null) => {
+  if (!expiry) return 'Sem validade';
+  const now = new Date();
+  const diffMs = expiry.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'Vencido';
+  if (diffDays <= 30) return 'Urgente';
+  if (diffDays <= 60) return 'Alerta';
+  if (diffDays <= 90) return 'Atencao';
+  return 'Normal';
+};
+
+const resolveDaysToExpire = (expiry?: Date | null) => {
+  if (!expiry) return null;
+  const now = new Date();
+  return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+};
+
+const resolveMonthKey = (date: Date) => {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${date.getFullYear()}-${month}`;
+};
+
+const resolveMonthLabel = (date: Date) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    month: 'short',
+    year: '2-digit',
+  }).format(date);
+
+const resolveExitTypeLabel = (type: string) => {
+  switch (type) {
+    case 'ATTENDED':
+      return 'Atendidos';
+    case 'DONATION':
+      return 'Doações';
+    case 'EVENT':
+      return 'Eventos';
+    case 'PARTY':
+      return 'Festas';
+    case 'CORRECTION':
+      return 'Correção';
+    default:
+      return type;
+  }
+};
+
+@Injectable()
+export class PantryService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async sumExitAllocationsByEntry(
+    tenantId: string,
+    entryIds: string[],
+    params?: { excludeExitId?: string; client?: Prisma.TransactionClient },
+  ) {
+    if (!entryIds.length) return new Map<string, number>();
+
+    const client = params?.client ?? this.prisma;
+
+    const groups = await client.pantryExitAllocation.groupBy({
+      by: ['entryId'],
+      where: {
+        tenantId,
+        entryId: { in: entryIds },
+        ...(params?.excludeExitId
+          ? { exitId: { not: params.excludeExitId } }
+          : {}),
+      },
+      _sum: { quantity: true },
+    });
+
+    return new Map(
+      groups.map((group) => [group.entryId, toNumber(group._sum?.quantity)]),
+    );
+  }
+
+  private resolveOpenEntryExpiryMaps(
+    entries: Array<{
+      id: string;
+      itemId: string;
+      sector: string;
+      expiryDate: Date | null;
+      quantity: Prisma.Decimal | number;
+    }>,
+    allocationMap: Map<string, number>,
+  ) {
+    const byItem = new Map<string, { date: Date; entryId: string }>();
+    const bySector = new Map<string, { date: Date; entryId: string }>();
+
+    entries.forEach((entry) => {
+      if (!entry.expiryDate) return;
+      const remaining =
+        toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0);
+      if (remaining <= 0) return;
+
+      const expiry = entry.expiryDate;
+      const itemKey = entry.itemId;
+      const sectorKey = `${entry.itemId}::${normalizeSector(entry.sector)}`;
+
+      const currentItem = byItem.get(itemKey);
+      if (!currentItem || expiry < currentItem.date) {
+        byItem.set(itemKey, { date: expiry, entryId: entry.id });
+      }
+
+      const currentSector = bySector.get(sectorKey);
+      if (!currentSector || expiry < currentSector.date) {
+        bySector.set(sectorKey, { date: expiry, entryId: entry.id });
+      }
+    });
+
+    return { byItem, bySector };
+  }
+
+  private async resolveAuditUserLabels(
+    tenantId: string,
+    entity: string,
+    entityIds: string[],
+  ) {
+    if (!entityIds.length) return new Map<string, string>();
+
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        tenantId,
+        entity,
+        action: 'CREATE',
+        entityId: { in: entityIds },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const map = new Map<string, string>();
+    logs.forEach((log) => {
+      if (!log.entityId) return;
+      if (map.has(log.entityId)) return;
+      const userLabel =
+        log.user?.name || log.user?.email || log.userId || 'Sistema';
+      map.set(log.entityId, userLabel);
+    });
+    return map;
+  }
+
+  async listItems(tenantId: string, query: ListPantryItemsQueryDto) {
+    const { page, limit, skip, take, isAll } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: query.all,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const search = normalizeString(query.q);
+    const where: Prisma.PantryItemWhereInput = {
+      tenantId,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search } },
+              { group: { contains: search } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.pantryItem.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: isAll ? undefined : skip,
+        take: isAll ? undefined : take,
+      }),
+      this.prisma.pantryItem.count({ where }),
+    ]);
+
+    const data = await this.enrichItems(tenantId, items);
+
+    return {
+      data,
+      pagination: buildPaginationMeta({
+        page,
+        limit,
+        total,
+        isAll,
+      }),
+    };
+  }
+
+  async getEntry(tenantId: string, id: string) {
+    const entry = await this.prisma.pantryEntry.findFirst({
+      where: { id, tenantId },
+      include: {
+        item: { select: { id: true, name: true, unit: true, group: true } },
+        donor: { select: { id: true, name: true, type: true, contact: true } },
+      },
+    });
+    if (!entry) {
+      throw new NotFoundException('Entrada nao encontrada');
+    }
+
+    const allocatedMap = await this.sumExitAllocationsByEntry(tenantId, [id]);
+    const allocatedTotal = allocatedMap.get(id) ?? 0;
+    const remaining = toNumber(entry.quantity) - allocatedTotal;
+
+    const createdByMap = await this.resolveAuditUserLabels(tenantId, 'PantryEntry', [id]);
+
+    return {
+      id: entry.id,
+      itemId: entry.itemId,
+      donorId: entry.donorId,
+      sector: normalizeSector(entry.sector),
+      createdBy: createdByMap.get(entry.id) ?? 'Sistema',
+      quantity: toNumber(entry.quantity),
+      unit: entry.unit,
+      entryDate: entry.entryDate,
+      expiryDate: entry.expiryDate,
+      notes: entry.notes,
+      allocatedTotal,
+      remaining,
+      isClosed: remaining <= 0,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      item: entry.item,
+      donor: entry.donor,
+    };
+  }
+
+  async getItem(tenantId: string, id: string) {
+    const item = await this.prisma.pantryItem.findFirst({
+      where: { id, tenantId },
+    });
+    if (!item) {
+      throw new NotFoundException('Item nao encontrado');
+    }
+
+    const [enriched] = await this.enrichItems(tenantId, [item]);
+    return enriched;
+  }
+
+  async createItem(tenantId: string, dto: CreatePantryItemDto) {
+    const item = await this.prisma.pantryItem.create({
+      data: {
+        tenantId,
+        name: dto.name,
+        group: dto.group ?? null,
+        unit: dto.unit,
+        minStock: dto.minStock,
+      },
+    });
+
+    const [enriched] = await this.enrichItems(tenantId, [item]);
+    return enriched;
+  }
+
+  async updateItem(tenantId: string, id: string, dto: UpdatePantryItemDto) {
+    await this.getItem(tenantId, id);
+
+    const item = await this.prisma.pantryItem.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        group: dto.group ?? undefined,
+        unit: dto.unit,
+        minStock: dto.minStock,
+      },
+    });
+
+    const [enriched] = await this.enrichItems(tenantId, [item]);
+    return enriched;
+  }
+
+  async deleteItem(tenantId: string, id: string) {
+    await this.getItem(tenantId, id);
+    await this.prisma.pantryItem.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  async listDonors(
+    tenantId: string,
+    params?: { page?: number; limit?: number; all?: boolean; search?: string },
+  ) {
+    const isAll = params?.all === true;
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const skip = (page - 1) * limit;
+    const search = normalizeString(params?.search);
+
+    const where: Prisma.PantryDonorWhereInput = {
+      tenantId,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search } },
+              { contact: { contains: search } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.pantryDonor.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: isAll ? undefined : skip,
+        take: isAll ? undefined : limit,
+      }),
+      this.prisma.pantryDonor.count({ where }),
+    ]);
+
+    return {
+      data: data.map((donor) => ({
+        id: donor.id,
+        name: donor.name,
+        type: donor.type,
+        contact: donor.contact,
+        createdAt: donor.createdAt,
+        updatedAt: donor.updatedAt,
+      })),
+      pagination: {
+        page: isAll ? 1 : page,
+        limit: isAll ? total : limit,
+        total,
+        pages: isAll ? (total === 0 ? 0 : 1) : Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async createDonor(tenantId: string, dto: CreatePantryDonorDto) {
+    return this.prisma.pantryDonor.create({
+      data: {
+        tenantId,
+        name: dto.name,
+        type: dto.type ?? undefined,
+        contact: dto.contact ?? null,
+      },
+    });
+  }
+
+  async updateDonor(tenantId: string, id: string, dto: UpdatePantryDonorDto) {
+    const donor = await this.prisma.pantryDonor.findFirst({
+      where: { id, tenantId },
+    });
+    if (!donor) {
+      throw new NotFoundException('Doador nao encontrado');
+    }
+
+    return this.prisma.pantryDonor.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        type: dto.type,
+        contact: dto.contact ?? undefined,
+      },
+    });
+  }
+
+  async deleteDonor(tenantId: string, id: string) {
+    const donor = await this.prisma.pantryDonor.findFirst({
+      where: { id, tenantId },
+    });
+    if (!donor) {
+      throw new NotFoundException('Doador nao encontrado');
+    }
+
+    await this.prisma.pantryDonor.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  async listEntries(
+    tenantId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      itemId?: string;
+      donorId?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const skip = (page - 1) * limit;
+    const search = normalizeString(params?.search);
+
+    const fromDate = parseDateInput(params?.from);
+    const toDate = parseDateInput(params?.to, { endOfDay: true });
+
+    const where: Prisma.PantryEntryWhereInput = {
+      tenantId,
+      ...(params?.itemId ? { itemId: params.itemId } : {}),
+      ...(params?.donorId ? { donorId: params.donorId } : {}),
+      ...(fromDate || toDate
+        ? {
+            entryDate: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lte: toDate } : {}),
+            },
+          }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { item: { name: { contains: search } } },
+              { donor: { name: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.findMany({
+        where,
+        orderBy: { entryDate: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          item: true,
+          donor: true,
+        },
+      }),
+      this.prisma.pantryEntry.count({ where }),
+    ]);
+
+    const createdByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryEntry',
+      data.map((entry) => entry.id),
+    );
+
+    const allocationMap = await this.sumExitAllocationsByEntry(
+      tenantId,
+      data.map((entry) => entry.id),
+    );
+
+    return {
+      data: data.map((entry) => ({
+        allocatedTotal: allocationMap.get(entry.id) ?? 0,
+        remaining: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
+        isClosed:
+          toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0) <= 0,
+        id: entry.id,
+        itemId: entry.itemId,
+        donorId: entry.donorId,
+        sector: normalizeSector(entry.sector),
+        createdBy: createdByMap.get(entry.id) ?? 'Sistema',
+        quantity: toNumber(entry.quantity),
+        unit: entry.unit,
+        entryDate: entry.entryDate,
+        expiryDate: entry.expiryDate,
+        notes: entry.notes,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        item: {
+          id: entry.item.id,
+          name: entry.item.name,
+          unit: entry.item.unit,
+        },
+        donor: entry.donor
+          ? {
+              id: entry.donor.id,
+              name: entry.donor.name,
+              type: entry.donor.type,
+              contact: entry.donor.contact,
+            }
+          : null,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async createEntry(tenantId: string, dto: CreatePantryEntryDto) {
+    await this.assertItem(tenantId, dto.itemId);
+    if (dto.donorId) {
+      await this.assertDonor(tenantId, dto.donorId);
+    }
+
+    return this.prisma.pantryEntry.create({
+      data: {
+        tenantId,
+        itemId: dto.itemId,
+        donorId: dto.donorId ?? null,
+        sector: normalizeSector(dto.sector),
+        quantity: dto.quantity,
+        unit: dto.unit,
+        entryDate: parseDateInput(dto.entryDate) ?? new Date(),
+        expiryDate: parseDateInput(dto.expiryDate) ?? null,
+        notes: dto.notes ?? null,
+      },
+      include: { item: true, donor: true },
+    });
+  }
+
+  async updateEntry(tenantId: string, id: string, dto: UpdatePantryEntryDto) {
+    const entry = await this.prisma.pantryEntry.findFirst({
+      where: { id, tenantId },
+    });
+    if (!entry) {
+      throw new NotFoundException('Entrada nao encontrada');
+    }
+
+    const allocations = await this.prisma.pantryExitAllocation.count({
+      where: { tenantId, entryId: id },
+    });
+
+    if (
+      allocations > 0 &&
+      (dto.itemId !== undefined ||
+        dto.sector !== undefined ||
+        dto.quantity !== undefined ||
+        dto.unit !== undefined ||
+        dto.entryDate !== undefined ||
+        dto.expiryDate !== undefined)
+    ) {
+      throw new BadRequestException(
+        'Entrada possui saidas vinculadas e nao pode ter lote/quantidade alterados.',
+      );
+    }
+
+    if (dto.itemId) {
+      await this.assertItem(tenantId, dto.itemId);
+    }
+    if (dto.donorId) {
+      await this.assertDonor(tenantId, dto.donorId);
+    }
+
+    return this.prisma.pantryEntry.update({
+      where: { id },
+      data: {
+        itemId: dto.itemId,
+        donorId: dto.donorId ?? undefined,
+        sector: dto.sector !== undefined ? normalizeSector(dto.sector) : undefined,
+        quantity: dto.quantity,
+        unit: dto.unit,
+        entryDate: dto.entryDate ? parseDateInput(dto.entryDate) : undefined,
+        expiryDate:
+          dto.expiryDate === null
+            ? null
+            : dto.expiryDate
+              ? parseDateInput(dto.expiryDate)
+              : undefined,
+        notes: dto.notes ?? undefined,
+      },
+      include: { item: true, donor: true },
+    });
+  }
+
+  async deleteEntry(tenantId: string, id: string) {
+    const entry = await this.prisma.pantryEntry.findFirst({
+      where: { id, tenantId },
+    });
+    if (!entry) {
+      throw new NotFoundException('Entrada nao encontrada');
+    }
+
+    const allocations = await this.prisma.pantryExitAllocation.count({
+      where: { tenantId, entryId: id },
+    });
+    if (allocations > 0) {
+      throw new BadRequestException(
+        'Entrada possui saidas vinculadas e nao pode ser removida.',
+      );
+    }
+
+    await this.prisma.pantryEntry.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  async listExits(
+    tenantId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      itemId?: string;
+      type?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const skip = (page - 1) * limit;
+    const search = normalizeString(params?.search);
+    const fromDate = parseDateInput(params?.from);
+    const toDate = parseDateInput(params?.to, { endOfDay: true });
+
+    const where: Prisma.PantryExitWhereInput = {
+      tenantId,
+      ...(params?.itemId ? { itemId: params.itemId } : {}),
+      ...(params?.type ? { type: params.type as any } : {}),
+      ...(fromDate || toDate
+        ? {
+            exitDate: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lte: toDate } : {}),
+            },
+          }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { item: { name: { contains: search } } },
+              { eventName: { contains: search } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.pantryExit.findMany({
+        where,
+        orderBy: { exitDate: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          item: true,
+          allocations: {
+            include: {
+              entry: { select: { id: true, expiryDate: true, sector: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.pantryExit.count({ where }),
+    ]);
+
+    const removedByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryExit',
+      data.map((exit) => exit.id),
+    );
+
+    return {
+      data: data.map((exit) => ({
+        id: exit.id,
+        itemId: exit.itemId,
+        entryIds: exit.allocations.map((allocation) => allocation.entryId),
+        allocations: exit.allocations.map((allocation) => ({
+          entryId: allocation.entryId,
+          quantity: toNumber(allocation.quantity),
+          expiryDate: allocation.entry.expiryDate,
+          sector: normalizeSector(allocation.entry.sector),
+        })),
+        sector: normalizeSector(exit.sector),
+        removedBy: removedByMap.get(exit.id) ?? 'Sistema',
+        quantity: toNumber(exit.quantity),
+        unit: exit.unit,
+        exitDate: exit.exitDate,
+        type: exit.type,
+        eventName: exit.eventName,
+        notes: exit.notes,
+        createdAt: exit.createdAt,
+        updatedAt: exit.updatedAt,
+        item: {
+          id: exit.item.id,
+          name: exit.item.name,
+          unit: exit.item.unit,
+        },
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async getExit(tenantId: string, id: string) {
+    const exit = await this.prisma.pantryExit.findFirst({
+      where: { id, tenantId },
+      include: {
+        item: { select: { id: true, name: true, unit: true, group: true } },
+        allocations: {
+          include: {
+            entry: {
+              select: { id: true, expiryDate: true, sector: true, entryDate: true },
+            },
+          },
+        },
+      },
+    });
+    if (!exit) {
+      throw new NotFoundException('Saida nao encontrada');
+    }
+
+    const removedByMap = await this.resolveAuditUserLabels(tenantId, 'PantryExit', [id]);
+
+    return {
+      id: exit.id,
+      itemId: exit.itemId,
+      sector: normalizeSector(exit.sector),
+      removedBy: removedByMap.get(exit.id) ?? 'Sistema',
+      quantity: toNumber(exit.quantity),
+      unit: exit.unit,
+      exitDate: exit.exitDate,
+      type: exit.type,
+      eventName: exit.eventName,
+      notes: exit.notes,
+      allocations: exit.allocations.map((allocation) => ({
+        entryId: allocation.entryId,
+        quantity: toNumber(allocation.quantity),
+        expiryDate: allocation.entry.expiryDate,
+        sector: normalizeSector(allocation.entry.sector),
+        entryDate: allocation.entry.entryDate,
+      })),
+      createdAt: exit.createdAt,
+      updatedAt: exit.updatedAt,
+      item: exit.item,
+    };
+  }
+
+  private async resolveOpenEntriesForExitAllocation(params: {
+    tenantId: string;
+    itemId: string;
+    sector: string;
+    excludeExitId?: string;
+    client?: Prisma.TransactionClient;
+  }) {
+    const normalizedSector = normalizeSector(params.sector);
+    const client = params.client ?? this.prisma;
+
+    const entries = await client.pantryEntry.findMany({
+      where: {
+        tenantId: params.tenantId,
+        itemId: params.itemId,
+        sector: normalizedSector,
+      },
+      orderBy: [{ entryDate: 'asc' }],
+      select: {
+        id: true,
+        quantity: true,
+        unit: true,
+        entryDate: true,
+        expiryDate: true,
+        sector: true,
+      },
+    });
+
+    const allocationMap = await this.sumExitAllocationsByEntry(
+      params.tenantId,
+      entries.map((entry) => entry.id),
+      { excludeExitId: params.excludeExitId, client },
+    );
+
+    return entries
+      .map((entry) => ({
+        ...entry,
+        remaining:
+          toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
+      }))
+      .filter((entry) => entry.remaining > 0)
+      .sort((a, b) => {
+        const aExpiry = a.expiryDate
+          ? a.expiryDate.getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const bExpiry = b.expiryDate
+          ? b.expiryDate.getTime()
+          : Number.MAX_SAFE_INTEGER;
+        if (aExpiry !== bExpiry) return aExpiry - bExpiry;
+        return a.entryDate.getTime() - b.entryDate.getTime();
+      });
+  }
+
+  async createExit(tenantId: string, dto: CreatePantryExitDto) {
+    await this.assertItem(tenantId, dto.itemId);
+
+    const normalizedSector = normalizeSector(dto.sector);
+    const exitDate = parseDateInput(dto.exitDate) ?? new Date();
+
+    return this.prisma.$transaction(async (trx) => {
+      const exit = await trx.pantryExit.create({
+        data: {
+          tenantId,
+          itemId: dto.itemId,
+          sector: normalizedSector,
+          quantity: dto.quantity,
+          unit: dto.unit,
+          exitDate,
+          type: dto.type ?? undefined,
+          eventName: dto.eventName ?? null,
+          notes: dto.notes ?? null,
+        },
+        include: { item: true },
+      });
+
+      if (dto.entryId) {
+        const entry = await trx.pantryEntry.findFirst({
+          where: {
+            id: dto.entryId,
+            tenantId,
+            itemId: dto.itemId,
+            sector: normalizedSector,
+          },
+          select: { id: true, quantity: true },
+        });
+        if (!entry) {
+          throw new BadRequestException(
+            'Entrada/lote nao encontrado para esta saida.',
+          );
+        }
+
+        const allocatedMap = await this.sumExitAllocationsByEntry(tenantId, [
+          entry.id,
+        ], { client: trx });
+        const remaining =
+          toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
+        if (dto.quantity > remaining) {
+          throw new BadRequestException(
+            `Saldo insuficiente no lote selecionado (disponivel: ${remaining}).`,
+          );
+        }
+
+        await trx.pantryExitAllocation.create({
+          data: {
+            tenantId,
+            exitId: exit.id,
+            entryId: entry.id,
+            quantity: dto.quantity,
+          },
+        });
+
+        return exit;
+      }
+
+      const openEntries = await this.resolveOpenEntriesForExitAllocation({
+        tenantId,
+        itemId: dto.itemId,
+        sector: normalizedSector,
+        client: trx,
+      });
+
+      let remainingToAllocate = dto.quantity;
+      const allocations: Array<{ entryId: string; quantity: number }> = [];
+
+      for (const entry of openEntries) {
+        if (remainingToAllocate <= 0) break;
+        const qty = Math.min(entry.remaining, remainingToAllocate);
+        if (qty <= 0) continue;
+        allocations.push({ entryId: entry.id, quantity: qty });
+        remainingToAllocate -= qty;
+      }
+
+      if (remainingToAllocate > 0) {
+        throw new BadRequestException(
+          `Saldo insuficiente no setor "${normalizedSector}" para esta saida.`,
+        );
+      }
+
+      if (allocations.length) {
+        await trx.pantryExitAllocation.createMany({
+          data: allocations.map((allocation) => ({
+            tenantId,
+            exitId: exit.id,
+            entryId: allocation.entryId,
+            quantity: allocation.quantity,
+          })),
+        });
+      }
+
+      return exit;
+    });
+  }
+
+  async updateExit(tenantId: string, id: string, dto: UpdatePantryExitDto) {
+    const exit = await this.prisma.pantryExit.findFirst({
+      where: { id, tenantId },
+    });
+    if (!exit) {
+      throw new NotFoundException('Saida nao encontrada');
+    }
+
+    if (dto.itemId) {
+      await this.assertItem(tenantId, dto.itemId);
+    }
+
+    const currentQuantity = toNumber(exit.quantity);
+    const currentItemId = exit.itemId;
+    const currentSector = normalizeSector(exit.sector);
+
+    const nextItemId = dto.itemId ?? currentItemId;
+    const nextSector = normalizeSector(dto.sector ?? exit.sector);
+    const nextQuantity = dto.quantity ?? currentQuantity;
+
+    return this.prisma.$transaction(async (trx) => {
+      await trx.pantryExitAllocation.deleteMany({
+        where: { tenantId, exitId: id },
+      });
+
+      const updated = await trx.pantryExit.update({
+        where: { id },
+        data: {
+          itemId: dto.itemId,
+          sector: dto.sector !== undefined ? normalizeSector(dto.sector) : undefined,
+          quantity: dto.quantity,
+          unit: dto.unit,
+          exitDate: dto.exitDate ? parseDateInput(dto.exitDate) : undefined,
+          type: dto.type,
+          eventName: dto.eventName ?? undefined,
+          notes: dto.notes ?? undefined,
+        },
+        include: { item: true },
+      });
+
+      if (dto.entryId) {
+        const entry = await trx.pantryEntry.findFirst({
+          where: {
+            id: dto.entryId,
+            tenantId,
+            itemId: nextItemId,
+            sector: nextSector,
+          },
+          select: { id: true, quantity: true },
+        });
+        if (!entry) {
+          throw new BadRequestException(
+            'Entrada/lote nao encontrado para esta saida.',
+          );
+        }
+
+        const allocatedMap = await this.sumExitAllocationsByEntry(tenantId, [
+          entry.id,
+        ], { client: trx });
+        const remaining =
+          toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
+        if (nextQuantity > remaining) {
+          throw new BadRequestException(
+            `Saldo insuficiente no lote selecionado (disponivel: ${remaining}).`,
+          );
+        }
+
+        await trx.pantryExitAllocation.create({
+          data: {
+            tenantId,
+            exitId: id,
+            entryId: entry.id,
+            quantity: nextQuantity,
+          },
+        });
+
+        return updated;
+      }
+
+      const openEntries = await this.resolveOpenEntriesForExitAllocation({
+        tenantId,
+        itemId: nextItemId,
+        sector: nextSector,
+        excludeExitId: id,
+        client: trx,
+      });
+
+      let remainingToAllocate = nextQuantity;
+      const allocations: Array<{ entryId: string; quantity: number }> = [];
+
+      for (const entry of openEntries) {
+        if (remainingToAllocate <= 0) break;
+        const qty = Math.min(entry.remaining, remainingToAllocate);
+        if (qty <= 0) continue;
+        allocations.push({ entryId: entry.id, quantity: qty });
+        remainingToAllocate -= qty;
+      }
+
+      if (remainingToAllocate > 0) {
+        throw new BadRequestException(
+          `Saldo insuficiente no setor "${nextSector}" para esta saida.`,
+        );
+      }
+
+      if (allocations.length) {
+        await trx.pantryExitAllocation.createMany({
+          data: allocations.map((allocation) => ({
+            tenantId,
+            exitId: id,
+            entryId: allocation.entryId,
+            quantity: allocation.quantity,
+          })),
+        });
+      }
+
+      return updated;
+    });
+  }
+
+  async deleteExit(tenantId: string, id: string) {
+    const exit = await this.prisma.pantryExit.findFirst({
+      where: { id, tenantId },
+    });
+    if (!exit) {
+      throw new NotFoundException('Saida nao encontrada');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.pantryExitAllocation.deleteMany({ where: { tenantId, exitId: id } }),
+      this.prisma.pantryExit.delete({ where: { id } }),
+    ]);
+    return { ok: true };
+  }
+
+  async getSummary(tenantId: string) {
+    const [items, donors, entryTotals, exitTotals] = await this.prisma.$transaction([
+      this.prisma.pantryItem.findMany({
+        where: { tenantId },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.pantryDonor.count({ where: { tenantId } }),
+      this.prisma.pantryEntry.aggregate({
+        where: { tenantId },
+        _sum: { quantity: true },
+      }),
+      this.prisma.pantryExit.aggregate({
+        where: { tenantId },
+        _sum: { quantity: true },
+      }),
+    ]);
+
+    const itemsWithStats = await this.enrichItems(tenantId, items);
+    const totalStock = itemsWithStats.reduce(
+      (sum, item) => sum + item.stock,
+      0,
+    );
+    const lowStock = itemsWithStats.filter((item) => item.isBelowMin).length;
+
+    const validity = {
+      normal: 0,
+      attention: 0,
+      alert: 0,
+      urgent: 0,
+      expired: 0,
+      noExpiry: 0,
+    };
+
+    itemsWithStats.forEach((item) => {
+      switch (item.validityStatus) {
+        case 'Normal':
+          validity.normal += 1;
+          break;
+        case 'Atencao':
+          validity.attention += 1;
+          break;
+        case 'Alerta':
+          validity.alert += 1;
+          break;
+        case 'Urgente':
+          validity.urgent += 1;
+          break;
+        case 'Vencido':
+          validity.expired += 1;
+          break;
+        default:
+          validity.noExpiry += 1;
+          break;
+      }
+    });
+
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const [recentEntries, recentExits] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.findMany({
+        where: { tenantId, entryDate: { gte: start } },
+        select: { entryDate: true, quantity: true },
+      }),
+      this.prisma.pantryExit.findMany({
+        where: { tenantId, exitDate: { gte: start } },
+        select: { exitDate: true, quantity: true, type: true, itemId: true },
+      }),
+    ]);
+
+    const months: { key: string; label: string }[] = [];
+    for (let i = 11; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: resolveMonthKey(date), label: resolveMonthLabel(date) });
+    }
+
+    const monthTotals = new Map<string, { entries: number; exits: number; label: string }>();
+    months.forEach((month) => {
+      monthTotals.set(month.key, { entries: 0, exits: 0, label: month.label });
+    });
+
+    recentEntries.forEach((entry) => {
+      const key = resolveMonthKey(entry.entryDate);
+      const current = monthTotals.get(key);
+      if (current) {
+        current.entries += toNumber(entry.quantity);
+      }
+    });
+
+    recentExits.forEach((exit) => {
+      const key = resolveMonthKey(exit.exitDate);
+      const current = monthTotals.get(key);
+      if (current) {
+        current.exits += toNumber(exit.quantity);
+      }
+    });
+
+    const monthly = months.map((month) => ({
+      month: month.key,
+      label: monthTotals.get(month.key)?.label ?? month.label,
+      entries: monthTotals.get(month.key)?.entries ?? 0,
+      exits: monthTotals.get(month.key)?.exits ?? 0,
+    }));
+
+    const [exitByItem, exitByType, entryByDonor] = await this.prisma.$transaction([
+      this.prisma.pantryExit.groupBy({
+        by: ['itemId'],
+        where: { tenantId },
+        orderBy: { itemId: 'asc' },
+        _sum: { quantity: true },
+      }),
+      this.prisma.pantryExit.groupBy({
+        by: ['type'],
+        where: { tenantId },
+        orderBy: { type: 'asc' },
+        _sum: { quantity: true },
+      }),
+      this.prisma.pantryEntry.groupBy({
+        by: ['donorId'],
+        where: { tenantId, donorId: { not: null } },
+        orderBy: { donorId: 'asc' },
+        _sum: { quantity: true },
+      }),
+    ]);
+
+    const itemIds = exitByItem.map((item) => item.itemId);
+    const donorIds = entryByDonor
+      .map((entry) => entry.donorId)
+      .filter((id): id is string => Boolean(id));
+
+    const [itemsForExit, donorsForEntry] = await Promise.all([
+      itemIds.length
+        ? this.prisma.pantryItem.findMany({
+            where: { tenantId, id: { in: itemIds } },
+            select: { id: true, name: true, unit: true },
+          })
+        : Promise.resolve([] as Array<{ id: string; name: string; unit: string }>),
+      donorIds.length
+        ? this.prisma.pantryDonor.findMany({
+            where: { tenantId, id: { in: donorIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
+    ]);
+
+    const itemMap = new Map(itemsForExit.map((item) => [item.id, item]));
+    const donorMap = new Map(donorsForEntry.map((donor) => [donor.id, donor]));
+
+    const consumptionByItem = exitByItem
+      .map((entry) => {
+        const item = itemMap.get(entry.itemId);
+        return {
+          itemId: entry.itemId,
+          name: item?.name ?? 'Sem nome',
+          unit: item?.unit ?? '',
+          total: toNumber(entry._sum?.quantity),
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
+    const consumptionByType = exitByType.map((entry) => ({
+      type: entry.type ?? 'ATTENDED',
+      total: toNumber(entry._sum?.quantity),
+    }));
+
+    const entriesByDonor = entryByDonor
+      .map((entry) => {
+        const donor = entry.donorId ? donorMap.get(entry.donorId) : null;
+        return {
+          donorId: entry.donorId ?? '',
+          name: donor?.name ?? 'Sem nome',
+          total: toNumber(entry._sum?.quantity),
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
+    return {
+      totals: {
+        items: items.length,
+        donors,
+        entries: toNumber(entryTotals._sum?.quantity),
+        exits: toNumber(exitTotals._sum?.quantity),
+        stock: totalStock,
+        lowStock,
+      },
+      validity,
+      monthly,
+      consumptionByType,
+      consumptionByItem,
+      entriesByDonor,
+    };
+  }
+
+  private async buildSectorStats(
+    tenantId: string,
+    itemIds: string[],
+  ): Promise<
+    Map<
+      string,
+      Array<{
+        itemId: string;
+        sector: string;
+        entriesTotal: number;
+        exitsTotal: number;
+        stock: number;
+        lastEntryDate: Date | null;
+        lastExitDate: Date | null;
+        nextExpiryDate: Date | null;
+        nextExpiryEntryId: string | null;
+        validityStatus: string;
+        daysToExpire: number | null;
+      }>
+    >
+  > {
+    if (!itemIds.length) return new Map();
+
+    const [entryGroups, exitGroups, entriesWithExpiry] =
+      await this.prisma.$transaction([
+        this.prisma.pantryEntry.groupBy({
+          by: ['itemId', 'sector'],
+          where: { tenantId, itemId: { in: itemIds } },
+          orderBy: [{ itemId: 'asc' }, { sector: 'asc' }],
+          _sum: { quantity: true },
+          _max: { entryDate: true },
+        }),
+        this.prisma.pantryExit.groupBy({
+          by: ['itemId', 'sector'],
+          where: { tenantId, itemId: { in: itemIds } },
+          orderBy: [{ itemId: 'asc' }, { sector: 'asc' }],
+          _sum: { quantity: true },
+          _max: { exitDate: true },
+        }),
+        this.prisma.pantryEntry.findMany({
+          where: { tenantId, itemId: { in: itemIds }, expiryDate: { not: null } },
+          select: { id: true, itemId: true, sector: true, expiryDate: true, quantity: true },
+        }),
+      ]);
+
+    const keyOf = (itemId: string, sector: string) => `${itemId}::${sector}`;
+
+    const base = new Map<
+      string,
+      {
+        itemId: string;
+        sector: string;
+        entriesTotal: number;
+        exitsTotal: number;
+        lastEntryDate: Date | null;
+        lastExitDate: Date | null;
+        nextExpiryDate: Date | null;
+        nextExpiryEntryId: string | null;
+      }
+    >();
+
+    entryGroups.forEach((entry) => {
+      const sector = normalizeSector(entry.sector);
+      base.set(keyOf(entry.itemId, sector), {
+        itemId: entry.itemId,
+        sector,
+        entriesTotal: toNumber(entry._sum?.quantity),
+        exitsTotal: 0,
+        lastEntryDate: entry._max?.entryDate ?? null,
+        lastExitDate: null,
+        nextExpiryDate: null,
+        nextExpiryEntryId: null,
+      });
+    });
+
+    exitGroups.forEach((exit) => {
+      const sector = normalizeSector(exit.sector);
+      const key = keyOf(exit.itemId, sector);
+      const current =
+        base.get(key) ??
+        ({
+          itemId: exit.itemId,
+          sector,
+          entriesTotal: 0,
+          exitsTotal: 0,
+          lastEntryDate: null,
+          lastExitDate: null,
+          nextExpiryDate: null,
+          nextExpiryEntryId: null,
+        } as const);
+      base.set(key, {
+        ...current,
+        exitsTotal: toNumber(exit._sum?.quantity),
+        lastExitDate: exit._max?.exitDate ?? null,
+      });
+    });
+
+    const allocationMap = await this.sumExitAllocationsByEntry(
+      tenantId,
+      entriesWithExpiry.map((entry) => entry.id),
+    );
+    const { bySector } = this.resolveOpenEntryExpiryMaps(
+      entriesWithExpiry,
+      allocationMap,
+    );
+
+    bySector.forEach((value, sectorKey) => {
+      const current = base.get(sectorKey);
+      if (!current) return;
+      base.set(sectorKey, {
+        ...current,
+        nextExpiryDate: value.date,
+        nextExpiryEntryId: value.entryId,
+      });
+    });
+
+    const map = new Map<
+      string,
+      Array<{
+        itemId: string;
+        sector: string;
+        entriesTotal: number;
+        exitsTotal: number;
+        stock: number;
+        lastEntryDate: Date | null;
+        lastExitDate: Date | null;
+        nextExpiryDate: Date | null;
+        nextExpiryEntryId: string | null;
+        validityStatus: string;
+        daysToExpire: number | null;
+      }>
+    >();
+
+    Array.from(base.values()).forEach((row) => {
+      const stock = row.entriesTotal - row.exitsTotal;
+      const nextExpiryDate = row.nextExpiryDate ?? null;
+      const itemRows = map.get(row.itemId) ?? [];
+      itemRows.push({
+        itemId: row.itemId,
+        sector: row.sector,
+        entriesTotal: row.entriesTotal,
+        exitsTotal: row.exitsTotal,
+        stock,
+        lastEntryDate: row.lastEntryDate,
+        lastExitDate: row.lastExitDate,
+        nextExpiryDate,
+        nextExpiryEntryId: row.nextExpiryEntryId,
+        validityStatus: resolveValidityStatus(nextExpiryDate),
+        daysToExpire: resolveDaysToExpire(nextExpiryDate),
+      });
+      map.set(row.itemId, itemRows);
+    });
+
+    // sort: highest stock first, then sector name
+    map.forEach((rows, itemId) => {
+      map.set(
+        itemId,
+        rows.sort((a, b) => {
+          if (b.stock !== a.stock) return b.stock - a.stock;
+          return a.sector.localeCompare(b.sector);
+        }),
+      );
+    });
+
+    return map;
+  }
+
+  async listItemSectors(tenantId: string, itemId: string) {
+    await this.assertItem(tenantId, itemId);
+    const sectorMap = await this.buildSectorStats(tenantId, [itemId]);
+    const sectors = sectorMap.get(itemId) ?? [];
+    return {
+      itemId,
+      sectors: sectors.map((sector) => ({
+        sector: sector.sector,
+        stock: sector.stock,
+        entriesTotal: sector.entriesTotal,
+        exitsTotal: sector.exitsTotal,
+        nextExpiryDate: sector.nextExpiryDate,
+        nextExpiryEntryId: sector.nextExpiryEntryId,
+        validityStatus: sector.validityStatus,
+        daysToExpire: sector.daysToExpire,
+      })),
+    };
+  }
+
+  async getDashboard(tenantId: string) {
+    const items = await this.prisma.pantryItem.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
+    });
+
+    const sectorMap = await this.buildSectorStats(
+      tenantId,
+      items.map((item) => item.id),
+    );
+
+    const enriched = await this.enrichItems(tenantId, items);
+    const enrichedMap = new Map(enriched.map((item) => [item.id, item]));
+
+    const stockRows = items.flatMap((item) => {
+      const itemStats = enrichedMap.get(item.id);
+      const sectors = sectorMap.get(item.id) ?? [];
+      if (!sectors.length) {
+        return [
+          {
+            itemId: item.id,
+            name: item.name,
+            group: item.group,
+            unit: item.unit,
+            sector: 'Geral',
+            sectorStock: 0,
+            itemStock: itemStats?.stock ?? 0,
+            minStock: itemStats?.minStock ?? toNumber(item.minStock),
+            isBelowMin: itemStats?.isBelowMin ?? false,
+            nextExpiryDate: null as Date | null,
+            validityStatus: 'Sem validade',
+            daysToExpire: null as number | null,
+          },
+        ];
+      }
+
+      return sectors.map((sector) => ({
+        itemId: item.id,
+        name: item.name,
+        group: item.group,
+        unit: item.unit,
+        sector: sector.sector,
+        sectorStock: sector.stock,
+        itemStock: itemStats?.stock ?? 0,
+        minStock: itemStats?.minStock ?? toNumber(item.minStock),
+        isBelowMin: itemStats?.isBelowMin ?? false,
+        nextExpiryDate: sector.nextExpiryDate,
+        validityStatus: sector.validityStatus,
+        daysToExpire: sector.daysToExpire,
+      }));
+    });
+
+    const [recentEntries, recentExits] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.findMany({
+        where: { tenantId },
+        orderBy: { entryDate: 'desc' },
+        take: 12,
+        include: {
+          item: { select: { id: true, name: true, unit: true, group: true } },
+          donor: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.pantryExit.findMany({
+        where: { tenantId },
+        orderBy: { exitDate: 'desc' },
+        take: 12,
+        include: {
+          item: { select: { id: true, name: true, unit: true, group: true } },
+        },
+      }),
+    ]);
+
+    const createdByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryEntry',
+      recentEntries.map((entry) => entry.id),
+    );
+
+    const removedByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryExit',
+      recentExits.map((exit) => exit.id),
+    );
+
+    const now = new Date();
+    const expiringLimit = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const expiringSectors = stockRows
+      .filter(
+        (row) =>
+          row.sectorStock > 0 &&
+          row.nextExpiryDate &&
+          row.nextExpiryDate <= expiringLimit,
+      )
+      .sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999))
+      .slice(0, 20);
+
+    return {
+      totals: {
+        items: items.length,
+        stock: enriched.reduce((sum, item) => sum + item.stock, 0),
+        lowStock: enriched.filter((item) => item.isBelowMin).length,
+      },
+      stockRows,
+      recentEntries: recentEntries.map((entry) => ({
+        id: entry.id,
+        itemId: entry.itemId,
+        item: entry.item,
+        donor: entry.donor,
+        sector: normalizeSector(entry.sector),
+        quantity: toNumber(entry.quantity),
+        unit: entry.unit,
+        entryDate: entry.entryDate,
+        expiryDate: entry.expiryDate,
+        notes: entry.notes,
+        createdBy: createdByMap.get(entry.id) ?? 'Sistema',
+      })),
+      recentExits: recentExits.map((exit) => ({
+        id: exit.id,
+        itemId: exit.itemId,
+        item: exit.item,
+        sector: normalizeSector(exit.sector),
+        quantity: toNumber(exit.quantity),
+        unit: exit.unit,
+        exitDate: exit.exitDate,
+        type: exit.type,
+        eventName: exit.eventName,
+        notes: exit.notes,
+        removedBy: removedByMap.get(exit.id) ?? 'Sistema',
+      })),
+      expiring: expiringSectors.map((row) => ({
+        itemId: row.itemId,
+        name: row.name,
+        unit: row.unit,
+        group: row.group,
+        sector: row.sector,
+        stock: row.sectorStock,
+        nextExpiryDate: row.nextExpiryDate,
+        validityStatus: row.validityStatus,
+        daysToExpire: row.daysToExpire,
+      })),
+    };
+  }
+
+  async getConsumption(
+    tenantId: string,
+    query: {
+      from?: string;
+      to?: string;
+      view?: 'item' | 'group';
+      itemId?: string;
+      group?: string;
+      type?: 'ATTENDED' | 'DONATION' | 'EVENT' | 'PARTY' | 'CORRECTION';
+      eventName?: string;
+    },
+  ) {
+    const view = query.view ?? 'item';
+    const eventName = normalizeString(query.eventName);
+
+    const now = new Date();
+    const fromDate =
+      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
+
+    const exits = await this.prisma.pantryExit.findMany({
+      where: {
+        tenantId,
+        exitDate: { gte: fromDate, lte: toDate },
+        ...(query.itemId ? { itemId: query.itemId } : {}),
+        ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+        ...(eventName ? { eventName: { contains: eventName } } : {}),
+        ...(view === 'group' && query.group
+          ? { item: { group: query.group } }
+          : {}),
+      },
+      include: {
+        item: { select: { id: true, name: true, group: true } },
+      },
+      orderBy: { exitDate: 'asc' },
+    });
+
+    const months: { key: string; label: string; start: Date }[] = [];
+    const startMonth = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+    const endMonth = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
+    for (
+      let cursor = new Date(startMonth);
+      cursor <= endMonth;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    ) {
+      months.push({
+        key: resolveMonthKey(cursor),
+        label: resolveMonthLabel(cursor),
+        start: cursor,
+      });
+    }
+
+    const monthIndex = new Map(months.map((m, idx) => [m.key, idx]));
+
+    const totalsByDimension = new Map<
+      string,
+      { label: string; totals: number[]; total: number }
+    >();
+
+    const resolveDimension = (exit: (typeof exits)[number]) => {
+      if (view === 'group') {
+        const label = (exit.item.group ?? 'Sem grupo').trim() || 'Sem grupo';
+        return { key: `group:${label}`, label };
+      }
+      return { key: exit.item.id, label: exit.item.name };
+    };
+
+    exits.forEach((exit) => {
+      const monthKey = resolveMonthKey(exit.exitDate);
+      const idx = monthIndex.get(monthKey);
+      if (idx === undefined) return;
+      const dimension = resolveDimension(exit);
+      const current =
+        totalsByDimension.get(dimension.key) ??
+        ({
+          label: dimension.label,
+          totals: Array.from({ length: months.length }).map(() => 0),
+          total: 0,
+        } as const);
+      const value = toNumber(exit.quantity);
+      const nextTotals = [...current.totals];
+      nextTotals[idx] += value;
+      totalsByDimension.set(dimension.key, {
+        label: dimension.label,
+        totals: nextTotals,
+        total: current.total + value,
+      });
+    });
+
+    const series = Array.from(totalsByDimension.entries())
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, query.itemId || query.group ? 1 : 8)
+      .map(({ key, label, totals }) => ({ key, label, totals }));
+
+    return {
+      view,
+      from: fromDate,
+      to: toDate,
+      months: months.map((m) => ({ key: m.key, label: m.label })),
+      series,
+    };
+  }
+
+  async getFlow(
+    tenantId: string,
+    query: {
+      from?: string;
+      to?: string;
+      view?: 'item' | 'group';
+      itemId?: string;
+      group?: string;
+      type?: 'ATTENDED' | 'DONATION' | 'EVENT' | 'PARTY' | 'CORRECTION';
+      eventName?: string;
+    },
+  ) {
+    const view = query.view ?? 'item';
+    const eventName = normalizeString(query.eventName);
+
+    const now = new Date();
+    const fromDate =
+      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
+
+    const itemFilter = query.itemId ? { itemId: query.itemId } : {};
+    const groupFilter =
+      view === 'group' && query.group ? { item: { group: query.group } } : {};
+
+    const [entries, exits] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.findMany({
+        where: {
+          tenantId,
+          entryDate: { gte: fromDate, lte: toDate },
+          ...itemFilter,
+          ...groupFilter,
+        },
+        select: { entryDate: true, quantity: true },
+      }),
+      this.prisma.pantryExit.findMany({
+        where: {
+          tenantId,
+          exitDate: { gte: fromDate, lte: toDate },
+          ...itemFilter,
+          ...groupFilter,
+          ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+          ...(eventName ? { eventName: { contains: eventName } } : {}),
+        },
+        select: { exitDate: true, quantity: true },
+      }),
+    ]);
+
+    const months: { key: string; label: string; start: Date }[] = [];
+    const startMonth = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+    const endMonth = new Date(toDate.getFullYear(), toDate.getMonth(), 1);
+    for (
+      let cursor = new Date(startMonth);
+      cursor <= endMonth;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    ) {
+      months.push({
+        key: resolveMonthKey(cursor),
+        label: resolveMonthLabel(cursor),
+        start: cursor,
+      });
+    }
+
+    const monthIndex = new Map(months.map((m, idx) => [m.key, idx]));
+    const entriesTotals = Array.from({ length: months.length }).map(() => 0);
+    const exitsTotals = Array.from({ length: months.length }).map(() => 0);
+
+    entries.forEach((entry) => {
+      const idx = monthIndex.get(resolveMonthKey(entry.entryDate));
+      if (idx === undefined) return;
+      entriesTotals[idx] += toNumber(entry.quantity);
+    });
+
+    exits.forEach((exit) => {
+      const idx = monthIndex.get(resolveMonthKey(exit.exitDate));
+      if (idx === undefined) return;
+      exitsTotals[idx] += toNumber(exit.quantity);
+    });
+
+    return {
+      view,
+      from: fromDate,
+      to: toDate,
+      months: months.map((m) => ({ key: m.key, label: m.label })),
+      entries: entriesTotals,
+      exits: exitsTotals,
+    };
+  }
+
+  async getUsage(
+    tenantId: string,
+    query: {
+      from?: string;
+      to?: string;
+      view?: 'item' | 'group';
+      itemId?: string;
+      group?: string;
+      type?: 'ATTENDED' | 'DONATION' | 'EVENT' | 'PARTY' | 'CORRECTION';
+      eventName?: string;
+    },
+  ) {
+    const view = query.view ?? 'item';
+    const eventName = normalizeString(query.eventName);
+
+    const now = new Date();
+    const fromDate =
+      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
+
+    const itemFilter = query.itemId ? { itemId: query.itemId } : {};
+    const groupFilter =
+      view === 'group' && query.group ? { item: { group: query.group } } : {};
+
+    const grouped = await this.prisma.pantryExit.groupBy({
+      by: ['type'],
+      where: {
+        tenantId,
+        exitDate: { gte: fromDate, lte: toDate },
+        ...itemFilter,
+        ...groupFilter,
+        ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+        ...(eventName ? { eventName: { contains: eventName } } : {}),
+      },
+      _sum: { quantity: true },
+    });
+
+    const totals = grouped
+      .map((row) => ({
+        type: row.type,
+        label: resolveExitTypeLabel(row.type),
+        total: toNumber(row._sum?.quantity),
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    return {
+      view,
+      from: fromDate,
+      to: toDate,
+      totals,
+    };
+  }
+
+  async reverseEntry(
+    tenantId: string,
+    entryId: string,
+    dto: ReversePantryMovementDto,
+  ) {
+    const entry = await this.prisma.pantryEntry.findFirst({
+      where: { tenantId, id: entryId },
+      include: { item: true },
+    });
+
+    if (!entry) {
+      throw new NotFoundException('Entrada/lote nao encontrado.');
+    }
+
+    const reversed = await this.prisma.pantryExit.findFirst({
+      where: { tenantId, reversalOfEntryId: entryId },
+      select: { id: true },
+    });
+
+    if (reversed) {
+      throw new BadRequestException('Esta entrada ja foi estornada.');
+    }
+
+    const allocated = await this.prisma.pantryExitAllocation.aggregate({
+      where: { tenantId, entryId },
+      _sum: { quantity: true },
+    });
+
+    const allocatedTotal = toNumber(allocated._sum?.quantity);
+    if (allocatedTotal > 0) {
+      throw new BadRequestException(
+        'Nao e possivel estornar uma entrada que ja teve saidas vinculadas. Ajuste as saidas primeiro.',
+      );
+    }
+
+    const exitDate = parseDateInput(dto.date) ?? new Date();
+    const notes =
+      normalizeString(dto.notes) ?? `Estorno da entrada ${entryId} (Correcao).`;
+
+    return this.prisma.$transaction(async (trx) => {
+      const exit = await trx.pantryExit.create({
+        data: {
+          tenantId,
+          itemId: entry.itemId,
+          sector: normalizeSector(entry.sector),
+          quantity: entry.quantity,
+          unit: entry.unit,
+          exitDate,
+          type: 'CORRECTION',
+          notes,
+          reversalOfEntryId: entryId,
+        },
+        include: { item: true },
+      });
+
+      await trx.pantryExitAllocation.create({
+        data: {
+          tenantId,
+          exitId: exit.id,
+          entryId: entry.id,
+          quantity: entry.quantity,
+        },
+      });
+
+      return exit;
+    });
+  }
+
+  async reverseExit(
+    tenantId: string,
+    exitId: string,
+    dto: ReversePantryMovementDto,
+  ) {
+    const exit = await this.prisma.pantryExit.findFirst({
+      where: { tenantId, id: exitId },
+      include: { item: true },
+    });
+
+    if (!exit) {
+      throw new NotFoundException('Saida nao encontrada.');
+    }
+
+    const existing = await this.prisma.pantryEntry.findFirst({
+      where: { tenantId, reversalOfExitId: exitId },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Esta saida ja foi estornada.');
+    }
+
+    const entryDate = parseDateInput(dto.date) ?? new Date();
+    const notes =
+      normalizeString(dto.notes) ?? `Estorno da saida ${exitId} (Correcao).`;
+
+    return this.prisma.$transaction(async (trx) => {
+      const allocations = await trx.pantryExitAllocation.findMany({
+        where: { tenantId, exitId },
+        include: {
+          entry: { select: { sector: true, expiryDate: true } },
+        },
+      });
+
+      const groups = new Map<string, { sector: string; expiry: Date | null; qty: number }>();
+
+      if (!allocations.length) {
+        const key = `${normalizeSector(exit.sector)}::`;
+        groups.set(key, {
+          sector: normalizeSector(exit.sector),
+          expiry: null,
+          qty: toNumber(exit.quantity),
+        });
+      } else {
+        allocations.forEach((allocation) => {
+          const sector = normalizeSector(allocation.entry.sector);
+          const expiry = allocation.entry.expiryDate ?? null;
+          const expiryKey = expiry ? expiry.toISOString() : '';
+          const key = `${sector}::${expiryKey}`;
+          const current = groups.get(key);
+          const qty = toNumber(allocation.quantity);
+          groups.set(key, {
+            sector,
+            expiry,
+            qty: (current?.qty ?? 0) + qty,
+          });
+        });
+      }
+
+      const created = await Promise.all(
+        Array.from(groups.values()).map((group) =>
+          trx.pantryEntry.create({
+            data: {
+              tenantId,
+              itemId: exit.itemId,
+              donorId: null,
+              sector: group.sector,
+              quantity: group.qty,
+              unit: exit.unit,
+              entryDate,
+              expiryDate: group.expiry,
+              notes,
+              reversalOfExitId: exitId,
+            },
+            include: { item: true, donor: true },
+          }),
+        ),
+      );
+
+      return {
+        ok: true,
+        exitId,
+        createdEntries: created,
+      };
+    });
+  }
+
+  private async enrichItems(tenantId: string, items: Prisma.PantryItemGetPayload<{}>[]) {
+    if (!items.length) return [];
+
+    const itemIds = items.map((item) => item.id);
+
+    const [entryGroups, exitGroups, entriesWithExpiry] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.groupBy({
+        by: ['itemId'],
+        where: { tenantId, itemId: { in: itemIds } },
+        orderBy: { itemId: 'asc' },
+        _sum: { quantity: true },
+        _max: { entryDate: true },
+      }),
+      this.prisma.pantryExit.groupBy({
+        by: ['itemId'],
+        where: { tenantId, itemId: { in: itemIds } },
+        orderBy: { itemId: 'asc' },
+        _sum: { quantity: true },
+        _max: { exitDate: true },
+      }),
+      this.prisma.pantryEntry.findMany({
+        where: { tenantId, itemId: { in: itemIds }, expiryDate: { not: null } },
+        select: { id: true, itemId: true, sector: true, expiryDate: true, quantity: true },
+      }),
+    ]);
+
+    const entryMap = new Map<string, { total: number; last: Date | null }>();
+    entryGroups.forEach((entry) => {
+      entryMap.set(entry.itemId, {
+        total: toNumber(entry._sum?.quantity),
+        last: entry._max?.entryDate ?? null,
+      });
+    });
+
+    const exitMap = new Map<string, { total: number; last: Date | null }>();
+    exitGroups.forEach((exit) => {
+      exitMap.set(exit.itemId, {
+        total: toNumber(exit._sum?.quantity),
+        last: exit._max?.exitDate ?? null,
+      });
+    });
+
+    const expiryMap = new Map<string, Date | null>();
+    if (entriesWithExpiry.length) {
+      const allocationMap = await this.sumExitAllocationsByEntry(
+        tenantId,
+        entriesWithExpiry.map((entry) => entry.id),
+      );
+      const { byItem } = this.resolveOpenEntryExpiryMaps(
+        entriesWithExpiry,
+        allocationMap,
+      );
+      byItem.forEach((value, itemId) => {
+        expiryMap.set(itemId, value.date);
+      });
+    }
+
+    return items.map((item) => {
+      const entryStats = entryMap.get(item.id);
+      const exitStats = exitMap.get(item.id);
+      const entriesTotal = entryStats?.total ?? 0;
+      const exitsTotal = exitStats?.total ?? 0;
+      const stock = entriesTotal - exitsTotal;
+      const nextExpiryDate = expiryMap.get(item.id) ?? null;
+      const lastEntryDate = entryStats?.last ?? null;
+      const lastExitDate = exitStats?.last ?? null;
+      const lastMovementDate =
+        lastEntryDate && lastExitDate
+          ? lastEntryDate > lastExitDate
+            ? lastEntryDate
+            : lastExitDate
+          : lastEntryDate ?? lastExitDate ?? null;
+      const validityStatus = resolveValidityStatus(nextExpiryDate);
+      const minStock = toNumber(item.minStock);
+
+      return {
+        id: item.id,
+        tenantId: item.tenantId,
+        name: item.name,
+        group: item.group,
+        unit: item.unit,
+        minStock,
+        stock,
+        entriesTotal,
+        exitsTotal,
+        lastEntryDate,
+        lastExitDate,
+        lastMovementDate,
+        nextExpiryDate,
+        validityStatus,
+        daysToExpire: resolveDaysToExpire(nextExpiryDate),
+        isBelowMin: stock < minStock,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
+  }
+
+  private async assertItem(tenantId: string, itemId: string) {
+    const item = await this.prisma.pantryItem.findFirst({
+      where: { id: itemId, tenantId },
+    });
+    if (!item) {
+      throw new NotFoundException('Item nao encontrado');
+    }
+    return item;
+  }
+
+  private async assertDonor(tenantId: string, donorId: string) {
+    const donor = await this.prisma.pantryDonor.findFirst({
+      where: { id: donorId, tenantId },
+    });
+    if (!donor) {
+      throw new NotFoundException('Doador nao encontrado');
+    }
+    return donor;
+  }
+}

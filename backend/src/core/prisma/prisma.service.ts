@@ -273,6 +273,14 @@ export class PrismaService
   }
 
   private redact(value: any): any {
+    if (typeof value === 'function') {
+      return `[Function${value.name ? `: ${value.name}` : ''}]`;
+    }
+
+    if (value === undefined) {
+      return null;
+    }
+
     if (value instanceof Date) {
       return value.toISOString();
     }
@@ -282,6 +290,18 @@ export class PrismaService
     }
 
     if (value && typeof value === 'object') {
+      if (typeof (value as any).toJSON === 'function') {
+        const jsonValue = (value as any).toJSON();
+        if (
+          jsonValue === null ||
+          typeof jsonValue === 'string' ||
+          typeof jsonValue === 'number' ||
+          typeof jsonValue === 'boolean'
+        ) {
+          return jsonValue;
+        }
+      }
+
       const constructorName =
         'constructor' in value && value.constructor
           ? value.constructor.name
@@ -298,6 +318,9 @@ export class PrismaService
     if (value && typeof value === 'object') {
       const output: Record<string, any> = {};
       for (const [key, fieldValue] of Object.entries(value)) {
+        if (key === 'constructor' && typeof fieldValue === 'function') {
+          continue;
+        }
         const lowerKey = key.toLowerCase();
         const shouldRedact =
           SENSITIVE_KEYS.has(lowerKey) ||
@@ -308,6 +331,15 @@ export class PrismaService
     }
 
     return value;
+  }
+
+  private toAuditJson(value: any) {
+    const redacted = this.redact(value);
+    try {
+      return JSON.parse(JSON.stringify(redacted));
+    } catch {
+      return redacted;
+    }
   }
 
   private async safeAuditLog(entry: {
@@ -335,8 +367,8 @@ export class PrismaService
           action: entry.action,
           entity: entry.entity,
           entityId: entry.entityId ?? null,
-          before: entry.before ? this.redact(entry.before) : null,
-          after: entry.after ? this.redact(entry.after) : null,
+          before: entry.before ? this.toAuditJson(entry.before) : null,
+          after: entry.after ? this.toAuditJson(entry.after) : null,
           ipAddress: context?.ipAddress ?? null,
           userAgent: context?.userAgent ?? null,
           requestId: context?.requestId ?? null,
