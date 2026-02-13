@@ -68,7 +68,7 @@ export function ConfirmActionDialog({
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
-          : "NÃ£o foi possÃ­vel concluir a aÃ§Ã£o.";
+          : "Não foi possível concluir a ação.";
       setError(message);
     } finally {
       setConfirming(false);

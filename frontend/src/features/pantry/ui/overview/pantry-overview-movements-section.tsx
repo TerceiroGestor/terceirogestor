@@ -36,14 +36,18 @@ export type PantryRecentMovement = {
 type PantryOverviewMovementsSectionProps = {
   movements: PantryRecentMovement[];
   onMovementClick: (movement: PantryRecentMovement) => void;
-  formatDateTime: (value: string) => string;
   formatDate: (value: string | null) => string;
 };
+
+function toDateOnlyIso(value: string) {
+  const iso = value.length >= 10 ? value.slice(0, 10) : value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  return iso;
+}
 
 export function PantryOverviewMovementsSection({
   movements,
   onMovementClick,
-  formatDateTime,
   formatDate,
 }: PantryOverviewMovementsSectionProps) {
   const [kind, setKind] = React.useState<"ALL" | "ENTRY" | "EXIT">("ALL");
@@ -55,29 +59,41 @@ export function PantryOverviewMovementsSection({
 
   const filtered = React.useMemo(() => {
     if (!movements.length) return [];
-    const from = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
-    const to = toDate ? new Date(`${toDate}T23:59:59`) : null;
+
     const query = search.trim().toLowerCase();
     const event = eventQuery.trim().toLowerCase();
 
-    return movements.filter((movement) => {
-      if (kind !== "ALL" && movement.kind !== kind) return false;
-      const movementDate = new Date(movement.date);
-      if (from && movementDate < from) return false;
-      if (to && movementDate > to) return false;
-      if (query && !movement.itemName.toLowerCase().includes(query))
-        return false;
-      if (movement.kind === "EXIT") {
-        if (exitType !== "all" && movement.exitType !== exitType) return false;
-        if (event) {
-          const match =
-            (movement.eventName ?? "").toLowerCase().includes(event) ||
-            (movement.meta ?? "").toLowerCase().includes(event);
-          if (!match) return false;
+    return movements
+      .filter((movement) => {
+        if (kind !== "ALL" && movement.kind !== kind) return false;
+
+        const movementDay = toDateOnlyIso(movement.date);
+        if (fromDate && movementDay && movementDay < fromDate) return false;
+        if (toDate && movementDay && movementDay > toDate) return false;
+
+        if (query && !movement.itemName.toLowerCase().includes(query)) return false;
+
+        if (movement.kind === "EXIT") {
+          if (exitType !== "all" && movement.exitType !== exitType) return false;
+          if (event) {
+            const match =
+              (movement.eventName ?? "").toLowerCase().includes(event) ||
+              (movement.meta ?? "").toLowerCase().includes(event);
+            if (!match) return false;
+          }
         }
-      }
-      return true;
-    });
+
+        return true;
+      })
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.date).getTime();
+        const bTime = new Date(b.date).getTime();
+        if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+        if (Number.isNaN(aTime)) return 1;
+        if (Number.isNaN(bTime)) return -1;
+        return bTime - aTime;
+      });
   }, [movements, kind, fromDate, toDate, search, exitType, eventQuery]);
 
   const rows = React.useMemo<PantryMovementTimelineRow[]>(
@@ -106,17 +122,17 @@ export function PantryOverviewMovementsSection({
     >
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[200px]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground pb-2">
+          <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Alimento
           </p>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrar por Alimento"
+            placeholder="Filtrar por alimento"
           />
         </div>
         <div className="min-w-[200px]">
-          <p className="text-[11px] pb-2 font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Tipo (saídas)
           </p>
           <Select value={exitType} onValueChange={setExitType}>
@@ -134,7 +150,7 @@ export function PantryOverviewMovementsSection({
           </Select>
         </div>
         <div className="min-w-[240px]">
-          <p className="text-[11px] pb-2 font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Evento (saídas)
           </p>
           <Input
@@ -144,24 +160,16 @@ export function PantryOverviewMovementsSection({
           />
         </div>
         <div className="min-w-[150px]">
-          <p className="text-[11px] pb-2 font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             De
           </p>
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-          />
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         </div>
         <div className="min-w-[150px]">
-          <p className="text-[11px] pb-2 font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Até
           </p>
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-          />
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         </div>
         <div className="flex flex-wrap items-center gap-3 py-2">
           <Button
@@ -195,7 +203,6 @@ export function PantryOverviewMovementsSection({
         <PantryMovementTimeline
           rows={rows}
           formatDate={formatDate}
-          formatDateTime={formatDateTime}
           emptyLabel="Sem movimentos recentes."
           scrollClassName="max-h-[420px]"
         />
@@ -203,3 +210,4 @@ export function PantryOverviewMovementsSection({
     </SectionCard>
   );
 }
+

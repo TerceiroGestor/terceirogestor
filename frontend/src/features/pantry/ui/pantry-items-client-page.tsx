@@ -9,6 +9,8 @@ import { FormEngine } from "@/components/FormEngine";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
+import { useConfirm } from "@/components/confirm/use-confirm";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
@@ -73,6 +75,8 @@ export function PantryItemsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -252,20 +256,28 @@ export function PantryItemsClientPage() {
         setError("Você não tem permissão para excluir alimentos.");
         return;
       }
-      const confirmed = window.confirm(`Excluir o alimento "${item.name}"?`);
+      const confirmed = await confirm({
+        title: "Excluir alimento",
+        description: `Excluir o alimento "${item.name}"?`,
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        confirmVariant: "destructive",
+      });
       if (!confirmed) return;
       try {
         await deletePantryItem(token, item.id);
         await loadItems();
+        toast({ title: "Alimento excluído", variant: "success" });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir alimento.";
         setError(message);
+        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
-    [token, canDelete, loadItems],
+    [token, canDelete, loadItems, confirm, toast],
   );
 
   const handleSubmit = React.useCallback(
@@ -297,17 +309,22 @@ export function PantryItemsClientPage() {
         setDialogOpen(false);
         setEditing(null);
         await loadItems();
+        toast({
+          title: editing ? "Alimento atualizado" : "Alimento criado",
+          variant: "success",
+        });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar alimento.";
         setFormError(message);
+        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
       }
     },
-    [token, editing, canUpdate, canCreate, loadItems],
+    [token, editing, canUpdate, canCreate, loadItems, toast],
   );
 
   if (!canRead) {

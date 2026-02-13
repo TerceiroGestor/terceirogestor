@@ -9,6 +9,8 @@ import { FormEngine } from "@/components/FormEngine";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
+import { useConfirm } from "@/components/confirm/use-confirm";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
@@ -45,6 +47,8 @@ export function PantryEntriesClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -229,20 +233,28 @@ export function PantryEntriesClientPage() {
         setError("Você não tem permissão para excluir entradas.");
         return;
       }
-      const confirmed = window.confirm("Excluir esta entrada?");
+      const confirmed = await confirm({
+        title: "Excluir entrada",
+        description: "Excluir esta entrada?",
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        confirmVariant: "destructive",
+      });
       if (!confirmed) return;
       try {
         await deletePantryEntry(token, entry.id);
         await loadEntries();
+        toast({ title: "Entrada excluída", variant: "success" });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir entrada.";
         setError(message);
+        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
-    [token, canDelete, loadEntries],
+    [token, canDelete, loadEntries, confirm, toast],
   );
 
   const handleSubmit = React.useCallback(
@@ -302,17 +314,22 @@ export function PantryEntriesClientPage() {
         setDialogOpen(false);
         setEditing(null);
         await loadEntries();
+        toast({
+          title: editing ? "Entrada atualizada" : "Entrada criada",
+          variant: "success",
+        });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar entrada.";
         setFormError(message);
+        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
       }
     },
-    [token, editing, canUpdate, canCreate, items, loadEntries],
+    [token, editing, canUpdate, canCreate, items, loadEntries, toast],
   );
 
   if (!canRead) {

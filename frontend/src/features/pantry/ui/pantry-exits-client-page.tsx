@@ -9,6 +9,8 @@ import { FormEngine } from "@/components/FormEngine";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
+import { useConfirm } from "@/components/confirm/use-confirm";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
@@ -60,6 +62,8 @@ export function PantryExitsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -229,20 +233,28 @@ export function PantryExitsClientPage() {
         setError("Você não tem permissão para excluir saídas.");
         return;
       }
-      const confirmed = window.confirm("Excluir esta saída?");
+      const confirmed = await confirm({
+        title: "Excluir saída",
+        description: "Excluir esta saída?",
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        confirmVariant: "destructive",
+      });
       if (!confirmed) return;
       try {
         await deletePantryExit(token, exit.id);
         await loadExits();
+        toast({ title: "Saída excluída", variant: "success" });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir saída.";
         setError(message);
+        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
-    [token, canDelete, loadExits],
+    [token, canDelete, loadExits, confirm, toast],
   );
 
   const handleSubmit = React.useCallback(
@@ -305,17 +317,22 @@ export function PantryExitsClientPage() {
         setDialogOpen(false);
         setEditing(null);
         await loadExits();
+        toast({
+          title: editing ? "Saída atualizada" : "Saída criada",
+          variant: "success",
+        });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar saída.";
         setFormError(message);
+        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
       }
     },
-    [token, editing, canUpdate, canCreate, items, loadExits],
+    [token, editing, canUpdate, canCreate, items, loadExits, toast],
   );
 
   if (!canRead) {

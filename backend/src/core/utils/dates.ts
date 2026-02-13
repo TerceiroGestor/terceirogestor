@@ -12,7 +12,8 @@ export function parseDateInput(
   }
 
   const suffix = options?.endOfDay ? 'T23:59:59.999' : 'T00:00:00.000';
-  const parsed = new Date(`${trimmed}${suffix}`);
+  // Date-only inputs (YYYY-MM-DD) must be interpreted as UTC to avoid timezone
+  // shifts when the API is consumed from different timezones.
+  const parsed = new Date(`${trimmed}${suffix}Z`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
-

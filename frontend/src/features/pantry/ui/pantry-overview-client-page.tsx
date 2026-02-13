@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Sheet,
   SheetContent,
@@ -62,15 +63,6 @@ function monthEndIso(monthValue: string) {
   return toLocalIsoDate(lastDay);
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
-}
-
 function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
 }
@@ -96,6 +88,7 @@ export function PantryOverviewClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { toast } = useToast();
 
   const canRead = permissions.includes("pantry.read");
 
@@ -329,6 +322,15 @@ export function PantryOverviewClientPage() {
     await loadConsumption();
   }, [loadDashboard, loadConsumption]);
 
+  const handleAlertsRefresh = React.useCallback(async () => {
+    try {
+      await loadDashboard();
+      toast({ title: "Alertas atualizados", variant: "success" });
+    } catch {
+      toast({ title: "Falha ao atualizar alertas", variant: "destructive" });
+    }
+  }, [loadDashboard, toast]);
+
   const stockColumns = React.useMemo<
     ColumnDef<PantryDashboardResponse["stockRows"][number]>[]
   >(
@@ -510,7 +512,6 @@ export function PantryOverviewClientPage() {
                   <PantryOverviewMovementsSection
                     movements={recentMovements}
                     onMovementClick={openMovementEdit}
-                    formatDateTime={formatDateTime}
                     formatDate={formatDate}
                   />
                 </div>
@@ -551,7 +552,7 @@ export function PantryOverviewClientPage() {
                     expiredItems={expiredItems}
                     formatDate={formatDate}
                     onOpenMovement={openMovementDialog}
-                    onRefresh={loadDashboard}
+                    onRefresh={handleAlertsRefresh}
                   />
                 </div>
               </SheetContent>

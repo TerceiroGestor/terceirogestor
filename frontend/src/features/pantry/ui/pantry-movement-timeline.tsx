@@ -27,33 +27,45 @@ type PantryMovementTimelineProps = {
   scrollClassName?: string;
   scroll?: boolean;
   formatDate: (value: string | null) => string;
-  formatDateTime: (value: string) => string;
 };
 
-function formatRelativeShort(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const diffMs = date.getTime() - Date.now();
-  const absMs = Math.abs(diffMs);
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
+function toDateOnlyIso(value: string) {
+  const iso = value.length >= 10 ? value.slice(0, 10) : value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  return iso;
+}
+
+function parseIsoDateToLocalNoon(iso: string) {
+  const [yearRaw, monthRaw, dayRaw] = iso.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function formatRelativeShortDateOnly(value: string) {
+  const iso = toDateOnlyIso(value);
+  if (!iso) return "";
+
+  const movementDate = parseIsoDateToLocalNoon(iso);
+  if (!movementDate) return "";
+
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
+  const todayDate = parseIsoDateToLocalNoon(todayIso);
+  if (!todayDate) return "";
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((movementDate.getTime() - todayDate.getTime()) / dayMs);
 
   const rtf = new Intl.RelativeTimeFormat("pt-BR", {
     numeric: "auto",
     style: "short",
   });
-
-  if (absMs < hour) {
-    const minutes = Math.round(diffMs / minute);
-    return rtf.format(minutes, "minute");
-  }
-  if (absMs < day) {
-    const hours = Math.round(diffMs / hour);
-    return rtf.format(hours, "hour");
-  }
-  const days = Math.round(diffMs / day);
-  return rtf.format(days, "day");
+  return rtf.format(diffDays, "day");
 }
 
 export function PantryMovementTimeline({
@@ -62,7 +74,6 @@ export function PantryMovementTimeline({
   scrollClassName,
   scroll,
   formatDate,
-  formatDateTime,
 }: PantryMovementTimelineProps) {
   return (
     <PantryTimeline
@@ -84,9 +95,7 @@ export function PantryMovementTimeline({
               <Badge variant={movement.kind === "ENTRY"}>
                 {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
               </Badge>
-              {movement.usage ? (
-                <Badge variant="outline">{movement.usage}</Badge>
-              ) : null}
+              {movement.usage ? <Badge variant="outline">{movement.usage}</Badge> : null}
               <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Setor: {movement.sector}
               </span>
@@ -122,12 +131,10 @@ export function PantryMovementTimeline({
           <>
             <span className="text-foreground">Por: {movement.actor}</span>
             <span>•</span>
-            <span className="font-mono tabular-nums">
-              {formatDateTime(movement.date)}
-            </span>
+            <span className="font-mono tabular-nums">{formatDate(movement.date)}</span>
             <span>•</span>
             <span className="font-mono tabular-nums">
-              {formatRelativeShort(movement.date)}
+              {formatRelativeShortDateOnly(movement.date)}
             </span>
             {movement.notes ? (
               <>
@@ -141,3 +148,4 @@ export function PantryMovementTimeline({
     />
   );
 }
+

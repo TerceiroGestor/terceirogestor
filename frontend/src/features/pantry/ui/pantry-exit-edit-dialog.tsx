@@ -5,6 +5,8 @@ import { FormEngine } from "@/components/FormEngine";
 import { SectionDialog } from "@/components/section-dialog";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm/use-confirm";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
@@ -38,6 +40,8 @@ export function PantryExitEditDialog({
 }: PantryExitEditDialogProps) {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
   const canUpdate = permissions.includes("pantry.update");
 
   const [exit, setExit] = React.useState<ApiPantryExit | null>(null);
@@ -223,9 +227,14 @@ export function PantryExitEditDialog({
               if (!token || !exitId || !exit) return;
               if (!canUpdate) return;
 
-              const confirmed = window.confirm(
-                "Estornar esta saída vai criar uma ou mais ENTRADAS de correção devolvendo o estoque ao(s) lote(s) (validade/setor). Deseja continuar?",
-              );
+              const confirmed = await confirm({
+                title: "Estornar saída",
+                description:
+                  "Estornar esta saída vai criar uma ou mais ENTRADAS de correção devolvendo o estoque ao(s) lote(s) (validade/setor). Deseja continuar?",
+                confirmLabel: "Estornar",
+                cancelLabel: "Cancelar",
+                confirmVariant: "destructive",
+              });
               if (!confirmed) return;
 
               setReversing(true);
@@ -234,12 +243,14 @@ export function PantryExitEditDialog({
                 await reversePantryExit(token, exitId);
                 await Promise.resolve(onSaved?.());
                 onOpenChange(false);
+                toast({ title: "Saída estornada", variant: "success" });
               } catch (err) {
                 const message =
                   err && typeof err === "object" && "message" in err
                     ? String((err as { message?: string }).message)
                     : "Falha ao estornar saída.";
                 setError(message);
+                toast({ title: "Falha ao estornar", description: message, variant: "destructive" });
               } finally {
                 setReversing(false);
               }

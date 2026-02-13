@@ -28,16 +28,6 @@ function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
-}
-
 function exitTypeLabel(type: ApiPantryExit["type"]) {
   switch (type) {
     case "ATTENDED":
@@ -348,22 +338,30 @@ export function PantryItemMovementDialog({
     }));
 
     return [...entries, ...exits]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => {
+        const aDay = a.date.length >= 10 ? a.date.slice(0, 10) : a.date;
+        const bDay = b.date.length >= 10 ? b.date.slice(0, 10) : b.date;
+        if (aDay !== bDay) return bDay.localeCompare(aDay);
+        const aTime = new Date(a.date).getTime();
+        const bTime = new Date(b.date).getTime();
+        if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+        if (Number.isNaN(aTime)) return 1;
+        if (Number.isNaN(bTime)) return -1;
+        return bTime - aTime;
+      })
       .slice(0, 20);
   }, [itemEntries, itemExits]);
 
   const filteredHistory = React.useMemo(() => {
     if (!movementHistory.length) return [];
 
-    const from = historyFromDate ? new Date(`${historyFromDate}T00:00:00`) : null;
-    const to = historyToDate ? new Date(`${historyToDate}T23:59:59`) : null;
-
     return movementHistory.filter((movement) => {
       if (historyKind !== "ALL" && movement.kind !== historyKind) return false;
 
-      const movementDate = new Date(movement.date);
-      if (from && movementDate < from) return false;
-      if (to && movementDate > to) return false;
+      const movementDay =
+        movement.date.length >= 10 ? movement.date.slice(0, 10) : movement.date;
+      if (historyFromDate && movementDay < historyFromDate) return false;
+      if (historyToDate && movementDay > historyToDate) return false;
 
       return true;
     });
@@ -547,7 +545,6 @@ export function PantryItemMovementDialog({
                       rows={filteredHistory}
                       scroll={false}
                       formatDate={formatDate}
-                      formatDateTime={(value) => formatDateTime(value)}
                       emptyLabel="Nenhum movimento encontrado."
                     />
                   )}

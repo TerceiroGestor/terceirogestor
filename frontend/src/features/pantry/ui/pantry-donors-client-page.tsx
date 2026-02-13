@@ -9,6 +9,8 @@ import { FormEngine } from "@/components/FormEngine";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
+import { useConfirm } from "@/components/confirm/use-confirm";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
@@ -40,6 +42,8 @@ export function PantryDonorsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -170,20 +174,28 @@ export function PantryDonorsClientPage() {
         setError("Você não tem permissão para excluir doadores.");
         return;
       }
-      const confirmed = window.confirm(`Excluir o doador "${donor.name}"?`);
+      const confirmed = await confirm({
+        title: "Excluir doador",
+        description: `Excluir o doador "${donor.name}"?`,
+        confirmLabel: "Excluir",
+        cancelLabel: "Cancelar",
+        confirmVariant: "destructive",
+      });
       if (!confirmed) return;
       try {
         await deletePantryDonor(token, donor.id);
         await loadDonors();
+        toast({ title: "Doador excluído", variant: "success" });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir doador.";
         setError(message);
+        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
-    [token, canDelete, loadDonors],
+    [token, canDelete, loadDonors, confirm, toast],
   );
 
   const handleSubmit = React.useCallback(
@@ -215,17 +227,22 @@ export function PantryDonorsClientPage() {
         setDialogOpen(false);
         setEditing(null);
         await loadDonors();
+        toast({
+          title: editing ? "Doador atualizado" : "Doador criado",
+          variant: "success",
+        });
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar doador.";
         setFormError(message);
+        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
       }
     },
-    [token, editing, canUpdate, canCreate, loadDonors],
+    [token, editing, canUpdate, canCreate, loadDonors, toast],
   );
 
   if (!canRead) {
