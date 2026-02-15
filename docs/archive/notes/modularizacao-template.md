@@ -1,4 +1,4 @@
-# Modularização do projeto (backend + frontend) para virar Template
+﻿# Modularização do projeto (backend + frontend) para virar Template
 
 Objetivo: transformar o projeto atual (`/backend` + `/frontend`) em um **template modular**, onde cada módulo fica **isolado**, com responsabilidades claras, e o host (app) só “pluga” os módulos.
 

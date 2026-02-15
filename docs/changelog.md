@@ -1,16 +1,29 @@
 # Changelog
 
-## 2026-02-11 ó Auditoria de dados (fase 2)
+## 2026-02-15 ‚Äî Reorganiza√ß√£o de docs + RBAC People + seed Pantry
+
+### O que foi entregue
+- Documenta√ß√£o consolidada em `docs/` (arquitetura, banco, padr√µes, processos, guias e exemplo end-to-end).
+- People: UI e API passaram a respeitar permiss√µes (`people.read/create/update/delete`) como padr√£o do template.
+- Seed: dados realistas para o m√≥dulo Pantry (itens, doadores, entradas com validade, sa√≠das e aloca√ß√µes).
+
+### Pr√≥ximos passos
+- Padronizar textos fixos por m√≥dulo:
+  - dom√≠nio: `modules/<moduleKey>/shared/domain/<moduleKey>.constants.ts`
+  - microcopy: `modules/<moduleKey>/shared/i18n/pt-BR.ts` (+ opcional por feature)
+- Evoluir para um `t()` (i18n real) sem ‚Äúbig bang‚Äù, migrando por m√≥dulo.
+
+## 2026-02-11 ‚Äî Auditoria de dados (fase 2)
 
 ### O que foi entregue
 - Fluxo explicito para remover documentos em saude e medicacoes.
-- CorreÁ„o: atualizaÁ„o de condiÁıes/medicaÁıes n„o remove documento existente quando o campo n„o È enviado.
+- Corre√ß√£o: atualiza√ß√£o de condi√ß√µes/medica√ß√µes n√£o remove documento existente quando o campo n√£o √© enviado.
 - Painel de detalhes com before/after na auditoria.
 - Modelo AuditLog com before/after, metadados de request e indexes.
 - Middleware de auditoria com redacao de campos sensiveis e request context por requisicao.
 - Endpoint /audit-logs com filtros + tela administrativa para consulta.
 
-## 2026-02-10 ó Plano de estabilidade (v0.9 -> v1.0)
+## 2026-02-10 ‚Äî Plano de estabilidade (v0.9 -> v1.0)
 
 ### Diagnostico do estado atual
 - Tela de Detalhes Familiares concentra muitas secoes na mesma aba, sem hierarquia clara e com carga visual alta.
@@ -20,28 +33,28 @@
 
 ### Proximos passos (ordem sugerida)
 
-### Fase 1 ó UX de Detalhes Familiares
+### Fase 1 ‚Äî UX de Detalhes Familiares
 1. Reorganizar a aba `familia` em blocos colapsaveis com resumo no topo (patrimonio, renda, moradia, relacoes, bens).
-2. Definir um modo ìResumoî (cards agregados) e um modo ìDetalhadoî (listas completas) para reduzir carga.
+2. Definir um modo ‚ÄúResumo‚Äù (cards agregados) e um modo ‚ÄúDetalhado‚Äù (listas completas) para reduzir carga.
 3. Medir tempo de carregamento e ajustar queries para evitar excesso de dados por padrao.
 
-### Fase 2 ó Auditoria completa de dados
+### Fase 2 ‚Äî Auditoria completa de dados
 1. Criar modelo `AuditLog` com before/after, userId, tenantId, entidade, entidadeId, action, ip, userAgent, requestId e createdAt.
 2. Implementar middleware/interceptor no backend para registrar CREATE/UPDATE/DELETE em todos os modulos.
 3. Adicionar redacao de campos sensiveis no log e pagina admin para consulta.
 
-### Fase 3 ó LGPD e dados sensiveis
+### Fase 3 ‚Äî LGPD e dados sensiveis
 1. Mover CPF/RG/NIS para tabela dedicada (ex: `PersonSensitive`) com criptografia em repouso.
 2. Implementar criptografia por campo com chave de ambiente e rotacao planejada.
 3. Definir politicas de acesso por role e mascaramento por padrao (exibir apenas ultimos digitos).
-4. Aplicar mascaramento no detalhe da pessoa e nos formul·rios de edicao.
+4. Aplicar mascaramento no detalhe da pessoa e nos formul√°rios de edicao.
 
-### Fase 4 ó FormEngine com masks
+### Fase 4 ‚Äî FormEngine com masks
 1. Adicionar tipos `rg` e `nis` (ou configuracao de mask por campo) no FormEngine.
 2. Aplicar masks e validacao de formato no frontend (CPF, RG, NIS).
 3. Normalizar armazenamento (somente digitos) no backend para consistencia.
 
-### Fase 5 ó Qualidade e fechamento
+### Fase 5 ‚Äî Qualidade e fechamento
 1. Revisar permissao por feature/role para leitura de dados sensiveis.
 2. Cobrir com testes: unitarios de auditoria, criptografia e validacao de documentos.
 3. Atualizar docs (arquitetura, banco e LGPD) e executar build de backend/frontend.
@@ -53,7 +66,7 @@
 - FormEngine com masks/validacao para documentos sensiveis.
 - Build limpo no backend e frontend.
 
-## 2026-02-10 ó Status do dia (historico)
+## 2026-02-10 ‚Äî Status do dia (historico)
 
 ### O que fizemos hoje
 - Nova arvore genealogica: endpoint `/people/:id/relations-tree` com BFS e filtros (pai/mae/filho/irmao/conjuge).
@@ -69,34 +82,34 @@
 - Iniciar novas features: Atendimentos, Encaminhamentos, Diario, Vulnerabilidades, Qualidades.
 - Proximos dias: Modulo de Projetos com matricula e submodulos (Presencas, Atividades, Oficinas, Eventos, Ocorrencias, Avaliacao de Destaques).
 
-## 2026-02-09 ó Plano de seguranca (fases)
+## 2026-02-09 ‚Äî Plano de seguranca (fases)
 
-### Fase 1 ó Contexto de tenant e rotas
+### Fase 1 ‚Äî Contexto de tenant e rotas
 - `Tenant.slug` unico e uso de rota `/t/:slug/...` no frontend.
 - Resolucao do `tenantId` no backend via slug (middleware/guard).
 - Validacao de compatibilidade `tenantId` do token vs rota.
 
-### Fase 2 ó Sessao e refresh
+### Fase 2 ‚Äî Sessao e refresh
 - Tabela `UserSession` com refresh token hash, device, IP, exp e revogacao.
 - Rotacao de refresh + deteccao de reuse (revoga todas as sessoes).
 - Logout global por usuario/tenant.
 
-### Fase 3 ó Logs + Audit (com diff) + soft delete
+### Fase 3 ‚Äî Logs + Audit (com diff) + soft delete
 - `AccessLog` global (endpoint, status, IP, user agent).
 - `AuditLog` por mutacao com before/after.
 - Soft delete em todos os modulos (`deletedAt`, `deletedBy`).
 
-### Fase 4 ó LGPD e dados sensiveis
+### Fase 4 ‚Äî LGPD e dados sensiveis
 - Mascaramento em UI (CPF, documentos), redacao por role.
 - Retencao configuravel por tenant.
 - Base para criptografia de campos sensiveis.
 
-### Fase 5 ó Hardening
+### Fase 5 ‚Äî Hardening
 - Rate limit em login/refresh.
 - Security headers e CSP.
 - Revisao de permissoes por feature/role.
 
-### Frontend ó /settings (estrutura)
+### Frontend ‚Äî /settings (estrutura)
 - Visao geral (status de seguranca, ultima atividade).
 - Instituicao (logo, CNPJ, descricao).
 - Usuarios (CRUD + detalhe com logs).
@@ -105,7 +118,7 @@
 - Logs de acesso e auditoria.
 - Politicas LGPD (retencao, mascaramento).
 
-## 2026-02-09 ó Admin e sessoes
+## 2026-02-09 ‚Äî Admin e sessoes
 
 ### Frontend
 - Tela de configuracoes centralizando Tenant, Usuarios e Permissoes.
@@ -133,7 +146,7 @@
 - `backend`: `npm run build`.
 - `frontend`: `npm run build`.
 
-## 2026-02-07 ó Familia expandida
+## 2026-02-07 ‚Äî Familia expandida
 
 ### Frontend
 - Padronizacao de cards e metricas de renda, patrimonio e moradia.

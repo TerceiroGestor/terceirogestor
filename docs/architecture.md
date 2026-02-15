@@ -1,110 +1,71 @@
-﻿# Arquitetura do Projeto
+# Arquitetura do Projeto (template)
 
-## Visao geral
-- Backend: NestJS + Prisma (MySQL).
-- Frontend: Next.js (App Router).
-- Estrutura organizada por modulos (app) e features (shared).
+## Visão geral
+- **Backend:** NestJS + Prisma (MySQL/MariaDB)
+- **Frontend:** Next.js (App Router)
+- **Multi-tenant:** por `tenantSlug`
+  - Backend tenant-scoped: `/t/:slug/...`
+  - Frontend tenant-scoped: `/{slug}/...`
+- **Auth:** JWT (access token) + refresh token (cookie HttpOnly)
+- **RBAC:** permissões por perfil (`PermissionsGuard` + `@Permissions(...)`)
+- **Auditoria:** `AuditLog` com before/after e metadados de request
+
+---
 
 ## Estrutura de pastas (resumo)
 
 ### Backend
-- `backend/src/core`
-  - `auth`: autenticacao e estrategia JWT.
-  - `prisma`: PrismaService e adapter.
-  - outros utilitarios/infra.
-- `backend/src/modules`
-  - `people`: CRUD de pessoas e vinculos familiares.
-  - `users`, `roles`, `permissions`, `tenants`.
-- `backend/prisma`
-  - `schema.prisma`: modelo de dados.
-  - `seed.ts`: carga base (tenant/roles/users/people/vinculos).
+- `backend/src/core/`
+  - `tenancy/` (middleware `/t/:slug`)
+  - `auth/` (login/refresh/logout + MFA TOTP)
+  - `authorization/` (RBAC: guard/decorator)
+  - `audit/` (consulta de logs)
+  - `prisma/` (PrismaService + extensão de auditoria)
+  - `email/` (envio de códigos, templates)
+- `backend/src/modules/`
+  - `registration/` (registro de tenant + admin)
+  - `users/`, `roles/`, `permissions/`, `tenants/`
+  - `people/`
+  - `pantry/`
+- `backend/prisma/`
+  - `schema.prisma`
+  - `migrations/*`
+  - `seed.ts`
 
 ### Frontend
-- `frontend/src/app/(modules)`
-  - `people`: paginas e componentes do dominio people.
-  - `auth/login`: fluxo de login (fora do layout principal).
-  - `auth/profile`: perfil do usuario + historico de acessos.
-  - `settings`: navegacao centralizada de configuracoes.
-- `admin/users`: administracao de usuarios.
-- `admin/users/[id]`: detalhe do usuario + historico de acessos.
-- `admin/roles`: perfis e permissoes.
-- `admin/tenant`: dados da instituicao (nome/logo).
-- `admin/permissions`: permissoes agrupadas por feature.
-- `frontend/src/features`
-  - `people`: integracao com API de people.
-  - `family-members`: feature de familia (context, data hook, UI).
-  - `auth`: login, refresh, contexto de usuario/tenant.
-  - `admin`: integracao de usuarios, perfis e permissoes.
+- `frontend/src/app/`
+  - `register/*` (cadastro de tenant + confirmação)
+  - `[tenant]/` (rotas do tenant)
+    - `(modules)/...` (páginas por módulo)
+- `frontend/src/modules/` (**domínio por módulo**)
+  - `<moduleKey>/manifest.ts` (menu/permissões do módulo)
+  - `<moduleKey>/api/*` (requests do módulo)
+  - `<moduleKey>/features/*` (sub-funcionalidades do módulo)
+  - `<moduleKey>/shared/*` (reuso interno do módulo)
+- `frontend/src/components/` (toolbox global: `DataTable`, `FormEngine`, `SectionDialog`, etc.)
+- `frontend/src/features/` (infra cross-module: `auth`, `uploads`, etc.)
+- `frontend/src/lib/` (helpers: tenant-path, API client, datas, etc.)
 
-## Padronizacao do frontend
+---
 
-### Modulo
-1. Responsavel por renderizar e gerenciar os dados simples.
-2. Quando necessario, chama as features que trabalham dados relacionais.
+## Convenções principais
 
-### Feature
-1. Responsavel por renderizar e gerenciar seus dados relacionados ao modulo.
-2. Responsavel pela renderizacao das paginas com sections, lists, tables e form.
-3. Sempre usar os componentes padrao:
-   - Section: `SectionCard`
-   - List: `SectionList`
-   - Group list: `SectionListCollapse`
-   - Dialog: `SectionDialog`
-   - Table: `DataTable`
-   - Form: `FormEngine`
+### Tenancy
+- Backend: chamadas tenant-scoped **sempre** via `/t/:slug/...`.
+- Frontend: navegação tenant-scoped **sempre** via `/{slug}/...` e helpers (`withTenantPath`).
 
-### Componentes padrao
-- `SectionCard`: card padrao de secao.
-- `SectionList`: lista compacta com hover actions.
-- `SectionListCollapse`: lista com colapso, visual padrao de item.
-- `SectionDialog`: dialog padrao com margem e scroll.
-- `DataTable`: tabela com filtros/agrupamento/exportacao.
-- `FormEngine`: formularios dinamicos com validacao.
-- Futuro: `FeatureMenu` (menu de features do modulo).
+### “App Router é wiring-only”
+No Next.js:
+- `src/app/**` deve ser **apenas** rota/layout/redirecionamento + wrapper fino.
+- Toda lógica de domínio (hooks, components de tela, mappers, API) fica em `src/modules/**`.
 
-## Modulo People (frontend)
-- `people` orquestra telas e integra features.
-- Feature de familia concentra toda a logica de familia:
-  - `data/use-family-relations.ts`: busca/criacao/atualizacao/remocao.
-  - `context/family-relations-context.tsx`: provider + hook.
-  - `ui/*`: header preview, resumo, lista e dialogos.
-  - Relatorios: rendas, moradia e bens (itens compartilhados e individuais).
+### Segurança (regra de ouro)
+- **Backend decide:** endpoints protegidos com `JwtAuthGuard` + `PermissionsGuard` + `@Permissions(...)`.
+- **Frontend melhora UX:** oculta/desabilita ações sem permissão, mas nunca substitui o backend.
 
-Fluxo principal (PeopleDetail):
-1. `PeopleDetailClientPage` recebe a pessoa e controla edicao.
-2. `PeopleDetail` cria o contexto de familia.
-3. `PeopleDetailHeader` usa preview da feature de familia.
-4. Aba `familia` renderiza `FamilyRelationsSection`.
+---
 
-## Modulo Admin (frontend)
-- `admin/users`: lista, cria e atualiza usuarios (perfis e status).
-- `admin/users/[id]`: detalhe do usuario com logs de acesso.
-- `admin/roles`: CRUD de perfis e permissoes por modulo.
-- `admin/tenant`: atualiza dados da instituicao.
-- `admin/permissions`: visao de permissoes por feature e modulo.
-- Usa `DataTable` + `SectionCard` para padronizacao.
+## Onde estudar os processos
+- Backend (processos/endpoints): `docs/processes/backend.md`
+- Frontend (processos/telas/padrões): `docs/processes/frontend.md`
 
-## Autenticacao e contexto do usuario
-- `AuthProvider`: controla token e refresh.
-- `CurrentUserProvider`: carrega usuario/tenant e permisssoes.
-- Sidebar usa o tenant para header e o usuario no menu.
-
-## Convencoes
-- Pages ficam em `app/(modules)/<modulo>`.
-- Logica de feature fica em `features/<feature>`.
-- Componentes do modulo podem re-exportar features para manter compatibilidade.
-- Nomes claros e responsabilidade unica por arquivo.
-
-## Como adicionar uma nova feature
-1. Modelagem no banco de dados (Prisma) e migracao.
-2. Modulo backend (controller/service/dto).
-3. Feature frontend:
-   - `data/`: hooks e integracao de API.
-   - `context/`: provider para estado compartilhado.
-   - `ui/`: componentes.
-4. Orquestracao no modulo `app/(modules)/...`.
-5. Ajustar seed quando necessario.
-
-## Testes e build
-- Backend: `npm run build`.
-- Frontend: `npm run build`.

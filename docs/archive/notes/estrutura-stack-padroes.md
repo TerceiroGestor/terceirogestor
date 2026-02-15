@@ -1,4 +1,4 @@
-# Estrutura do projeto, stack base e padronização (guia vivo)
+﻿# Estrutura do projeto, stack base e padronização (guia vivo)
 
 Este documento registra **como o projeto está organizado hoje**, **como ele funciona ponta-a-ponta**, e propõe uma **base (“esqueleto”) reutilizável** + **padrões/processos** para manter o código pequeno, consistente e fácil de evoluir.
 

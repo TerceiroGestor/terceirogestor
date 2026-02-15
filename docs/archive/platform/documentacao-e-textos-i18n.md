@@ -1,4 +1,4 @@
-# Documentação e Textos (i18n) — padrão do Platform
+﻿# Documentação e Textos (i18n) — padrão do Platform
 
 Este documento define:
 - Processo e estrutura de **documentação de desenvolvimento** (técnica).

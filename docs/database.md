@@ -1,107 +1,126 @@
-﻿# Banco de Dados
+# Banco de Dados (Prisma)
 
-## Visao geral
-- Banco: MySQL
-- ORM: Prisma
+## Visão geral
+- Banco: **MySQL/MariaDB**
+- ORM: **Prisma**
 - Schema: `backend/prisma/schema.prisma`
+- Migrations: `backend/prisma/migrations/*`
 - Seed: `backend/prisma/seed.ts`
 
-## Tabelas principais
+---
+
+## Entidades “core”
 
 ### Tenant
-- Instituicao/organizacao.
-- Campos: `name`, `logoUrl`, `status`.
-- Relacoes: users, roles, people, households, personRelations.
+Instituição/organização.
+- Chaves: `id`, `name` (unique), `slug` (unique)
+- Campos comuns: `logoUrl`, `cnpj`, `startYear`, `description`, `status`
 
-### User, Role, Permission
-- `User` vinculado a `Tenant`.
-- Campos: `name`, `email`, `avatarUrl`, `isActive`.
-- `Role` define permissoes.
-- `RolePermission` e `UserRole` fazem a ligacao (N:N).
+### User / Role / Permission
+RBAC por tenant.
+- `User` pertence a `Tenant`
+- `Role` pertence a `Tenant`
+- `Permission` é global (chaves como `people.read`, `pantry.update`…)
+- Ligação:
+  - `UserRole` (N:N)
+  - `RolePermission` (N:N)
+
+### Sessão e logs
+- `UserSession`: refresh token **hash**, expiração, revogação e metadados
+- `AccessLog`: ações de auth (`LOGIN`, `REFRESH`, `LOGOUT`)
+- `AuditLog`: `CREATE/UPDATE/DELETE` com before/after, requestId, ip, userAgent…
+
+---
+
+## Registro de tenant + admin
+
+### TenantRegistration
+Armazena o “cadastro pendente” até confirmação por código / OAuth.
+- Campos: `tenantName`, `tenantSlug`, `adminEmail`, `adminPasswordHash` (quando aplicável)
+- Verificação: `verificationCodeHash` + `verificationCodeExpiresAt`
+- Integração OAuth: `oauthProviderSub`, `oauthStateHash`
+
+---
+
+## MFA (2FA)
+
+### UserMfaTotpSetup
+Setup temporário para habilitar TOTP.
+- Expira após um tempo (`expiresAt`)
+- Guarda `secretEnc` (secret criptografado)
+
+### UserMfaChallenge
+Desafio de MFA no login quando necessário.
+- Expira após um tempo (`expiresAt`)
+- Pode ser consumido (`consumedAt`) e tem tentativas (`attempts`)
+
+### UserTrustedDevice
+Dispositivo confiável (evita pedir MFA sempre).
+- `tokenHash` + expiração
+
+---
+
+## Módulo People (resumo)
 
 ### Person
-Campos principais (resumo):
-- Identificacao: `fullName`, `socialName`, `birthDate`.
-- Dados sociais: `sex`, `gender`, `raceColor`, `maritalStatus`, `nationality`.
-- Contato: `email`, `phone`.
-- Documentos: `document`, `rg`, `nis`.
-- Status: `status`, `departureReason`.
-- Tags: `tags` (JSON string).
-- Saude: `hasHealthIssue`.
-- Resumo: `profileSummary`.
+Cadastro de pessoa e dados base.
+Campos típicos:
+- Identificação: `fullName`, `socialName`, `birthDate`, `avatarUrl`
+- Dados sociais: `sex`, `gender`, `raceColor`, `maritalStatus`, `nationality`
+- Contato/documentos: `email`, `phone`, `document`, `rg`, `nis`
+- Estado: `status`, `departureReason`, `tags` (JSON), `profileSummary` (richtext)
 
-### Household / HouseholdMember
-- `Household` representa o nucleo familiar (residencia).
-- `HouseholdMember` liga pessoa a residencia e guarda indicadores sociais:
-  - `isLegalGuardian`, `isIncomeContributor`, `isProvider`, `isDependent`.
+Sub-recursos (em tabelas dedicadas): rendas, despesas, saúde, relações familiares, bens e núcleo familiar.
 
-### HouseholdProfile
-- Perfil da moradia (tipo, condicao, propriedade, metragem e observacoes).
-- Um perfil por residencia (`unique householdId`).
+---
 
-### PersonIncome
-- Renda vinculada a pessoa.
-- Campos principais: tipo, valor, frequencia e se compoe a renda familiar.
+## Módulo Pantry (resumo)
 
-### HouseholdAsset / PersonAsset
-- Itens compartilhados da residencia e itens individuais por pessoa.
-- Campos principais: categoria, item, quantidade, condicao e observacoes.
+### PantryItem
+Catálogo de itens.
+- Campos: `name`, `group`, `unit`, `minStock`
 
-### PersonRelation
-- Vinculo entre duas pessoas.
-- Campos: `personId`, `relatedPersonId`, `type`, `livesTogether`, `isLegalGuardian`.
-- Relacao inversa e sincronizada no service.
+### PantryDonor
+Doadores (pessoa/empresa).
+- Campos: `name`, `type`, `contact`
 
-## Relacionamentos importantes
-- `Tenant` 1:N `Person`, `Household`, `PersonRelation`.
-- `PersonRelation` conecta pessoas (auto-relacionamento).
-- `HouseholdMember` conecta `Person` ao `Household`.
-- `HouseholdProfile` 1:1 `Household`.
-- `PersonIncome` N:1 `Person`.
-- `HouseholdAsset` N:1 `Household`.
-- `PersonAsset` N:1 `Person`.
+### PantryEntry
+Entrada (lote).
+- Campos: `itemId`, `donorId?`, `sector`, `quantity`, `unit`, `entryDate`, `expiryDate?`, `notes?`
 
-## Regras e comportamento
-- Vinculos familiares sao criados no service e replicados no sentido inverso.
-- Quando `livesTogether=true`, cria/garante `Household` e `HouseholdMember`.
-- `HouseholdMember` tem `unique (householdId, personId)`.
-- `PersonRelation` tem `unique (tenantId, personId, relatedPersonId, type)`.
+### PantryExit
+Saída (movimentação).
+- Campos: `itemId`, `sector`, `quantity`, `unit`, `exitDate`, `type`, `eventName?`, `notes?`
 
-## Migracoes
-- Criar: `npx prisma migrate dev`.
-- Aplicar em prod: `npx prisma migrate deploy`.
-- Regenerar client: `npx prisma generate`.
+### PantryExitAllocation
+Alocação de saída em entradas (FIFO).
+- Campos: `exitId`, `entryId`, `quantity`
 
-## Seguranca em Producao (sem perder dados)
+---
 
-### Como funciona
-- As migracoes ficam em `backend/prisma/migrations` e sao aplicadas em ordem.
-- O Prisma registra o historico em uma tabela interna `_prisma_migrations`.
-- Em producao usamos **sempre** `npx prisma migrate deploy` (nao gera migracao, apenas aplica o que ja existe).
+## Migrations (como trabalhar com segurança)
 
-### Checklist seguro para novas features
-1. Alterar `backend/prisma/schema.prisma`.
-2. Rodar `npx prisma migrate dev` em ambiente local para gerar a migration.
-3. Revisar o SQL gerado em `backend/prisma/migrations/.../migration.sql`.
-4. Testar localmente com dados reais (ou staging).
-5. Em staging: `npx prisma migrate deploy` + subir o backend/frontend.
-6. Em producao: backup do banco + `npx prisma migrate deploy` + subir o app.
+### Dev
+- Criar/atualizar migrations: `cd backend && npx prisma migrate dev`
+- Reset total (apaga dados): `cd backend && npx prisma migrate reset`
 
-### Boas praticas (reduz risco)
-- Preferir migracoes **aditivas** primeiro (criar coluna nova como `NULL`).
-- Fazer backfill de dados com um script separado.
-- Em outra migration, tornar a coluna `NOT NULL` se necessario.
-- Evitar `DROP COLUMN` direto: use abordagem expand/contract.
-- Se precisar remover um campo, primeiro pare de usar no app, depois remova do schema em outra release.
+### Produção
+- Aplicar migrations existentes: `cd backend && npx prisma migrate deploy`
+- **Não** rodar seed em produção
 
-### Seed em producao
-- **Nao execute `npx prisma db seed` em producao.**
-- O seed atual eh voltado a dados de exemplo e pode sobrescrever dados.
+Boas práticas:
+- Preferir migrations aditivas (expand/contract)
+- Separar backfills em scripts (quando necessário)
+- Revisar SQL gerado em `backend/prisma/migrations/*/migration.sql`
 
-### Rollback
-- Prisma nao faz rollback automatico em producao.
-- Para reverter, use **backup** do banco ou uma migration corretiva.
+---
 
-## Seed
-- Cadastra tenant, roles, users, people e exemplos de familia.
-- IDs sao fixos para facilitar testes.
+## Seed (dados de teste)
+O seed:
+- cria tenant exemplo + roles/perms + usuários
+- cria dados de `people`
+- cria dados realistas de `pantry` (itens/entradas/saídas/alocações)
+
+Rodar:
+- `cd backend && npx prisma db seed`
+

@@ -1,4 +1,4 @@
-# Billing (assinaturas) — seats + Mercado Pago (padrão do Platform)
+﻿# Billing (assinaturas) — seats + Mercado Pago (padrão do Platform)
 
 Este documento define o **padrão de assinatura** do Platform quando a cobrança é **somente por usuário (seats)** e o provedor escolhido é **Mercado Pago**.
 

@@ -1,4 +1,4 @@
-# Platform (Packages versionado) — plano completo de desenvolvimento
+﻿# Platform (Packages versionado) — plano completo de desenvolvimento
 
 Este documento sintetiza todas as decisões e ideias discutidas e descreve um **plano de desenvolvimento** para chegar em um **Platform repo** (core + UI) versionado, reutilizável para criar produtos diferentes onde o time foca **somente nos módulos e features do produto**.
 

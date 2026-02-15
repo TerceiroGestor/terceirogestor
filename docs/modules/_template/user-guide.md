@@ -1,16 +1,15 @@
 # Guia do Usuário — `<moduleKey>`
 
-## O que este módulo faz
+Use este template para documentar um módulo para a pessoa usuária.
 
+## O que este módulo faz
 Descreva em 1–2 parágrafos o problema que o módulo resolve.
 
 ## Quem pode usar
-
 - Perfis/permissões necessárias
 - O que cada perfil consegue fazer
 
 ## Fluxo principal (passo a passo)
-
 1. …
 2. …
 3. …
@@ -27,12 +26,10 @@ Descreva em 1–2 parágrafos o problema que o módulo resolve.
 - Regras de validação
 
 ## Auditoria (timeline)
-
 - Onde visualizar
 - O que significa CREATE/UPDATE/DELETE
 - Como interpretar before/after
 
 ## FAQ
-
 - …
 
