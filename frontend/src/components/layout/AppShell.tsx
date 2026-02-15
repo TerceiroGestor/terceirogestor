@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
+const PUBLIC_ROUTES = ["/register"];
 const RESERVED_SEGMENTS = new Set([
   "",
   "_next",
@@ -40,6 +41,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const isAuthRoute =
     AUTH_ROUTES.some((route) => pathname?.startsWith(route)) ||
+    PUBLIC_ROUTES.some((route) => pathname?.startsWith(route)) ||
     (pathname ? isTenantAuthRoute(pathname) : false);
 
   if (!pathname || isAuthRoute || pathname === "/") {

@@ -71,7 +71,7 @@ async function main() {
   const adapter = new PrismaMariaDb(parseDatabaseUrl(databaseUrl));
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { PrismaClient } = require(path.join(process.cwd(), 'generated/prisma'));
+  const { PrismaClient } = require(path.join(process.cwd(), 'src/generated/prisma'));
   const prisma = new PrismaClient({ adapter });
 
   const startedAt = Date.now();
@@ -207,4 +207,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

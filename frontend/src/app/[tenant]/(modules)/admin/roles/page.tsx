@@ -9,7 +9,7 @@ import { DataTable } from "@/components/DataTable";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { SectionList, SectionListItem } from "@/components/section-list";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
+import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -287,20 +287,14 @@ export default function AdminRolesPage() {
   if (!canManageRoles) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Voce nao tem permissao para acessar esta area.
+        Você não tem permissão para acessar esta área.
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Perfis"
-        items={[
-          { label: "Configuracões", href: "/settings" },
-          { label: "Perfis", href: "/admin/roles" },
-        ]}
-      />
+      <AdminSettingsHeader title="Configurações • Perfis" />
 
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -310,7 +304,7 @@ export default function AdminRolesPage() {
 
       <SectionCard
         title="Perfis"
-        subtitle="Controle os acessos por módulo e acao."
+        subtitle="Controle os acessos por módulo e ação."
         actions={<Button onClick={openCreate}>Novo perfil</Button>}
       >
         <DataTable

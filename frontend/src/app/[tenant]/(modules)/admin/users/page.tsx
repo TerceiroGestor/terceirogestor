@@ -9,12 +9,12 @@ import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { FormEngine } from "@/components/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { usePathname, useRouter } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import {
   createUser,
   deleteUser,
@@ -271,7 +271,7 @@ export default function AdminUsersPage() {
           ? details.message
           : err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
-            : "Falha ao salvar usuario.";
+            : "Falha ao salvar usuário.";
       setFormError(message);
     }
   };
@@ -279,26 +279,20 @@ export default function AdminUsersPage() {
   if (!canReadUsers) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Voce nao tem permissao para acessar esta area.
+        Você não tem permissão para acessar esta área.
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Usuários"
-        items={[
-          { label: "Configuracões", href: "/settings" },
-          { label: "Usuários", href: "/admin/users" },
-        ]}
-      />
+      <AdminSettingsHeader title="Configurações • Usuários" />
       <SectionCard
         title="Usuários"
         subtitle="Gerencie os usuários e seus perfis de acesso."
         actions={
           canCreateUsers ? (
-            <Button onClick={openCreate}>Novo usuario</Button>
+            <Button onClick={openCreate}>Novo usuário</Button>
           ) : null
         }
       >
@@ -317,7 +311,7 @@ export default function AdminUsersPage() {
           onPaginationChange={setPagination}
           totalCount={totalCount}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="Pesquisar usuarios"
+          searchPlaceholder="Pesquisar usuários"
           summaryCards={{
             totalLabel: "Total",
             filteredLabel: "Filtrados",
@@ -387,11 +381,11 @@ export default function AdminUsersPage() {
             setFormError(null);
           }
         }}
-        title={editingUser ? "Editar usuario" : "Novo usuario"}
+        title={editingUser ? "Editar usuário" : "Novo usuário"}
         description={
           editingUser
             ? "Atualize os dados e perfis de acesso."
-            : "Cadastre um novo usuario para o sistema."
+            : "Cadastre um novo usuário para o sistema."
         }
       >
         {formError ? (

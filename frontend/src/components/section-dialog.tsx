@@ -41,7 +41,7 @@ export function SectionDialog({
       <DialogContent
         showCloseButton={false}
         className={clsx(
-          "flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-[640px] flex-col overflow-hidden p-0",
+          "flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-[min(96vw,60rem)] flex-col overflow-hidden p-0",
           contentClassName,
         )}
       >

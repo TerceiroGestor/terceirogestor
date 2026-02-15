@@ -10,11 +10,20 @@ type LoginInput = {
   password: string;
 };
 
+export type LoginResponse =
+  | { accessToken: string }
+  | { mfaRequired: true; challengeId: string; expiresAt: string };
+
 type AuthContextValue = {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (input: LoginInput) => Promise<void>;
+  login: (input: LoginInput) => Promise<LoginResponse>;
+  verifyMfa: (input: {
+    challengeId: string;
+    code: string;
+    rememberDevice?: boolean;
+  }) => Promise<{ accessToken: string }>;
   logout: () => void;
 };
 
@@ -68,17 +77,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = React.useCallback(async (input: LoginInput) => {
-    const payload = await apiRequest<{ accessToken: string }>(
-      "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify(input),
-        credentials: "include",
-      },
-    );
-    setToken(payload.accessToken);
-    window.sessionStorage.setItem(STORAGE_KEY, payload.accessToken);
+    const payload = await apiRequest<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(input),
+      credentials: "include",
+    });
+
+    if ("accessToken" in payload && typeof payload.accessToken === "string") {
+      setToken(payload.accessToken);
+      window.sessionStorage.setItem(STORAGE_KEY, payload.accessToken);
+    }
+
+    return payload;
   }, []);
+
+  const verifyMfa = React.useCallback(
+    async (input: {
+      challengeId: string;
+      code: string;
+      rememberDevice?: boolean;
+    }) => {
+      const payload = await apiRequest<{ accessToken: string }>(
+        "/auth/mfa/totp/verify",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+          credentials: "include",
+        },
+      );
+      setToken(payload.accessToken);
+      window.sessionStorage.setItem(STORAGE_KEY, payload.accessToken);
+      return payload;
+    },
+    [],
+  );
 
   const logout = React.useCallback(() => {
     if (token) {
@@ -129,9 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(token),
       isLoading,
       login,
+      verifyMfa,
       logout,
     }),
-    [token, isLoading, login, logout],
+    [token, isLoading, login, verifyMfa, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

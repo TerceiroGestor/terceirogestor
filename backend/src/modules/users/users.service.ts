@@ -36,8 +36,11 @@ export class UsersService {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
+      bio: user.bio,
       avatarUrl: user.avatarUrl,
       isActive: user.isActive,
+      mfaTotpEnabled: user.mfaTotpEnabled,
       roles: user.roles.map((entry) => ({
         id: entry.role.id,
         name: entry.role.name,
@@ -69,8 +72,11 @@ export class UsersService {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
+      bio: user.bio,
       avatarUrl: user.avatarUrl,
       isActive: user.isActive,
+      mfaTotpEnabled: user.mfaTotpEnabled,
       roles: roles.map((role) => ({
         id: role.id,
         name: role.name,
@@ -80,6 +86,34 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  async updateMyProfile(
+    tenantId: string,
+    userId: string,
+    dto: { name?: string; phone?: string; bio?: string; avatarUrl?: string },
+  ) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
+        ...(dto.avatarUrl !== undefined
+          ? { avatarUrl: dto.avatarUrl.trim() ? dto.avatarUrl : null }
+          : {}),
+      },
+    });
+
+    return this.getProfile(tenantId, userId);
   }
 
   async listUsers(
@@ -97,8 +131,8 @@ export class UsersService {
       ...(search
         ? {
             OR: [
-              { email: { contains: search, mode: 'insensitive' as const } },
-              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search } },
+              { name: { contains: search } },
             ],
           }
         : {}),
@@ -228,16 +262,24 @@ export class UsersService {
   async getAccessLogsForUser(
     tenantId: string,
     userId: string,
-    params: { page?: number; limit?: number; action?: 'LOGIN' | 'REFRESH' | 'LOGOUT'; search?: string },
+    params: {
+      page?: number;
+      limit?: number;
+      action?: 'LOGIN' | 'REFRESH' | 'LOGOUT';
+      search?: string;
+    },
   ) {
     const page = params.page && params.page > 0 ? params.page : 1;
-    const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
+    const limit =
+      params.limit && params.limit > 0 ? Math.min(params.limit, 200) : 20;
     const skip = (page - 1) * limit;
     const action = params.action;
     const search = params.search?.trim();
     const searchAction = search ? search.toUpperCase() : undefined;
     const actionCandidate =
-      searchAction === 'LOGIN' || searchAction === 'REFRESH' || searchAction === 'LOGOUT'
+      searchAction === 'LOGIN' ||
+      searchAction === 'REFRESH' ||
+      searchAction === 'LOGOUT'
         ? (searchAction as 'LOGIN' | 'REFRESH' | 'LOGOUT')
         : undefined;
 
@@ -248,9 +290,11 @@ export class UsersService {
       ...(search
         ? {
             OR: [
-              { ipAddress: { contains: search, mode: 'insensitive' as const } },
-              { userAgent: { contains: search, mode: 'insensitive' as const } },
-              ...(actionCandidate ? [{ action: { equals: actionCandidate } }] : []),
+              { ipAddress: { contains: search } },
+              { userAgent: { contains: search } },
+              ...(actionCandidate
+                ? [{ action: { equals: actionCandidate } }]
+                : []),
             ],
           }
         : {}),
@@ -345,6 +389,16 @@ export class UsersService {
 
   private async getPermissionKeysForRoles(tenantId: string, roleIds: string[]) {
     if (!roleIds.length) return [];
+
+    const roles = await this.prisma.role.findMany({
+      where: { tenantId, id: { in: roleIds } },
+      select: { name: true },
+    });
+    if (roles.some((role) => role.name === 'Admin')) {
+      const all = await this.prisma.permission.findMany({ select: { key: true } });
+      return all.map((permission) => permission.key);
+    }
+
     const permissions = await this.prisma.rolePermission.findMany({
       where: { tenantId, roleId: { in: roleIds } },
       include: { permission: true },
@@ -354,6 +408,3 @@ export class UsersService {
     );
   }
 }
-
-
-

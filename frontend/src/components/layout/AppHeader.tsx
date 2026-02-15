@@ -25,19 +25,19 @@ export function AppHeader() {
   const actionSlot = breadcrumb.actionSlot;
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 flex min-w-0 items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur">
       <SidebarTrigger />
-      <div className="flex flex-1 items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
         {items.length ? (
-          <Breadcrumb>
-            <BreadcrumbList className="text-xs">
+          <Breadcrumb className="min-w-0">
+            <BreadcrumbList className="min-w-0 flex-nowrap overflow-hidden text-xs">
               {items.map((item, index) => {
                 const isLast = index === items.length - 1;
                 return (
                   <React.Fragment key={`${item.label}-${index}`}>
                     <BreadcrumbItem>
                       {isLast || !item.href ? (
-                        <BreadcrumbPage className="text-xs">
+                        <BreadcrumbPage className="truncate text-xs">
                           {item.label}
                         </BreadcrumbPage>
                       ) : (
@@ -45,7 +45,7 @@ export function AppHeader() {
                           <Link
                             href={withTenantPath(item.href, tenantSlug)}
                           >
-                            {item.label}
+                            <span className="truncate">{item.label}</span>
                           </Link>
                         </BreadcrumbLink>
                       )}

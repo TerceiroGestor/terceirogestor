@@ -21,7 +21,10 @@ export type CurrentUserProfile = {
   name?: string | null;
   email: string;
   avatarUrl?: string | null;
+  phone?: string | null;
+  bio?: string | null;
   isActive: boolean;
+  mfaTotpEnabled?: boolean;
   roles: CurrentUserRole[];
   permissions: string[];
   createdAt: string;
@@ -66,6 +69,25 @@ export async function getAccessLogs(
 
 export async function getCurrentUser(token: string) {
   return apiRequest<CurrentUserProfile>('/users/me', {}, token);
+}
+
+export async function updateMyProfile(
+  token: string,
+  payload: {
+    name?: string;
+    phone?: string;
+    bio?: string;
+    avatarUrl?: string;
+  },
+) {
+  return apiRequest<CurrentUserProfile>(
+    "/users/me",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
 }
 
 export async function getTenantProfile(token: string) {

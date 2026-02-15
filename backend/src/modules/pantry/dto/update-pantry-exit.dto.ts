@@ -1,6 +1,6 @@
 import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PantryExitType } from '../../../../generated/prisma';
+import { PantryExitType } from '../../../generated/prisma';
 
 export class UpdatePantryExitDto {
   @IsOptional()

@@ -1,5 +1,5 @@
 import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
-import { PantryExitType } from '../../../../generated/prisma';
+import { PantryExitType } from '../../../generated/prisma';
 import { PaginationQueryDto } from '../../../core/dto/pagination-query.dto';
 
 export class ListPantryExitsQueryDto extends PaginationQueryDto {
@@ -27,4 +27,3 @@ export class ListPantryExitsQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

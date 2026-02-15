@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AuditLogAction } from '../../../generated/prisma';
+import type { AuditLogAction } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -15,6 +15,8 @@ export class AuditService {
       entity?: string;
       entityId?: string;
       userId?: string;
+      from?: Date;
+      to?: Date;
       search?: string;
     },
   ) {
@@ -26,6 +28,8 @@ export class AuditService {
     const entity = params.entity?.trim();
     const entityId = params.entityId?.trim();
     const userId = params.userId?.trim();
+    const from = params.from;
+    const to = params.to;
     const search = params.search?.trim();
     const searchAction = search ? search.toUpperCase() : undefined;
     const actionCandidate =
@@ -39,25 +43,33 @@ export class AuditService {
       tenantId,
       ...(action ? { action } : {}),
       ...(entity
-        ? { entity: { contains: entity, mode: 'insensitive' as const } }
+        ? { entity: { contains: entity } }
         : {}),
       ...(entityId ? { entityId } : {}),
       ...(userId ? { userId } : {}),
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
       ...(search
         ? {
             OR: [
-              { entity: { contains: search, mode: 'insensitive' as const } },
-              { entityId: { contains: search, mode: 'insensitive' as const } },
-              { requestId: { contains: search, mode: 'insensitive' as const } },
+              { entity: { contains: search } },
+              { entityId: { contains: search } },
+              { requestId: { contains: search } },
               ...(actionCandidate ? [{ action: actionCandidate }] : []),
               {
                 user: {
-                  name: { contains: search, mode: 'insensitive' as const },
+                  name: { contains: search },
                 },
               },
               {
                 user: {
-                  email: { contains: search, mode: 'insensitive' as const },
+                  email: { contains: search },
                 },
               },
             ],

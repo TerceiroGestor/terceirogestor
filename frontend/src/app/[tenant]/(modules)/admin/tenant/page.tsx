@@ -5,13 +5,13 @@ import { SectionCard } from "@/components/section-card";
 import { FormEngine } from "@/components/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
 import { Button } from "@/components/ui/button";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { updateTenantProfile } from "@/features/auth/api";
 import { uploadTenantLogo } from "@/features/uploads/api";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { resolveMediaUrl } from "@/lib/api";
+import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 
 type TenantFormValues = {
   name: string;
@@ -103,13 +103,7 @@ export default function AdminTenantPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Instituicao"
-        items={[
-          { label: "Configuracões", href: "/settings" },
-          { label: "Instituicao", href: "/admin/tenant" },
-        ]}
-      />
+      <AdminSettingsHeader title="Configurações • Instituição" />
       <SectionCard
         title="Instituição"
         subtitle="Atualize os dados da instituição e a identidade visual."

@@ -183,6 +183,8 @@ export async function getAuditLogs(
     entity?: string;
     entityId?: string;
     userId?: string;
+    from?: string;
+    to?: string;
     search?: string;
   },
 ) {

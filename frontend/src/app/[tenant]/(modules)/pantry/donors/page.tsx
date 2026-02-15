@@ -1,6 +1,5 @@
-import { PantryDonorsClientPage } from "@/features/pantry/ui/pantry-donors-client-page";
+import { PantryDonorsClientPage } from "@/modules/pantry";
 
 export default function PantryDonorsPage() {
   return <PantryDonorsClientPage />;
 }
-

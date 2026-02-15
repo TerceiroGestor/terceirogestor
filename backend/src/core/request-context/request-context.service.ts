@@ -10,6 +10,7 @@ export type RequestContextStore = {
   tenantSlug?: string | null;
   method?: string | null;
   path?: string | null;
+  disableAudit?: boolean | null;
 };
 
 @Injectable()

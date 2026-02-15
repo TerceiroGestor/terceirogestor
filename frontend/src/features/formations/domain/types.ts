@@ -1,4 +1,4 @@
-import type { DateRangeValue } from "@/features/shared/domain/types";
+﻿import type { DateRangeValue } from "@/shared/domain/types";
 
 export type Formation = {
   id: string;
@@ -10,3 +10,4 @@ export type Formation = {
 };
 
 export type FormationFormData = Omit<Formation, "id">;
+

@@ -2,19 +2,28 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
-import type { AccessLogAction } from '../../../generated/prisma';
+import type { AccessLogAction } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../../modules/users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthTokenPayload } from './types/auth-token-payload';
 import type { JwtUser } from './strategies/jwt.strategy';
-
-type AuthRequestMeta = {
-  ipAddress?: string;
-  userAgent?: string;
-};
+import type { AuthRequestMeta } from './http/auth-http';
+import { MfaTotpService } from './mfa/mfa-totp.service';
 
 const REFRESH_TOKEN_DAYS = 14;
+
+type LoginSuccessResult = {
+  mfaRequired: false;
+  accessToken: string;
+  refreshToken: string;
+};
+type LoginMfaRequiredResult = {
+  mfaRequired: true;
+  challengeId: string;
+  expiresAt: Date;
+};
+export type LoginResult = LoginSuccessResult | LoginMfaRequiredResult;
 
 @Injectable()
 export class AuthService {
@@ -22,6 +31,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly mfaTotp: MfaTotpService,
   ) {}
 
   async validateUser(tenantId: string, email: string, password: string) {
@@ -46,7 +56,8 @@ export class AuthService {
     dto: LoginDto,
     meta?: AuthRequestMeta,
     expectedTenantId?: string,
-  ) {
+    trustedDeviceToken?: string | null,
+  ): Promise<LoginResult> {
     if (expectedTenantId && dto.tenantId && dto.tenantId !== expectedTenantId) {
       throw new UnauthorizedException('Instituição inválida');
     }
@@ -56,6 +67,51 @@ export class AuthService {
     }
 
     const user = await this.validateUser(tenantId, dto.email, dto.password);
+
+    const isTotpEnabled = Boolean(user.mfaTotpEnabled && user.mfaTotpSecretEnc);
+    if (isTotpEnabled) {
+      const trustedOk = await this.mfaTotp.isTrustedDeviceValid({
+        tenantId: user.tenantId,
+        userId: user.id,
+        token: trustedDeviceToken ?? null,
+      });
+      if (!trustedOk) {
+        const challenge = await this.mfaTotp.createChallenge({
+          tenantId: user.tenantId,
+          userId: user.id,
+        });
+        return {
+          mfaRequired: true,
+          challengeId: challenge.id,
+          expiresAt: challenge.expiresAt,
+        };
+      }
+    }
+
+    return this.createLoginSessionForUser(user.id, tenantId, meta);
+  }
+
+  async createSessionForUser(
+    userId: string,
+    tenantId: string,
+    meta?: AuthRequestMeta,
+  ): Promise<LoginSuccessResult> {
+    return this.createLoginSessionForUser(userId, tenantId, meta);
+  }
+
+  private async createLoginSessionForUser(
+    userId: string,
+    expectedTenantId: string,
+    meta?: AuthRequestMeta,
+  ): Promise<LoginSuccessResult> {
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+    if (user.tenantId !== expectedTenantId) {
+      throw new UnauthorizedException('Instituição inválida');
+    }
+
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId },
       select: { name: true, slug: true },
@@ -85,7 +141,7 @@ export class AuthService {
     });
     await this.createAccessLog(user.id, user.tenantId, 'LOGIN', meta);
 
-    return { accessToken, refreshToken };
+    return { mfaRequired: false, accessToken, refreshToken };
   }
 
   async refresh(
@@ -99,7 +155,7 @@ export class AuthService {
     });
 
     if (!session) {
-      throw new UnauthorizedException('Refresh token invalido');
+      throw new UnauthorizedException('Refresh token inválido');
     }
 
     if (session.revokedAt || session.expiresAt <= new Date()) {
@@ -115,7 +171,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
     if (expectedTenantId && user.tenantId !== expectedTenantId) {
-      throw new UnauthorizedException('Instituicao invalida');
+      throw new UnauthorizedException('Instituição inválida');
     }
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId },
@@ -206,8 +262,8 @@ export class AuthService {
       ...(search
         ? {
             OR: [
-              { ipAddress: { contains: search, mode: 'insensitive' as const } },
-              { userAgent: { contains: search, mode: 'insensitive' as const } },
+              { ipAddress: { contains: search } },
+              { userAgent: { contains: search } },
               ...(actionCandidate
                 ? [{ action: { equals: actionCandidate } }]
                 : []),

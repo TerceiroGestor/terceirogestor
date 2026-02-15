@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  output          = "../generated/prisma"
+  output          = "../src/generated/prisma"
 }
 
 datasource db {
@@ -45,6 +45,19 @@ enum PantryExitType {
   CORRECTION
 }
 
+enum TenantRegistrationMethod {
+  EMAIL
+  GOOGLE
+  MICROSOFT
+}
+
+enum TenantRegistrationStatus {
+  PENDING_OAUTH
+  PENDING_VERIFICATION
+  CONFIRMED
+  EXPIRED
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
@@ -52,13 +65,17 @@ model Tenant {
   logoUrl   String?
   cnpj      String?
   startYear Int?
-  description String?
+  description String? @db.Text
   status    TenantStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   users           User[]
   roles           Role[]
+  mfaTotpSetups   UserMfaTotpSetup[]
+  mfaChallenges   UserMfaChallenge[]
+  trustedDevices  UserTrustedDevice[]
+  mfaRecoveryCodes UserMfaRecoveryCode[]
   people          Person[]
   rolePermissions RolePermission[]
   userRoles       UserRole[]
@@ -90,9 +107,14 @@ model User {
   tenantId     String   @db.Char(36)
   name         String?
   email        String
+  phone        String?
+  bio          String?  @db.Text
   passwordHash String
   avatarUrl    String?
   isActive     Boolean  @default(true)
+  mfaTotpEnabled    Boolean   @default(false)
+  mfaTotpSecretEnc  String?   @db.Text
+  mfaTotpVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -101,6 +123,10 @@ model User {
   sessions UserSession[]
   accessLogs AccessLog[]
   auditLogs AuditLog[]
+  mfaTotpSetups     UserMfaTotpSetup[]
+  mfaChallenges     UserMfaChallenge[]
+  trustedDevices    UserTrustedDevice[]
+  recoveryCodes     UserMfaRecoveryCode[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -620,4 +646,107 @@ model PantryExitAllocation {
   @@index([tenantId])
   @@index([exitId])
   @@index([entryId])
+}
+
+model TenantRegistration {
+  id        String                   @id @default(uuid()) @db.Char(36)
+  method    TenantRegistrationMethod
+  status    TenantRegistrationStatus @default(PENDING_VERIFICATION)
+
+  tenantName String
+  tenantSlug String
+
+  adminName         String?
+  adminEmail        String?
+  adminPasswordHash String?
+
+  oauthProviderSub String?
+  oauthStateHash   String?
+
+  verificationCodeHash      String?
+  verificationCodeExpiresAt DateTime?
+
+  tenantId    String?  @db.Char(36)
+  adminUserId String?  @db.Char(36)
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([adminEmail])
+  @@index([tenantSlug])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserMfaTotpSetup {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  secretEnc String   @db.Text
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserMfaChallenge {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  type      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserTrustedDevice {
+  id         String   @id @default(uuid()) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  userId     String   @db.Char(36)
+  tokenHash  String   @db.VarChar(128)
+  label      String?
+  ipAddress  String?
+  userAgent  String?
+  lastUsedAt DateTime?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserMfaRecoveryCode {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  codeHash  String   @db.VarChar(128)
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, codeHash])
+  @@index([tenantId])
+  @@index([userId])
 }

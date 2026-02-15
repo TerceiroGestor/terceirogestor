@@ -1,4 +1,4 @@
-import type { Prisma } from '../../../generated/prisma';
+import type { Prisma } from '../../generated/prisma';
 import { parseDateInput } from '../../core/utils/dates';
 import { parseJsonArray } from '../../core/utils/json';
 

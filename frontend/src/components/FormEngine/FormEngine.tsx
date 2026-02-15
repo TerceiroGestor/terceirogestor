@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FormEngineProps, FormField } from "./types";
 import { FieldRenderer } from "./fieldRenderers";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ export function FormEngine<T>({
   steps,
   initialValues,
   onSubmit,
+  onValuesChange,
   disabled,
   actions,
 }: FormEngineProps<T>) {
@@ -47,15 +48,23 @@ export function FormEngine<T>({
 
   const [values, setValues] = useState<T>(initialState);
   const [currentStep, setCurrentStep] = useState(0);
+  const notifyValuesChangeRef = useRef(false);
   const initialStateKey = useMemo(
     () => JSON.stringify(initialState),
     [initialState],
   );
 
   useEffect(() => {
+    notifyValuesChangeRef.current = false;
     setValues(initialState);
     setCurrentStep(0);
   }, [initialStateKey]);
+
+  useEffect(() => {
+    if (!notifyValuesChangeRef.current) return;
+    notifyValuesChangeRef.current = false;
+    onValuesChange?.(values);
+  }, [values, onValuesChange]);
 
   /* ======================================================
    * HELPERS
@@ -83,10 +92,8 @@ export function FormEngine<T>({
   }
 
   function handleChange(name: keyof T, value: any) {
-    setValues((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    notifyValuesChangeRef.current = true;
+    setValues((prev) => ({ ...prev, [name]: value }));
   }
 
   function isFieldRequired(field: FormField<T>) {

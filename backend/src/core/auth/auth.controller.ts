@@ -14,48 +14,40 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
 import type { JwtUser } from './strategies/jwt.strategy';
-
-const REFRESH_COOKIE_NAME = 'refresh_token';
-
-function getCookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: false,
-    path: '/',
-  };
-}
-
-function getCookie(req: Request, name: string) {
-  const cookieHeader = req.headers.cookie ?? '';
-  const parts = cookieHeader.split(';').map((part) => part.trim());
-  const found = parts.find((part) => part.startsWith(`${name}=`));
-  if (!found) return null;
-  return found.slice(name.length + 1);
-}
-
-function getRequestMeta(req: Request) {
-  return {
-    ipAddress: req.ip,
-    userAgent: req.headers['user-agent'],
-  };
-}
+import {
+  getCookie,
+  getCookieOptions,
+  getRequestMeta,
+  REFRESH_COOKIE_NAME,
+} from './http/auth-http';
+import { TRUSTED_DEVICE_COOKIE_NAME } from './mfa/mfa.constants';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const requestTenantId = (req as Request & { tenantId?: string }).tenantId;
     const payload: LoginDto = { ...dto, tenantId: dto.tenantId ?? requestTenantId };
-    const { accessToken, refreshToken } = await this.authService.loginWithMeta(
+    const trustedDeviceToken = getCookie(req, TRUSTED_DEVICE_COOKIE_NAME);
+    const result = await this.authService.loginWithMeta(
       payload,
       getRequestMeta(req),
       requestTenantId,
+      trustedDeviceToken,
     );
-    res.cookie(REFRESH_COOKIE_NAME, refreshToken, getCookieOptions());
-    return { accessToken };
+
+    if (result.mfaRequired) {
+      return result;
+    }
+
+    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, getCookieOptions());
+    return { accessToken: result.accessToken };
   }
 
   @Post('refresh')
@@ -66,7 +58,11 @@ export class AuthController {
     }
     const requestTenantId = (req as Request & { tenantId?: string }).tenantId;
     const { accessToken, refreshToken: nextRefresh } =
-      await this.authService.refresh(refreshToken, getRequestMeta(req), requestTenantId);
+      await this.authService.refresh(
+        refreshToken,
+        getRequestMeta(req),
+        requestTenantId,
+      );
     res.cookie(REFRESH_COOKIE_NAME, nextRefresh, getCookieOptions());
     return { accessToken };
   }

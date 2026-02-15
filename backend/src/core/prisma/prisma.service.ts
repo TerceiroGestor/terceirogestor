@@ -1,17 +1,8 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type {
-  AuditLogAction,
-  PrismaClient as PrismaClientType,
-} from '../../../generated/prisma';
+import { PrismaClient, type AuditLogAction } from '../../generated/prisma';
 import { createPrismaAdapter } from './prisma-adapter';
-import { join } from 'path';
 import { RequestContextService } from '../request-context/request-context.service';
-
-const { PrismaClient } = require(join(
-  process.cwd(),
-  'generated/prisma',
-)) as { PrismaClient: typeof PrismaClientType };
 
 const AUDIT_ACTIONS = new Set([
   'create',
@@ -352,6 +343,7 @@ export class PrismaService
   }) {
     try {
       const context = this.requestContext.get();
+      if (context?.disableAudit) return;
       const tenantId =
         this.resolveTenantId(
           entry.after,

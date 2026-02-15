@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { PantryDonorType } from '../../../../generated/prisma';
+import { PantryDonorType } from '../../../generated/prisma';
 
 export class UpdatePantryDonorDto {
   @IsOptional()

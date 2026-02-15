@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma, HouseholdTransferType, IncomeFrequency } from '../../../generated/prisma';
+import type { Prisma, HouseholdTransferType, IncomeFrequency } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';

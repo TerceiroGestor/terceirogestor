@@ -11,7 +11,7 @@ function pathExists(targetPath) {
 }
 
 const root = path.resolve(__dirname, '..');
-const sourceDir = path.join(root, 'generated', 'prisma');
+const sourceDir = path.join(root, 'src', 'generated', 'prisma');
 const distDir = path.join(root, 'dist');
 const targetDir = path.join(distDir, 'generated', 'prisma');
 

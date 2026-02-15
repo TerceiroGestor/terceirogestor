@@ -15,6 +15,8 @@ import {
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import { JwtUser } from '../../core/auth/strategies/jwt.strategy';
+import { Permissions } from '../../core/authorization/permissions.decorator';
+import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -37,12 +39,13 @@ import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto'
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
 import { PeopleService } from './people.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('people')
 export class PeopleController {
   constructor(private readonly peopleService: PeopleService) {}
 
   @Post()
+  @Permissions('people.create')
   async create(
     @CurrentUser() user: JwtUser | undefined,
     @Body() dto: CreatePersonDto,
@@ -52,6 +55,7 @@ export class PeopleController {
   }
 
   @Get()
+  @Permissions('people.read')
   async findAll(
     @CurrentUser() user: JwtUser | undefined,
     @Query() query: ListPeopleQueryDto,
@@ -61,6 +65,7 @@ export class PeopleController {
   }
 
   @Get(':id')
+  @Permissions('people.read')
   async findOne(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -70,6 +75,7 @@ export class PeopleController {
   }
 
   @Patch(':id')
+  @Permissions('people.update')
   async update(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -80,6 +86,7 @@ export class PeopleController {
   }
 
   @Get(':id/incomes')
+  @Permissions('people.read')
   async listIncomes(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -89,6 +96,7 @@ export class PeopleController {
   }
 
   @Post(':id/incomes')
+  @Permissions('people.update')
   async createIncome(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -99,6 +107,7 @@ export class PeopleController {
   }
 
   @Patch(':id/incomes/:incomeId')
+  @Permissions('people.update')
   async updateIncome(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -111,6 +120,7 @@ export class PeopleController {
   }
 
   @Delete(':id/incomes/:incomeId')
+  @Permissions('people.update')
   async removeIncome(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -122,6 +132,7 @@ export class PeopleController {
   }
 
   @Get(':id/expenses')
+  @Permissions('people.read')
   async listExpenses(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -131,6 +142,7 @@ export class PeopleController {
   }
 
   @Post(':id/expenses')
+  @Permissions('people.update')
   async createExpense(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -141,6 +153,7 @@ export class PeopleController {
   }
 
   @Patch(':id/expenses/:expenseId')
+  @Permissions('people.update')
   async updateExpense(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -153,6 +166,7 @@ export class PeopleController {
   }
 
   @Delete(':id/expenses/:expenseId')
+  @Permissions('people.update')
   async removeExpense(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -164,6 +178,7 @@ export class PeopleController {
   }
 
   @Get(':id/health-conditions')
+  @Permissions('people.read')
   async listHealthConditions(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -173,6 +188,7 @@ export class PeopleController {
   }
 
   @Post(':id/health-conditions')
+  @Permissions('people.update')
   async createHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -183,6 +199,7 @@ export class PeopleController {
   }
 
   @Patch(':id/health-conditions/:conditionId')
+  @Permissions('people.update')
   async updateHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -200,6 +217,7 @@ export class PeopleController {
   }
 
   @Delete(':id/health-conditions/:conditionId')
+  @Permissions('people.update')
   async removeHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -211,6 +229,7 @@ export class PeopleController {
   }
 
   @Get(':id/medications')
+  @Permissions('people.read')
   async listMedications(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -220,6 +239,7 @@ export class PeopleController {
   }
 
   @Post(':id/medications')
+  @Permissions('people.update')
   async createMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -230,6 +250,7 @@ export class PeopleController {
   }
 
   @Patch(':id/medications/:medicationId')
+  @Permissions('people.update')
   async updateMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -247,6 +268,7 @@ export class PeopleController {
   }
 
   @Delete(':id/medications/:medicationId')
+  @Permissions('people.update')
   async removeMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -258,6 +280,7 @@ export class PeopleController {
   }
 
   @Get(':id/transfers')
+  @Permissions('people.read')
   async listTransfers(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -267,6 +290,7 @@ export class PeopleController {
   }
 
   @Post(':id/transfers')
+  @Permissions('people.update')
   async createTransfer(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -277,6 +301,7 @@ export class PeopleController {
   }
 
   @Patch(':id/transfers/:transferId')
+  @Permissions('people.update')
   async updateTransfer(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -289,6 +314,7 @@ export class PeopleController {
   }
 
   @Delete(':id/transfers/:transferId')
+  @Permissions('people.update')
   async removeTransfer(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -300,6 +326,7 @@ export class PeopleController {
   }
 
   @Get(':id/household-assets')
+  @Permissions('people.read')
   async listHouseholdAssets(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -309,6 +336,7 @@ export class PeopleController {
   }
 
   @Post(':id/household-assets')
+  @Permissions('people.update')
   async createHouseholdAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -319,6 +347,7 @@ export class PeopleController {
   }
 
   @Patch(':id/household-assets/:assetId')
+  @Permissions('people.update')
   async updateHouseholdAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -335,6 +364,7 @@ export class PeopleController {
   }
 
   @Delete(':id/household-assets/:assetId')
+  @Permissions('people.update')
   async removeHouseholdAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -345,6 +375,7 @@ export class PeopleController {
   }
 
   @Get(':id/person-assets')
+  @Permissions('people.read')
   async listPersonAssets(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -354,6 +385,7 @@ export class PeopleController {
   }
 
   @Get(':id/household-person-assets')
+  @Permissions('people.read')
   async listHouseholdPersonAssets(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -363,6 +395,7 @@ export class PeopleController {
   }
 
   @Post(':id/person-assets')
+  @Permissions('people.update')
   async createPersonAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -373,6 +406,7 @@ export class PeopleController {
   }
 
   @Patch(':id/person-assets/:assetId')
+  @Permissions('people.update')
   async updatePersonAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -384,6 +418,7 @@ export class PeopleController {
   }
 
   @Delete(':id/person-assets/:assetId')
+  @Permissions('people.update')
   async removePersonAsset(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -394,6 +429,7 @@ export class PeopleController {
   }
 
   @Get(':id/household-profile')
+  @Permissions('people.read')
   async getHouseholdProfile(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -403,6 +439,7 @@ export class PeopleController {
   }
 
   @Put(':id/household-profile')
+  @Permissions('people.update')
   async upsertHouseholdProfile(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -413,6 +450,7 @@ export class PeopleController {
   }
 
   @Get(':id/family-income-summary')
+  @Permissions('people.read')
   async getFamilyIncomeSummary(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -422,6 +460,7 @@ export class PeopleController {
   }
 
   @Get(':id/family-summary')
+  @Permissions('people.read')
   async getFamilySummary(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -431,6 +470,7 @@ export class PeopleController {
   }
 
   @Get(':id/relations')
+  @Permissions('people.read')
   async listRelations(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -440,6 +480,7 @@ export class PeopleController {
   }
 
   @Get(':id/relations-tree')
+  @Permissions('people.read')
   async listRelationsTree(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -451,6 +492,7 @@ export class PeopleController {
   }
 
   @Post(':id/relations')
+  @Permissions('people.update')
   async createRelation(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -461,6 +503,7 @@ export class PeopleController {
   }
 
   @Patch(':id/relations/:relationId')
+  @Permissions('people.update')
   async updateRelation(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -473,6 +516,7 @@ export class PeopleController {
   }
 
   @Delete(':id/relations/:relationId')
+  @Permissions('people.update')
   async removeRelation(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -484,6 +528,7 @@ export class PeopleController {
   }
 
   @Delete(':id')
+  @Permissions('people.delete')
   async remove(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,

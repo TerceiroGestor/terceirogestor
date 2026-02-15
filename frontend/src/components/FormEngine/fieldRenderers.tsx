@@ -98,6 +98,7 @@ export function FieldRenderer<T>({
 
   switch (field.type) {
     case "text":
+    case "password":
     case "email":
     case "phone":
     case "url":
@@ -107,6 +108,8 @@ export function FieldRenderer<T>({
           type={
             field.type === "number"
               ? "number"
+              : field.type === "password"
+                ? "password"
               : field.type === "email"
                 ? "email"
                 : field.type === "phone"

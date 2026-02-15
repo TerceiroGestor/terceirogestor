@@ -7,6 +7,7 @@ import { ReactNode } from "react";
 
 export type FieldType =
   | "text"
+  | "password"
   | "email"
   | "phone"
   | "number"
@@ -62,7 +63,7 @@ export interface BaseField<T = any> {
  * ====================================================== */
 
 export interface TextField<T = any> extends BaseField<T> {
-  type: "text" | "number" | "money" | "cpf" | "email" | "phone" | "url";
+  type: "text" | "password" | "number" | "money" | "cpf" | "email" | "phone" | "url";
   placeholder?: string;
 }
 
@@ -205,6 +206,9 @@ export interface FormEngineProps<T = any> {
   onSubmit: (values: T) => void;
 
   /** Renderização customizada de botões */
+  /** Callback a cada mudanÃ§a de valores */
+  onValuesChange?: (values: T) => void;
+
   renderFooter?: ReactNode;
 
   /** Desabilita todo o formulário */

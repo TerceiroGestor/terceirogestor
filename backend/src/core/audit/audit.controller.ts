@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Query,
@@ -26,8 +27,18 @@ export class AuditController {
     @Query('entity') entity?: string,
     @Query('entityId') entityId?: string,
     @Query('userId') userId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('search') search?: string,
   ) {
+    const parseDate = (value?: string) => {
+      if (!value) return undefined;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        throw new BadRequestException('Data inválida.');
+      }
+      return date;
+    };
     return this.auditService.listAuditLogs(user.tenantId, {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
@@ -35,6 +46,8 @@ export class AuditController {
       entity,
       entityId,
       userId,
+      from: parseDate(from),
+      to: parseDate(to),
       search,
     });
   }

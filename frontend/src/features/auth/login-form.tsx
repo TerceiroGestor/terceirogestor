@@ -4,8 +4,9 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
-import { API_URL, apiRequest, resolveMediaUrl } from "@/lib/api";
+import { API_URL, resolveMediaUrl } from "@/lib/api";
 import {
   getTenantSlugFromPath,
   storeTenantSlug,
@@ -28,11 +29,15 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const resolvedSlug = tenantSlug ?? getTenantSlugFromPath(pathname);
-  const { login } = useAuth();
+  const { login, verifyMfa } = useAuth();
+  const { toast } = useToast();
 
   const [email, setEmail] = React.useState("admin@exemplo.com");
   const [password, setPassword] = React.useState("Admin@123");
-  const [error, setError] = React.useState<string | null>(null);
+  const [step, setStep] = React.useState<"credentials" | "mfa">("credentials");
+  const [mfaCode, setMfaCode] = React.useState("");
+  const [rememberDevice, setRememberDevice] = React.useState(true);
+  const [challengeId, setChallengeId] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [tenant, setTenant] = React.useState<TenantPreview | null>(null);
   const [tenantError, setTenantError] = React.useState<string | null>(null);
@@ -74,13 +79,31 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
     setIsSubmitting(true);
     try {
-      await login({ email, password });
-      if (resolvedSlug) {
-        storeTenantSlug(resolvedSlug);
+      if (step === "credentials") {
+        const result = await login({ email, password });
+        if ("mfaRequired" in result && result.mfaRequired) {
+          setChallengeId(result.challengeId);
+          setStep("mfa");
+          toast({
+            title: "Confirmação necessária",
+            description: "Digite o código do seu app autenticador.",
+          });
+          return;
+        }
+      } else {
+        if (!challengeId) {
+          throw new Error("Sessão expirada. Faça login novamente.");
+        }
+        await verifyMfa({
+          challengeId,
+          code: mfaCode,
+          rememberDevice,
+        });
       }
+
+      if (resolvedSlug) storeTenantSlug(resolvedSlug);
       const next = searchParams.get("next") ?? "/dashboard";
       router.replace(withTenantPath(next, resolvedSlug ?? null));
     } catch (err) {
@@ -88,7 +111,11 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha no login";
-      setError(message);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: message,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -130,36 +157,75 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
               <p className="mb-3 text-xs text-red-600">{tenantError}</p>
             ) : null}
 
-            <div className="space-y-6">
-              <div>
-                <label className="text-slate-900 text-sm font-medium mb-2 block">
-                  Email
-                </label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                />
+            {step === "credentials" ? (
+              <div className="space-y-6">
+                <div>
+                  <label className="text-slate-900 text-sm font-medium mb-2 block">
+                    Email
+                  </label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="email@exemplo.com"
+                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-900 text-sm font-medium mb-2 block">
+                    Senha
+                  </label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Senha"
+                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-slate-900 text-sm font-medium mb-2 block">
-                  Senha
-                </label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Senha"
-                  className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                />
-              </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-slate-900 text-sm font-medium mb-2 block">
+                    Código 2FA
+                  </label>
+                  <Input
+                    inputMode="text"
+                    autoFocus
+                    value={mfaCode}
+                    onChange={(event) => setMfaCode(event.target.value)}
+                    placeholder="000000 ou XXXXX-XXXXX"
+                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Use o código do Google Authenticator / Microsoft Authenticator.
+                  </p>
+                </div>
 
-            {error ? (
-              <p className="mt-3 text-sm text-red-600">{error}</p>
-            ) : null}
+                <label className="flex items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={rememberDevice}
+                    onChange={(e) => setRememberDevice(e.target.checked)}
+                  />
+                  Confiar neste dispositivo por 30 dias
+                </label>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-0"
+                  onClick={() => {
+                    setStep("credentials");
+                    setChallengeId(null);
+                    setMfaCode("");
+                  }}
+                >
+                  Voltar
+                </Button>
+              </div>
+            )}
 
             <div className="mt-8">
               <Button
@@ -168,6 +234,15 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Entrando..." : "Entrar"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-3"
+                onClick={() => router.push("/register")}
+              >
+                Registrar nova instituição
               </Button>
             </div>
           </form>

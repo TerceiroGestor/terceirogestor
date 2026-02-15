@@ -1,4 +1,4 @@
-import type { DateRangeValue, RangeValue } from "@/features/shared/domain/types";
+﻿import type { DateRangeValue, RangeValue } from "@/shared/domain/types";
 
 export type IncomeProfile = {
   id: string;
@@ -11,3 +11,4 @@ export type IncomeProfile = {
 };
 
 export type IncomeProfileFormData = Omit<IncomeProfile, "id">;
+

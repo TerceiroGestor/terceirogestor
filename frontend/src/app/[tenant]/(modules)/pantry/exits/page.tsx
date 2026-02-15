@@ -1,6 +1,5 @@
-import { PantryExitsClientPage } from "@/features/pantry/ui/pantry-exits-client-page";
+import { PantryExitsClientPage } from "@/modules/pantry";
 
 export default function PantryExitsPage() {
   return <PantryExitsClientPage />;
 }
-

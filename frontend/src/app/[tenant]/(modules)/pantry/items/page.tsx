@@ -1,6 +1,5 @@
-import { PantryItemsClientPage } from "@/features/pantry/ui/pantry-items-client-page";
+import { PantryItemsClientPage } from "@/modules/pantry";
 
 export default function PantryItemsPage() {
   return <PantryItemsClientPage />;
 }
-

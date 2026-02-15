@@ -4,7 +4,7 @@ import * as React from "react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { Badge } from "@/components/ui/badge";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
+import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -94,7 +94,7 @@ export default function AdminPermissionsPage() {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
-            : "Falha ao carregar permissoes.";
+            : "Falha ao carregar permissões.";
         setError(message);
       } finally {
         setLoading(false);
@@ -106,7 +106,7 @@ export default function AdminPermissionsPage() {
   if (!canManage) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Voce nao tem permissao para acessar esta area.
+        Você não tem permissão para acessar esta área.
       </div>
     );
   }
@@ -115,13 +115,7 @@ export default function AdminPermissionsPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Permissões por recursos"
-        items={[
-          { label: "Configuracões", href: "/settings" },
-          { label: "Permissoes", href: "/admin/permissions" },
-        ]}
-      />
+      <AdminSettingsHeader title="Configurações • Permissões" />
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -130,7 +124,7 @@ export default function AdminPermissionsPage() {
 
       <SectionCard
         title="Perfis por módulo"
-        subtitle="Visualize o que cada perfil pode executar em cada modulo."
+        subtitle="Visualize o que cada perfil pode executar em cada módulo."
       >
         <SectionList>
           {roles.map((role) => {

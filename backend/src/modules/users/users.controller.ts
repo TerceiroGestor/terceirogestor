@@ -16,6 +16,7 @@ import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -26,6 +27,15 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async getProfile(@CurrentUser() user: JwtUser) {
     return this.usersService.getProfile(user.tenantId, user.userId);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  async updateMyProfile(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: UpdateMyProfileDto,
+  ) {
+    return this.usersService.updateMyProfile(user.tenantId, user.userId, dto);
   }
 
   @Get()

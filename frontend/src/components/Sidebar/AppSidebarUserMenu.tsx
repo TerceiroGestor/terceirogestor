@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronUp, LogOut, Settings, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,23 +10,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, User, ChevronUp } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { resolveMediaUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import { usePathname } from "next/navigation";
-
-const userActions = [
-  { label: "Configuracões", icon: Settings, href: "/settings" },
-];
+import { canAccessAdminSettings } from "@/modules/core/features/settings/domain/admin-settings-access";
 
 export function AppSidebarUserMenu() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const { logout, isAuthenticated, token } = useAuth();
-  const { user } = useCurrentUser();
+  const { logout, isAuthenticated } = useAuth();
+  const { user, permissions } = useCurrentUser();
+
   const email = user?.email ?? "";
-  const name = user?.name ?? email.split("@")[0] ?? "Usuario";
+  const name = user?.name ?? email.split("@")[0] ?? "Usuário";
   const initials =
     name
       .split(" ")
@@ -32,6 +32,15 @@ export function AppSidebarUserMenu() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join("") || "US";
+  const avatarUrl = user?.avatarUrl ? resolveMediaUrl(user.avatarUrl) : null;
+  const canSeeSettings = canAccessAdminSettings(permissions);
+
+  const userActions = [
+    { label: "Perfil", icon: User, href: "/dashboard/profile" },
+    ...(canSeeSettings
+      ? [{ label: "Configurações", icon: Settings, href: "/settings" }]
+      : []),
+  ];
 
   return (
     <DropdownMenu>
@@ -40,9 +49,10 @@ export function AppSidebarUserMenu() {
           type="button"
           className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition hover:bg-accent"
         >
-          <div className="grid size-9 place-items-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
-            {initials}
-          </div>
+          <Avatar className="size-9 rounded-lg">
+            {avatarUrl ? <AvatarImage src={avatarUrl} alt={name} /> : null}
+            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+          </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{name}</p>
             <p className="truncate text-xs text-muted-foreground">{email}</p>
@@ -50,6 +60,7 @@ export function AppSidebarUserMenu() {
           <ChevronUp className="size-4 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent side="top" align="start" className="w-56">
         {userActions.map((action) => (
           <DropdownMenuItem key={action.label} asChild>
@@ -59,7 +70,9 @@ export function AppSidebarUserMenu() {
             </Link>
           </DropdownMenuItem>
         ))}
+
         <DropdownMenuSeparator />
+
         <DropdownMenuItem
           variant="destructive"
           onClick={logout}

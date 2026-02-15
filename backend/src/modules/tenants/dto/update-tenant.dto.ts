@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateTenantDto {
   @IsOptional()
@@ -29,5 +37,6 @@ export class UpdateTenantDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(20000)
   description?: string;
 }

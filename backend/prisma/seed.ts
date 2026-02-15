@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '../src/generated/prisma';
 import { createPrismaAdapter } from '../src/core/prisma/prisma-adapter';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -1520,6 +1520,501 @@ async function main() {
       },
     });
   }
+
+  // Pantry seed (realistic data for testing the pantry module)
+  await prisma.pantryExitAllocation.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.pantryExit.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.pantryEntry.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.pantryItem.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.pantryDonor.deleteMany({ where: { tenantId: tenant.id } });
+
+  const toNumber = (value: unknown) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return Number(value);
+    if (typeof value === 'object' && value && 'toNumber' in value) {
+      const candidate = (value as { toNumber?: () => number }).toNumber;
+      if (typeof candidate === 'function') return candidate.call(value);
+    }
+    return Number(value as any);
+  };
+
+  const pantryItemIds = {
+    rice: '7c1d4b2e-7b46-4b19-9bcb-1c4e2f86b9d1',
+    beans: 'd8c47c1b-bf47-4c27-9d8a-8d9a0e3c7c11',
+    pasta: 'b9b50a7f-3cdb-4e9a-9c53-0f11993c7f41',
+    oil: '0dc2c6a6-9ae1-45e4-9d2d-76e6a116f2d2',
+    milk: 'c5a7a2cb-2c28-4c0a-9a4d-51b92fd2c09f',
+    sugar: 'f5d5bca4-8c91-4b1f-9e2b-7b7a4f1c8b12',
+    sardine: 'a1b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d',
+    diapers: '4b3c2d1e-0f9e-8d7c-6b5a-4f3e2d1c0b9a',
+  } as const;
+
+  const pantryDonorIds = {
+    market: 'f93c42e6-1f66-4f51-9d33-3fcdcc1f4d2e',
+    church: 'a06c1a51-9c87-4cda-8d0e-3a7d9a42bb8d',
+    company: 'b1d4b6ac-7d7a-4a1f-8e0f-3d5f7b9c1a2e',
+    volunteer: 'c11d8a2e-5b6a-4f7c-8d9e-0a1b2c3d4e5f',
+  } as const;
+
+  await prisma.pantryItem.createMany({
+    data: [
+      {
+        id: pantryItemIds.rice,
+        tenantId: tenant.id,
+        name: 'Arroz',
+        group: 'Alimentos',
+        unit: 'kg',
+        minStock: 25,
+      },
+      {
+        id: pantryItemIds.beans,
+        tenantId: tenant.id,
+        name: 'Feijao',
+        group: 'Alimentos',
+        unit: 'kg',
+        minStock: 20,
+      },
+      {
+        id: pantryItemIds.pasta,
+        tenantId: tenant.id,
+        name: 'Macarrao',
+        group: 'Alimentos',
+        unit: 'un',
+        minStock: 40,
+      },
+      {
+        id: pantryItemIds.oil,
+        tenantId: tenant.id,
+        name: 'Oleo de soja',
+        group: 'Alimentos',
+        unit: 'L',
+        minStock: 15,
+      },
+      {
+        id: pantryItemIds.milk,
+        tenantId: tenant.id,
+        name: 'Leite UHT',
+        group: 'Alimentos',
+        unit: 'L',
+        minStock: 30,
+      },
+      {
+        id: pantryItemIds.sugar,
+        tenantId: tenant.id,
+        name: 'Acucar',
+        group: 'Alimentos',
+        unit: 'kg',
+        minStock: 10,
+      },
+      {
+        id: pantryItemIds.sardine,
+        tenantId: tenant.id,
+        name: 'Sardinha em lata',
+        group: 'Alimentos',
+        unit: 'un',
+        minStock: 24,
+      },
+      {
+        id: pantryItemIds.diapers,
+        tenantId: tenant.id,
+        name: 'Fraldas (tam. M)',
+        group: 'Higiene',
+        unit: 'un',
+        minStock: 60,
+      },
+    ],
+  });
+
+  await prisma.pantryDonor.createMany({
+    data: [
+      {
+        id: pantryDonorIds.market,
+        tenantId: tenant.id,
+        name: 'Supermercado Bom Preco',
+        type: 'COMPANY',
+        contact: 'contato@bompreco.com',
+      },
+      {
+        id: pantryDonorIds.church,
+        tenantId: tenant.id,
+        name: 'Igreja Sao Jose',
+        type: 'COMPANY',
+        contact: '(11) 99999-1111',
+      },
+      {
+        id: pantryDonorIds.company,
+        tenantId: tenant.id,
+        name: 'Doacao Empresa Parceira',
+        type: 'COMPANY',
+        contact: 'parcerias@empresa.com',
+      },
+      {
+        id: pantryDonorIds.volunteer,
+        tenantId: tenant.id,
+        name: 'Voluntario Joao',
+        type: 'PERSON',
+        contact: '(11) 98888-2222',
+      },
+    ],
+  });
+
+  const sectors = {
+    estoque: 'Estoque',
+    cozinha: 'Cozinha',
+    geladeira: 'Geladeira',
+  } as const;
+
+  const entryIds = {
+    rice1: 'e7f4c1a2-1a2b-4c3d-8e9f-0123456789ab',
+    rice2: 'e7f4c1a2-1a2b-4c3d-8e9f-0123456789ac',
+    beans1: 'b7f4c1a2-1a2b-4c3d-8e9f-1123456789ab',
+    beans2: 'b7f4c1a2-1a2b-4c3d-8e9f-1123456789ac',
+    pasta1: 'c7f4c1a2-1a2b-4c3d-8e9f-2123456789ab',
+    pasta2: 'c7f4c1a2-1a2b-4c3d-8e9f-2123456789ac',
+    oil1: 'd7f4c1a2-1a2b-4c3d-8e9f-3123456789ab',
+    oil2: 'd7f4c1a2-1a2b-4c3d-8e9f-3123456789ac',
+    milk1: 'a7f4c1a2-1a2b-4c3d-8e9f-4123456789ab',
+    milk2: 'a7f4c1a2-1a2b-4c3d-8e9f-4123456789ac',
+    sugar1: 'f7f4c1a2-1a2b-4c3d-8e9f-5123456789ab',
+    sardine1: '97f4c1a2-1a2b-4c3d-8e9f-6123456789ab',
+    diapers1: '87f4c1a2-1a2b-4c3d-8e9f-7123456789ab',
+  } as const;
+
+  await prisma.pantryEntry.createMany({
+    data: [
+      {
+        id: entryIds.rice1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.rice,
+        donorId: pantryDonorIds.market,
+        sector: sectors.estoque,
+        quantity: 60,
+        unit: 'kg',
+        entryDate: new Date('2026-01-10T10:00:00.000Z'),
+        expiryDate: new Date('2027-01-10T00:00:00.000Z'),
+        notes: 'Compra mensal para compor cestas basicas.',
+      },
+      {
+        id: entryIds.rice2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.rice,
+        donorId: pantryDonorIds.company,
+        sector: sectors.estoque,
+        quantity: 20,
+        unit: 'kg',
+        entryDate: new Date('2026-02-05T10:00:00.000Z'),
+        expiryDate: new Date('2026-06-30T00:00:00.000Z'),
+        notes: 'Doacao extra com vencimento mais proximo.',
+      },
+      {
+        id: entryIds.beans1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.beans,
+        donorId: pantryDonorIds.market,
+        sector: sectors.estoque,
+        quantity: 40,
+        unit: 'kg',
+        entryDate: new Date('2026-01-12T10:00:00.000Z'),
+        expiryDate: new Date('2026-10-15T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.beans2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.beans,
+        donorId: pantryDonorIds.church,
+        sector: sectors.estoque,
+        quantity: 15,
+        unit: 'kg',
+        entryDate: new Date('2026-02-03T10:00:00.000Z'),
+        expiryDate: new Date('2026-03-20T00:00:00.000Z'),
+        notes: 'Lote pequeno para consumo rapido.',
+      },
+      {
+        id: entryIds.pasta1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.pasta,
+        donorId: pantryDonorIds.market,
+        sector: sectors.estoque,
+        quantity: 80,
+        unit: 'un',
+        entryDate: new Date('2026-01-20T10:00:00.000Z'),
+        expiryDate: new Date('2026-12-01T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.pasta2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.pasta,
+        donorId: pantryDonorIds.volunteer,
+        sector: sectors.cozinha,
+        quantity: 24,
+        unit: 'un',
+        entryDate: new Date('2026-02-02T10:00:00.000Z'),
+        expiryDate: new Date('2026-04-01T00:00:00.000Z'),
+        notes: 'Separado para uso na cozinha.',
+      },
+      {
+        id: entryIds.oil1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.oil,
+        donorId: pantryDonorIds.market,
+        sector: sectors.estoque,
+        quantity: 24,
+        unit: 'L',
+        entryDate: new Date('2026-01-18T10:00:00.000Z'),
+        expiryDate: new Date('2026-09-01T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.oil2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.oil,
+        donorId: pantryDonorIds.company,
+        sector: sectors.cozinha,
+        quantity: 6,
+        unit: 'L',
+        entryDate: new Date('2026-02-06T10:00:00.000Z'),
+        expiryDate: new Date('2026-06-15T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.milk1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.milk,
+        donorId: pantryDonorIds.market,
+        sector: sectors.geladeira,
+        quantity: 18,
+        unit: 'L',
+        entryDate: new Date('2026-02-01T10:00:00.000Z'),
+        expiryDate: new Date('2026-02-10T00:00:00.000Z'),
+        notes: 'Lote vencido para validar alertas de vencimento.',
+      },
+      {
+        id: entryIds.milk2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.milk,
+        donorId: pantryDonorIds.church,
+        sector: sectors.geladeira,
+        quantity: 24,
+        unit: 'L',
+        entryDate: new Date('2026-02-12T10:00:00.000Z'),
+        expiryDate: new Date('2026-03-05T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.sugar1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.sugar,
+        donorId: pantryDonorIds.volunteer,
+        sector: sectors.estoque,
+        quantity: 12,
+        unit: 'kg',
+        entryDate: new Date('2026-01-25T10:00:00.000Z'),
+        expiryDate: new Date('2026-08-01T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.sardine1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.sardine,
+        donorId: pantryDonorIds.company,
+        sector: sectors.estoque,
+        quantity: 36,
+        unit: 'un',
+        entryDate: new Date('2026-01-28T10:00:00.000Z'),
+        expiryDate: new Date('2026-05-20T00:00:00.000Z'),
+      },
+      {
+        id: entryIds.diapers1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.diapers,
+        donorId: pantryDonorIds.company,
+        sector: sectors.estoque,
+        quantity: 120,
+        unit: 'un',
+        entryDate: new Date('2026-02-04T10:00:00.000Z'),
+        expiryDate: null,
+        notes: 'Produto sem validade.',
+      },
+    ],
+  });
+
+  const exitIds = {
+    basket1: '1b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+    basket2: '2b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+    kitchen1: '3b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+    event1: '4b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+    donation1: '5b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+    correction1: '6b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
+  } as const;
+
+  await prisma.pantryExit.createMany({
+    data: [
+      {
+        id: exitIds.basket1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.rice,
+        sector: sectors.estoque,
+        quantity: 12,
+        unit: 'kg',
+        exitDate: new Date('2026-02-08T14:00:00.000Z'),
+        type: 'ATTENDED',
+        eventName: 'Cesta basica',
+        notes: 'Entrega para familia atendida.',
+      },
+      {
+        id: exitIds.basket2,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.beans,
+        sector: sectors.estoque,
+        quantity: 8,
+        unit: 'kg',
+        exitDate: new Date('2026-02-08T14:00:00.000Z'),
+        type: 'ATTENDED',
+        eventName: 'Cesta basica',
+      },
+      {
+        id: exitIds.kitchen1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.pasta,
+        sector: sectors.cozinha,
+        quantity: 10,
+        unit: 'un',
+        exitDate: new Date('2026-02-11T12:00:00.000Z'),
+        type: 'EVENT',
+        eventName: 'Almoco comunitario',
+      },
+      {
+        id: exitIds.event1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.sardine,
+        sector: sectors.estoque,
+        quantity: 12,
+        unit: 'un',
+        exitDate: new Date('2026-02-13T15:00:00.000Z'),
+        type: 'EVENT',
+        eventName: 'Mutirao',
+        notes: 'Distribuicao rapida durante evento.',
+      },
+      {
+        id: exitIds.donation1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.diapers,
+        sector: sectors.estoque,
+        quantity: 30,
+        unit: 'un',
+        exitDate: new Date('2026-02-14T10:00:00.000Z'),
+        type: 'DONATION',
+        eventName: 'Doacao externa',
+        notes: 'Doacao para outra instituicao parceira.',
+      },
+      {
+        id: exitIds.correction1,
+        tenantId: tenant.id,
+        itemId: pantryItemIds.oil,
+        sector: sectors.cozinha,
+        quantity: 1,
+        unit: 'L',
+        exitDate: new Date('2026-02-14T16:00:00.000Z'),
+        type: 'CORRECTION',
+        notes: 'Ajuste de inventario.',
+      },
+    ],
+  });
+
+  const allocateExit = async (exit: {
+    id: string;
+    itemId: string;
+    sector: string;
+    quantity: number;
+  }) => {
+    const entries = await prisma.pantryEntry.findMany({
+      where: {
+        tenantId: tenant.id,
+        itemId: exit.itemId,
+        sector: exit.sector,
+      },
+      orderBy: [{ expiryDate: 'asc' }, { entryDate: 'asc' }],
+      select: { id: true, quantity: true },
+    });
+
+    if (!entries.length) {
+      throw new Error(`No entries found for exit allocation (${exit.id}).`);
+    }
+
+    const grouped = await prisma.pantryExitAllocation.groupBy({
+      by: ['entryId'],
+      where: {
+        tenantId: tenant.id,
+        entryId: { in: entries.map((entry) => entry.id) },
+      },
+      _sum: { quantity: true },
+    });
+
+    const allocatedMap = new Map<string, number>();
+    grouped.forEach((row) => {
+      allocatedMap.set(row.entryId, toNumber(row._sum.quantity));
+    });
+
+    let remaining = exit.quantity;
+    const allocationRows: Array<{ entryId: string; quantity: number }> = [];
+
+    for (const entry of entries) {
+      if (remaining <= 0) break;
+      const available = toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
+      if (available <= 0) continue;
+      const qty = Math.min(available, remaining);
+      if (qty <= 0) continue;
+      allocationRows.push({ entryId: entry.id, quantity: qty });
+      remaining -= qty;
+    }
+
+    if (remaining > 0) {
+      throw new Error(`Insufficient stock to allocate exit ${exit.id} (missing: ${remaining}).`);
+    }
+
+    await prisma.pantryExitAllocation.createMany({
+      data: allocationRows.map((row) => ({
+        tenantId: tenant.id,
+        exitId: exit.id,
+        entryId: row.entryId,
+        quantity: row.quantity,
+      })),
+    });
+  };
+
+  await allocateExit({
+    id: exitIds.basket1,
+    itemId: pantryItemIds.rice,
+    sector: sectors.estoque,
+    quantity: 12,
+  });
+  await allocateExit({
+    id: exitIds.basket2,
+    itemId: pantryItemIds.beans,
+    sector: sectors.estoque,
+    quantity: 8,
+  });
+  await allocateExit({
+    id: exitIds.kitchen1,
+    itemId: pantryItemIds.pasta,
+    sector: sectors.cozinha,
+    quantity: 10,
+  });
+  await allocateExit({
+    id: exitIds.event1,
+    itemId: pantryItemIds.sardine,
+    sector: sectors.estoque,
+    quantity: 12,
+  });
+  await allocateExit({
+    id: exitIds.donation1,
+    itemId: pantryItemIds.diapers,
+    sector: sectors.estoque,
+    quantity: 30,
+  });
+  await allocateExit({
+    id: exitIds.correction1,
+    itemId: pantryItemIds.oil,
+    sector: sectors.cozinha,
+    quantity: 1,
+  });
 
 }
 
