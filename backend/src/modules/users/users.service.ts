@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import type { AccessLogAction } from '../../generated/prisma';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -114,6 +119,41 @@ export class UsersService {
     });
 
     return this.getProfile(tenantId, userId);
+  }
+
+  async changeMyPassword(
+    tenantId: string,
+    userId: string,
+    dto: { currentPassword: string; newPassword: string },
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { id: true, passwordHash: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const ok = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new UnauthorizedException('Senha atual inválida');
+    }
+
+    const now = new Date();
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.userSession.updateMany({
+        where: { tenantId, userId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+    ]);
+
+    return { ok: true };
   }
 
   async listUsers(
@@ -280,7 +320,7 @@ export class UsersService {
       searchAction === 'LOGIN' ||
       searchAction === 'REFRESH' ||
       searchAction === 'LOGOUT'
-        ? (searchAction as 'LOGIN' | 'REFRESH' | 'LOGOUT')
+        ? (searchAction as AccessLogAction)
         : undefined;
 
     const where = {
@@ -389,15 +429,6 @@ export class UsersService {
 
   private async getPermissionKeysForRoles(tenantId: string, roleIds: string[]) {
     if (!roleIds.length) return [];
-
-    const roles = await this.prisma.role.findMany({
-      where: { tenantId, id: { in: roleIds } },
-      select: { name: true },
-    });
-    if (roles.some((role) => role.name === 'Admin')) {
-      const all = await this.prisma.permission.findMany({ select: { key: true } });
-      return all.map((permission) => permission.key);
-    }
 
     const permissions = await this.prisma.rolePermission.findMany({
       where: { tenantId, roleId: { in: roleIds } },

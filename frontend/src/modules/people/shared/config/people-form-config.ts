@@ -3,12 +3,15 @@ import type { PersonFormData } from "../domain/types";
 import {
   GENDER_OPTIONS,
   GENDER_LABELS,
+  MARITAL_STATUS_OPTIONS,
   PERSON_TYPE_OPTIONS,
+  PEOPLE_FORM_TEXT,
   RACE_COLOR_OPTIONS,
   RACE_COLOR_LABELS,
   SEX_OPTIONS,
   SEX_LABELS,
   STATUS_OPTIONS,
+  STATUS_LABELS,
 } from "../domain/people.constants";
 
 const buildOptions = (
@@ -19,104 +22,93 @@ const buildOptions = (
 export const personFormFields: FormField<PersonFormData>[] = [
   {
     name: "avatarUrl",
-    label: "Foto do usuario",
+    label: PEOPLE_FORM_TEXT.fields.avatarUrl.label,
     type: "image",
     defaultValue: "/avatar.jpg",
   },
   {
     name: "fullName",
-    label: "Nome completo",
+    label: PEOPLE_FORM_TEXT.fields.fullName.label,
     type: "text",
-    placeholder: "Nome completo",
+    placeholder: PEOPLE_FORM_TEXT.fields.fullName.placeholder,
     required: true,
   },
   {
     name: "socialName",
-    label: "Nome social",
+    label: PEOPLE_FORM_TEXT.fields.socialName.label,
     type: "text",
-    placeholder: "Nome social",
+    placeholder: PEOPLE_FORM_TEXT.fields.socialName.placeholder,
   },
-  {
-    name: "email",
-    label: "Email",
-    type: "email",
-    placeholder: "email@exemplo.com",
-  },
-  {
-    name: "phone",
-    label: "Telefone",
-    type: "phone",
-    placeholder: "+55 (11) 99999-9999",
-  },
-  { name: "birthDate", label: "Data de nascimento", type: "date" },
+  { name: "birthDate", label: PEOPLE_FORM_TEXT.fields.birthDate.label, type: "date" },
   {
     name: "sex",
-    label: "Sexo",
+    label: PEOPLE_FORM_TEXT.fields.sex.label,
     type: "select",
     options: buildOptions(SEX_OPTIONS, SEX_LABELS),
   },
   {
     name: "personType",
-    label: "Tipo de pessoa",
+    label: PEOPLE_FORM_TEXT.fields.personType.label,
     type: "select",
     options: buildOptions(PERSON_TYPE_OPTIONS),
   },
   {
     name: "gender",
-    label: "Genero",
+    label: PEOPLE_FORM_TEXT.fields.gender.label,
     type: "select",
     options: buildOptions(GENDER_OPTIONS, GENDER_LABELS),
   },
   {
     name: "raceColor",
-    label: "Raca/Cor",
+    label: PEOPLE_FORM_TEXT.fields.raceColor.label,
     type: "select",
     options: buildOptions(RACE_COLOR_OPTIONS, RACE_COLOR_LABELS),
   },
   {
     name: "maritalStatus",
-    label: "Estado civil",
+    label: PEOPLE_FORM_TEXT.fields.maritalStatus.label,
     type: "select",
-    options: [
-      { label: "Solteiro(a)", value: "Solteiro(a)" },
-      { label: "Casado(a)", value: "Casado(a)" },
-      { label: "Divorciado(a)", value: "Divorciado(a)" },
-      { label: "Viuvo(a)", value: "Viuvo(a)" },
-    ],
+    options: MARITAL_STATUS_OPTIONS.slice(),
   },
-  { name: "nationality", label: "Nacionalidade", type: "text" },
-  { name: "document", label: "CPF", type: "cpf" },
-  { name: "rg", label: "RG", type: "text" },
-  { name: "nis", label: "NIS", type: "text" },
+  {
+    name: "nationality",
+    label: PEOPLE_FORM_TEXT.fields.nationality.label,
+    type: "text",
+    placeholder: PEOPLE_FORM_TEXT.fields.nationality.placeholder,
+  },
   {
     name: "tags",
-    label: "Tags",
+    label: PEOPLE_FORM_TEXT.fields.tags.label,
     type: "tags",
-    placeholder: "Digite uma tag e pressione Enter",
+    placeholder: PEOPLE_FORM_TEXT.fields.tags.placeholder,
   },
   {
     name: "profileSummary",
-    label: "Resumo dinamico",
+    label: PEOPLE_FORM_TEXT.fields.profileSummary.label,
     type: "richtext",
   },
   {
     name: "status",
-    label: "Status",
+    label: PEOPLE_FORM_TEXT.fields.status.label,
     type: "select",
-    options: buildOptions(STATUS_OPTIONS.filter((status) => status !== "Em analise")),
+    options: buildOptions(
+      STATUS_OPTIONS.filter((status) => status !== "Em analise"),
+      STATUS_LABELS,
+    ),
   },
   {
     name: "departureReason",
-    label: "Motivo do desligamento",
+    label: PEOPLE_FORM_TEXT.fields.departureReason.label,
     type: "textarea",
-    placeholder: "Descreva o motivo do desligamento",
+    placeholder: PEOPLE_FORM_TEXT.fields.departureReason.placeholder,
     requiredWhen: (values) => values.status === "Desligado",
   },
 ];
 
 export const personFormSteps: FormStep[] = [
   {
-    title: "Identificacao",
+    title: PEOPLE_FORM_TEXT.steps.identification.title,
+    description: PEOPLE_FORM_TEXT.steps.identification.description,
     fields: [
       "avatarUrl",
       "fullName",
@@ -131,19 +123,13 @@ export const personFormSteps: FormStep[] = [
     ],
   },
   {
-    title: "Contato",
-    fields: ["email", "phone"],
-  },
-  {
-    title: "Documentos",
-    fields: ["document", "rg", "nis"],
-  },
-  {
-    title: "Organizacao",
+    title: PEOPLE_FORM_TEXT.steps.organization.title,
+    description: PEOPLE_FORM_TEXT.steps.organization.description,
     fields: ["tags", "status", "departureReason"],
   },
   {
-    title: "Observacoes",
+    title: PEOPLE_FORM_TEXT.steps.notes.title,
+    description: PEOPLE_FORM_TEXT.steps.notes.description,
     fields: ["profileSummary"],
   },
 ];

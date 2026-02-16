@@ -121,8 +121,8 @@ export class RegistrationService {
       throw new BadRequestException('Defina uma senha para continuar');
     }
 
-    // Evita deadlock/timeout: durante a criaÃ§Ã£o inicial do tenant, o AuditLog
-    // nÃ£o pode ser inserido fora da transaÃ§Ã£o porque o Tenant ainda nÃ£o estÃ¡ commitado.
+    // Evita deadlock/timeout: durante a criação inicial do tenant, o AuditLog
+    // não pode ser inserido fora da transação porque o Tenant ainda não está commitado.
     this.requestContext.update({ disableAudit: true });
 
     const result = await this.prisma.$transaction(

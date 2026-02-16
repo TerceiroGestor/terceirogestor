@@ -42,10 +42,6 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Permissao negada');
     }
 
-    if (roles.some((role) => role.name === 'Admin')) {
-      return true;
-    }
-
     const permissions = await this.prisma.rolePermission.findMany({
       where: {
         tenantId: user.tenantId,

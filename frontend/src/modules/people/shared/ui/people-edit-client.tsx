@@ -34,7 +34,22 @@ export function PeopleEditClient({ person }: { person: Person }) {
 
   return (
     <PeopleRelationsForm
-      initialValues={person}
+      initialValues={{
+        fullName: person.fullName,
+        socialName: person.socialName ?? null,
+        birthDate: person.birthDate ?? null,
+        sex: person.sex ?? null,
+        personType: person.personType ?? null,
+        gender: person.gender ?? null,
+        raceColor: person.raceColor ?? null,
+        maritalStatus: person.maritalStatus ?? null,
+        nationality: person.nationality ?? null,
+        tags: person.tags ?? [],
+        profileSummary: person.profileSummary ?? null,
+        status: person.status ?? null,
+        departureReason: person.departureReason ?? null,
+        avatarUrl: person.avatarUrl ?? null,
+      }}
       onSubmit={(values) => console.log(values)}
       onCancel={() =>
         router.push(withTenantPath(`/people/${person.id}`, tenantSlug))

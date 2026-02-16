@@ -56,23 +56,23 @@ export const pantryOverviewStockColumns: ColumnDef<StockRow>[] = [
   {
     id: "alerts",
     header: "Alertas",
-    accessorFn: (row) => (row.isBelowMin ? "Abaixo do mÃ­nimo" : "OK"),
+    accessorFn: (row) => (row.isBelowMin ? "Abaixo do mínimo" : "OK"),
     cell: ({ row }) => (
       <div className="flex flex-wrap items-center gap-2">
         {row.original.isBelowMin ? (
-          <Badge variant="destructive">Abaixo do mÃ­nimo</Badge>
+          <Badge variant="destructive">Abaixo do mínimo</Badge>
         ) : (
           <Badge variant="secondary">OK</Badge>
         )}
         <span className="text-[11px] text-muted-foreground">
-          MÃ­nimo: {Number(row.original.minStock).toLocaleString("pt-BR")}
+          Mínimo: {Number(row.original.minStock).toLocaleString("pt-BR")}
         </span>
       </div>
     ),
   },
   {
     accessorKey: "nextExpiryDate",
-    header: "PrÃ³x. validade",
+    header: "Próx. validade",
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground">
         {formatDate(row.original.nextExpiryDate)}

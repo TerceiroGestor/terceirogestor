@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
@@ -10,8 +15,11 @@ import { AuthTokenPayload } from './types/auth-token-payload';
 import type { JwtUser } from './strategies/jwt.strategy';
 import type { AuthRequestMeta } from './http/auth-http';
 import { MfaTotpService } from './mfa/mfa-totp.service';
+import { EmailService } from '../email/email.service';
+import { buildPasswordResetEmail } from '../email/templates/password-reset';
 
 const REFRESH_TOKEN_DAYS = 14;
+const PASSWORD_RESET_MINUTES = 30;
 
 type LoginSuccessResult = {
   mfaRequired: false;
@@ -32,6 +40,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly mfaTotp: MfaTotpService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   async validateUser(tenantId: string, email: string, password: string) {
@@ -320,5 +330,153 @@ export class AuthService {
         userAgent: meta?.userAgent,
       },
     });
+  }
+
+  async requestPasswordReset(
+    input: {
+      tenantId?: string;
+      email: string;
+      tenantSlug?: string | null;
+    },
+    meta?: AuthRequestMeta,
+  ) {
+    const tenantId = input.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('Instituição inválida');
+    }
+    const email = input.email.trim();
+    if (!email) {
+      return { ok: true };
+    }
+
+    const user = await this.usersService.findByEmailAndTenant(tenantId, email);
+    if (!user || !user.isActive) {
+      return { ok: true };
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, slug: true },
+    });
+    if (!tenant) {
+      return { ok: true };
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = this.hashToken(token);
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + PASSWORD_RESET_MINUTES * 60 * 1000,
+    );
+
+    await this.prisma.passwordResetToken.updateMany({
+      where: {
+        tenantId,
+        userId: user.id,
+        consumedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { revokedAt: now },
+    });
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      },
+    });
+
+    const webUrl =
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+    const resetUrl = `${webUrl}/${encodeURIComponent(
+      tenant.slug,
+    )}/reset-password?token=${encodeURIComponent(token)}`;
+
+    const emailMessage = buildPasswordResetEmail({
+      tenantName: tenant.name,
+      resetUrl,
+      expiresMinutes: PASSWORD_RESET_MINUTES,
+    });
+
+    await this.email.send({
+      to: user.email,
+      subject: emailMessage.subject,
+      text: emailMessage.text,
+      html: emailMessage.html,
+    });
+
+    return { ok: true };
+  }
+
+  async resetPassword(input: { token: string; password: string }) {
+    const token = input.token.trim();
+    if (!token) {
+      throw new BadRequestException('Token inválido.');
+    }
+
+    const now = new Date();
+    const tokenHash = this.hashToken(token);
+    const record = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        consumedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        userId: true,
+        user: { select: { id: true, isActive: true } },
+      },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Token inválido ou expirado.');
+    }
+    if (!record.user?.isActive) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 10);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.passwordResetToken.update({
+        where: { id: record.id },
+        data: { consumedAt: now },
+      });
+
+      await tx.passwordResetToken.updateMany({
+        where: {
+          tenantId: record.tenantId,
+          userId: record.userId,
+          consumedAt: null,
+          revokedAt: null,
+        },
+        data: { revokedAt: now },
+      });
+
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { passwordHash },
+      });
+
+      await tx.userSession.updateMany({
+        where: {
+          tenantId: record.tenantId,
+          userId: record.userId,
+          revokedAt: null,
+        },
+        data: { revokedAt: now },
+      });
+    });
+
+    // Evita vazamento de detalhes; o token é one-time use.
+    return { ok: true };
   }
 }

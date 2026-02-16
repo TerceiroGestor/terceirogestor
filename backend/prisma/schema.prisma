@@ -58,6 +58,22 @@ enum TenantRegistrationStatus {
   EXPIRED
 }
 
+enum PersonContactType {
+  EMAIL
+  PHONE
+}
+
+enum PersonContactRole {
+  SELF
+  RESPONSIBLE
+  EMERGENCY
+}
+
+enum SensitiveAccessAction {
+  READ
+  UPDATE
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Char(36)
   name      String       @unique
@@ -77,6 +93,9 @@ model Tenant {
   trustedDevices  UserTrustedDevice[]
   mfaRecoveryCodes UserMfaRecoveryCode[]
   people          Person[]
+  personContacts  PersonContact[]
+  personSensitiveDocuments PersonSensitiveDocument[]
+  personSensitiveAccessLogs PersonSensitiveAccessLog[]
   rolePermissions RolePermission[]
   userRoles       UserRole[]
   households      Household[]
@@ -85,12 +104,16 @@ model Tenant {
   personRelations PersonRelation[]
   personIncomes   PersonIncome[]
   personExpenses  PersonExpense[]
+  personBenefits  PersonBenefit[]
+  personDetentions PersonDetention[]
   householdAssets HouseholdAsset[]
   personAssets    PersonAsset[]
   householdTransfers HouseholdTransfer[]
   personHealthConditions PersonHealthCondition[]
   personMedications PersonMedication[]
+  personEducations PersonEducation[]
   userSessions    UserSession[]
+  passwordResetTokens PasswordResetToken[]
   accessLogs      AccessLog[]
   auditLogs       AuditLog[]
   pantryItems     PantryItem[]
@@ -121,12 +144,14 @@ model User {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   roles  UserRole[]
   sessions UserSession[]
+  passwordResetTokens PasswordResetToken[]
   accessLogs AccessLog[]
   auditLogs AuditLog[]
   mfaTotpSetups     UserMfaTotpSetup[]
   mfaChallenges     UserMfaChallenge[]
   trustedDevices    UserTrustedDevice[]
   recoveryCodes     UserMfaRecoveryCode[]
+  personSensitiveAccessLogs PersonSensitiveAccessLog[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -220,13 +245,81 @@ model Person {
   relatedRelations PersonRelation[] @relation("PersonRelationRelated")
   incomes PersonIncome[]
   expenses PersonExpense[]
+  benefits PersonBenefit[]
+  detentions PersonDetention[]
   assets  PersonAsset[]
   transfers HouseholdTransfer[]
   healthConditions PersonHealthCondition[]
   medications PersonMedication[]
+  educations PersonEducation[]
+  contacts PersonContact[]
+  sensitiveDocument PersonSensitiveDocument?
+  sensitiveAccessLogs PersonSensitiveAccessLog[]
 
   @@index([tenantId])
   @@index([fullName])
+}
+
+model PersonContact {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  personId  String   @db.Char(36)
+  role      PersonContactRole @default(SELF)
+  type      PersonContactType
+  label     String?
+  name      String?
+  relationship String?
+  value     String
+  isPrimary Boolean  @default(false)
+  isWhatsapp Boolean @default(false)
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([tenantId, personId, type])
+  @@unique([tenantId, personId, type, value])
+}
+
+model PersonSensitiveDocument {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  personId      String   @unique @db.Char(36)
+  schemaVersion Int      @default(1)
+  dataEnc       Bytes    @db.LongBlob
+  iv            Bytes    @db.VarBinary(12)
+  tag           Bytes    @db.VarBinary(16)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+}
+
+model PersonSensitiveAccessLog {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  personId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  action    SensitiveAccessAction
+  ipAddress String?  @db.VarChar(64)
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([userId])
+  @@index([tenantId, personId, action])
 }
 
 model Household {
@@ -242,6 +335,7 @@ model Household {
   assets  HouseholdAsset[]
   incomes PersonIncome[]
   expenses PersonExpense[]
+  benefits PersonBenefit[]
   outgoingTransfers HouseholdTransfer[] @relation("HouseholdTransferFrom")
   incomingTransfers HouseholdTransfer[] @relation("HouseholdTransferTo")
 
@@ -285,6 +379,18 @@ model HouseholdProfile {
   areaM2      Float?
   rooms       Int?
   bathrooms   Int?
+  cep         String?  @db.VarChar(8)
+  street      String?
+  number      String?
+  complement  String?
+  neighborhood String?
+  city        String?
+  state       String?  @db.VarChar(2)
+  ibge        String?  @db.VarChar(7)
+  gia         String?
+  ddd         String?  @db.VarChar(3)
+  siafi       String?  @db.VarChar(4)
+  reference   String?  @db.Text
   notes       String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -293,6 +399,7 @@ model HouseholdProfile {
   household Household @relation(fields: [householdId], references: [id])
 
   @@index([tenantId])
+  @@index([tenantId, cep])
 }
 
 model HouseholdAsset {
@@ -400,6 +507,52 @@ model PersonExpense {
   @@index([householdId])
 }
 
+model PersonBenefit {
+  id         String          @id @default(uuid()) @db.Char(36)
+  tenantId   String          @db.Char(36)
+  personId   String          @db.Char(36)
+  householdId String?        @db.Char(36)
+  type       String
+  status     String?
+  amount     Decimal?        @db.Decimal(10, 2)
+  frequency  IncomeFrequency @default(MONTHLY)
+  startDate  DateTime?
+  endDate    DateTime?
+  notes      String?         @db.Text
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  person    Person     @relation(fields: [personId], references: [id])
+  household Household? @relation(fields: [householdId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([householdId])
+  @@index([tenantId, personId])
+}
+
+model PersonDetention {
+  id         String   @id @default(uuid()) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  personId   String   @db.Char(36)
+  status     String
+  type       String?
+  unit       String?
+  startDate  DateTime?
+  endDate    DateTime?
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([tenantId, personId])
+}
+
 model PersonHealthCondition {
   id            String   @id @default(uuid()) @db.Char(36)
   tenantId      String   @db.Char(36)
@@ -442,6 +595,30 @@ model PersonMedication {
 
   @@index([tenantId])
   @@index([personId])
+}
+
+model PersonEducation {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  personId    String   @db.Char(36)
+  level       String
+  status      String?
+  institution String?
+  grade       String?
+  schoolYear  String?
+  isCurrent   Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([tenantId, personId])
 }
 
 enum HouseholdTransferType {
@@ -489,6 +666,29 @@ model UserSession {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  tokenHash String   @db.VarChar(128)
+  expiresAt DateTime
+  consumedAt DateTime?
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  requestId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tokenHash])
   @@index([tenantId])

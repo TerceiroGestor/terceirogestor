@@ -77,7 +77,6 @@ export function printFamilyReport({
   });
   const personAge = getAgeFromBirthDate(person.birthDate);
   const personDetails = [
-    person.document ? `Documento: ${person.document}` : null,
     person.birthDate ? `Nascimento: ${person.birthDate}` : null,
     personAge !== null ? `Idade: ${personAge} anos` : null,
     person.email ? `Email: ${person.email}` : null,

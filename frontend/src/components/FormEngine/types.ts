@@ -206,7 +206,7 @@ export interface FormEngineProps<T = any> {
   onSubmit: (values: T) => void;
 
   /** Renderização customizada de botões */
-  /** Callback a cada mudanÃ§a de valores */
+  /** Callback a cada mudança de valores */
   onValuesChange?: (values: T) => void;
 
   renderFooter?: ReactNode;

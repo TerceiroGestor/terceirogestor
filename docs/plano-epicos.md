@@ -26,18 +26,11 @@ Revisado em **2026-02-16** com base no estado atual do repositório (backend Nes
 
 ## ÉPICO 0.1 — Autenticação & Sessões
 
-**Status**: parcialmente concluído (login/logout/refresh + MFA ok; falta recuperação/troca de senha e anti-abuso).
+**Status**: concluído (login/logout/refresh + MFA + recuperação/troca de senha + anti-abuso).
 
-**Plano (pendências)**:
-- Implementar **recuperação de senha**:
-  - `POST /auth/forgot-password` (gera token/OTP, envia e-mail, rate limit).
-  - `POST /auth/reset-password` (valida token, troca senha, revoga sessões).
-  - Tabela/token com expiração + one-time use + hash do token (nunca persistir token em claro).
-- Implementar **troca de senha autenticado** (`PATCH /users/me/password`), exigindo senha atual.
-- Adicionar **proteção anti brute-force** (por IP + por usuário + por tenant) para login/refresh/registration.
-- Revisar cookies/headers:
-  - `Secure` em produção, `SameSite` consistente, `HttpOnly` sempre.
-  - Rotação/expiração de refresh e revogação em reuso já está bem encaminhada; manter.
+**Plano (melhorias recomendadas)**:
+- Revisar política de cookies/headers por ambiente (ex.: `Secure` em produção) e manter padronizado.
+- Monitorar limites (rate limit) e ajustar conforme uso real.
 
 **Critérios de aceite**:
 - Tokens não vazam em logs/auditoria; sessões antigas são revogadas após reset.
@@ -86,19 +79,15 @@ Revisado em **2026-02-16** com base no estado atual do repositório (backend Nes
 
 ## ÉPICO 1.1 — Pessoas
 
-**Status**: parcialmente concluído.
+**Status**: concluído.
 
-**Plano (pendências)**:
-- **Endereços**:
-  - Definir se endereço é por pessoa e/ou por domicílio.
-  - Modelagem (`Address` + histórico; ou campos no `HouseholdProfile` com versionamento).
-  - UI para cadastro/edição e busca/filtragem por território (opcional).
-- **Documentos sensíveis** (ultra segurança):
-  - Mover `document/rg/nis` para tabela separada (ex.: `PersonSensitiveDocument`).
-  - Criptografia em repouso (AES-GCM com chave por tenant) + RBAC (permissões específicas).
-  - Auditoria reforçada + logs de acesso a PII.
-- **Contatos múltiplos**:
-  - Telefones/e-mails adicionais e contatos de emergência/responsáveis.
+**Entregas**:
+- **Endereço** definido como **domicílio** (`HouseholdProfile`) com validação de CEP via **ViaCEP** e visualização no mapa.
+- **Contatos múltiplos** (`PersonContact`) com e-mails/telefones + responsáveis/emergência + preferências (primário/WhatsApp).
+- **Documentos sensíveis** em tabela dedicada (`PersonSensitiveDocument`) com **criptografia em repouso** + **RBAC** (`people.sensitive.*`) e **auditoria/log de acesso**.
+
+**Plano (próximos incrementos/opcionais)**:
+- Georreferência (quando necessário) e filtros por território.
 
 **Critérios de aceite**:
 - PII não aparece em `AuditLog`/logs; acessos são rastreáveis e limitados por permissão.
@@ -113,16 +102,13 @@ Revisado em **2026-02-16** com base no estado atual do repositório (backend Nes
 
 ## ÉPICO 1.3 — Condições Individuais
 
-**Status**: parcialmente concluído (saúde/medicação e renda ok; falta escolaridade/reclusão/benefícios).
+**Status**: concluído (saúde/medicação/renda/escolaridade/benefícios/reclusão).
 
-**Plano (pendências)**:
+**Plano (melhorias recomendadas)**:
 - Escolaridade:
-  - modelo para nível atual + histórico (instituição, série, ano, situação),
-  - anexos (declarações) via uploads seguros.
-- Reclusão:
-  - status, período, observações, medidas socioeducativas (se aplicável).
+  - anexos (declarações) via uploads seguros (opcional).
 - Benefícios sociais:
-  - tipo, valor, periodicidade, vínculo com pessoa/domicílio, status.
+  - concluído (tipo/valor/frequência/período + histórico por pessoa).
 
 ---
 
@@ -247,4 +233,3 @@ Revisado em **2026-02-16** com base no estado atual do repositório (backend Nes
 - Portais (8/9): autenticação própria + RBAC + recortes fortes de dados; começar pequeno (apenas leitura).
 - Assinaturas (10): Mercado Pago + webhooks idempotentes + gating por tenant.
 - Notificações/Calendário (11): infraestrutura de jobs (fila), canais (in-app/e-mail) e preferências do usuário.
-

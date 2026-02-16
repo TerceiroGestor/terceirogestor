@@ -1,5 +1,10 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -20,6 +25,9 @@ import { AuditModule } from './core/audit/audit.module';
 import { RequestContextModule } from './core/request-context/request-context.module';
 import { RequestContextMiddleware } from './core/request-context/request-context.middleware';
 import { RequestContextInterceptor } from './core/request-context/request-context.interceptor';
+import { RateLimitModule } from './core/rate-limit/rate-limit.module';
+import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
+import { CepModule } from './core/cep/cep.module';
 
 @Module({
   imports: [
@@ -40,11 +48,18 @@ import { RequestContextInterceptor } from './core/request-context/request-contex
     FilesModule,
     AuditModule,
     RequestContextModule,
+    RateLimitModule,
+    CepModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     TenancyMiddleware,
+    RateLimitGuard,
+    {
+      provide: APP_GUARD,
+      useExisting: RateLimitGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestContextInterceptor,
@@ -58,4 +73,3 @@ export class AppModule implements NestModule {
       .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }
-

@@ -13,15 +13,24 @@ const AUDIT_ACTIONS = new Set([
   'updateMany',
   'deleteMany',
 ]);
-const AUDIT_IGNORED_MODELS = new Set(['AuditLog', 'AccessLog']);
+const AUDIT_IGNORED_MODELS = new Set([
+  'AuditLog',
+  'AccessLog',
+  'PersonSensitiveAccessLog',
+]);
 const BULK_AUDIT_LIMIT = 50;
 
 const SENSITIVE_KEYS = new Set([
   'password',
   'passwordhash',
+  'cpf',
   'document',
   'rg',
   'nis',
+  'cns',
+  'dataenc',
+  'iv',
+  'tag',
   'token',
   'tokenhash',
   'refreshtoken',

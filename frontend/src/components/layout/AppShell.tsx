@@ -8,6 +8,12 @@ import { AppHeader } from "@/components/layout/AppHeader";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
 const PUBLIC_ROUTES = ["/register"];
+const TENANT_AUTH_SEGMENTS = new Set([
+  "login",
+  "register",
+  "forgot-password",
+  "reset-password",
+]);
 const RESERVED_SEGMENTS = new Set([
   "",
   "_next",
@@ -24,13 +30,16 @@ const RESERVED_SEGMENTS = new Set([
 ]);
 
 function isTenantAuthRoute(pathname: string) {
-  if (/^\/t\/[^/]+\/(login|register)/.test(pathname)) {
+  if (/^\/t\/[^/]+\/(login|register|forgot-password|reset-password)/.test(pathname)) {
     return true;
   }
-  const match = pathname.match(/^\/([^/]+)\/(login|register)/);
+  const match = pathname.match(
+    /^\/([^/]+)\/(login|register|forgot-password|reset-password)/,
+  );
   if (!match) return false;
   const slug = match[1];
-  return !RESERVED_SEGMENTS.has(slug);
+  const segment = match[2];
+  return !RESERVED_SEGMENTS.has(slug) && TENANT_AUTH_SEGMENTS.has(segment);
 }
 
 type AppShellProps = {

@@ -240,7 +240,7 @@ export function usePeopleColumns({
     },
     {
       accessorKey: "raceColor",
-      header: "Raca/Cor",
+      header: "Raça/Cor",
       meta: { dataType: "string", valueMap: RACE_COLOR_LABELS },
       cell: ({ row }) => {
         const person = row.original;
@@ -273,45 +273,33 @@ export function usePeopleColumns({
     },
     {
       accessorKey: "isBirthdayMonth",
-      header: "Aniversario",
+      header: "Aniversário",
       meta: { dataType: "boolean" },
       cell: ({ row }) => (
         <Badge variant={row.original.isBirthdayMonth ? "secondary" : "outline"}>
-          {row.original.isBirthdayMonth ? "Sim" : "Nao"}
+          {row.original.isBirthdayMonth ? "Sim" : "Não"}
         </Badge>
       ),
     },
     {
-      accessorKey: "email",
-      header: "Email",
-      meta: { dataType: "string" },
-      cell: ({ row }) => row.original.email ?? "-",
-    },
-    {
-      accessorKey: "phone",
-      header: "Telefone",
-      meta: { dataType: "string" },
-      cell: ({ row }) => row.original.phone ?? "-",
-    },
-    {
       accessorKey: "hasHealthCondition",
-      header: "Condicao",
+      header: "Condição",
       meta: { dataType: "boolean" },
       cell: ({ row }) => (
         <Badge
           variant={row.original.hasHealthCondition ? "secondary" : "outline"}
         >
-          {row.original.hasHealthCondition ? "Sim" : "Nao"}
+          {row.original.hasHealthCondition ? "Sim" : "Não"}
         </Badge>
       ),
     },
     {
       accessorKey: "hasMedication",
-      header: "Medicacao",
+      header: "Medicação",
       meta: { dataType: "boolean" },
       cell: ({ row }) => (
         <Badge variant={row.original.hasMedication ? "secondary" : "outline"}>
-          {row.original.hasMedication ? "Sim" : "Nao"}
+          {row.original.hasMedication ? "Sim" : "Não"}
         </Badge>
       ),
     },

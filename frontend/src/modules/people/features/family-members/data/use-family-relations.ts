@@ -170,7 +170,7 @@ export function useFamilyRelations(
     if (shouldLogLoad()) {
       const label = mode === "summary" ? "Resumo" : "Detalhado";
       // eslint-disable-next-line no-console
-      console.info(`[FamÃ­lia] ${label} carregado em ${elapsed.toFixed(0)}ms`);
+      console.info(`[Família] ${label} carregado em ${elapsed.toFixed(0)}ms`);
     }
   }, []);
 
@@ -275,7 +275,7 @@ export function useFamilyRelations(
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
-            : "Falha ao carregar vÃ­nculos familiares.";
+            : "Falha ao carregar vínculos familiares.";
         setDetailedError(message);
       } finally {
         const elapsed = performance.now() - start;

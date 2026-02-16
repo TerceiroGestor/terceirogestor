@@ -8,6 +8,12 @@
   "scripts": {
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "permissions:backfill": "node scripts/backfill-core-permissions.js",
+    "people:backfill-sensitive-docs": "node scripts/backfill-person-sensitive-documents.js",
     "build": "nest build",
     "postbuild": "node scripts/sync-generated-prisma-to-dist.js",
     "pantry:backfill-allocations": "node scripts/backfill-pantry-exit-allocations.js",

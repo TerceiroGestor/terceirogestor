@@ -14,6 +14,8 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
 import type { JwtUser } from './strategies/jwt.strategy';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   getCookie,
   getCookieOptions,
@@ -21,19 +23,30 @@ import {
   REFRESH_COOKIE_NAME,
 } from './http/auth-http';
 import { TRUSTED_DEVICE_COOKIE_NAME } from './mfa/mfa.constants';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @RateLimit({
+    name: 'auth.login',
+    windowMs: 10 * 60 * 1000,
+    max: 20,
+    bodyField: 'email',
+    keyParts: ['ip', 'tenantId', 'bodyField'],
+  })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const requestTenantId = (req as Request & { tenantId?: string }).tenantId;
-    const payload: LoginDto = { ...dto, tenantId: dto.tenantId ?? requestTenantId };
+    const payload: LoginDto = {
+      ...dto,
+      tenantId: dto.tenantId ?? requestTenantId,
+    };
     const trustedDeviceToken = getCookie(req, TRUSTED_DEVICE_COOKIE_NAME);
     const result = await this.authService.loginWithMeta(
       payload,
@@ -50,8 +63,50 @@ export class AuthController {
     return { accessToken: result.accessToken };
   }
 
+  @Post('forgot-password')
+  @RateLimit({
+    name: 'auth.forgotPassword',
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    bodyField: 'email',
+    keyParts: ['ip', 'tenantId', 'bodyField'],
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    const tenantId = (req as Request & { tenantId?: string }).tenantId;
+    const tenantSlug = (req as Request & { tenantSlug?: string }).tenantSlug;
+    await this.authService.requestPasswordReset(
+      { tenantId, tenantSlug, email: dto.email },
+      getRequestMeta(req),
+    );
+    return { ok: true };
+  }
+
+  @Post('reset-password')
+  @RateLimit({
+    name: 'auth.resetPassword',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyParts: ['ip', 'path', 'method'],
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    await this.authService.resetPassword({
+      token: dto.token,
+      password: dto.password,
+    });
+    return { ok: true };
+  }
+
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  @RateLimit({
+    name: 'auth.refresh',
+    windowMs: 60 * 60 * 1000,
+    max: 120,
+    keyParts: ['ip', 'tenantId', 'path'],
+  })
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = getCookie(req, REFRESH_COOKIE_NAME);
     if (!refreshToken) {
       return { accessToken: null };

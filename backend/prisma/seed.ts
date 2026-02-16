@@ -74,6 +74,14 @@ async function main() {
     { key: 'people.create', description: 'Criar pessoas' },
     { key: 'people.update', description: 'Atualizar pessoas' },
     { key: 'people.delete', description: 'Excluir pessoas' },
+    {
+      key: 'people.sensitive.read',
+      description: 'Ler documentos sensíveis (LGPD)',
+    },
+    {
+      key: 'people.sensitive.update',
+      description: 'Atualizar documentos sensíveis (LGPD)',
+    },
     { key: 'pantry.read', description: 'Ler despensa' },
     { key: 'pantry.create', description: 'Criar despensa' },
     { key: 'pantry.update', description: 'Atualizar despensa' },
@@ -1072,16 +1080,6 @@ async function main() {
       notes: "Renda principal da residencia.",
     },
     {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3002",
-      householdId: householdIds.ana,
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      type: "Bolsa Familia",
-      amount: 400,
-      frequency: "MONTHLY",
-      isHouseholdContribution: true,
-      notes: "Beneficio mensal.",
-    },
-    {
       id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3003",
       householdId: householdIds.ricardo,
       personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
@@ -1112,15 +1110,6 @@ async function main() {
       contractType: "CLT",
       isHouseholdContribution: true,
     },
-    {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3006",
-      householdId: householdIds.carlos,
-      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-      type: "Auxilio",
-      amount: 400,
-      frequency: "MONTHLY",
-      isHouseholdContribution: true,
-    },
   ];
 
   for (const income of incomeSeeds) {
@@ -1146,6 +1135,62 @@ async function main() {
         contractType: income.contractType ?? null,
         isHouseholdContribution: income.isHouseholdContribution,
         notes: income.notes ?? null,
+      },
+    });
+  }
+
+  const benefitSeeds = [
+    {
+      id: "8f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a4001",
+      householdId: householdIds.ana,
+      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
+      type: "Bolsa Familia",
+      status: "Ativo",
+      amount: 400,
+      frequency: "MONTHLY",
+      startDate: new Date("2025-01-01"),
+      endDate: null as Date | null,
+      notes: "Beneficio mensal.",
+    },
+    {
+      id: "8f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a4002",
+      householdId: householdIds.carlos,
+      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
+      type: "Auxilio",
+      status: "Ativo",
+      amount: 400,
+      frequency: "MONTHLY",
+      startDate: new Date("2025-02-01"),
+      endDate: null as Date | null,
+      notes: null as string | null,
+    },
+  ];
+
+  for (const benefit of benefitSeeds) {
+    await prisma.personBenefit.upsert({
+      where: { id: benefit.id },
+      update: {
+        householdId: benefit.householdId,
+        type: benefit.type,
+        status: benefit.status,
+        amount: benefit.amount as any,
+        frequency: benefit.frequency as any,
+        startDate: benefit.startDate,
+        endDate: benefit.endDate,
+        notes: benefit.notes,
+      },
+      create: {
+        id: benefit.id,
+        tenantId: tenant.id,
+        personId: benefit.personId,
+        householdId: benefit.householdId,
+        type: benefit.type,
+        status: benefit.status,
+        amount: benefit.amount as any,
+        frequency: benefit.frequency as any,
+        startDate: benefit.startDate,
+        endDate: benefit.endDate,
+        notes: benefit.notes,
       },
     });
   }

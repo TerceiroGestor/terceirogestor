@@ -17,6 +17,7 @@ import {
   toDateInputValue,
 } from "@/modules/people/shared/domain/utils";
 import { PeopleFormDialog } from "@/modules/people/shared/ui/people-form-dialog";
+import { PEOPLE_FORM_TEXT } from "@/modules/people/shared/domain/people.constants";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -133,9 +134,6 @@ export function PeopleListClientPage() {
       nationality: person.nationality,
       email: person.email,
       phone: person.phone,
-      document: person.document,
-      rg: person.rg,
-      nis: person.nis,
       status: person.status as PeopleTableItem["status"],
       personType: person.personType ?? null,
       departureReason: person.departureReason,
@@ -295,16 +293,11 @@ export function PeopleListClientPage() {
     return {
       fullName: editing.fullName,
       socialName: editing.socialName ?? "",
-      email: editing.email ?? "",
-      phone: editing.phone ?? "",
       gender: editing.gender ?? "",
       sex: editing.sex ?? "",
       raceColor: editing.raceColor ?? "",
       maritalStatus: editing.maritalStatus ?? "",
       nationality: editing.nationality ?? "",
-      document: editing.document ?? "",
-      rg: editing.rg ?? "",
-      nis: editing.nis ?? "",
       status: editing.status ?? null,
       personType: editing.personType ?? null,
       departureReason: editing.departureReason ?? "",
@@ -351,11 +344,6 @@ export function PeopleListClientPage() {
         raceColor: values.raceColor || null,
         maritalStatus: values.maritalStatus || null,
         nationality: values.nationality || null,
-        email: values.email || null,
-        phone: values.phone || null,
-        document: values.document || null,
-        rg: values.rg || null,
-        nis: values.nis || null,
         status: values.status || null,
         personType: values.personType || null,
         departureReason: values.departureReason || null,
@@ -455,7 +443,7 @@ export function PeopleListClientPage() {
         exportMeta={exportMeta}
         initialColumnPinning={{
           left: ["actions", "fullName"],
-          right: ["createdAt", "status", "tags"],
+          right: ["status"],
         }}
         searchPlaceholder="Pesquisar pessoas"
         summaryCards={{
@@ -498,8 +486,8 @@ export function PeopleListClientPage() {
         title={editing ? "Editar cadastro" : "Novo cadastro de pessoa"}
         description={
           editing
-            ? "Atualize os dados da pessoa selecionada."
-            : "Preencha o formulário completo de perfil socioeconômico."
+            ? PEOPLE_FORM_TEXT.dialogs.editDescription
+            : PEOPLE_FORM_TEXT.dialogs.createDescription
         }
         initialValues={initialValues}
         submitLabel={editing ? "Salvar" : "Cadastrar"}

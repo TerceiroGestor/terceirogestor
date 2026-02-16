@@ -182,6 +182,20 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
                     placeholder="Senha"
                     className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
                   />
+                  <div className="mt-2 flex items-center justify-end">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-xs"
+                      onClick={() =>
+                        router.push(
+                          withTenantPath("/forgot-password", resolvedSlug ?? null),
+                        )
+                      }
+                    >
+                      Esqueci minha senha
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (

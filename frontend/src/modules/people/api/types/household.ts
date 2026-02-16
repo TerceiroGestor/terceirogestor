@@ -9,6 +9,18 @@ export type ApiHouseholdProfile = {
   areaM2?: number | null;
   rooms?: number | null;
   bathrooms?: number | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  ibge?: string | null;
+  gia?: string | null;
+  ddd?: string | null;
+  siafi?: string | null;
+  reference?: string | null;
   notes?: string | null;
 };
 
@@ -40,4 +52,3 @@ export type ApiPersonAssetsGroup = {
   person: ApiPersonSummary;
   assets: ApiPersonAsset[];
 };
-

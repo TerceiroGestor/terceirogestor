@@ -5,6 +5,21 @@ Este documento consolida todos os épicos acordados para a construção da plata
 - Legenda: `- [x]` concluído | `- [ ]` pendente
 - Estado revisado em: **2026-02-16**
 
+## 📍 Status por fase (visão geral)
+
+- [ ] **FASE 0 — Fundação** (pendências: exportação de usuários, OAuth UI, storage de produção)
+- [x] **FASE 1 — Pessoas e Famílias** (core concluído; pendências opcionais: georreferência, qualidade de dados)
+- [ ] **FASE 2 — Organização institucional**
+- [ ] **FASE 3 — Operação diária**
+- [ ] **FASE 4 — Suporte material** (core concluído; pendência: vínculo com ação/atendimento)
+- [ ] **FASE 5 — Educação e cursos**
+- [ ] **FASE 6 — Relatórios e indicadores**
+- [ ] **FASE 7 — Governança** (core concluído; pendência: retenção/rotação/exportação)
+- [ ] **FASE 8 — Portal familiar**
+- [ ] **FASE 9 — Portal do parceiro**
+- [ ] **FASE 10 — Área do assinante**
+- [ ] **FASE 11 — Experiência**
+
 ## ✅ Definição de pronto (DoD) para qualquer épico
 
 - [ ] Modelagem (Prisma) + migrações + seed (quando aplicável)
@@ -25,9 +40,9 @@ Este documento consolida todos os épicos acordados para a construção da plata
 - [x] Refresh Token (rotação via cookie)
 - [x] Logs de acesso (LOGIN/REFRESH/LOGOUT)
 - [x] MFA/TOTP (challenge + dispositivo confiável)
-- [ ] Recuperação de senha (fluxo por e-mail com token)
-- [ ] Troca de senha (usuário autenticado)
-- [ ] Proteções anti-abuso (rate limit/brute force) nos endpoints sensíveis
+- [x] Recuperação de senha (fluxo por e-mail com token)
+- [x] Troca de senha (usuário autenticado)
+- [x] Proteções anti-abuso (rate limit/brute force) nos endpoints sensíveis
 
 ## ÉPICO 0.2 — Usuários
 
@@ -45,7 +60,7 @@ Este documento consolida todos os épicos acordados para a construção da plata
 - [x] Definir permissões (catálogo)
 - [x] Atribuir papel ao usuário
 - [x] Guard de permissões por rota (backend)
-- [ ] UX de “permissões por módulo” (frontend, opcional)
+- [x] UX de “permissões por módulo” (frontend, opcional)
 
 ## ÉPICO 0.4 — Instituições (Tenants) & Onboarding
 
@@ -71,10 +86,11 @@ Este documento consolida todos os épicos acordados para a construção da plata
 ## ÉPICO 1.1 — Pessoas
 
 - [x] Cadastro de pessoa
-- [ ] Documentos sensíveis separados (tabela própria + criptografia + RBAC + auditoria reforçada)
+- [x] Documentos sensíveis separados (tabela própria + criptografia + RBAC + auditoria reforçada)
 - [x] Contatos (e-mail/telefone)
-- [ ] Contatos múltiplos (telefones/e-mails + responsáveis + preferências)
-- [ ] Endereço (pessoa e/ou domicílio) + georreferência (opcional)
+- [x] Contatos múltiplos (telefones/e-mails + responsáveis + preferências)
+- [x] Endereço (domicílio via CEP/ViaCEP)
+- [ ] Georreferência (opcional)
 - [x] Foto (avatar) + upload
 - [x] Observações gerais (notas, resumo, tags)
 
@@ -91,10 +107,10 @@ Este documento consolida todos os épicos acordados para a construção da plata
 
 - [x] Saúde (condições)
 - [x] Medicamentos (com documentos)
-- [ ] Escolaridade (nível atual + histórico escolar)
+- [x] Escolaridade (nível atual + histórico escolar)
 - [x] Trabalho/Renda (rendas, despesas, contribuições, transferências)
-- [ ] Reclusão (situação/medidas/observações)
-- [ ] Benefícios/Programas sociais (ex.: Bolsa Família, BPC, etc.)
+- [x] Reclusão (situação/medidas/observações)
+- [x] Benefícios/Programas sociais (ex.: Bolsa Família, BPC, etc.)
 
 ---
 
@@ -332,4 +348,3 @@ Este documento consolida todos os épicos acordados para a construção da plata
 ---
 
 # ✅ FIM DO DOCUMENTO
-

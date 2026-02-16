@@ -16,6 +16,8 @@ Este diretório é a **fonte única** de documentação do projeto (arquitetura,
 - `docs/processes/frontend.md` — processos do frontend e integração com API
 - `docs/processes/registro-tenant-admin.md` — detalhes do registro de tenant + admin
 - `docs/processes/testes-registro-2fa.md` — roteiro prático para validar registro + 2FA
+- `docs/processes/validacao-cpf.md` — validação e normalização de CPF
+- `docs/processes/fechamento-epico-1.1-pessoas.md` — checklist de validação (endereços/contatos/documentos sensíveis)
 
 ### Como criar novos módulos
 - `docs/guides/backend-new-module.md` — criar módulo no backend (migrations/seed/perms/audit)

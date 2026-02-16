@@ -29,13 +29,13 @@ export function exitTypeLabel(type: string) {
     case "ATTENDED":
       return "Atendidos";
     case "DONATION":
-      return "DoaÃ§Ãµes";
+      return "Doações";
     case "EVENT":
       return "Eventos";
     case "PARTY":
       return "Festas";
     case "CORRECTION":
-      return "CorreÃ§Ã£o";
+      return "Correção";
     default:
       return type;
   }

@@ -12,6 +12,9 @@ import { useFamilyRelationsContext } from "@/modules/people/features/family-memb
 import { PeopleFinancialPanel } from "@/modules/people/features/people-financial/ui/people-financial-panel";
 import { HealthConditionsPanel } from "@/modules/people/features/health-conditions/ui/health-conditions-panel";
 import { MedicationsPanel } from "@/modules/people/features/medications/ui/medications-panel";
+import { EducationPanel } from "@/modules/people/features/education/ui/education-panel";
+import { BenefitsPanel } from "@/modules/people/features/benefits/ui/benefits-panel";
+import { DetentionsPanel } from "@/modules/people/features/detentions/ui/detentions-panel";
 
 type PeopleDetailContentProps = {
   person: Person;
@@ -43,7 +46,7 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
         >
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-background px-4 py-2">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              VisualizaÃ§Ã£o
+              Visualização
             </div>
             <TabsList className="h-9 w-auto rounded-full border border-border/60 bg-muted/40 p-1 shadow-sm">
               <TabsTrigger
@@ -105,6 +108,18 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
 
       <TabsContent value="medicacoes" className="space-y-6">
         <MedicationsPanel personId={person.id} />
+      </TabsContent>
+
+      <TabsContent value="escolaridade" className="space-y-6">
+        <EducationPanel personId={person.id} />
+      </TabsContent>
+
+      <TabsContent value="beneficios" className="space-y-6">
+        <BenefitsPanel personId={person.id} />
+      </TabsContent>
+
+      <TabsContent value="reclusao" className="space-y-6">
+        <DetentionsPanel personId={person.id} />
       </TabsContent>
     </div>
   );

@@ -1,9 +1,21 @@
-import { Body, Controller, Get, Param, Post, Query, Redirect, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Redirect,
+  Req,
+  Res,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { RegistrationService } from './registration.service';
 import { RequestTenantRegistrationDto } from './dto/request-tenant-registration.dto';
 import { ConfirmTenantRegistrationDto } from './dto/confirm-tenant-registration.dto';
+import { getCookieOptions } from '../../core/auth/http/auth-http';
+import { RateLimit } from '../../core/rate-limit/rate-limit.decorator';
 
 function getRequestMeta(req: Request) {
   return {
@@ -20,6 +32,12 @@ export class RegistrationController {
   ) {}
 
   @Post('tenant/request')
+  @RateLimit({
+    name: 'registration.tenant.request',
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    keyParts: ['ip', 'path', 'method'],
+  })
   async requestTenant(@Body() dto: RequestTenantRegistrationDto) {
     return this.service.requestEmailRegistration(dto);
   }
@@ -30,22 +48,20 @@ export class RegistrationController {
   }
 
   @Post('tenant/confirm')
+  @RateLimit({
+    name: 'registration.tenant.confirm',
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    keyParts: ['ip', 'path', 'method'],
+  })
   async confirmTenant(
     @Body() dto: ConfirmTenantRegistrationDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, refreshToken, tenantSlug } = await this.service.confirmRegistration(
-      dto,
-      getRequestMeta(req),
-    );
-    const cookieName = 'refresh_token';
-    res.cookie(cookieName, refreshToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-      path: '/',
-    });
+    const { accessToken, refreshToken, tenantSlug } =
+      await this.service.confirmRegistration(dto, getRequestMeta(req));
+    res.cookie('refresh_token', refreshToken, getCookieOptions());
     return { accessToken, tenantSlug };
   }
 
@@ -60,32 +76,47 @@ export class RegistrationController {
   @Get('oauth/google/callback')
   @Redirect()
   async googleCallback(@Query() query: any) {
-    const { registrationId } = await this.service.handleOAuthCallback('google', {
-      code: query?.code,
-      state: query?.state,
-      error: query?.error,
-    });
-    const webUrl = this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
-    return { url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}` };
+    const { registrationId } = await this.service.handleOAuthCallback(
+      'google',
+      {
+        code: query?.code,
+        state: query?.state,
+        error: query?.error,
+      },
+    );
+    const webUrl =
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+    return {
+      url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
+    };
   }
 
   @Get('oauth/microsoft/start')
   @Redirect()
   async startMicrosoft(@Query('tenantName') tenantName?: string) {
     if (!tenantName) return { url: '/' };
-    const { redirectUrl } = await this.service.startOAuth('microsoft', tenantName);
+    const { redirectUrl } = await this.service.startOAuth(
+      'microsoft',
+      tenantName,
+    );
     return { url: redirectUrl };
   }
 
   @Get('oauth/microsoft/callback')
   @Redirect()
   async microsoftCallback(@Query() query: any) {
-    const { registrationId } = await this.service.handleOAuthCallback('microsoft', {
-      code: query?.code,
-      state: query?.state,
-      error: query?.error,
-    });
-    const webUrl = this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
-    return { url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}` };
+    const { registrationId } = await this.service.handleOAuthCallback(
+      'microsoft',
+      {
+        code: query?.code,
+        state: query?.state,
+        error: query?.error,
+      },
+    );
+    const webUrl =
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+    return {
+      url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
+    };
   }
 }

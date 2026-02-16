@@ -9,4 +9,8 @@ export * from "./financial";
 export * from "./household";
 export * from "./health-conditions";
 export * from "./medications";
-
+export * from "./education";
+export * from "./benefits";
+export * from "./detentions";
+export * from "./contacts";
+export * from "./sensitive-documents";

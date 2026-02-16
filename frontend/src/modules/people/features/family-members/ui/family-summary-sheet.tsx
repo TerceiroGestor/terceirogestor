@@ -82,10 +82,10 @@ export function FamilySummarySheet() {
     <div className="rounded-2xl border border-border/60 bg-background px-6 py-6 text-sm leading-6 text-foreground">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Resumo da famÃ­lia
+          Resumo da família
         </p>
         <p className="text-sm text-muted-foreground">
-          SÃ­ntese dos principais indicadores familiares.
+          Síntese dos principais indicadores familiares.
         </p>
       </div>
 
@@ -93,20 +93,20 @@ export function FamilySummarySheet() {
 
       <section className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          NÃºcleo familiar
+          Núcleo familiar
         </p>
         {relationsSummary.totalRelations + relationsSummary.livingCount === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhum vÃ­nculo familiar registrado.
+            Nenhum vínculo familiar registrado.
           </p>
         ) : (
           <p>
             Moram juntos: <strong>{relationsSummary.livingCount}</strong>. Fora
-            da residÃªncia: <strong>{relationsSummary.externalCount}</strong>.
-            ResponsÃ¡veis legais:{" "}
+            da residência: <strong>{relationsSummary.externalCount}</strong>.
+            Responsáveis legais:{" "}
             <strong>{relationsSummary.guardiansCount}</strong>. Provedores:{" "}
             <strong>{relationsSummary.providersCount}</strong>. Dependentes:{" "}
-            <strong>{relationsSummary.dependentsCount}</strong>. VÃ­nculos
+            <strong>{relationsSummary.dependentsCount}</strong>. Vínculos
             totais: <strong>{relationsSummary.totalRelations}</strong>.
           </p>
         )}
@@ -136,9 +136,9 @@ export function FamilySummarySheet() {
               .
             </p>
             <p>
-              BenefÃ­cios:{" "}
+              Benefícios:{" "}
               <strong>{formatCurrency(summaryIncome.benefitsTotal)}</strong>.
-              PensÃ£o:{" "}
+              Pensão:{" "}
               <strong>{formatCurrency(summaryIncome.pensionTotal)}</strong>.
               Contribuintes:{" "}
               <strong>{summaryIncome.contributors?.length ?? 0}</strong>.
@@ -157,7 +157,7 @@ export function FamilySummarySheet() {
 
       <section className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          Bens e serviÃ§os
+          Bens e serviços
         </p>
         {assetsSummary.sharedCount + assetsSummary.individualCount === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -181,24 +181,24 @@ export function FamilySummarySheet() {
         {hasHouseholdData ? (
           <>
             <p>
-              Tipo: <strong>{formatValue(profile?.type)}</strong>. CondiÃ§Ã£o:{" "}
+              Tipo: <strong>{formatValue(profile?.type)}</strong>. Condição:{" "}
               <strong>{formatValue(profile?.condition)}</strong>. Propriedade:{" "}
               <strong>{formatValue(profile?.ownership)}</strong>.
             </p>
             <p>
-              Ãrea (mÂ²): <strong>{formatValue(profile?.areaM2)}</strong>. CÃ´modos:{" "}
+              Área (m²): <strong>{formatValue(profile?.areaM2)}</strong>. Cômodos:{" "}
               <strong>{formatValue(profile?.rooms)}</strong>. Banheiros:{" "}
               <strong>{formatValue(profile?.bathrooms)}</strong>.
             </p>
             {profile?.notes ? (
               <p>
-                ObservaÃ§Ãµes: <strong>{profile.notes}</strong>.
+                Observações: <strong>{profile.notes}</strong>.
               </p>
             ) : null}
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Nenhuma informaÃ§Ã£o de moradia cadastrada.
+            Nenhuma informação de moradia cadastrada.
           </p>
         )}
       </section>

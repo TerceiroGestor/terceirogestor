@@ -31,6 +31,8 @@ export function CurrentUserProvider({
   const [user, setUser] = React.useState<CurrentUserProfile | null>(null);
   const [tenant, setTenant] = React.useState<TenantProfile | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const refreshInFlightRef = React.useRef(false);
+  const lastRefreshAtRef = React.useRef(0);
 
   const refresh = React.useCallback(async () => {
     if (!token) {
@@ -38,6 +40,8 @@ export function CurrentUserProvider({
       setTenant(null);
       return;
     }
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     setIsLoading(true);
     try {
       const [userProfile, tenantProfile] = await Promise.all([
@@ -51,12 +55,39 @@ export function CurrentUserProvider({
       setTenant(null);
     } finally {
       setIsLoading(false);
+      refreshInFlightRef.current = false;
     }
   }, [token]);
 
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const refreshIfStale = React.useCallback(() => {
+    if (!token) return;
+    if (refreshInFlightRef.current) return;
+    const now = Date.now();
+    if (now - lastRefreshAtRef.current < 5_000) return;
+    lastRefreshAtRef.current = now;
+    refresh();
+  }, [refresh, token]);
+
+  React.useEffect(() => {
+    if (!token) return;
+
+    const handleFocus = () => refreshIfStale();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshIfStale();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshIfStale, token]);
 
   const permissions = React.useMemo(
     () => user?.permissions ?? [],

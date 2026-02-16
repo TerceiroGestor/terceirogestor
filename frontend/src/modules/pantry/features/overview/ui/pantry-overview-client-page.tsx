@@ -20,7 +20,7 @@ export function PantryOverviewClientPage() {
   if (!model.canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        VocÃª nÃ£o tem permissÃ£o para acessar esta Ã¡rea.
+        Você não tem permissão para acessar esta área.
       </div>
     );
   }

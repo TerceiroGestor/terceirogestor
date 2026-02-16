@@ -28,8 +28,6 @@ export function PeopleDetail({
   const ageValue = getAgeFromBirthDate(person.birthDate);
   const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
   const isTodayBirthday = isBirthdayToday(person.birthDate);
-  const phoneDigits = person.phone ? person.phone.replace(/\D/g, "") : "";
-  const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
   const handleCopy = React.useCallback((value: string) => {
     if (!value) return;
     if (navigator?.clipboard?.writeText) {
@@ -45,7 +43,6 @@ export function PeopleDetail({
             person={person}
             ageLabel={ageLabel}
             isTodayBirthday={isTodayBirthday}
-            whatsappUrl={whatsappUrl}
             onCopy={handleCopy}
           />
         </div>

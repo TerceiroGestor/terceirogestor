@@ -11,6 +11,7 @@ import { PeopleDetail } from "./people-detail";
 import { PeopleFormDialog } from "./people-form-dialog";
 import { Button } from "@/components/ui/button";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { PEOPLE_FORM_TEXT } from "../domain/people.constants";
 
 type PeopleDetailClientPageProps = {
   person: Person;
@@ -34,8 +35,19 @@ export function PeopleDetailClientPage({
 
   const initialValues = React.useMemo<Partial<PersonFormData>>(
     () => ({
-      ...person,
+      fullName: person.fullName,
+      socialName: person.socialName ?? null,
       birthDate: toDateInputValue(person.birthDate),
+      sex: person.sex ?? null,
+      personType: person.personType ?? null,
+      gender: person.gender ?? null,
+      raceColor: person.raceColor ?? null,
+      maritalStatus: person.maritalStatus ?? null,
+      nationality: person.nationality ?? null,
+      tags: person.tags ?? [],
+      profileSummary: person.profileSummary ?? null,
+      status: person.status ?? null,
+      departureReason: person.departureReason ?? null,
       avatarUrl: resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg"),
     }),
     [person],
@@ -82,7 +94,7 @@ export function PeopleDetailClientPage({
           open={formOpen}
           onOpenChange={setFormOpen}
           title="Editar cadastro"
-          description="Atualize os dados da pessoa selecionada."
+          description={PEOPLE_FORM_TEXT.dialogs.editDescription}
           initialValues={initialValues}
           submitLabel="Salvar"
           onSubmit={onUpdate}

@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from '../../modules/users/users.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { EmailModule } from '../email/email.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -16,6 +17,7 @@ import { TotpService } from './mfa/totp.service';
   imports: [
     ConfigModule,
     PrismaModule,
+    EmailModule,
     UsersModule,
     PassportModule,
     JwtModule.registerAsync({
@@ -38,6 +40,3 @@ import { TotpService } from './mfa/totp.service';
   exports: [AuthService],
 })
 export class AuthModule {}
-
-
-

@@ -8,11 +8,6 @@ export type PersonFormData = {
   raceColor?: string | null;
   maritalStatus?: string | null;
   nationality?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  document?: string | null;
-  rg?: string | null;
-  nis?: string | null;
   status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
   personType?: "Atendido" | "Familiar" | null;
   departureReason?: string | null;
@@ -21,11 +16,46 @@ export type PersonFormData = {
   profileSummary?: string | null;
 };
 
-export type Person = Omit<PersonFormData, "avatarUrl"> & {
+export type Person = {
   id: string;
+  fullName: string;
+  socialName?: string | null;
+  birthDate?: string | null;
+  sex?: string | null;
+  gender?: string | null;
+  raceColor?: string | null;
+  maritalStatus?: string | null;
+  nationality?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
+  personType?: "Atendido" | "Familiar" | null;
+  departureReason?: string | null;
+  notes?: string | null;
+  tags?: string[] | null;
+  profileSummary?: string | null;
   avatarUrl?: string | null;
   hasHealthCondition?: boolean | null;
   hasMedication?: boolean | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type PersonContactType = "EMAIL" | "PHONE";
+export type PersonContactRole = "SELF" | "RESPONSIBLE" | "EMERGENCY";
+
+export type PersonContact = {
+  id: string;
+  personId: string;
+  role: PersonContactRole;
+  type: PersonContactType;
+  label?: string | null;
+  name?: string | null;
+  relationship?: string | null;
+  value: string;
+  isPrimary: boolean;
+  isWhatsapp: boolean;
+  notes?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -39,9 +69,6 @@ export type PeopleTableItem = {
   raceColor?: string | null;
   maritalStatus?: string | null;
   nationality?: string | null;
-  document?: string | null;
-  rg?: string | null;
-  nis?: string | null;
   email?: string | null;
   phone?: string | null;
   status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
@@ -204,6 +231,18 @@ export type HouseholdProfile = {
   areaM2?: number | null;
   rooms?: number | null;
   bathrooms?: number | null;
+  cep?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  ibge?: string | null;
+  gia?: string | null;
+  ddd?: string | null;
+  siafi?: string | null;
+  reference?: string | null;
   notes?: string | null;
 };
 
@@ -261,6 +300,50 @@ export type Medication = {
   prescribingDoctor?: string | null;
   permissionDocumentUrl?: string | null;
   documentUrl?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type EducationRecord = {
+  id: string;
+  personId: string;
+  level: string;
+  status?: string | null;
+  institution?: string | null;
+  grade?: string | null;
+  schoolYear?: string | null;
+  isCurrent: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type PersonBenefit = {
+  id: string;
+  personId: string;
+  householdId?: string | null;
+  type: string;
+  status?: string | null;
+  amount?: number | null;
+  frequency: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type PersonDetention = {
+  id: string;
+  personId: string;
+  status: string;
+  type?: string | null;
+  unit?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   notes?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

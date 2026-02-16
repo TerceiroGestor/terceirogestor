@@ -5,6 +5,14 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'people.create', description: 'Criar pessoas' },
   { key: 'people.update', description: 'Atualizar pessoas' },
   { key: 'people.delete', description: 'Excluir pessoas' },
+  {
+    key: 'people.sensitive.read',
+    description: 'Ler documentos sensíveis (LGPD)',
+  },
+  {
+    key: 'people.sensitive.update',
+    description: 'Atualizar documentos sensíveis (LGPD)',
+  },
   { key: 'pantry.read', description: 'Ler despensa' },
   { key: 'pantry.create', description: 'Criar despensa' },
   { key: 'pantry.update', description: 'Atualizar despensa' },

@@ -15,6 +15,7 @@ import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { UsersService } from './users.service';
@@ -36,6 +37,15 @@ export class UsersController {
     @Body() dto: UpdateMyProfileDto,
   ) {
     return this.usersService.updateMyProfile(user.tenantId, user.userId, dto);
+  }
+
+  @Patch('me/password')
+  @UseGuards(JwtAuthGuard)
+  async changeMyPassword(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ChangeMyPasswordDto,
+  ) {
+    return this.usersService.changeMyPassword(user.tenantId, user.userId, dto);
   }
 
   @Get()

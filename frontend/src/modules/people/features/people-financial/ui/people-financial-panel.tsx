@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
@@ -32,45 +32,23 @@ import type { PersonExpense, PersonIncome } from "@/modules/people/shared/domain
 import { usePeopleFinancial } from "@/modules/people/features/people-financial/data/use-people-financial";
 import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
 import type { HouseholdTransfer } from "@/modules/people/shared/domain/types";
-
-const frequencyOptions = [
-  { value: "MONTHLY", label: "Mensal" },
-  { value: "WEEKLY", label: "Semanal" },
-  { value: "BIWEEKLY", label: "Quinzenal" },
-  { value: "ANNUAL", label: "Anual" },
-  { value: "ONCE", label: "Avulso" },
-];
-
-const incomeTypeOptions = [
-  { value: "Salario", label: "Salário" },
-  { value: "Renda extra", label: "Renda extra" },
-  { value: "Pensao", label: "Pensão" },
-  { value: "Bolsa Familia", label: "Bolsa Família" },
-  { value: "Auxilio", label: "Auxílio" },
-  { value: "BPC", label: "BPC" },
-  { value: "Beneficio eventual", label: "Benefício eventual" },
-  { value: "Outro", label: "Outro" },
-];
-
-const contractTypeOptions = [
-  { value: "CLT", label: "CLT" },
-  { value: "PJ", label: "PJ" },
-  { value: "Informal", label: "Informal" },
-  { value: "Autonomo", label: "Autônomo" },
-  { value: "Outro", label: "Outro" },
-];
-
-const transferTypeOptions = [
-  { value: "PENSION", label: "Pensão" },
-  { value: "TRANSFER", label: "Transferência" },
-];
+import {
+  FINANCIAL_CONTRACT_TYPE_OPTIONS,
+  FINANCIAL_EXPENSE_TYPE_OPTIONS,
+  FINANCIAL_FREQUENCY_OPTIONS,
+  FINANCIAL_INCOME_TYPE_OPTIONS,
+  FINANCIAL_TRANSFER_TYPE_OPTIONS,
+} from "@/modules/people/features/people-financial/config/people-financial.constants";
 
 const getFrequencyLabel = (value: string) =>
-  frequencyOptions.find((option) => option.value === value)?.label ?? value;
+  FINANCIAL_FREQUENCY_OPTIONS.find((option) => option.value === value)?.label ??
+  value;
 const getIncomeTypeLabel = (value: string) =>
-  incomeTypeOptions.find((option) => option.value === value)?.label ?? value;
+  FINANCIAL_INCOME_TYPE_OPTIONS.find((option) => option.value === value)?.label ??
+  value;
 const getContractTypeLabel = (value: string) =>
-  contractTypeOptions.find((option) => option.value === value)?.label ?? value;
+  FINANCIAL_CONTRACT_TYPE_OPTIONS.find((option) => option.value === value)
+    ?.label ?? value;
 
 type FinancialFormState = {
   type: string;
@@ -137,9 +115,11 @@ function FinancialDialog({
   );
   const [form, setForm] = useState<FinancialFormState>(formDefaults);
 
-  const incomeTypeValue = useMemo(() => {
-    if (isExpense) return "";
-    const exists = incomeTypeOptions.some((option) => option.value === form.type);
+  const typeValue = useMemo(() => {
+    const options = isExpense
+      ? FINANCIAL_EXPENSE_TYPE_OPTIONS
+      : FINANCIAL_INCOME_TYPE_OPTIONS;
+    const exists = options.some((option) => option.value === form.type);
     return exists ? form.type : "Outro";
   }, [form.type, isExpense]);
 
@@ -182,51 +162,41 @@ function FinancialDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
-          {isExpense ? (
-            <div className="grid gap-2">
-              <Label>Descrição</Label>
+          <div className="grid gap-2">
+            <Label>{isExpense ? "Tipo de gasto" : "Tipo de renda"}</Label>
+            <Select
+              value={typeValue}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  type: value === "Outro" ? "" : value,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {(isExpense
+                  ? FINANCIAL_EXPENSE_TYPE_OPTIONS
+                  : FINANCIAL_INCOME_TYPE_OPTIONS
+                ).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {typeValue === "Outro" ? (
               <Input
                 value={form.type}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, type: event.target.value }))
                 }
-                placeholder="Ex: Aluguel, mercado"
+                placeholder={isExpense ? "Descreva o gasto" : "Descreva a renda"}
               />
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              <Label>Tipo de renda</Label>
-              <Select
-                value={incomeTypeValue}
-                onValueChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    type: value === "Outro" ? "" : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {incomeTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {incomeTypeValue === "Outro" ? (
-                <Input
-                  value={form.type}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, type: event.target.value }))
-                  }
-                  placeholder="Descreva a renda"
-                />
-              ) : null}
-            </div>
-          )}
+            ) : null}
+          </div>
           <div className="grid gap-2">
             <Label>Valor</Label>
             <Input
@@ -248,16 +218,16 @@ function FinancialDialog({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {frequencyOptions.map((option) => (
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+                {FINANCIAL_FREQUENCY_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
+            </SelectContent>
+          </Select>
           </div>
           {!isExpense ? (
             <div className="grid gap-2">
@@ -272,7 +242,7 @@ function FinancialDialog({
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  {contractTypeOptions.map((option) => (
+                  {FINANCIAL_CONTRACT_TYPE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -490,7 +460,7 @@ function TransferDialog({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {transferTypeOptions.map((option) => (
+                {FINANCIAL_TRANSFER_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -522,7 +492,7 @@ function TransferDialog({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {frequencyOptions.map((option) => (
+                {FINANCIAL_FREQUENCY_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -558,23 +528,97 @@ type PeopleFinancialPanelProps = {
 };
 
 export function PeopleFinancialPanel({ personId }: PeopleFinancialPanelProps) {
-  const { data: familyData, loadDetailed } = useFamilyRelationsContext();
+  const { data: familyData, loadDetailed, refresh: refreshFamily } =
+    useFamilyRelationsContext();
   const {
     incomes,
     expenses,
     transfers,
     isLoading,
     error,
-    createIncome,
-    updateIncome,
-    deleteIncome,
-    createExpense,
-    updateExpense,
-    deleteExpense,
-    createTransfer,
-    updateTransfer,
-    deleteTransfer,
+    createIncome: createIncomeRaw,
+    updateIncome: updateIncomeRaw,
+    deleteIncome: deleteIncomeRaw,
+    createExpense: createExpenseRaw,
+    updateExpense: updateExpenseRaw,
+    deleteExpense: deleteExpenseRaw,
+    createTransfer: createTransferRaw,
+    updateTransfer: updateTransferRaw,
+    deleteTransfer: deleteTransferRaw,
   } = usePeopleFinancial(personId);
+
+  const createIncome = useCallback(
+    async (payload: Parameters<typeof createIncomeRaw>[0]) => {
+      await createIncomeRaw(payload);
+      await refreshFamily();
+    },
+    [createIncomeRaw, refreshFamily],
+  );
+  const updateIncome = useCallback(
+    async (
+      incomeId: string,
+      payload: Parameters<typeof updateIncomeRaw>[1],
+    ) => {
+      await updateIncomeRaw(incomeId, payload);
+      await refreshFamily();
+    },
+    [updateIncomeRaw, refreshFamily],
+  );
+  const deleteIncome = useCallback(
+    async (incomeId: string) => {
+      await deleteIncomeRaw(incomeId);
+      await refreshFamily();
+    },
+    [deleteIncomeRaw, refreshFamily],
+  );
+  const createExpense = useCallback(
+    async (payload: Parameters<typeof createExpenseRaw>[0]) => {
+      await createExpenseRaw(payload);
+      await refreshFamily();
+    },
+    [createExpenseRaw, refreshFamily],
+  );
+  const updateExpense = useCallback(
+    async (
+      expenseId: string,
+      payload: Parameters<typeof updateExpenseRaw>[1],
+    ) => {
+      await updateExpenseRaw(expenseId, payload);
+      await refreshFamily();
+    },
+    [updateExpenseRaw, refreshFamily],
+  );
+  const deleteExpense = useCallback(
+    async (expenseId: string) => {
+      await deleteExpenseRaw(expenseId);
+      await refreshFamily();
+    },
+    [deleteExpenseRaw, refreshFamily],
+  );
+  const createTransfer = useCallback(
+    async (payload: Parameters<typeof createTransferRaw>[0]) => {
+      await createTransferRaw(payload);
+      await refreshFamily();
+    },
+    [createTransferRaw, refreshFamily],
+  );
+  const updateTransfer = useCallback(
+    async (
+      transferId: string,
+      payload: Parameters<typeof updateTransferRaw>[1],
+    ) => {
+      await updateTransferRaw(transferId, payload);
+      await refreshFamily();
+    },
+    [updateTransferRaw, refreshFamily],
+  );
+  const deleteTransfer = useCallback(
+    async (transferId: string) => {
+      await deleteTransferRaw(transferId);
+      await refreshFamily();
+    },
+    [deleteTransferRaw, refreshFamily],
+  );
 
   useEffect(() => {
     if (!familyData) {

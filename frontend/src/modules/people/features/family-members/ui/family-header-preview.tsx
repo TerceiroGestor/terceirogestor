@@ -30,20 +30,20 @@ export function FamilyHeaderPreview() {
     if (!relationsSummary) {
       return (
         <p className="text-xs text-muted-foreground">
-          Sem resumo familiar disponÃ­vel.
+          Sem resumo familiar disponível.
         </p>
       );
     }
     if (relationsSummary.totalRelations + relationsSummary.livingCount === 0) {
       return (
         <p className="text-xs text-muted-foreground">
-          Nenhum vÃ­nculo familiar registrado.
+          Nenhum vínculo familiar registrado.
         </p>
       );
     }
     return (
       <p className="text-xs text-muted-foreground">
-        Moram juntos: {relationsSummary.livingCount} â€¢ Fora da residÃªncia:{" "}
+        Moram juntos: {relationsSummary.livingCount} • Fora da residência:{" "}
         {relationsSummary.externalCount}
       </p>
     );

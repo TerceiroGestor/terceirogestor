@@ -18,8 +18,11 @@ import {
   ClipboardList,
   FileText,
   FolderOpen,
+  GraduationCap,
+  HandCoins,
   HeartPulse,
   History,
+  Lock,
   Pill,
   User,
   UserRound,
@@ -94,29 +97,47 @@ const tabGroups: TabGroup[] = [
     ],
   },
   {
-    label: "Financeiro",
-    items: [
-      {
-        value: "financeiro",
-        label: "Renda e gastos",
-        icon: Wallet,
-        disabled: false,
-      },
-    ],
-  },
-  {
-    label: "SaÃºde",
+    label: "Saúde",
     items: [
       {
         value: "saude",
-        label: "CondiÃ§Ãµes",
+        label: "Condições",
         icon: HeartPulse,
         disabled: false,
       },
       {
         value: "medicacoes",
-        label: "MedicaÃ§Ãµes",
+        label: "Medicações",
         icon: Pill,
+        disabled: false,
+      },
+    ],
+  },
+  {
+    label: "Condições",
+    items: [
+      {
+        value: "financeiro",
+        label: "Financeiro",
+        icon: Wallet,
+        disabled: false,
+      },
+      {
+        value: "escolaridade",
+        label: "Escolaridade",
+        icon: GraduationCap,
+        disabled: false,
+      },
+      {
+        value: "beneficios",
+        label: "Benefícios",
+        icon: HandCoins,
+        disabled: false,
+      },
+      {
+        value: "reclusao",
+        label: "Reclusão",
+        icon: Lock,
         disabled: false,
       },
     ],
@@ -156,6 +177,10 @@ export function PeopleDetailTabs({
   person,
 }: PeopleDetailTabsProps) {
   const current = allItems.find((item) => item.value === value) ?? allItems[0];
+  const currentGroup = tabGroups.find((group) => group.label === current.group);
+  const shouldShowGroupLabel = Boolean(
+    currentGroup && currentGroup.items.length > 1,
+  );
   const { token } = useAuth();
   const {
     data,
@@ -347,7 +372,9 @@ export function PeopleDetailTabs({
             size="sm"
             className="h-8 gap-2 px-3 text-xs"
           >
-            <span className="text-muted-foreground">{current.group}</span>
+            {shouldShowGroupLabel ? (
+              <span className="text-muted-foreground">{current.group}</span>
+            ) : null}
             <span className="font-medium text-foreground">{current.label}</span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </Button>
@@ -356,9 +383,11 @@ export function PeopleDetailTabs({
           <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
             {tabGroups.map((group, groupIndex) => (
               <Fragment key={group.label}>
-                <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {group.label}
-                </DropdownMenuLabel>
+                {group.items.length > 1 ? (
+                  <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                  </DropdownMenuLabel>
+                ) : null}
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   return (

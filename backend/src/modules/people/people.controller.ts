@@ -26,16 +26,25 @@ import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonMedicationDto } from './dto/create-person-medication.dto';
 import { CreatePersonRelationDto } from './dto/create-person-relation.dto';
 import { CreateHouseholdTransferDto } from './dto/create-household-transfer.dto';
+import { CreatePersonContactDto } from './dto/create-person-contact.dto';
+import { CreatePersonEducationDto } from './dto/create-person-education.dto';
+import { CreatePersonBenefitDto } from './dto/create-person-benefit.dto';
+import { CreatePersonDetentionDto } from './dto/create-person-detention.dto';
 import { ListPeopleQueryDto } from './dto/list-people-query.dto';
 import { UpdateHouseholdAssetDto } from './dto/update-household-asset.dto';
 import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
+import { UpdatePersonContactDto } from './dto/update-person-contact.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
 import { UpdatePersonHealthConditionDto } from './dto/update-person-health-condition.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonMedicationDto } from './dto/update-person-medication.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
+import { UpsertPersonSensitiveDocumentsDto } from './dto/upsert-person-sensitive-documents.dto';
 import { UpdateHouseholdTransferDto } from './dto/update-household-transfer.dto';
+import { UpdatePersonEducationDto } from './dto/update-person-education.dto';
+import { UpdatePersonBenefitDto } from './dto/update-person-benefit.dto';
+import { UpdatePersonDetentionDto } from './dto/update-person-detention.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
 import { PeopleService } from './people.service';
 
@@ -83,6 +92,73 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.update(tenantId, id, dto);
+  }
+
+  @Get(':id/sensitive-documents')
+  @Permissions('people.sensitive.read')
+  async getSensitiveDocuments(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.getSensitiveDocuments(tenantId, id);
+  }
+
+  @Put(':id/sensitive-documents')
+  @Permissions('people.sensitive.update')
+  async upsertSensitiveDocuments(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: UpsertPersonSensitiveDocumentsDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.upsertSensitiveDocuments(tenantId, id, dto);
+  }
+
+  @Get(':id/contacts')
+  @Permissions('people.read')
+  async listContacts(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listContacts(tenantId, id);
+  }
+
+  @Post(':id/contacts')
+  @Permissions('people.update')
+  async createContact(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonContactDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createContact(tenantId, id, dto);
+  }
+
+  @Patch(':id/contacts/:contactId')
+  @Permissions('people.update')
+  async updateContact(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('contactId', new ParseUUIDPipe({ version: '4' }))
+    contactId: string,
+    @Body() dto: UpdatePersonContactDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateContact(tenantId, id, contactId, dto);
+  }
+
+  @Delete(':id/contacts/:contactId')
+  @Permissions('people.update')
+  async removeContact(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('contactId', new ParseUUIDPipe({ version: '4' }))
+    contactId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeContact(tenantId, id, contactId);
   }
 
   @Get(':id/incomes')
@@ -277,6 +353,144 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.removeMedication(tenantId, id, medicationId);
+  }
+
+  @Get(':id/educations')
+  @Permissions('people.read')
+  async listEducations(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listEducations(tenantId, id);
+  }
+
+  @Post(':id/educations')
+  @Permissions('people.update')
+  async createEducation(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonEducationDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createEducation(tenantId, id, dto);
+  }
+
+  @Patch(':id/educations/:educationId')
+  @Permissions('people.update')
+  async updateEducation(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('educationId', new ParseUUIDPipe({ version: '4' }))
+    educationId: string,
+    @Body() dto: UpdatePersonEducationDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateEducation(tenantId, id, educationId, dto);
+  }
+
+  @Delete(':id/educations/:educationId')
+  @Permissions('people.update')
+  async removeEducation(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('educationId', new ParseUUIDPipe({ version: '4' }))
+    educationId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeEducation(tenantId, id, educationId);
+  }
+
+  @Get(':id/benefits')
+  @Permissions('people.read')
+  async listBenefits(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listBenefits(tenantId, id);
+  }
+
+  @Post(':id/benefits')
+  @Permissions('people.update')
+  async createBenefit(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonBenefitDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createBenefit(tenantId, id, dto);
+  }
+
+  @Patch(':id/benefits/:benefitId')
+  @Permissions('people.update')
+  async updateBenefit(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('benefitId', new ParseUUIDPipe({ version: '4' }))
+    benefitId: string,
+    @Body() dto: UpdatePersonBenefitDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateBenefit(tenantId, id, benefitId, dto);
+  }
+
+  @Delete(':id/benefits/:benefitId')
+  @Permissions('people.update')
+  async removeBenefit(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('benefitId', new ParseUUIDPipe({ version: '4' }))
+    benefitId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeBenefit(tenantId, id, benefitId);
+  }
+
+  @Get(':id/detentions')
+  @Permissions('people.read')
+  async listDetentions(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listDetentions(tenantId, id);
+  }
+
+  @Post(':id/detentions')
+  @Permissions('people.update')
+  async createDetention(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonDetentionDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createDetention(tenantId, id, dto);
+  }
+
+  @Patch(':id/detentions/:detentionId')
+  @Permissions('people.update')
+  async updateDetention(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('detentionId', new ParseUUIDPipe({ version: '4' }))
+    detentionId: string,
+    @Body() dto: UpdatePersonDetentionDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateDetention(tenantId, id, detentionId, dto);
+  }
+
+  @Delete(':id/detentions/:detentionId')
+  @Permissions('people.update')
+  async removeDetention(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('detentionId', new ParseUUIDPipe({ version: '4' }))
+    detentionId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeDetention(tenantId, id, detentionId);
   }
 
   @Get(':id/transfers')

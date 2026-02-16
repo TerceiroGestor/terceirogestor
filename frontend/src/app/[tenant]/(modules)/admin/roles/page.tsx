@@ -40,6 +40,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 const MODULE_LABELS: Record<string, string> = {
   people: "Pessoas",
+  "people.sensitive": "Pessoas • Dados sensíveis (LGPD)",
   pantry: "Despensa",
   users: "Usuarios",
   tenants: "Instituicao",
@@ -69,7 +70,10 @@ type RoleModuleRow = {
 const buildModulesFromPermissions = (permissions: PermissionSummary[]) => {
   const moduleMap = new Map<string, Set<string>>();
   permissions.forEach((permission) => {
-    const [moduleKey, action] = permission.key.split(".");
+    const parts = permission.key.split(".");
+    if (parts.length < 2) return;
+    const action = parts[parts.length - 1];
+    const moduleKey = parts.slice(0, -1).join(".");
     if (!moduleKey || !action) return;
     const actions = moduleMap.get(moduleKey) ?? new Set<string>();
     actions.add(action);
@@ -105,7 +109,7 @@ const buildRoleRows = (roles: RoleSummary[], modules: ModuleDefinition[]) =>
 
 export default function AdminRolesPage() {
   const { token } = useAuth();
-  const { permissions } = useCurrentUser();
+  const { permissions, refresh: refreshCurrentUser } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
 
   const [roles, setRoles] = React.useState<RoleSummary[]>([]);
@@ -281,6 +285,7 @@ export default function AdminRolesPage() {
     }
     setDialogOpen(false);
     setEditingRole(null);
+    await refreshCurrentUser();
     await loadData();
   };
 
@@ -332,6 +337,7 @@ export default function AdminRolesPage() {
                 );
                 if (!confirmed) return;
                 await deleteRole(token, roleId);
+                await refreshCurrentUser();
                 await loadData();
               },
             },

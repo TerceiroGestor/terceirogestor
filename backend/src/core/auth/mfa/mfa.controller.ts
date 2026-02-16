@@ -1,4 +1,12 @@
-import { BadRequestException, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from '../auth.service';
 import { CurrentUser } from '../decorators/current-user.decorator';
@@ -9,7 +17,10 @@ import {
   getRequestMeta,
   REFRESH_COOKIE_NAME,
 } from '../http/auth-http';
-import { TRUSTED_DEVICE_COOKIE_NAME, TRUSTED_DEVICE_DAYS } from './mfa.constants';
+import {
+  TRUSTED_DEVICE_COOKIE_NAME,
+  TRUSTED_DEVICE_DAYS,
+} from './mfa.constants';
 import { ConfirmTotpDto } from './dto/confirm-totp.dto';
 import { DisableTotpDto } from './dto/disable-totp.dto';
 import { VerifyMfaDto } from './dto/verify-mfa.dto';

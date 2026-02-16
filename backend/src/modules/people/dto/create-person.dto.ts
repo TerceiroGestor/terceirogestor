@@ -61,18 +61,6 @@ export class CreatePersonDto {
 
   @IsOptional()
   @IsString()
-  document?: string | null;
-
-  @IsOptional()
-  @IsString()
-  rg?: string | null;
-
-  @IsOptional()
-  @IsString()
-  nis?: string | null;
-
-  @IsOptional()
-  @IsString()
   @IsIn(STATUS_OPTIONS)
   status?: string | null;
 
