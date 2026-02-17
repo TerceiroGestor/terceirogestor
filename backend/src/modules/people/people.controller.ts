@@ -693,6 +693,16 @@ export class PeopleController {
     return this.peopleService.listRelations(tenantId, id);
   }
 
+  @Get(':id/identity')
+  @Permissions('people.identity.read')
+  async getIdentity(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.getIdentity(tenantId, id);
+  }
+
   @Get(':id/relations-tree')
   @Permissions('people.read')
   async listRelationsTree(

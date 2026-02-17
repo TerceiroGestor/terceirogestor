@@ -1,5 +1,10 @@
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiPerson, PeopleListResponse, PersonInput } from "./types";
+import type {
+  ApiPerson,
+  ApiPersonIdentityResponse,
+  PeopleListResponse,
+  PersonInput,
+} from "./types";
 
 export async function listPeople(
   token: string,
@@ -18,6 +23,10 @@ export async function listPeople(
 
 export async function getPerson(token: string, id: string) {
   return apiRequest<ApiPerson>(`/people/${id}`, {}, token);
+}
+
+export async function getPersonIdentity(token: string, id: string) {
+  return apiRequest<ApiPersonIdentityResponse>(`/people/${id}/identity`, {}, token);
 }
 
 export async function createPerson(token: string, payload: PersonInput) {
@@ -55,4 +64,3 @@ export async function deletePerson(token: string, id: string) {
     token,
   );
 }
-

@@ -18,6 +18,10 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'enrollments.update', description: 'Atualizar matrículas de projetos' },
   { key: 'enrollments.delete', description: 'Excluir matrículas de projetos' },
   { key: 'people.read', description: 'Ler pessoas' },
+  {
+    key: 'people.identity.read',
+    description: 'Ler sinais de identificaÃ§Ã£o (saÃºde, medicaÃ§Ã£o, familiares)',
+  },
   { key: 'people.create', description: 'Criar pessoas' },
   { key: 'people.update', description: 'Atualizar pessoas' },
   { key: 'people.delete', description: 'Excluir pessoas' },

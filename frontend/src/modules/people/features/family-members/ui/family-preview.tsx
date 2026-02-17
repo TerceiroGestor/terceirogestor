@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCurrentUser } from "@/features/auth/current-user-context";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
@@ -20,6 +21,8 @@ export type FamilyPreviewMember = {
 export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
+  const { permissions } = useCurrentUser();
+  const canReadPeople = permissions.includes("people.read");
   if (!members.length) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -34,7 +37,7 @@ export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
         {members.map((member) => (
           <div key={member.name} className="flex items-center gap-2">
             <div className="text-xs text-right">
-              {member.id ? (
+              {member.id && canReadPeople ? (
                 <Link
                   href={withTenantPath(`/people/${member.id}`, tenantSlug)}
                   className="font-medium text-foreground hover:text-foreground/80"

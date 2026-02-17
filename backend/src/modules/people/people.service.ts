@@ -2672,6 +2672,119 @@ export class PeopleService {
     };
   }
 
+  async getIdentity(tenantId: string, personId: string) {
+    const person = await this.prisma.person.findFirst({
+      where: { tenantId, id: personId },
+      select: {
+        id: true,
+        fullName: true,
+        socialName: true,
+        birthDate: true,
+        avatarUrl: true,
+        _count: {
+          select: {
+            healthConditions: true,
+            medications: true,
+          },
+        },
+      },
+    });
+    if (!person) throw new NotFoundException('Pessoa nao encontrada.');
+
+    const hasHealthCondition = person._count.healthConditions > 0;
+    const hasMedication = person._count.medications > 0;
+
+    const householdMember = await this.prisma.householdMember.findFirst({
+      where: { tenantId, personId, endDate: null },
+      select: { householdId: true },
+    });
+
+    const householdMembers = householdMember?.householdId
+      ? await this.prisma.householdMember.findMany({
+          where: {
+            tenantId,
+            householdId: householdMember.householdId,
+            endDate: null,
+          },
+          select: {
+            role: true,
+            person: {
+              select: {
+                id: true,
+                fullName: true,
+                socialName: true,
+                birthDate: true,
+                avatarUrl: true,
+                _count: { select: { healthConditions: true, medications: true } },
+              },
+            },
+          },
+        })
+      : [];
+
+    const livingTogether = householdMembers
+      .filter((member) => member.person.id !== personId)
+      .map((member) => ({
+        id: member.person.id,
+        fullName: member.person.fullName,
+        socialName: member.person.socialName ?? null,
+        birthDate: member.person.birthDate ?? null,
+        avatarUrl: member.person.avatarUrl ?? null,
+        role: member.role ?? 'Morador',
+        hasHealthCondition: member.person._count.healthConditions > 0,
+        hasMedication: member.person._count.medications > 0,
+      }));
+
+    const livingIds = new Set(livingTogether.map((member) => member.id));
+
+    const relations = await this.prisma.personRelation.findMany({
+      where: { tenantId, personId, livesTogether: false },
+      select: {
+        relatedPersonId: true,
+        type: true,
+        relatedPerson: {
+          select: {
+            id: true,
+            fullName: true,
+            socialName: true,
+            birthDate: true,
+            avatarUrl: true,
+            _count: { select: { healthConditions: true, medications: true } },
+          },
+        },
+      },
+    });
+
+    const notLivingTogether = relations
+      .filter((relation) => !livingIds.has(relation.relatedPersonId))
+      .map((relation) => ({
+        id: relation.relatedPerson.id,
+        fullName: relation.relatedPerson.fullName,
+        socialName: relation.relatedPerson.socialName ?? null,
+        birthDate: relation.relatedPerson.birthDate ?? null,
+        avatarUrl: relation.relatedPerson.avatarUrl ?? null,
+        role: relation.type,
+        hasHealthCondition: relation.relatedPerson._count.healthConditions > 0,
+        hasMedication: relation.relatedPerson._count.medications > 0,
+      }));
+
+    return {
+      person: {
+        id: person.id,
+        fullName: person.fullName,
+        socialName: person.socialName ?? null,
+        birthDate: person.birthDate ?? null,
+        avatarUrl: person.avatarUrl ?? null,
+        hasHealthCondition,
+        hasMedication,
+      },
+      family: {
+        livingTogether,
+        notLivingTogether,
+      },
+    };
+  }
+
   async listRelationsTree(tenantId: string, personId: string, depth = 2) {
     const root = await this.prisma.person.findFirst({
       where: { id: personId, tenantId },

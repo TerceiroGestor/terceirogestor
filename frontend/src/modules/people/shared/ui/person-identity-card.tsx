@@ -24,6 +24,8 @@ import {
   useFamilyRelationsContext,
 } from "@/modules/people/features/family-members/context/family-relations-context";
 import { FamilyPreview } from "@/modules/people/features/family-members/ui/family-preview";
+import { useAuth } from "@/features/auth/auth-context";
+import { useCurrentUser } from "@/features/auth/current-user-context";
 import { resolveMediaUrl } from "@/lib/api";
 import {
   getAgeFromBirthDate,
@@ -32,6 +34,10 @@ import {
   resolvePersonDisplayNames,
 } from "@/modules/people/shared/domain/utils";
 import { withTenantPath } from "@/lib/tenant-path";
+import {
+  getPersonIdentity,
+  type ApiPersonIdentityResponse,
+} from "@/modules/people/api";
 
 export type PersonIdentityCardProps = {
   personId?: string;
@@ -44,6 +50,7 @@ export type PersonIdentityCardProps = {
   hasHealthCondition?: boolean | null;
   hasMedication?: boolean | null;
   isBirthdayToday?: boolean | null;
+  showDetailsLink?: boolean;
 };
 
 export function PersonIdentityCard({
@@ -57,6 +64,7 @@ export function PersonIdentityCard({
   hasHealthCondition,
   hasMedication,
   isBirthdayToday: isBirthdayTodayProp,
+  showDetailsLink = true,
 }: PersonIdentityCardProps) {
   const { primary, secondary } = resolvePersonDisplayNames(
     fullName,
@@ -94,7 +102,7 @@ export function PersonIdentityCard({
               {resolvedAgeLabel}
             </div>
           </div>
-          {personId ? (
+          {personId && showDetailsLink ? (
             <Link
               href={withTenantPath(`/people/${personId}`, tenantSlug)}
               className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground transition hover:text-foreground"
@@ -139,6 +147,22 @@ type PersonIdentityDialogProps = PersonIdentityCardProps & {
   title?: string;
   subtitle?: string;
 };
+
+function mapIdentityMembersToPreview(
+  members: ApiPersonIdentityResponse["family"]["livingTogether"],
+) {
+  return members.map((member) => ({
+    id: member.id,
+    name: resolvePersonDisplayNames(member.fullName, member.socialName).primary,
+    fullName: member.fullName,
+    socialName: member.socialName ?? null,
+    birthDate: member.birthDate ?? null,
+    role: member.role,
+    avatarUrl: member.avatarUrl ?? null,
+    hasHealthCondition: member.hasHealthCondition,
+    hasMedication: member.hasMedication,
+  }));
+}
 
 function PersonIdentityRelationsFooter() {
   const { data, detailedLoading } = useFamilyRelationsContext();
@@ -216,17 +240,108 @@ export function PersonIdentityDialog({
   subtitle = "Perfil da pessoa",
   ...cardProps
 }: PersonIdentityDialogProps) {
+  const { token } = useAuth();
+  const { permissions } = useCurrentUser();
+  const canReadPeople = permissions.includes("people.read");
+  const canReadIdentity =
+    canReadPeople || permissions.includes("people.identity.read");
+
+  const [open, setOpen] = React.useState(false);
+  const [identity, setIdentity] = React.useState<ApiPersonIdentityResponse | null>(
+    null,
+  );
+  const [identityLoading, setIdentityLoading] = React.useState(false);
+  const [identityError, setIdentityError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (!token) return;
+    if (!cardProps.personId) return;
+    if (canReadPeople) return;
+    if (!canReadIdentity) return;
+
+    setIdentityLoading(true);
+    setIdentityError(null);
+    getPersonIdentity(token, cardProps.personId)
+      .then((data) => setIdentity(data))
+      .catch((err) => {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar sinalizações.";
+        setIdentityError(message);
+      })
+      .finally(() => setIdentityLoading(false));
+  }, [open, token, cardProps.personId, canReadPeople, canReadIdentity]);
+
+  const resolvedCardProps: PersonIdentityCardProps = identity?.person
+    ? {
+        ...cardProps,
+        fullName: identity.person.fullName,
+        socialName: identity.person.socialName ?? null,
+        birthDate: identity.person.birthDate ?? null,
+        avatarUrl: identity.person.avatarUrl ?? null,
+        hasHealthCondition: identity.person.hasHealthCondition,
+        hasMedication: identity.person.hasMedication,
+      }
+    : cardProps;
+
+  const securedCardProps: PersonIdentityCardProps = canReadIdentity
+    ? resolvedCardProps
+    : {
+        ...resolvedCardProps,
+        birthDate: null,
+        ageLabel: null,
+        hasHealthCondition: false,
+        hasMedication: false,
+      };
+
   const relationsFooter = cardProps.personId ? (
-    <FamilyRelationsProvider
-      personId={cardProps.personId}
-      initialMode="detailed"
-    >
-      <PersonIdentityRelationsFooter />
-    </FamilyRelationsProvider>
+    canReadPeople ? (
+      <FamilyRelationsProvider
+        personId={cardProps.personId}
+        initialMode="detailed"
+      >
+        <PersonIdentityRelationsFooter />
+      </FamilyRelationsProvider>
+    ) : canReadIdentity ? (
+      identityLoading ? (
+        <p className="text-xs text-muted-foreground">
+          Carregando relacionamentos...
+        </p>
+      ) : identityError ? (
+        <p className="text-xs text-destructive">{identityError}</p>
+      ) : identity ? (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Moram juntos
+            </p>
+            <FamilyPreview
+              members={mapIdentityMembersToPreview(identity.family.livingTogether)}
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Nao moram juntos
+            </p>
+            <FamilyPreview
+              members={mapIdentityMembersToPreview(
+                identity.family.notLivingTogether,
+              )}
+            />
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Sem familiares registrados.
+        </p>
+      )
+    ) : null
   ) : null;
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
         className="max-w-2xl border-none bg-transparent p-0 shadow-none sm:max-w-2xl"
@@ -254,7 +369,10 @@ export function PersonIdentityDialog({
             </DialogClose>
           </div>
           <div className="mt-4">
-            <PersonIdentityCard {...cardProps} />
+            <PersonIdentityCard
+              {...securedCardProps}
+              showDetailsLink={canReadPeople}
+            />
           </div>
           {relationsFooter ? (
             <div className="mt-4 rounded-2xl border border-border/60 bg-muted/20 px-3 py-3">
@@ -281,48 +399,54 @@ export function PersonIdentityAvatarTrigger({
   tooltipClassName,
   ...cardProps
 }: PersonIdentityAvatarTriggerProps) {
+  const { permissions } = useCurrentUser();
+  const canOpenDialog =
+    !cardProps.personId ||
+    permissions.includes("people.read") ||
+    permissions.includes("people.identity.read");
   const { fullName, socialName, avatarUrl } = cardProps;
   const displayNames = resolvePersonDisplayNames(fullName, socialName);
   const avatarSrc = resolveMediaUrl(avatarUrl || "/avatar.jpg");
 
-  return (
-    <PersonIdentityDialog
-      {...cardProps}
-      trigger={(
-        <button
-          type="button"
+  const triggerNode = (
+    <button
+      type="button"
+      disabled={!canOpenDialog}
+      className={[
+        "group relative rounded-full outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        canOpenDialog ? "hover:opacity-90" : "cursor-default opacity-90",
+        buttonClassName,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={
+        canOpenDialog
+          ? "Ver identificacao da pessoa"
+          : "Sem permissao para ver identificacao"
+      }
+    >
+      <Avatar className={["h-9 w-9", avatarClassName].filter(Boolean).join(" ")}>
+        <AvatarImage src={avatarSrc} />
+        <AvatarFallback>{getInitials(displayNames.primary)}</AvatarFallback>
+      </Avatar>
+      {tooltipLabel && canOpenDialog ? (
+        <span
           className={[
-            "group relative rounded-full outline-none ring-offset-background transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            buttonClassName,
+            "pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100",
+            tooltipClassName,
           ]
             .filter(Boolean)
             .join(" ")}
-          aria-label="Ver identificacao da pessoa"
         >
-          <Avatar
-            className={["h-9 w-9", avatarClassName].filter(Boolean).join(" ")}
-          >
-            <AvatarImage src={avatarSrc} />
-            <AvatarFallback>
-              {getInitials(displayNames.primary)}
-            </AvatarFallback>
-          </Avatar>
-          {tooltipLabel ? (
-            <span
-              className={[
-                "pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100",
-                tooltipClassName,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {tooltipLabel}
-            </span>
-          ) : null}
-        </button>
-      )}
-    />
+          {tooltipLabel}
+        </span>
+      ) : null}
+    </button>
   );
+
+  if (!canOpenDialog) return triggerNode;
+
+  return <PersonIdentityDialog {...cardProps} trigger={triggerNode} />;
 }
 
 

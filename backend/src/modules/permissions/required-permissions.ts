@@ -1,5 +1,6 @@
 export const REQUIRED_PERMISSIONS = [
   { key: 'people.read', description: 'Ler pessoas' },
+  { key: 'people.identity.read', description: 'Ler sinais de identificação de pessoas' },
   { key: 'people.create', description: 'Criar pessoas' },
   { key: 'people.update', description: 'Atualizar pessoas' },
   { key: 'people.delete', description: 'Excluir pessoas' },

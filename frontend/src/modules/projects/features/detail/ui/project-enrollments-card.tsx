@@ -151,7 +151,8 @@ export function ProjectEnrollmentsCard({
                 fullName={row.original.person.fullName}
                 birthDate={row.original.person.birthDate ?? null}
                 avatarUrl={row.original.person.avatarUrl}
-                isBirthdayToday={false}
+                hasHealthCondition={row.original.person.hasHealthCondition}
+                hasMedication={row.original.person.hasMedication}
               />
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">

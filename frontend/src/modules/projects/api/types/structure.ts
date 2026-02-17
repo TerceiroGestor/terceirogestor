@@ -32,6 +32,8 @@ export type ApiEnrollmentPerson = {
   sex?: string | null;
   gender?: string | null;
   raceColor?: string | null;
+  hasHealthCondition?: boolean | null;
+  hasMedication?: boolean | null;
 };
 
 export type ApiProjectEnrollment = {

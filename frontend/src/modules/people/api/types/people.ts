@@ -75,3 +75,29 @@ export type ApiPersonSummary = {
   hasMedication?: boolean | null;
 };
 
+export type ApiPersonIdentityMember = {
+  id: string;
+  fullName: string;
+  socialName: string | null;
+  birthDate: string | null;
+  avatarUrl: string | null;
+  role: string;
+  hasHealthCondition: boolean;
+  hasMedication: boolean;
+};
+
+export type ApiPersonIdentityResponse = {
+  person: {
+    id: string;
+    fullName: string;
+    socialName: string | null;
+    birthDate: string | null;
+    avatarUrl: string | null;
+    hasHealthCondition: boolean;
+    hasMedication: boolean;
+  };
+  family: {
+    livingTogether: ApiPersonIdentityMember[];
+    notLivingTogether: ApiPersonIdentityMember[];
+  };
+};

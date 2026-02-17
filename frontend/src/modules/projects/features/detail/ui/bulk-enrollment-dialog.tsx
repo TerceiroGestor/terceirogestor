@@ -91,7 +91,6 @@ export function BulkEnrollmentDialog({
               avatarUrl={row.original.avatarUrl}
               hasHealthCondition={row.original.hasHealthCondition ?? false}
               hasMedication={row.original.hasMedication ?? false}
-              isBirthdayToday={false}
             />
             <div className="leading-tight">
               {(() => {

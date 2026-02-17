@@ -32,8 +32,19 @@ export class ProjectStructureService {
   ) {
     const groups = (enrollment.groupMemberships ?? []).map((m) => m.group);
     const cycle = (enrollment.cycleParticipations ?? [])[0]?.cycle ?? null;
+    const person = (enrollment as any).person;
+    const withPersonFlags =
+      person && person._count
+        ? {
+            ...person,
+            hasHealthCondition: (person._count.healthConditions ?? 0) > 0,
+            hasMedication: (person._count.medications ?? 0) > 0,
+            _count: undefined,
+          }
+        : person;
     return {
       ...enrollment,
+      ...(person ? { person: withPersonFlags } : {}),
       groups,
       cycle,
       groupMemberships: undefined,
@@ -278,6 +289,7 @@ export class ProjectStructureService {
               sex: true,
               gender: true,
               raceColor: true,
+              _count: { select: { healthConditions: true, medications: true } },
             },
           },
           groupMemberships: {
@@ -533,6 +545,7 @@ export class ProjectStructureService {
             sex: true,
             gender: true,
             raceColor: true,
+            _count: { select: { healthConditions: true, medications: true } },
           },
         },
         groupMemberships: {
@@ -616,6 +629,7 @@ export class ProjectStructureService {
             sex: true,
             gender: true,
             raceColor: true,
+            _count: { select: { healthConditions: true, medications: true } },
           },
         },
         groupMemberships: {
