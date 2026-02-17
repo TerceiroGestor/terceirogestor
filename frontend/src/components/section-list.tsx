@@ -16,6 +16,7 @@ type SectionListItemProps = {
   actions?: ReactNode;
   showActionsOnHover?: boolean;
   inlineActions?: boolean;
+  onClick?: () => void;
   className?: string;
   actionsClassName?: string;
 };
@@ -32,6 +33,7 @@ export function SectionListItem({
   actions,
   showActionsOnHover = true,
   inlineActions = false,
+  onClick,
   className,
   actionsClassName,
 }: SectionListItemProps) {
@@ -43,8 +45,21 @@ export function SectionListItem({
     : "opacity-100";
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (!onClick) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       className={clsx(
         "group relative flex flex-col gap-2 border-b border-border/30 py-1.5 pr-2 lg:flex-row lg:items-center",
+        onClick
+          ? "cursor-pointer rounded-md px-2 -mx-2 outline-none hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30"
+          : null,
         className,
       )}
     >

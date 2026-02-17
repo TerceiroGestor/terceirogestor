@@ -13,6 +13,10 @@ export const RBAC_ACTION_LABELS: Record<RbacAction, string> = {
 };
 
 export const RBAC_MODULE_LABELS: Record<string, string> = {
+  programs: "Programas",
+  projects: "Projetos",
+  "project-structure": "Projetos • Estrutura",
+  enrollments: "Projetos • Matrículas",
   people: "Pessoas",
   "people.sensitive": "Pessoas • Dados sensíveis (LGPD)",
   pantry: "Despensa",
@@ -25,6 +29,10 @@ export const RBAC_MODULE_LABELS: Record<string, string> = {
 };
 
 export const RBAC_MODULE_ACTIONS: Record<string, { label: string; actions: string[] }> = {
+  programs: { label: RBAC_MODULE_LABELS.programs, actions: ["read", "create", "update", "delete"] },
+  projects: { label: RBAC_MODULE_LABELS.projects, actions: ["read", "create", "update", "delete"] },
+  "project-structure": { label: RBAC_MODULE_LABELS["project-structure"], actions: ["read", "create", "update", "delete"] },
+  enrollments: { label: RBAC_MODULE_LABELS.enrollments, actions: ["read", "create", "update", "delete"] },
   people: { label: RBAC_MODULE_LABELS.people, actions: ["read", "create", "update", "delete"] },
   "people.sensitive": { label: RBAC_MODULE_LABELS["people.sensitive"], actions: ["read", "update"] },
   pantry: { label: RBAC_MODULE_LABELS.pantry, actions: ["read", "create", "update", "delete"] },

@@ -3,13 +3,13 @@
 Este documento consolida todos os épicos acordados para a construção da plataforma, organizados por fases e prioridade.
 
 - Legenda: `- [x]` concluído | `- [ ]` pendente
-- Estado revisado em: **2026-02-16**
+- Estado revisado em: **2026-02-17**
 
 ## 📍 Status por fase (visão geral)
 
 - [ ] **FASE 0 — Fundação** (pendências: exportação de usuários, OAuth UI, storage de produção)
 - [x] **FASE 1 — Pessoas e Famílias** (core concluído; pendências opcionais: georreferência, qualidade de dados)
-- [ ] **FASE 2 — Organização institucional**
+- [x] **FASE 2 — Organização institucional** (core concluído; pendências: turmas, metas/indicadores, elegibilidade, visibilidade por unidade/equipe)
 - [ ] **FASE 3 — Operação diária**
 - [ ] **FASE 4 — Suporte material** (core concluído; pendência: vínculo com ação/atendimento)
 - [ ] **FASE 5 — Educação e cursos**
@@ -118,25 +118,30 @@ Este documento consolida todos os épicos acordados para a construção da plata
 
 ## ÉPICO 2.1 — Programas
 
-- [ ] Criar programa
-- [ ] Tipagem (SCFV, PAIF, Cultura, Qualificação, etc.)
-- [ ] Ativar/Inativar
+- [x] Criar programa
+- [x] Tipagem (SCFV, PAIF, Cultura, Qualificação, etc.)
+- [x] Ativar/Inativar
 - [ ] Permissões e visibilidade por unidade/equipe (se aplicável)
 
 ## ÉPICO 2.2 — Projetos
 
-- [ ] Criar projeto
-- [ ] Vincular programa
-- [ ] Status do projeto
-- [ ] Período de execução
+- [x] Criar projeto
+- [x] Vincular programa
+- [x] Status do projeto
+- [x] Período de execução
+- [x] Participantes (matrículas): listar/editar/encerrar/remover
+- [x] Participantes: vincular em massa
+- [x] Participantes: ações em massa (encerrar/remover)
 - [ ] Metas/indicadores por projeto (base para dashboards)
 
 ## ÉPICO 2.3 — Estruturas do Projeto
 
-- [ ] Grupos
+- [x] Grupos
 - [ ] Turmas
-- [ ] Ciclos
-- [ ] Alocar pessoas
+- [x] Ciclos
+- [x] Alocar pessoas
+- [x] Histórico de grupos (múltiplos grupos simultâneos por pessoa)
+- [x] Histórico de ciclos (1 ativo por vez + rastreio de participações anteriores)
 - [ ] Regras de elegibilidade (idade, perfil, etc.)
 
 ---

@@ -24,6 +24,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Printer } from "lucide-react";
+import clsx from "clsx";
 import {
   Table,
   TableBody,
@@ -73,6 +74,8 @@ export type DataTableClientProps<TData> = {
   onGroupingChange?: (grouping: string[]) => void;
   onChartOpenChange?: (open: boolean) => void;
   totalCount?: number;
+  tableClassName?: string;
+  onSelectedRowsChange?: (rows: TData[]) => void;
   rowActions?: {
     id: string;
     label: string;
@@ -134,6 +137,8 @@ export function DataTableClient<TData>({
   onGroupingChange,
   onChartOpenChange,
   totalCount,
+  tableClassName,
+  onSelectedRowsChange,
 }: DataTableClientProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -195,6 +200,11 @@ export function DataTableClient<TData>({
     setAdvancedFilters,
     setFiltersOpen,
   });
+
+  React.useEffect(() => {
+    if (enableRowSelection) return;
+    safeSetRowSelection({});
+  }, [enableRowSelection, safeSetRowSelection]);
 
   React.useEffect(() => {
     if (!paginationProp) return;
@@ -569,6 +579,15 @@ export function DataTableClient<TData>({
   const selectedRowModel = table.getSelectedRowModel();
   const exportRowModel =
     enableRowSelection && selectedRowModel.rows.length ? selectedRowModel : rowModel;
+
+  React.useEffect(() => {
+    if (!onSelectedRowsChange) return;
+    if (!enableRowSelection) return;
+    const selected = table
+      .getSelectedRowModel()
+      .rows.map((row) => row.original as TData);
+    onSelectedRowsChange(selected);
+  }, [enableRowSelection, onSelectedRowsChange, rowSelection, data]);
   const filteredRows =
     table.getFilteredRowModel().flatRows ?? table.getFilteredRowModel().rows;
   const showPagination = grouping.length === 0;
@@ -672,11 +691,16 @@ export function DataTableClient<TData>({
       };
       const counts = new Map<string, number>();
       let nonEmptyCount = 0;
+      let emptyCount = 0;
       table.getPreFilteredRowModel().rows.forEach((row) => {
         const value = row.getValue(columnId);
-        if (value === undefined || value === null || value === "") return;
+        if (value === undefined || value === null || value === "") {
+          emptyCount += 1;
+          return;
+        }
         if (Array.isArray(value)) {
           if (value.length) nonEmptyCount += 1;
+          else emptyCount += 1;
           value
             .map((item) => String(item).trim())
             .filter(Boolean)
@@ -690,13 +714,14 @@ export function DataTableClient<TData>({
           if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
             try {
               const parsed = JSON.parse(trimmed);
-              if (Array.isArray(parsed)) {
-                if (parsed.length) nonEmptyCount += 1;
-                parsed
-                  .map((item) => String(item).trim())
-                  .filter(Boolean)
-                  .forEach((item) => {
-                    counts.set(item, (counts.get(item) ?? 0) + 1);
+               if (Array.isArray(parsed)) {
+                 if (parsed.length) nonEmptyCount += 1;
+                 else emptyCount += 1;
+                 parsed
+                   .map((item) => String(item).trim())
+                   .filter(Boolean)
+                   .forEach((item) => {
+                     counts.set(item, (counts.get(item) ?? 0) + 1);
                   });
                 return;
               }
@@ -739,6 +764,13 @@ export function DataTableClient<TData>({
           count: nonEmptyCount,
         });
       }
+      if (emptyCount > 0) {
+        options.unshift({
+          value: "__empty__",
+          label: "Sem valor",
+          count: emptyCount,
+        });
+      }
       return options;
     },
     [table],
@@ -750,7 +782,9 @@ export function DataTableClient<TData>({
         ...advancedFilters.filter((filter) => filter.columnId !== columnId),
         value === "__not_empty__"
           ? { columnId, operator: "isNotEmpty", value: "1" }
-          : { columnId, operator: "equals", value },
+          : value === "__empty__"
+            ? { columnId, operator: "isEmpty", value: "1" }
+            : { columnId, operator: "equals", value },
       ];
       const validFilters = nextFilters.filter(
         (filter) => filter.columnId && filter.value.trim() !== "",
@@ -906,7 +940,12 @@ export function DataTableClient<TData>({
 
       <div className="space-y-2">
         <div className="rounded-xl border border-border/40 bg-card/40 max-w-full [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:max-w-full [&_[data-slot=table-container]]:overflow-auto">
-          <Table className="min-w-[900px] sm:min-w-[1200px] md:min-w-[1600px] [&_th]:whitespace-normal [&_td]:whitespace-normal sm:[&_th]:whitespace-nowrap sm:[&_td]:whitespace-nowrap">
+          <Table
+            className={clsx(
+              "min-w-full [&_th]:whitespace-normal [&_td]:whitespace-normal sm:[&_th]:whitespace-nowrap sm:[&_td]:whitespace-nowrap",
+              tableClassName,
+            )}
+          >
             <TableHeader className="bg-muted/20">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="bg-muted/20">

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-02-17 — Fase 2 (Programas e Projetos)
+
+### O que foi entregue
+- Programas: CRUD + tipagem e status.
+- Projetos: CRUD + vínculo com programa + status/período.
+- Participantes (matrículas): listagem, edição, encerramento e remoção.
+- Vínculo em massa de participantes e ações em massa (encerrar/remover).
+- Estrutura do projeto: gestão de Grupos e Ciclos.
+- Regras de ciclo/grupo: grupos simultâneos + ciclo único com histórico de participações.
+- Melhorias de DataTable: filtro rápido para colunas multi-valores.
+
+### Validação
+- Cenários E2E cobertos para: criar programa/projeto, vincular/encerrar/remover participantes, gerenciar grupos/ciclos.
+- `backend`: `npm run build`.
+
 ## 2026-02-15 — Reorganização de docs + RBAC People + seed Pantry
 
 ### O que foi entregue

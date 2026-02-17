@@ -15,6 +15,9 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PeopleModule } from './modules/people/people.module';
 import { PantryModule } from './modules/pantry/pantry.module';
+import { ProgramsModule } from './modules/programs/programs.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { ProjectStructureModule } from './modules/project-structure/project-structure.module';
 import { RegistrationModule } from './modules/registration/registration.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
@@ -44,6 +47,9 @@ import { CepModule } from './core/cep/cep.module';
     TenantsModule,
     PeopleModule,
     PantryModule,
+    ProgramsModule,
+    ProjectsModule,
+    ProjectStructureModule,
     RegistrationModule,
     FilesModule,
     AuditModule,
