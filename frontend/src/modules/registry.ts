@@ -9,18 +9,46 @@ export const moduleManifests: ModuleManifest[] = [
   pantryManifest,
 ];
 
+const NAV_GROUP_ORDER: Record<string, number> = {
+  Geral: 10,
+  Cadastros: 20,
+  "Operação": 30,
+  "Suporte Material": 40,
+  Relatórios: 50,
+  Administração: 90,
+};
+
+const resolveGroupOrder = (label: string) => NAV_GROUP_ORDER[label] ?? 999;
+
+const resolveItemOrder = (item: { order?: number; title: string }) =>
+  item.order ?? 999;
+
 export function buildNavGroupsFromManifests(manifests: ModuleManifest[]): NavGroup[] {
   const map = new Map<string, NavGroup>();
 
   for (const manifest of manifests) {
-    const label = manifest.groupLabel;
-    const group = map.get(label) ?? { label, items: [] };
-    group.items.push(...manifest.navItems);
-    map.set(label, group);
+    for (const item of manifest.navItems) {
+      const label = item.groupLabel ?? manifest.groupLabel;
+      const group = map.get(label) ?? { label, items: [] };
+      group.items.push(item);
+      map.set(label, group);
+    }
   }
 
-  return Array.from(map.values());
+  return Array.from(map.values())
+    .map((group) => ({
+      ...group,
+      items: [...group.items].sort((a, b) => {
+        const delta = resolveItemOrder(a) - resolveItemOrder(b);
+        if (delta !== 0) return delta;
+        return a.title.localeCompare(b.title);
+      }),
+    }))
+    .sort((a, b) => {
+      const delta = resolveGroupOrder(a.label) - resolveGroupOrder(b.label);
+      if (delta !== 0) return delta;
+      return a.label.localeCompare(b.label);
+    });
 }
 
 export const navGroups: NavGroup[] = buildNavGroupsFromManifests(moduleManifests);
-

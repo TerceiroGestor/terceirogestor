@@ -9,6 +9,11 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import {
+  RBAC_MODULE_ACTIONS,
+  RBAC_MODULE_LABELS,
+  splitPermissionKey,
+} from "@/features/admin/config/rbac.constants";
+import {
   listPermissions,
   listRoles,
   type PermissionSummary,
@@ -16,41 +21,32 @@ import {
 } from "@/features/admin/api";
 
 const groupPermissions = (permissions: PermissionSummary[]) => {
-  const groups = new Map<string, PermissionSummary[]>();
+  const groups = new Map<
+    string,
+    { label: string; items: PermissionSummary[] }
+  >();
   permissions.forEach((permission) => {
-    const feature = permission.key.split(".")[0] || "outros";
-    const label = feature.toLowerCase();
-    const current = groups.get(label) ?? [];
-    current.push(permission);
-    groups.set(label, current);
+    const parsed = splitPermissionKey(permission.key);
+    const moduleKey = parsed?.moduleKey ?? "outros";
+    const label = RBAC_MODULE_LABELS[moduleKey] ?? moduleKey;
+    const current = groups.get(moduleKey) ?? { label, items: [] };
+    current.items.push(permission);
+    groups.set(moduleKey, current);
   });
-  return Array.from(groups.entries()).map(([feature, items]) => ({
-    feature,
-    items: items.sort((a, b) => a.key.localeCompare(b.key)),
-  }));
-};
-
-const MODULE_ACTIONS: Record<string, { label: string; actions: string[] }> = {
-  people: { label: "Pessoas", actions: ["read", "create", "update", "delete"] },
-  "people.sensitive": {
-    label: "Pessoas • Dados sensíveis (LGPD)",
-    actions: ["read", "update"],
-  },
-  pantry: { label: "Despensa", actions: ["read", "create", "update", "delete"] },
-  users: { label: "Usuarios", actions: ["read", "create", "update", "delete"] },
-  tenants: { label: "Instituicao", actions: ["read", "update"] },
-  roles: { label: "Perfis", actions: ["manage"] },
-  financial: {
-    label: "Financeiro",
-    actions: ["read", "create", "update", "delete"],
-  },
+  return Array.from(groups.entries())
+    .map(([moduleKey, group]) => ({
+      moduleKey,
+      label: group.label,
+      items: group.items.sort((a, b) => a.key.localeCompare(b.key)),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 };
 
 const buildRoleModules = (role: RoleSummary) => {
   const permissionSet = new Set(
     role.permissions.map((permission) => permission.key),
   );
-  return Object.entries(MODULE_ACTIONS).map(([moduleKey, module]) => {
+  return Object.entries(RBAC_MODULE_ACTIONS).map(([moduleKey, module]) => {
     const allowed = module.actions.filter((action) =>
       permissionSet.has(`${moduleKey}.${action}`),
     );
@@ -174,15 +170,15 @@ export default function AdminPermissionsPage() {
       </SectionCard>
 
       <SectionCard
-        title="Permissoes por feature"
-        subtitle="Visao agrupada das permissoes disponiveis."
+        title="Permissões por módulo"
+        subtitle="Visão agrupada das permissões disponíveis."
       >
         <SectionList>
           {grouped.map((group) => (
             <SectionListItem
-              key={group.feature}
-              title={group.feature.toUpperCase()}
-              subtitle={`${group.items.length} permissoes`}
+              key={group.moduleKey}
+              title={group.label}
+              subtitle={`${group.items.length} permissões`}
               meta={
                 <div className="flex flex-wrap gap-1">
                   {group.items.map((permission) => (

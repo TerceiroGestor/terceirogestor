@@ -33,10 +33,7 @@ export function ProfileClientPage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageBreadcrumb
         title="Perfil"
-        items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Perfil", href: "/dashboard/profile" },
-        ]}
+        items={[{ label: "Perfil", href: "/dashboard/profile" }]}
       />
 
       <ProfileHeader tab={tab} onTabChange={setTab} user={user} />

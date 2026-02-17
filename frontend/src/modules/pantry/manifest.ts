@@ -3,14 +3,14 @@ import type { ModuleManifest } from "@/modules/types";
 
 export const pantryManifest: ModuleManifest = {
   key: "pantry",
-  groupLabel: "Módulos",
+  groupLabel: "Suporte Material",
   navItems: [
     {
       title: "Despensa",
       href: "/pantry",
       icon: Package,
       permissions: ["pantry.read"],
+      order: 10,
     },
   ],
 };
-

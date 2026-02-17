@@ -116,25 +116,81 @@ Revisado em **2026-02-16** com base no estado atual do repositório (backend Nes
 
 ## ÉPICO 2.1 — Programas
 
-**Plano**:
-- Modelagem: `Program` + tipagem + status + metas/indicadores básicos.
-- API: CRUD + ativar/inativar + permissões (`programs.*`).
-- UI: listagem + formulário + filtros.
-- Seeds: permissões e papel Admin com acesso total.
+Baseado no documento `docs/User & Functional Requirements Documen.md` (SUAS): **Programa = camada estratégica** (SCFV/PAIF/PAEFI etc.) e **não executa ações diretamente** — tudo acontece via Projetos.
+
+**Entregas (v1)**:
+- Modelagem (Prisma):
+  - `Program`: `tenantId`, `name`, `type`, `description`, `status`, `startsAt?`, `endsAt?`, timestamps.
+  - Regras: **não permitir exclusão** se houver Projetos vinculados.
+- Permissões (RBAC):
+  - `programs.read|create|update|delete`
+  - (preparação) `programs.reports.read` (relatórios consolidados entram na FASE 6).
+- API (NestJS):
+  - CRUD + listagem com filtros (`type`, `status`, período) e paginação.
+  - Endpoint de “indicadores do programa” (retorna zeros/placeholder até FASE 3, mas já estrutura o contrato).
+- UI (Next.js):
+  - Lista + criação/edição.
+  - Detail do programa: projetos vinculados + bloco “indicadores” (com estados vazios claros).
+- Seeds:
+  - Chaves de permissão + roles padrão (Admin com acesso total; Gestor/Coordenação com `programs.*`).
+
+**Critérios de aceite (HU-PROG-01/02)**:
+- Criar/editar: nome, tipo (SCFV/PAIF/PAEFI/Cultural/Qualificação…), descrição, status (Planejado | Ativo | Encerrado), vigência opcional.
+- Auditoria registra mudanças (sem vazar dados sensíveis).
+- Exclusão bloqueada se houver vínculos.
 
 ## ÉPICO 2.2 — Projetos
 
-**Plano**:
-- Modelagem: `Project` ligado a `Program` + período + status.
-- UI: visão de projetos + detalhes (pessoas alocadas, turmas, ações).
-- Auditoria e logs de mudanças de status.
+**Projeto = camada operacional** que concentra **pessoas alocadas**, **turmas/grupos/ciclos** e (na FASE 3) **ações/presenças/atendimentos/ocorrências/encaminhamentos**.
+
+**Entregas (v1)**:
+- Modelagem (Prisma):
+  - `Project`: `tenantId`, `programId`, `name`, `description`, `status`, `startsAt?`, `endsAt?`, timestamps.
+  - Regra: Projeto pertence a **apenas 1 Programa** (FK obrigatória).
+- Permissões (RBAC):
+  - `projects.read|create|update|delete`
+- API (NestJS):
+  - CRUD de projetos.
+  - Vincular/desvincular projeto ao programa via `programId` (com validações).
+  - Listar projetos por programa.
+- UI (Next.js):
+  - Criar projeto a partir do detail do programa (“Vincular projeto”).
+  - Lista de projetos com filtros por status/período.
+  - Detail do projeto com abas/seções (Estrutura, Participantes, Futuras Ações/Atendimentos).
+
+**Critérios de aceite (HU-PROG-03)**:
+- Exibir lista de projetos vinculados no Programa.
+- Impedir que um projeto pertença a dois programas.
+- Filtro por status do projeto.
 
 ## ÉPICO 2.3 — Estruturas do Projeto
 
-**Plano**:
-- Modelagem: `Group`, `Class`, `Cycle` e relações.
-- Regras: capacidade, elegibilidade, inscrições.
-- UI de alocação (drag/drop ou assistente) + trilha de auditoria.
+Essa etapa destrava a jornada “Criança no SCFV” (vinculação ao projeto + inclusão em grupo/turma).
+
+**Entregas (v1)**:
+- Modelagem (Prisma) — nomes sugeridos (ajustar conforme padrão do repo):
+  - `ProjectGroup` (grupo dentro de um projeto)
+  - `ProjectClass` (turma do grupo, opcionalmente)
+  - `ProjectCycle` (ciclo/período do projeto)
+  - `ProjectEnrollment` (alocação de `personId` → projeto/grupo/turma/ciclo, com `startsAt/endsAt/status`)
+- Regras:
+  - Capacidade por turma (opcional v1; obrigatório v2).
+  - Elegibilidade simples v1 (idade mínima/máxima, observação) com regras extensíveis.
+- Permissões (RBAC):
+  - `project-structure.read|create|update|delete`
+  - `enrollments.read|create|update|delete`
+- API (NestJS):
+  - CRUD de grupos/turmas/ciclos por projeto.
+  - Endpoints de matrícula/alocação e listagem de participantes por projeto/turma.
+- UI (Next.js):
+  - No detail do projeto: gerenciar grupos/turmas/ciclos.
+  - Tela/diálogo de alocação de pessoas (busca + filtros) com feedback de conflitos.
+- Indicadores (v1):
+  - Participantes por projeto/programa baseado em matrículas (já real, mesmo antes da FASE 3).
+
+**Critérios de aceite**:
+- Conseguir “Vincular pessoa ao projeto” e listar participantes.
+- Ações futuras (FASE 3) conseguem referenciar `projectId` (rastreabilidade Programa ← Projeto ← Operação).
 
 ---
 

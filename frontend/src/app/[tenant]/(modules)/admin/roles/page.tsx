@@ -1,18 +1,27 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/DataTable";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
-import { SectionList, SectionListItem } from "@/components/section-list";
 import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import {
+  RBAC_ACTION_LABELS,
+  RBAC_ACTION_ORDER,
+  RBAC_MODULE_LABELS,
+  splitPermissionKey,
+} from "@/features/admin/config/rbac.constants";
 import {
   createRole,
   deleteRole,
@@ -28,53 +37,26 @@ type RoleFormValues = {
   description?: string;
 };
 
-const ACTION_ORDER = ["read", "create", "update", "delete", "manage"];
-
-const ACTION_LABELS: Record<string, string> = {
-  read: "Visualizar",
-  create: "Criar",
-  update: "Atualizar",
-  delete: "Remover",
-  manage: "Gerenciar",
-};
-
-const MODULE_LABELS: Record<string, string> = {
-  people: "Pessoas",
-  "people.sensitive": "Pessoas • Dados sensíveis (LGPD)",
-  pantry: "Despensa",
-  users: "Usuarios",
-  tenants: "Instituicao",
-  roles: "Perfis",
-  permissions: "Permissoes",
-  financial: "Financeiro",
-};
-
 type ModuleDefinition = {
   key: string;
   label: string;
   actions: string[];
 };
 
-type RoleModuleRow = {
+type RoleRow = {
   id: string;
-  roleId: string;
-  roleName: string;
-  moduleKey: string;
-  moduleLabel: string;
-  canRead: boolean;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
+  name: string;
+  description?: string | null;
+  modules: string[];
+  permissionsCount: number;
 };
 
 const buildModulesFromPermissions = (permissions: PermissionSummary[]) => {
   const moduleMap = new Map<string, Set<string>>();
   permissions.forEach((permission) => {
-    const parts = permission.key.split(".");
-    if (parts.length < 2) return;
-    const action = parts[parts.length - 1];
-    const moduleKey = parts.slice(0, -1).join(".");
-    if (!moduleKey || !action) return;
+    const parsed = splitPermissionKey(permission.key);
+    if (!parsed) return;
+    const { moduleKey, action } = parsed;
     const actions = moduleMap.get(moduleKey) ?? new Set<string>();
     actions.add(action);
     moduleMap.set(moduleKey, actions);
@@ -83,32 +65,37 @@ const buildModulesFromPermissions = (permissions: PermissionSummary[]) => {
   return Array.from(moduleMap.entries())
     .map(([key, actions]) => ({
       key,
-      label: MODULE_LABELS[key] ?? key,
+      label: RBAC_MODULE_LABELS[key] ?? key,
       actions: Array.from(actions),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 };
 
-const buildRoleRows = (roles: RoleSummary[], modules: ModuleDefinition[]) =>
-  roles.flatMap((role) => {
-    const permissionSet = new Set(
-      role.permissions.map((permission) => permission.key),
-    );
-    return modules.map((module) => ({
-      id: `${role.id}-${module.key}`,
-      roleId: role.id,
-      roleName: role.name,
-      moduleKey: module.key,
-      moduleLabel: module.label,
-      canRead: permissionSet.has(`${module.key}.read`),
-      canCreate: permissionSet.has(`${module.key}.create`),
-      canUpdate: permissionSet.has(`${module.key}.update`),
-      canDelete: permissionSet.has(`${module.key}.delete`),
-    }));
+const buildRoleRows = (roles: RoleSummary[]): RoleRow[] =>
+  roles.map((role) => {
+    const moduleKeys = new Set<string>();
+    for (const permission of role.permissions) {
+      const parsed = splitPermissionKey(permission.key);
+      if (parsed?.moduleKey) moduleKeys.add(parsed.moduleKey);
+    }
+
+    const modules = Array.from(moduleKeys)
+      .map((key) => RBAC_MODULE_LABELS[key] ?? key)
+      .sort((a, b) => a.localeCompare(b));
+
+    return {
+      id: role.id,
+      name: role.name,
+      description: role.description ?? null,
+      modules,
+      permissionsCount: role.permissions.length,
+    };
   });
 
 export default function AdminRolesPage() {
   const { token } = useAuth();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const { permissions, refresh: refreshCurrentUser } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
 
@@ -128,6 +115,7 @@ export default function AdminRolesPage() {
   const [selectedPermissions, setSelectedPermissions] = React.useState<
     Set<string>
   >(new Set());
+  const [moduleSearch, setModuleSearch] = React.useState("");
 
   const canManageRoles = permissions.includes("roles.manage");
 
@@ -135,65 +123,48 @@ export default function AdminRolesPage() {
     () => buildModulesFromPermissions(permissionsList),
     [permissionsList],
   );
-  const rows = React.useMemo(
-    () => buildRoleRows(roles, modules),
-    [roles, modules],
-  );
+  const rows = React.useMemo(() => buildRoleRows(roles), [roles]);
 
-  const columns = React.useMemo<ColumnDef<RoleModuleRow>[]>(
+  const columns = React.useMemo<ColumnDef<RoleRow>[]>(
     () => [
       {
-        accessorKey: "roleName",
+        accessorKey: "name",
         header: "Perfil",
         cell: ({ row }) => (
-          <span className="text-sm font-semibold text-foreground">
-            {row.original.roleName}
-          </span>
+          <div className="min-w-[240px]">
+            <p className="text-sm font-semibold text-foreground">
+              {row.original.name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {row.original.description?.trim() ? row.original.description : "-"}
+            </p>
+          </div>
         ),
       },
       {
-        accessorKey: "moduleLabel",
-        header: "Modulo",
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {row.original.moduleLabel}
-          </span>
-        ),
+        accessorKey: "modules",
+        header: "Módulos",
+        cell: ({ row }) => {
+          const modules = row.original.modules;
+          const visible = modules.slice(0, 4);
+          const extra = modules.length - visible.length;
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {visible.map((module) => (
+                <Badge key={module} variant="outline">
+                  {module}
+                </Badge>
+              ))}
+              {extra > 0 ? <Badge variant="outline">+{extra}</Badge> : null}
+            </div>
+          );
+        },
       },
       {
-        accessorKey: "canRead",
-        header: "Visualizar",
+        accessorKey: "permissionsCount",
+        header: "Permissões",
         cell: ({ row }) => (
-          <Badge variant={row.original.canRead ? "secondary" : "outline"}>
-            {row.original.canRead ? "Sim" : "Nao"}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "canCreate",
-        header: "Criar",
-        cell: ({ row }) => (
-          <Badge variant={row.original.canCreate ? "secondary" : "outline"}>
-            {row.original.canCreate ? "Sim" : "Nao"}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "canUpdate",
-        header: "Atualizar",
-        cell: ({ row }) => (
-          <Badge variant={row.original.canUpdate ? "secondary" : "outline"}>
-            {row.original.canUpdate ? "Sim" : "Nao"}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "canDelete",
-        header: "Remover",
-        cell: ({ row }) => (
-          <Badge variant={row.original.canDelete ? "secondary" : "outline"}>
-            {row.original.canDelete ? "Sim" : "Nao"}
-          </Badge>
+          <span className="font-mono text-sm">{row.original.permissionsCount}</span>
         ),
       },
     ],
@@ -239,6 +210,7 @@ export default function AdminRolesPage() {
     setEditingRole(null);
     setFormValues({ name: "", description: "" });
     setSelectedPermissions(new Set());
+    setModuleSearch("");
     setDialogOpen(true);
   };
 
@@ -254,6 +226,7 @@ export default function AdminRolesPage() {
         new Set(role.permissions.map((permission) => permission.key)),
       );
     }
+    setModuleSearch("");
     setDialogOpen(true);
   };
 
@@ -309,28 +282,36 @@ export default function AdminRolesPage() {
 
       <SectionCard
         title="Perfis"
-        subtitle="Controle os acessos por módulo e ação."
-        actions={<Button onClick={openCreate}>Novo perfil</Button>}
+        subtitle="Crie perfis e edite permissões. Para uma visão por módulo, use a página de permissões."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={withTenantPath("/admin/permissions", tenantSlug)}>
+                Ver matriz por módulo
+              </Link>
+            </Button>
+            <Button onClick={openCreate}>Novo perfil</Button>
+          </div>
+        }
       >
         <DataTable
           columns={columns}
           data={rows}
           searchPlaceholder="Pesquisar perfis"
           showExportMenu={false}
-          initialColumnPinning={{ left: ["actions"], right: ["canCreate"] }}
           rowActions={[
             {
               id: "edit",
               label: "Editar perfil",
-              onSelect: (row) => openEdit((row as RoleModuleRow).roleId),
+              onSelect: (row) => openEdit((row as RoleRow).id),
             },
             {
               id: "delete",
               label: "Excluir perfil",
               destructive: true,
               onSelect: async (row) => {
-                const roleId = (row as RoleModuleRow).roleId;
-                const roleName = (row as RoleModuleRow).roleName;
+                const roleId = (row as RoleRow).id;
+                const roleName = (row as RoleRow).name;
                 if (!token) return;
                 const confirmed = window.confirm(
                   `Excluir o perfil ${roleName}?`,
@@ -402,50 +383,98 @@ export default function AdminRolesPage() {
 
           <div className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground">
-              Modulos e permissoes
+              Módulos e permissões
             </p>
-            <SectionList>
-              {modules.map((module) => {
-                const moduleActions = ACTION_ORDER.filter((action) =>
-                  module.actions.includes(action),
-                );
-                return (
-                  <SectionListItem
-                    key={module.key}
-                    title={module.label}
-                    subtitle=""
-                    meta={
-                      <div className="flex flex-wrap gap-4">
-                        {moduleActions.map((action) => {
-                          const key = `${module.key}.${action}`;
-                          const checked = selectedPermissions.has(key);
-                          return (
-                            <label
-                              key={key}
-                              className="flex items-center gap-2 text-xs text-muted-foreground"
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(next) =>
-                                  togglePermission(key, Boolean(next))
-                                }
-                              />
-                              <span className="text-foreground">
-                                {ACTION_LABELS[action] ?? action}
-                              </span>
-                            </label>
-                          );
-                        })}
-                        {moduleActions.length === 0 ? (
-                          <Badge variant="outline">Sem permissoes</Badge>
-                        ) : null}
-                      </div>
-                    }
-                    showActionsOnHover={false}
-                  />
-                );
-              })}
-            </SectionList>
+
+            <div className="rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-4">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                <Input
+                  value={moduleSearch}
+                  onChange={(e) => setModuleSearch(e.target.value)}
+                  placeholder="Pesquisa rápida por palavra-chave (módulo)"
+                />
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  {modules.length} módulos
+                </div>
+              </div>
+
+              <div className="max-h-[52vh] overflow-auto rounded-xl border border-border/60 bg-background/60">
+                <table className="w-full min-w-[780px] text-sm">
+                  <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border/60">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
+                        Módulo
+                      </th>
+                      {RBAC_ACTION_ORDER.map((action) => (
+                        <th
+                          key={action}
+                          className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap"
+                        >
+                          {RBAC_ACTION_LABELS[action] ?? action}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {modules
+                      .filter((module) => {
+                        const query = moduleSearch.trim().toLowerCase();
+                        if (!query) return true;
+                        return (
+                          module.label.toLowerCase().includes(query) ||
+                          module.key.toLowerCase().includes(query)
+                        );
+                      })
+                      .map((module) => (
+                        <tr
+                          key={module.key}
+                          className="border-b border-border/40 hover:bg-muted/30"
+                        >
+                          <td className="px-4 py-3 align-middle">
+                            <div className="min-w-[220px]">
+                              <p className="text-sm font-semibold text-foreground">
+                                {module.label}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground font-mono">
+                                {module.key}
+                              </p>
+                            </div>
+                          </td>
+
+                          {RBAC_ACTION_ORDER.map((action) => {
+                            const key = `${module.key}.${action}`;
+                            const allowed = module.actions.includes(action);
+                            const checked = selectedPermissions.has(key);
+                            return (
+                              <td
+                                key={key}
+                                className="px-3 py-3 text-center align-middle"
+                              >
+                                {allowed ? (
+                                  <div className="inline-flex items-center justify-center">
+                                    <Switch
+                                      checked={checked}
+                                      onCheckedChange={(next) =>
+                                        togglePermission(key, next)
+                                      }
+                                      aria-label={`${module.label} - ${RBAC_ACTION_LABELS[action] ?? action}`}
+                                    />
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    -
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t pt-4">
@@ -460,7 +489,7 @@ export default function AdminRolesPage() {
               Cancelar
             </Button>
             <Button type="submit">
-              {editingRole ? "Salvar alteracoes" : "Criar perfil"}
+              {editingRole ? "Salvar alterações" : "Criar perfil"}
             </Button>
           </div>
         </form>

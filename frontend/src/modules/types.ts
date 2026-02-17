@@ -7,6 +7,10 @@ export type ModuleNavItem = {
   badge?: string;
   exact?: boolean;
   permissions?: string[];
+  permissionsAny?: string[];
+  groupLabel?: string;
+  order?: number;
+  children?: ModuleNavItem[];
 };
 
 export type ModuleManifest = {
@@ -19,4 +23,3 @@ export type NavGroup = {
   label: string;
   items: ModuleNavItem[];
 };
-
