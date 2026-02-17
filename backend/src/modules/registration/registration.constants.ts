@@ -17,6 +17,11 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'enrollments.create', description: 'Criar matrículas de projetos' },
   { key: 'enrollments.update', description: 'Atualizar matrículas de projetos' },
   { key: 'enrollments.delete', description: 'Excluir matrículas de projetos' },
+  { key: 'actions.read', description: 'Ler ações' },
+  { key: 'actions.create', description: 'Criar ações' },
+  { key: 'actions.update', description: 'Atualizar ações' },
+  { key: 'actions.delete', description: 'Excluir ações' },
+  { key: 'actions.manage', description: 'Gerenciar acoes (todas)' },
   { key: 'people.read', description: 'Ler pessoas' },
   {
     key: 'people.identity.read',
@@ -73,6 +78,11 @@ export const DEFAULT_ROLE_DEFINITIONS = [
       'enrollments.create',
       'enrollments.update',
       'enrollments.delete',
+      'actions.read',
+      'actions.create',
+      'actions.update',
+      'actions.delete',
+      'actions.manage',
       'people.read',
       'people.create',
       'people.update',
@@ -83,12 +93,25 @@ export const DEFAULT_ROLE_DEFINITIONS = [
   {
     name: 'Atendimento',
     description: 'Equipe de atendimento',
-    permissionKeys: ['people.read', 'people.create', 'people.update'],
+    permissionKeys: [
+      'people.read',
+      'people.create',
+      'people.update',
+      'actions.read',
+      'actions.create',
+      'actions.update',
+    ],
   },
   {
     name: 'Leitor',
     description: 'Acesso somente leitura',
-    permissionKeys: ['people.read', 'pantry.read', 'tenants.read', 'audit.read'],
+    permissionKeys: [
+      'people.read',
+      'actions.read',
+      'pantry.read',
+      'tenants.read',
+      'audit.read',
+    ],
   },
 ] as const;
 

@@ -1,13 +1,16 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -23,6 +26,9 @@ export function AppSidebarContent() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { permissions } = useCurrentUser();
+  const [openByHref, setOpenByHref] = React.useState<Record<string, boolean>>(
+    {},
+  );
 
   const canAccess = (item: {
     permissions?: string[];
@@ -61,6 +67,10 @@ export function AppSidebarContent() {
                     visibleChildren.some((child) =>
                       isActiveHref(child.href, child.exact),
                     );
+                  const expanded =
+                    visibleChildren.length > 0
+                      ? (openByHref[item.href] ?? active)
+                      : false;
 
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -75,11 +85,34 @@ export function AppSidebarContent() {
                         </Link>
                       </SidebarMenuButton>
 
+                      {visibleChildren.length ? (
+                        <SidebarMenuAction
+                          type="button"
+                          aria-label={expanded ? "Recolher" : "Expandir"}
+                          title={expanded ? "Recolher" : "Expandir"}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setOpenByHref((prev) => ({
+                              ...prev,
+                              [item.href]: !(prev[item.href] ?? active),
+                            }));
+                          }}
+                        >
+                          <ChevronDown
+                            className={
+                              "size-4 transition-transform " +
+                              (expanded ? "rotate-0" : "-rotate-90")
+                            }
+                          />
+                        </SidebarMenuAction>
+                      ) : null}
+
                       {item.badge ? (
                         <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
                       ) : null}
 
-                      {visibleChildren.length ? (
+                      {visibleChildren.length && expanded ? (
                         <SidebarMenuSub>
                           {visibleChildren.map((child) => (
                             <SidebarMenuSubItem

@@ -1,17 +1,12 @@
-import { FolderKanban } from "lucide-react";
+"use client";
+
 import type { ModuleManifest } from "@/modules/types";
 
 export const projectsManifest: ModuleManifest = {
   key: "projects",
   groupLabel: "Organização",
-  navItems: [
-    {
-      title: "Projetos",
-      href: "/projects",
-      icon: FolderKanban,
-      permissions: ["projects.read"],
-      order: 20,
-    },
-  ],
+  navItems: [],
 };
+
+// Rotas de Projetos ficam no Sidebar via `organizationManifest`.
 

@@ -38,6 +38,24 @@ enum EnrollmentStatus {
   ENDED
 }
 
+enum ActionStatus {
+  PLANNED
+  EXECUTED
+  CANCELED
+}
+
+enum ActionTarget {
+  PROJECT
+  GROUP
+  CYCLE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+}
+
 enum IncomeFrequency {
   MONTHLY
   WEEKLY
@@ -154,6 +172,9 @@ model Tenant {
   projectEnrollments ProjectEnrollment[]
   projectEnrollmentGroupMemberships ProjectEnrollmentGroupMembership[]
   projectEnrollmentCycleParticipations ProjectEnrollmentCycleParticipation[]
+  actionTypes     ActionType[]
+  projectActions  ProjectAction[]
+  projectActionAttendances ProjectActionAttendance[]
 
   @@index([status])
 }
@@ -185,6 +206,7 @@ model User {
   trustedDevices    UserTrustedDevice[]
   recoveryCodes     UserMfaRecoveryCode[]
   personSensitiveAccessLogs PersonSensitiveAccessLog[]
+  projectActionsCreated ProjectAction[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -808,6 +830,7 @@ model Project {
   groups ProjectGroup[]
   cycles ProjectCycle[]
   enrollments ProjectEnrollment[]
+  actions ProjectAction[]
 
   @@index([tenantId])
   @@index([programId])
@@ -827,6 +850,7 @@ model ProjectGroup {
   tenant  Tenant  @relation(fields: [tenantId], references: [id])
   project Project @relation(fields: [projectId], references: [id])
   memberships ProjectEnrollmentGroupMembership[]
+  actions ProjectAction[]
 
   @@unique([tenantId, projectId, name])
   @@index([tenantId])
@@ -847,6 +871,7 @@ model ProjectCycle {
   tenant  Tenant  @relation(fields: [tenantId], references: [id])
   project Project @relation(fields: [projectId], references: [id])
   participations ProjectEnrollmentCycleParticipation[]
+  actions ProjectAction[]
 
   @@unique([tenantId, projectId, name])
   @@index([tenantId])
@@ -870,6 +895,7 @@ model ProjectEnrollment {
   person  Person  @relation(fields: [personId], references: [id])
   groupMemberships ProjectEnrollmentGroupMembership[]
   cycleParticipations ProjectEnrollmentCycleParticipation[]
+  actionAttendances ProjectActionAttendance[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -916,6 +942,7 @@ model ProjectEnrollmentCycleParticipation {
   tenant     Tenant            @relation(fields: [tenantId], references: [id])
   enrollment ProjectEnrollment @relation(fields: [enrollmentId], references: [id])
   cycle      ProjectCycle      @relation(fields: [cycleId], references: [id])
+  actionAttendances ProjectActionAttendance[]
 
   @@unique([tenantId, activeKey])
   @@index([tenantId])
@@ -923,6 +950,93 @@ model ProjectEnrollmentCycleParticipation {
   @@index([cycleId])
   @@index([activeKey])
   @@index([isActive])
+}
+
+model ActionType {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  name        String
+  description String?  @db.Text
+  target      ActionTarget @default(PROJECT)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  actions ProjectAction[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([name])
+  @@index([isActive])
+}
+
+model ProjectAction {
+  id             String       @id @default(uuid()) @db.Char(36)
+  tenantId       String       @db.Char(36)
+  projectId      String       @db.Char(36)
+  createdByUserId String?     @db.Char(36)
+  groupId        String?      @db.Char(36)
+  cycleId        String?      @db.Char(36)
+  actionTypeId   String       @db.Char(36)
+  title          String
+  description    String?      @db.Text
+  planHtml       String?      @db.Text
+  executedHtml   String?      @db.Text
+  conclusionHtml String?      @db.Text
+  completionPercent Int?
+  photoPaths     Json?
+  status         ActionStatus @default(PLANNED)
+  plannedStartAt DateTime?
+  plannedEndAt   DateTime?
+  executedStartAt DateTime?
+  executedEndAt  DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  project    Project     @relation(fields: [projectId], references: [id])
+  createdByUser User?    @relation(fields: [createdByUserId], references: [id])
+  group      ProjectGroup? @relation(fields: [groupId], references: [id])
+  cycle      ProjectCycle? @relation(fields: [cycleId], references: [id])
+  actionType ActionType  @relation(fields: [actionTypeId], references: [id])
+  attendances ProjectActionAttendance[]
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([createdByUserId])
+  @@index([groupId])
+  @@index([cycleId])
+  @@index([actionTypeId])
+  @@index([status])
+  @@index([plannedStartAt])
+}
+
+model ProjectActionAttendance {
+  id                   String           @id @default(uuid()) @db.Char(36)
+  tenantId             String           @db.Char(36)
+  actionId             String           @db.Char(36)
+  enrollmentId         String           @db.Char(36)
+  cycleParticipationId String?          @db.Char(36)
+  status               AttendanceStatus @default(PRESENT)
+  notes                String?          @db.Text
+  qualityScore         Int?
+  qualityNotes         String?          @db.Text
+  isHighlight          Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  tenant            Tenant                           @relation(fields: [tenantId], references: [id])
+  action            ProjectAction                    @relation(fields: [actionId], references: [id])
+  enrollment        ProjectEnrollment                @relation(fields: [enrollmentId], references: [id])
+  cycleParticipation ProjectEnrollmentCycleParticipation? @relation(fields: [cycleParticipationId], references: [id])
+
+  @@unique([tenantId, actionId, enrollmentId])
+  @@index([tenantId])
+  @@index([actionId])
+  @@index([enrollmentId])
+  @@index([cycleParticipationId])
+  @@index([status])
 }
 
 model PantryItem {

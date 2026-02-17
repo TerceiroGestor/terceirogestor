@@ -19,6 +19,7 @@ import { ProgramsModule } from './modules/programs/programs.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ProjectStructureModule } from './modules/project-structure/project-structure.module';
 import { RegistrationModule } from './modules/registration/registration.module';
+import { ActionsModule } from './modules/actions/actions.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -50,6 +51,7 @@ import { CepModule } from './core/cep/cep.module';
     ProgramsModule,
     ProjectsModule,
     ProjectStructureModule,
+    ActionsModule,
     RegistrationModule,
     FilesModule,
     AuditModule,

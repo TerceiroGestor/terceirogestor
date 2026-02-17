@@ -59,6 +59,7 @@ export function ProjectsDetailRouteClientPage() {
 
   const canReadProject = permissions.includes("projects.read");
   const canReadStructure = permissions.includes("project-structure.read");
+  const canReadActions = permissions.includes("actions.read");
 
   const canReadEnrollments = permissions.includes("enrollments.read");
   const canCreateEnrollments = permissions.includes("enrollments.create");
@@ -171,6 +172,18 @@ export function ProjectsDetailRouteClientPage() {
                     Ciclos
                   </Link>
                 </DropdownMenuItem>
+                {canReadActions ? (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={withTenantPath(
+                        `/projects/${project.id}/actions`,
+                        tenantSlug,
+                      )}
+                    >
+                      Ações
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null
