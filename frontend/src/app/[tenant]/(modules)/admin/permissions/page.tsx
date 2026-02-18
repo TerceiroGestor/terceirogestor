@@ -115,7 +115,6 @@ export default function AdminPermissionsPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <AdminSettingsHeader title="Configurações • Permissões" />
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}

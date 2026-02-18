@@ -6,6 +6,7 @@ export type ModuleNavItem = {
   icon: LucideIcon;
   badge?: string;
   exact?: boolean;
+  disabled?: boolean;
   permissions?: string[];
   permissionsAny?: string[];
   groupLabel?: string;

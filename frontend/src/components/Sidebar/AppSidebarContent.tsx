@@ -1,146 +1,16 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
-import {
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-} from "@/components/ui/sidebar";
-import { navGroups } from "@/components/Sidebar/sidebar-data";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { getTenantSlugFromPath } from "@/lib/tenant-path";
+import { SidebarNav } from "@/components/Sidebar/nav/SidebarNav";
 
 export function AppSidebarContent() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { permissions } = useCurrentUser();
-  const [openByHref, setOpenByHref] = React.useState<Record<string, boolean>>(
-    {},
-  );
-
-  const canAccess = (item: {
-    permissions?: string[];
-    permissionsAny?: string[];
-  }) => {
-    if (item.permissionsAny && item.permissionsAny.length) {
-      return item.permissionsAny.some((permission) =>
-        permissions.includes(permission),
-      );
-    }
-    if (!item.permissions || item.permissions.length === 0) return true;
-    return item.permissions.every((permission) => permissions.includes(permission));
-  };
-
-  const isActiveHref = (itemHref: string, exact?: boolean) => {
-    const resolvedHref = withTenantPath(itemHref, tenantSlug);
-    if (exact) return pathname === resolvedHref;
-    return pathname === resolvedHref || pathname.startsWith(`${resolvedHref}/`);
-  };
 
   return (
-    <SidebarContent className="pb-4">
-      {navGroups.map((group) => {
-        const visibleItems = group.items.filter(canAccess);
-        if (visibleItems.length === 0) return null;
-        return (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {visibleItems.map((item) => {
-                  const visibleChildren =
-                    item.children?.filter(canAccess) ?? [];
-                  const active =
-                    isActiveHref(item.href, item.exact) ||
-                    visibleChildren.some((child) =>
-                      isActiveHref(child.href, child.exact),
-                    );
-                  const expanded =
-                    visibleChildren.length > 0
-                      ? (openByHref[item.href] ?? active)
-                      : false;
-
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.title}
-                      >
-                        <Link href={withTenantPath(item.href, tenantSlug)}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-
-                      {visibleChildren.length ? (
-                        <SidebarMenuAction
-                          type="button"
-                          aria-label={expanded ? "Recolher" : "Expandir"}
-                          title={expanded ? "Recolher" : "Expandir"}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setOpenByHref((prev) => ({
-                              ...prev,
-                              [item.href]: !(prev[item.href] ?? active),
-                            }));
-                          }}
-                        >
-                          <ChevronDown
-                            className={
-                              "size-4 transition-transform " +
-                              (expanded ? "rotate-0" : "-rotate-90")
-                            }
-                          />
-                        </SidebarMenuAction>
-                      ) : null}
-
-                      {item.badge ? (
-                        <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
-                      ) : null}
-
-                      {visibleChildren.length && expanded ? (
-                        <SidebarMenuSub>
-                          {visibleChildren.map((child) => (
-                            <SidebarMenuSubItem
-                              key={`${item.title}-${child.title}`}
-                            >
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={isActiveHref(child.href, child.exact)}
-                              >
-                                <Link
-                                  href={withTenantPath(child.href, tenantSlug)}
-                                >
-                                  <child.icon />
-                                  <span>{child.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      ) : null}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        );
-      })}
-    </SidebarContent>
+    <SidebarNav pathname={pathname} tenantSlug={tenantSlug} permissions={permissions} />
   );
 }

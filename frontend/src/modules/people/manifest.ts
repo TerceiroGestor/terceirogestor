@@ -1,9 +1,10 @@
 import { Users } from "lucide-react";
 import type { ModuleManifest } from "@/modules/types";
+import { NAV_GROUPS } from "@/modules/nav/groups";
 
 export const peopleManifest: ModuleManifest = {
   key: "people",
-  groupLabel: "Cadastros",
+  groupLabel: NAV_GROUPS.GESTAO,
   navItems: [
     {
       title: "Pessoas",

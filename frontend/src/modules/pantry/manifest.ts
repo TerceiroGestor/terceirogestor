@@ -1,11 +1,18 @@
 "use client";
 
-import { Package, PackagePlus, PackageSearch, Truck, Users } from "lucide-react";
+import {
+  Package,
+  PackagePlus,
+  PackageSearch,
+  Truck,
+  Users,
+} from "lucide-react";
 import type { ModuleManifest } from "@/modules/types";
+import { NAV_GROUPS } from "@/modules/nav/groups";
 
 export const pantryManifest: ModuleManifest = {
   key: "pantry",
-  groupLabel: "Suporte Material",
+  groupLabel: NAV_GROUPS.RECURSOS,
   navItems: [
     {
       title: "Despensa",
@@ -13,6 +20,7 @@ export const pantryManifest: ModuleManifest = {
       icon: Package,
       permissions: ["pantry.read"],
       order: 10,
+      /** 
       children: [
         {
           title: "Itens",
@@ -42,8 +50,7 @@ export const pantryManifest: ModuleManifest = {
           permissions: ["pantry.read"],
           order: 40,
         },
-      ],
+      ],*/
     },
   ],
 };
-

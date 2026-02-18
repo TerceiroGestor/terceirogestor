@@ -136,7 +136,9 @@ export default function AdminRolesPage() {
               {row.original.name}
             </p>
             <p className="text-xs text-muted-foreground">
-              {row.original.description?.trim() ? row.original.description : "-"}
+              {row.original.description?.trim()
+                ? row.original.description
+                : "-"}
             </p>
           </div>
         ),
@@ -164,7 +166,9 @@ export default function AdminRolesPage() {
         accessorKey: "permissionsCount",
         header: "Permissões",
         cell: ({ row }) => (
-          <span className="font-mono text-sm">{row.original.permissionsCount}</span>
+          <span className="font-mono text-sm">
+            {row.original.permissionsCount}
+          </span>
         ),
       },
     ],
@@ -272,8 +276,6 @@ export default function AdminRolesPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <AdminSettingsHeader title="Configurações • Perfis" />
-
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}

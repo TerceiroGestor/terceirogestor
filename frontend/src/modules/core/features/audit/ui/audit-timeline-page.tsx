@@ -128,7 +128,14 @@ export function AuditTimelinePage() {
     if (authLoading) return;
     if (!token || !isAuthenticated || !canReadAudit) return;
     loadLogs(1, "replace", filters.applied);
-  }, [authLoading, token, isAuthenticated, canReadAudit, loadLogs, filters.applied]);
+  }, [
+    authLoading,
+    token,
+    isAuthenticated,
+    canReadAudit,
+    loadLogs,
+    filters.applied,
+  ]);
 
   if (!canReadAudit) {
     return (
@@ -140,8 +147,6 @@ export function AuditTimelinePage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <AdminSettingsHeader title="Configurações • Auditoria" />
-
       <FilterDrawer
         open={filtersOpen}
         onOpenChange={setFiltersOpen}

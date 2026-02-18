@@ -103,7 +103,6 @@ export default function AdminTenantPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <AdminSettingsHeader title="Configurações • Instituição" />
       <SectionCard
         title="Instituição"
         subtitle="Atualize os dados da instituição e a identidade visual."

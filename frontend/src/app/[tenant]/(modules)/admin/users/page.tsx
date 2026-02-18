@@ -286,7 +286,6 @@ export default function AdminUsersPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <AdminSettingsHeader title="Configurações • Usuários" />
       <SectionCard
         title="Usuários"
         subtitle="Gerencie os usuários e seus perfis de acesso."

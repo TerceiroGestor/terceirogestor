@@ -5,27 +5,16 @@ import { peopleManifest } from "@/modules/people/manifest";
 import { pantryManifest } from "@/modules/pantry/manifest";
 import { programsManifest } from "@/modules/programs/manifest";
 import { projectsManifest } from "@/modules/projects/manifest";
-import { organizationManifest } from "@/modules/organization/manifest";
+import { NAV_GROUP_ORDER } from "@/modules/nav/groups";
 
 export const moduleManifests: ModuleManifest[] = [
   coreManifest,
   peopleManifest,
-  organizationManifest,
   programsManifest,
   projectsManifest,
   actionsManifest,
   pantryManifest,
 ];
-
-const NAV_GROUP_ORDER: Record<string, number> = {
-  Geral: 10,
-  Cadastros: 20,
-  "Organização": 25,
-  "Operações": 30,
-  "Suporte Material": 40,
-  Relatórios: 50,
-  Administração: 90,
-};
 
 const resolveGroupOrder = (label: string) => NAV_GROUP_ORDER[label] ?? 999;
 
