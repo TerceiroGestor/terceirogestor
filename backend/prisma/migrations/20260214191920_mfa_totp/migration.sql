@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `mfaTotpEnabled` BOOLEAN NOT NULL DEFAULT false,
+ALTER TABLE `User` ADD COLUMN `mfaTotpEnabled` BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN `mfaTotpSecretEnc` TEXT NULL,
     ADD COLUMN `mfaTotpVerifiedAt` DATETIME(3) NULL;
 

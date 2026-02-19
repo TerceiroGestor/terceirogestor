@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE `pantryentry` ALTER COLUMN `sector` DROP DEFAULT;
+ALTER TABLE `PantryEntry` ALTER COLUMN `sector` DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE `pantryexit` ALTER COLUMN `sector` DROP DEFAULT;
+ALTER TABLE `PantryExit` ALTER COLUMN `sector` DROP DEFAULT;
 
 -- CreateTable
 CREATE TABLE `PantryExitAllocation` (

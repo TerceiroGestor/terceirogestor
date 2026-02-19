@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE `pantryentry` ADD COLUMN `reversalOfExitId` CHAR(36) NULL;
+ALTER TABLE `PantryEntry` ADD COLUMN `reversalOfExitId` CHAR(36) NULL;
 
 -- AlterTable
-ALTER TABLE `pantryexit` ADD COLUMN `reversalOfEntryId` CHAR(36) NULL,
+ALTER TABLE `PantryExit` ADD COLUMN `reversalOfEntryId` CHAR(36) NULL,
     MODIFY `type` ENUM('ATTENDED', 'DONATION', 'EVENT', 'PARTY', 'CORRECTION') NOT NULL DEFAULT 'ATTENDED';
 
 -- CreateIndex

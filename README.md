@@ -10,8 +10,7 @@ cd system_development
 
 2) Subir o banco (MySQL via Docker)
 ```bash
-cd backend
-docker compose -f docker/docker-compose.yml up -d
+docker compose up -d mysql
 ```
 
 3) Configurar variaveis de ambiente
@@ -48,3 +47,35 @@ npm run dev
 ## Checklist rapido (antes de finalizar alteracoes)
 - Rodar `npm run build` no frontend.
 - Rodar `npm run build` no backend.
+
+## Docker (stack mysql + backend + frontend)
+1) Preparar variaveis do compose
+```bash
+copy .env.compose.example .env
+```
+Edite `.env` com:
+- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_DATABASE`
+- `NEXT_PUBLIC_API_URL` (ex: `http://localhost:3001`)
+- `TZ`
+
+2) Ajustar `.env` do backend e frontend (se necessario)
+- Backend: `backend/.env` (DATABASE_URL sera sobrescrita no container).
+- Frontend: `frontend/.env` (NEXT_PUBLIC_API_URL pode ser sobrescrita no container).
+
+3) Subir o banco, backend e frontend
+```bash
+docker compose up -d mysql backend frontend
+```
+Observacao: os dados do MySQL ficam em `/srv/dados/terceirogestor/mysql` (bind mount).
+
+Backup automatico:
+- arquivos em `/srv/dados/terceirogestor/backups`
+- executa diariamente as 12:00 (meio-dia) no timezone do container
+- ajuste `BACKUP_KEEP_DAYS` e `TZ` em `.env`
+```bash
+docker compose up -d backup
+```
+
+4) SSL em producao
+- Configure Nginx/Certbot direto no servidor (fora do compose).
