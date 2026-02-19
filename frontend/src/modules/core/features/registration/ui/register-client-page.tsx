@@ -66,15 +66,14 @@ export function RegisterClientPage() {
         title: "Código enviado",
         description: "Enviamos um código para confirmar o cadastro.",
       });
+      if (typeof window !== "undefined") {
+        const redirectUrl = new URL("/register/confirm", window.location.origin);
+        redirectUrl.searchParams.set("rid", payload.registrationId);
+        window.location.assign(redirectUrl.toString());
+        return;
+      }
       const redirectPath = `/register/confirm?rid=${encodeURIComponent(payload.registrationId)}`;
       router.push(redirectPath);
-      // Fallback para casos em que o router não navega (proxy/produção).
-      setTimeout(() => {
-        if (typeof window === "undefined") return;
-        if (!window.location.pathname.startsWith("/register/confirm")) {
-          window.location.assign(redirectPath);
-        }
-      }, 300);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erro", description: error?.message ?? "Falha ao cadastrar." });
     } finally {
