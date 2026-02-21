@@ -33,7 +33,7 @@ export function usePantryOverviewModel() {
   const [createItemOpen, setCreateItemOpen] = React.useState(false);
   const [editItemOpen, setEditItemOpen] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<
-    Pick<StockRow, "itemId" | "name" | "group" | "unit" | "minStock"> | null
+    Pick<StockRow, "itemId" | "name" | "group" | "unit" | "minStock" | "sector"> | null
   >(null);
 
   const [editEntryOpen, setEditEntryOpen] = React.useState(false);
@@ -159,6 +159,8 @@ export function usePantryOverviewModel() {
     handleMovementSaved,
     handleAlertsRefresh,
 
+    expiringAlerts: dashboard.expiringAlerts,
+    alertsCount: dashboard.expiringAlerts.totalCount,
     expiredItems: dashboard.expiredItems,
     recentMovements: dashboard.recentMovements,
     openMovementEdit,

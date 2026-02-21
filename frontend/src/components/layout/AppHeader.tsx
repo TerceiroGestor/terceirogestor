@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { usePathname } from "next/navigation";
 import {
@@ -23,6 +24,9 @@ export function AppHeader() {
   const items = breadcrumb.items;
   const action = breadcrumb.action;
   const actionSlot = breadcrumb.actionSlot;
+  const forceInstallButton =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_PWA_FORCE_INSTALL === "1";
 
   return (
     <header className="sticky top-0 z-30 flex min-w-0 items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur">
@@ -42,9 +46,7 @@ export function AppHeader() {
                         </BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink asChild>
-                          <Link
-                            href={withTenantPath(item.href, tenantSlug)}
-                          >
+                          <Link href={withTenantPath(item.href, tenantSlug)}>
                             <span className="truncate">{item.label}</span>
                           </Link>
                         </BreadcrumbLink>
@@ -56,33 +58,38 @@ export function AppHeader() {
               })}
             </BreadcrumbList>
           </Breadcrumb>
-        ) : null}
-        {actionSlot || action ? (
-          <div className="flex items-center gap-2">
-            {actionSlot}
-            {action ? (
-              action.href ? (
-                <Button
-                  size={action.size ?? "sm"}
-                  variant={action.variant ?? "default"}
-                  asChild
-                >
-                  <Link href={withTenantPath(action.href, tenantSlug)}>
-                    {action.label}
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  size={action.size ?? "sm"}
-                  variant={action.variant ?? "default"}
-                  onClick={action.onClick}
-                >
+        ) : (
+          <div className="min-w-0" />
+        )}
+
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {actionSlot}
+          {action ? (
+            action.href ? (
+              <Button
+                size={action.size ?? "sm"}
+                variant={action.variant ?? "default"}
+                asChild
+              >
+                <Link href={withTenantPath(action.href, tenantSlug)}>
                   {action.label}
-                </Button>
-              )
-            ) : null}
-          </div>
-        ) : null}
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size={action.size ?? "sm"}
+                variant={action.variant ?? "default"}
+                onClick={action.onClick}
+              >
+                {action.label}
+              </Button>
+            )
+          ) : null}
+          <PWAInstallButton
+            forceDisplay={forceInstallButton}
+            className={forceInstallButton ? "animate-pulse" : undefined}
+          />
+        </div>
       </div>
     </header>
   );

@@ -94,7 +94,7 @@ export function RegisterConfirmClientPage() {
 
   return (
     <div className="min-h-screen w-full bg-gray-100 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-md p-6 md:p-10 space-y-6">
+      <div className="w-full max-w-xl bg-white rounded-xl shadow-md p-4 space-y-6 sm:p-6 md:p-10">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Confirmar cadastro</h1>
           <p className="text-sm text-muted-foreground">

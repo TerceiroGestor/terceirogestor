@@ -25,7 +25,7 @@ export function DataTableToolbar({
 }: DataTableToolbarProps) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="icon" onClick={onOpenFilters}>
           <Settings2 className="size-4" />
         </Button>

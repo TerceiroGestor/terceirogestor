@@ -22,7 +22,7 @@ import {
 } from "@/modules/pantry/api";
 import { pantryDonorFormFields } from "@/modules/pantry/features/donors/config/pantry-donor-form-config";
 import type { PantryDonorFormValues } from "@/modules/pantry/shared/domain/types";
-import { PantrySubnav } from "@/modules/pantry/shared/ui/pantry-subnav";
+import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR } from "@/lib/date";
 
@@ -52,7 +52,6 @@ export function PantryDonorsClientPage() {
 
   const [rows, setRows] = React.useState<ApiPantryDonor[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
@@ -64,7 +63,6 @@ export function PantryDonorsClientPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiPantryDonor | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | null>(null);
 
   const columns = React.useMemo<ColumnDef<ApiPantryDonor>[]>(
     () => [
@@ -111,7 +109,6 @@ export function PantryDonorsClientPage() {
   const loadDonors = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
-    setError(null);
     try {
       const response = await listPantryDonors(token, {
         q: search.trim() || undefined,
@@ -126,14 +123,14 @@ export function PantryDonorsClientPage() {
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar doadores.";
-      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       setRows([]);
       setTotalCount(0);
       setPageCount(0);
     } finally {
       setLoading(false);
     }
-  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search]);
+  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search, toast]);
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -150,28 +147,34 @@ export function PantryDonorsClientPage() {
 
   const openCreate = React.useCallback(() => {
     setEditing(null);
-    setFormError(null);
     setDialogOpen(true);
   }, []);
 
   const openEdit = React.useCallback(
     (donor: ApiPantryDonor) => {
       if (!canUpdate) {
-        setError("Você não tem permissão para editar doadores.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar doadores.",
+        });
         return;
       }
       setEditing(donor);
-      setFormError(null);
       setDialogOpen(true);
     },
-    [canUpdate],
+    [canUpdate, toast],
   );
 
   const onDelete = React.useCallback(
     async (donor: ApiPantryDonor) => {
       if (!token) return;
       if (!canDelete) {
-        setError("Você não tem permissão para excluir doadores.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para excluir doadores.",
+        });
         return;
       }
       const confirmed = await confirm({
@@ -191,7 +194,6 @@ export function PantryDonorsClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir doador.";
-        setError(message);
         toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
@@ -202,22 +204,33 @@ export function PantryDonorsClientPage() {
     async (values: PantryDonorFormValues) => {
       if (!token) return;
       if (editing && !canUpdate) {
-        setFormError("Você não tem permissão para editar doadores.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar doadores.",
+        });
         return;
       }
       if (!editing && !canCreate) {
-        setFormError("Você não tem permissão para criar doadores.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para criar doadores.",
+        });
         return;
       }
 
       const payload = normalizeDonorValues(values);
       if (!payload.name) {
-        setFormError("Preencha o nome.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Preencha o nome.",
+        });
         return;
       }
 
       setSaving(true);
-      setFormError(null);
       try {
         if (editing) {
           await updatePantryDonor(token, editing.id, payload);
@@ -236,7 +249,6 @@ export function PantryDonorsClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar doador.";
-        setFormError(message);
         toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
@@ -258,9 +270,8 @@ export function PantryDonorsClientPage() {
       <PageBreadcrumb
         title="Despensa · Doadores"
         items={[{ label: "Despensa", href: "/pantry" }, { label: "Doadores" }]}
+        actionSlot={<PantryHeaderNav />}
       />
-
-      <PantrySubnav />
 
       <SectionCard
         title="Doadores"
@@ -276,12 +287,6 @@ export function PantryDonorsClientPage() {
           </div>
         }
       >
-        {error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
-
         <DataTable
           columns={columns}
           data={rows}
@@ -318,12 +323,6 @@ export function PantryDonorsClientPage() {
         title={editing ? "Editar doador" : "Novo doador"}
         description="Cadastro rápido para vincular entradas."
       >
-        {formError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {formError}
-          </div>
-        ) : null}
-
         <FormEngine<PantryDonorFormValues>
           fields={pantryDonorFormFields}
           initialValues={

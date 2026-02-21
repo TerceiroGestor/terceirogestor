@@ -7,7 +7,7 @@ export function PeopleCreatePage() {
       <PageBreadcrumb
         title="Novo cadastro"
         items={[
-          { label: "Pessoas", href: "/people" },
+          { label: "Pessoas", href: "/person" },
           { label: "Novo cadastro" },
         ]}
       />
@@ -15,4 +15,3 @@ export function PeopleCreatePage() {
     </div>
   );
 }
-

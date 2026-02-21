@@ -46,8 +46,9 @@ export const PANTRY_ITEM_GROUP = [
 ] as const;
 
 export const PANTRY_ITEM_UNIT = [
-  { label: "Kilograma (Kg)", value: "Kilograma (Kg)" },
-  { label: "Grama (g)", value: "Grama (g)" },
-  { label: "Litro (l)", value: "Litro (l)" },
-  { label: "Mililitro (ml)", value: "Mililitro (ml)" },
+  { label: "Unidade (un)", value: "unidade" },
+  { label: "Kilograma (kg)", value: "kg" },
+  { label: "Grama (g)", value: "g" },
+  { label: "Litro (l)", value: "l" },
+  { label: "Mililitro (ml)", value: "ml" },
 ] as const;

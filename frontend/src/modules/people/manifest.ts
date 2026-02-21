@@ -8,7 +8,7 @@ export const peopleManifest: ModuleManifest = {
   navItems: [
     {
       title: "Pessoas",
-      href: "/people",
+      href: "/person",
       icon: Users,
       permissions: ["people.read"],
       order: 10,

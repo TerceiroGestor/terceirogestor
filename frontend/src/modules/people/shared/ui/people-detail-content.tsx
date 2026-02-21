@@ -86,7 +86,7 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
       </TabsContent>
 
       <TabsContent value="resumo" className="mt-0">
-        <div className="rounded-2xl border border-border/60 bg-background px-6 py-8 shadow-sm">
+        <div className="rounded-2xl border border-border/60 bg-background px-4 py-6 shadow-sm sm:px-6 sm:py-8">
           <div className="mx-auto max-w-3xl">
             <div
               className="tiptap text-base leading-8 text-foreground sm:text-[17px]"

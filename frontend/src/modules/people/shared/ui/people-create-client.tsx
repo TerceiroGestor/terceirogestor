@@ -68,9 +68,9 @@ export function PeopleCreateClient() {
           profileSummary: values.profileSummary || null,
           avatarUrl,
         });
-        router.push(withTenantPath("/people", tenantSlug));
+        router.push(withTenantPath("/person", tenantSlug));
       }}
-      onCancel={() => router.push(withTenantPath("/people", tenantSlug))}
+      onCancel={() => router.push(withTenantPath("/person", tenantSlug))}
       submitLabel="Cadastrar"
       tagSuggestions={[]}
     />

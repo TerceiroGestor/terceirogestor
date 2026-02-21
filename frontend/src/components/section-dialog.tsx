@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import clsx from "clsx";
-import { XIcon } from "lucide-react";
+import { ArrowLeft, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type SectionDialogProps = {
@@ -23,6 +23,8 @@ type SectionDialogProps = {
   children: ReactNode;
   contentClassName?: string;
   headerSlot?: ReactNode;
+  showBackButton?: boolean;
+  backLabel?: string;
 };
 
 export function SectionDialog({
@@ -34,6 +36,8 @@ export function SectionDialog({
   children,
   contentClassName,
   headerSlot,
+  showBackButton,
+  backLabel = "Voltar",
 }: SectionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,7 +49,7 @@ export function SectionDialog({
           contentClassName,
         )}
       >
-        <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-6 pb-4 pt-6 backdrop-blur">
+        <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-4 pb-4 pt-5 backdrop-blur sm:px-6 sm:pt-6">
           <div className="flex items-start justify-between gap-4">
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
@@ -55,6 +59,20 @@ export function SectionDialog({
             </DialogHeader>
 
             <div className="flex items-center gap-2">
+              {showBackButton ? (
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    title={backLabel}
+                  >
+                    <ArrowLeft className="size-4" />
+                    {backLabel}
+                  </Button>
+                </DialogClose>
+              ) : null}
               {headerSlot}
               <DialogClose asChild>
                 <Button
@@ -71,7 +89,7 @@ export function SectionDialog({
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
           {children}
         </div>
       </DialogContent>

@@ -6,7 +6,7 @@ import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { FormEngine } from "@/components/FormEngine/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
-import { UsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -324,6 +324,33 @@ export function ActionCreateRouteClientPage() {
     }
   };
 
+  const usageItems = React.useMemo(
+    () =>
+      ACTION_CREATE_TEXT.usage.sections.map((section, index) => ({
+        id: `actions-create-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: ACTION_CREATE_TEXT.usage.title,
+    items: usageItems,
+  });
+
+  const breadcrumbItems = React.useMemo(
+    () => ACTION_CREATE_TEXT.breadcrumbItems.map((item) => ({ ...item })),
+    [],
+  );
+
   if (!isAuthenticated || authLoading) return null;
 
   if (!canCreate) {
@@ -339,11 +366,6 @@ export function ActionCreateRouteClientPage() {
     );
   }
 
-  const breadcrumbItems = React.useMemo(
-    () => ACTION_CREATE_TEXT.breadcrumbItems.map((item) => ({ ...item })),
-    [],
-  );
-
   return (
     <div className="space-y-6">
       <PageBreadcrumb
@@ -354,6 +376,7 @@ export function ActionCreateRouteClientPage() {
       <SectionCard title={ACTION_CREATE_TEXT.pageTitle} subtitle={ACTION_CREATE_TEXT.pageSubtitle}>
         <FormEngine<ActionCreateValues>
           fields={fields}
+          steps={ACTION_CREATE_TEXT.steps}
           initialValues={initialValues}
           onValuesChange={setDraft}
           onSubmit={handleSubmit}
@@ -372,21 +395,6 @@ export function ActionCreateRouteClientPage() {
         />
       </SectionCard>
 
-      <UsageDocumentation
-        title={ACTION_CREATE_TEXT.usage.title}
-        items={ACTION_CREATE_TEXT.usage.sections.map((section, index) => ({
-          id: `actions-create-${index}`,
-          title: section.title,
-          searchText: section.items.join(" "),
-          content: (
-            <ul className="list-disc space-y-1 pl-5">
-              {section.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ),
-        }))}
-      />
     </div>
   );
 }

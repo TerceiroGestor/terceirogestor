@@ -12,6 +12,11 @@ const RESERVED_SEGMENTS = new Set([
   "login",
   "register",
   "t",
+  // PWA/static app resources (must not be treated as tenant slugs)
+  "manifest.webmanifest",
+  "sw.js",
+  "icon.png",
+  "pwa",
   "favicon.ico",
   "robots.txt",
   "sitemap.xml",

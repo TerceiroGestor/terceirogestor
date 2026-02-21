@@ -4,7 +4,7 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { AdminAuditLog } from "@/features/admin/api";
-import { auditActionLabels } from "../domain/labels";
+import { auditActionLabels, formatAuditEntity } from "../domain/labels";
 import { formatDateTime } from "../domain/format";
 
 export function AuditLogDetailsDialog({
@@ -27,7 +27,7 @@ export function AuditLogDetailsDialog({
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{auditActionLabels[log.action]}</Badge>
-            <span className="text-sm font-semibold">{log.entity}</span>
+            <span className="text-sm font-semibold">{formatAuditEntity(log.entity)}</span>
             {log.entityId ? (
               <span className="text-xs text-muted-foreground">{log.entityId}</span>
             ) : null}

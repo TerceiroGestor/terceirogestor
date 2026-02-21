@@ -14,9 +14,9 @@ Este diretório existe por motivos históricos. O objetivo do template é que **
 
 ## Não permitido aqui (no template final)
 
-Qualquer feature que seja subdomínio de um módulo. Ex.: features do módulo `people` devem viver em `src/modules/people/features/*`.
+Qualquer feature que seja subdomínio de um módulo. Ex.: features do módulo `person` devem viver em `src/modules/person/features/*`.
+
 
 Se você encontrar uma pasta de domínio aqui, trate como:
 1) “legado a migrar”
 2) mover para o módulo correto quando o módulo existir
-

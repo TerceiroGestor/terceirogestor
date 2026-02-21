@@ -905,7 +905,7 @@ export function DataTableClient<TData>({
         actions={toolbarActions}
         rightContent={
           summaryCards ? (
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-1.5">
               <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                   {summaryCards.totalLabel ?? "Total"}

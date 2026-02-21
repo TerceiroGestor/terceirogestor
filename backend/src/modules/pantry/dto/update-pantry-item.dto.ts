@@ -12,6 +12,10 @@ export class UpdatePantryItemDto {
 
   @IsOptional()
   @IsString()
+  defaultSector?: string;
+
+  @IsOptional()
+  @IsString()
   unit?: string;
 
   @IsOptional()

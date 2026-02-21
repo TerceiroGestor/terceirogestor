@@ -40,6 +40,23 @@ export const ACTION_CREATE_TEXT = {
     submitLabel: "Criar ação",
     cancelLabel: "Voltar",
   },
+  steps: [
+    {
+      title: "Básico",
+      description: "Projeto, título, tipo e status.",
+      fields: ["projectId", "title", "actionTypeId", "status"],
+    },
+    {
+      title: "Escopo",
+      description: "Grupo e/ou Ciclo (quando aplicável).",
+      fields: ["groupId", "cycleId"],
+    },
+    {
+      title: "Planejamento",
+      description: "Datas planejadas e descrição do plano.",
+      fields: ["plannedStartAt", "plannedEndAt", "planHtml"],
+    },
+  ],
   usage: {
     title: "Criar ação",
     sections: [

@@ -1,17 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { FormEngine } from "@/components/FormEngine";
+import type { FormField } from "@/components/FormEngine/types";
 import {
   BENEFIT_TYPE_OPTIONS,
   BENEFIT_FREQUENCY_OPTIONS,
@@ -29,6 +20,11 @@ export type BenefitFormValues = {
   notes: string;
 };
 
+type BenefitEngineValues = Omit<BenefitFormValues, "type"> & {
+  typeOption: string;
+  typeCustom: string;
+};
+
 type BenefitFormProps = {
   initialValues: BenefitFormValues;
   submitLabel: string;
@@ -36,164 +32,106 @@ type BenefitFormProps = {
   onCancel?: () => void;
 };
 
+const OTHER_VALUE = "__OTHER__";
+
 export function BenefitForm({
   initialValues,
   submitLabel,
   onSubmit,
   onCancel,
 }: BenefitFormProps) {
-  const [form, setForm] = React.useState<BenefitFormValues>(initialValues);
+  const engineInitialValues = React.useMemo<BenefitEngineValues>(() => {
+    const isKnown = BENEFIT_TYPE_OPTIONS.some(
+      (option) => option.value === initialValues.type,
+    );
 
-  const typeValue = React.useMemo(() => {
-    const exists = BENEFIT_TYPE_OPTIONS.some((option) => option.value === form.type);
-    return exists ? form.type : "Outro";
-  }, [form.type]);
-
-  React.useEffect(() => {
-    setForm(initialValues);
+    return {
+      status: initialValues.status,
+      amount: initialValues.amount,
+      frequency: initialValues.frequency,
+      startDate: initialValues.startDate,
+      endDate: initialValues.endDate,
+      notes: initialValues.notes,
+      typeOption: isKnown ? initialValues.type : OTHER_VALUE,
+      typeCustom: isKnown ? "" : initialValues.type,
+    };
   }, [initialValues]);
 
+  const fields = React.useMemo<FormField<BenefitEngineValues>[]>(
+    () => [
+      {
+        name: "typeOption",
+        label: BENEFITS_TEXT.form.typeLabel,
+        type: "select",
+        options: [
+          ...BENEFIT_TYPE_OPTIONS,
+          { label: "Outro", value: OTHER_VALUE },
+        ],
+        required: true,
+      },
+      {
+        name: "typeCustom",
+        label: BENEFITS_TEXT.form.typeLabel,
+        type: "text",
+        placeholder: BENEFITS_TEXT.form.typePlaceholder,
+        visibleWhen: (values) => values.typeOption === OTHER_VALUE,
+        requiredWhen: (values) => values.typeOption === OTHER_VALUE,
+      },
+      {
+        name: "status",
+        label: BENEFITS_TEXT.form.statusLabel,
+        type: "select",
+        options: BENEFIT_STATUS_OPTIONS,
+      },
+      {
+        name: "frequency",
+        label: BENEFITS_TEXT.form.frequencyLabel,
+        type: "select",
+        options: BENEFIT_FREQUENCY_OPTIONS,
+      },
+      {
+        name: "amount",
+        label: BENEFITS_TEXT.form.amountLabel,
+        type: "number",
+        placeholder: "0.00",
+      },
+      { name: "startDate", label: BENEFITS_TEXT.form.startDateLabel, type: "date" },
+      { name: "endDate", label: BENEFITS_TEXT.form.endDateLabel, type: "date" },
+      {
+        name: "notes",
+        label: BENEFITS_TEXT.form.notesLabel,
+        type: "textarea",
+        placeholder: BENEFITS_TEXT.form.notesPlaceholder,
+        rows: 4,
+      },
+    ],
+    [],
+  );
+
   return (
-    <form
-      className="grid gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit(form);
+    <FormEngine<BenefitEngineValues>
+      initialValues={engineInitialValues}
+      fields={fields}
+      onSubmit={(values) => {
+        const resolvedType =
+          values.typeOption === OTHER_VALUE
+            ? values.typeCustom.trim()
+            : values.typeOption;
+
+        return onSubmit({
+          type: resolvedType,
+          status: values.status,
+          amount: values.amount,
+          frequency: values.frequency,
+          startDate: values.startDate,
+          endDate: values.endDate,
+          notes: values.notes,
+        });
       }}
-    >
-      <div className="grid gap-2">
-        <Label>{BENEFITS_TEXT.form.typeLabel}</Label>
-        <Select
-          value={typeValue}
-          onValueChange={(value) =>
-            setForm((prev) => ({
-              ...prev,
-              type: value === "Outro" ? "" : value,
-            }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            {BENEFIT_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {typeValue === "Outro" ? (
-          <Input
-            value={form.type}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, type: event.target.value }))
-            }
-            placeholder={BENEFITS_TEXT.form.typePlaceholder}
-          />
-        ) : null}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label>{BENEFITS_TEXT.form.statusLabel}</Label>
-          <Select
-            value={form.status}
-            onValueChange={(value) =>
-              setForm((prev) => ({ ...prev, status: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {BENEFIT_STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label>{BENEFITS_TEXT.form.frequencyLabel}</Label>
-          <Select
-            value={form.frequency}
-            onValueChange={(value) =>
-              setForm((prev) => ({ ...prev, frequency: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {BENEFIT_FREQUENCY_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <Label>{BENEFITS_TEXT.form.amountLabel}</Label>
-        <Input
-          type="number"
-          step="0.01"
-          value={form.amount}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, amount: event.target.value }))
-          }
-          placeholder="0.00"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label>{BENEFITS_TEXT.form.startDateLabel}</Label>
-          <Input
-            type="date"
-            value={form.startDate}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, startDate: event.target.value }))
-            }
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>{BENEFITS_TEXT.form.endDateLabel}</Label>
-          <Input
-            type="date"
-            value={form.endDate}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, endDate: event.target.value }))
-            }
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <Label>{BENEFITS_TEXT.form.notesLabel}</Label>
-        <Textarea
-          value={form.notes}
-          onChange={(event) =>
-            setForm((prev) => ({ ...prev, notes: event.target.value }))
-          }
-          placeholder={BENEFITS_TEXT.form.notesPlaceholder}
-          rows={4}
-        />
-      </div>
-
-      <div className="flex items-center justify-end gap-2">
-        {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancelar
-          </Button>
-        ) : null}
-        <Button type="submit">{submitLabel}</Button>
-      </div>
-    </form>
+      actions={{
+        cancel: onCancel ? { label: "Cancelar", onClick: onCancel, variant: "ghost" } : undefined,
+        submit: { label: submitLabel, variant: "primary" },
+      }}
+    />
   );
 }

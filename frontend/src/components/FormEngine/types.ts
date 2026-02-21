@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 /* ======================================================
  * FIELD TYPES
@@ -56,6 +56,12 @@ export interface BaseField<T = any> {
 
   /** Texto auxiliar (hint, help, description) */
   helperText?: string;
+
+  /** Controla visibilidade do campo em função dos valores atuais */
+  visibleWhen?: (values: T) => boolean;
+
+  /** Oculta o campo em função dos valores atuais (tem precedência sobre visibleWhen) */
+  hiddenWhen?: (values: T) => boolean;
 }
 
 /* ======================================================
@@ -124,7 +130,7 @@ export interface SelectOption {
 
 export interface SelectField<T = any> extends BaseField<T> {
   type: "select" | "multiselect";
-  options: SelectOption[];
+  options: ReadonlyArray<SelectOption>;
 }
 
 export interface TagsField<T = any> extends BaseField<T> {
@@ -169,7 +175,10 @@ export interface FormStep {
   title: string;
 
   /** Campos que pertencem ao step (por name) */
-  fields: string[];
+  fields: ReadonlyArray<string>;
+
+  /** Ícone opcional (contextual) */
+  icon?: ComponentType<{ className?: string }>;
 
   /** Conteúdo opcional (descrição, aviso, etc.) */
   description?: ReactNode;
@@ -194,16 +203,27 @@ export interface FormEngineProps<T = any> {
   id?: string;
 
   /** Lista de campos do formulário */
-  fields: FormField<T>[];
+  fields: ReadonlyArray<FormField<T>>;
 
   /** Steps opcionais */
-  steps?: FormStep[];
+  steps?: ReadonlyArray<FormStep>;
 
   /** Valores iniciais (modo edição) */
   initialValues?: Partial<T>;
 
   /** Callback de submit */
   onSubmit: (values: T) => void;
+
+  /**
+   * Permite derivar/atualizar campos automaticamente quando um campo muda.
+   * Retorne um patch (Partial<T>) para mesclar ao próximo estado.
+   */
+  onFieldChange?: (params: {
+    name: keyof T & string;
+    value: unknown;
+    prevValues: T;
+    nextValues: T;
+  }) => Partial<T> | void;
 
   /** Renderização customizada de botões */
   /** Callback a cada mudança de valores */

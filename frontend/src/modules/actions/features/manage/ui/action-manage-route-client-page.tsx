@@ -7,15 +7,26 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { ArrowLeft, Printer } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarCheck,
+  Camera,
+  Check,
+  ClipboardList,
+  FileText,
+  Star,
+  Users,
+  ArrowLeft,
+  Printer,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { FormEngine } from "@/components/FormEngine/FormEngine";
 import type { FormField } from "@/components/FormEngine/types";
 import { SectionDialog } from "@/components/section-dialog";
-import { UsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -38,6 +49,94 @@ import { ActionReportPreview } from "./action-report-preview";
 import { ACTION_MANAGE_TEXT } from "../config/action-manage.constants";
 
 const MAX_PHOTOS = 5;
+
+type ActionManageTabValue =
+  | "plan"
+  | "participants"
+  | "executed"
+  | "conclusion"
+  | "quality"
+  | "photos"
+  | "report"
+  | "occurrences";
+
+type ActionManageStep = {
+  value: ActionManageTabValue;
+  title: string;
+  Icon: React.ComponentType<{ className?: string }>;
+};
+
+function ActionManageStepsNav(props: {
+  value: ActionManageTabValue;
+  steps: ActionManageStep[];
+  onChange: (next: ActionManageTabValue) => void;
+}) {
+  const currentIndex = Math.max(
+    0,
+    props.steps.findIndex((step) => step.value === props.value),
+  );
+
+  const progressPct =
+    props.steps.length <= 1
+      ? 0
+      : Math.round((currentIndex / (props.steps.length - 1)) * 100);
+
+  return (
+    <div className="rounded-lg border bg-card/70 p-4 shadow-sm">
+      <div className="relative">
+        <div className="absolute left-4 right-4 top-5 h-1 rounded-full bg-border/60" />
+        <div
+          className="absolute left-4 top-5 h-1 rounded-full bg-primary transition-[width] duration-200 ease-out"
+          style={{ width: `calc(${progressPct}% - 0px)` }}
+        />
+
+        <div className="relative z-10 flex items-start justify-between gap-3 overflow-x-auto pb-2">
+          {props.steps.map((step, index) => {
+            const active = index === currentIndex;
+            const complete = index < currentIndex;
+            const iconClasses = complete
+              ? "bg-primary text-primary-foreground border-primary/20"
+              : active
+                ? "bg-primary/10 text-primary border-primary/30"
+                : "bg-muted/50 text-muted-foreground border-border/70";
+
+            return (
+              <button
+                key={step.value}
+                type="button"
+                onClick={() => props.onChange(step.value)}
+                aria-current={active ? "step" : undefined}
+                className="group flex min-w-[92px] flex-1 flex-col items-center gap-2 sm:min-w-[110px]"
+                title={step.title}
+              >
+                <span
+                  className={[
+                    "flex size-10 items-center justify-center rounded-full border shadow-sm transition-colors",
+                    iconClasses,
+                  ].join(" ")}
+                >
+                  {complete ? (
+                    <Check className="size-5" />
+                  ) : (
+                    <step.Icon className="size-5" />
+                  )}
+                </span>
+                <span
+                  className={[
+                    "text-center text-xs font-semibold",
+                    active ? "text-foreground" : "text-muted-foreground",
+                  ].join(" ")}
+                >
+                  {step.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function toDateOnly(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
@@ -120,7 +219,7 @@ export function ActionManageRouteClientPage() {
   const canReadPeople = permissions.includes("people.read");
   const canReadPeopleIdentity = permissions.includes("people.identity.read");
 
-  const [tab, setTab] = React.useState("plan");
+  const [tab, setTab] = React.useState<ActionManageTabValue>("plan");
   const [action, setAction] = React.useState<ApiProjectAction | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -137,6 +236,58 @@ export function ActionManageRouteClientPage() {
   const [photoFormKey, setPhotoFormKey] = React.useState(0);
 
   const photoPaths = React.useMemo(() => action?.photoPaths ?? [], [action]);
+
+  const usageItems = React.useMemo(
+    () =>
+      ACTION_MANAGE_TEXT.usage.sections.map((section, index) => ({
+        id: `actions-manage-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: ACTION_MANAGE_TEXT.usage.title,
+    items: usageItems,
+  });
+
+  const tabsAsSteps = React.useMemo<ActionManageStep[]>(
+    () => [
+      { value: "plan", title: ACTION_MANAGE_TEXT.tabs.plan, Icon: ClipboardList },
+      {
+        value: "participants",
+        title: ACTION_MANAGE_TEXT.tabs.participants,
+        Icon: Users,
+      },
+      {
+        value: "executed",
+        title: ACTION_MANAGE_TEXT.tabs.executed,
+        Icon: CalendarCheck,
+      },
+      {
+        value: "conclusion",
+        title: ACTION_MANAGE_TEXT.tabs.conclusion,
+        Icon: FileText,
+      },
+      { value: "quality", title: ACTION_MANAGE_TEXT.tabs.quality, Icon: Star },
+      { value: "photos", title: ACTION_MANAGE_TEXT.tabs.photos, Icon: Camera },
+      { value: "report", title: ACTION_MANAGE_TEXT.tabs.report, Icon: FileText },
+      {
+        value: "occurrences",
+        title: ACTION_MANAGE_TEXT.tabs.occurrences,
+        Icon: AlertTriangle,
+      },
+    ],
+    [],
+  );
 
   const load = React.useCallback(async () => {
     if (!token || !canRead) return;
@@ -245,28 +396,6 @@ export function ActionManageRouteClientPage() {
     await save({ photoPaths: next });
   };
 
-  if (!isAuthenticated || authLoading) return null;
-  if (!token) return null;
-
-  if (!canRead) {
-    return (
-      <SectionCard title={ACTION_MANAGE_TEXT.noAccessTitle} subtitle={ACTION_MANAGE_TEXT.noAccessSubtitle}>
-        <p className="text-xs text-muted-foreground">{ACTION_MANAGE_TEXT.requestAccessHint}</p>
-      </SectionCard>
-    );
-  }
-
-  if (!projectId) {
-    return (
-      <SectionCard title={ACTION_MANAGE_TEXT.projectMissingTitle} subtitle={ACTION_MANAGE_TEXT.projectMissingSubtitle}>
-        <p className="text-xs text-muted-foreground">{ACTION_MANAGE_TEXT.projectMissingHint}</p>
-        <Button type="button" variant="secondary" className="mt-4" onClick={() => router.push(withTenantPath("/actions", tenantSlug))}>
-          {ACTION_MANAGE_TEXT.back}
-        </Button>
-      </SectionCard>
-    );
-  }
-
   const breadcrumbTitle = action?.title ?? ACTION_MANAGE_TEXT.noAccessTitle;
 
   const planInitialValues = React.useMemo<Partial<PlanValues>>(() => {
@@ -343,7 +472,48 @@ export function ActionManageRouteClientPage() {
     ];
   }, [photoPaths.length]);
 
-  const selectedPhotoUrl = photoPaths[photoDialog.index] ? resolveMediaUrl(photoPaths[photoDialog.index]!) : "";
+  const selectedPhotoUrl = photoPaths[photoDialog.index]
+    ? resolveMediaUrl(photoPaths[photoDialog.index]!)
+    : "";
+
+  if (!isAuthenticated || authLoading) return null;
+  if (!token) return null;
+
+  if (!canRead) {
+    return (
+      <SectionCard
+        title={ACTION_MANAGE_TEXT.noAccessTitle}
+        subtitle={ACTION_MANAGE_TEXT.noAccessSubtitle}
+      >
+        <p className="text-xs text-muted-foreground">
+          {ACTION_MANAGE_TEXT.requestAccessHint}
+        </p>
+      </SectionCard>
+    );
+  }
+
+  if (!projectId) {
+    return (
+      <SectionCard
+        title={ACTION_MANAGE_TEXT.projectMissingTitle}
+        subtitle={ACTION_MANAGE_TEXT.projectMissingSubtitle}
+      >
+        <p className="text-xs text-muted-foreground">
+          {ACTION_MANAGE_TEXT.projectMissingHint}
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-4"
+          onClick={() =>
+            router.push(withTenantPath("/actions", tenantSlug))
+          }
+        >
+          {ACTION_MANAGE_TEXT.back}
+        </Button>
+      </SectionCard>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -380,34 +550,18 @@ export function ActionManageRouteClientPage() {
 
         {action ? (
           <>
-            <div className="print:hidden">
-              <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-                <TabsList className="h-10 w-full justify-start overflow-auto rounded-xl border border-border/60 bg-muted/20 p-1">
-                  <TabsTrigger value="plan" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.plan}
-                  </TabsTrigger>
-                  <TabsTrigger value="participants" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.participants}
-                  </TabsTrigger>
-                  <TabsTrigger value="executed" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.executed}
-                  </TabsTrigger>
-                  <TabsTrigger value="conclusion" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.conclusion}
-                  </TabsTrigger>
-                  <TabsTrigger value="quality" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.quality}
-                  </TabsTrigger>
-                  <TabsTrigger value="photos" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.photos}
-                  </TabsTrigger>
-                  <TabsTrigger value="report" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.report}
-                  </TabsTrigger>
-                  <TabsTrigger value="occurrences" className="rounded-lg px-4">
-                    {ACTION_MANAGE_TEXT.tabs.occurrences}
-                  </TabsTrigger>
-                </TabsList>
+            <div className="space-y-6 print:hidden">
+              <ActionManageStepsNav
+                value={tab}
+                steps={tabsAsSteps}
+                onChange={(next) => setTab(next)}
+              />
+
+              <Tabs
+                value={tab}
+                onValueChange={(next) => setTab(next as ActionManageTabValue)}
+                className="space-y-6"
+              >
 
                 <TabsContent value="plan" className="mt-0 space-y-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -626,22 +780,6 @@ export function ActionManageRouteClientPage() {
           </>
         ) : null}
       </SectionCard>
-
-      <UsageDocumentation
-        title={ACTION_MANAGE_TEXT.usage.title}
-        items={ACTION_MANAGE_TEXT.usage.sections.map((section, index) => ({
-          id: `actions-manage-${index}`,
-          title: section.title,
-          searchText: section.items.join(" "),
-          content: (
-            <ul className="list-disc space-y-1 pl-5">
-              {section.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ),
-        }))}
-      />
 
       <SectionDialog
         open={photoDialog.open}

@@ -7,6 +7,8 @@ export type ModuleNavItem = {
   badge?: string;
   exact?: boolean;
   disabled?: boolean;
+  roles?: string[];
+  rolesAny?: string[];
   permissions?: string[];
   permissionsAny?: string[];
   groupLabel?: string;

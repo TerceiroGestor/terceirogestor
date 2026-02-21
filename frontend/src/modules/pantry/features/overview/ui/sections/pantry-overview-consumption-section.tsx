@@ -27,6 +27,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { SectionCard } from "@/components/section-card";
+import { useToast } from "@/components/ui/use-toast";
 import type {
   PantryConsumptionResponse,
   PantryFlowResponse,
@@ -155,6 +156,26 @@ export function PantryOverviewConsumptionSection({
   const consumptionChartRef = React.useRef<HTMLDivElement | null>(null);
   const flowChartRef = React.useRef<HTMLDivElement | null>(null);
   const usageChartRef = React.useRef<HTMLDivElement | null>(null);
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (!consumptionError) return;
+    toast({
+      variant: "destructive",
+      title: "Falha ao carregar consumo",
+      description: consumptionError,
+    });
+  }, [consumptionError, toast]);
+
+  React.useEffect(() => {
+    if (!flowError) return;
+    toast({ variant: "destructive", title: "Falha ao carregar fluxo", description: flowError });
+  }, [flowError, toast]);
+
+  React.useEffect(() => {
+    if (!usageError) return;
+    toast({ variant: "destructive", title: "Falha ao carregar uso", description: usageError });
+  }, [usageError, toast]);
 
   const chart = React.useMemo(() => {
     if (!consumption) return null;
@@ -269,12 +290,6 @@ export function PantryOverviewConsumptionSection({
         </div>
       }
     >
-      {consumptionError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {consumptionError}
-        </div>
-      ) : null}
-
       <div className="grid gap-3 lg:grid-cols-6">
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -453,12 +468,6 @@ export function PantryOverviewConsumptionSection({
             </div>
           </div>
 
-          {flowError ? (
-            <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {flowError}
-            </div>
-          ) : null}
-
           {flowChart ? (
             <div className="mt-3">
               <ChartContainer config={flowChart.config} className="h-[260px] w-full">
@@ -503,12 +512,6 @@ export function PantryOverviewConsumptionSection({
               </Button>
             </div>
           </div>
-
-          {usageError ? (
-            <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {usageError}
-            </div>
-          ) : null}
 
           {usageChart ? (
             <div className="mt-3">

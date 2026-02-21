@@ -19,6 +19,7 @@ import { CreatePantryDonorDto } from './dto/create-pantry-donor.dto';
 import { CreatePantryEntryDto } from './dto/create-pantry-entry.dto';
 import { CreatePantryExitDto } from './dto/create-pantry-exit.dto';
 import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
+import { CreatePantrySectorDto } from './dto/create-pantry-sector.dto';
 import { ListPantryDonorsQueryDto } from './dto/list-pantry-donors-query.dto';
 import { ListPantryEntriesQueryDto } from './dto/list-pantry-entries-query.dto';
 import { ListPantryExitsQueryDto } from './dto/list-pantry-exits-query.dto';
@@ -46,6 +47,21 @@ export class PantryController {
   @Permissions('pantry.read')
   async getDashboard(@CurrentUser() user: JwtUser) {
     return this.pantryService.getDashboard(user.tenantId);
+  }
+
+  @Get('sectors')
+  @Permissions('pantry.read')
+  async listSectors(@CurrentUser() user: JwtUser) {
+    return this.pantryService.listSectors(user.tenantId);
+  }
+
+  @Post('sectors')
+  @Permissions('pantry.create')
+  async createSector(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: CreatePantrySectorDto,
+  ) {
+    return this.pantryService.createSector(user.tenantId, dto);
   }
 
   @Get('consumption')

@@ -10,6 +10,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { NavGroup } from "@/modules/types";
 import type { ModuleNavItem } from "@/modules/types";
@@ -30,11 +31,17 @@ function GroupItem(props: {
   pathname: string;
   tenantSlug: string | null;
   permissions: string[];
+  roles: string[];
   openByHref: Record<string, boolean>;
   setOpenByHref: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeSidebarOnNavigate = React.useCallback(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, setOpenMobile]);
+
   const visibleChildren = props.item.children?.filter((child) =>
-    canAccessNavItem(props.permissions, child),
+    canAccessNavItem(props.permissions, props.roles, child),
   );
 
   const active = isActiveNavItem({
@@ -62,7 +69,7 @@ function GroupItem(props: {
           {props.item.badge ? <SidebarSubBadgePill>{props.item.badge}</SidebarSubBadgePill> : null}
         </SidebarMenuSubButton>
       ) : (
-        <SidebarMenuSubButton asChild isActive={active}>
+        <SidebarMenuSubButton asChild isActive={active} onClick={closeSidebarOnNavigate}>
           <Link href={withTenantPath(props.item.href, props.tenantSlug)}>
             <props.item.icon />
             <span>{props.item.title}</span>
@@ -119,7 +126,11 @@ function GroupItem(props: {
                     {child.badge ? <SidebarSubBadgePill>{child.badge}</SidebarSubBadgePill> : null}
                   </SidebarMenuSubButton>
                 ) : (
-                  <SidebarMenuSubButton asChild isActive={childActive}>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={childActive}
+                    onClick={closeSidebarOnNavigate}
+                  >
                     <Link href={withTenantPath(child.href, props.tenantSlug)}>
                       <child.icon />
                       <span>{child.title}</span>
@@ -141,6 +152,7 @@ export function SidebarNavGroup(props: {
   pathname: string;
   tenantSlug: string | null;
   permissions: string[];
+  roles: string[];
   openByHref: Record<string, boolean>;
   setOpenByHref: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
@@ -149,7 +161,7 @@ export function SidebarNavGroup(props: {
 
   const groupHasActiveItem = props.group.items.some((item) => {
     const visibleChildren = item.children?.filter((child) =>
-      canAccessNavItem(props.permissions, child),
+      canAccessNavItem(props.permissions, props.roles, child),
     );
     return isActiveNavItem({
       pathname: props.pathname,
@@ -213,6 +225,7 @@ export function SidebarNavGroup(props: {
               pathname={props.pathname}
               tenantSlug={props.tenantSlug}
               permissions={props.permissions}
+              roles={props.roles}
               openByHref={props.openByHref}
               setOpenByHref={props.setOpenByHref}
             />

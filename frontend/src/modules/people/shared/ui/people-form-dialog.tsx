@@ -63,13 +63,13 @@ export function PeopleFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[min(96vw,960px)] !max-w-[min(96vw,960px)] sm:!max-w-[960px] p-0">
-        <DialogHeader className="border-b px-6 py-4">
+        <DialogHeader className="border-b px-4 py-4 sm:px-6">
           <DialogTitle>{title}</DialogTitle>
           {description ? (
             <DialogDescription>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
-        <div className="max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+        <div className="max-h-[80vh] overflow-y-auto px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
           {submitError ? (
             <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {submitError}

@@ -27,6 +27,7 @@ const comingSoon = (
   ...item,
   disabled: true,
   badge: COMING_SOON_BADGE,
+  rolesAny: ["Admin"],
 });
 
 export const sidebarPlaceholderManifests: ModuleManifest[] = [

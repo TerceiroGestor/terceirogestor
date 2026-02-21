@@ -20,7 +20,7 @@ export function FamilySummarySheet() {
 
   if (summaryLoading) {
     return (
-      <div className="rounded-2xl border border-border/60 bg-background px-6 py-5 text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-border/60 bg-background px-4 py-5 text-sm text-muted-foreground sm:px-6">
         Carregando resumo familiar...
       </div>
     );
@@ -28,7 +28,7 @@ export function FamilySummarySheet() {
 
   if (summaryError) {
     return (
-      <div className="rounded-2xl border border-border/60 bg-background px-6 py-5 text-sm text-destructive">
+      <div className="rounded-2xl border border-border/60 bg-background px-4 py-5 text-sm text-destructive sm:px-6">
         {summaryError}
       </div>
     );
@@ -79,7 +79,7 @@ export function FamilySummarySheet() {
   );
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-background px-6 py-6 text-sm leading-6 text-foreground">
+    <div className="rounded-2xl border border-border/60 bg-background px-4 py-6 text-sm leading-6 text-foreground sm:px-6">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
           Resumo da família

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { UsageDocumentationProvider } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
 const PUBLIC_ROUTES = ["/register"];
@@ -21,9 +22,15 @@ const RESERVED_SEGMENTS = new Set([
   "auth",
   "dashboard",
   "people",
+  "person",
   "settings",
   "admin",
   "t",
+  // PWA/static app resources (must not be treated as tenant slugs)
+  "manifest.webmanifest",
+  "sw.js",
+  "icon.png",
+  "pwa",
   "favicon.ico",
   "robots.txt",
   "sitemap.xml",
@@ -62,7 +69,11 @@ export function AppShell({ children }: AppShellProps) {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        {children}
+        <UsageDocumentationProvider>
+          <div className="min-w-0 flex-1 px-3 py-4 sm:px-0 sm:py-0">
+            {children}
+          </div>
+        </UsageDocumentationProvider>
       </SidebarInset>
     </>
   );

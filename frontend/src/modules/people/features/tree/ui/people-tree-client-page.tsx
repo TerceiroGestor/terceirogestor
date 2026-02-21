@@ -119,10 +119,10 @@ export function PeopleTreeClientPage() {
     ? resolvePersonDisplayNames(rootNode.fullName, rootNode.socialName)
         .primary
     : "Pessoa";
-  const detailPath = personId ? `/people/${personId}` : "/people";
+  const detailPath = personId ? `/person/${personId}` : "/person";
   const detailHref = withTenantPath(detailPath, tenantSlug);
   const treePath = (id: string) =>
-    withTenantPath(`/people/${id}/tree`, tenantSlug);
+    withTenantPath(`/person/${id}/tree`, tenantSlug);
 
   return (
     <>

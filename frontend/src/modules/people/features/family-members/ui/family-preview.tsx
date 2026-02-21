@@ -39,7 +39,7 @@ export function FamilyPreview({ members }: { members: FamilyPreviewMember[] }) {
             <div className="text-xs text-right">
               {member.id && canReadPeople ? (
                 <Link
-                  href={withTenantPath(`/people/${member.id}`, tenantSlug)}
+                  href={withTenantPath(`/person/${member.id}`, tenantSlug)}
                   className="font-medium text-foreground hover:text-foreground/80"
                 >
                   {member.name}

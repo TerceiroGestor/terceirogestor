@@ -3,8 +3,9 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { FormEngine } from "@/components/FormEngine";
+import type { FormField } from "@/components/FormEngine/types";
 import { useAuth } from "@/features/auth/auth-context";
 import { API_URL, resolveMediaUrl } from "@/lib/api";
 import {
@@ -24,6 +25,16 @@ type LoginFormProps = {
   tenantSlug?: string | null;
 };
 
+type CredentialsValues = {
+  email: string;
+  password: string;
+};
+
+type MfaValues = {
+  code: string;
+  rememberDevice: boolean;
+};
+
 export function LoginForm({ tenantSlug }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,22 +43,73 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
   const { login, verifyMfa } = useAuth();
   const { toast } = useToast();
 
-  const [email, setEmail] = React.useState("admin@exemplo.com");
-  const [password, setPassword] = React.useState("Admin@123");
   const [step, setStep] = React.useState<"credentials" | "mfa">("credentials");
-  const [mfaCode, setMfaCode] = React.useState("");
-  const [rememberDevice, setRememberDevice] = React.useState(true);
   const [challengeId, setChallengeId] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [tenant, setTenant] = React.useState<TenantPreview | null>(null);
   const [tenantError, setTenantError] = React.useState<string | null>(null);
 
+  const credentialFields = React.useMemo<FormField<CredentialsValues>[]>(
+    () => [
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        placeholder: "email@exemplo.com",
+        required: true,
+      },
+      {
+        name: "password",
+        label: "Senha",
+        type: "password",
+        placeholder: "Senha",
+        required: true,
+      },
+    ],
+    [],
+  );
+
+  const mfaFields = React.useMemo<FormField<MfaValues>[]>(
+    () => [
+      {
+        name: "code",
+        label: "Código 2FA",
+        type: "text",
+        placeholder: "000000 ou XXXXX-XXXXX",
+        required: true,
+        helperText:
+          "Use o código do Google Authenticator / Microsoft Authenticator.",
+      },
+      {
+        name: "rememberDevice",
+        label: "Confiar neste dispositivo por 30 dias",
+        type: "boolean",
+      },
+    ],
+    [],
+  );
+
   const fetchTenantBySlug = React.useCallback(async (slug: string) => {
     const response = await fetch(`${API_URL}/tenants/slug/${slug}`, {
       cache: "no-store",
     });
-    if (!response.ok) {
+    if (response.status === 404) {
       throw new Error("Instituição não encontrada");
+    }
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json")
+        ? await response.json().catch(() => null)
+        : null;
+      const message =
+        payload && typeof payload === "object" && "message" in payload
+          ? String((payload as { message?: unknown }).message ?? "")
+          : "";
+      throw new Error(
+        message.trim()
+          ? message
+          : `Falha ao carregar instituição (status ${response.status}). Verifique a API.`,
+      );
     }
     return response.json() as Promise<TenantPreview>;
   }, []);
@@ -77,12 +139,20 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
     };
   }, [resolvedSlug, fetchTenantBySlug]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    try {
-      if (step === "credentials") {
-        const result = await login({ email, password });
+  const finishLogin = React.useCallback(() => {
+    if (resolvedSlug) storeTenantSlug(resolvedSlug);
+    const next = searchParams.get("next") ?? "/dashboard";
+    router.replace(withTenantPath(next, resolvedSlug ?? null));
+  }, [resolvedSlug, router, searchParams]);
+
+  const handleCredentialsSubmit = React.useCallback(
+    async (values: CredentialsValues) => {
+      setIsSubmitting(true);
+      try {
+        const result = await login({
+          email: values.email.trim(),
+          password: values.password,
+        });
         if ("mfaRequired" in result && result.mfaRequired) {
           setChallengeId(result.challengeId);
           setStep("mfa");
@@ -92,34 +162,45 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
           });
           return;
         }
-      } else {
+        finishLogin();
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha no login";
+        toast({ variant: "destructive", title: "Erro", description: message });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [finishLogin, login, toast],
+  );
+
+  const handleMfaSubmit = React.useCallback(
+    async (values: MfaValues) => {
+      setIsSubmitting(true);
+      try {
         if (!challengeId) {
           throw new Error("Sessão expirada. Faça login novamente.");
         }
         await verifyMfa({
           challengeId,
-          code: mfaCode,
-          rememberDevice,
+          code: values.code,
+          rememberDevice: values.rememberDevice,
         });
+        finishLogin();
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha no login";
+        toast({ variant: "destructive", title: "Erro", description: message });
+      } finally {
+        setIsSubmitting(false);
       }
-
-      if (resolvedSlug) storeTenantSlug(resolvedSlug);
-      const next = searchParams.get("next") ?? "/dashboard";
-      router.replace(withTenantPath(next, resolvedSlug ?? null));
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha no login";
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: message,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+    [challengeId, finishLogin, toast, verifyMfa],
+  );
 
   return (
     <div className="bg-gray-100 min-h-screen w-full flex items-center justify-center p-4">
@@ -140,10 +221,8 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
               )}
             </div>
           </div>
-          <form
-            onSubmit={handleSubmit}
-            className="max-w-md mx-auto w-full p-4 md:p-6"
-          >
+
+          <div className="max-w-md mx-auto w-full p-4 md:p-6">
             <div className="mb-6">
               <h2 className="text-slate-900 text-lg font-semibold">
                 {tenant?.name ? `${tenant.name}` : ""}
@@ -158,108 +237,69 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
             ) : null}
 
             {step === "credentials" ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="text-slate-900 text-sm font-medium mb-2 block">
-                    Email
-                  </label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="email@exemplo.com"
-                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-900 text-sm font-medium mb-2 block">
-                    Senha
-                  </label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Senha"
-                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                  />
-                  <div className="mt-2 flex items-center justify-end">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="h-auto p-0 text-xs"
-                      onClick={() =>
-                        router.push(
-                          withTenantPath("/forgot-password", resolvedSlug ?? null),
-                        )
-                      }
-                    >
-                      Esqueci minha senha
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-slate-900 text-sm font-medium mb-2 block">
-                    Código 2FA
-                  </label>
-                  <Input
-                    inputMode="text"
-                    autoFocus
-                    value={mfaCode}
-                    onChange={(event) => setMfaCode(event.target.value)}
-                    placeholder="000000 ou XXXXX-XXXXX"
-                    className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                  />
-                  <p className="mt-2 text-xs text-slate-500">
-                    Use o código do Google Authenticator / Microsoft Authenticator.
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={rememberDevice}
-                    onChange={(e) => setRememberDevice(e.target.checked)}
-                  />
-                  Confiar neste dispositivo por 30 dias
-                </label>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="px-0"
-                  onClick={() => {
-                    setStep("credentials");
-                    setChallengeId(null);
-                    setMfaCode("");
+              <>
+                <FormEngine<CredentialsValues>
+                  fields={credentialFields}
+                  initialValues={{ email: "admin@exemplo.com", password: "Admin@123" }}
+                  onSubmit={handleCredentialsSubmit}
+                  disabled={isSubmitting}
+                  actions={{
+                    submit: {
+                      label: isSubmitting ? "Entrando..." : "Entrar",
+                      variant: "primary",
+                    },
                   }}
-                >
-                  Voltar
-                </Button>
-              </div>
+                />
+
+                <div className="mt-3 flex items-center justify-end">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-xs"
+                    onClick={() =>
+                      router.push(
+                        withTenantPath("/forgot-password", resolvedSlug ?? null),
+                      )
+                    }
+                  >
+                    Esqueci minha senha
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <FormEngine<MfaValues>
+                fields={mfaFields}
+                initialValues={{ code: "", rememberDevice: true }}
+                onSubmit={handleMfaSubmit}
+                disabled={isSubmitting}
+                actions={{
+                  cancel: {
+                    label: "Voltar",
+                    variant: "secondary",
+                    onClick: () => {
+                      setStep("credentials");
+                      setChallengeId(null);
+                    },
+                  },
+                  submit: {
+                    label: isSubmitting ? "Confirmando..." : "Confirmar",
+                    variant: "primary",
+                  },
+                }}
+              />
             )}
 
-            <div className="mt-8">
-              <Button
-                type="submit"
-                className="w-full shadow-xl py-2 px-4 text-[15px] tracking-wide font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Entrando..." : "Entrar"}
-              </Button>
-
+            <div className="mt-6">
               <Button
                 type="button"
                 variant="outline"
-                className="w-full mt-3"
+                className="w-full"
                 onClick={() => router.push("/register")}
               >
                 Registrar nova instituição
               </Button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

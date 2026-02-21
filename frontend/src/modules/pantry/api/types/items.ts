@@ -5,6 +5,7 @@ export type ApiPantryItem = {
   tenantId: string;
   name: string;
   group: string | null;
+  defaultSector: string;
   unit: string;
   minStock: number;
   stock: number;
@@ -29,6 +30,7 @@ export type PantryItemsListResponse = {
 export type PantryItemInput = {
   name: string;
   group?: string | null;
+  defaultSector?: string;
   unit: string;
   minStock: number;
 };
@@ -48,4 +50,3 @@ export type PantryItemSectorsResponse = {
   itemId: string;
   sectors: ApiPantrySectorBalance[];
 };
-

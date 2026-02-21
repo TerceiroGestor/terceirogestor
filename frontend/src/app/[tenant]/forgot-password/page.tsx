@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { requestPasswordReset } from "@/features/auth/api";
 import { API_URL, resolveMediaUrl } from "@/lib/api";
 import { withTenantPath } from "@/lib/tenant-path";
+import { FormEngine } from "@/components/FormEngine";
+import type { FormField } from "@/components/FormEngine/types";
 
 type TenantPreview = {
   id: string;
@@ -16,23 +16,53 @@ type TenantPreview = {
   logoUrl?: string | null;
 };
 
+type ForgotPasswordValues = {
+  email: string;
+};
+
 export default function ForgotPasswordPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
 
   const slug = typeof params?.tenant === "string" ? params.tenant : "";
-  const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [tenant, setTenant] = React.useState<TenantPreview | null>(null);
   const [tenantError, setTenantError] = React.useState<string | null>(null);
+  const fields = React.useMemo<FormField<ForgotPasswordValues>[]>(
+    () => [
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        placeholder: "email@exemplo.com",
+        required: true,
+      },
+    ],
+    [],
+  );
 
   const fetchTenantBySlug = React.useCallback(async (tenantSlug: string) => {
     const response = await fetch(`${API_URL}/tenants/slug/${tenantSlug}`, {
       cache: "no-store",
     });
-    if (!response.ok) {
+    if (response.status === 404) {
       throw new Error("Instituição não encontrada");
+    }
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json")
+        ? await response.json().catch(() => null)
+        : null;
+      const message =
+        payload && typeof payload === "object" && "message" in payload
+          ? String((payload as { message?: unknown }).message ?? "")
+          : "";
+      throw new Error(
+        message.trim()
+          ? message
+          : `Falha ao carregar instituição (status ${response.status}). Verifique a API.`,
+      );
     }
     return response.json() as Promise<TenantPreview>;
   }, []);
@@ -59,9 +89,9 @@ export default function ForgotPasswordPage() {
     };
   }, [slug, fetchTenantBySlug]);
 
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!email.trim()) {
+  const onSubmit = async (values: ForgotPasswordValues) => {
+    const email = values.email.trim();
+    if (!email) {
       toast({
         variant: "destructive",
         title: "Email",
@@ -72,7 +102,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      await requestPasswordReset(email.trim());
+      await requestPasswordReset(email);
       toast({
         title: "Pronto",
         description:
@@ -92,10 +122,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen w-full flex items-center justify-center p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-5xl mx-auto bg-white [box-shadow:0_2px_10px_-3px_rgba(6,81,237,0.3)] p-4 lg:p-5 rounded-md"
-      >
+      <div className="w-full max-w-5xl mx-auto bg-white [box-shadow:0_2px_10px_-3px_rgba(6,81,237,0.3)] p-4 lg:p-5 rounded-md">
         <div className="grid md:grid-cols-[1.05fr_0.95fr] items-center gap-y-8 gap-x-8">
           <div className="w-full h-full">
             <div className="aspect-square rounded-md overflow-hidden w-full h-full flex items-center justify-center">
@@ -125,44 +152,23 @@ export default function ForgotPasswordPage() {
               <p className="mb-3 text-xs text-red-600">{tenantError}</p>
             ) : null}
 
-            <div className="space-y-6">
-              <div>
-                <label className="text-slate-900 text-sm font-medium mb-2 block">
-                  Email
-                </label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  autoComplete="email"
-                  className="w-full text-sm text-slate-900 bg-slate-100 focus:bg-transparent pl-4 pr-10 py-3 rounded-md border border-slate-100 focus:border-blue-600 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Button
-                type="submit"
-                className="w-full shadow-xl py-2 px-4 text-[15px] tracking-wide font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-                disabled={loading}
-              >
-                {loading ? "Enviando..." : "Enviar link"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-3"
-                onClick={() => router.push(withTenantPath("/login", slug))}
-                disabled={loading}
-              >
-                Voltar
-              </Button>
-            </div>
+            <FormEngine<ForgotPasswordValues>
+              fields={fields}
+              initialValues={{ email: "" }}
+              onSubmit={onSubmit}
+              disabled={loading}
+              actions={{
+                submit: { label: loading ? "Enviando..." : "Enviar link", variant: "primary" },
+                cancel: {
+                  label: "Voltar",
+                  variant: "secondary",
+                  onClick: () => router.push(withTenantPath("/login", slug)),
+                },
+              }}
+            />
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

@@ -15,18 +15,21 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   createPantryEntry,
+  createPantrySector,
   deletePantryEntry,
   listPantryDonors,
   listPantryEntries,
   listPantryItems,
+  listPantrySectors,
   updatePantryEntry,
   type ApiPantryDonor,
   type ApiPantryEntry,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
 import { buildPantryEntryFormFields } from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
+import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryEntryFormValues } from "@/modules/pantry/shared/domain/types";
-import { PantrySubnav } from "@/modules/pantry/shared/ui/pantry-subnav";
+import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR, todayLocalIsoDate } from "@/lib/date";
 
@@ -58,9 +61,15 @@ export function PantryEntriesClientPage() {
   const [rows, setRows] = React.useState<ApiPantryEntry[]>([]);
   const [items, setItems] = React.useState<ApiPantryItem[]>([]);
   const [donors, setDonors] = React.useState<ApiPantryDonor[]>([]);
+  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
+    [],
+  );
+
+  const itemMap = React.useMemo(() => {
+    return new Map(items.map((item) => [item.id, item]));
+  }, [items]);
 
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
@@ -72,7 +81,6 @@ export function PantryEntriesClientPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiPantryEntry | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | null>(null);
 
   const itemOptions = React.useMemo(
     () => items.map((item) => ({ label: item.name, value: item.id })),
@@ -84,19 +92,31 @@ export function PantryEntriesClientPage() {
     [donors],
   );
 
+  const sectorOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    const list: Array<{ label: string; value: string }> = [];
+
+    const push = (name: string) => {
+      const normalized = name.trim();
+      if (!normalized) return;
+      if (set.has(normalized)) return;
+      set.add(normalized);
+      list.push({ label: normalized, value: normalized });
+    };
+
+    (sectors ?? []).forEach((sector) => push(sector.name));
+    (items ?? []).forEach((item) => push(item.defaultSector ?? "Geral"));
+    if (editing?.sector) push(editing.sector);
+    push("Geral");
+
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [editing?.sector, items, sectors]);
+
   const columns = React.useMemo<ColumnDef<ApiPantryEntry>[]>(
     () => [
       {
-        accessorKey: "entryDate",
-        header: "Data",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {formatDate(row.original.entryDate)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "item",
+        id: "itemName",
+        accessorFn: (row) => row.item?.name ?? row.itemId,
         header: "Alimento",
         cell: ({ row }) => (
           <div className="space-y-0.5">
@@ -108,6 +128,7 @@ export function PantryEntriesClientPage() {
             </p>
           </div>
         ),
+        meta: { dataType: "string" },
       },
       {
         accessorKey: "sector",
@@ -117,6 +138,7 @@ export function PantryEntriesClientPage() {
             {row.original.sector}
           </span>
         ),
+        meta: { dataType: "string" },
       },
       {
         accessorKey: "quantity",
@@ -126,9 +148,11 @@ export function PantryEntriesClientPage() {
             {Number(row.original.quantity).toLocaleString("pt-BR")} {row.original.unit}
           </span>
         ),
+        meta: { dataType: "number" },
       },
       {
-        accessorKey: "donor",
+        id: "donorName",
+        accessorFn: (row) => row.donor?.name ?? "Sem doador",
         header: "Doador",
         cell: ({ row }) =>
           row.original.donor ? (
@@ -138,6 +162,17 @@ export function PantryEntriesClientPage() {
           ) : (
             <Badge variant="outline">Sem doador</Badge>
           ),
+        meta: { dataType: "string" },
+      },
+      {
+        accessorKey: "entryDate",
+        header: "Data",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {formatDate(row.original.entryDate)}
+          </span>
+        ),
+        meta: { dataType: "date" },
       },
       {
         accessorKey: "expiryDate",
@@ -147,6 +182,7 @@ export function PantryEntriesClientPage() {
             {formatDate(row.original.expiryDate)}
           </span>
         ),
+        meta: { dataType: "date" },
       },
     ],
     [],
@@ -155,12 +191,14 @@ export function PantryEntriesClientPage() {
   const loadLookups = React.useCallback(async () => {
     if (!token || !canRead) return;
     try {
-      const [itemsResponse, donorsResponse] = await Promise.all([
+      const [itemsResponse, donorsResponse, sectorsResponse] = await Promise.all([
         listPantryItems(token, { all: true, limit: 200 }),
         listPantryDonors(token, { all: true, limit: 200 }),
+        listPantrySectors(token),
       ]);
       setItems(itemsResponse.data);
       setDonors(donorsResponse.data);
+      setSectors(sectorsResponse.data ?? []);
     } catch {
       // lookup failure should not block listing
     }
@@ -169,7 +207,6 @@ export function PantryEntriesClientPage() {
   const loadEntries = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
-    setError(null);
     try {
       const response = await listPantryEntries(token, {
         q: search.trim() || undefined,
@@ -184,14 +221,14 @@ export function PantryEntriesClientPage() {
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar entradas.";
-      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       setRows([]);
       setTotalCount(0);
       setPageCount(0);
     } finally {
       setLoading(false);
     }
-  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search]);
+  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search, toast]);
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -209,28 +246,34 @@ export function PantryEntriesClientPage() {
 
   const openCreate = React.useCallback(() => {
     setEditing(null);
-    setFormError(null);
     setDialogOpen(true);
   }, []);
 
   const openEdit = React.useCallback(
     (entry: ApiPantryEntry) => {
       if (!canUpdate) {
-        setError("Você não tem permissão para editar entradas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar entradas.",
+        });
         return;
       }
       setEditing(entry);
-      setFormError(null);
       setDialogOpen(true);
     },
-    [canUpdate],
+    [canUpdate, toast],
   );
 
   const onDelete = React.useCallback(
     async (entry: ApiPantryEntry) => {
       if (!token) return;
       if (!canDelete) {
-        setError("Você não tem permissão para excluir entradas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para excluir entradas.",
+        });
         return;
       }
       const confirmed = await confirm({
@@ -250,7 +293,6 @@ export function PantryEntriesClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir entrada.";
-        setError(message);
         toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
@@ -261,11 +303,19 @@ export function PantryEntriesClientPage() {
     async (values: PantryEntryFormValues) => {
       if (!token) return;
       if (editing && !canUpdate) {
-        setFormError("Você não tem permissão para editar entradas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar entradas.",
+        });
         return;
       }
       if (!editing && !canCreate) {
-        setFormError("Você não tem permissão para criar entradas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para criar entradas.",
+        });
         return;
       }
 
@@ -275,19 +325,34 @@ export function PantryEntriesClientPage() {
       const rawExpiry = values.expiryDate?.trim() ?? "";
       const rawEntryDate = values.entryDate?.trim() ?? "";
       const rawSector = values.sector?.trim() ?? "";
+      const rawNewSector = values.newSector?.trim() ?? "";
       const quantity =
         typeof values.quantity === "number" ? values.quantity : Number(values.quantity);
 
       if (!values.itemId) {
-        setFormError("Selecione um alimento.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Selecione um alimento.",
+        });
         return;
       }
-      if (!rawSector) {
-        setFormError("Informe o setor (local físico).");
+      const sector = rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
+
+      if (!sector) {
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe o setor (local físico).",
+        });
         return;
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        setFormError("Informe uma quantidade válida.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe uma quantidade válida.",
+        });
         return;
       }
 
@@ -295,7 +360,7 @@ export function PantryEntriesClientPage() {
         itemId: values.itemId,
         donorId:
           values.donorId && values.donorId !== "none" ? values.donorId : null,
-        sector: rawSector,
+        sector,
         quantity,
         unit: rawUnit || item?.unit || "unidade",
         entryDate: rawEntryDate || undefined,
@@ -304,8 +369,14 @@ export function PantryEntriesClientPage() {
       };
 
       setSaving(true);
-      setFormError(null);
       try {
+        if (rawSector === PANTRY_NEW_SECTOR_VALUE) {
+          try {
+            await createPantrySector(token, { name: sector });
+          } catch {
+            // best-effort
+          }
+        }
         if (editing) {
           await updatePantryEntry(token, editing.id, payload);
         } else {
@@ -323,7 +394,6 @@ export function PantryEntriesClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar entrada.";
-        setFormError(message);
         toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
@@ -345,9 +415,8 @@ export function PantryEntriesClientPage() {
       <PageBreadcrumb
         title="Despensa · Entradas"
         items={[{ label: "Despensa", href: "/pantry" }, { label: "Entradas" }]}
+        actionSlot={<PantryHeaderNav />}
       />
-
-      <PantrySubnav />
 
       <SectionCard
         title="Entradas"
@@ -363,12 +432,6 @@ export function PantryEntriesClientPage() {
           </div>
         }
       >
-        {error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
-
         <DataTable
           columns={columns}
           data={rows}
@@ -406,28 +469,56 @@ export function PantryEntriesClientPage() {
         description="Registro rápido do que chegou na despensa."
         contentClassName="max-w-[720px]"
       >
-        {formError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {formError}
-          </div>
-        ) : null}
-
         <FormEngine<PantryEntryFormValues>
-          fields={buildPantryEntryFormFields({ itemOptions, donorOptions })}
+          fields={buildPantryEntryFormFields({
+            itemOptions,
+            donorOptions,
+            sectorOptions,
+          })}
           initialValues={
             editing
               ? {
                   itemId: editing.itemId,
                   donorId: editing.donorId ?? "none",
                   sector: editing.sector ?? "Geral",
+                  newSector: "",
                   quantity: editing.quantity,
                   unit: editing.unit,
                   entryDate: toDateOnly(editing.entryDate),
                   expiryDate: toDateOnly(editing.expiryDate),
                   notes: editing.notes ?? "",
                 }
-              : { donorId: "none", sector: "Geral", entryDate: todayIsoDate() }
+              : {
+                  itemId: "",
+                  donorId: "none",
+                  sector: "Geral",
+                  newSector: "",
+                  quantity: "",
+                  unit: "",
+                  entryDate: todayIsoDate(),
+                  expiryDate: "",
+                  notes: "",
+                }
           }
+          onFieldChange={({ name, value, nextValues }) => {
+            if (name === "sector") {
+              const nextSector = String(value ?? "").trim();
+              if (nextSector !== PANTRY_NEW_SECTOR_VALUE && nextValues.newSector) {
+                return { newSector: "" };
+              }
+            }
+            if (name !== "itemId") return;
+            const itemId = String(value ?? "").trim();
+            const item = itemMap.get(itemId);
+            if (!item) {
+              return { sector: "Geral", unit: "", newSector: "" };
+            }
+            return {
+              sector: item.defaultSector || "Geral",
+              unit: item.unit || "",
+              newSector: "",
+            };
+          }}
           disabled={saving}
           onSubmit={handleSubmit}
           actions={{

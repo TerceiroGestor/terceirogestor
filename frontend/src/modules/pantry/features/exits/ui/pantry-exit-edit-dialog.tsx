@@ -10,15 +10,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
+  createPantrySector,
   getPantryExit,
+  listPantrySectors,
   reversePantryExit,
   updatePantryExit,
   type ApiPantryExit,
 } from "@/modules/pantry/api";
+import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryExitFormValues } from "@/modules/pantry/shared/domain/types";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import type { FormField } from "@/components/FormEngine/types";
 import { Undo2 } from "lucide-react";
+import { PANTRY_ITEM_UNIT } from "@/modules/pantry/shared/domain/pantry.constant";
 
 function toDateOnly(value: string | null | undefined) {
   if (!value) return "";
@@ -45,34 +49,58 @@ export function PantryExitEditDialog({
   const canUpdate = permissions.includes("pantry.update");
 
   const [exit, setExit] = React.useState<ApiPantryExit | null>(null);
+  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
+    [],
+  );
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [reversing, setReversing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     if (!token || !exitId) return;
     setLoading(true);
-    setError(null);
     try {
-      const response = await getPantryExit(token, exitId);
-      setExit(response);
+      const [exitResponse, sectorsResponse] = await Promise.all([
+        getPantryExit(token, exitId),
+        listPantrySectors(token),
+      ]);
+      setExit(exitResponse);
+      setSectors(sectorsResponse.data ?? []);
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar saída.";
-      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       setExit(null);
     } finally {
       setLoading(false);
     }
-  }, [token, exitId]);
+  }, [token, exitId, toast]);
 
   React.useEffect(() => {
     if (!open) return;
     void load();
   }, [open, load]);
+
+  const sectorOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    const list: Array<{ label: string; value: string }> = [];
+
+    const push = (name: string) => {
+      const normalized = name.trim();
+      if (!normalized) return;
+      if (set.has(normalized)) return;
+      set.add(normalized);
+      list.push({ label: normalized, value: normalized });
+    };
+
+    (sectors ?? []).forEach((sector) => push(sector.name));
+    if (exit?.sector) push(exit.sector);
+    push("Geral");
+
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [exit?.sector, sectors]);
 
   const fields = React.useMemo<FormField<PantryExitFormValues>[]>(() => {
     if (!exit) return [];
@@ -88,15 +116,28 @@ export function PantryExitEditDialog({
       {
         name: "sector",
         label: "Setor (local físico)",
-        type: "text",
+        type: "select",
         required: true,
+        options: [
+          ...sectorOptions,
+          { label: "Adicionar setor...", value: PANTRY_NEW_SECTOR_VALUE },
+        ],
         helperText: "Informe de onde o item está sendo retirado.",
+      },
+      {
+        name: "newSector",
+        label: "Novo setor",
+        type: "text",
+        requiredWhen: (values) => values.sector === PANTRY_NEW_SECTOR_VALUE,
+        visibleWhen: (values) => values.sector === PANTRY_NEW_SECTOR_VALUE,
+        helperText: "Digite o nome do setor e ele ficará disponível para toda a despensa.",
       },
       { name: "quantity", label: "Quantidade", type: "number", required: true },
       {
         name: "unit",
         label: "Unidade",
-        type: "text",
+        type: "select",
+        options: PANTRY_ITEM_UNIT.slice(),
         helperText: "Se vazio, usa a unidade padrão do alimento.",
       },
       { name: "exitDate", label: "Data da saída", type: "date" },
@@ -132,6 +173,7 @@ export function PantryExitEditDialog({
     return {
       itemId: exit.itemId,
       sector: exit.sector,
+      newSector: "",
       quantity: exit.quantity,
       unit: exit.unit,
       exitDate: toDateOnly(exit.exitDate),
@@ -146,12 +188,18 @@ export function PantryExitEditDialog({
     async (values: PantryExitFormValues) => {
       if (!token || !exitId || !exit) return;
       if (!canUpdate) {
-        const message = "Você não tem permissão para editar saídas.";
-        setError(message);
-        throw new Error(message);
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar saídas.",
+        });
+        return;
       }
 
-      const sector = values.sector?.trim() ?? "";
+      const rawSector = values.sector?.trim() ?? "";
+      const rawNewSector = values.newSector?.trim() ?? "";
+      const sector =
+        rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
       const quantity =
         typeof values.quantity === "number" ? values.quantity : Number(values.quantity);
       const rawUnit = values.unit?.trim() ?? "";
@@ -160,21 +208,39 @@ export function PantryExitEditDialog({
       const rawNotes = values.notes?.trim() ?? "";
 
       if (!sector) {
-        setError("Informe o setor (local físico).");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe o setor (local físico).",
+        });
         return;
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        setError("Informe uma quantidade válida.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe uma quantidade válida.",
+        });
         return;
       }
       if ((values.type === "EVENT" || values.type === "PARTY") && !eventName) {
-        setError("Informe o nome do evento.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe o nome do evento.",
+        });
         return;
       }
 
       setSaving(true);
-      setError(null);
       try {
+        if (rawSector === PANTRY_NEW_SECTOR_VALUE) {
+          try {
+            await createPantrySector(token, { name: sector });
+          } catch {
+            // best-effort
+          }
+        }
         await updatePantryExit(token, exitId, {
           itemId: exit.itemId,
           sector,
@@ -186,19 +252,19 @@ export function PantryExitEditDialog({
           notes: rawNotes ? rawNotes : null,
         });
         await Promise.resolve(onSaved?.());
+        toast({ variant: "success", title: "Saída atualizada" });
         onOpenChange(false);
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao editar saída.";
-        setError(message);
-        throw err;
+        toast({ variant: "destructive", title: "Falha ao salvar", description: message });
       } finally {
         setSaving(false);
       }
     },
-    [token, exitId, exit, canUpdate, onSaved, onOpenChange],
+    [token, exitId, exit, canUpdate, onSaved, onOpenChange, toast],
   );
 
   return (
@@ -207,12 +273,12 @@ export function PantryExitEditDialog({
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
         if (!nextOpen) {
-          setError(null);
           setExit(null);
         }
       }}
       title="Editar saída"
-      description="Ajuste a saída. A alocação por lote é recalculada automaticamente (FEFO), salvo quando o sistema já selecionou um lote específico."
+      description="Ajuste a saída. O sistema recalcula a alocação por lote automaticamente quando necessário."
+      showBackButton
       contentClassName="sm:!max-w-[820px]"
       headerSlot={
         exit ? (
@@ -238,7 +304,6 @@ export function PantryExitEditDialog({
               if (!confirmed) return;
 
               setReversing(true);
-              setError(null);
               try {
                 await reversePantryExit(token, exitId);
                 await Promise.resolve(onSaved?.());
@@ -246,15 +311,14 @@ export function PantryExitEditDialog({
                 toast({ title: "Saída estornada", variant: "success" });
               } catch (err) {
                 const message =
-                  err && typeof err === "object" && "message" in err
-                    ? String((err as { message?: string }).message)
-                    : "Falha ao estornar saída.";
-                setError(message);
-                toast({ title: "Falha ao estornar", description: message, variant: "destructive" });
-              } finally {
-                setReversing(false);
-              }
-            }}
+                    err && typeof err === "object" && "message" in err
+                      ? String((err as { message?: string }).message)
+                      : "Falha ao estornar saída.";
+                  toast({ title: "Falha ao estornar", description: message, variant: "destructive" });
+                } finally {
+                  setReversing(false);
+                }
+              }}
           >
             <Undo2 className="size-4" />
             Estornar
@@ -262,12 +326,6 @@ export function PantryExitEditDialog({
         ) : null
       }
     >
-      {error ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
-
       {loading || !exit || !initialValues ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (

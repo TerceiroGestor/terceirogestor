@@ -161,6 +161,7 @@ model Tenant {
   accessLogs      AccessLog[]
   auditLogs       AuditLog[]
   pantryItems     PantryItem[]
+  pantrySectors   PantrySector[]
   pantryEntries   PantryEntry[]
   pantryExits     PantryExit[]
   pantryDonors    PantryDonor[]
@@ -1044,6 +1045,7 @@ model PantryItem {
   tenantId  String   @db.Char(36)
   name      String
   group     String?
+  defaultSector String @default("Geral")
   unit      String
   minStock  Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
@@ -1055,6 +1057,19 @@ model PantryItem {
 
   @@index([tenantId])
   @@index([name])
+}
+
+model PantrySector {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@unique([tenantId, name])
 }
 
 model PantryDonor {

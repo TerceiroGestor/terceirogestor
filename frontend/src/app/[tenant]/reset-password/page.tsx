@@ -2,11 +2,16 @@
 
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { resetPassword } from "@/features/auth/api";
 import { withTenantPath } from "@/lib/tenant-path";
+import { FormEngine } from "@/components/FormEngine";
+import type { FormField } from "@/components/FormEngine/types";
+
+type ResetPasswordValues = {
+  password: string;
+  confirm: string;
+};
 
 export default function ResetPasswordPage() {
   const params = useParams();
@@ -17,12 +22,17 @@ export default function ResetPasswordPage() {
   const slug = typeof params?.tenant === "string" ? params.tenant : "";
   const token = searchParams.get("token") ?? "";
 
-  const [password, setPassword] = React.useState("");
-  const [confirm, setConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const fields = React.useMemo<FormField<ResetPasswordValues>[]>(
+    () => [
+      { name: "password", label: "Nova senha", type: "password", required: true },
+      { name: "confirm", label: "Confirmar senha", type: "password", required: true },
+    ],
+    [],
+  );
+
+  const onSubmit = async (values: ResetPasswordValues) => {
     if (!token.trim()) {
       toast({
         variant: "destructive",
@@ -31,7 +41,7 @@ export default function ResetPasswordPage() {
       });
       return;
     }
-    if (password.length < 8) {
+    if (values.password.length < 8) {
       toast({
         variant: "destructive",
         title: "Senha",
@@ -39,7 +49,7 @@ export default function ResetPasswordPage() {
       });
       return;
     }
-    if (password !== confirm) {
+    if (values.password !== values.confirm) {
       toast({
         variant: "destructive",
         title: "Senha",
@@ -50,7 +60,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      await resetPassword({ token, password });
+      await resetPassword({ token, password: values.password });
       toast({
         title: "Senha atualizada",
         description: "Faça login com a nova senha.",
@@ -69,10 +79,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm"
-      >
+      <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-foreground">
           Redefinir senha
         </h1>
@@ -80,47 +87,23 @@ export default function ResetPasswordPage() {
           Defina uma nova senha para sua conta.
         </p>
 
-        <div className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Nova senha
-            </label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Confirmar senha
-            </label>
-            <Input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => router.push(withTenantPath("/login", slug))}
+        <div className="mt-6">
+          <FormEngine<ResetPasswordValues>
+            fields={fields}
+            initialValues={{ password: "", confirm: "" }}
+            onSubmit={onSubmit}
             disabled={loading}
-          >
-            Voltar
-          </Button>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Salvar"}
-          </Button>
+            actions={{
+              cancel: {
+                label: "Voltar",
+                variant: "secondary",
+                onClick: () => router.push(withTenantPath("/login", slug)),
+              },
+              submit: { label: loading ? "Salvando..." : "Salvar", variant: "primary" },
+            }}
+          />
         </div>
-      </form>
+      </div>
     </div>
   );
 }
-

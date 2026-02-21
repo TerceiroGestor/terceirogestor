@@ -50,6 +50,7 @@ export type PantryDashboardResponse = {
     quantity: number;
     unit: string;
     entryDate: string;
+    createdAt: string;
     expiryDate: string | null;
     notes: string | null;
     createdBy: string;
@@ -62,6 +63,7 @@ export type PantryDashboardResponse = {
     quantity: number;
     unit: string;
     exitDate: string;
+    createdAt: string;
     type: string;
     eventName: string | null;
     notes: string | null;
@@ -111,4 +113,3 @@ export type ReversePantryExitResponse = {
   exitId: string;
   createdEntries: ApiPantryEntry[];
 };
-

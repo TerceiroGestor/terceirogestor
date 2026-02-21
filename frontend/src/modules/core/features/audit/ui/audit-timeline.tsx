@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { AdminAuditLog } from "@/features/admin/api";
 import { Badge } from "@/components/ui/badge";
-import { auditActionLabels } from "../domain/labels";
+import { auditActionLabels, formatAuditEntity } from "../domain/labels";
 import { formatTime } from "../domain/format";
 
 export function AuditTimeline({
@@ -32,7 +32,7 @@ export function AuditTimeline({
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{auditActionLabels[log.action]}</Badge>
                   <span className="text-sm font-semibold text-foreground">
-                    {log.entity}
+                    {formatAuditEntity(log.entity)}
                   </span>
                   {log.entityId ? (
                     <span className="text-xs text-muted-foreground">
@@ -55,4 +55,3 @@ export function AuditTimeline({
     </div>
   );
 }
-

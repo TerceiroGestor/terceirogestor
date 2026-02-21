@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/section-card";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { Switch } from "@/components/ui/switch";
-import { UsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import {
   Select,
   SelectContent,
@@ -294,6 +294,28 @@ export function ActionsClientPage() {
     ];
   }, []);
 
+  const usageItems = React.useMemo(
+    () =>
+      ACTIONS_LIST_TEXT.usage.sections.map((section, index) => ({
+        id: `actions-list-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: ACTIONS_LIST_TEXT.usage.title,
+    items: usageItems,
+  });
+
   if (!isAuthenticated || authLoading) return null;
 
   if (!canRead) {
@@ -508,21 +530,6 @@ export function ActionsClientPage() {
         />
       </SectionCard>
 
-      <UsageDocumentation
-        title={ACTIONS_LIST_TEXT.usage.title}
-        items={ACTIONS_LIST_TEXT.usage.sections.map((section, index) => ({
-          id: `actions-list-${index}`,
-          title: section.title,
-          searchText: section.items.join(" "),
-          content: (
-            <ul className="list-disc space-y-1 pl-5">
-              {section.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          ),
-        }))}
-      />
     </div>
   );
 }

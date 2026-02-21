@@ -2,6 +2,8 @@ export type PantryItemFormValues = {
   name: string;
   group?: string;
   unit: string;
+  defaultSector: string;
+  newSector?: string;
   minStock: number | "";
 };
 
@@ -15,6 +17,7 @@ export type PantryEntryFormValues = {
   itemId: string;
   donorId: string;
   sector: string;
+  newSector?: string;
   quantity: number | "";
   unit?: string;
   entryDate?: string;
@@ -26,6 +29,7 @@ export type PantryExitFormValues = {
   itemId: string;
   entryId?: string;
   sector: string;
+  newSector?: string;
   quantity: number | "";
   unit?: string;
   exitDate?: string;

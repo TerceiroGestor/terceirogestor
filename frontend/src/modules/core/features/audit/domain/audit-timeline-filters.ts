@@ -34,7 +34,7 @@ export function buildAuditTimelineFilterSchema(
       key: "entity",
       type: "text",
       label: "Entidade",
-      placeholder: "Ex.: Person, PantryEntry...",
+      placeholder: "Ex.: Person, PantryExit...",
     },
     {
       key: "action",
@@ -65,4 +65,3 @@ export function buildAuditTimelineFilterSchema(
     { key: "to", type: "date", label: "Até" },
   ];
 }
-

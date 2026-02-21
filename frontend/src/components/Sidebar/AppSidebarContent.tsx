@@ -8,9 +8,14 @@ import { SidebarNav } from "@/components/Sidebar/nav/SidebarNav";
 export function AppSidebarContent() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const { permissions } = useCurrentUser();
+  const { permissions, roles } = useCurrentUser();
 
   return (
-    <SidebarNav pathname={pathname} tenantSlug={tenantSlug} permissions={permissions} />
+    <SidebarNav
+      pathname={pathname}
+      tenantSlug={tenantSlug}
+      permissions={permissions}
+      roles={roles}
+    />
   );
 }

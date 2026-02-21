@@ -20,6 +20,7 @@ export type PantryRecentMovement = {
   id: string;
   kind: "ENTRY" | "EXIT";
   date: string;
+  sortDate?: string;
   itemId: string;
   itemName: string;
   unit: string;
@@ -87,8 +88,8 @@ export function PantryOverviewMovementsSection({
       })
       .slice()
       .sort((a, b) => {
-        const aTime = new Date(a.date).getTime();
-        const bTime = new Date(b.date).getTime();
+        const aTime = new Date(a.sortDate ?? a.date).getTime();
+        const bTime = new Date(b.sortDate ?? b.date).getTime();
         if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
         if (Number.isNaN(aTime)) return 1;
         if (Number.isNaN(bTime)) return -1;

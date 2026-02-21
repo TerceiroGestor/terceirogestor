@@ -56,14 +56,14 @@ export function PeopleDetailClientPage({
     person.fullName,
     person.socialName,
   );
-  const treeHref = withTenantPath(`/people/${person.id}/tree`, tenantSlug);
+  const treeHref = withTenantPath(`/person/${person.id}/tree`, tenantSlug);
 
   return (
     <>
       <PageBreadcrumb
         title="Detalhes da pessoa"
         items={[
-          { label: "Pessoas", href: "/people" },
+          { label: "Pessoas", href: "/person" },
           { label: displayNames.primary },
         ]}
         action={

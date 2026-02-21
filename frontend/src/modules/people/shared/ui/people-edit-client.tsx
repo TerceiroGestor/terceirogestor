@@ -52,7 +52,7 @@ export function PeopleEditClient({ person }: { person: Person }) {
       }}
       onSubmit={(values) => console.log(values)}
       onCancel={() =>
-        router.push(withTenantPath(`/people/${person.id}`, tenantSlug))
+        router.push(withTenantPath(`/person/${person.id}`, tenantSlug))
       }
     />
   );

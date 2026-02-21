@@ -3,3 +3,4 @@
 export function PantrySubnav() {
   return null;
 }
+

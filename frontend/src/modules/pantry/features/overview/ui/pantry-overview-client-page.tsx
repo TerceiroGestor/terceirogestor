@@ -1,21 +1,68 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
-import { PantryItemMovementDialog } from "@/modules/pantry/shared/ui/pantry-item-movement-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { PantryEntryCreateDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-create-dialog";
 import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-edit-dialog";
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
 import { PantryItemCreateDialog } from "@/modules/pantry/features/items/ui/pantry-item-create-dialog";
 import { PantryItemEditDialog } from "@/modules/pantry/features/items/ui/pantry-item-edit-dialog";
+import { Button } from "@/components/ui/button";
 import { pantryOverviewStockColumns } from "@/modules/pantry/features/overview/config/pantry-overview-stock-columns";
+import { PANTRY_OVERVIEW_USAGE } from "@/modules/pantry/features/overview/domain/pantry-overview.constants";
 import { usePantryOverviewModel } from "@/modules/pantry/features/overview/hooks/use-pantry-overview-model";
-import { PantryOverviewHeaderActions } from "@/modules/pantry/features/overview/ui/components/pantry-overview-header-actions";
+import { PantryAlertsDropdown } from "@/modules/pantry/features/overview/ui/components/pantry-alerts-dropdown";
 import { PantryOverviewConsumptionSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-consumption-section";
 import { PantryOverviewStockSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-stock-section";
+import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export function PantryOverviewClientPage() {
   const model = usePantryOverviewModel();
+  const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
+
+  const openExitPage = React.useCallback(
+    (params: { itemId: string; sector?: string }) => {
+      const qs = new URLSearchParams();
+      qs.set("itemId", params.itemId);
+      if (params.sector) qs.set("sector", params.sector);
+      router.push(`${withTenantPath("/pantry/exit", tenantSlug)}?${qs.toString()}`);
+    },
+    [router, tenantSlug],
+  );
+
+  const usageItems = React.useMemo(
+    () =>
+      PANTRY_OVERVIEW_USAGE.sections.map((section, index) => ({
+        id: `pantry-overview-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: PANTRY_OVERVIEW_USAGE.title,
+    items: usageItems,
+  });
+
+  React.useEffect(() => {
+    if (!model.error) return;
+    toast({ variant: "destructive", title: "Falha ao carregar", description: model.error });
+  }, [model.error, toast]);
 
   if (!model.canRead) {
     return (
@@ -30,42 +77,35 @@ export function PantryOverviewClientPage() {
       <PageBreadcrumb
         title="Despensa"
         items={[{ label: "Despensa", href: "/pantry" }]}
-        action={{
-          label: "Novo alimento",
-          onClick: () => model.setCreateItemOpen(true),
-          variant: "default",
-          size: "sm",
-        }}
-        actionSlot={
-          <PantryOverviewHeaderActions
-            recentMovements={model.recentMovements}
-            onMovementClick={model.openMovementEdit}
-            expiredItems={model.expiredItems}
-            onOpenMovement={model.openMovementDialog}
-            onRefreshAlerts={model.handleAlertsRefresh}
-            onCreateEntry={() => model.setCreateEntryOpen(true)}
-          />
-        }
+        actionSlot={<PantryHeaderNav />}
       />
-
-      {model.error ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {model.error}
-        </div>
-      ) : null}
 
       <PantryOverviewStockSection
         rows={model.stockRows}
         columns={pantryOverviewStockColumns}
         onlyLowStock={model.onlyLowStock}
         onToggleOnlyLowStock={() => model.setOnlyLowStock((prev) => !prev)}
+        headerActionsSlot={
+          <>
+            <PantryAlertsDropdown
+              expiringAlerts={model.expiringAlerts}
+              showLabel
+              onOpenMovement={(params) =>
+                openExitPage({ itemId: params.itemId, sector: params.sector })
+              }
+              onRefreshAlerts={model.handleAlertsRefresh}
+            />
+            <Button
+              size="sm"
+              onClick={() => model.setCreateItemOpen(true)}
+              className="whitespace-nowrap"
+            >
+              Novo alimento
+            </Button>
+          </>
+        }
         onRowClick={(row) => {
-          model.openMovementDialog({
-            itemId: row.itemId,
-            name: row.name,
-            unit: row.unit,
-            sector: row.sector,
-          });
+          openExitPage({ itemId: row.itemId, sector: row.sector });
         }}
         rowActions={[
           {
@@ -78,6 +118,7 @@ export function PantryOverviewClientPage() {
                 group: row.group,
                 unit: row.unit,
                 minStock: row.minStock,
+                sector: row.sector,
               });
               model.setEditItemOpen(true);
             },
@@ -114,20 +155,6 @@ export function PantryOverviewClientPage() {
         onSelectedGroupChange={model.setSelectedGroup}
         groups={model.groups}
         items={model.items}
-      />
-
-      <PantryItemMovementDialog
-        open={model.movementOpen}
-        onOpenChange={(open) => {
-          model.setMovementOpen(open);
-          if (!open) {
-            model.setMovementItem(null);
-            model.setMovementPreferredSector(undefined);
-          }
-        }}
-        item={model.movementItem}
-        preferredSector={model.movementPreferredSector}
-        onSaved={model.handleMovementSaved}
       />
 
       <PantryEntryCreateDialog
@@ -176,6 +203,7 @@ export function PantryOverviewClientPage() {
                 id: model.editingItem.itemId,
                 name: model.editingItem.name,
                 group: model.editingItem.group ?? null,
+                defaultSector: model.editingItem.sector ?? "Geral",
                 unit: model.editingItem.unit,
                 minStock: model.editingItem.minStock,
               }

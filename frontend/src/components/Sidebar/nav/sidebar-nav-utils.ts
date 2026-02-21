@@ -3,8 +3,21 @@ import type { ModuleNavItem } from "@/modules/types";
 
 export function canAccessNavItem(
   permissions: string[],
-  item: { permissions?: string[]; permissionsAny?: string[] },
+  roles: string[],
+  item: {
+    roles?: string[];
+    rolesAny?: string[];
+    permissions?: string[];
+    permissionsAny?: string[];
+  },
 ) {
+  if (item.rolesAny && item.rolesAny.length) {
+    if (!item.rolesAny.some((role) => roles.includes(role))) return false;
+  }
+  if (item.roles && item.roles.length) {
+    if (!item.roles.every((role) => roles.includes(role))) return false;
+  }
+
   if (item.permissionsAny && item.permissionsAny.length) {
     return item.permissionsAny.some((permission) => permissions.includes(permission));
   }

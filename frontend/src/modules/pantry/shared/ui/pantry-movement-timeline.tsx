@@ -12,12 +12,14 @@ export type PantryMovementTimelineRow = {
   sector: string;
   quantity: number;
   unit: string;
+  remaining?: number | null;
   actor: string;
   notes?: string | null;
   meta?: string | null;
   expiryDate?: string | null;
   usage?: string | null;
   itemName?: string | null;
+  actions?: React.ReactNode;
   onClick?: () => void;
 };
 
@@ -68,6 +70,28 @@ function formatRelativeShortDateOnly(value: string) {
   return rtf.format(diffDays, "day");
 }
 
+function formatExpiryDiffShort(value: string) {
+  const iso = toDateOnlyIso(value);
+  if (!iso) return "";
+
+  const expiryDate = parseIsoDateToLocalNoon(iso);
+  if (!expiryDate) return "";
+
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
+  const todayDate = parseIsoDateToLocalNoon(todayIso);
+  if (!todayDate) return "";
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((expiryDate.getTime() - todayDate.getTime()) / dayMs);
+
+  if (diffDays === 0) return "Vence hoje";
+  if (diffDays > 0) return `Vence em ${diffDays}d`;
+  return `Vencido há ${Math.abs(diffDays)}d`;
+}
+
 export function PantryMovementTimeline({
   rows,
   emptyLabel,
@@ -85,7 +109,7 @@ export function PantryMovementTimeline({
         id: movement.id,
         onClick: movement.onClick,
         title: (
-          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="flex w-full flex-wrap items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               {movement.itemName ? (
                 <span className="text-xs font-semibold text-foreground">
@@ -99,50 +123,63 @@ export function PantryMovementTimeline({
               <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Setor: {movement.sector}
               </span>
+              {movement.meta ? (
+                <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {movement.meta}
+                </span>
+              ) : null}
             </div>
-            <span
-              className={clsx(
-                "rounded-md px-2 py-0.5 font-mono text-[11px] tabular-nums",
-                movement.kind === "ENTRY"
-                  ? "bg-emerald-500/10 text-emerald-700"
-                  : "bg-rose-500/10 text-rose-700",
-              )}
-            >
-              {movement.kind === "ENTRY" ? "+" : "-"}
-              {Number(movement.quantity).toLocaleString("pt-BR")} {movement.unit}
-            </span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {movement.actions}
+              <span
+                className={clsx(
+                  "rounded-md px-2 py-0.5 font-mono text-[11px] tabular-nums",
+                  movement.kind === "ENTRY"
+                    ? "bg-emerald-500/10 text-emerald-700"
+                    : "bg-rose-500/10 text-rose-700",
+                )}
+              >
+                {movement.kind === "ENTRY" ? "Entrada: +" : "Saída: -"}
+                {Number(movement.quantity).toLocaleString("pt-BR")} {movement.unit}
+              </span>
+              {movement.kind === "ENTRY" && typeof movement.remaining === "number" ? (
+                <span className="rounded-md bg-muted/40 px-2 py-0.5 font-mono text-[11px] tabular-nums text-foreground">
+                  Restante: {Number(movement.remaining).toLocaleString("pt-BR")}{" "}
+                  {movement.unit}
+                </span>
+              ) : null}
+            </div>
           </div>
         ),
         subtitle: (
           <div className="flex flex-wrap items-center gap-2">
-            {movement.meta ? (
-              <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {movement.meta}
-              </span>
-            ) : null}
             {movement.expiryDate ? (
               <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Validade: {formatDate(movement.expiryDate)}
+                Validade: {formatDate(movement.expiryDate)}{" "}
+                <span className="font-mono tabular-nums text-foreground">
+                  ({formatExpiryDiffShort(movement.expiryDate)})
+                </span>
               </span>
             ) : null}
+            <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Data: {formatDate(movement.date)}{" "}
+              <span className="font-mono tabular-nums text-foreground">
+                ({formatRelativeShortDateOnly(movement.date)})
+              </span>
+            </span>
           </div>
         ),
         meta: (
-          <>
-            <span className="text-foreground">Por: {movement.actor}</span>
-            <span>•</span>
-            <span className="font-mono tabular-nums">{formatDate(movement.date)}</span>
-            <span>•</span>
-            <span className="font-mono tabular-nums">
-              {formatRelativeShortDateOnly(movement.date)}
-            </span>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-foreground">Por: {movement.actor}</span>
+            </div>
             {movement.notes ? (
-              <>
-                <span>•</span>
-                <span className="truncate">Obs.: {movement.notes}</span>
-              </>
+              <div className="break-words">
+                <span className="text-foreground">Obs.:</span> {movement.notes}
+              </div>
             ) : null}
-          </>
+          </div>
         ),
       }))}
     />

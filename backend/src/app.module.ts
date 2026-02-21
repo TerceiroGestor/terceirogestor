@@ -32,6 +32,7 @@ import { RequestContextInterceptor } from './core/request-context/request-contex
 import { RateLimitModule } from './core/rate-limit/rate-limit.module';
 import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
 import { CepModule } from './core/cep/cep.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { CepModule } from './core/cep/cep.module';
     ProjectStructureModule,
     ActionsModule,
     RegistrationModule,
+    DashboardModule,
     FilesModule,
     AuditModule,
     RequestContextModule,

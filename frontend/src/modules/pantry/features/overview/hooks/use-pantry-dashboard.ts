@@ -9,6 +9,14 @@ import type { PantryRecentMovement } from "@/modules/pantry/features/overview/ui
 
 type StockRow = PantryDashboardResponse["stockRows"][number];
 
+export type PantryExpiringAlerts = {
+  expired: PantryExpiringItem[];
+  due7: PantryExpiringItem[];
+  due15: PantryExpiringItem[];
+  due30: PantryExpiringItem[];
+  totalCount: number;
+};
+
 type UsePantryDashboardArgs = {
   token: string | null;
   enabled: boolean;
@@ -91,11 +99,52 @@ export function usePantryDashboard({ token, enabled, authLoading }: UsePantryDas
     return map;
   }, [dashboard]);
 
-  const expiredItems = React.useMemo<PantryExpiringItem[]>(() => {
-    return (dashboard?.expiring ?? []).filter(
-      (row) => row.validityStatus === "Vencido",
-    );
+  const expiringAlerts = React.useMemo<PantryExpiringAlerts>(() => {
+    const expired: PantryExpiringItem[] = [];
+    const due7: PantryExpiringItem[] = [];
+    const due15: PantryExpiringItem[] = [];
+    const due30: PantryExpiringItem[] = [];
+
+    (dashboard?.expiring ?? []).forEach((row) => {
+      const days = row.daysToExpire;
+      const isExpired =
+        row.validityStatus === "Vencido" || (typeof days === "number" && days < 0);
+
+      if (isExpired) {
+        expired.push(row);
+        return;
+      }
+
+      if (typeof days !== "number") return;
+      if (days <= 7) due7.push(row);
+      else if (days <= 15) due15.push(row);
+      else if (days <= 30) due30.push(row);
+    });
+
+    const byExpiryThenName = (a: PantryExpiringItem, b: PantryExpiringItem) => {
+      const aDays = a.daysToExpire ?? Number.POSITIVE_INFINITY;
+      const bDays = b.daysToExpire ?? Number.POSITIVE_INFINITY;
+      if (aDays !== bDays) return aDays - bDays;
+      const byName = a.name.localeCompare(b.name);
+      if (byName !== 0) return byName;
+      return a.sector.localeCompare(b.sector);
+    };
+
+    expired.sort(byExpiryThenName);
+    due7.sort(byExpiryThenName);
+    due15.sort(byExpiryThenName);
+    due30.sort(byExpiryThenName);
+
+    return {
+      expired,
+      due7,
+      due15,
+      due30,
+      totalCount: expired.length + due7.length + due15.length + due30.length,
+    };
   }, [dashboard]);
+
+  const expiredItems = expiringAlerts.expired;
 
   const recentMovements = React.useMemo<PantryRecentMovement[]>(() => {
     const entries =
@@ -103,6 +152,7 @@ export function usePantryDashboard({ token, enabled, authLoading }: UsePantryDas
         id: `entry:${entry.id}`,
         kind: "ENTRY" as const,
         date: entry.entryDate,
+        sortDate: entry.createdAt ?? entry.entryDate,
         itemId: entry.itemId,
         itemName: entry.item.name,
         unit: entry.unit,
@@ -119,6 +169,7 @@ export function usePantryDashboard({ token, enabled, authLoading }: UsePantryDas
         id: `exit:${exit.id}`,
         kind: "EXIT" as const,
         date: exit.exitDate,
+        sortDate: exit.createdAt ?? exit.exitDate,
         itemId: exit.itemId,
         itemName: exit.item.name,
         unit: exit.unit,
@@ -133,7 +184,14 @@ export function usePantryDashboard({ token, enabled, authLoading }: UsePantryDas
       })) ?? [];
 
     return [...entries, ...exits]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => {
+        const aTime = new Date(a.sortDate ?? a.date).getTime();
+        const bTime = new Date(b.sortDate ?? b.date).getTime();
+        if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+        if (Number.isNaN(aTime)) return 1;
+        if (Number.isNaN(bTime)) return -1;
+        return bTime - aTime;
+      })
       .slice(0, 20);
   }, [dashboard]);
 
@@ -148,8 +206,8 @@ export function usePantryDashboard({ token, enabled, authLoading }: UsePantryDas
     items,
     stockRows,
     itemSummaryById,
+    expiringAlerts,
     expiredItems,
     recentMovements,
   };
 }
-

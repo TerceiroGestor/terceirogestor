@@ -9,13 +9,16 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
+  createPantrySector,
   getPantryEntry,
   listPantryDonors,
+  listPantrySectors,
   reversePantryEntry,
   updatePantryEntry,
   type ApiPantryEntry,
 } from "@/modules/pantry/api";
 import { buildPantryEntryFormFields } from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
+import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryEntryFormValues } from "@/modules/pantry/shared/domain/types";
 import { Undo2 } from "lucide-react";
 
@@ -47,33 +50,36 @@ export function PantryEntryEditDialog({
   const [donors, setDonors] = React.useState<Array<{ id: string; name: string }>>(
     [],
   );
+  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
+    [],
+  );
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [reversing, setReversing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     if (!token || !entryId) return;
     setLoading(true);
-    setError(null);
     try {
-      const [entryResponse, donorsResponse] = await Promise.all([
+      const [entryResponse, donorsResponse, sectorsResponse] = await Promise.all([
         getPantryEntry(token, entryId),
         listPantryDonors(token, { all: true }),
+        listPantrySectors(token),
       ]);
       setEntry(entryResponse);
       setDonors(donorsResponse.data.map((donor) => ({ id: donor.id, name: donor.name })));
+      setSectors(sectorsResponse.data ?? []);
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar entrada.";
-      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       setEntry(null);
     } finally {
       setLoading(false);
     }
-  }, [token, entryId]);
+  }, [token, entryId, toast]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -85,11 +91,31 @@ export function PantryEntryEditDialog({
     [donors],
   );
 
+  const sectorOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    const list: Array<{ label: string; value: string }> = [];
+
+    const push = (name: string) => {
+      const normalized = name.trim();
+      if (!normalized) return;
+      if (set.has(normalized)) return;
+      set.add(normalized);
+      list.push({ label: normalized, value: normalized });
+    };
+
+    (sectors ?? []).forEach((sector) => push(sector.name));
+    if (entry?.sector) push(entry.sector);
+    push("Geral");
+
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [entry?.sector, sectors]);
+
   const fields = React.useMemo(() => {
     if (!entry) return [];
     const base = buildPantryEntryFormFields({
       itemOptions: [{ label: entry.item.name, value: entry.itemId }],
       donorOptions,
+      sectorOptions,
     });
 
     const isLocked = (entry.allocatedTotal ?? 0) > 0;
@@ -119,6 +145,7 @@ export function PantryEntryEditDialog({
       itemId: entry.itemId,
       donorId: entry.donorId ?? "none",
       sector: entry.sector,
+      newSector: "",
       quantity: entry.quantity,
       unit: entry.unit,
       entryDate: toDateOnly(entry.entryDate),
@@ -131,14 +158,30 @@ export function PantryEntryEditDialog({
     async (values: PantryEntryFormValues) => {
       if (!token || !entryId) return;
       if (!canUpdate) {
-        const message = "Você não tem permissão para editar entradas.";
-        setError(message);
-        throw new Error(message);
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar entradas.",
+        });
+        return;
+      }
+
+      const rawSector = values.sector?.trim() ?? "";
+      const rawNewSector = values.newSector?.trim() ?? "";
+      const sector = rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
+
+      if (!sector) {
+        toast({
+          variant: "destructive",
+          title: "Dados invÃ¡lidos",
+          description: "Informe o setor (local fÃ­sico).",
+        });
+        return;
       }
 
       const payload = {
         donorId: values.donorId === "none" ? null : (values.donorId || null),
-        sector: values.sector?.trim() ?? undefined,
+        sector,
         quantity:
           typeof values.quantity === "number" ? values.quantity : Number(values.quantity),
         unit: values.unit?.trim() ?? undefined,
@@ -148,23 +191,29 @@ export function PantryEntryEditDialog({
       };
 
       setSaving(true);
-      setError(null);
       try {
+        if (rawSector === PANTRY_NEW_SECTOR_VALUE) {
+          try {
+            await createPantrySector(token, { name: sector });
+          } catch {
+            // best-effort
+          }
+        }
         await updatePantryEntry(token, entryId, payload);
         await Promise.resolve(onSaved?.());
+        toast({ variant: "success", title: "Entrada atualizada" });
         onOpenChange(false);
       } catch (err) {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao editar entrada.";
-        setError(message);
-        throw err;
+        toast({ variant: "destructive", title: "Falha ao salvar", description: message });
       } finally {
         setSaving(false);
       }
     },
-    [token, entryId, canUpdate, onSaved, onOpenChange],
+    [token, entryId, canUpdate, onSaved, onOpenChange, toast],
   );
 
   return (
@@ -173,12 +222,12 @@ export function PantryEntryEditDialog({
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
         if (!nextOpen) {
-          setError(null);
           setEntry(null);
         }
       }}
       title="Editar entrada (lote)"
       description="Ajuste os dados do lote. Se houver saídas vinculadas, alguns campos ficam bloqueados."
+      showBackButton
       contentClassName="sm:!max-w-[820px]"
       headerSlot={
         entry ? (
@@ -203,9 +252,12 @@ export function PantryEntryEditDialog({
               if (!canUpdate) return;
 
               if ((entry.allocatedTotal ?? 0) > 0) {
-                setError(
-                  "Não é possível estornar um lote que já teve saídas. Ajuste as saídas primeiro.",
-                );
+                toast({
+                  variant: "destructive",
+                  title: "Não é possível estornar",
+                  description:
+                    "Não é possível estornar um lote que já teve saídas. Ajuste as saídas primeiro.",
+                });
                 return;
               }
 
@@ -220,7 +272,6 @@ export function PantryEntryEditDialog({
               if (!confirmed) return;
 
               setReversing(true);
-              setError(null);
               try {
                 await reversePantryEntry(token, entryId);
                 await Promise.resolve(onSaved?.());
@@ -228,10 +279,9 @@ export function PantryEntryEditDialog({
                 toast({ title: "Entrada estornada", variant: "success" });
               } catch (err) {
                 const message =
-                  err && typeof err === "object" && "message" in err
-                    ? String((err as { message?: string }).message)
-                    : "Falha ao estornar entrada.";
-                setError(message);
+                    err && typeof err === "object" && "message" in err
+                      ? String((err as { message?: string }).message)
+                      : "Falha ao estornar entrada.";
                 toast({ title: "Falha ao estornar", description: message, variant: "destructive" });
               } finally {
                 setReversing(false);
@@ -244,12 +294,6 @@ export function PantryEntryEditDialog({
         ) : null
       }
     >
-      {error ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
-
       {loading || !entry || !initialValues ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (

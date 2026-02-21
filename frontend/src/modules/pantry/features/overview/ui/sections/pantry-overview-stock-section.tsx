@@ -14,6 +14,7 @@ type PantryOverviewStockSectionProps = {
   columns: ColumnDef<StockRow>[];
   onlyLowStock: boolean;
   onToggleOnlyLowStock: () => void;
+  headerActionsSlot?: React.ReactNode;
   onRowClick: (row: StockRow) => void;
   rowActions?: {
     id: string;
@@ -28,28 +29,27 @@ export function PantryOverviewStockSection({
   columns,
   onlyLowStock,
   onToggleOnlyLowStock,
+  headerActionsSlot,
   onRowClick,
   rowActions = [],
 }: PantryOverviewStockSectionProps) {
   return (
     <SectionCard
-      title="Estoque por setor"
+      title="Estoque "
       subtitle="Visão física do estoque com alertas de mínimo."
       actions={
-        <div className="flex items-center gap-2">
-          <Button
-            variant={onlyLowStock ? "default" : "outline"}
-            onClick={onToggleOnlyLowStock}
-          >
-            {onlyLowStock ? "Mostrando somente alertas" : "Somente alertas"}
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {headerActionsSlot}
         </div>
       }
     >
       <DataTable
         columns={columns}
         data={rows}
-        initialColumnPinning={{ left: ["actions", "name"], right: ["nextExpiryDate"] }}
+        initialColumnPinning={{
+          left: ["actions", "name"],
+          right: ["nextExpiryDate"],
+        }}
         searchPlaceholder="Pesquisar estoque"
         summaryCards={{
           totalLabel: "Total",

@@ -9,6 +9,10 @@ export class CreatePantryItemDto {
   @IsString()
   group?: string;
 
+  @IsOptional()
+  @IsString()
+  defaultSector?: string;
+
   @IsString()
   unit: string;
 

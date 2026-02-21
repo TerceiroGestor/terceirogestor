@@ -10,6 +10,7 @@ export function SidebarNav(props: {
   pathname: string;
   tenantSlug: string | null;
   permissions: string[];
+  roles: string[];
 }) {
   const [openByHref, setOpenByHref] = React.useState<Record<string, boolean>>(
     {},
@@ -43,7 +44,7 @@ export function SidebarNav(props: {
       <SidebarMenu>
         {navGroups.map((group) => {
           const visibleItems = group.items.filter((item) =>
-            canAccessNavItem(props.permissions, item),
+            canAccessNavItem(props.permissions, props.roles, item),
           );
           if (visibleItems.length === 0) return null;
           return (
@@ -53,6 +54,7 @@ export function SidebarNav(props: {
               pathname={props.pathname}
               tenantSlug={props.tenantSlug}
               permissions={props.permissions}
+              roles={props.roles}
               openByHref={openByHref}
               setOpenByHref={setOpenByHref}
             />

@@ -48,14 +48,13 @@ export async function confirmTenantRegistration(input: {
 }
 
 export function buildGoogleRegistrationUrl(tenantName: string) {
-  const url = new URL("/registration/oauth/google/start", API_URL);
+  const url = new URL(`${API_URL}/registration/oauth/google/start`);
   url.searchParams.set("tenantName", tenantName);
   return url.toString();
 }
 
 export function buildMicrosoftRegistrationUrl(tenantName: string) {
-  const url = new URL("/registration/oauth/microsoft/start", API_URL);
+  const url = new URL(`${API_URL}/registration/oauth/microsoft/start`);
   url.searchParams.set("tenantName", tenantName);
   return url.toString();
 }
-

@@ -24,8 +24,8 @@ export async function PeopleEditPage({ params }: PageProps) {
       <PageBreadcrumb
         title="Editar cadastro"
         items={[
-          { label: "Pessoas", href: "/people" },
-          { label: displayNames.primary, href: `/people/${person.id}` },
+          { label: "Pessoas", href: "/person" },
+          { label: displayNames.primary, href: `/person/${person.id}` },
           { label: "Editar" },
         ]}
       />

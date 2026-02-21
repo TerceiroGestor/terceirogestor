@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import * as React from "react";
-import { LoginForm } from "@/features/auth/login-form";
+import { LoginForm } from "@/modules/core/features/auth/ui/login-form";
 
 export default function TenantLoginPage() {
   const params = useParams();

@@ -1,6 +1,10 @@
-import { PeopleListClientPage } from "@/modules/people";
+import { redirect } from "next/navigation";
+import { withTenantPath } from "@/lib/tenant-path";
 
-export default function PeoplePage() {
-  return <PeopleListClientPage />;
+export default function PeopleLegacyPage({
+  params,
+}: {
+  params: { tenant: string };
+}) {
+  redirect(withTenantPath("/person", params.tenant));
 }
-

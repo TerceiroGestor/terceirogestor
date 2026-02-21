@@ -76,6 +76,79 @@ const resolveExitTypeLabel = (type: string) => {
 export class PantryService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async syncSectorsFromData(tenantId: string) {
+    const [entrySectors, exitSectors, items] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.groupBy({
+        by: ['sector'],
+        where: { tenantId },
+        orderBy: { sector: 'asc' },
+      }),
+      this.prisma.pantryExit.groupBy({
+        by: ['sector'],
+        where: { tenantId },
+        orderBy: { sector: 'asc' },
+      }),
+      this.prisma.pantryItem.findMany({
+        where: { tenantId },
+        select: { defaultSector: true },
+      }),
+    ]);
+
+    const set = new Set<string>();
+    set.add('Geral');
+
+    entrySectors.forEach((row) => set.add(normalizeSector(row.sector)));
+    exitSectors.forEach((row) => set.add(normalizeSector(row.sector)));
+    items.forEach((row) => set.add(normalizeSector(row.defaultSector)));
+
+    const names = Array.from(set).filter(Boolean);
+    if (!names.length) return;
+
+    await this.prisma.pantrySector.createMany({
+      data: names.map((name) => ({ tenantId, name })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async ensureSector(
+    tenantId: string,
+    sector: string,
+    params?: { client?: Prisma.TransactionClient },
+  ) {
+    const client = params?.client ?? this.prisma;
+    const name = normalizeSector(sector);
+    await client.pantrySector.upsert({
+      where: { tenantId_name: { tenantId, name } },
+      create: { tenantId, name },
+      update: {},
+    });
+    return name;
+  }
+
+  async listSectors(tenantId: string) {
+    await this.syncSectorsFromData(tenantId);
+
+    const sectors = await this.prisma.pantrySector.findMany({
+      where: { tenantId },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      data: sectors.map((sector) => ({ id: sector.id, name: sector.name })),
+    };
+  }
+
+  async createSector(tenantId: string, dto: { name: string }) {
+    const name = normalizeSector(dto.name);
+    const sector = await this.prisma.pantrySector.upsert({
+      where: { tenantId_name: { tenantId, name } },
+      create: { tenantId, name },
+      update: {},
+    });
+
+    return { id: sector.id, name: sector.name };
+  }
+
   private async sumExitAllocationsByEntry(
     tenantId: string,
     entryIds: string[],
@@ -267,11 +340,13 @@ export class PantryService {
   }
 
   async createItem(tenantId: string, dto: CreatePantryItemDto) {
+    const defaultSector = await this.ensureSector(tenantId, dto.defaultSector ?? 'Geral');
     const item = await this.prisma.pantryItem.create({
       data: {
         tenantId,
         name: dto.name,
         group: dto.group ?? null,
+        defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
       },
@@ -284,11 +359,17 @@ export class PantryService {
   async updateItem(tenantId: string, id: string, dto: UpdatePantryItemDto) {
     await this.getItem(tenantId, id);
 
+    const defaultSector =
+      dto.defaultSector !== undefined
+        ? await this.ensureSector(tenantId, dto.defaultSector)
+        : undefined;
+
     const item = await this.prisma.pantryItem.update({
       where: { id },
       data: {
         name: dto.name,
         group: dto.group ?? undefined,
+        defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
       },
@@ -511,12 +592,14 @@ export class PantryService {
       await this.assertDonor(tenantId, dto.donorId);
     }
 
+    const sector = await this.ensureSector(tenantId, dto.sector);
+
     return this.prisma.pantryEntry.create({
       data: {
         tenantId,
         itemId: dto.itemId,
         donorId: dto.donorId ?? null,
-        sector: normalizeSector(dto.sector),
+        sector,
         quantity: dto.quantity,
         unit: dto.unit,
         entryDate: parseDateInput(dto.entryDate) ?? new Date(),
@@ -560,12 +643,15 @@ export class PantryService {
       await this.assertDonor(tenantId, dto.donorId);
     }
 
+    const sector =
+      dto.sector !== undefined ? await this.ensureSector(tenantId, dto.sector) : undefined;
+
     return this.prisma.pantryEntry.update({
       where: { id },
       data: {
         itemId: dto.itemId,
         donorId: dto.donorId ?? undefined,
-        sector: dto.sector !== undefined ? normalizeSector(dto.sector) : undefined,
+        sector,
         quantity: dto.quantity,
         unit: dto.unit,
         entryDate: dto.entryDate ? parseDateInput(dto.entryDate) : undefined,
@@ -807,6 +893,7 @@ export class PantryService {
     const exitDate = parseDateInput(dto.exitDate) ?? new Date();
 
     return this.prisma.$transaction(async (trx) => {
+      await this.ensureSector(tenantId, normalizedSector, { client: trx });
       const exit = await trx.pantryExit.create({
         data: {
           tenantId,
@@ -921,6 +1008,9 @@ export class PantryService {
     const nextQuantity = dto.quantity ?? currentQuantity;
 
     return this.prisma.$transaction(async (trx) => {
+      if (dto.sector !== undefined) {
+        await this.ensureSector(tenantId, nextSector, { client: trx });
+      }
       await trx.pantryExitAllocation.deleteMany({
         where: { tenantId, exitId: id },
       });
@@ -1470,7 +1560,7 @@ export class PantryService {
     const [recentEntries, recentExits] = await this.prisma.$transaction([
       this.prisma.pantryEntry.findMany({
         where: { tenantId },
-        orderBy: { entryDate: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: 12,
         include: {
           item: { select: { id: true, name: true, unit: true, group: true } },
@@ -1479,7 +1569,7 @@ export class PantryService {
       }),
       this.prisma.pantryExit.findMany({
         where: { tenantId },
-        orderBy: { exitDate: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: 12,
         include: {
           item: { select: { id: true, name: true, unit: true, group: true } },
@@ -1527,6 +1617,7 @@ export class PantryService {
         quantity: toNumber(entry.quantity),
         unit: entry.unit,
         entryDate: entry.entryDate,
+        createdAt: entry.createdAt,
         expiryDate: entry.expiryDate,
         notes: entry.notes,
         createdBy: createdByMap.get(entry.id) ?? 'Sistema',
@@ -1539,6 +1630,7 @@ export class PantryService {
         quantity: toNumber(exit.quantity),
         unit: exit.unit,
         exitDate: exit.exitDate,
+        createdAt: exit.createdAt,
         type: exit.type,
         eventName: exit.eventName,
         notes: exit.notes,
@@ -2039,6 +2131,7 @@ export class PantryService {
         tenantId: item.tenantId,
         name: item.name,
         group: item.group,
+        defaultSector: normalizeSector(item.defaultSector),
         unit: item.unit,
         minStock,
         stock,

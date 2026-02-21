@@ -104,7 +104,7 @@ export function PersonIdentityCard({
           </div>
           {personId && showDetailsLink ? (
             <Link
-              href={withTenantPath(`/people/${personId}`, tenantSlug)}
+              href={withTenantPath(`/person/${personId}`, tenantSlug)}
               className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground transition hover:text-foreground"
             >
               Ver detalhes

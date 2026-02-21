@@ -46,7 +46,7 @@ export function SectionCard({
   const actionContent = useMemo(() => {
     if (!actions && !collapsible) return null;
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         {actions}
         {collapsible ? (
           <Button
@@ -94,13 +94,18 @@ export function SectionCard({
       </CardHeader>
       {isOpen ? (
         <CardContent
-          className={clsx("space-y-4 px-5 pb-5 pt-3", contentClassName)}
+          className={clsx(
+            "space-y-4 px-4 pb-4 pt-3 sm:px-5 sm:pb-5",
+            contentClassName,
+          )}
         >
           {children}
         </CardContent>
       ) : null}
       {isOpen && footer ? (
-        <div className="border-t border-border/40 px-5 py-3">{footer}</div>
+        <div className="border-t border-border/40 px-4 py-3 sm:px-5">
+          {footer}
+        </div>
       ) : null}
     </Card>
   );

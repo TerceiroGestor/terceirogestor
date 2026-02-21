@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
@@ -15,18 +16,22 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   createPantryExit,
+  createPantrySector,
   deletePantryExit,
   listPantryExits,
   listPantryItems,
+  listPantrySectors,
   updatePantryExit,
   type ApiPantryExit,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
 import { buildPantryExitFormFields } from "@/modules/pantry/features/exits/config/pantry-exit-form-config";
+import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryExitFormValues } from "@/modules/pantry/shared/domain/types";
-import { PantrySubnav } from "@/modules/pantry/shared/ui/pantry-subnav";
+import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR, todayLocalIsoDate } from "@/lib/date";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
@@ -64,6 +69,9 @@ export function PantryExitsClientPage() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { confirm } = useConfirm();
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -72,9 +80,15 @@ export function PantryExitsClientPage() {
 
   const [rows, setRows] = React.useState<ApiPantryExit[]>([]);
   const [items, setItems] = React.useState<ApiPantryItem[]>([]);
+  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
+    [],
+  );
+
+  const itemMap = React.useMemo(() => {
+    return new Map(items.map((item) => [item.id, item]));
+  }, [items]);
 
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
@@ -86,12 +100,31 @@ export function PantryExitsClientPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiPantryExit | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [formError, setFormError] = React.useState<string | null>(null);
 
   const itemOptions = React.useMemo(
     () => items.map((item) => ({ label: item.name, value: item.id })),
     [items],
   );
+
+  const sectorOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    const list: Array<{ label: string; value: string }> = [];
+
+    const push = (name: string) => {
+      const normalized = name.trim();
+      if (!normalized) return;
+      if (set.has(normalized)) return;
+      set.add(normalized);
+      list.push({ label: normalized, value: normalized });
+    };
+
+    (sectors ?? []).forEach((sector) => push(sector.name));
+    (items ?? []).forEach((item) => push(item.defaultSector ?? "Geral"));
+    if (editing?.sector) push(editing.sector);
+    push("Geral");
+
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [editing?.sector, items, sectors]);
 
   const columns = React.useMemo<ColumnDef<ApiPantryExit>[]>(
     () => [
@@ -159,8 +192,12 @@ export function PantryExitsClientPage() {
   const loadLookups = React.useCallback(async () => {
     if (!token || !canRead) return;
     try {
-      const itemsResponse = await listPantryItems(token, { all: true, limit: 200 });
+      const [itemsResponse, sectorsResponse] = await Promise.all([
+        listPantryItems(token, { all: true, limit: 200 }),
+        listPantrySectors(token),
+      ]);
       setItems(itemsResponse.data);
+      setSectors(sectorsResponse.data ?? []);
     } catch {
       // lookup failure should not block listing
     }
@@ -169,7 +206,6 @@ export function PantryExitsClientPage() {
   const loadExits = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
-    setError(null);
     try {
       const response = await listPantryExits(token, {
         q: search.trim() || undefined,
@@ -184,14 +220,14 @@ export function PantryExitsClientPage() {
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar saídas.";
-      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       setRows([]);
       setTotalCount(0);
       setPageCount(0);
     } finally {
       setLoading(false);
     }
-  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search]);
+  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search, toast]);
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -208,29 +244,34 @@ export function PantryExitsClientPage() {
   }, [authLoading, token, isAuthenticated, canRead, loadLookups, loadExits]);
 
   const openCreate = React.useCallback(() => {
-    setEditing(null);
-    setFormError(null);
-    setDialogOpen(true);
-  }, []);
+    router.push(withTenantPath("/pantry/exit", tenantSlug));
+  }, [router, tenantSlug]);
 
   const openEdit = React.useCallback(
     (exit: ApiPantryExit) => {
       if (!canUpdate) {
-        setError("Você não tem permissão para editar saídas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar saídas.",
+        });
         return;
       }
       setEditing(exit);
-      setFormError(null);
       setDialogOpen(true);
     },
-    [canUpdate],
+    [canUpdate, toast],
   );
 
   const onDelete = React.useCallback(
     async (exit: ApiPantryExit) => {
       if (!token) return;
       if (!canDelete) {
-        setError("Você não tem permissão para excluir saídas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para excluir saídas.",
+        });
         return;
       }
       const confirmed = await confirm({
@@ -250,7 +291,6 @@ export function PantryExitsClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao excluir saída.";
-        setError(message);
         toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
       }
     },
@@ -261,11 +301,19 @@ export function PantryExitsClientPage() {
     async (values: PantryExitFormValues) => {
       if (!token) return;
       if (editing && !canUpdate) {
-        setFormError("Você não tem permissão para editar saídas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para editar saídas.",
+        });
         return;
       }
       if (!editing && !canCreate) {
-        setFormError("Você não tem permissão para criar saídas.");
+        toast({
+          variant: "destructive",
+          title: "Sem permissão",
+          description: "Você não tem permissão para criar saídas.",
+        });
         return;
       }
 
@@ -275,29 +323,48 @@ export function PantryExitsClientPage() {
       const rawExitDate = values.exitDate?.trim() ?? "";
       const rawEventName = values.eventName?.trim() ?? "";
       const rawSector = values.sector?.trim() ?? "";
+      const rawNewSector = values.newSector?.trim() ?? "";
       const quantity =
         typeof values.quantity === "number" ? values.quantity : Number(values.quantity);
 
       if (!values.itemId) {
-        setFormError("Selecione um alimento.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Selecione um alimento.",
+        });
         return;
       }
-      if (!rawSector) {
-        setFormError("Informe o setor (local físico).");
+      const sector =
+        rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
+      if (!sector) {
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe o setor (local físico).",
+        });
         return;
       }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        setFormError("Informe uma quantidade válida.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe uma quantidade válida.",
+        });
         return;
       }
       if ((values.type === "EVENT" || values.type === "PARTY") && !rawEventName) {
-        setFormError("Informe o nome do evento.");
+        toast({
+          variant: "destructive",
+          title: "Dados inválidos",
+          description: "Informe o nome do evento.",
+        });
         return;
       }
 
       const payload = {
         itemId: values.itemId,
-        sector: rawSector,
+        sector,
         quantity,
         unit: rawUnit || item?.unit || "unidade",
         exitDate: rawExitDate || undefined,
@@ -307,8 +374,14 @@ export function PantryExitsClientPage() {
       };
 
       setSaving(true);
-      setFormError(null);
       try {
+        if (rawSector === PANTRY_NEW_SECTOR_VALUE) {
+          try {
+            await createPantrySector(token, { name: sector });
+          } catch {
+            // best-effort
+          }
+        }
         if (editing) {
           await updatePantryExit(token, editing.id, payload);
         } else {
@@ -326,7 +399,6 @@ export function PantryExitsClientPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
             : "Falha ao salvar saída.";
-        setFormError(message);
         toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
       } finally {
         setSaving(false);
@@ -348,9 +420,8 @@ export function PantryExitsClientPage() {
       <PageBreadcrumb
         title="Despensa · Saídas"
         items={[{ label: "Despensa", href: "/pantry" }, { label: "Saídas" }]}
+        actionSlot={<PantryHeaderNav />}
       />
-
-      <PantrySubnav />
 
       <SectionCard
         title="Saídas"
@@ -366,12 +437,6 @@ export function PantryExitsClientPage() {
           </div>
         }
       >
-        {error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
-
         <DataTable
           columns={columns}
           data={rows}
@@ -409,19 +474,14 @@ export function PantryExitsClientPage() {
         description="Registro rápido de consumo/uso da despensa."
         contentClassName="max-w-[720px]"
       >
-        {formError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {formError}
-          </div>
-        ) : null}
-
         <FormEngine<PantryExitFormValues>
-          fields={buildPantryExitFormFields({ itemOptions })}
+          fields={buildPantryExitFormFields({ itemOptions, sectorOptions })}
           initialValues={
             editing
               ? {
                   itemId: editing.itemId,
                   sector: editing.sector ?? "Geral",
+                  newSector: "",
                   quantity: editing.quantity,
                   unit: editing.unit,
                   exitDate: toDateOnly(editing.exitDate),
@@ -429,8 +489,37 @@ export function PantryExitsClientPage() {
                   eventName: editing.eventName ?? "",
                   notes: editing.notes ?? "",
                 }
-              : { sector: "Geral", type: "ATTENDED", exitDate: todayIsoDate() }
+              : {
+                  itemId: "",
+                  sector: "Geral",
+                  newSector: "",
+                  quantity: "",
+                  unit: "",
+                  exitDate: todayIsoDate(),
+                  type: "ATTENDED",
+                  eventName: "",
+                  notes: "",
+                }
           }
+          onFieldChange={({ name, value, nextValues }) => {
+            if (name === "sector") {
+              const nextSector = String(value ?? "").trim();
+              if (nextSector !== PANTRY_NEW_SECTOR_VALUE && nextValues.newSector) {
+                return { newSector: "" };
+              }
+            }
+            if (name !== "itemId") return;
+            const itemId = String(value ?? "").trim();
+            const item = itemMap.get(itemId);
+            if (!item) {
+              return { sector: "Geral", unit: "", newSector: "" };
+            }
+            return {
+              sector: item.defaultSector || "Geral",
+              unit: item.unit || "",
+              newSector: "",
+            };
+          }}
           disabled={saving}
           onSubmit={handleSubmit}
           actions={{
