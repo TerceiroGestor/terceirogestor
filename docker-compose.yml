@@ -19,6 +19,8 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        DATABASE_URL: "mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&ssl=false"
     container_name: backend-terceirogestor
     restart: unless-stopped
     depends_on:
