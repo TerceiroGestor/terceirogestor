@@ -1,4 +1,5 @@
 export const PANTRY_ITEM_GROUP = [
+  { label: "Cesta Básica", value: "CestaBasica" },
   { label: "Grãos", value: "Graos" },
   { label: "Cereais", value: "Cereais" },
   { label: "Leguminosas", value: "Leguminosas" },

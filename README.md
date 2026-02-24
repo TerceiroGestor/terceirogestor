@@ -79,3 +79,16 @@ docker compose up -d backup
 
 4) SSL em producao
 - Configure Nginx/Certbot direto no servidor (fora do compose).
+
+## Atualizacao (servidor)
+Rotina automatizada (Ubuntu):
+```bash
+bash scripts/update.sh
+```
+O script faz `git pull`, build das imagens, aplica migrations e recria os containers.
+Observacao: migrations rodam dentro do container, sem depender do Node/Prisma do host.
+
+Execucao manual (se precisar):
+```bash
+docker compose run --rm --no-deps backend npm run db:migrate:deploy
+```
