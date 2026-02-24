@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { History, Package, PackagePlus, Truck } from "lucide-react";
+import { History, Package, PackagePlus, Truck, Users } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
@@ -21,11 +21,13 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
   const exitHref = withTenantPath("/pantry/exit", tenantSlug);
   const exitsHref = withTenantPath("/pantry/exits", tenantSlug);
   const historyHref = withTenantPath("/pantry/history", tenantSlug);
+  const donorsHref = withTenantPath("/pantry/donors", tenantSlug);
 
   const isStock = pathname === stockHref;
   const isEntries = pathname.startsWith(entriesHref);
   const isExit = pathname.startsWith(exitHref) || pathname.startsWith(exitsHref);
   const isHistory = pathname.startsWith(historyHref);
+  const isDonors = pathname.startsWith(donorsHref);
 
   const items = [
     {
@@ -56,6 +58,13 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
       active: isHistory,
       icon: History,
     },
+    {
+      id: "donors",
+      label: "Doadores",
+      href: donorsHref,
+      active: isDonors,
+      icon: Users,
+    },
   ] as const;
 
   const activeId = React.useMemo(() => {
@@ -63,8 +72,9 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
     if (isEntries) return "entries";
     if (isExit) return "exit";
     if (isHistory) return "history";
+    if (isDonors) return "donors";
     return "stock";
-  }, [isEntries, isExit, isHistory, isStock]);
+  }, [isEntries, isExit, isHistory, isStock, isDonors]);
 
   const hrefById = React.useMemo(() => {
     const map = new Map<string, string>();

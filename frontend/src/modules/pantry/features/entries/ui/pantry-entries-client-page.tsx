@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
+  createPantryDonor,
   createPantryEntry,
   createPantrySector,
   deletePantryEntry,
@@ -26,7 +27,10 @@ import {
   type ApiPantryEntry,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
-import { buildPantryEntryFormFields } from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
+import {
+  PANTRY_NEW_DONOR_VALUE,
+  buildPantryEntryFormFields,
+} from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
 import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryEntryFormValues } from "@/modules/pantry/shared/domain/types";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
@@ -326,6 +330,11 @@ export function PantryEntriesClientPage() {
       const rawEntryDate = values.entryDate?.trim() ?? "";
       const rawSector = values.sector?.trim() ?? "";
       const rawNewSector = values.newSector?.trim() ?? "";
+      const rawDonorId = values.donorId?.trim() ?? "";
+      const rawNewDonorName = values.newDonorName?.trim() ?? "";
+      const rawNewDonorType =
+        values.newDonorType === "COMPANY" ? "COMPANY" : "PERSON";
+      const rawNewDonorContact = values.newDonorContact?.trim() ?? "";
       const quantity =
         typeof values.quantity === "number" ? values.quantity : Number(values.quantity);
 
@@ -356,10 +365,47 @@ export function PantryEntriesClientPage() {
         return;
       }
 
+      let donorId: string | null =
+        rawDonorId && rawDonorId !== "none" ? rawDonorId : null;
+
+      if (rawDonorId === PANTRY_NEW_DONOR_VALUE) {
+        if (!rawNewDonorName) {
+          toast({
+            variant: "destructive",
+            title: "Dados invÃ¡lidos",
+            description: "Informe o nome do doador.",
+          });
+          return;
+        }
+        try {
+          const created = await createPantryDonor(token, {
+            name: rawNewDonorName,
+            type: rawNewDonorType,
+            contact: rawNewDonorContact || null,
+          });
+          donorId = created.id;
+          setDonors((prev) => {
+            const exists = prev.some((donor) => donor.id === created.id);
+            if (exists) return prev;
+            return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+          });
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Falha ao cadastrar doador.";
+          toast({
+            variant: "destructive",
+            title: "Falha ao cadastrar doador",
+            description: message,
+          });
+          return;
+        }
+      }
+
       const payload = {
         itemId: values.itemId,
-        donorId:
-          values.donorId && values.donorId !== "none" ? values.donorId : null,
+        donorId,
         sector,
         quantity,
         unit: rawUnit || item?.unit || "unidade",
@@ -480,6 +526,9 @@ export function PantryEntriesClientPage() {
               ? {
                   itemId: editing.itemId,
                   donorId: editing.donorId ?? "none",
+                  newDonorName: "",
+                  newDonorType: "PERSON",
+                  newDonorContact: "",
                   sector: editing.sector ?? "Geral",
                   newSector: "",
                   quantity: editing.quantity,
@@ -491,6 +540,9 @@ export function PantryEntriesClientPage() {
               : {
                   itemId: "",
                   donorId: "none",
+                  newDonorName: "",
+                  newDonorType: "PERSON",
+                  newDonorContact: "",
                   sector: "Geral",
                   newSector: "",
                   quantity: "",
@@ -505,6 +557,24 @@ export function PantryEntriesClientPage() {
               const nextSector = String(value ?? "").trim();
               if (nextSector !== PANTRY_NEW_SECTOR_VALUE && nextValues.newSector) {
                 return { newSector: "" };
+              }
+            }
+            if (name === "donorId") {
+              const nextDonor = String(value ?? "").trim();
+              if (nextDonor === PANTRY_NEW_DONOR_VALUE) {
+                if (!nextValues.newDonorType) {
+                  return { newDonorType: "PERSON" };
+                }
+              } else if (
+                nextValues.newDonorName ||
+                nextValues.newDonorContact ||
+                nextValues.newDonorType
+              ) {
+                return {
+                  newDonorName: "",
+                  newDonorContact: "",
+                  newDonorType: "PERSON",
+                };
               }
             }
             if (name !== "itemId") return;

@@ -17,6 +17,8 @@ export function buildPantryItemFormFields(params: {
       label: "Grupo",
       type: "select",
       options: PANTRY_ITEM_GROUP.slice(),
+      searchable: true,
+      searchPlaceholder: "Buscar grupo...",
       helperText: "Opcional (ex.: Cereais, Proteínas).",
       required: true,
     },
@@ -56,4 +58,5 @@ export function buildPantryItemFormFields(params: {
     },
   ];
 }
+
 

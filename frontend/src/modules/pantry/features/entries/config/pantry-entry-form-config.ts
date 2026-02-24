@@ -4,6 +4,8 @@ import { todayLocalIsoDate } from "@/lib/date";
 import { PANTRY_ITEM_UNIT } from "@/modules/pantry/shared/domain/pantry.constant";
 import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 
+export const PANTRY_NEW_DONOR_VALUE = "__new_donor__" as const;
+
 function todayIsoDate() {
   return todayLocalIsoDate();
 }
@@ -44,8 +46,37 @@ export function buildPantryEntryFormFields(params: {
       name: "donorId",
       label: "Doador",
       type: "select",
-      options: [{ label: "Sem doador", value: "none" }, ...params.donorOptions],
+      options: [
+        { label: "Sem doador", value: "none" },
+        ...params.donorOptions,
+        { label: "Adicionar doador...", value: PANTRY_NEW_DONOR_VALUE },
+      ],
       helperText: "Opcional.",
+    },
+    {
+      name: "newDonorName",
+      label: "Nome do doador",
+      type: "text",
+      requiredWhen: (values) => values.donorId === PANTRY_NEW_DONOR_VALUE,
+      visibleWhen: (values) => values.donorId === PANTRY_NEW_DONOR_VALUE,
+    },
+    {
+      name: "newDonorType",
+      label: "Tipo do doador",
+      type: "select",
+      requiredWhen: (values) => values.donorId === PANTRY_NEW_DONOR_VALUE,
+      visibleWhen: (values) => values.donorId === PANTRY_NEW_DONOR_VALUE,
+      options: [
+        { label: "Pessoa", value: "PERSON" },
+        { label: "Empresa", value: "COMPANY" },
+      ],
+    },
+    {
+      name: "newDonorContact",
+      label: "Contato do doador",
+      type: "text",
+      helperText: "Opcional (telefone, email, etc.).",
+      visibleWhen: (values) => values.donorId === PANTRY_NEW_DONOR_VALUE,
     },
     {
       name: "quantity",

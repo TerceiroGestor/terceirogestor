@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
+  createPantryDonor,
   createPantrySector,
   getPantryEntry,
   listPantryDonors,
@@ -17,7 +18,10 @@ import {
   updatePantryEntry,
   type ApiPantryEntry,
 } from "@/modules/pantry/api";
-import { buildPantryEntryFormFields } from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
+import {
+  PANTRY_NEW_DONOR_VALUE,
+  buildPantryEntryFormFields,
+} from "@/modules/pantry/features/entries/config/pantry-entry-form-config";
 import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
 import type { PantryEntryFormValues } from "@/modules/pantry/shared/domain/types";
 import { Undo2 } from "lucide-react";
@@ -144,6 +148,9 @@ export function PantryEntryEditDialog({
     return {
       itemId: entry.itemId,
       donorId: entry.donorId ?? "none",
+      newDonorName: "",
+      newDonorType: "PERSON",
+      newDonorContact: "",
       sector: entry.sector,
       newSector: "",
       quantity: entry.quantity,
@@ -168,6 +175,11 @@ export function PantryEntryEditDialog({
 
       const rawSector = values.sector?.trim() ?? "";
       const rawNewSector = values.newSector?.trim() ?? "";
+      const rawDonorId = values.donorId?.trim() ?? "";
+      const rawNewDonorName = values.newDonorName?.trim() ?? "";
+      const rawNewDonorType =
+        values.newDonorType === "COMPANY" ? "COMPANY" : "PERSON";
+      const rawNewDonorContact = values.newDonorContact?.trim() ?? "";
       const sector = rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
 
       if (!sector) {
@@ -179,8 +191,41 @@ export function PantryEntryEditDialog({
         return;
       }
 
+      let donorId: string | null =
+        rawDonorId && rawDonorId !== "none" ? rawDonorId : null;
+
+      if (rawDonorId === PANTRY_NEW_DONOR_VALUE) {
+        if (!rawNewDonorName) {
+          toast({
+            variant: "destructive",
+            title: "Dados invÃ¡lidos",
+            description: "Informe o nome do doador.",
+          });
+          return;
+        }
+        try {
+          const created = await createPantryDonor(token, {
+            name: rawNewDonorName,
+            type: rawNewDonorType,
+            contact: rawNewDonorContact || null,
+          });
+          donorId = created.id;
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Falha ao cadastrar doador.";
+          toast({
+            variant: "destructive",
+            title: "Falha ao cadastrar doador",
+            description: message,
+          });
+          return;
+        }
+      }
+
       const payload = {
-        donorId: values.donorId === "none" ? null : (values.donorId || null),
+        donorId,
         sector,
         quantity:
           typeof values.quantity === "number" ? values.quantity : Number(values.quantity),
@@ -300,6 +345,33 @@ export function PantryEntryEditDialog({
         <FormEngine<PantryEntryFormValues>
           fields={fields}
           initialValues={initialValues}
+          onFieldChange={({ name, value, nextValues }) => {
+            if (name === "sector") {
+              const nextSector = String(value ?? "").trim();
+              if (nextSector !== PANTRY_NEW_SECTOR_VALUE && nextValues.newSector) {
+                return { newSector: "" };
+              }
+            }
+            if (name === "donorId") {
+              const nextDonor = String(value ?? "").trim();
+              if (nextDonor === PANTRY_NEW_DONOR_VALUE) {
+                if (!nextValues.newDonorType) {
+                  return { newDonorType: "PERSON" };
+                }
+              } else if (
+                nextValues.newDonorName ||
+                nextValues.newDonorContact ||
+                nextValues.newDonorType
+              ) {
+                return {
+                  newDonorName: "",
+                  newDonorContact: "",
+                  newDonorType: "PERSON",
+                };
+              }
+            }
+            return undefined;
+          }}
           disabled={saving}
           onSubmit={handleSubmit}
           actions={{

@@ -51,6 +51,14 @@ function toDateInputValue(value: unknown) {
   return String(value);
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export function FieldRenderer<T>({
   field,
   value,
@@ -61,6 +69,26 @@ export function FieldRenderer<T>({
   const isDisabled = disabled || field.disabled;
   const handleChange = normalizeChange(onChange);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
+  const [selectQuery, setSelectQuery] = React.useState("");
+  const [selectOpen, setSelectOpen] = React.useState(false);
+
+  const filteredSelectOptions = React.useMemo(() => {
+    if (field.type !== "select") return [];
+    const options = field.options ?? [];
+    if (!field.searchable) return options;
+    const normalizedQuery = normalizeSearchText(selectQuery);
+    if (!normalizedQuery) return options;
+    return options.filter((option) => {
+      const label = normalizeSearchText(option.label ?? "");
+      const value = normalizeSearchText(option.value ?? "");
+      return label.includes(normalizedQuery) || value.includes(normalizedQuery);
+    });
+  }, [field, selectQuery]);
+
+  React.useEffect(() => {
+    if (selectOpen) return;
+    if (selectQuery) setSelectQuery("");
+  }, [selectOpen, selectQuery]);
 
   React.useEffect(() => {
     if (field.type !== "image") return undefined;
@@ -239,16 +267,38 @@ export function FieldRenderer<T>({
 
     case "select":
       return renderLabeledField(
-        <Select value={value ?? ""} onValueChange={onChange} disabled={isDisabled}>
+        <Select
+          value={value ?? ""}
+          onValueChange={onChange}
+          disabled={isDisabled}
+          onOpenChange={setSelectOpen}
+        >
           <SelectTrigger>
             <SelectValue placeholder={field.label} />
           </SelectTrigger>
           <SelectContent>
-            {field.options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
+            {field.searchable ? (
+              <div className="sticky top-0 z-10 bg-popover p-1">
+                <Input
+                  type="text"
+                  value={selectQuery}
+                  placeholder={field.searchPlaceholder ?? "Buscar..."}
+                  onChange={(event) => setSelectQuery(event.target.value)}
+                  onKeyDown={(event) => event.stopPropagation()}
+                />
+              </div>
+            ) : null}
+            {filteredSelectOptions.length ? (
+              filteredSelectOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))
+            ) : (
+              <div className="px-2 py-2 text-xs text-muted-foreground">
+                Nenhum resultado
+              </div>
+            )}
           </SelectContent>
         </Select>
       );

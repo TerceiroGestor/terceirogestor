@@ -131,6 +131,8 @@ export interface SelectOption {
 export interface SelectField<T = any> extends BaseField<T> {
   type: "select" | "multiselect";
   options: ReadonlyArray<SelectOption>;
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 export interface TagsField<T = any> extends BaseField<T> {

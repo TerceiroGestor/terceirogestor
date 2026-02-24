@@ -16,6 +16,9 @@ export type PantryDonorFormValues = {
 export type PantryEntryFormValues = {
   itemId: string;
   donorId: string;
+  newDonorName?: string;
+  newDonorType?: "PERSON" | "COMPANY";
+  newDonorContact?: string;
   sector: string;
   newSector?: string;
   quantity: number | "";
