@@ -88,13 +88,13 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 - Aplica igual em List/Kanban/Graph.
 
 ### v0.4 - DataProvider unificado
-- [ ] Criar `DataProvider` com contratos:
+- [x] Criar `DataProvider` com contratos:
   - `search(model, params)`
   - `read(model, id)`
   - `create(model, payload)`
   - `update(model, id, payload)`
   - `delete(model, id)`
-- [ ] Padronizar retorno: `data[]`, `pagination`, `meta` (agregacoes/facets quando necessario).
+- [x] Padronizar retorno: `data[]`, `pagination`, `meta` (agregacoes/facets quando necessario).
 
 **Criterios de aceite**
 - ListView e GraphView consomem o mesmo `search()` (mudando apenas parametros).

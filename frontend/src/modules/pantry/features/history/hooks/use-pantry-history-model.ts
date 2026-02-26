@@ -4,15 +4,15 @@ import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
-import { listPantryHistory, type ApiPantryHistoryMovement } from "@/modules/pantry/api";
+import type { ApiPantryHistoryMovement } from "@/modules/pantry/api";
 import type { PantryRecentMovement } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-movements-section";
 import { exitTypeLabel } from "@/modules/pantry/features/overview/domain/overview.helpers";
 import { useUrlSyncedState } from "@/components/record-browser/hooks/useUrlSyncedState";
 import type { Domain, DomainCondition } from "@/web-client/domain/types";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
+import { createRestDataProvider } from "@/web-client/data-provider";
 
 export type PantryHistoryView = "cards" | "table" | "timeline" | "graph";
-type PantryHistoryExitType = "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
 
 type PantryHistoryFilters = {
   view: PantryHistoryView;
@@ -126,99 +126,6 @@ const serializePantryHistoryFilters = (state: PantryHistoryFilters) => ({
   limit: state.pageSize === 50 ? undefined : String(state.pageSize),
 });
 
-function collectAndConditions(domain: Domain): DomainCondition[] | null {
-  if (!domain) return [];
-  if (domain.type === "condition") return [domain];
-  if (domain.type === "not") return null;
-  if (domain.type === "group") {
-    if (domain.combinator !== "and") return null;
-    const all: DomainCondition[] = [];
-    for (const child of domain.children) {
-      const flattened = collectAndConditions(child);
-      if (!flattened) return null;
-      all.push(...flattened);
-    }
-    return all;
-  }
-  return null;
-}
-
-function resolveHistoryQuery(domain: Domain) {
-  const conditions = collectAndConditions(domain);
-  if (!conditions) {
-    return {
-      ok: false as const,
-      message: "Este endpoint ainda suporta apenas filtros combinados com AND.",
-      params: null,
-    };
-  }
-
-  const params: {
-    kind?: "ALL" | "ENTRY" | "EXIT";
-    from?: string;
-    to?: string;
-    type?: PantryHistoryExitType;
-    eventName?: string;
-    itemId?: string;
-  } = {};
-
-  conditions.forEach((condition) => {
-    const value = condition.value;
-    switch (condition.field) {
-      case "kind":
-        if (condition.operator === "=" && (value === "ENTRY" || value === "EXIT")) {
-          params.kind = value;
-        }
-        break;
-      case "movementDate":
-        if (condition.operator === "between" && Array.isArray(value)) {
-          const [from, to] = value;
-          if (typeof from === "string" && from) params.from = from;
-          if (typeof to === "string" && to) params.to = to;
-        } else if (condition.operator === ">=" && typeof value === "string") {
-          params.from = value;
-        } else if (condition.operator === "<=" && typeof value === "string") {
-          params.to = value;
-        } else if (condition.operator === "=" && typeof value === "string") {
-          params.from = value;
-          params.to = value;
-        }
-        break;
-      case "type":
-        if (
-          condition.operator === "=" &&
-          (value === "ATTENDED" ||
-            value === "DONATION" ||
-            value === "EVENT" ||
-            value === "PARTY" ||
-            value === "CORRECTION")
-        ) {
-          params.type = value;
-        }
-        break;
-      case "eventName":
-        if (
-          (condition.operator === "contains" ||
-            condition.operator === "ilike" ||
-            condition.operator === "=") &&
-          typeof value === "string"
-        ) {
-          params.eventName = value;
-        }
-        break;
-      case "itemId":
-        if (condition.operator === "=" && typeof value === "string") {
-          params.itemId = value;
-        }
-        break;
-      default:
-        break;
-    }
-  });
-
-  return { ok: true as const, message: null, params };
-}
-
 function mapApiMovement(movement: ApiPantryHistoryMovement): PantryRecentMovement {
   if (movement.kind === "ENTRY") {
     return {
@@ -280,6 +187,8 @@ export function usePantryHistoryModel() {
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [debouncedDomainKey, setDebouncedDomainKey] = React.useState("");
 
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
+
   const shouldFetchAll = filters.view === "graph";
   const requestKey = React.useMemo(() => {
     const pagePart = shouldFetchAll ? "all" : `page:${filters.pageIndex}:${filters.pageSize}`;
@@ -316,15 +225,6 @@ export function usePantryHistoryModel() {
     async (force = false) => {
       if (!token || !enabled) return;
 
-      const query = resolveHistoryQuery(filters.domain);
-      if (!query.ok) {
-        setError(query.message);
-        setMovements([]);
-        setTotalCount(0);
-        setPageCount(0);
-        return;
-      }
-
       if (!force) {
         if (inFlightRequestRef.current === requestKey) return;
         if (lastRequestRef.current === requestKey) return;
@@ -335,16 +235,13 @@ export function usePantryHistoryModel() {
       setError(null);
 
       try {
-        const response = await listPantryHistory(token, {
-          kind: query.params?.kind,
-          from: query.params?.from,
-          to: query.params?.to,
-          search: debouncedSearch || undefined,
-          type: query.params?.type,
-          eventName: query.params?.eventName,
-          itemId: query.params?.itemId,
-          page: shouldFetchAll ? undefined : filters.pageIndex + 1,
-          limit: shouldFetchAll ? undefined : filters.pageSize,
+        const response = await dataProvider.search<ApiPantryHistoryMovement>("pantry.history", {
+          domain: filters.domain,
+          searchText: debouncedSearch || undefined,
+          pagination: {
+            pageIndex: filters.pageIndex,
+            pageSize: filters.pageSize,
+          },
           all: shouldFetchAll ? true : undefined,
         });
 
@@ -369,6 +266,7 @@ export function usePantryHistoryModel() {
     },
     [
       debouncedSearch,
+      dataProvider,
       enabled,
       filters.domain,
       filters.pageIndex,
