@@ -441,7 +441,7 @@ export function PantryItemsClientPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4">
+    <div className="flex flex-col gap-4">
       <PageControlPanel
         searchSlot={
           <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar alimentos" />

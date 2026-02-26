@@ -24,15 +24,16 @@ export function FilterMenu({
       <Button
         type="button"
         variant="outline"
-        size="sm"
+        size="icon"
+        className="h-8 w-8"
         onClick={() => setOpen(true)}
         title="Filtros"
+        aria-label="Filtros"
       >
-        <SlidersHorizontal className="mr-2 size-4" />
-        Filtros
+        <SlidersHorizontal className="size-4" />
       </Button>
 
-      <FilterDrawer open={open} onOpenChange={setOpen} title="Filtros avanÃ§ados">
+      <FilterDrawer open={open} onOpenChange={setOpen} title="Filtros avançados">
         <AdvancedFilterBuilder
           searchView={searchView}
           value={domain}
@@ -42,4 +43,3 @@ export function FilterMenu({
     </>
   );
 }
-

@@ -72,7 +72,7 @@ export function PantryOverviewClientPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4">
+    <div className="flex flex-col gap-4">
       <PageControlPanel
         rightSlot={
           <>

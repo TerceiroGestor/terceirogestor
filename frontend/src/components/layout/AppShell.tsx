@@ -74,9 +74,7 @@ export function AppShell({ children }: AppShellProps) {
           <ControlPanelShell />
         </div>
         <UsageDocumentationProvider>
-          <div className="min-w-0 flex-1 px-3 py-4 sm:px-0 sm:py-0">
-            {children}
-          </div>
+          <div className="min-w-0 flex-1">{children}</div>
         </UsageDocumentationProvider>
       </SidebarInset>
     </>

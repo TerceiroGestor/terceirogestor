@@ -280,7 +280,7 @@ export function PantryExitSheetPage() {
   }
 
   return (
-    <div className="flex flex-col gap-2 px-4 pb-2 pt-0">
+    <div className="flex flex-col gap-2">
       <PageControlPanel
         searchSlot={<SearchBar value={exitsSearch} onChange={setExitsSearch} placeholder="Pesquisar saídas" />}
         rightSlot={

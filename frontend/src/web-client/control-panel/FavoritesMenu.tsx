@@ -55,11 +55,13 @@ export function FavoritesMenu<TState extends Record<string, unknown>>({
   snapshot,
   onApply,
   label = "Favoritos",
+  compact = true,
 }: {
   actionId: string;
   snapshot: TState;
   onApply: (state: TState) => void;
   label?: string;
+  compact?: boolean;
 }) {
   const storageKey = `favorites:${actionId}`;
   const [favorites, setFavorites] = React.useState<Array<FavoriteDefinition<TState>>>([]);
@@ -83,9 +85,16 @@ export function FavoritesMenu<TState extends Record<string, unknown>>({
     <>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" size="sm" title={label}>
-            <Star className="mr-2 size-4" />
-            {label}
+          <Button
+            type="button"
+            variant="outline"
+            size={compact ? "icon" : "sm"}
+            className={compact ? "h-8 w-8" : "h-8"}
+            title={label}
+            aria-label={label}
+          >
+            <Star className={compact ? "size-4" : "mr-2 size-4"} />
+            {compact ? null : label}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
@@ -198,4 +207,3 @@ export function FavoritesMenu<TState extends Record<string, unknown>>({
     </>
   );
 }
-

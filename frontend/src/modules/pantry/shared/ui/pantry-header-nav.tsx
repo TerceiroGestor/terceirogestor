@@ -103,7 +103,7 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
         if (!href) return;
         router.push(href);
       }}
-      className={cn("rounded-full bg-background/40", className)}
+      className={cn("rounded-md border border-border/60 bg-muted/10 p-0.5", className)}
     >
       {items.map((item) => {
         const Icon = item.icon;
@@ -114,13 +114,13 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
             aria-label={item.label}
             title={item.label}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs",
-              "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
+              "h-8 rounded-sm px-2.5 text-xs",
+              "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-none",
               "data-[state=off]:bg-transparent",
             )}
           >
             <Icon className="size-4" />
-            <span className="hidden md:inline">{item.label}</span>
+            <span className="hidden lg:inline">{item.label}</span>
           </ToggleGroupItem>
         );
       })}
