@@ -263,14 +263,20 @@ export default function AdminUsersPage() {
     } catch (err) {
       const details =
         err && typeof err === "object" && "details" in err
-          ? (err as { details?: any }).details
+          ? (err as { details?: unknown }).details
           : null;
-      const message = Array.isArray(details?.message)
-        ? details.message.join(", ")
-        : typeof details?.message === "string"
-          ? details.message
+
+      const detailsMessage =
+        details && typeof details === "object" && "message" in details
+          ? (details as { message?: unknown }).message
+          : null;
+
+      const message = Array.isArray(detailsMessage)
+        ? detailsMessage.join(", ")
+        : typeof detailsMessage === "string"
+          ? detailsMessage
           : err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
+            ? String((err as { message?: unknown }).message)
             : "Falha ao salvar usuário.";
       setFormError(message);
     }

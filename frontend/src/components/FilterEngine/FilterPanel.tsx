@@ -6,7 +6,7 @@ import { FilterEngine } from "@/components/FilterEngine/FilterEngine";
 import type { FilterSchema } from "@/lib/filters/types";
 import { cn } from "@/lib/utils";
 
-export function FilterPanel<TValues extends Record<string, any>>({
+export function FilterPanel<TValues extends Record<string, unknown>>({
   title = "Filtros",
   description,
   schema,

@@ -39,17 +39,20 @@ export type ApiError = {
   details?: unknown;
 };
 
-function extractApiErrorMessage(payload: any, status: number) {
-  const message = payload?.message;
+function extractApiErrorMessage(payload: unknown, status: number) {
+  const record = payload && typeof payload === "object"
+    ? (payload as Record<string, unknown>)
+    : null;
+  const message = record?.message;
   if (typeof message === "string" && message.trim()) return message;
   if (Array.isArray(message) && message.length) {
     const parts = message.map((item) => String(item)).filter(Boolean);
     if (parts.length) return parts.join("\n");
   }
-  if (payload && typeof payload === "object") {
+  if (record) {
     const fallback =
-      typeof payload.error === "string" && payload.error.trim()
-        ? payload.error
+      typeof record.error === "string" && record.error.trim()
+        ? record.error
         : null;
     if (fallback) return fallback;
   }

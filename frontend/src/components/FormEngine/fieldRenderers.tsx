@@ -16,20 +16,25 @@ import { RichText } from "@/components/ui/richtext/RichText";
 import { Textarea } from "@/components/ui/textarea";
 import { TagInput } from "@/components/ui/tag-input";
 
-interface FieldRendererProps<T = any> {
-  field: FormField<T>;
-  value: any;
+interface FieldRendererProps<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> {
+  field: FormField<TValues>;
+  value: unknown;
   disabled?: boolean;
   required?: boolean;
-  onChange: (value: any) => void;
+  onChange: (value: unknown) => void;
 }
 
-function normalizeChange(onChange: (value: any) => void) {
-  return (arg: any) => {
+function normalizeChange(onChange: (value: unknown) => void) {
+  return (arg: unknown) => {
     // Caso seja evento do React
-    if (arg && arg.target) {
-      onChange(arg.target.value);
-      return;
+    if (typeof arg === "object" && arg !== null && "target" in arg) {
+      const target = (arg as { target?: unknown }).target;
+      if (typeof target === "object" && target !== null && "value" in target) {
+        onChange((target as { value?: unknown }).value);
+        return;
+      }
     }
 
     // Caso ja seja valor
@@ -51,6 +56,13 @@ function toDateInputValue(value: unknown) {
   return String(value);
 }
 
+function toTextValue(value: unknown) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return String(value);
+}
+
 function normalizeSearchText(value: string) {
   return value
     .toLowerCase()
@@ -59,13 +71,13 @@ function normalizeSearchText(value: string) {
     .trim();
 }
 
-export function FieldRenderer<T>({
+export function FieldRenderer<TValues extends Record<string, unknown>>({
   field,
   value,
   disabled,
   required = false,
   onChange,
-}: FieldRendererProps<T>) {
+}: FieldRendererProps<TValues>) {
   const isDisabled = disabled || field.disabled;
   const handleChange = normalizeChange(onChange);
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
@@ -146,7 +158,7 @@ export function FieldRenderer<T>({
                     ? "url"
                     : "text"
           }
-          value={value ?? ""}
+          value={toTextValue(value)}
           placeholder={"placeholder" in field ? field.placeholder : undefined}
           disabled={isDisabled}
           onChange={(event) => {
@@ -165,7 +177,7 @@ export function FieldRenderer<T>({
         <Input
           type="text"
           inputMode="decimal"
-          value={value ?? ""}
+          value={toTextValue(value)}
           disabled={isDisabled}
           onChange={(event) => onChange(parseNumberValue(event.target.value))}
         />
@@ -176,7 +188,7 @@ export function FieldRenderer<T>({
         <Input
           type="text"
           inputMode="numeric"
-          value={value ?? ""}
+          value={toTextValue(value)}
           disabled={isDisabled}
           onChange={handleChange}
         />
@@ -185,7 +197,7 @@ export function FieldRenderer<T>({
     case "textarea":
       return renderLabeledField(
         <Textarea
-          value={value ?? ""}
+          value={toTextValue(value)}
           placeholder={"placeholder" in field ? field.placeholder : undefined}
           rows={"rows" in field ? field.rows : undefined}
           disabled={isDisabled}
@@ -238,7 +250,7 @@ export function FieldRenderer<T>({
       return renderLabeledField(
         <Input
           type="color"
-          value={value ?? "#000000"}
+          value={typeof value === "string" && value.trim() ? value : "#000000"}
           disabled={isDisabled}
           onChange={handleChange}
         />
@@ -268,8 +280,8 @@ export function FieldRenderer<T>({
     case "select":
       return renderLabeledField(
         <Select
-          value={value ?? ""}
-          onValueChange={onChange}
+          value={toTextValue(value)}
+          onValueChange={(v) => onChange(v)}
           disabled={isDisabled}
           onOpenChange={setSelectOpen}
         >
@@ -304,7 +316,9 @@ export function FieldRenderer<T>({
       );
 
     case "multiselect": {
-      const selectedValues = Array.isArray(value) ? value : [];
+      const selectedValues = Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
       return renderLabeledField(
         <div className="space-y-2">
           {field.options.map((option) => {
@@ -333,7 +347,9 @@ export function FieldRenderer<T>({
     }
 
     case "tags": {
-      const tagsValue = Array.isArray(value) ? value : [];
+      const tagsValue = Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
       return renderLabeledField(
         <TagInput
           value={tagsValue}
@@ -348,7 +364,11 @@ export function FieldRenderer<T>({
 
     case "richtext":
       return renderLabeledField(
-        <RichText value={value ?? ""} disabled={isDisabled} onChange={handleChange} />
+        <RichText
+          value={toTextValue(value)}
+          disabled={isDisabled}
+          onChange={handleChange}
+        />
       );
 
     case "date":
@@ -362,29 +382,34 @@ export function FieldRenderer<T>({
       );
 
     case "date_range": {
-      const rangeValue = value && typeof value === "object" ? value : { start: "", end: "" };
+      const rangeValue =
+        value && typeof value === "object"
+          ? (value as Record<string, unknown>)
+          : {};
+      const start = toTextValue(rangeValue["start"]);
+      const end = toTextValue(rangeValue["end"]);
       return renderLabeledField(
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             type="date"
-            value={toDateInputValue(rangeValue.start)}
+            value={toDateInputValue(start)}
             disabled={isDisabled}
             placeholder={"startPlaceholder" in field ? field.startPlaceholder : undefined}
             onChange={(event) =>
               onChange({
-                ...rangeValue,
                 start: event.target.value,
+                end,
               })
             }
           />
           <Input
             type="date"
-            value={toDateInputValue(rangeValue.end)}
+            value={toDateInputValue(end)}
             disabled={isDisabled}
             placeholder={"endPlaceholder" in field ? field.endPlaceholder : undefined}
             onChange={(event) =>
               onChange({
-                ...rangeValue,
+                start,
                 end: event.target.value,
               })
             }
@@ -395,34 +420,39 @@ export function FieldRenderer<T>({
 
     case "number_range":
     case "currency_range": {
-      const rangeValue = value && typeof value === "object" ? value : { min: "", max: "" };
+      const rangeValue =
+        value && typeof value === "object"
+          ? (value as Record<string, unknown>)
+          : {};
       const isCurrency = field.type === "currency_range";
+      const min = toTextValue(rangeValue["min"]);
+      const max = toTextValue(rangeValue["max"]);
       return renderLabeledField(
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             type={isCurrency ? "text" : "number"}
             inputMode={isCurrency ? "decimal" : undefined}
-            value={rangeValue.min ?? ""}
+            value={min}
             disabled={isDisabled}
             placeholder={"minPlaceholder" in field ? field.minPlaceholder : undefined}
             onChange={(event) => {
               const raw = event.target.value;
               onChange({
-                ...rangeValue,
                 min: parseNumberValue(raw),
+                max: max ? parseNumberValue(max) : "",
               });
             }}
           />
           <Input
             type={isCurrency ? "text" : "number"}
             inputMode={isCurrency ? "decimal" : undefined}
-            value={rangeValue.max ?? ""}
+            value={max}
             disabled={isDisabled}
             placeholder={"maxPlaceholder" in field ? field.maxPlaceholder : undefined}
             onChange={(event) => {
               const raw = event.target.value;
               onChange({
-                ...rangeValue,
+                min: min ? parseNumberValue(min) : "",
                 max: parseNumberValue(raw),
               });
             }}

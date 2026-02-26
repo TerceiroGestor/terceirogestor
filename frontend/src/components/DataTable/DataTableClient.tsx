@@ -60,7 +60,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 
 export type DataTableClientProps<TData> = {
-  columns: ColumnDef<TData, any>[];
+  columns: ColumnDef<TData, unknown>[];
   data: TData[];
   initialColumnPinning?: ColumnPinningState;
   searchPlaceholder?: string;
@@ -423,7 +423,7 @@ export function DataTableClient<TData>({
     [onGlobalFilterChange, safeSetGlobalFilter],
   );
 
-  const columnsWithFilter = React.useMemo<ColumnDef<TData, any>[]>(() => {
+  const columnsWithFilter = React.useMemo<ColumnDef<TData, unknown>[]>(() => {
     const withFilter = columns.map((column) => ({
       ...column,
       filterFn,
@@ -455,9 +455,9 @@ export function DataTableClient<TData>({
               size: 44,
               minSize: 44,
               maxSize: 44,
-            } as ColumnDef<TData, any>,
+            } as ColumnDef<TData, unknown>,
             ...withFilter,
-          ] as ColumnDef<TData, any>[])
+          ] as ColumnDef<TData, unknown>[])
         : withFilter;
 
     const hasActionsColumn = withFilter.some(
@@ -483,7 +483,7 @@ export function DataTableClient<TData>({
         size: 56,
         minSize: 56,
         maxSize: 56,
-      } as ColumnDef<TData, any>,
+      } as ColumnDef<TData, unknown>,
     ];
   }, [columns, filterFn, rowActions, enableRowSelection]);
 

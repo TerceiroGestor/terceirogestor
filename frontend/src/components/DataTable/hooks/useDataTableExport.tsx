@@ -30,6 +30,8 @@ export function useDataTableExport<TData>({
   getRowValue,
   exportMeta,
 }: ExportContext<TData>) {
+  type GroupRow = Row<TData> & { groupingColumnId?: string };
+
   const escapeHtml = React.useCallback((value: string) => {
     return value
       .replace(/&/g, "&amp;")
@@ -211,9 +213,7 @@ export function useDataTableExport<TData>({
       }[] = [];
 
       items.forEach((row) => {
-        const groupingColumnId = (row as any).groupingColumnId as
-          | string
-          | undefined;
+        const groupingColumnId = (row as GroupRow).groupingColumnId;
         const isGroupRow = Boolean(groupingColumnId);
         if (isGroupRow && groupingColumnId) {
           const headerLabel =
@@ -396,7 +396,7 @@ export function useDataTableExport<TData>({
     } else {
       printWindow.onload = () => setTimeout(triggerPrint, 50);
     }
-  }, [buildPdfRows]);
+  }, [buildPdfRows, exportMeta]);
 
   return {
     exportCsv,

@@ -58,10 +58,6 @@ export function PersonSensitiveDocumentsDialog({
     if (open && !canAccess) setOpen(false);
   }, [open, canAccess]);
 
-  if (!canAccess) {
-    return null;
-  }
-
   const load = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
@@ -146,6 +142,10 @@ export function PersonSensitiveDocumentsDialog({
       setSaving(false);
     }
   }, [canUpdate, form, personId, refreshCurrentUser, toast, token]);
+
+  if (!canAccess) {
+    return null;
+  }
 
   return (
     <SectionDialog

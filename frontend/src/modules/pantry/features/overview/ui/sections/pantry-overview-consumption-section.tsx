@@ -244,8 +244,8 @@ export function PantryOverviewConsumptionSection({
     if (!chart) return;
     const header = ["Mês", ...chart.series.map((s) => s.label)];
     const rows = chart.data.map((row) => {
-      const values = chart.series.map((s) => Number((row as any)[s.dataKey] ?? 0));
-      return [String((row as any).month ?? ""), ...values];
+      const values = chart.series.map((s) => Number(row[s.dataKey] ?? 0));
+      return [String(row.month ?? ""), ...values];
     });
     downloadCsv(`pantry-consumo-${fromMonth}-${toMonth}.csv`, [header, ...rows]);
   }, [chart, fromMonth, toMonth]);

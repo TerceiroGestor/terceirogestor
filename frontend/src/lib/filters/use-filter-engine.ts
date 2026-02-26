@@ -9,7 +9,7 @@ import {
   parseFiltersFromSearchParams,
 } from "./codec";
 
-export function useFilterEngine<TValues extends Record<string, any>>({
+export function useFilterEngine<TValues extends Record<string, unknown>>({
   schema,
   defaults,
   syncToUrl = true,
@@ -87,4 +87,3 @@ export function useFilterEngine<TValues extends Record<string, any>>({
     hasChanges,
   };
 }
-

@@ -61,10 +61,12 @@ export function DataTableFilterSheet<TData>({
     () => visibleColumns.filter((column) => column.id !== "actions"),
     [visibleColumns],
   );
+  const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
   const chart = useChartState({
     columns: filterableColumns,
     rows: chartRows,
     getRowValue,
+    chartContainerRef,
   });
 
   React.useEffect(() => {
@@ -155,7 +157,7 @@ export function DataTableFilterSheet<TData>({
           </div>
         </SheetContent>
       </Sheet>
-      <DataTableChartDialog chart={chart} />
+      <DataTableChartDialog chart={chart} chartContainerRef={chartContainerRef} />
     </>
   );
 }

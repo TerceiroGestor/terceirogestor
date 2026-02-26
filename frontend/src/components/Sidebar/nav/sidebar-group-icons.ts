@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { NAV_GROUPS } from "@/modules/nav/groups";
 
-const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
+export const NAV_GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   [NAV_GROUPS.PAINEL]: LayoutDashboard,
   [NAV_GROUPS.GESTAO]: Building2,
   [NAV_GROUPS.OPERACOES]: Target,
@@ -33,6 +33,8 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   [NAV_GROUPS.ASSINATURA]: BadgeCheck,
 };
 
+export const DEFAULT_NAV_GROUP_ICON: LucideIcon = Workflow;
+
 export function resolveNavGroupIcon(label: string): LucideIcon {
-  return GROUP_ICON_BY_LABEL[label] ?? Workflow;
+  return NAV_GROUP_ICON_BY_LABEL[label] ?? DEFAULT_NAV_GROUP_ICON;
 }

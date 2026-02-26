@@ -18,6 +18,13 @@ type ConfirmValues = {
   passwordConfirm?: string;
 };
 
+function safeErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return fallback;
+}
+
 export function RegisterConfirmClientPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -36,8 +43,12 @@ export function RegisterConfirmClientPage() {
       try {
         const payload = await getTenantRegistration(registrationId);
         if (active) setInfo(payload);
-      } catch (error: any) {
-        toast({ variant: "destructive", title: "Erro", description: error?.message ?? "Registro inválido." });
+      } catch (error: unknown) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: safeErrorMessage(error, "Registro invÃ¡lido."),
+        });
       } finally {
         if (active) setIsLoading(false);
       }
@@ -49,10 +60,22 @@ export function RegisterConfirmClientPage() {
   }, [registrationId, toast]);
 
   const fields = React.useMemo<FormField<ConfirmValues>[]>(() => {
-    const base: FormField<ConfirmValues>[] = [{ name: "code", label: "Código", type: "text", required: true }];
+    const base: FormField<ConfirmValues>[] = [
+      { name: "code", label: "CÃ³digo", type: "text", required: true },
+    ];
     if (info?.passwordRequired) {
-      base.push({ name: "password", label: "Definir senha", type: "password", required: true });
-      base.push({ name: "passwordConfirm", label: "Confirmar senha", type: "password", required: true });
+      base.push({
+        name: "password",
+        label: "Definir senha",
+        type: "password",
+        required: true,
+      });
+      base.push({
+        name: "passwordConfirm",
+        label: "Confirmar senha",
+        type: "password",
+        required: true,
+      });
     }
     return base;
   }, [info?.passwordRequired]);
@@ -62,7 +85,11 @@ export function RegisterConfirmClientPage() {
   const handleSubmit = async (values: ConfirmValues) => {
     if (!registrationId) return;
     if (info?.passwordRequired && values.password !== values.passwordConfirm) {
-      toast({ variant: "destructive", title: "Senha", description: "As senhas não conferem." });
+      toast({
+        variant: "destructive",
+        title: "Senha",
+        description: "As senhas nÃ£o conferem.",
+      });
       return;
     }
     setIsSubmitting(true);
@@ -74,18 +101,24 @@ export function RegisterConfirmClientPage() {
       });
 
       storeTenantSlug(payload.tenantSlug);
-      window.dispatchEvent(new CustomEvent("auth:token", { detail: { token: payload.accessToken } }));
+      window.dispatchEvent(
+        new CustomEvent("auth:token", { detail: { token: payload.accessToken } }),
+      );
       toast({ variant: "success", title: "Conta criada", description: "Bem-vindo!" });
       router.replace(withTenantPath("/dashboard", payload.tenantSlug));
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro", description: error?.message ?? "Falha ao confirmar." });
+    } catch (error: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: safeErrorMessage(error, "Falha ao confirmar."),
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (!registrationId) {
-    return <div className="p-6">Registro não informado.</div>;
+    return <div className="p-6">Registro nÃ£o informado.</div>;
   }
 
   if (isLoading) {
@@ -98,7 +131,9 @@ export function RegisterConfirmClientPage() {
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Confirmar cadastro</h1>
           <p className="text-sm text-muted-foreground">
-            {info?.adminEmail ? `Enviamos um código para ${info.adminEmail}.` : "Enviamos um código para seu email."}
+            {info?.adminEmail
+              ? `Enviamos um cÃ³digo para ${info.adminEmail}.`
+              : "Enviamos um cÃ³digo para seu email."}
           </p>
         </div>
 
@@ -108,10 +143,14 @@ export function RegisterConfirmClientPage() {
           onSubmit={handleSubmit}
           disabled={isSubmitting}
           actions={{
-            submit: { label: isSubmitting ? "Confirmando..." : "Confirmar", variant: "primary" },
+            submit: {
+              label: isSubmitting ? "Confirmando..." : "Confirmar",
+              variant: "primary",
+            },
           }}
         />
       </div>
     </div>
   );
 }
+

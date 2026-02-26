@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import * as React from "react";
 import { FormEngineProps, FormField } from "./types";
 import { FieldRenderer } from "./fieldRenderers";
 import { Button } from "@/components/ui/button";
@@ -14,192 +14,205 @@ import {
   Check,
 } from "lucide-react";
 
-export function FormEngine<T>({
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getEmptyValue<TValues extends Record<string, unknown>>(
+  field: FormField<TValues>,
+) {
+  switch (field.type) {
+    case "boolean":
+      return false;
+    case "multiselect":
+      return [];
+    case "tags":
+      return [];
+    case "date_range":
+      return { start: "", end: "" };
+    case "number_range":
+    case "currency_range":
+      return { min: "", max: "" };
+    case "file":
+    case "image":
+      return null;
+    default:
+      return "";
+  }
+}
+
+type FormEngineInnerProps<TValues extends Record<string, unknown>> =
+  FormEngineProps<TValues> & {
+    initialState: TValues;
+  };
+
+export function FormEngine<TValues extends Record<string, unknown>>(
+  props: FormEngineProps<TValues>,
+) {
+  const initialState = React.useMemo(() => {
+    const state: Record<string, unknown> = {};
+    const initial = props.initialValues as Record<string, unknown> | undefined;
+
+    props.fields.forEach((field) => {
+      if (initial && field.name in initial) {
+        state[field.name] = initial[field.name];
+      } else if (field.defaultValue !== undefined) {
+        state[field.name] = field.defaultValue;
+      } else {
+        state[field.name] = getEmptyValue(field);
+      }
+    });
+
+    return state as TValues;
+  }, [props.fields, props.initialValues]);
+
+  const initialStateKey = React.useMemo(
+    () => JSON.stringify(initialState),
+    [initialState],
+  );
+
+  return (
+    <FormEngineInner
+      key={initialStateKey}
+      {...props}
+      initialState={initialState}
+    />
+  );
+}
+
+function FormEngineInner<TValues extends Record<string, unknown>>({
   id,
   fields,
   steps,
-  initialValues,
+  initialState,
   onSubmit,
   onFieldChange,
   onValuesChange,
   disabled,
   actions,
-}: FormEngineProps<T>) {
-  /* ======================================================
-   * INITIAL STATE
-   * ====================================================== */
+}: FormEngineInnerProps<TValues>) {
+  const [values, setValues] = React.useState<TValues>(initialState);
+  const [currentStep, setCurrentStep] = React.useState(0);
+  const notifyValuesChangeRef = React.useRef(false);
 
-  const initialState = useMemo(() => {
-    const state: any = {};
-
-    fields.forEach((field) => {
-      const key = field.name as keyof T;
-
-      if (initialValues && key in initialValues) {
-        state[key] = initialValues[key];
-      } else if (field.defaultValue !== undefined) {
-        state[key] = field.defaultValue;
-      } else {
-        state[key] = getEmptyValue(field);
-      }
-    });
-
-    return state as T;
-  }, [fields, initialValues]);
-
-  const [values, setValues] = useState<T>(initialState);
-  const [currentStep, setCurrentStep] = useState(0);
-  const notifyValuesChangeRef = useRef(false);
-  const initialStateKey = useMemo(
-    () => JSON.stringify(initialState),
-    [initialState],
-  );
-
-  useEffect(() => {
-    notifyValuesChangeRef.current = false;
-    setValues(initialState);
-    setCurrentStep(0);
-  }, [initialStateKey]);
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (!notifyValuesChangeRef.current) return;
     notifyValuesChangeRef.current = false;
     onValuesChange?.(values);
   }, [values, onValuesChange]);
 
-  /* ======================================================
-   * HELPERS
-   * ====================================================== */
-
-  function getEmptyValue(field: FormField<T>) {
-    switch (field.type) {
-      case "boolean":
-        return false;
-      case "multiselect":
-        return [];
-      case "tags":
-        return [];
-      case "date_range":
-        return { start: "", end: "" };
-      case "number_range":
-      case "currency_range":
-        return { min: "", max: "" };
-      case "file":
-      case "image":
-        return null;
-      default:
-        return "";
-    }
-  }
-
-  function handleChange(name: keyof T, value: any) {
-    notifyValuesChangeRef.current = true;
-    setValues((prev) => {
-      const next = { ...prev, [name]: value } as T;
-      const patch = onFieldChange?.({
-        name: name as keyof T & string,
-        value,
-        prevValues: prev,
-        nextValues: next,
+  const handleChange = React.useCallback(
+    (name: keyof TValues & string, value: unknown) => {
+      notifyValuesChangeRef.current = true;
+      setValues((prev) => {
+        const next = { ...prev, [name]: value } as TValues;
+        const patch = onFieldChange?.({
+          name,
+          value,
+          prevValues: prev,
+          nextValues: next,
+        });
+        if (patch && typeof patch === "object") {
+          return { ...next, ...(patch as Partial<TValues>) } as TValues;
+        }
+        return next;
       });
-      if (patch && typeof patch === "object") {
-        return { ...next, ...(patch as Partial<T>) } as T;
+    },
+    [onFieldChange],
+  );
+
+  const isFieldRequired = React.useCallback(
+    (field: FormField<TValues>) => {
+      const conditional = field.requiredWhen?.(values) ?? false;
+      return Boolean(field.required || conditional);
+    },
+    [values],
+  );
+
+  const isFieldFilled = React.useCallback(
+    (field: FormField<TValues>, value: unknown) => {
+      switch (field.type) {
+        case "boolean":
+          return value !== undefined && value !== null;
+        case "multiselect":
+        case "tags":
+          return Array.isArray(value) && value.length > 0;
+        case "date_range": {
+          if (!isRecord(value)) return false;
+          return Boolean(value["start"]) && Boolean(value["end"]);
+        }
+        case "number_range":
+        case "currency_range": {
+          if (!isRecord(value)) return false;
+          const min = value["min"];
+          const max = value["max"];
+          return (
+            min !== "" &&
+            min !== undefined &&
+            max !== "" &&
+            max !== undefined
+          );
+        }
+        case "file":
+        case "image":
+          return Boolean(value);
+        default:
+          return String(value ?? "").trim() !== "";
       }
-      return next;
+    },
+    [],
+  );
+
+  const isFieldVisible = React.useCallback(
+    (field: FormField<TValues>) => {
+      const hidden = field.hiddenWhen?.(values) ?? false;
+      if (hidden) return false;
+      const visible = field.visibleWhen?.(values);
+      if (visible === undefined) return true;
+      return Boolean(visible);
+    },
+    [values],
+  );
+
+  const visibleFields = React.useMemo(() => {
+    if (!steps) return fields.filter(isFieldVisible);
+    const step = steps[currentStep];
+    return fields.filter(
+      (field) => step.fields.includes(field.name) && isFieldVisible(field),
+    );
+  }, [fields, steps, currentStep, isFieldVisible]);
+
+  const isCurrentStepValid = steps
+    ? visibleFields.every((field) => {
+        if (!isFieldRequired(field)) return true;
+        return isFieldFilled(field, values[field.name]);
+      })
+    : true;
+
+  const isFormValid = fields
+    .filter(isFieldVisible)
+    .every((field) => {
+      if (!isFieldRequired(field)) return true;
+      return isFieldFilled(field, values[field.name]);
     });
-  }
 
-  function isFieldRequired(field: FormField<T>) {
-    const conditional = field.requiredWhen?.(values) ?? false;
-    return Boolean(field.required || conditional);
-  }
-
-  function isFieldFilled(field: FormField<T>, value: any) {
-    switch (field.type) {
-      case "boolean":
-        return value !== undefined && value !== null;
-      case "multiselect":
-      case "tags":
-        return Array.isArray(value) && value.length > 0;
-      case "date_range":
-        return Boolean(value?.start) && Boolean(value?.end);
-      case "number_range":
-      case "currency_range":
-        return (
-          value?.min !== "" &&
-          value?.min !== undefined &&
-          value?.max !== "" &&
-          value?.max !== undefined
-        );
-      case "file":
-      case "image":
-        return Boolean(value);
-      default:
-        return String(value ?? "").trim() !== "";
-    }
-  }
-
-  function isFieldVisible(field: FormField<T>) {
-    const hidden = field.hiddenWhen?.(values) ?? false;
-    if (hidden) return false;
-    const visible = field.visibleWhen?.(values);
-    if (visible === undefined) return true;
-    return Boolean(visible);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (steps && !isCurrentStepValid) {
-      return;
-    }
-    if (!steps && !isFormValid) {
-      return;
-    }
+    if (steps && !isCurrentStepValid) return;
+    if (!steps && !isFormValid) return;
 
     if (steps) {
       const isLastStep = currentStep === steps.length - 1;
-
       if (!isLastStep) {
         setCurrentStep((s) => s + 1);
         return;
       }
     }
 
-    if (!isFormValid) {
-      return;
-    }
-
+    if (!isFormValid) return;
     onSubmit(values);
-  }
-
-  /* ======================================================
-   * STEPS RESOLUTION
-   * ====================================================== */
-
-  const visibleFields = useMemo(() => {
-    if (!steps) return fields.filter(isFieldVisible);
-
-    const step = steps[currentStep];
-    return fields.filter(
-      (field) => step.fields.includes(field.name) && isFieldVisible(field),
-    );
-  }, [fields, steps, currentStep, values]);
-
-  const isCurrentStepValid = useMemo(() => {
-    return visibleFields.every((field) => {
-      if (!isFieldRequired(field)) return true;
-      return isFieldFilled(field, values[field.name]);
-    });
-  }, [visibleFields, values]);
-
-  const isFormValid = useMemo(() => {
-    const visible = fields.filter(isFieldVisible);
-    return visible.every((field) => {
-      if (!isFieldRequired(field)) return true;
-      return isFieldFilled(field, values[field.name]);
-    });
-  }, [fields, values]);
+  };
 
   function resolveButtonVariant(
     variant?: "primary" | "secondary" | "ghost" | "danger",
@@ -221,10 +234,10 @@ export function FormEngine<T>({
     return icons[index % icons.length] ?? LayoutGrid;
   }
 
-  const stepStates = useMemo(() => {
+  const stepStates = React.useMemo(() => {
     if (!steps) return [];
 
-    const byName = new Map<string, FormField<T>>(
+    const byName = new Map<string, FormField<TValues>>(
       fields.map((field) => [field.name, field]),
     );
 
@@ -232,7 +245,7 @@ export function FormEngine<T>({
       const step = steps[index];
       const list = step?.fields
         .map((name) => byName.get(name))
-        .filter(Boolean) as FormField<T>[];
+        .filter(Boolean) as FormField<TValues>[];
       return list.filter(isFieldVisible);
     };
 
@@ -263,7 +276,15 @@ export function FormEngine<T>({
         canGoTo,
       };
     });
-  }, [steps, fields, values, currentStep]);
+  }, [
+    steps,
+    fields,
+    values,
+    currentStep,
+    isFieldVisible,
+    isFieldRequired,
+    isFieldFilled,
+  ]);
 
   /* ======================================================
    * RENDER

@@ -8,7 +8,7 @@ import type {
 } from "@tanstack/react-table";
 
 export const getInitialFilterColumnId = <TData,>(
-  columns: ColumnDef<TData, any>[],
+  columns: ColumnDef<TData, unknown>[],
 ) => {
   for (const column of columns) {
     if ("accessorKey" in column && column.accessorKey) {
@@ -75,4 +75,3 @@ export const ensureActionsLeft = (next: ColumnPinningState) => {
     right: (next.right ?? []).filter((id) => id !== "actions"),
   };
 };
-

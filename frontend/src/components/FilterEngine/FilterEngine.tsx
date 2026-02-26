@@ -17,7 +17,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderField<TValues extends Record<string, any>>({
+function renderField<TValues extends Record<string, unknown>>({
   field,
   value,
   onChange,
@@ -82,7 +82,7 @@ function renderField<TValues extends Record<string, any>>({
   );
 }
 
-export function FilterEngine<TValues extends Record<string, any>>({
+export function FilterEngine<TValues extends Record<string, unknown>>({
   schema,
   value,
   onChange,
@@ -112,4 +112,3 @@ export function FilterEngine<TValues extends Record<string, any>>({
     </div>
   );
 }
-

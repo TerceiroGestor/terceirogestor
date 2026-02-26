@@ -74,8 +74,12 @@ export function RegisterClientPage() {
       }
       const redirectPath = `/register/confirm?rid=${encodeURIComponent(payload.registrationId)}`;
       router.push(redirectPath);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro", description: error?.message ?? "Falha ao cadastrar." });
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: unknown }).message)
+          : "Falha ao cadastrar.";
+      toast({ variant: "destructive", title: "Erro", description: message });
     } finally {
       setIsSubmitting(false);
     }

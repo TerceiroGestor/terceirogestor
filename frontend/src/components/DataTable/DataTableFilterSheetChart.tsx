@@ -40,7 +40,6 @@ type ChartState<TData> = {
   chartTitle: string;
   chartColor: string;
   chartTextColor: string;
-  chartContainerRef: React.MutableRefObject<HTMLDivElement | null>;
   downloadPng: () => void;
   downloadPdf: () => void;
   columns: Column<TData, unknown>[];
@@ -50,17 +49,18 @@ const useChartState = <TData,>({
   columns,
   rows,
   getRowValue,
+  chartContainerRef,
 }: {
   columns: Column<TData, unknown>[];
   rows: Row<TData>[];
   getRowValue: (row: Row<TData>, columnId: string) => unknown;
+  chartContainerRef: React.MutableRefObject<HTMLDivElement | null>;
 }): ChartState<TData> => {
   const [chartColumnId, setChartColumnId] = React.useState(
     columns[0]?.id ?? "",
   );
   const [chartType, setChartType] = React.useState<ChartType>("bar");
   const [chartOpen, setChartOpen] = React.useState(false);
-  const chartContainerRef = React.useRef<HTMLDivElement | null>(null);
   const mountedRef = React.useRef(false);
 
   const [chartColor, setChartColor] = React.useState("#3b82f6");
@@ -224,7 +224,6 @@ const useChartState = <TData,>({
     chartTitle,
     chartColor,
     chartTextColor,
-    chartContainerRef,
     downloadPng,
     downloadPdf,
     columns,
@@ -325,9 +324,13 @@ export function DataTableFilterSheetChartSection<TData>({
 
 type ChartDialogProps<TData> = {
   chart: ChartState<TData>;
+  chartContainerRef: React.MutableRefObject<HTMLDivElement | null>;
 };
 
-export function DataTableChartDialog<TData>({ chart }: ChartDialogProps<TData>) {
+export function DataTableChartDialog<TData>({
+  chart,
+  chartContainerRef,
+}: ChartDialogProps<TData>) {
   return (
     <Dialog open={chart.chartOpen} onOpenChange={chart.setChartOpen}>
       <DialogContent className="max-w-5xl">
@@ -371,7 +374,7 @@ export function DataTableChartDialog<TData>({ chart }: ChartDialogProps<TData>) 
         </div>
         <div
           className="rounded-lg border border-border bg-card/60 p-4"
-          ref={chart.chartContainerRef}
+          ref={chartContainerRef}
         >
           {chart.chartData.length ? (
             <div className="h-56 w-full">

@@ -23,6 +23,7 @@ import {
   createProjectAction,
   listActionTypes,
   type ApiActionType,
+  type ActionStatus,
 } from "@/modules/actions/api";
 import { ACTION_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import { ACTION_CREATE_TEXT } from "../config/action-create.constants";
@@ -33,7 +34,7 @@ type ActionCreateValues = {
   projectId: string;
   actionTypeId: string;
   title: string;
-  status: string;
+  status: ActionStatus;
   groupId: string;
   cycleId: string;
   plannedStartAt: string;
@@ -287,7 +288,7 @@ export function ActionCreateRouteClientPage() {
       const created = await createProjectAction(token, values.projectId, {
         actionTypeId: values.actionTypeId,
         title,
-        status: values.status as any,
+        status: values.status,
         groupId:
           resolvedType.target === "GROUP" && values.groupId !== NONE_VALUE
             ? values.groupId

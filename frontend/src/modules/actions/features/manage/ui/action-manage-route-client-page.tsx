@@ -40,7 +40,9 @@ import {
   listProjectActionAttendances,
   updateProjectAction,
   type ApiProjectAction,
+  type ActionStatus,
   type ProjectActionAttendancesListItem,
+  type ProjectActionInput,
 } from "@/modules/actions/api";
 import { ACTION_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import { ProjectActionAttendancesCard } from "@/modules/projects/features/detail/ui/project-action-attendances-card";
@@ -152,7 +154,7 @@ function formatPeriod(start: string | null, end: string | null) {
 
 type PlanValues = {
   title: string;
-  status: string;
+  status: ActionStatus;
   plannedStartAt: string;
   plannedEndAt: string;
   planHtml: string;
@@ -340,11 +342,16 @@ export function ActionManageRouteClientPage() {
     void loadReport();
   }, [action, loadReport]);
 
-  const save = async (patch: Partial<ApiProjectAction>) => {
+  const save = async (patch: Partial<ProjectActionInput>) => {
     if (!token || !canUpdate || !action) return;
     setSaving(true);
     try {
-      const updated = await updateProjectAction(token, projectId, action.id, patch as any);
+      const updated = await updateProjectAction(
+        token,
+        projectId,
+        action.id,
+        patch,
+      );
       setAction(updated);
       toast({ title: ACTION_MANAGE_TEXT.saveOk });
       return updated;
@@ -579,7 +586,7 @@ export function ActionManageRouteClientPage() {
                     onSubmit={(values) =>
                       save({
                         title: values.title.trim(),
-                        status: values.status as any,
+                        status: values.status,
                         plannedStartAt: values.plannedStartAt?.trim() ? values.plannedStartAt : null,
                         plannedEndAt: values.plannedEndAt?.trim() ? values.plannedEndAt : null,
                         planHtml: values.planHtml?.trim() ? values.planHtml : null,

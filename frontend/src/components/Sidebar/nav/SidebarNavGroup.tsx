@@ -15,7 +15,10 @@ import {
 import type { NavGroup } from "@/modules/types";
 import type { ModuleNavItem } from "@/modules/types";
 import { withTenantPath } from "@/lib/tenant-path";
-import { resolveNavGroupIcon } from "./sidebar-group-icons";
+import {
+  DEFAULT_NAV_GROUP_ICON,
+  NAV_GROUP_ICON_BY_LABEL,
+} from "./sidebar-group-icons";
 import { canAccessNavItem, isActiveHref, isActiveNavItem } from "./sidebar-nav-utils";
 
 function SidebarSubBadgePill({ children }: { children: string }) {
@@ -157,7 +160,8 @@ export function SidebarNavGroup(props: {
   setOpenByHref: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
   const groupKey = `__group__:${props.group.label}`;
-  const GroupIcon = resolveNavGroupIcon(props.group.label);
+  const GroupIcon =
+    NAV_GROUP_ICON_BY_LABEL[props.group.label] ?? DEFAULT_NAV_GROUP_ICON;
 
   const groupHasActiveItem = props.group.items.some((item) => {
     const visibleChildren = item.children?.filter((child) =>

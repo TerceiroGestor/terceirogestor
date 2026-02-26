@@ -32,9 +32,11 @@ export type FieldType =
  * BASE FIELD
  * ====================================================== */
 
-export interface BaseField<T = any> {
+export interface BaseField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> {
   /** Nome da propriedade no objeto final */
-  name: keyof T & string;
+  name: keyof TValues & string;
 
   /** Label exibido no formulário */
   label: string;
@@ -46,67 +48,83 @@ export interface BaseField<T = any> {
   disabled?: boolean;
 
   /** Valor padrão (usado quando não há initialValues) */
-  defaultValue?: any;
+  defaultValue?: unknown;
 
   /** Campo obrigatório */
   required?: boolean;
 
   /** Campo obrigatório condicional */
-  requiredWhen?: (values: T) => boolean;
+  requiredWhen?: (values: TValues) => boolean;
 
   /** Texto auxiliar (hint, help, description) */
   helperText?: string;
 
   /** Controla visibilidade do campo em função dos valores atuais */
-  visibleWhen?: (values: T) => boolean;
+  visibleWhen?: (values: TValues) => boolean;
 
   /** Oculta o campo em função dos valores atuais (tem precedência sobre visibleWhen) */
-  hiddenWhen?: (values: T) => boolean;
+  hiddenWhen?: (values: TValues) => boolean;
 }
 
 /* ======================================================
  * SIMPLE INPUTS (text, number, money)
  * ====================================================== */
 
-export interface TextField<T = any> extends BaseField<T> {
+export interface TextField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "text" | "password" | "number" | "money" | "cpf" | "email" | "phone" | "url";
   placeholder?: string;
 }
 
-export interface DateField<T = any> extends BaseField<T> {
+export interface DateField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "date";
 }
 
-export interface DateRangeField<T = any> extends BaseField<T> {
+export interface DateRangeField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "date_range";
   startPlaceholder?: string;
   endPlaceholder?: string;
 }
 
-export interface NumberRangeField<T = any> extends BaseField<T> {
+export interface NumberRangeField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "number_range" | "currency_range";
   minPlaceholder?: string;
   maxPlaceholder?: string;
 }
 
-export interface TextareaField<T = any> extends BaseField<T> {
+export interface TextareaField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "textarea";
   placeholder?: string;
   rows?: number;
 }
 
-export interface FileField<T = any> extends BaseField<T> {
+export interface FileField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "file";
   accept?: string;
   multiple?: boolean;
 }
 
-export interface ImageField<T = any> extends BaseField<T> {
+export interface ImageField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "image";
   accept?: string;
 }
 
-export interface ColorField<T = any> extends BaseField<T> {
+export interface ColorField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "color";
 }
 
@@ -114,7 +132,9 @@ export interface ColorField<T = any> extends BaseField<T> {
  * BOOLEAN (checkbox / switch)
  * ====================================================== */
 
-export interface BooleanField<T = any> extends BaseField<T> {
+export interface BooleanField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "boolean";
   persistAs?: "boolean" | "number";
 }
@@ -128,14 +148,18 @@ export interface SelectOption {
   value: string;
 }
 
-export interface SelectField<T = any> extends BaseField<T> {
+export interface SelectField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "select" | "multiselect";
   options: ReadonlyArray<SelectOption>;
   searchable?: boolean;
   searchPlaceholder?: string;
 }
 
-export interface TagsField<T = any> extends BaseField<T> {
+export interface TagsField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "tags";
   placeholder?: string;
   maxTags?: number;
@@ -146,7 +170,9 @@ export interface TagsField<T = any> extends BaseField<T> {
  * RICHTEXT
  * ====================================================== */
 
-export interface RichTextField<T = any> extends BaseField<T> {
+export interface RichTextField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> extends BaseField<TValues> {
   type: "richtext";
 }
 
@@ -154,19 +180,21 @@ export interface RichTextField<T = any> extends BaseField<T> {
  * FORM FIELD UNION (CORE)
  * ====================================================== */
 
-export type FormField<T = any> =
-  | TextField<T>
-  | BooleanField<T>
-  | SelectField<T>
-  | TagsField<T>
-  | RichTextField<T>
-  | DateField<T>
-  | DateRangeField<T>
-  | NumberRangeField<T>
-  | TextareaField<T>
-  | FileField<T>
-  | ImageField<T>
-  | ColorField<T>;
+export type FormField<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> =
+  | TextField<TValues>
+  | BooleanField<TValues>
+  | SelectField<TValues>
+  | TagsField<TValues>
+  | RichTextField<TValues>
+  | DateField<TValues>
+  | DateRangeField<TValues>
+  | NumberRangeField<TValues>
+  | TextareaField<TValues>
+  | FileField<TValues>
+  | ImageField<TValues>
+  | ColorField<TValues>;
 
 /* ======================================================
  * FORM STEPS
@@ -201,35 +229,37 @@ export type FormActions = {
   cancel?: FormAction;
 };
 
-export interface FormEngineProps<T = any> {
+export interface FormEngineProps<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> {
   id?: string;
 
   /** Lista de campos do formulário */
-  fields: ReadonlyArray<FormField<T>>;
+  fields: ReadonlyArray<FormField<TValues>>;
 
   /** Steps opcionais */
   steps?: ReadonlyArray<FormStep>;
 
   /** Valores iniciais (modo edição) */
-  initialValues?: Partial<T>;
+  initialValues?: Partial<TValues>;
 
   /** Callback de submit */
-  onSubmit: (values: T) => void;
+  onSubmit: (values: TValues) => void;
 
   /**
    * Permite derivar/atualizar campos automaticamente quando um campo muda.
    * Retorne um patch (Partial<T>) para mesclar ao próximo estado.
    */
   onFieldChange?: (params: {
-    name: keyof T & string;
+    name: keyof TValues & string;
     value: unknown;
-    prevValues: T;
-    nextValues: T;
-  }) => Partial<T> | void;
+    prevValues: TValues;
+    nextValues: TValues;
+  }) => Partial<TValues> | void;
 
   /** Renderização customizada de botões */
   /** Callback a cada mudança de valores */
-  onValuesChange?: (values: T) => void;
+  onValuesChange?: (values: TValues) => void;
 
   renderFooter?: ReactNode;
 
