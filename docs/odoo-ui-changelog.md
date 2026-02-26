@@ -109,9 +109,9 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 - [x] `CalendarView` (MVP): navega datas e lista eventos/itens por dia (filtros via Domain/Search da tela).
 
 ### v0.7 - Favorites (Saved Filters) + Persistencia completa
-- [ ] `FavoritesMenu` para salvar/restaurar combinacoes:
-  - Domain + GroupBy + Sort + Colunas (quando aplicavel)
-- [ ] Persistir state em URL + storage (por Action).
+- [x] `FavoritesMenu` (MVP) para salvar/restaurar combinacoes por Action:
+  - Domain + SearchText + View + PageSize (e futuramente GroupBy/Sort/Colunas quando a view expor esses controles)
+- [x] Persistir state em URL + storage (por Action).
 
 ### v1.0 - DoD (padrao definitivo)
 - [ ] Criar modulo exemplo "Clientes" (Menu + Action + Views) como validacao final.

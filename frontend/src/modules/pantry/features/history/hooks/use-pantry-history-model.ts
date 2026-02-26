@@ -7,10 +7,10 @@ import { useRequireAuth } from "@/hooks/use-require-auth";
 import type { ApiPantryHistoryMovement } from "@/modules/pantry/api";
 import type { PantryRecentMovement } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-movements-section";
 import { exitTypeLabel } from "@/modules/pantry/features/overview/domain/overview.helpers";
-import { useUrlSyncedState } from "@/components/record-browser/hooks/useUrlSyncedState";
 import type { Domain, DomainCondition } from "@/web-client/domain/types";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { createRestDataProvider } from "@/web-client/data-provider";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 
 export type PantryHistoryView = "cards" | "table" | "timeline" | "graph";
 
@@ -179,7 +179,9 @@ export function usePantryHistoryModel() {
   const [totalCount, setTotalCount] = React.useState(0);
   const [pageCount, setPageCount] = React.useState(0);
 
-  const [filters, setFilters] = useUrlSyncedState<PantryHistoryFilters>({
+  const [filters, setFilters] = usePersistedUrlState<PantryHistoryFilters>({
+    storageKey: "screenState:pantry.history",
+    trackedKeys: ["view", "q", "d", "page", "limit", "kind", "from", "to", "type", "event", "itemId"],
     parse: parsePantryHistoryFilters,
     serialize: serializePantryHistoryFilters,
   });

@@ -5,7 +5,7 @@ import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useToast } from "@/components/ui/use-toast";
 import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-edit-dialog";
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
-import { usePantryHistoryModel } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
+import { usePantryHistoryModel, type PantryHistoryView } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { SectionCard } from "@/components/section-card";
@@ -42,8 +42,10 @@ import { BarChart3, Clock, LayoutGrid, Table2 } from "lucide-react";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { FilterMenu } from "@/web-client/control-panel/FilterMenu";
+import { FavoritesMenu } from "@/web-client/control-panel/FavoritesMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
+import type { Domain } from "@/web-client/domain/types";
 
 function formatPantryMovementDate(value: string | null) {
   if (!value) return "—";
@@ -62,6 +64,13 @@ function formatPantryMovementDate(value: string | null) {
 
   return formatDateTimePtBR(trimmed);
 }
+
+type PantryHistoryFavoriteState = {
+  view: PantryHistoryView;
+  searchText: string;
+  domain: Domain;
+  pageSize: number;
+};
 
 export function PantryHistoryClientPage() {
   const model = usePantryHistoryModel();
@@ -97,6 +106,24 @@ export function PantryHistoryClientPage() {
             searchView={pantryHistorySearchView}
             domain={model.filters.domain}
             onChange={(domain) => model.setFilters((prev) => ({ ...prev, domain }))}
+          />
+        }
+        favoritesSlot={
+          <FavoritesMenu<PantryHistoryFavoriteState>
+            actionId="pantry.history"
+            snapshot={{
+              view: model.filters.view,
+              searchText: model.filters.searchText,
+              domain: model.filters.domain,
+              pageSize: model.filters.pageSize,
+            }}
+            onApply={(state) =>
+              model.setFilters((prev) => ({
+                ...prev,
+                ...state,
+                pageIndex: 0,
+              }))
+            }
           />
         }
         viewSwitcherSlot={
