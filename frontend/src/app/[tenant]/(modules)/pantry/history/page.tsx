@@ -1,6 +1,5 @@
-import { PantryHistoryClientPage } from "@/modules/pantry/features/history/ui/pantry-history-client-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryHistoryPage() {
-  return <PantryHistoryClientPage />;
+  return <ScreenHost actionId="pantry.history" />;
 }
-
