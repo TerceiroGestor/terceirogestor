@@ -8,6 +8,7 @@ import { CurrentUserProvider } from "@/features/auth/current-user-context";
 import { ToastProvider } from "@/components/ui/use-toast";
 import { ConfirmProvider } from "@/components/confirm/use-confirm";
 import { PwaServiceWorker } from "@/components/pwa/PwaServiceWorker";
+import { ControlPanelProvider } from "@/web-client/control-panel/ControlPanelContext";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -16,10 +17,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <ConfirmProvider>
           <ToastProvider>
             <BreadcrumbProvider>
-              <SidebarProvider>
-                <PwaServiceWorker />
-                {children}
-              </SidebarProvider>
+              <ControlPanelProvider>
+                <SidebarProvider>
+                  <PwaServiceWorker />
+                  {children}
+                </SidebarProvider>
+              </ControlPanelProvider>
             </BreadcrumbProvider>
           </ToastProvider>
         </ConfirmProvider>

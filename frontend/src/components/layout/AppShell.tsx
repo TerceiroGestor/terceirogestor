@@ -6,6 +6,7 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UsageDocumentationProvider } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { ControlPanelShell } from "@/web-client/control-panel/ControlPanelShell";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
 const PUBLIC_ROUTES = ["/register"];
@@ -68,7 +69,10 @@ export function AppShell({ children }: AppShellProps) {
     <>
       <AppSidebar />
       <SidebarInset>
-        <AppHeader />
+        <div className="sticky top-0 z-30">
+          <AppHeader />
+          <ControlPanelShell />
+        </div>
         <UsageDocumentationProvider>
           <div className="min-w-0 flex-1 px-3 py-4 sm:px-0 sm:py-0">
             {children}
