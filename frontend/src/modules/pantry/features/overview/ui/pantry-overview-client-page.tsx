@@ -17,6 +17,7 @@ import { PantryAlertsDropdown } from "@/modules/pantry/features/overview/ui/comp
 import { PantryOverviewConsumptionSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-consumption-section";
 import { PantryOverviewStockSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-stock-section";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 
 export function PantryOverviewClientPage() {
   const model = usePantryOverviewModel();
@@ -72,30 +73,38 @@ export function PantryOverviewClientPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PantryOverviewStockSection
-        rows={model.stockRows}
-        columns={pantryOverviewStockColumns}
-        onlyLowStock={model.onlyLowStock}
-        onToggleOnlyLowStock={() => model.setOnlyLowStock((prev) => !prev)}
-        headerActionsSlot={
+      <PageControlPanel
+        rightSlot={
           <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => model.handleMovementSaved()}
+            >
+              Atualizar
+            </Button>
             <PantryAlertsDropdown
               expiringAlerts={model.expiringAlerts}
-              showLabel
               onOpenMovement={(params) =>
                 openExitPage({ itemId: params.itemId, sector: params.sector })
               }
               onRefreshAlerts={model.handleAlertsRefresh}
             />
-            <Button
-              size="sm"
-              onClick={() => model.setCreateItemOpen(true)}
-              className="whitespace-nowrap"
-            >
+            <Button size="sm" onClick={() => model.setCreateEntryOpen(true)}>
+              Nova entrada
+            </Button>
+            <Button size="sm" onClick={() => model.setCreateItemOpen(true)}>
               Novo alimento
             </Button>
           </>
         }
+      />
+
+      <PantryOverviewStockSection
+        rows={model.stockRows}
+        columns={pantryOverviewStockColumns}
+        onlyLowStock={model.onlyLowStock}
+        onToggleOnlyLowStock={() => model.setOnlyLowStock((prev) => !prev)}
         onRowClick={(row) => {
           openExitPage({ itemId: row.itemId, sector: row.sector });
         }}

@@ -25,41 +25,32 @@ export function ControlPanelShell() {
   const action = breadcrumb.action;
   const actionSlot = breadcrumb.actionSlot;
 
+  const createButtonNode = action ? (
+    action.href ? (
+      <Button size={action.size ?? "sm"} variant={action.variant ?? "default"} asChild>
+        <Link href={withTenantPath(action.href, tenantSlug)}>{action.label}</Link>
+      </Button>
+    ) : (
+      <Button
+        size={action.size ?? "sm"}
+        variant={action.variant ?? "default"}
+        onClick={action.onClick}
+      >
+        {action.label}
+      </Button>
+    )
+  ) : null;
+
   return (
-    <div className="border-b border-border bg-background/85 px-4 py-3 backdrop-blur">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {action ? (
-              action.href ? (
-                <Button
-                  size={action.size ?? "sm"}
-                  variant={action.variant ?? "default"}
-                  asChild
-                >
-                  <Link href={withTenantPath(action.href, tenantSlug)}>
-                    {action.label}
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  size={action.size ?? "sm"}
-                  variant={action.variant ?? "default"}
-                  onClick={action.onClick}
-                >
-                  {action.label}
-                </Button>
-              )
-            ) : null}
+    <div className="border-b border-border bg-card/95 px-4 backdrop-blur">
+      <div className="flex min-h-[var(--ui-controlpanel-height)] flex-col gap-2 py-2 lg:flex-row lg:items-center lg:gap-3 lg:py-0">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          {createButtonNode}
+          {controlPanel.leftSlot ? (
+            <div className="flex flex-wrap items-center gap-2">{controlPanel.leftSlot}</div>
+          ) : null}
 
-            {controlPanel.leftSlot ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {controlPanel.leftSlot}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {breadcrumb.items.length ? (
               <Breadcrumb className="min-w-0">
                 <BreadcrumbList className="min-w-0 flex-nowrap overflow-hidden text-xs">
@@ -88,25 +79,22 @@ export function ControlPanelShell() {
               </Breadcrumb>
             ) : null}
 
-            <h1 className="truncate text-base font-semibold leading-tight text-foreground">
+            <div className="truncate text-sm font-semibold leading-tight text-foreground">
               {breadcrumb.title}
-            </h1>
+            </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 lg:items-end">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {controlPanel.searchSlot}
-            {controlPanel.filterSlot}
-            {controlPanel.groupBySlot}
-            {controlPanel.favoritesSlot}
-            {controlPanel.viewSwitcherSlot}
-            {actionSlot}
-            {controlPanel.rightSlot}
-          </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 lg:gap-1.5">
+          {controlPanel.searchSlot}
+          {controlPanel.filterSlot}
+          {controlPanel.groupBySlot}
+          {controlPanel.favoritesSlot}
+          {controlPanel.viewSwitcherSlot}
+          {actionSlot}
+          {controlPanel.rightSlot}
         </div>
       </div>
     </div>
   );
 }
-

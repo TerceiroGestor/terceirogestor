@@ -36,6 +36,12 @@ import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR, todayLocalIsoDate } from "@/lib/date";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { KanbanView } from "@/web-client/views/KanbanView";
+import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { LayoutGrid, Table2 } from "lucide-react";
 
 function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
@@ -81,6 +87,26 @@ export function PantryEntriesClientPage() {
     pageSize: 10,
   });
   const [search, setSearch] = React.useState("");
+
+  const [screenState, setScreenState] = usePersistedUrlState<{
+    view: "table" | "kanban";
+  }>({
+    storageKey: "screenState:pantry.entries",
+    trackedKeys: ["v"],
+    parse: (params) => {
+      const raw = params.get("v");
+      return { view: raw === "kanban" ? "kanban" : "table" };
+    },
+    serialize: (state) => ({ v: state.view === "table" ? undefined : state.view }),
+  });
+
+  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
+    () => [
+      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
+      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
+    ],
+    [],
+  );
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiPantryEntry | null>(null);
@@ -460,6 +486,13 @@ export function PantryEntriesClientPage() {
     <div className="flex flex-col gap-6 px-4 py-4">
       <PageControlPanel
         searchSlot={<SearchBar value={search} onChange={setSearch} placeholder="Pesquisar entradas" />}
+        viewSwitcherSlot={
+          <ViewSwitcher
+            value={screenState.view}
+            options={viewOptions}
+            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+          />
+        }
         rightSlot={
           <>
             <Button size="sm" variant="outline" onClick={loadEntries} disabled={loading}>
@@ -482,27 +515,68 @@ export function PantryEntriesClientPage() {
         title="Entradas"
         subtitle="Registro rápido do que chegou na despensa."
       >
-        <DataTable
-          columns={columns}
-          data={rows}
-          manualPagination
-          pageCount={pageCount}
-          pagination={pagination}
-          onPaginationChange={setPagination}
-          totalCount={totalCount}
-          toolbar={{ hideSearch: true, hideFiltersButton: true }}
-          summaryCards={{
-            totalLabel: "Total",
-            filteredLabel: "Filtrados",
-          }}
-          showExportMenu
-          exportLabels={{ title: "Relatório", pdf: "Imprimir (PDF)", csv: "Baixar CSV" }}
-          exportMeta={{ title: "Despensa - Entradas" }}
-          rowActions={[
-            { id: "edit", label: "Editar", onSelect: openEdit },
-            { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
-          ]}
-        />
+        {screenState.view === "table" ? (
+          <DataTable
+            columns={columns}
+            data={rows}
+            manualPagination
+            pageCount={pageCount}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            totalCount={totalCount}
+            toolbar={{ hideSearch: true, hideFiltersButton: true }}
+            showExportMenu
+            exportLabels={{ title: "Relatório", pdf: "Imprimir (PDF)", csv: "Baixar CSV" }}
+            exportMeta={{ title: "Despensa - Entradas" }}
+            rowActions={[
+              { id: "edit", label: "Editar", onSelect: openEdit },
+              { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
+            ]}
+          />
+        ) : (
+          <div className="space-y-3">
+            <KanbanView<ApiPantryEntry>
+              items={rows}
+              getColumnKey={(row) => row.sector?.trim() || "Geral"}
+              renderCard={(row) => (
+                <div className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {itemMap.get(row.itemId)?.name ?? row.itemId}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {(row.entryDate ?? "").slice(0, 10)} • Validade:{" "}
+                        {toDateOnly(row.expiryDate) || "—"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-sm tabular-nums text-foreground">
+                        {Number(row.quantity).toLocaleString("pt-BR")} {row.unit}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {row.donor?.name ? <Badge variant="secondary">{row.donor.name}</Badge> : null}
+                    {row.sector ? <Badge variant="outline">{row.sector}</Badge> : null}
+                  </div>
+                </div>
+              )}
+            />
+            <PaginationBar
+              pageIndex={pagination.pageIndex}
+              pageCount={pageCount}
+              pageSize={pagination.pageSize}
+              onPageIndexChange={(next) =>
+                setPagination((prev) => ({ ...prev, pageIndex: next }))
+              }
+              onPageSizeChange={(next) =>
+                setPagination((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+              }
+              disabled={loading}
+            />
+          </div>
+        )}
         {loading ? (
           <p className="text-xs text-muted-foreground">Carregando...</p>
         ) : null}
