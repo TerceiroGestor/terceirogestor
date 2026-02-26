@@ -2,10 +2,6 @@
 
 import {
   Package,
-  PackagePlus,
-  PackageSearch,
-  Truck,
-  Users,
 } from "lucide-react";
 import type { ModuleManifest } from "@/modules/types";
 import { NAV_GROUPS } from "@/modules/nav/groups";

@@ -38,6 +38,14 @@ export type FamilyTreeMapEdge = {
   type: string;
 };
 
+const ROLE_PRIORITY: Record<string, number> = {
+  parent: 0,
+  spouse: 1,
+  child: 2,
+  sibling: 3,
+  other: 4,
+};
+
 type FamilyTreeMapProps = {
   rootId: string;
   nodes: FamilyTreeMapNode[];
@@ -151,14 +159,6 @@ export function FamilyTreeMap({
     [normalizeRelationKey],
   );
 
-  const rolePriority: Record<string, number> = {
-    parent: 0,
-    spouse: 1,
-    child: 2,
-    sibling: 3,
-    other: 4,
-  };
-
   const resolveRole = React.useCallback(
     (relationLabel?: string | null) => {
       const key = normalizeRelationKey(relationLabel);
@@ -207,7 +207,7 @@ export function FamilyTreeMap({
         return;
       }
       const currentRole = roleMap.get(otherId) ?? "other";
-      if (rolePriority[role] < rolePriority[currentRole]) {
+      if (ROLE_PRIORITY[role] < ROLE_PRIORITY[currentRole]) {
         map.set(otherId, relationLabel);
         roleMap.set(otherId, role);
       }

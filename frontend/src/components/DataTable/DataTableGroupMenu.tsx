@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type GroupItem<TData> = {
+type GroupItem = {
   label: string;
   columnId?: string;
   onSelect?: () => void;
@@ -23,7 +23,7 @@ type GroupItem<TData> = {
 
 type DataTableGroupMenuProps<TData> = {
   groupable: Column<TData, unknown>[];
-  items?: GroupItem<TData>[];
+  items?: GroupItem[];
 };
 
 export function DataTableGroupMenu<TData>({
@@ -38,14 +38,14 @@ export function DataTableGroupMenu<TData>({
     [groupable],
   );
 
-  const normalizedItems: GroupItem<TData>[] = items.length
+  const normalizedItems: GroupItem[] = items.length
     ? items
     : groupable.map((column) => ({
         label: `Group by ${String(column.columnDef.header ?? column.id)}`,
         columnId: column.id,
       }));
 
-  const clearItem: GroupItem<TData> = {
+  const clearItem: GroupItem = {
     label: "Clear grouping",
     onSelect: () => {
       groupable.forEach((column) => {

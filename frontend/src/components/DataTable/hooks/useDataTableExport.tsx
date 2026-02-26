@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import type {
-  Column,
   Row,
   RowModel,
   Table,
@@ -396,7 +395,7 @@ export function useDataTableExport<TData>({
     } else {
       printWindow.onload = () => setTimeout(triggerPrint, 50);
     }
-  }, [buildPdfRows, exportMeta]);
+  }, [buildPdfRows, escapeHtml, exportMeta]);
 
   return {
     exportCsv,

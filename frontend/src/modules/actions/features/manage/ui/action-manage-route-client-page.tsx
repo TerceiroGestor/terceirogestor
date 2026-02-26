@@ -185,7 +185,6 @@ async function fetchAllAttendances(params: {
   const all: ProjectActionAttendancesListItem[] = [];
 
   while (true) {
-    // eslint-disable-next-line no-await-in-loop
     const response = await listProjectActionAttendances(
       params.token,
       params.projectId,

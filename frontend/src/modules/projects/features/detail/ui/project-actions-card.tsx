@@ -460,6 +460,12 @@ export function ProjectActionsCard({
         </div>
       ) : null}
 
+      {loading ? (
+        <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+          Carregando...
+        </div>
+      ) : null}
+
       <DataTable<ApiProjectAction>
         data={rows}
         columns={columns}

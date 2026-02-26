@@ -237,6 +237,7 @@ export function DataTableClient<TData>({
     data.length,
     grouping.length,
     manualPagination,
+    mountedRef,
     pagination.pageIndex,
     pagination.pageSize,
     safeSetPagination,
@@ -487,6 +488,7 @@ export function DataTableClient<TData>({
     ];
   }, [columns, filterFn, rowActions, enableRowSelection]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns: columnsWithFilter,
@@ -587,7 +589,7 @@ export function DataTableClient<TData>({
       .getSelectedRowModel()
       .rows.map((row) => row.original as TData);
     onSelectedRowsChange(selected);
-  }, [enableRowSelection, onSelectedRowsChange, rowSelection, data]);
+  }, [enableRowSelection, onSelectedRowsChange, rowSelection, data, table]);
   const filteredRows =
     table.getFilteredRowModel().flatRows ?? table.getFilteredRowModel().rows;
   const showPagination = grouping.length === 0;

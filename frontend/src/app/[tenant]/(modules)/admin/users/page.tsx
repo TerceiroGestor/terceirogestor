@@ -14,7 +14,6 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { usePathname, useRouter } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import {
   createUser,
   deleteUser,

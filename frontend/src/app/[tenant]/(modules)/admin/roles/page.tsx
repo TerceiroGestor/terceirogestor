@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/DataTable";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
-import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -35,12 +34,6 @@ import {
 type RoleFormValues = {
   name: string;
   description?: string;
-};
-
-type ModuleDefinition = {
-  key: string;
-  label: string;
-  actions: string[];
 };
 
 type RoleRow = {

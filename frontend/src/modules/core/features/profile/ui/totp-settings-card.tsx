@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -157,9 +158,12 @@ export function TotpSettingsCard({
                     Gerando QR...
                   </div>
                 ) : qr.dataUrl ? (
-                  <img
+                  <Image
                     src={qr.dataUrl}
                     alt="QR Code 2FA"
+                    width={240}
+                    height={240}
+                    unoptimized
                     className="h-[240px] w-[240px] rounded border border-border bg-background p-2"
                   />
                 ) : (

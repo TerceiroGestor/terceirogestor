@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { SidebarHeader } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { resolveMediaUrl } from "@/lib/api";
@@ -16,14 +17,20 @@ export function AppSidebarHeader() {
   const { tenant } = useCurrentUser();
   const tenantName = tenant?.name ?? "Instituicao";
   const initials = buildInitials(tenantName);
+  const logoSrc = tenant?.logoUrl
+    ? resolveMediaUrl(tenant.logoUrl) || tenant.logoUrl
+    : null;
 
   return (
     <SidebarHeader className="gap-3 px-4 py-5">
       <div className="flex items-center gap-3">
-        {tenant?.logoUrl ? (
-          <img
-            src={resolveMediaUrl(tenant.logoUrl) || tenant.logoUrl}
+        {logoSrc ? (
+          <Image
+            src={logoSrc}
             alt={tenantName}
+            width={40}
+            height={40}
+            unoptimized
             className="size-10 rounded-xl object-cover"
           />
         ) : (

@@ -166,7 +166,7 @@ export function PantryExitEditDialog({
       },
       { name: "notes", label: "Observações", type: "textarea", rows: 2 },
     ];
-  }, [exit]);
+  }, [exit, sectorOptions]);
 
   const initialValues = React.useMemo<PantryExitFormValues | null>(() => {
     if (!exit) return null;

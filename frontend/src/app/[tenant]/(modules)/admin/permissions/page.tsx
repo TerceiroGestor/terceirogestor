@@ -4,7 +4,6 @@ import * as React from "react";
 import { SectionCard } from "@/components/section-card";
 import { SectionList, SectionListItem } from "@/components/section-list";
 import { Badge } from "@/components/ui/badge";
-import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";

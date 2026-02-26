@@ -1,8 +1,35 @@
 import type { NextConfig } from "next";
 
+function resolveImageRemotePatterns() {
+  const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+    { protocol: "http", hostname: "localhost", port: "3001", pathname: "/**" },
+    { protocol: "http", hostname: "127.0.0.1", port: "3001", pathname: "/**" },
+  ];
+
+  const raw = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+  if (raw.startsWith("http")) {
+    try {
+      const parsed = new URL(raw);
+      patterns.push({
+        protocol: parsed.protocol.replace(":", "") as "http" | "https",
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        pathname: "/**",
+      });
+    } catch {
+      // Ignore invalid URLs.
+    }
+  }
+
+  return patterns;
+}
+
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  images: {
+    remotePatterns: resolveImageRemotePatterns(),
+  },
   async rewrites() {
     if (process.env.NODE_ENV !== "development") return [];
 

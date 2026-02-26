@@ -29,7 +29,7 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
   const isHistory = pathname.startsWith(historyHref);
   const isDonors = pathname.startsWith(donorsHref);
 
-  const items = [
+  const items = React.useMemo(() => [
     {
       id: "stock",
       label: "Estoque",
@@ -65,7 +65,18 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
       active: isDonors,
       icon: Users,
     },
-  ] as const;
+  ] as const, [
+    stockHref,
+    entriesHref,
+    exitHref,
+    historyHref,
+    donorsHref,
+    isStock,
+    isEntries,
+    isExit,
+    isHistory,
+    isDonors,
+  ]);
 
   const activeId = React.useMemo(() => {
     if (isStock) return "stock";

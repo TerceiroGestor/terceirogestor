@@ -24,7 +24,6 @@ import {
   History,
   Lock,
   Pill,
-  User,
   UserRound,
   Users,
   Wallet,
@@ -71,6 +70,8 @@ type TabGroup = {
   label: string;
   items: TabItem[];
 };
+
+const EMPTY_INCOME_CONTRIBUTOR_IDS: string[] = [];
 
 const tabGroups: TabGroup[] = [
   {
@@ -199,7 +200,10 @@ export function PeopleDetailTabs({
     enabled: value === "medicacoes",
   });
 
-  const incomeContributorIds = incomeSummary?.contributors ?? [];
+  const incomeContributorIds = useMemo(
+    () => incomeSummary?.contributors ?? EMPTY_INCOME_CONTRIBUTOR_IDS,
+    [incomeSummary?.contributors],
+  );
 
   const canExportFamily = Boolean(data && token);
   const canExportFinancial = Boolean(token);

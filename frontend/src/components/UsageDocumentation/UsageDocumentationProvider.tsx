@@ -66,5 +66,5 @@ export function useRegisterUsageDocumentation(
   React.useEffect(() => {
     ctx?.setConfig(config);
     return () => ctx?.setConfig(null);
-  }, [ctx, config?.title, config?.items, config?.children, config?.widthPx]);
+  }, [ctx, config]);
 }

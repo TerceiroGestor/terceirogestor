@@ -219,14 +219,14 @@ export function PeopleListClientPage() {
       setEditing(person);
       setFormOpen(true);
     },
-    [router],
+    [],
   );
 
   const openView = useCallback(
     (person: PeopleTableItem) => {
       router.push(withTenantPath(`/people/${person.id}`, tenantSlug));
     },
-    [router],
+    [router, tenantSlug],
   );
 
   const updatingSet = useMemo(() => new Set(updatingIds), [updatingIds]);
@@ -425,6 +425,12 @@ export function PeopleListClientPage() {
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+          Carregando...
         </div>
       ) : null}
 

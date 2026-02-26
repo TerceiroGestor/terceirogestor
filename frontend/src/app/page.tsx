@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import {
@@ -66,10 +67,13 @@ export default function RootPage() {
           {/* Coluna 2 - Logo Grande */}
           <div className="hidden md:flex items-center justify-center">
             <div className="w-full h-full max-w-sm bg-gray-50 rounded-lg flex items-center justify-center p-10">
-              <img
+              <Image
                 src="/icon.png"
                 alt="TerceiroGestor"
-                className="w-60 object-contain"
+                width={240}
+                height={240}
+                priority
+                className="h-auto w-60 object-contain"
               />
             </div>
           </div>

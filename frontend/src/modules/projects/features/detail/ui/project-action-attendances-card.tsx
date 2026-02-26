@@ -92,7 +92,6 @@ export function ProjectActionAttendancesCard({
   canUpdate,
   canReadStructure,
   canReadPeople,
-  canReadPeopleIdentity,
 }: ProjectActionAttendancesCardProps) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
@@ -422,7 +421,6 @@ export function ProjectActionAttendancesCard({
   }, [
     canUpdate,
     canReadPeople,
-    canReadPeopleIdentity,
     getEffective,
     setRowDraft,
     tenantSlug,

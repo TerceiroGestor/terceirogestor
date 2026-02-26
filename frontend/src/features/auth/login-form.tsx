@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -209,10 +210,13 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
           <div className="w-full h-full">
             <div className="aspect-square rounded-md overflow-hidden w-full h-full flex items-center justify-center">
               {tenant?.logoUrl ? (
-                <img
-                  src={resolveMediaUrl(tenant.logoUrl)}
-                  className="max-h-120 w-auto object-contain"
+                <Image
+                  src={resolveMediaUrl(tenant.logoUrl) || tenant.logoUrl}
                   alt={tenant.name}
+                  width={480}
+                  height={480}
+                  unoptimized
+                  className="max-h-120 w-auto object-contain"
                 />
               ) : (
                 <div className="text-sm text-slate-400">

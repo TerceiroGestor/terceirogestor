@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   getServerApiUrl,
   resolveServerMediaUrl,
@@ -7,7 +7,7 @@ import {
 const FALLBACK_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jKp0AAAAASUVORK5CYII=";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const apiUrl = getServerApiUrl();
   const logoUrl = resolveServerMediaUrl("/uploads/system/logo.png", apiUrl);
 

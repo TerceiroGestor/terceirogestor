@@ -39,6 +39,14 @@ export function PantryOverviewStockSection({
       subtitle="Visão física do estoque com alertas de mínimo."
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={onlyLowStock ? "default" : "outline"}
+            onClick={onToggleOnlyLowStock}
+          >
+            Baixo estoque
+          </Button>
           {headerActionsSlot}
         </div>
       }

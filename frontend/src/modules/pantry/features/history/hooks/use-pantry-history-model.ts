@@ -185,7 +185,6 @@ export function usePantryHistoryModel() {
       filters.pageIndex,
       filters.pageSize,
       filters.toDate,
-      filters.view,
       shouldFetchAll,
     ],
   );
@@ -216,12 +215,13 @@ export function usePantryHistoryModel() {
     filters.fromDate,
     filters.toDate,
     filters.exitType,
+    setFilters,
   ]);
 
   React.useEffect(() => {
     if (!shouldFetchAll) return;
     setFilters((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [shouldFetchAll]);
+  }, [shouldFetchAll, setFilters]);
 
   const loadHistory = React.useCallback(
     async (force = false) => {

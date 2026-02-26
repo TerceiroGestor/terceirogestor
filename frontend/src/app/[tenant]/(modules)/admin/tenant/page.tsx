@@ -11,7 +11,7 @@ import { updateTenantProfile } from "@/features/auth/api";
 import { uploadTenantLogo } from "@/features/uploads/api";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { resolveMediaUrl } from "@/lib/api";
-import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
+import Image from "next/image";
 
 type TenantFormValues = {
   name: string;
@@ -110,10 +110,13 @@ export default function AdminTenantPage() {
         <div className="flex items-center gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
           <div className="flex size-12 items-center justify-center overflow-hidden rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
             {currentLogo ? (
-              <img
+              <Image
                 src={currentLogo}
                 alt={tenant?.name ?? "Logo"}
+                width={48}
+                height={48}
                 className="size-full object-cover"
+                unoptimized
               />
             ) : (
               "TG"

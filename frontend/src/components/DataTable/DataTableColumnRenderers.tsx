@@ -1,7 +1,5 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ColumnConfig, ColumnRenderer } from "@/components/DataTable/DataTableColumnConfig";

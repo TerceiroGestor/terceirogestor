@@ -141,7 +141,7 @@ export function PantryEntryEditDialog({
       }
       return field;
     });
-  }, [entry, donorOptions]);
+  }, [entry, donorOptions, sectorOptions]);
 
   const initialValues = React.useMemo<PantryEntryFormValues | null>(() => {
     if (!entry) return null;

@@ -169,7 +169,6 @@ export function useFamilyRelations(
     }));
     if (shouldLogLoad()) {
       const label = mode === "summary" ? "Resumo" : "Detalhado";
-      // eslint-disable-next-line no-console
       console.info(`[Família] ${label} carregado em ${elapsed.toFixed(0)}ms`);
     }
   }, []);
@@ -317,7 +316,7 @@ export function useFamilyRelations(
     setData((prev) =>
       prev ? mergeRelationsResponse(prev, peopleIndexRef.current) : prev,
     );
-  }, [peopleIndex]);
+  }, [data, peopleIndex]);
 
   const create = React.useCallback(
     async (payload: PersonRelationInput) => {

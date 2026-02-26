@@ -302,7 +302,7 @@ export function PantryMovementWorkspace({
     void loadSectors();
     void loadGlobalSectors();
     void loadHistory();
-  }, [enabled, item?.id, loadSectors, loadGlobalSectors, loadHistory]);
+  }, [enabled, item, loadSectors, loadGlobalSectors, loadHistory]);
 
   const handleQuickExit = React.useCallback(
     async (values: QuickExitValues) => {

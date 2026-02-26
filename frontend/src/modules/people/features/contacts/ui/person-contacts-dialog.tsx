@@ -195,7 +195,7 @@ export function PersonContactsDialog({
         setSaving(false);
       }
     },
-    [editing?.id, load, personId, resetForm, toast, token],
+    [editing?.id, load, onChanged, personId, resetForm, toast, token],
   );
 
   const handleSubmit = React.useCallback(async () => {
@@ -253,7 +253,7 @@ export function PersonContactsDialog({
     } finally {
       setSaving(false);
     }
-  }, [editing, form, load, personId, resetForm, toast, token]);
+  }, [editing, form, load, onChanged, personId, resetForm, toast, token]);
 
   const showNameFields = form.role !== "SELF";
   const showWhatsapp = form.type === "PHONE";

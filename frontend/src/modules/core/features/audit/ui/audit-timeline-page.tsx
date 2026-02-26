@@ -15,7 +15,6 @@ import {
 } from "@/features/admin/api";
 import { AuditTimeline } from "./audit-timeline";
 import { AuditLogDetailsDialog } from "./audit-log-details-dialog";
-import { AdminSettingsHeader } from "@/modules/core/features/settings/ui/admin-settings-header";
 import { FilterPanel } from "@/components/FilterEngine/FilterPanel";
 import { FilterDrawer } from "@/components/FilterEngine/FilterDrawer";
 import { useFilterEngine } from "@/lib/filters/use-filter-engine";

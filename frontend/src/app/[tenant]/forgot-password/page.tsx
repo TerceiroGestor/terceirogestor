@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { requestPasswordReset } from "@/features/auth/api";
@@ -127,10 +128,13 @@ export default function ForgotPasswordPage() {
           <div className="w-full h-full">
             <div className="aspect-square rounded-md overflow-hidden w-full h-full flex items-center justify-center">
               {tenant?.logoUrl ? (
-                <img
-                  src={resolveMediaUrl(tenant.logoUrl)}
-                  className="max-h-120 w-auto object-contain"
+                <Image
+                  src={resolveMediaUrl(tenant.logoUrl) || tenant.logoUrl}
                   alt={tenant.name}
+                  width={480}
+                  height={480}
+                  unoptimized
+                  className="max-h-120 w-auto object-contain"
                 />
               ) : (
                 <div className="text-sm text-slate-400">Logo da instituição</div>
