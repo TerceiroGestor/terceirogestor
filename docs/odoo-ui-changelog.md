@@ -49,8 +49,8 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 ## Entregaveis (macro-fases)
 
 ### v0.1 - Shell + Control Panel (MVP)
-- [ ] Criar `WebClientShell` (Top Navbar + Module Menu + Content Area).
-- [ ] Criar `ControlPanelShell` (Create, Breadcrumb, Search, Filter, GroupBy, Favorites, ViewSwitcher).
+- [x] Criar `WebClientShell` (Top Navbar + Module Menu + Content Area).
+- [x] Criar `ControlPanelShell` (Create, Breadcrumb, Search, Filter, GroupBy, Favorites, ViewSwitcher).
 - [ ] Definir responsividade minima (desktop/tablet/mobile) com "densidade adaptativa".
 - [ ] Definir tokens visuais (cores, espacamento, tipografia, bordas) como fonte unica.
 - [ ] Definir biblioteca unica de icones (padrao: Lucide) e regras de uso (tooltip, icon-only no mobile).
@@ -68,20 +68,20 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 ### v0.2 - Registry: Menu/Action/Screen/View
 - [ ] Criar registry central de `modules` (metadados) com:
   - `menus[]`
-  - `actions[]`
+  - `actions[]` (MVP entregue: actions + searchViews iniciais)
   - `models[]`
   - `views[]`
-  - `searchViews[]`
-- [ ] Criar `ScreenHost` (resolve actionId -> monta Screen).
+  - `searchViews[]` (MVP entregue)
+- [x] Criar `ScreenHost` (resolve actionId -> monta Screen).
 - [ ] `ViewRenderer` (host que monta a view ativa a partir de metadata).
 
 **Criterios de aceite**
 - Novo modulo nasce registrando Menu + Action + Views (sem pagina custom).
 
 ### v0.3 - Domain AST + AdvancedFilterBuilder
-- [ ] Definir formato de Domain AST (serializavel em URL e storage).
-- [ ] Implementar `AdvancedFilterBuilder` (UI) para construir Domain.
-- [ ] `FilterMenu` e `SearchBar` passam a gerar Domain/SearchText unificados.
+- [x] Definir formato de Domain AST (serializavel em URL e storage).
+- [x] Implementar `AdvancedFilterBuilder` (UI) para construir Domain.
+- [x] `FilterMenu` e `SearchBar` passam a gerar Domain/SearchText unificados.
 
 **Criterios de aceite**
 - Domain suporta AND/OR/NOT e operadores essenciais (=, !=, >, <, in, contains/ilike, between).

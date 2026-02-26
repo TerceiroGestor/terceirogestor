@@ -9,7 +9,6 @@ import { usePantryHistoryModel } from "@/modules/pantry/features/history/hooks/u
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { SectionCard } from "@/components/section-card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -38,11 +37,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  RecordBrowserToolbar,
-} from "@/components/record-browser/RecordBrowserToolbar";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { BarChart3, Clock, LayoutGrid, Table2 } from "lucide-react";
+import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { FilterMenu } from "@/web-client/control-panel/FilterMenu";
+import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
+import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
 
 function formatPantryMovementDate(value: string | null) {
   if (!value) return "—";
@@ -81,6 +82,51 @@ export function PantryHistoryClientPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
+      <PageControlPanel
+        searchSlot={
+          <SearchBar
+            value={model.filters.searchText}
+            onChange={(next) =>
+              model.setFilters((prev) => ({ ...prev, searchText: next }))
+            }
+            placeholder="Buscar por alimento"
+          />
+        }
+        filterSlot={
+          <FilterMenu
+            searchView={pantryHistorySearchView}
+            domain={model.filters.domain}
+            onChange={(domain) => model.setFilters((prev) => ({ ...prev, domain }))}
+          />
+        }
+        viewSwitcherSlot={
+          <ViewSwitcher
+            value={model.filters.view}
+            options={HISTORY_VIEWS}
+            onChange={(next) => model.setFilters((prev) => ({ ...prev, view: next }))}
+          />
+        }
+        rightSlot={
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => model.reload()}
+              disabled={model.loading}
+            >
+              Atualizar
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              Total:{" "}
+              <span className="font-mono tabular-nums text-foreground">
+                {model.totalCount.toLocaleString("pt-BR")}
+              </span>
+            </div>
+          </>
+        }
+      />
+
       <PageBreadcrumb
         title="Histórico"
         items={[
@@ -196,6 +242,8 @@ function PantryHistorySection({
       subtitle="Entradas e saÃ­das, com busca e filtros aplicados no banco."
     >
       <div className="flex flex-col gap-4">
+        {/* Migrado para o ControlPanelShell (v0.3+) */}
+        {/*
         <RecordBrowserToolbar
           view={model.filters.view}
           views={HISTORY_VIEWS}
@@ -327,6 +375,7 @@ function PantryHistorySection({
             </>
           }
         />
+        */}
 
         {model.filters.view === "cards" ? (
           model.loading ? (
