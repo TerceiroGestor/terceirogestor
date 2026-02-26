@@ -104,9 +104,9 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 - [x] `FormView` (layout grid -> stack no mobile) com estados e validacoes.
 
 ### v0.6 - Views avancadas (Kanban + Graph + Calendar)
-- [ ] `KanbanView` com colunas configuraveis por Action (groupBy).
-- [ ] `GraphView` com agregacoes do DataProvider (evitar `all=true` quando dataset crescer).
-- [ ] `CalendarView` (eventos por campo de data) com filtros e search.
+- [x] `KanbanView` com colunas configuraveis por Action (groupBy).
+- [x] `GraphView` (MVP): renderiza sÃ©ries; integraÃ§Ã£o com agregacoes do DataProvider serÃ¡ refinada por model.
+- [x] `CalendarView` (MVP): navega datas e lista eventos/itens por dia (filtros via Domain/Search da tela).
 
 ### v0.7 - Favorites (Saved Filters) + Persistencia completa
 - [ ] `FavoritesMenu` para salvar/restaurar combinacoes:
