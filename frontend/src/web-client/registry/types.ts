@@ -24,5 +24,6 @@ export type WindowAction = {
   permissions?: string[];
   defaultViewType?: ViewType;
   views?: WindowActionView[];
+  actionSlot?: React.ReactNode;
   render: () => React.ReactNode;
 };

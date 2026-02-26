@@ -1,9 +1,25 @@
 import type { WindowAction } from "@/web-client/registry/types";
-import { pantryHistoryAction } from "@/web-client/registry/actions/pantry";
+import {
+  pantryDonorsAction,
+  pantryEntriesAction,
+  pantryExitSheetAction,
+  pantryExitsAction,
+  pantryHistoryAction,
+  pantryItemsAction,
+  pantryOverviewAction,
+} from "@/web-client/registry/actions/pantry";
 import type { SearchViewDefinition } from "@/web-client/search/types";
 import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
 
-const WINDOW_ACTIONS: WindowAction[] = [pantryHistoryAction];
+const WINDOW_ACTIONS: WindowAction[] = [
+  pantryOverviewAction,
+  pantryItemsAction,
+  pantryEntriesAction,
+  pantryExitsAction,
+  pantryExitSheetAction,
+  pantryDonorsAction,
+  pantryHistoryAction,
+];
 const SEARCH_VIEWS: SearchViewDefinition[] = [pantryHistorySearchView];
 
 export function getWindowAction(actionId: string): WindowAction | null {

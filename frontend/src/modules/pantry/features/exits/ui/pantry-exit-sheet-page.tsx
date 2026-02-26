@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { DataTable } from "@/components/DataTable";
 import { SectionCard } from "@/components/section-card";
 import { Button } from "@/components/ui/button";
@@ -26,13 +25,14 @@ import {
   type ApiPantryExit,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import {
   PantryMovementWorkspace,
   type PantryMovementDialogItem,
 } from "@/modules/pantry/shared/ui/pantry-movement-workspace";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
+import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
 
 export function PantryExitSheetPage() {
   const router = useRouter();
@@ -281,13 +281,29 @@ export function PantryExitSheetPage() {
 
   return (
     <div className="flex flex-col gap-2 px-4 pb-2 pt-0">
-      <PageBreadcrumb
-        title="Saída"
-        items={[
-          { label: "Despensa", href: "/pantry" },
-          { label: "Saída", href: "/pantry/exit" },
-        ]}
-        actionSlot={<PantryHeaderNav />}
+      <PageControlPanel
+        searchSlot={<SearchBar value={exitsSearch} onChange={setExitsSearch} placeholder="Pesquisar saídas" />}
+        rightSlot={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void loadItems();
+                void loadExits();
+              }}
+              disabled={loadingItems || loadingExits}
+            >
+              Atualizar
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              Total:{" "}
+              <span className="font-mono tabular-nums text-foreground">
+                {exitsTotalCount.toLocaleString("pt-BR")}
+              </span>
+            </div>
+          </>
+        }
       />
 
       <SectionCard
@@ -364,9 +380,6 @@ export function PantryExitSheetPage() {
                 </ToggleGroupItem>
               </ToggleGroup>
             ) : null}
-            <Button variant="outline" onClick={loadExits} disabled={!enabled || loadingExits}>
-              Atualizar
-            </Button>
           </div>
         }
         collapsible
@@ -380,8 +393,7 @@ export function PantryExitSheetPage() {
           pagination={exitsPagination}
           onPaginationChange={setExitsPagination}
           totalCount={exitsTotalCount}
-          onGlobalFilterChange={setExitsSearch}
-          searchPlaceholder="Pesquisar saídas"
+          toolbar={{ hideSearch: true, hideFiltersButton: true }}
           summaryCards={{ totalLabel: "Total", filteredLabel: "Filtrados" }}
           rowActions={[
             {

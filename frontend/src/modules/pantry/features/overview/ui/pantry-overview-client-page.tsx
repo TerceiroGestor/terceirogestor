@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useToast } from "@/components/ui/use-toast";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { PantryEntryCreateDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-create-dialog";
@@ -17,7 +16,6 @@ import { usePantryOverviewModel } from "@/modules/pantry/features/overview/hooks
 import { PantryAlertsDropdown } from "@/modules/pantry/features/overview/ui/components/pantry-alerts-dropdown";
 import { PantryOverviewConsumptionSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-consumption-section";
 import { PantryOverviewStockSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-stock-section";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 export function PantryOverviewClientPage() {
@@ -74,12 +72,6 @@ export function PantryOverviewClientPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Despensa"
-        items={[{ label: "Despensa", href: "/pantry" }]}
-        actionSlot={<PantryHeaderNav />}
-      />
-
       <PantryOverviewStockSection
         rows={model.stockRows}
         columns={pantryOverviewStockColumns}

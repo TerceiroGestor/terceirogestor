@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { FormEngine } from "@/components/FormEngine";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { useConfirm } from "@/components/confirm/use-confirm";
@@ -22,9 +21,10 @@ import {
 } from "@/modules/pantry/api";
 import { pantryDonorFormFields } from "@/modules/pantry/features/donors/config/pantry-donor-form-config";
 import type { PantryDonorFormValues } from "@/modules/pantry/shared/domain/types";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR } from "@/lib/date";
+import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
 
 function formatDate(value: string) {
   return formatDateOnlyPtBR(value);
@@ -267,25 +267,31 @@ export function PantryDonorsClientPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Despensa · Doadores"
-        items={[{ label: "Despensa", href: "/pantry" }, { label: "Doadores" }]}
-        actionSlot={<PantryHeaderNav />}
+      <PageControlPanel
+        searchSlot={
+          <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar doadores" />
+        }
+        rightSlot={
+          <>
+            <Button size="sm" variant="outline" onClick={loadDonors} disabled={loading}>
+              Atualizar
+            </Button>
+            <Button size="sm" onClick={openCreate} disabled={!canCreate}>
+              Novo
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              Total:{" "}
+              <span className="font-mono tabular-nums text-foreground">
+                {totalCount.toLocaleString("pt-BR")}
+              </span>
+            </div>
+          </>
+        }
       />
 
       <SectionCard
         title="Doadores"
         subtitle="Cadastro rápido para vincular entradas."
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={loadDonors}>
-              Atualizar
-            </Button>
-            <Button onClick={openCreate} disabled={!canCreate}>
-              Novo
-            </Button>
-          </div>
-        }
       >
         <DataTable
           columns={columns}
@@ -295,8 +301,7 @@ export function PantryDonorsClientPage() {
           pagination={pagination}
           onPaginationChange={setPagination}
           totalCount={totalCount}
-          onGlobalFilterChange={setSearch}
-          searchPlaceholder="Pesquisar doadores"
+          toolbar={{ hideSearch: true, hideFiltersButton: true }}
           summaryCards={{
             totalLabel: "Total",
             filteredLabel: "Filtrados",

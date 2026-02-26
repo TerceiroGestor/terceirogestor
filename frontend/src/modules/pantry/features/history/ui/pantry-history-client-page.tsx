@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { useToast } from "@/components/ui/use-toast";
 import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-edit-dialog";
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
 import { usePantryHistoryModel, type PantryHistoryView } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { SectionCard } from "@/components/section-card";
 import { Button } from "@/components/ui/button";
@@ -152,15 +150,6 @@ export function PantryHistoryClientPage() {
             </div>
           </>
         }
-      />
-
-      <PageBreadcrumb
-        title="Histórico"
-        items={[
-          { label: "Despensa", href: "/pantry" },
-          { label: "Histórico", href: "/pantry/history" },
-        ]}
-        actionSlot={<PantryHeaderNav />}
       />
 
       <PantryHistorySection model={model} formatDate={formatPantryMovementDate} />

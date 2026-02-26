@@ -1,5 +1,5 @@
-import { PantryDonorsClientPage } from "@/modules/pantry";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryDonorsPage() {
-  return <PantryDonorsClientPage />;
+  return <ScreenHost actionId="pantry.donors" />;
 }

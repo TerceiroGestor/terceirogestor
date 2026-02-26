@@ -1,6 +1,5 @@
-import { PantryExitSheetPage } from "@/modules/pantry/features/exits/ui/pantry-exit-sheet-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryExitPage() {
-  return <PantryExitSheetPage />;
+  return <ScreenHost actionId="pantry.exit" />;
 }
-

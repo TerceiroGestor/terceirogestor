@@ -12,7 +12,7 @@ export function ScreenHost({ actionId }: { actionId: string }) {
   if (!action) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        AÃ§Ã£o nÃ£o encontrada: <span className="font-mono">{actionId}</span>
+        Ação não encontrada: <span className="font-mono">{actionId}</span>
       </div>
     );
   }
@@ -24,16 +24,19 @@ export function ScreenHost({ actionId }: { actionId: string }) {
   if (!canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        VocÃª nÃ£o tem permissÃ£o para acessar esta Ã¡rea.
+        Você não tem permissão para acessar esta área.
       </div>
     );
   }
 
   return (
     <>
-      <PageBreadcrumb title={action.title} items={action.breadcrumbs} />
+      <PageBreadcrumb
+        title={action.title}
+        items={action.breadcrumbs}
+        actionSlot={action.actionSlot}
+      />
       {action.render()}
     </>
   );
 }
-

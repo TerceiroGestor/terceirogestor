@@ -1,5 +1,5 @@
-import { PantryExitsClientPage } from "@/modules/pantry";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryExitsPage() {
-  return <PantryExitsClientPage />;
+  return <ScreenHost actionId="pantry.exits" />;
 }

@@ -114,7 +114,9 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 - [x] Persistir state em URL + storage (por Action).
 
 ### v1.0 - DoD (padrao definitivo)
-- [ ] Criar modulo exemplo "Clientes" (Menu + Action + Views) como validacao final.
+- [x] Migrar o modulo **Pantry** para o padrao (Menu -> Action -> Screen) como validacao final (em vez de criar um modulo novo).
+  - [x] Rotas do Pantry usam `ScreenHost` + `WindowAction` (`pantry.overview/items/entries/exits/exit/donors/history`).
+  - [x] Control Panel passa a ser a fonte de verdade para busca e acoes primarias nas listas (mantendo tabela/exports dentro do card).
 - [ ] Garantir acessibilidade minima (teclado/toque) nos menus e filtros.
 - [ ] Consolidar documentacao e padroes para todos os modulos.
 

@@ -64,6 +64,11 @@ export type DataTableClientProps<TData> = {
   data: TData[];
   initialColumnPinning?: ColumnPinningState;
   searchPlaceholder?: string;
+  toolbar?: {
+    hidden?: boolean;
+    hideSearch?: boolean;
+    hideFiltersButton?: boolean;
+  };
   groupableColumns?: string[];
   manualPagination?: boolean;
   pageCount?: number;
@@ -119,6 +124,7 @@ export function DataTableClient<TData>({
   data,
   initialColumnPinning,
   searchPlaceholder = "Search...",
+  toolbar,
   groupableColumns = [],
   rowActions = [],
   summaryCards,
@@ -897,48 +903,55 @@ export function DataTableClient<TData>({
       </div>
     ) : undefined;
 
+  const hideToolbar = Boolean(toolbar?.hidden);
+  const hideFilterSheet = hideToolbar || Boolean(toolbar?.hideFiltersButton);
+
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-3">
-      <DataTableToolbar
-        globalFilter={globalFilter}
-        searchPlaceholder={searchPlaceholder}
-        onGlobalFilterChange={handleGlobalFilterChange}
-        onOpenFilters={() => safeSetFiltersOpen((prev) => !prev)}
-        actions={toolbarActions}
-        rightContent={
-          summaryCards ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-1.5">
-              <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  {summaryCards.totalLabel ?? "Total"}
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {totalCount ?? data.length}
-                </p>
+      {hideToolbar ? null : (
+        <DataTableToolbar
+          globalFilter={globalFilter}
+          searchPlaceholder={searchPlaceholder}
+          onGlobalFilterChange={handleGlobalFilterChange}
+          onOpenFilters={() => safeSetFiltersOpen((prev) => !prev)}
+          actions={toolbarActions}
+          hideSearch={Boolean(toolbar?.hideSearch)}
+          hideFiltersButton={Boolean(toolbar?.hideFiltersButton)}
+          rightContent={
+            summaryCards ? (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-1.5">
+                <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {summaryCards.totalLabel ?? "Total"}
+                  </p>
+                  <p className="text-base font-semibold text-foreground">
+                    {totalCount ?? data.length}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {summaryCards.filteredLabel ?? "Filtrados"}
+                  </p>
+                  <p className="text-base font-semibold text-foreground">
+                    {filteredCount}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {summaryCards.groupedLabel ?? "Grupos"}
+                  </p>
+                  <p
+                    className="text-sm font-semibold text-foreground truncate"
+                    title={groupLabels || undefined}
+                  >
+                    {grouping.length > 0 ? groupCount : "-"}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  {summaryCards.filteredLabel ?? "Filtrados"}
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {filteredCount}
-                </p>
-              </div>
-              <div className="rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  {summaryCards.groupedLabel ?? "Grupos"}
-                </p>
-                <p
-                  className="text-sm font-semibold text-foreground truncate"
-                  title={groupLabels || undefined}
-                >
-                  {grouping.length > 0 ? groupCount : "-"}
-                </p>
-              </div>
-            </div>
-          ) : null
-        }
-      />
+            ) : null
+          }
+        />
+      )}
 
       <div className="space-y-2">
         <div className="rounded-xl border border-border/40 bg-card/40 max-w-full [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:max-w-full [&_[data-slot=table-container]]:overflow-auto">
@@ -1066,24 +1079,26 @@ export function DataTableClient<TData>({
         <DataTablePagination table={table} showPagination={showPagination} />
       </div>
 
-      <DataTableFilterSheet
-        open={filtersOpen}
-        onOpenChange={safeSetFiltersOpen}
-        onReset={resetAll}
-        filterableColumns={filterableColumns}
-        groupableColumns={groupable}
-        visibleColumns={visibleColumns}
-        chartRows={filteredRows}
-        getRowValue={getRowValue}
-        advancedFilters={advancedFilters}
-        onAdvancedFiltersChange={safeSetAdvancedFilters}
-        onApply={() => {
-          applyAdvancedFilter();
-          safeSetFiltersOpen(false);
-        }}
-        onClear={clearAdvancedFilter}
-        onChartOpenChange={onChartOpenChange}
-      />
+      {hideFilterSheet ? null : (
+        <DataTableFilterSheet
+          open={filtersOpen}
+          onOpenChange={safeSetFiltersOpen}
+          onReset={resetAll}
+          filterableColumns={filterableColumns}
+          groupableColumns={groupable}
+          visibleColumns={visibleColumns}
+          chartRows={filteredRows}
+          getRowValue={getRowValue}
+          advancedFilters={advancedFilters}
+          onAdvancedFiltersChange={safeSetAdvancedFilters}
+          onApply={() => {
+            applyAdvancedFilter();
+            safeSetFiltersOpen(false);
+          }}
+          onClear={clearAdvancedFilter}
+          onChartOpenChange={onChartOpenChange}
+        />
+      )}
     </div>
   );
 }

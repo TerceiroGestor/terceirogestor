@@ -1,5 +1,5 @@
-import { PantryEntriesClientPage } from "@/modules/pantry";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryEntriesPage() {
-  return <PantryEntriesClientPage />;
+  return <ScreenHost actionId="pantry.entries" />;
 }
