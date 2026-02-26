@@ -907,7 +907,7 @@ export function DataTableClient<TData>({
   const hideFilterSheet = hideToolbar || Boolean(toolbar?.hideFiltersButton);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden space-y-3">
+    <div className="w-full max-w-full overflow-x-hidden space-y-2">
       {hideToolbar ? null : (
         <DataTableToolbar
           globalFilter={globalFilter}
@@ -954,16 +954,16 @@ export function DataTableClient<TData>({
       )}
 
       <div className="space-y-2">
-        <div className="rounded-xl border border-border/40 bg-card/40 max-w-full [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:max-w-full [&_[data-slot=table-container]]:overflow-auto">
+        <div className="max-w-full border border-border/60 bg-background [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:max-w-full [&_[data-slot=table-container]]:overflow-auto">
           <Table
             className={clsx(
               "min-w-full [&_th]:whitespace-normal [&_td]:whitespace-normal sm:[&_th]:whitespace-nowrap sm:[&_td]:whitespace-nowrap",
               tableClassName,
             )}
           >
-            <TableHeader className="bg-muted/20">
+            <TableHeader className="bg-muted/15">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="bg-muted/20">
+                <TableRow key={headerGroup.id} className="bg-muted/15">
                   {headerGroup.headers.map((header) => {
                     const pinnedStyles = getPinnedStyles(header.column, table);
                     return (

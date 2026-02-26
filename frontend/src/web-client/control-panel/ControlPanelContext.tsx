@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import type { BreadcrumbAction } from "@/components/layout/BreadcrumbContext";
 
 export type ControlPanelState = {
+  primaryAction?: BreadcrumbAction;
   leftSlot?: React.ReactNode;
   searchSlot?: React.ReactNode;
   filterSlot?: React.ReactNode;
@@ -52,4 +54,3 @@ export function useControlPanel() {
   }
   return ctx;
 }
-

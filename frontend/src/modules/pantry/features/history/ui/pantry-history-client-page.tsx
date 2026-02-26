@@ -6,7 +6,6 @@ import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pant
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
 import { usePantryHistoryModel, type PantryHistoryView } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
-import { SectionCard } from "@/components/section-card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -39,10 +38,9 @@ import type { RecordBrowserViewOption } from "@/components/record-browser/Record
 import { BarChart3, Clock, LayoutGrid, Table2 } from "lucide-react";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
-import { FilterMenu } from "@/web-client/control-panel/FilterMenu";
-import { FavoritesMenu } from "@/web-client/control-panel/FavoritesMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
+import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import type { Domain } from "@/web-client/domain/types";
 
 function formatPantryMovementDate(value: string | null) {
@@ -100,22 +98,18 @@ export function PantryHistoryClientPage() {
           />
         }
         filterSlot={
-          <FilterMenu
+          <SearchPanelMenu<PantryHistoryFavoriteState>
+            actionId="pantry.history"
             searchView={pantryHistorySearchView}
             domain={model.filters.domain}
-            onChange={(domain) => model.setFilters((prev) => ({ ...prev, domain }))}
-          />
-        }
-        favoritesSlot={
-          <FavoritesMenu<PantryHistoryFavoriteState>
-            actionId="pantry.history"
+            onDomainChange={(domain) => model.setFilters((prev) => ({ ...prev, domain }))}
             snapshot={{
               view: model.filters.view,
               searchText: model.filters.searchText,
               domain: model.filters.domain,
               pageSize: model.filters.pageSize,
             }}
-            onApply={(state) =>
+            onApplyFavorite={(state) =>
               model.setFilters((prev) => ({
                 ...prev,
                 ...state,
@@ -142,7 +136,7 @@ export function PantryHistoryClientPage() {
             >
               Atualizar
             </Button>
-            <div className="text-xs text-muted-foreground">
+            <div className="whitespace-nowrap text-[11px] text-muted-foreground">
               Total:{" "}
               <span className="font-mono tabular-nums text-foreground">
                 {model.totalCount.toLocaleString("pt-BR")}
@@ -253,12 +247,8 @@ function PantryHistorySection({
   ) : null;
 
   return (
-    <SectionCard
-      title="HistÃ³rico"
-      subtitle="Entradas e saÃ­das, com busca e filtros aplicados no banco."
-    >
-      <div className="flex flex-col gap-4">
-        {/* Migrado para o ControlPanelShell (v0.3+) */}
+    <div className="w-full">
+      {/* Migrado para o ControlPanelShell (v0.3+) */}
         {/*
         <RecordBrowserToolbar
           view={model.filters.view}
@@ -405,15 +395,15 @@ function PantryHistorySection({
                   key={movement.id}
                   type="button"
                   onClick={() => model.openMovementEdit(movement)}
-                  className="rounded-lg border border-border/60 bg-background px-3 py-3 text-left shadow-none transition-colors hover:bg-muted/30"
+                  className="rounded-md border border-border/60 bg-background px-2 py-2 text-left shadow-none transition-colors hover:bg-muted/30"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         {movement.itemName}
                       </span>
                       <Badge variant={movement.kind === "ENTRY"}>
-                        {movement.kind === "ENTRY" ? "Entrada" : "SaÃ­da"}
+                        {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
                       </Badge>
                       <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         Setor: {movement.sector}
@@ -429,7 +419,7 @@ function PantryHistorySection({
                       {Number(movement.quantity).toLocaleString("pt-BR")}{" "}
                       {movement.unit}
                     </span>
-                    <span>{movement.meta}</span>
+                    <span className="truncate">{movement.meta}</span>
                   </div>
                   <div className="mt-2 text-xs text-muted-foreground">
                     Por: <span className="text-foreground">{movement.actor}</span>
@@ -451,7 +441,7 @@ function PantryHistorySection({
           ) : movements.length === 0 ? (
             <div className="text-sm text-muted-foreground">Nenhum movimento encontrado.</div>
           ) : (
-            <div className="rounded-lg border border-border/60">
+            <div className="rounded-md border border-border/60 bg-background">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -476,7 +466,7 @@ function PantryHistorySection({
                       </TableCell>
                       <TableCell>
                         <Badge variant={movement.kind === "ENTRY"}>
-                          {movement.kind === "ENTRY" ? "Entrada" : "SaÃ­da"}
+                          {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{movement.itemName}</TableCell>
@@ -537,8 +527,7 @@ function PantryHistorySection({
         ) : null}
 
         {paginationNode}
-      </div>
-    </SectionCard>
+    </div>
   );
 }
 

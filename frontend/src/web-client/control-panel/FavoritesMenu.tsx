@@ -20,35 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-type FavoriteDefinition<TState> = {
-  id: string;
-  name: string;
-  state: TState;
-  createdAt: string;
-};
-
-function loadFavorites<TState>(key: string): Array<FavoriteDefinition<TState>> {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(Boolean) as Array<FavoriteDefinition<TState>>;
-  } catch {
-    return [];
-  }
-}
-
-function saveFavorites<TState>(key: string, value: Array<FavoriteDefinition<TState>>) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
-}
+import {
+  loadFavorites,
+  saveFavorites,
+  type FavoriteDefinition,
+} from "@/web-client/control-panel/favorites-storage";
 
 export function FavoritesMenu<TState extends Record<string, unknown>>({
   actionId,

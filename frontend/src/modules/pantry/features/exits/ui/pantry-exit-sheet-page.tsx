@@ -296,7 +296,7 @@ export function PantryExitSheetPage() {
             >
               Atualizar
             </Button>
-            <div className="text-xs text-muted-foreground">
+            <div className="whitespace-nowrap text-[11px] text-muted-foreground">
               Total:{" "}
               <span className="font-mono tabular-nums text-foreground">
                 {exitsTotalCount.toLocaleString("pt-BR")}

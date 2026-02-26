@@ -82,7 +82,7 @@
   --sidebar-border: oklch(0.88 0.01 250);
   --sidebar-ring: oklch(0.68 0.14 285);
 
-  --ui-controlpanel-height: 48px;
+  --ui-controlpanel-height: 44px;
   --ui-row-height: 36px;
 }
 
@@ -135,7 +135,7 @@
     }
 
     :root {
-      --ui-controlpanel-height: 44px;
+      --ui-controlpanel-height: 40px;
       --ui-row-height: 32px;
     }
   }

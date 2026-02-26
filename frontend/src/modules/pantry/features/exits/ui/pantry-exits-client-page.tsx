@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { FormEngine } from "@/components/FormEngine";
-import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { useConfirm } from "@/components/confirm/use-confirm";
 import { useToast } from "@/components/ui/use-toast";
@@ -444,6 +443,14 @@ export function PantryExitsClientPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
+        primaryAction={
+          canCreate
+            ? {
+                label: "Novo",
+                onClick: openCreate,
+              }
+            : undefined
+        }
         searchSlot={<SearchBar value={search} onChange={setSearch} placeholder="Pesquisar saídas" />}
         viewSwitcherSlot={
           <ViewSwitcher
@@ -457,10 +464,7 @@ export function PantryExitsClientPage() {
             <Button size="sm" variant="outline" onClick={loadExits} disabled={loading}>
               Atualizar
             </Button>
-            <Button size="sm" onClick={openCreate} disabled={!canCreate}>
-              Nova saída
-            </Button>
-            <div className="text-xs text-muted-foreground">
+            <div className="whitespace-nowrap text-[11px] text-muted-foreground">
               Total:{" "}
               <span className="font-mono tabular-nums text-foreground">
                 {totalCount.toLocaleString("pt-BR")}
@@ -470,10 +474,7 @@ export function PantryExitsClientPage() {
         }
       />
 
-      <SectionCard
-        title="Saídas"
-        subtitle="Registro rápido de consumo/uso."
-      >
+      <div className="w-full">
         {screenState.view === "table" ? (
           <DataTable
             columns={columns}
@@ -483,10 +484,7 @@ export function PantryExitsClientPage() {
             pagination={pagination}
             onPaginationChange={setPagination}
             totalCount={totalCount}
-            toolbar={{ hideSearch: true, hideFiltersButton: true }}
-            showExportMenu
-            exportLabels={{ title: "Relatório", pdf: "Imprimir (PDF)", csv: "Baixar CSV" }}
-            exportMeta={{ title: "Despensa - Saídas" }}
+            toolbar={{ hidden: true }}
             rowActions={[
               { id: "edit", label: "Editar", onSelect: openEdit },
               { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
@@ -538,7 +536,7 @@ export function PantryExitsClientPage() {
         {loading ? (
           <p className="text-xs text-muted-foreground">Carregando...</p>
         ) : null}
-      </SectionCard>
+      </div>
 
       <SectionDialog
         open={dialogOpen}
