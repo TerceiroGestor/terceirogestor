@@ -5,6 +5,7 @@ import type { BreadcrumbAction } from "@/components/layout/BreadcrumbContext";
 
 export type ControlPanelState = {
   primaryAction?: BreadcrumbAction;
+  primaryActionSlot?: React.ReactNode;
   leftSlot?: React.ReactNode;
   searchSlot?: React.ReactNode;
   filterSlot?: React.ReactNode;

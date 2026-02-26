@@ -2,8 +2,14 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { History, Package, PackagePlus, Truck, Users } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Check, ChevronDown, History, Package, PackagePlus, Truck, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
@@ -29,101 +35,96 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
   const isHistory = pathname.startsWith(historyHref);
   const isDonors = pathname.startsWith(donorsHref);
 
-  const items = React.useMemo(() => [
-    {
-      id: "stock",
-      label: "Estoque",
-      href: stockHref,
-      active: isStock,
-      icon: Package,
-    },
-    {
-      id: "entries",
-      label: "Entrada",
-      href: entriesHref,
-      active: isEntries,
-      icon: PackagePlus,
-    },
-    {
-      id: "exit",
-      label: "Saída",
-      href: exitHref,
-      active: isExit,
-      icon: Truck,
-    },
-    {
-      id: "history",
-      label: "Histórico",
-      href: historyHref,
-      active: isHistory,
-      icon: History,
-    },
-    {
-      id: "donors",
-      label: "Doadores",
-      href: donorsHref,
-      active: isDonors,
-      icon: Users,
-    },
-  ] as const, [
-    stockHref,
-    entriesHref,
-    exitHref,
-    historyHref,
-    donorsHref,
-    isStock,
-    isEntries,
-    isExit,
-    isHistory,
-    isDonors,
-  ]);
+  const items = React.useMemo(
+    () =>
+      [
+        {
+          id: "stock",
+          label: "Estoque",
+          href: stockHref,
+          active: isStock,
+          icon: Package,
+        },
+        {
+          id: "entries",
+          label: "Entrada",
+          href: entriesHref,
+          active: isEntries,
+          icon: PackagePlus,
+        },
+        {
+          id: "exit",
+          label: "Saída",
+          href: exitHref,
+          active: isExit,
+          icon: Truck,
+        },
+        {
+          id: "history",
+          label: "Histórico",
+          href: historyHref,
+          active: isHistory,
+          icon: History,
+        },
+        {
+          id: "donors",
+          label: "Doadores",
+          href: donorsHref,
+          active: isDonors,
+          icon: Users,
+        },
+      ] as const,
+    [
+      stockHref,
+      entriesHref,
+      exitHref,
+      historyHref,
+      donorsHref,
+      isStock,
+      isEntries,
+      isExit,
+      isHistory,
+      isDonors,
+    ],
+  );
 
-  const activeId = React.useMemo(() => {
-    if (isStock) return "stock";
-    if (isEntries) return "entries";
-    if (isExit) return "exit";
-    if (isHistory) return "history";
-    if (isDonors) return "donors";
-    return "stock";
-  }, [isEntries, isExit, isHistory, isStock, isDonors]);
-
-  const hrefById = React.useMemo(() => {
-    const map = new Map<string, string>();
-    items.forEach((item) => map.set(item.id, item.href));
-    return map;
+  const activeItem = React.useMemo(() => {
+    return items.find((item) => item.active) ?? items[0];
   }, [items]);
 
   return (
-    <ToggleGroup
-      type="single"
-      value={activeId}
-      onValueChange={(next) => {
-        if (!next) return;
-        const href = hrefById.get(next);
-        if (!href) return;
-        router.push(href);
-      }}
-      className={cn("rounded-md border border-border/60 bg-muted/10 p-0.5", className)}
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <ToggleGroupItem
-            key={item.id}
-            value={item.id}
-            aria-label={item.label}
-            title={item.label}
-            className={cn(
-              "h-8 rounded-sm px-2.5 text-xs",
-              "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-none",
-              "data-[state=off]:bg-transparent",
-            )}
-          >
-            <Icon className="size-4" />
-            <span className="hidden lg:inline">{item.label}</span>
-          </ToggleGroupItem>
-        );
-      })}
-    </ToggleGroup>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn("h-8 gap-2 px-2.5 text-xs", className)}
+          aria-label="Menu da despensa"
+          title="Menu da despensa"
+        >
+          <activeItem.icon className="size-4" />
+          <span className="hidden sm:inline">{activeItem.label}</span>
+          <ChevronDown className="size-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[200px]">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <DropdownMenuItem
+              key={item.id}
+              onSelect={() => router.push(item.href)}
+              className="gap-2 text-xs"
+            >
+              <Icon className="size-4 text-muted-foreground" />
+              <span>{item.label}</span>
+              {item.active ? <Check className="ml-auto size-4 opacity-70" /> : null}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
+

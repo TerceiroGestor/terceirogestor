@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { LayoutGrid, Package, PackagePlus, Table2, Truck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { PantryEntryCreateDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-create-dialog";
@@ -9,7 +11,6 @@ import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pant
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
 import { PantryItemCreateDialog } from "@/modules/pantry/features/items/ui/pantry-item-create-dialog";
 import { PantryItemEditDialog } from "@/modules/pantry/features/items/ui/pantry-item-edit-dialog";
-import { Button } from "@/components/ui/button";
 import { pantryOverviewStockColumns } from "@/modules/pantry/features/overview/config/pantry-overview-stock-columns";
 import { PANTRY_OVERVIEW_USAGE } from "@/modules/pantry/features/overview/domain/pantry-overview.constants";
 import { usePantryOverviewModel } from "@/modules/pantry/features/overview/hooks/use-pantry-overview-model";
@@ -18,6 +19,11 @@ import { PantryOverviewConsumptionSection } from "@/modules/pantry/features/over
 import { PantryOverviewStockSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-stock-section";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
+import { CreateDropdown } from "@/web-client/control-panel/CreateDropdown";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 
 export function PantryOverviewClientPage() {
   const model = usePantryOverviewModel();
@@ -26,12 +32,39 @@ export function PantryOverviewClientPage() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
 
+  const [search, setSearch] = React.useState("");
+
+  const [screenState, setScreenState] = usePersistedUrlState<{
+    view: "table" | "cards";
+  }>({
+    storageKey: "screenState:pantry.overview",
+    trackedKeys: ["v"],
+    parse: (params) => {
+      const raw = params.get("v");
+      return { view: raw === "cards" ? "cards" : "table" };
+    },
+    serialize: (state) => ({ v: state.view === "table" ? undefined : state.view }),
+  });
+
+  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "cards">[]>(
+    () => [
+      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
+      { value: "cards", label: "Cards", icon: <LayoutGrid className="size-4" /> },
+    ],
+    [],
+  );
+
   const openExitPage = React.useCallback(
-    (params: { itemId: string; sector?: string }) => {
+    (params?: { itemId?: string; sector?: string }) => {
+      const base = withTenantPath("/pantry/exit", tenantSlug);
+      if (!params?.itemId) {
+        router.push(base);
+        return;
+      }
       const qs = new URLSearchParams();
       qs.set("itemId", params.itemId);
       if (params.sector) qs.set("sector", params.sector);
-      router.push(`${withTenantPath("/pantry/exit", tenantSlug)}?${qs.toString()}`);
+      router.push(`${base}?${qs.toString()}`);
     },
     [router, tenantSlug],
   );
@@ -63,6 +96,16 @@ export function PantryOverviewClientPage() {
     toast({ variant: "destructive", title: "Falha ao carregar", description: model.error });
   }, [model.error, toast]);
 
+  const filteredStockRows = React.useMemo(() => {
+    const q = search.trim().toLocaleLowerCase();
+    if (!q) return model.stockRows;
+
+    return model.stockRows.filter((row) => {
+      const haystack = `${row.name} ${row.group ?? ""} ${row.sector}`.toLocaleLowerCase();
+      return haystack.includes(q);
+    });
+  }, [model.stockRows, search]);
+
   if (!model.canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -74,13 +117,41 @@ export function PantryOverviewClientPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
+        primaryActionSlot={
+          <CreateDropdown
+            items={[
+              {
+                id: "create-item",
+                label: "Novo alimento",
+                icon: <Package className="size-4" />,
+                onSelect: () => model.setCreateItemOpen(true),
+              },
+              {
+                id: "create-entry",
+                label: "Nova entrada",
+                icon: <PackagePlus className="size-4" />,
+                onSelect: () => model.setCreateEntryOpen(true),
+              },
+              {
+                id: "create-exit",
+                label: "Nova saída",
+                icon: <Truck className="size-4" />,
+                onSelect: () => openExitPage(),
+              },
+            ]}
+          />
+        }
+        searchSlot={<SearchBar value={search} onChange={setSearch} placeholder="Buscar por alimento" />}
+        viewSwitcherSlot={
+          <ViewSwitcher
+            value={screenState.view}
+            options={viewOptions}
+            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+          />
+        }
         rightSlot={
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => model.handleMovementSaved()}
-            >
+            <Button size="sm" variant="outline" onClick={() => model.handleMovementSaved()}>
               Atualizar
             </Button>
             <PantryAlertsDropdown
@@ -90,18 +161,13 @@ export function PantryOverviewClientPage() {
               }
               onRefreshAlerts={model.handleAlertsRefresh}
             />
-            <Button size="sm" onClick={() => model.setCreateEntryOpen(true)}>
-              Nova entrada
-            </Button>
-            <Button size="sm" onClick={() => model.setCreateItemOpen(true)}>
-              Novo alimento
-            </Button>
           </>
         }
       />
 
       <PantryOverviewStockSection
-        rows={model.stockRows}
+        view={screenState.view}
+        rows={filteredStockRows}
         columns={pantryOverviewStockColumns}
         onlyLowStock={model.onlyLowStock}
         onToggleOnlyLowStock={() => model.setOnlyLowStock((prev) => !prev)}
@@ -217,3 +283,4 @@ export function PantryOverviewClientPage() {
     </div>
   );
 }
+
