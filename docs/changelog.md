@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-02-26 - Padrao UI (inspirado no Odoo) + History Pantry
+
+### O que foi entregue
+- Pantry: endpoint `GET /pantry/history` (merge Entry/Exit) com filtros/paginacao e suporte a `all=true` (grafico).
+- Pantry: pagina `/pantry/history` com alternancia de views e filtros aplicados no banco.
+- UI: primeiro prototype de componentes reutilizaveis (toolbar + view switcher) e hook de estado sincronizado na URL.
+
+### Proximos passos
+- Adotar o roadmap definitivo em `docs/odoo-ui-changelog.md` e migrar `record-browser/*` para o padrao `ControlPanelShell` + `ScreenHost` (metadata-driven).
+
 ## 2026-02-17 — Fase 2 (Programas e Projetos)
 
 ### O que foi entregue
