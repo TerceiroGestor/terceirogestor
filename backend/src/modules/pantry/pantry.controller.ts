@@ -31,6 +31,7 @@ import { UpdatePantryItemDto } from './dto/update-pantry-item.dto';
 import { PantryService } from './pantry.service';
 import { PantryConsumptionQueryDto } from './dto/pantry-consumption-query.dto';
 import { ReversePantryMovementDto } from './dto/reverse-pantry-movement.dto';
+import { ListPantryHistoryQueryDto } from './dto/list-pantry-history-query.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('pantry')
@@ -47,6 +48,26 @@ export class PantryController {
   @Permissions('pantry.read')
   async getDashboard(@CurrentUser() user: JwtUser) {
     return this.pantryService.getDashboard(user.tenantId);
+  }
+
+  @Get('history')
+  @Permissions('pantry.read')
+  async listHistory(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListPantryHistoryQueryDto,
+  ) {
+    return this.pantryService.listHistory(user.tenantId, {
+      page: query.page,
+      limit: query.limit,
+      all: query.all,
+      kind: query.kind,
+      search: query.search ?? query.q,
+      itemId: query.itemId,
+      type: query.type,
+      eventName: query.eventName,
+      from: query.from,
+      to: query.to,
+    });
   }
 
   @Get('sectors')

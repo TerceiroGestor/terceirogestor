@@ -1,5 +1,5 @@
 ﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma';
+import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
@@ -17,6 +17,8 @@ import { ReversePantryMovementDto } from './dto/reverse-pantry-movement.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const DEFAULT_HISTORY_LIMIT = 50;
+const MAX_HISTORY_LIMIT = 500;
 
 const toNumber = (value?: Prisma.Decimal | number | null) =>
   value === null || value === undefined ? 0 : Number(value);
@@ -75,6 +77,211 @@ const resolveExitTypeLabel = (type: string) => {
 @Injectable()
 export class PantryService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listHistory(
+    tenantId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      all?: boolean;
+      kind?: 'ALL' | 'ENTRY' | 'EXIT';
+      search?: string;
+      itemId?: string;
+      type?: string;
+      eventName?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
+    const { page, limit, skip, take, isAll } = resolvePagination({
+      page: params?.page,
+      limit: params?.limit,
+      all: params?.all,
+      defaultLimit: DEFAULT_HISTORY_LIMIT,
+      maxLimit: MAX_HISTORY_LIMIT,
+    });
+
+    const kind = params?.kind ?? 'ALL';
+    const search = normalizeString(params?.search);
+    const eventName = normalizeString(params?.eventName);
+    const fromDate = parseDateInput(params?.from);
+    const toDate = parseDateInput(params?.to, { endOfDay: true });
+
+    const entryWhere: Prisma.Sql[] = [Prisma.sql`e.tenantId = ${tenantId}`];
+    const exitWhere: Prisma.Sql[] = [Prisma.sql`x.tenantId = ${tenantId}`];
+
+    if (params?.itemId) {
+      entryWhere.push(Prisma.sql`e.itemId = ${params.itemId}`);
+      exitWhere.push(Prisma.sql`x.itemId = ${params.itemId}`);
+    }
+
+    if (fromDate) {
+      entryWhere.push(Prisma.sql`e.entryDate >= ${fromDate}`);
+      exitWhere.push(Prisma.sql`x.exitDate >= ${fromDate}`);
+    }
+
+    if (toDate) {
+      entryWhere.push(Prisma.sql`e.entryDate <= ${toDate}`);
+      exitWhere.push(Prisma.sql`x.exitDate <= ${toDate}`);
+    }
+
+    if (search) {
+      const like = `%${search}%`;
+      entryWhere.push(
+        Prisma.sql`(i.name LIKE ${like} OR d.name LIKE ${like})`,
+      );
+      exitWhere.push(Prisma.sql`i.name LIKE ${like}`);
+    }
+
+    if (params?.type) {
+      exitWhere.push(Prisma.sql`x.type = ${params.type}`);
+    }
+
+    if (eventName) {
+      const like = `%${eventName}%`;
+      exitWhere.push(Prisma.sql`x.eventName LIKE ${like}`);
+    }
+
+    const entrySelect = Prisma.sql`
+      SELECT
+        'ENTRY' AS kind,
+        e.id AS movementId,
+        e.entryDate AS movementDate,
+        e.createdAt AS createdAt,
+        e.itemId AS itemId,
+        i.name AS itemName,
+        i.\`group\` AS itemGroup,
+        e.sector AS sector,
+        e.quantity AS quantity,
+        e.unit AS unit,
+        e.notes AS notes,
+        e.expiryDate AS expiryDate,
+        d.name AS donorName,
+        NULL AS exitType,
+        NULL AS eventName
+      FROM \`PantryEntry\` e
+      JOIN \`PantryItem\` i ON i.id = e.itemId
+      LEFT JOIN \`PantryDonor\` d ON d.id = e.donorId
+      WHERE ${Prisma.join(entryWhere, ' AND ')}
+    `;
+
+    const exitSelect = Prisma.sql`
+      SELECT
+        'EXIT' AS kind,
+        x.id AS movementId,
+        x.exitDate AS movementDate,
+        x.createdAt AS createdAt,
+        x.itemId AS itemId,
+        i.name AS itemName,
+        i.\`group\` AS itemGroup,
+        x.sector AS sector,
+        x.quantity AS quantity,
+        x.unit AS unit,
+        x.notes AS notes,
+        NULL AS expiryDate,
+        NULL AS donorName,
+        x.type AS exitType,
+        x.eventName AS eventName
+      FROM \`PantryExit\` x
+      JOIN \`PantryItem\` i ON i.id = x.itemId
+      WHERE ${Prisma.join(exitWhere, ' AND ')}
+    `;
+
+    const unions: Prisma.Sql[] = [];
+    if (kind === 'ALL' || kind === 'ENTRY') unions.push(entrySelect);
+    if (kind === 'ALL' || kind === 'EXIT') unions.push(exitSelect);
+
+    const unionSql = unions.length === 1 ? unions[0] : Prisma.join(unions, ' UNION ALL ');
+
+    type CountRow = { total: bigint | number };
+
+    const countRows = await this.prisma.$queryRaw<CountRow[]>(Prisma.sql`
+      SELECT COUNT(*) AS total
+      FROM (${unionSql}) u
+    `);
+
+    const totalRaw = countRows[0]?.total ?? 0;
+    const total = typeof totalRaw === 'bigint' ? Number(totalRaw) : Number(totalRaw);
+
+    type HistoryRow = {
+      kind: 'ENTRY' | 'EXIT';
+      movementId: string;
+      movementDate: Date;
+      createdAt: Date;
+      itemId: string;
+      itemName: string;
+      itemGroup: string | null;
+      sector: string | null;
+      quantity: unknown;
+      unit: string;
+      notes: string | null;
+      expiryDate: Date | null;
+      donorName: string | null;
+      exitType: string | null;
+      eventName: string | null;
+    };
+
+    const paginationSql = isAll
+      ? Prisma.sql``
+      : Prisma.sql`LIMIT ${take} OFFSET ${skip}`;
+
+    const rows = await this.prisma.$queryRaw<HistoryRow[]>(Prisma.sql`
+      SELECT *
+      FROM (${unionSql}) u
+      ORDER BY u.movementDate DESC, u.createdAt DESC, u.kind DESC, u.movementId DESC
+      ${paginationSql}
+    `);
+
+    const entryIds = rows
+      .filter((row) => row.kind === 'ENTRY')
+      .map((row) => row.movementId);
+    const exitIds = rows
+      .filter((row) => row.kind === 'EXIT')
+      .map((row) => row.movementId);
+
+    const [createdByMap, removedByMap] = await Promise.all([
+      this.resolveAuditUserLabels(tenantId, 'PantryEntry', entryIds),
+      this.resolveAuditUserLabels(tenantId, 'PantryExit', exitIds),
+    ]);
+
+    return {
+      data: rows.map((row) => {
+        const actor =
+          row.kind === 'ENTRY'
+            ? createdByMap.get(row.movementId) ?? 'Sistema'
+            : removedByMap.get(row.movementId) ?? 'Sistema';
+
+        return {
+          id: row.movementId,
+          kind: row.kind,
+          movementDate: row.movementDate,
+          createdAt: row.createdAt,
+          itemId: row.itemId,
+          item: {
+            id: row.itemId,
+            name: row.itemName,
+            unit: row.unit,
+            group: row.itemGroup,
+          },
+          sector: normalizeSector(row.sector),
+          quantity: Number(row.quantity),
+          unit: row.unit,
+          notes: row.notes,
+          expiryDate: row.expiryDate,
+          donorName: row.donorName,
+          type: row.exitType,
+          eventName: row.eventName,
+          actor,
+        };
+      }),
+      pagination: buildPaginationMeta({
+        page,
+        limit,
+        total,
+        isAll,
+      }),
+    };
+  }
 
   private async syncSectorsFromData(tenantId: string) {
     const [entrySectors, exitSectors, items] = await this.prisma.$transaction([

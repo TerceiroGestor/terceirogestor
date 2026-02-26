@@ -8,3 +8,4 @@ export * from "./donors";
 export * from "./entries";
 export * from "./exits";
 export * from "./sectors";
+export * from "./history";
