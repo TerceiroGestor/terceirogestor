@@ -100,8 +100,8 @@ Este documento define o **changelog/roadmap oficial** para implementar um "Web C
 - ListView e GraphView consomem o mesmo `search()` (mudando apenas parametros).
 
 ### v0.5 - Views MVP (List + Form)
-- [ ] `ListView` (grid) com sort, selection, columns, bulk actions e modo cards no mobile.
-- [ ] `FormView` (layout grid -> stack no mobile) com estados e validacoes.
+- [x] `ListView` (grid) com sort, selection, columns, bulk actions e modo cards no mobile.
+- [x] `FormView` (layout grid -> stack no mobile) com estados e validacoes.
 
 ### v0.6 - Views avancadas (Kanban + Graph + Calendar)
 - [ ] `KanbanView` com colunas configuraveis por Action (groupBy).
