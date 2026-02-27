@@ -24,8 +24,10 @@ import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import { pantryDonorsSearchView } from "@/web-client/registry/searchViews/pantry";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
@@ -43,6 +45,61 @@ function normalizeDonorValues(values: PantryDonorFormValues) {
   return { name, type, contact };
 }
 
+type PantryDonorsView = "table" | "kanban";
+
+type PantryDonorsFilters = {
+  view: PantryDonorsView;
+  searchText: string;
+  groupBy: string[];
+  pageIndex: number;
+  pageSize: number;
+};
+
+type PantryDonorsFavoriteState = Pick<
+  PantryDonorsFilters,
+  "view" | "searchText" | "groupBy" | "pageSize"
+>;
+
+const DEFAULT_GROUP_BY = ["type"];
+
+function normalizeView(value: string | null): PantryDonorsView {
+  return value === "kanban" ? "kanban" : "table";
+}
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+const parsePantryDonorsFilters = (params: URLSearchParams): PantryDonorsFilters => {
+  const view = normalizeView(params.get("view") ?? params.get("v"));
+  const searchText = params.get("q") ?? "";
+  const groupBy = (params.get("g") ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const page = parsePositiveInt(params.get("page"), 1);
+  const limit = parsePositiveInt(params.get("limit"), 10);
+
+  return {
+    view,
+    searchText,
+    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    pageIndex: page - 1,
+    pageSize: Math.min(Math.max(limit, 1), 200),
+  };
+};
+
+const serializePantryDonorsFilters = (state: PantryDonorsFilters) => ({
+  view: state.view === "table" ? undefined : state.view,
+  q: state.searchText.trim() ? state.searchText.trim() : undefined,
+  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
+  page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
+  limit: state.pageSize === 10 ? undefined : String(state.pageSize),
+});
+
 export function PantryDonorsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
@@ -59,23 +116,34 @@ export function PantryDonorsClientPage() {
   const [loading, setLoading] = React.useState(true);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
-  const [search, setSearch] = React.useState("");
 
-  const [screenState, setScreenState] = usePersistedUrlState<{
-    view: "table" | "kanban";
-  }>({
+  const [filters, setFilters] = usePersistedUrlState<PantryDonorsFilters>({
     storageKey: "screenState:pantry.donors",
-    trackedKeys: ["v"],
-    parse: (params) => {
-      const raw = params.get("v");
-      return { view: raw === "kanban" ? "kanban" : "table" };
-    },
-    serialize: (state) => ({ v: state.view === "table" ? undefined : state.view }),
+    trackedKeys: ["view", "v", "q", "g", "page", "limit"],
+    parse: parsePantryDonorsFilters,
+    serialize: serializePantryDonorsFilters,
   });
+
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filters.searchText.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.searchText]);
+
+  React.useEffect(() => {
+    const key = debouncedSearch;
+    if (resetPaginationKeyRef.current === null) {
+      resetPaginationKeyRef.current = key;
+      return;
+    }
+    if (resetPaginationKeyRef.current === key) return;
+    resetPaginationKeyRef.current = key;
+    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, setFilters]);
 
   const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
     () => [
@@ -136,9 +204,9 @@ export function PantryDonorsClientPage() {
     setLoading(true);
     try {
       const response = await listPantryDonors(token, {
-        q: search.trim() || undefined,
-        page: pagination.pageIndex + 1,
-        limit: pagination.pageSize,
+        q: debouncedSearch || undefined,
+        page: filters.pageIndex + 1,
+        limit: filters.pageSize,
       });
       setRows(response.data);
       setTotalCount(response.pagination.total);
@@ -155,11 +223,7 @@ export function PantryDonorsClientPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search, toast]);
-
-  React.useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [search]);
+  }, [token, canRead, filters.pageIndex, filters.pageSize, debouncedSearch, toast]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -290,6 +354,9 @@ export function PantryDonorsClientPage() {
     );
   }
 
+  const resolvedPageCount =
+    pageCount > 0 ? pageCount : totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
+
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
@@ -302,13 +369,46 @@ export function PantryDonorsClientPage() {
             : undefined
         }
         searchSlot={
-          <SearchBar value={search} onChange={setSearch} placeholder="Pesquisar doadores" />
+          <div className="flex w-full items-center gap-1">
+            <SearchBar
+              value={filters.searchText}
+              onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+              placeholder="Pesquisar doadores"
+              className="flex-1"
+            />
+            <SearchPanelMenu<PantryDonorsFavoriteState>
+              actionId="pantry.donors"
+              searchView={pantryDonorsSearchView}
+              domain={null}
+              onDomainChange={() => {}}
+              groupBy={filters.groupBy}
+              onGroupByChange={(groupBy) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+                }))
+              }
+              snapshot={{
+                view: filters.view,
+                searchText: filters.searchText,
+                groupBy: filters.groupBy,
+                pageSize: filters.pageSize,
+              }}
+              onApplyFavorite={(state) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  ...state,
+                  pageIndex: 0,
+                }))
+              }
+            />
+          </div>
         }
         viewSwitcherSlot={
           <ViewSwitcher
-            value={screenState.view}
+            value={filters.view}
             options={viewOptions}
-            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
         rightSlot={
@@ -327,14 +427,20 @@ export function PantryDonorsClientPage() {
       />
 
       <div className="w-full">
-        {screenState.view === "table" ? (
+        {filters.view === "table" ? (
           <DataTable
             columns={columns}
             data={rows}
             manualPagination
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
+            pageCount={resolvedPageCount}
+            pagination={{ pageIndex: filters.pageIndex, pageSize: filters.pageSize }}
+            onPaginationChange={(next) =>
+              setFilters((prev) => ({
+                ...prev,
+                pageIndex: next.pageIndex,
+                pageSize: next.pageSize,
+              }))
+            }
             totalCount={totalCount}
             toolbar={{ hidden: true }}
             rowActions={[
@@ -346,7 +452,13 @@ export function PantryDonorsClientPage() {
           <div className="space-y-3">
             <KanbanView<ApiPantryDonor>
               items={rows}
-              getColumnKey={(row) => (row.type === "COMPANY" ? "Empresa" : "Pessoa")}
+              getColumnKey={(row) => {
+                const field = filters.groupBy[0] ?? DEFAULT_GROUP_BY[0];
+                if (field === "type") {
+                  return row.type === "COMPANY" ? "Empresa" : "Pessoa";
+                }
+                return "Doadores";
+              }}
               renderCard={(row) => (
                 <div className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20">
                   <div className="truncate text-sm font-semibold text-foreground">{row.name}</div>
@@ -360,14 +472,14 @@ export function PantryDonorsClientPage() {
               )}
             />
             <PaginationBar
-              pageIndex={pagination.pageIndex}
-              pageCount={pageCount}
-              pageSize={pagination.pageSize}
+              pageIndex={filters.pageIndex}
+              pageCount={resolvedPageCount}
+              pageSize={filters.pageSize}
               onPageIndexChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageIndex: next }))
+                setFilters((prev) => ({ ...prev, pageIndex: next }))
               }
               onPageSizeChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+                setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
               }
               disabled={loading}
             />

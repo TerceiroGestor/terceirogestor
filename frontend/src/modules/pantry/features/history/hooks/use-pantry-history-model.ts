@@ -12,19 +12,26 @@ import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 
-export type PantryHistoryView = "cards" | "table" | "timeline" | "graph";
+export type PantryHistoryView = "kanban" | "table" | "timeline" | "graph";
 
 type PantryHistoryFilters = {
   view: PantryHistoryView;
   searchText: string;
   domain: Domain;
+  groupBy: string[];
   pageIndex: number;
   pageSize: number;
 };
 
+const DEFAULT_GROUP_BY = ["kind"];
+
 function normalizeView(value: string | null): PantryHistoryView {
   switch (value) {
+    case "kanban":
+      return "kanban";
+    // legacy alias
     case "cards":
+      return "kanban";
     case "table":
     case "timeline":
     case "graph":
@@ -106,13 +113,18 @@ const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilter
   const view = normalizeView(params.get("view"));
   const searchText = params.get("q") ?? "";
   const domain = parseDomain(params.get("d")) ?? buildDomainFromLegacyParams(params);
+  const groupBy = (params.get("g") ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
-  const limit = parsePositiveInt(params.get("limit"), 50);
+  const limit = parsePositiveInt(params.get("limit"), 100);
 
   return {
     view,
     searchText,
     domain,
+    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
   };
@@ -122,8 +134,9 @@ const serializePantryHistoryFilters = (state: PantryHistoryFilters) => ({
   view: state.view === "timeline" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
   d: state.domain ? serializeDomain(state.domain) : undefined,
+  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
-  limit: state.pageSize === 50 ? undefined : String(state.pageSize),
+  limit: state.pageSize === 100 ? undefined : String(state.pageSize),
 });
 
 function mapApiMovement(movement: ApiPantryHistoryMovement): PantryRecentMovement {
@@ -181,7 +194,7 @@ export function usePantryHistoryModel() {
 
   const [filters, setFilters] = usePersistedUrlState<PantryHistoryFilters>({
     storageKey: "screenState:pantry.history",
-    trackedKeys: ["view", "q", "d", "page", "limit", "kind", "from", "to", "type", "event", "itemId"],
+    trackedKeys: ["view", "q", "d", "g", "page", "limit", "kind", "from", "to", "type", "event", "itemId"],
     parse: parsePantryHistoryFilters,
     serialize: serializePantryHistoryFilters,
   });
@@ -214,13 +227,21 @@ export function usePantryHistoryModel() {
     return () => clearTimeout(handler);
   }, [filters.domain]);
 
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    setFilters((prev) => ({ ...prev, pageIndex: 0 }));
+    const key = `${debouncedSearch}:${debouncedDomainKey}`;
+    if (resetPaginationKeyRef.current === null) {
+      resetPaginationKeyRef.current = key;
+      return;
+    }
+    if (resetPaginationKeyRef.current === key) return;
+    resetPaginationKeyRef.current = key;
+    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
   }, [debouncedSearch, debouncedDomainKey, setFilters]);
 
   React.useEffect(() => {
     if (!shouldFetchAll) return;
-    setFilters((prev) => ({ ...prev, pageIndex: 0 }));
+    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
   }, [shouldFetchAll, setFilters]);
 
   const loadHistory = React.useCallback(

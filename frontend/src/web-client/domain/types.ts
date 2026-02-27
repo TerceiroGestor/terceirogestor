@@ -10,8 +10,11 @@ export type DomainOperator =
   | "<"
   | "<="
   | "in"
+  | "not_in"
   | "contains"
   | "ilike"
+  | "starts_with"
+  | "ends_with"
   | "between"
   | "is_null"
   | "not_null";
@@ -45,4 +48,3 @@ export type DomainNot = {
 export type DomainNode = DomainCondition | DomainGroup | DomainNot;
 
 export type Domain = DomainNode | null;
-

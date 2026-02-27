@@ -1,27 +1,11 @@
 "use client";
 
 import { listPantryHistory, type ApiPantryHistoryMovement } from "@/modules/pantry/api";
-import type { Domain, DomainCondition } from "@/web-client/domain/types";
+import type { Domain } from "@/web-client/domain/types";
 import type { SearchArgs, SearchResult } from "@/web-client/data-provider/types";
+import { collectAndConditions } from "@/web-client/data-provider/rest/domain-utils";
 
 type PantryHistoryExitType = "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
-
-function collectAndConditions(domain: Domain): DomainCondition[] | null {
-  if (!domain) return [];
-  if (domain.type === "condition") return [domain];
-  if (domain.type === "not") return null;
-  if (domain.type === "group") {
-    if (domain.combinator !== "and") return null;
-    const all: DomainCondition[] = [];
-    for (const child of domain.children) {
-      const flattened = collectAndConditions(child);
-      if (!flattened) return null;
-      all.push(...flattened);
-    }
-    return all;
-  }
-  return null;
-}
 
 function resolveHistoryQuery(domain: Domain) {
   const conditions = collectAndConditions(domain);
@@ -102,7 +86,7 @@ export async function searchPantryHistory(
   const queryParams = resolveHistoryQuery(args.domain ?? null);
 
   const pageIndex = args.pagination?.pageIndex ?? 0;
-  const pageSize = args.pagination?.pageSize ?? 50;
+  const pageSize = args.pagination?.pageSize ?? 100;
   const shouldFetchAll = Boolean(args.all);
 
   return listPantryHistory(token, {
@@ -118,4 +102,3 @@ export async function searchPantryHistory(
     all: shouldFetchAll ? true : undefined,
   });
 }
-

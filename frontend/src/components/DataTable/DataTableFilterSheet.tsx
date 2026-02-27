@@ -26,6 +26,10 @@ import {
 type DataTableFilterSheetProps<TData> = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  openSection?: "columns" | "groups" | "filters" | "chart" | null;
+  onOpenSectionChange?: React.Dispatch<
+    React.SetStateAction<"columns" | "groups" | "filters" | "chart" | null>
+  >;
   onReset: () => void;
   filterableColumns: Column<TData, unknown>[];
   groupableColumns: Column<TData, unknown>[];
@@ -42,6 +46,8 @@ type DataTableFilterSheetProps<TData> = {
 export function DataTableFilterSheet<TData>({
   open,
   onOpenChange,
+  openSection: openSectionProp,
+  onOpenSectionChange,
   onReset,
   filterableColumns,
   groupableColumns,
@@ -57,6 +63,8 @@ export function DataTableFilterSheet<TData>({
   const [openSection, setOpenSection] = React.useState<
     "columns" | "groups" | "filters" | "chart" | null
   >(null);
+  const resolvedOpenSection = openSectionProp ?? openSection;
+  const setResolvedOpenSection = onOpenSectionChange ?? setOpenSection;
   const visibleColumnOptions = React.useMemo(
     () => visibleColumns.filter((column) => column.id !== "actions"),
     [visibleColumns],
@@ -89,9 +97,9 @@ export function DataTableFilterSheet<TData>({
           <div className="p-3 overflow-y-auto max-h-[calc(100svh-120px)]">
             <div className="space-y-2">
               <DataTableFilterSheetColumns
-                open={openSection === "columns"}
+                open={resolvedOpenSection === "columns"}
                 onToggle={() =>
-                  setOpenSection((prev) =>
+                  setResolvedOpenSection((prev) =>
                     prev === "columns" ? null : "columns",
                   )
                 }
@@ -99,9 +107,9 @@ export function DataTableFilterSheet<TData>({
               />
 
               <DataTableFilterSheetGroups
-                open={openSection === "groups"}
+                open={resolvedOpenSection === "groups"}
                 onToggle={() =>
-                  setOpenSection((prev) =>
+                  setResolvedOpenSection((prev) =>
                     prev === "groups" ? null : "groups",
                   )
                 }
@@ -109,9 +117,9 @@ export function DataTableFilterSheet<TData>({
               />
 
               <DataTableFilterSheetFilters
-                open={openSection === "filters"}
+                open={resolvedOpenSection === "filters"}
                 onToggle={() =>
-                  setOpenSection((prev) =>
+                  setResolvedOpenSection((prev) =>
                     prev === "filters" ? null : "filters",
                   )
                 }
@@ -121,9 +129,11 @@ export function DataTableFilterSheet<TData>({
               />
 
               <DataTableFilterSheetChartSection
-                open={openSection === "chart"}
+                open={resolvedOpenSection === "chart"}
                 onToggle={() =>
-                  setOpenSection((prev) => (prev === "chart" ? null : "chart"))
+                  setResolvedOpenSection((prev) =>
+                    prev === "chart" ? null : "chart",
+                  )
                 }
                 chart={chart}
                 onOpenChart={() => {

@@ -1,5 +1,6 @@
 export { DataTable } from "@/components/DataTable/DataTable";
 export { DataTableClient } from "@/components/DataTable/DataTableClient";
+export type { DataTableApi, DataTableToolsSection } from "@/components/DataTable/DataTableClient";
 export { DataTableActionMenu } from "@/components/DataTable/DataTableActionMenu";
 export { DataTableColumnMenu } from "@/components/DataTable/DataTableColumnMenu";
 export { DataTableFilterSheet } from "@/components/DataTable/DataTableFilterSheet";

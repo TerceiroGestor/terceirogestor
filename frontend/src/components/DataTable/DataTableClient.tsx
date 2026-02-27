@@ -63,11 +63,14 @@ export type DataTableClientProps<TData> = {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   initialColumnPinning?: ColumnPinningState;
+  defaultPageSize?: number;
+  apiRef?: React.MutableRefObject<DataTableApi | null>;
   searchPlaceholder?: string;
   toolbar?: {
     hidden?: boolean;
     hideSearch?: boolean;
     hideFiltersButton?: boolean;
+    hideToolsSheet?: boolean;
   };
   groupableColumns?: string[];
   manualPagination?: boolean;
@@ -118,11 +121,21 @@ export type DataTableClientProps<TData> = {
   onRowClick?: (row: TData) => void;
 };
 
+export type DataTableToolsSection = "columns" | "groups" | "filters" | "chart" | null;
+
+export type DataTableApi = {
+  openTools: (section?: Exclude<DataTableToolsSection, null>) => void;
+  closeTools: () => void;
+  toggleTools: (section?: Exclude<DataTableToolsSection, null>) => void;
+};
+
 
 export function DataTableClient<TData>({
   columns,
   data,
   initialColumnPinning,
+  defaultPageSize,
+  apiRef,
   searchPlaceholder = "Search...",
   toolbar,
   groupableColumns = [],
@@ -146,6 +159,7 @@ export function DataTableClient<TData>({
   tableClassName,
   onSelectedRowsChange,
 }: DataTableClientProps<TData>) {
+  const resolvedDefaultPageSize = defaultPageSize ?? DEFAULT_PAGE_SIZE;
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -161,7 +175,7 @@ export function DataTableClient<TData>({
   const [pagination, setPagination] = React.useState<PaginationState>(
     paginationProp ?? {
       pageIndex: 0,
-      pageSize: DEFAULT_PAGE_SIZE,
+      pageSize: resolvedDefaultPageSize,
     },
   );
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -180,6 +194,9 @@ export function DataTableClient<TData>({
       : [];
   });
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [toolsSection, setToolsSection] = React.useState<DataTableToolsSection>(
+    null,
+  );
   const {
     mountedRef,
     safeSetSorting,
@@ -207,6 +224,65 @@ export function DataTableClient<TData>({
     setFiltersOpen,
   });
 
+  const openTools = React.useCallback(
+    (section?: Exclude<DataTableToolsSection, null>) => {
+      if (section) setToolsSection(section);
+      safeSetFiltersOpen(true);
+    },
+    [safeSetFiltersOpen],
+  );
+
+  const closeTools = React.useCallback(() => {
+    safeSetFiltersOpen(false);
+  }, [safeSetFiltersOpen]);
+
+  const toggleTools = React.useCallback(
+    (section?: Exclude<DataTableToolsSection, null>) => {
+      if (section) setToolsSection(section);
+      safeSetFiltersOpen((prev) => !prev);
+    },
+    [safeSetFiltersOpen],
+  );
+
+  const api = React.useMemo<DataTableApi>(
+    () => ({
+      openTools,
+      closeTools,
+      toggleTools,
+    }),
+    [closeTools, openTools, toggleTools],
+  );
+
+  React.useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = api;
+    return () => {
+      apiRef.current = null;
+    };
+  }, [api, apiRef]);
+
+  const applyPagination = React.useCallback(
+    (next: PaginationState) => {
+      safeSetPagination(next);
+      onPaginationChange?.(next);
+    },
+    [onPaginationChange, safeSetPagination],
+  );
+
+  const resolvedPageCount = React.useMemo(() => {
+    if (!manualPagination) return pageCount;
+    if (typeof pageCount === "number" && Number.isFinite(pageCount) && pageCount > 0) {
+      return pageCount;
+    }
+    if (typeof totalCount !== "number" || !Number.isFinite(totalCount) || totalCount <= 0) {
+      return 0;
+    }
+    const current = paginationProp ?? pagination;
+    const size = current.pageSize;
+    if (!Number.isFinite(size) || size <= 0) return 0;
+    return Math.ceil(totalCount / size);
+  }, [manualPagination, pageCount, pagination, paginationProp, totalCount]);
+
   React.useEffect(() => {
     if (enableRowSelection) return;
     safeSetRowSelection({});
@@ -223,30 +299,47 @@ export function DataTableClient<TData>({
     }
   }, [grouping, onGroupingChange]);
 
+  const wasGroupedRef = React.useRef(false);
+  const lastUngroupedPaginationRef = React.useRef<PaginationState | null>(null);
+
   React.useEffect(() => {
     if (!mountedRef.current) return;
     if (manualPagination) return;
-    if (grouping.length > 0) {
-      const fullSize = Math.max(data.length, 1);
-      if (pagination.pageSize !== fullSize || pagination.pageIndex !== 0) {
-        safeSetPagination({ pageIndex: 0, pageSize: fullSize });
-      }
-      return;
+
+    const currentPagination = paginationProp ?? pagination;
+    const isGrouped = grouping.length > 0;
+
+    if (isGrouped && !wasGroupedRef.current) {
+      lastUngroupedPaginationRef.current = currentPagination;
     }
+
+    if (!isGrouped && wasGroupedRef.current) {
+      const restore = lastUngroupedPaginationRef.current;
+      lastUngroupedPaginationRef.current = null;
+      if (restore) {
+        applyPagination({ ...restore, pageIndex: 0 });
+      }
+    }
+
+    wasGroupedRef.current = isGrouped;
+
+    if (!isGrouped) return;
+
+    const fullSize = Math.max(data.length, 1);
     if (
-      pagination.pageSize !== DEFAULT_PAGE_SIZE &&
-      data.length >= DEFAULT_PAGE_SIZE
+      currentPagination.pageSize !== fullSize ||
+      currentPagination.pageIndex !== 0
     ) {
-      safeSetPagination((prev) => ({ ...prev, pageSize: DEFAULT_PAGE_SIZE }));
+      applyPagination({ pageIndex: 0, pageSize: fullSize });
     }
   }, [
+    applyPagination,
     data.length,
     grouping.length,
     manualPagination,
     mountedRef,
-    pagination.pageIndex,
-    pagination.pageSize,
-    safeSetPagination,
+    pagination,
+    paginationProp,
   ]);
 
   const filterFn = React.useCallback<FilterFn<TData>>(
@@ -526,11 +619,10 @@ export function DataTableClient<TData>({
         typeof updater === "function"
           ? updater(paginationProp ?? pagination)
           : updater;
-      safeSetPagination(next);
-      onPaginationChange?.(next);
+      applyPagination(next);
     },
     manualPagination,
-    pageCount,
+    pageCount: resolvedPageCount,
     enableColumnResizing: true,
     columnResizeMode: "onChange",
     enableRowSelection,
@@ -904,7 +996,8 @@ export function DataTableClient<TData>({
     ) : undefined;
 
   const hideToolbar = Boolean(toolbar?.hidden);
-  const hideFilterSheet = hideToolbar || Boolean(toolbar?.hideFiltersButton);
+  const hideToolsSheet = Boolean(toolbar?.hideToolsSheet ?? toolbar?.hidden);
+  const hideFilterSheet = hideToolsSheet || Boolean(toolbar?.hideFiltersButton);
 
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-2">
@@ -1075,14 +1168,22 @@ export function DataTableClient<TData>({
               )}
             </TableBody>
           </Table>
+          <div className="border-t border-border/60 bg-card/30 px-2 py-2 text-muted-foreground">
+            <DataTablePagination
+              table={table}
+              showPagination={showPagination}
+              totalCount={totalCount}
+            />
+          </div>
         </div>
-        <DataTablePagination table={table} showPagination={showPagination} />
       </div>
 
       {hideFilterSheet ? null : (
         <DataTableFilterSheet
           open={filtersOpen}
           onOpenChange={safeSetFiltersOpen}
+          openSection={toolsSection}
+          onOpenSectionChange={setToolsSection}
           onReset={resetAll}
           filterableColumns={filterableColumns}
           groupableColumns={groupable}

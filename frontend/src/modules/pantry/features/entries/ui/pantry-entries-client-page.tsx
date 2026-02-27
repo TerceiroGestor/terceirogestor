@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
+import type { DataTableApi } from "@/components/DataTable";
 import { FormEngine } from "@/components/FormEngine";
 import { SectionDialog } from "@/components/section-dialog";
 import { useConfirm } from "@/components/confirm/use-confirm";
@@ -17,7 +19,6 @@ import {
   createPantrySector,
   deletePantryEntry,
   listPantryDonors,
-  listPantryEntries,
   listPantryItems,
   listPantrySectors,
   updatePantryEntry,
@@ -33,14 +34,20 @@ import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/
 import type { PantryEntryFormValues } from "@/modules/pantry/shared/domain/types";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR, todayLocalIsoDate } from "@/lib/date";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import type { Domain } from "@/web-client/domain/types";
+import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
+import { pantryEntriesSearchView } from "@/web-client/registry/searchViews/pantry";
 import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
-import { LayoutGrid, Table2 } from "lucide-react";
+import { Layers, LayoutGrid, Table2 } from "lucide-react";
 
 function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
@@ -55,12 +62,74 @@ function todayIsoDate() {
   return todayLocalIsoDate();
 }
 
+type PantryEntriesView = "table" | "kanban";
+
+type PantryEntriesFilters = {
+  view: PantryEntriesView;
+  searchText: string;
+  domain: Domain;
+  groupBy: string[];
+  pageIndex: number;
+  pageSize: number;
+};
+
+const DEFAULT_GROUP_BY = ["sector"];
+
+function normalizeView(value: string | null): PantryEntriesView {
+  switch (value) {
+    case "kanban":
+      return "kanban";
+    default:
+      return "table";
+  }
+}
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+const parsePantryEntriesFilters = (params: URLSearchParams): PantryEntriesFilters => {
+  const view = normalizeView(params.get("view") ?? params.get("v"));
+  const searchText = params.get("q") ?? "";
+  const domain = parseDomain(params.get("d")) ?? null;
+  const groupBy = (params.get("g") ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const page = parsePositiveInt(params.get("page"), 1);
+  const limit = parsePositiveInt(params.get("limit"), 100);
+
+  return {
+    view,
+    searchText,
+    domain,
+    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    pageIndex: page - 1,
+    pageSize: Math.min(Math.max(limit, 1), 200),
+  };
+};
+
+const serializePantryEntriesFilters = (state: PantryEntriesFilters) => ({
+  view: state.view === "table" ? undefined : state.view,
+  q: state.searchText.trim() ? state.searchText.trim() : undefined,
+  d: state.domain ? serializeDomain(state.domain) : undefined,
+  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
+  page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
+  limit: state.pageSize === 100 ? undefined : String(state.pageSize),
+});
+
 export function PantryEntriesClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { confirm } = useConfirm();
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
@@ -81,23 +150,19 @@ export function PantryEntriesClientPage() {
   const [loading, setLoading] = React.useState(true);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
-  const [search, setSearch] = React.useState("");
+  const tableApiRef = React.useRef<DataTableApi | null>(null);
 
-  const [screenState, setScreenState] = usePersistedUrlState<{
-    view: "table" | "kanban";
-  }>({
+  const [filters, setFilters] = usePersistedUrlState<PantryEntriesFilters>({
     storageKey: "screenState:pantry.entries",
-    trackedKeys: ["v"],
-    parse: (params) => {
-      const raw = params.get("v");
-      return { view: raw === "kanban" ? "kanban" : "table" };
-    },
-    serialize: (state) => ({ v: state.view === "table" ? undefined : state.view }),
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit"],
+    parse: parsePantryEntriesFilters,
+    serialize: serializePantryEntriesFilters,
   });
+
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const [debouncedDomainKey, setDebouncedDomainKey] = React.useState("");
+
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
   const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
     () => [
@@ -233,50 +298,105 @@ export function PantryEntriesClientPage() {
     }
   }, [token, canRead]);
 
-  const loadEntries = React.useCallback(async () => {
-    if (!token || !canRead) return;
-    setLoading(true);
-    try {
-      const response = await listPantryEntries(token, {
-        q: search.trim() || undefined,
-        page: pagination.pageIndex + 1,
-        limit: pagination.pageSize,
-      });
-      setRows(response.data);
-      setTotalCount(response.pagination.total);
-      setPageCount(response.pagination.pages);
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha ao carregar entradas.";
-      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
-      setRows([]);
-      setTotalCount(0);
-      setPageCount(0);
-    } finally {
-      setLoading(false);
+  const enabled = Boolean(token && isAuthenticated && canRead && !authLoading);
+
+  const requestKey = React.useMemo(() => {
+    return `${filters.pageIndex}:${filters.pageSize}:${debouncedSearch}:${debouncedDomainKey}`;
+  }, [debouncedDomainKey, debouncedSearch, filters.pageIndex, filters.pageSize]);
+
+  const inFlightRequestRef = React.useRef<string | null>(null);
+  const lastRequestRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filters.searchText.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.searchText]);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDomainKey(filters.domain ? serializeDomain(filters.domain) : "");
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.domain]);
+
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const key = `${debouncedSearch}:${debouncedDomainKey}`;
+    if (resetPaginationKeyRef.current === null) {
+      resetPaginationKeyRef.current = key;
+      return;
     }
-  }, [token, canRead, pagination.pageIndex, pagination.pageSize, search, toast]);
+    if (resetPaginationKeyRef.current === key) return;
+    resetPaginationKeyRef.current = key;
+    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, debouncedDomainKey, setFilters]);
 
   React.useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [search]);
-
-  React.useEffect(() => {
-    if (authLoading) return;
-    if (!token || !isAuthenticated || !canRead) {
+    if (!enabled) {
       setLoading(false);
       return;
     }
-    loadLookups();
-    loadEntries();
-  }, [authLoading, token, isAuthenticated, canRead, loadLookups, loadEntries]);
+    void loadLookups();
+  }, [enabled, loadLookups]);
+
+  const loadEntries = React.useCallback(
+    async (force = false) => {
+      if (!enabled) return;
+
+      if (!force) {
+        if (inFlightRequestRef.current === requestKey) return;
+        if (lastRequestRef.current === requestKey) return;
+      }
+
+      inFlightRequestRef.current = requestKey;
+      setLoading(true);
+      try {
+        const response = await dataProvider.search<ApiPantryEntry>("pantry.entries", {
+          domain: filters.domain,
+          searchText: debouncedSearch || undefined,
+          pagination: {
+            pageIndex: filters.pageIndex,
+            pageSize: filters.pageSize,
+          },
+        });
+        setRows(response.data);
+        setTotalCount(response.pagination.total);
+        setPageCount(response.pagination.pages);
+        lastRequestRef.current = requestKey;
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar entradas.";
+        toast({ variant: "destructive", title: "Falha ao carregar", description: message });
+        setRows([]);
+        setTotalCount(0);
+        setPageCount(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      debouncedSearch,
+      enabled,
+      filters.domain,
+      filters.pageIndex,
+      filters.pageSize,
+      requestKey,
+      toast,
+      dataProvider,
+    ],
+  );
+
+  React.useEffect(() => {
+    void loadEntries();
+  }, [loadEntries, requestKey]);
 
   const openCreate = React.useCallback(() => {
-    setEditing(null);
-    setDialogOpen(true);
-  }, []);
+    router.push(withTenantPath("/pantry/entries/new", tenantSlug));
+  }, [router, tenantSlug]);
 
   const openEdit = React.useCallback(
     (entry: ApiPantryEntry) => {
@@ -481,6 +601,9 @@ export function PantryEntriesClientPage() {
     );
   }
 
+  const resolvedPageCount =
+    pageCount > 0 ? pageCount : totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
+
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
@@ -492,17 +615,77 @@ export function PantryEntriesClientPage() {
               }
             : undefined
         }
-        searchSlot={<SearchBar value={search} onChange={setSearch} placeholder="Pesquisar entradas" />}
+        searchSlot={
+          <div className="flex w-full items-center gap-1">
+            <SearchBar
+              value={filters.searchText}
+              onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+              placeholder="Pesquisar entradas"
+              className="flex-1"
+            />
+            <SearchPanelMenu<
+              Pick<
+                PantryEntriesFilters,
+                "view" | "searchText" | "domain" | "groupBy" | "pageSize"
+              >
+            >
+              actionId="pantry.entries"
+              searchView={pantryEntriesSearchView}
+              domain={filters.domain}
+              onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+              groupBy={filters.groupBy}
+              onGroupByChange={(groupBy) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+                }))
+              }
+              snapshot={{
+                view: filters.view,
+                searchText: filters.searchText,
+                domain: filters.domain,
+                groupBy: filters.groupBy,
+                pageSize: filters.pageSize,
+              }}
+              onApplyFavorite={(state) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  ...state,
+                  pageIndex: 0,
+                }))
+              }
+            />
+          </div>
+        }
+        groupBySlot={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={filters.view !== "table"}
+            onClick={() => tableApiRef.current?.openTools("groups")}
+            title="Agrupar"
+            aria-label="Agrupar"
+          >
+            <Layers className="size-4" />
+          </Button>
+        }
         viewSwitcherSlot={
           <ViewSwitcher
-            value={screenState.view}
+            value={filters.view}
             options={viewOptions}
-            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
         rightSlot={
           <>
-            <Button size="sm" variant="outline" onClick={loadEntries} disabled={loading}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadEntries(true)}
+              disabled={loading}
+            >
               Atualizar
             </Button>
             <div className="whitespace-nowrap text-[11px] text-muted-foreground">
@@ -516,16 +699,23 @@ export function PantryEntriesClientPage() {
       />
 
       <div className="w-full">
-        {screenState.view === "table" ? (
+        {filters.view === "table" ? (
           <DataTable
             columns={columns}
             data={rows}
+            apiRef={tableApiRef}
             manualPagination
-            pageCount={pageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
+            pageCount={resolvedPageCount}
+            pagination={{ pageIndex: filters.pageIndex, pageSize: filters.pageSize }}
+            onPaginationChange={(next) =>
+              setFilters((prev) => ({
+                ...prev,
+                pageIndex: next.pageIndex,
+                pageSize: next.pageSize,
+              }))
+            }
             totalCount={totalCount}
-            toolbar={{ hidden: true }}
+            toolbar={{ hidden: true, hideToolsSheet: false }}
             rowActions={[
               { id: "edit", label: "Editar", onSelect: openEdit },
               { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
@@ -535,7 +725,19 @@ export function PantryEntriesClientPage() {
           <div className="space-y-3">
             <KanbanView<ApiPantryEntry>
               items={rows}
-              getColumnKey={(row) => row.sector?.trim() || "Geral"}
+              getColumnKey={(row) => {
+                const field = filters.groupBy[0] ?? "sector";
+                if (field === "itemId") {
+                  return itemMap.get(row.itemId)?.name ?? row.itemId;
+                }
+                if (field === "donorId") {
+                  return row.donor?.name?.trim() || row.donorId || "Sem doador";
+                }
+                if (field === "entryDate") {
+                  return (row.entryDate ?? "").slice(0, 10) || "Sem data";
+                }
+                return row.sector?.trim() || "Geral";
+              }}
               renderCard={(row) => (
                 <div className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20">
                   <div className="flex items-start justify-between gap-2">
@@ -562,14 +764,14 @@ export function PantryEntriesClientPage() {
               )}
             />
             <PaginationBar
-              pageIndex={pagination.pageIndex}
-              pageCount={pageCount}
-              pageSize={pagination.pageSize}
+              pageIndex={filters.pageIndex}
+              pageCount={resolvedPageCount}
+              pageSize={filters.pageSize}
               onPageIndexChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageIndex: next }))
+                setFilters((prev) => ({ ...prev, pageIndex: next }))
               }
               onPageSizeChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+                setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
               }
               disabled={loading}
             />

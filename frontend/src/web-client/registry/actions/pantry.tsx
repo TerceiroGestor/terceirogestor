@@ -7,8 +7,10 @@ import {
   PantryItemsClientPage,
   PantryOverviewClientPage,
 } from "@/modules/pantry";
+import { PantryEntryCreateClientPage } from "@/modules/pantry/features/entries/ui/pantry-entry-create-client-page";
 import { PantryExitSheetPage } from "@/modules/pantry/features/exits/ui/pantry-exit-sheet-page";
 import { PantryHistoryClientPage } from "@/modules/pantry/features/history/ui/pantry-history-client-page";
+import { PantryItemCreateClientPage } from "@/modules/pantry/features/items/ui/pantry-item-create-client-page";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import type { WindowAction } from "@/web-client/registry/types";
 
@@ -33,6 +35,18 @@ export const pantryItemsAction: WindowAction = {
   render: () => <PantryItemsClientPage />,
 };
 
+export const pantryItemsCreateAction: WindowAction = {
+  id: "pantry.items.new",
+  title: "Novo alimento",
+  breadcrumbs: [
+    { label: "Despensa", href: "/pantry" },
+    { label: "Itens", href: "/pantry/items" },
+  ],
+  permissions: ["pantry.create"],
+  actionSlot: <PantryHeaderNav />,
+  render: () => <PantryItemCreateClientPage />,
+};
+
 export const pantryEntriesAction: WindowAction = {
   id: "pantry.entries",
   title: "Entradas",
@@ -43,6 +57,18 @@ export const pantryEntriesAction: WindowAction = {
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryEntriesClientPage />,
+};
+
+export const pantryEntriesCreateAction: WindowAction = {
+  id: "pantry.entries.new",
+  title: "Nova entrada",
+  breadcrumbs: [
+    { label: "Despensa", href: "/pantry" },
+    { label: "Entradas", href: "/pantry/entries" },
+  ],
+  permissions: ["pantry.create"],
+  actionSlot: <PantryHeaderNav />,
+  render: () => <PantryEntryCreateClientPage />,
 };
 
 export const pantryExitsAction: WindowAction = {

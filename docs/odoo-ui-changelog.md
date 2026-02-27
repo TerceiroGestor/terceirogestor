@@ -1,150 +1,71 @@
-# Changelog - UI Framework (padrao Odoo)
+# Estrategia Definitiva - Web Client estilo Odoo (v2)
 
-Este documento define o **changelog/roadmap oficial** para implementar um "Web Client" inspirado no Odoo, com foco em **componentizacao**, **responsividade total** e **arquitetura metadata-driven**.
+Este documento troca a estrategia de "parecer com o Odoo" por uma estrategia de **ferramentas definitivas**: um conjunto pequeno de componentes + contratos que funcionam igual em qualquer modulo.
 
-## Stack atual (base para as decisoes)
-- Frontend: Next.js (App Router) + React + TypeScript + Tailwind.
-- Backend: NestJS + Prisma + REST.
+## Objetivo
+- 1 padrao de tela para navegacao de registros (Kanban/List/Table/Timeline/Graph/Calendar...).
+- 1 estado de query por *Action* que dirige a view ativa.
+- Control Panel sempre no mesmo lugar, compacto, e com as mesmas interacoes.
 
-## Regras definitivas (nao negociaveis)
-1. **Menu -> Action -> Screen**: toda navegacao de modulo abre uma *Action* (Window Action).
-2. **View nao muda dataset**: trocar List/Kanban/Timeline/Graph etc muda apenas apresentacao (mesma query state).
-3. **Search/Filters/GroupBy/Favorites** funcionam em todas as views do *mesmo Action*.
-4. Estado de tela sempre persistido em **URL + storage** (quando fizer sentido): view, domain, grouping, sort, pagination.
-5. Nenhuma pagina ad-hoc nova dentro de modulo: paginas devem ser compostas via `Screen` + `Action` + `ViewRenderer`.
+## Padrao unico de tela (nao negociavel)
+1. **Menu -> Action -> Screen**: toda navegacao abre uma `WindowAction`.
+2. **Trocar ViewType nao muda o dataset**: muda so a apresentacao (mesma query state).
+3. **Search existe em todas as telas de listagem** e, dentro do Search, ficam:
+   - Filtros (Domain)
+   - GroupBy (organizador/coluna do Kanban)
+   - Favoritos (Saved Searches)
+4. **ViewType existe em todas as telas de listagem** (quando a action tiver mais de uma view).
+5. **Uma unica fonte de verdade de paginacao**, sem resets no mount.
 
-## Contratos obrigatorios (glossario tecnico)
-- **Menu**: navegacao do modulo; item aponta para `actionId`.
-- **Action (Window Action)**: define `model`, views disponiveis, view default, permissoes e contexto.
-- **Model**: definicao de entidade (campos/tipos) usada por DataProvider e views.
-- **View**: definicao de representacao (List/Kanban/Form/Graph/Calendar...).
-- **Search View**: define o que pode ser buscado/filtrado/agrupado para um Model.
-- **Domain / Query AST**: formato unificado de filtros (AND/OR/NOT, operadores etc.).
-- **Context**: objeto propagado na navegacao (tenant, usuario, defaults, preferencias, favoritos).
+## Ferramentas definitivas (o que TODO modulo deve reutilizar)
+- `ControlPanelShell`: layout fixo no topo (acao primaria, search, view switcher).
+- `PageControlPanel`: injeta os slots do Control Panel por pagina/action.
+- `SearchBar`: input compacto.
+- `SearchPanelMenu`: dropdown compacto com **Filtros + GroupBy + Favoritos**.
+- `ViewSwitcher`: troca de ViewType.
+- `PaginationBar`: paginacao para views nao-table (ex.: Kanban, Timeline).
+- `usePersistedUrlState`: estado persistido (URL + localStorage) com migracao segura.
 
-## Estado e eventos (interface padrao)
-### ScreenState (minimo)
-- `actionId`
-- `modelName`
-- `activeViewType`
-- `domain`
+## Contrato de estado (ActionQueryState)
+Minimo (por action):
+- `view` (ViewType)
 - `searchText`
-- `groupBy[]`
-- `sort[]`
-- `pagination`
-- `selection`
-- `context`
+- `domain` (Domain AST)
+- `groupBy[]` (organizador; no Kanban, 1 campo ativo)
+- `pagination`: `pageIndex` (0-based) + `pageSize`
 
-### Eventos (minimo)
-- `onCreate()`
+Eventos minimos:
 - `onSearchTextChange(text)`
-- `onApplyDomain(domain)`
-- `onChangeGroupBy(groupBy[])`
-- `onSaveFavorite(favorite)`
-- `onLoadFavorite(favoriteId)`
-- `onChangeView(viewType)`
-- `onOpenRecord(id)`
-- `onBulkAction(actionKey, selection)`
+- `onDomainChange(domain)`
+- `onGroupByChange(groupBy[])`
+- `onChangeView(view)`
+- `onPaginationChange(pageIndex/pageSize)`
+- `onSaveFavorite(state)` / `onApplyFavorite(state)`
 
-## Entregaveis (macro-fases)
+## Regras de Search (compacto e sempre igual)
+- O Control Panel mostra **1 linha**: `SearchBar` + 1 botao (menu) para abrir `SearchPanelMenu`.
+- O `SearchPanelMenu` e a casa de **tudo** que muda a query state: filtros, groupBy, favoritos.
+- Qualquer mudanca em `searchText`/`domain` deve levar a `pageIndex = 0` (mas nunca no mount).
 
-### v0.1 - Shell + Control Panel (MVP)
-- [x] Criar `WebClientShell` (Top Navbar + Module Menu + Content Area).
-- [x] Criar `ControlPanelShell` (Create, Breadcrumb, Search, Filter, GroupBy, Favorites, ViewSwitcher).
-- [ ] Definir responsividade minima (desktop/tablet/mobile) com "densidade adaptativa".
-- [ ] Definir tokens visuais (cores, espacamento, tipografia, bordas) como fonte unica.
-- [ ] Definir biblioteca unica de icones (padrao: Lucide) e regras de uso (tooltip, icon-only no mobile).
+## Regras de ViewType (sempre presente)
+- Toda listagem precisa expor `ViewSwitcher`.
+- Para Kanban, o `groupBy[0]` define a coluna organizadora (o "organizer" da view).
+- Cada action precisa de um default claro (ex.: Entradas -> `sector`, Saidas -> `type`, History -> `kind`).
 
-**Criterios de aceite**
-- Control Panel aparece sempre no mesmo lugar em qualquer tela de modulo.
-- Mobile: sidebar vira drawer; control panel quebra em 2 linhas ou bottom-sheet.
+## Paginacao (fix definitivo)
+- Fonte unica: `pagination.pageIndex/pageSize` pertence ao ActionQueryState.
+- Reset de pagina so quando **Search/Domain** muda (e nao no mount).
+- Quando `pageCount` diminuir, clamp/ajustar `pageIndex` (evita ficar preso em pagina invalida).
 
-**Design System (escopo minimo)**
-- Tokens: cores, tipografia, espacamento, raios/bordas, alturas (32/36/40/48px).
-- Densidade adaptativa:
-  - `compact` (desktop) e `comfort` (mobile/tablet) por breakpoint.
-  - tabelas densas no desktop; modo cards/colunas prioritarias no mobile.
+## Status real (2026-02-26)
+Implementado no repo (base do padrao):
+- `SearchPanelMenu` com GroupBy ativo (organizador) + Favoritos.
+- Search consolidado: `SearchBar` + `SearchPanelMenu` no mesmo slot (compacto).
+- Kanban real no `pantry.history` (antes era "cards" rotulado como Kanban).
+- Persistencia mais segura: `usePersistedUrlState` migra localStorage mesclando defaults do parser.
+- Reset de paginacao corrigido (nao reseta no mount; so quando `searchText/domain` muda de verdade).
 
-### v0.2 - Registry: Menu/Action/Screen/View
-- [ ] Criar registry central de `modules` (metadados) com:
-  - `menus[]`
-  - `actions[]` (MVP entregue: actions + searchViews iniciais)
-  - `models[]`
-  - `views[]`
-  - `searchViews[]` (MVP entregue)
-- [x] Criar `ScreenHost` (resolve actionId -> monta Screen).
-- [ ] `ViewRenderer` (host que monta a view ativa a partir de metadata).
-
-**Criterios de aceite**
-- Novo modulo nasce registrando Menu + Action + Views (sem pagina custom).
-
-### v0.3 - Domain AST + AdvancedFilterBuilder
-- [x] Definir formato de Domain AST (serializavel em URL e storage).
-- [x] Implementar `AdvancedFilterBuilder` (UI) para construir Domain.
-- [x] `FilterMenu` e `SearchBar` passam a gerar Domain/SearchText unificados.
-
-**Criterios de aceite**
-- Domain suporta AND/OR/NOT e operadores essenciais (=, !=, >, <, in, contains/ilike, between).
-- Aplica igual em List/Kanban/Graph.
-
-### v0.4 - DataProvider unificado
-- [x] Criar `DataProvider` com contratos:
-  - `search(model, params)`
-  - `read(model, id)`
-  - `create(model, payload)`
-  - `update(model, id, payload)`
-  - `delete(model, id)`
-- [x] Padronizar retorno: `data[]`, `pagination`, `meta` (agregacoes/facets quando necessario).
-
-**Criterios de aceite**
-- ListView e GraphView consomem o mesmo `search()` (mudando apenas parametros).
-
-### v0.5 - Views MVP (List + Form)
-- [x] `ListView` (grid) com sort, selection, columns, bulk actions e modo cards no mobile.
-- [x] `FormView` (layout grid -> stack no mobile) com estados e validacoes.
-
-### v0.6 - Views avancadas (Kanban + Graph + Calendar)
-- [x] `KanbanView` com colunas configuraveis por Action (groupBy).
-- [x] `GraphView` (MVP): renderiza sÃ©ries; integraÃ§Ã£o com agregacoes do DataProvider serÃ¡ refinada por model.
-- [x] `CalendarView` (MVP): navega datas e lista eventos/itens por dia (filtros via Domain/Search da tela).
-
-### v0.7 - Favorites (Saved Filters) + Persistencia completa
-- [x] `FavoritesMenu` (MVP) para salvar/restaurar combinacoes por Action:
-  - Domain + SearchText + View + PageSize (e futuramente GroupBy/Sort/Colunas quando a view expor esses controles)
-- [x] Persistir state em URL + storage (por Action).
-
-### v1.0 - DoD (padrao definitivo)
-- [x] Migrar o modulo **Pantry** para o padrao (Menu -> Action -> Screen) como validacao final (em vez de criar um modulo novo).
-  - [x] Rotas do Pantry usam `ScreenHost` + `WindowAction` (`pantry.overview/items/entries/exits/exit/donors/history`).
-  - [x] Control Panel passa a ser a fonte de verdade para busca e acoes primarias nas listas (mantendo tabela/exports dentro do card).
-- [ ] Garantir acessibilidade minima (teclado/toque) nos menus e filtros.
-- [ ] Consolidar documentacao e padroes para todos os modulos.
-
-## Estrutura de pastas sugerida (migracao sem big-bang)
-- `frontend/src/web-client/`:
-  - `registry/` (menus/actions/models/views/searchViews)
-  - `screen/` (`ScreenHost`, `ScreenState`, `context`)
-  - `control-panel/` (shell + subcomponentes plugaveis)
-  - `views/` (List/Kanban/Form/Graph/Calendar)
-  - `domain/` (Domain AST + serializers + utils)
-  - `data-provider/` (contratos + adaptadores REST)
-- Componentes existentes podem virar adaptadores internos:
-  - `DataTable` -> `ListView` (adapter)
-  - `DataTableFilterSheet` -> `AdvancedFilterBuilder` (adapter incremental)
-  - `PageBreadcrumb`/`AppHeader` -> `ControlPanelShell`/`Breadcrumb` (bridge temporaria)
-
-## Versionamento (quando extrair para pacotes)
-- Evoluir para `packages/ui/*` (ou `@ui/*`) quando o nucleo (v0.2/v0.3) estiver estavel.
-- Semver:
-  - `minor`: novos componentes/features sem breaking.
-  - `major`: mudancas em contratos (`ScreenState`, Domain AST, DataProvider).
-
-## Historico real (o que ja existe no repo)
-
-### 2026-02-26 - Primeiras pecas (prototype)
-- Entregue (backend): endpoint `GET /pantry/history` com filtros/paginacao e `all=true` para Graph.
-- Entregue (frontend): base de "record browser" (toolbar + view switcher) e sync de estado via URL.
-- Entregue (pantry): pagina `pantry/history` com views (cards/tabela/timeline/grafico) usando a mesma query.
-
-**Notas**
-- O `record-browser/*` atual e um *prototype*; sera evoluido/renomeado para os componentes finais do `ControlPanelShell` e do `ViewRenderer` assim que o registry (v0.2) estiver pronto.
+Proximos passos (para fechar o padrao Odoo):
+- Extrair um `ActionScreen` generico (Action -> QueryState -> DataProvider.search -> ViewRenderer).
+- Padronizar `SearchViewDefinition` por model (incluindo `groupBy` suportado por cada view).
+- Unificar views restantes (Calendar/Graph/Timeline) sob `ViewRenderer` com o mesmo estado.

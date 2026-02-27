@@ -3,7 +3,8 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { DataTable } from "@/components/DataTable";
+import { GroupedListView } from "@/web-client/views/GroupedListView";
+import { KanbanView } from "@/web-client/views/KanbanView";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,10 +19,8 @@ type StockRow = PantryDashboardResponse["stockRows"][number];
 type PantryOverviewStockSectionProps = {
   rows: StockRow[];
   columns: ColumnDef<StockRow>[];
-  view?: "table" | "cards";
-  onlyLowStock: boolean;
-  onToggleOnlyLowStock: () => void;
-  headerActionsSlot?: React.ReactNode;
+  view?: "list" | "kanban";
+  groupBy?: string[];
   onRowClick: (row: StockRow) => void;
   rowActions?: {
     id: string;
@@ -34,66 +33,52 @@ type PantryOverviewStockSectionProps = {
 export function PantryOverviewStockSection({
   rows,
   columns,
-  view = "table",
-  onlyLowStock,
-  onToggleOnlyLowStock,
-  headerActionsSlot,
+  view = "list",
+  groupBy = ["sector"],
   onRowClick,
   rowActions = [],
 }: PantryOverviewStockSectionProps) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Estoque
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            Visão física do estoque com alertas de mínimo.
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={onlyLowStock ? "default" : "outline"}
-            onClick={onToggleOnlyLowStock}
-            className="h-8"
-          >
-            Baixo estoque
-          </Button>
-          {headerActionsSlot}
-        </div>
-      </div>
-
-      {view === "table" ? (
-        <DataTable
-          columns={columns}
+    <div className="w-full">
+      {view === "list" ? (
+        <GroupedListView
           data={rows}
-          initialColumnPinning={{
-            left: ["actions", "name"],
-            right: ["nextExpiryDate"],
+          columns={columns}
+          groupByFields={groupBy}
+          resolveGroupLabel={(field, value) => {
+            if (field === "isBelowMin") {
+              return value ? "Abaixo do mínimo" : "OK";
+            }
+            if (field === "group") {
+              const label = String(value ?? "").trim();
+              return label ? label : "Sem grupo";
+            }
+            if (field === "sector") {
+              const label = String(value ?? "").trim();
+              return label ? label : "Geral";
+            }
+            if (field === "validityStatus") {
+              const label = String(value ?? "").trim();
+              return label ? label : "Sem validade";
+            }
+            const label = String(value ?? "").trim();
+            return label ? label : "Sem valor";
           }}
-          toolbar={{ hideSearch: true }}
-          searchPlaceholder="Pesquisar estoque"
-          summaryCards={{
-            totalLabel: "Total",
-            filteredLabel: "Filtrados",
-          }}
-          showExportMenu
-          exportLabels={{
-            title: "Relatório",
-            pdf: "Imprimir (PDF)",
-            csv: "Baixar CSV",
-          }}
-          exportMeta={{ title: "Despensa - Estoque por setor" }}
+          getRowId={(row) => `${row.itemId}:${row.sector}`}
           onRowClick={onRowClick}
-          rowActions={rowActions}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((row) => (
+        <KanbanView
+          items={rows}
+          getColumnKey={(row) => {
+            const field = groupBy[0] ?? null;
+            if (!field) return "Todos";
+            if (field === "group") return row.group?.trim() || "Sem grupo";
+            if (field === "validityStatus") return row.validityStatus;
+            if (field === "isBelowMin") return row.isBelowMin ? "Abaixo do mínimo" : "OK";
+            return row.sector?.trim() || "Geral";
+          }}
+          renderCard={(row) => (
             <div
               key={`${row.itemId}:${row.sector}`}
               role="button"
@@ -108,17 +93,8 @@ export function PantryOverviewStockSection({
             >
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <div className="truncate text-sm font-semibold">{row.name}</div>
-                    <span
-                      className={
-                        row.isBelowMin
-                          ? "rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive"
-                          : "rounded bg-muted/40 px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
-                      }
-                    >
-                      {row.isBelowMin ? "BAIXO" : "OK"}
-                    </span>
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {row.name}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
                     {row.sector}
@@ -183,10 +159,9 @@ export function PantryOverviewStockSection({
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        />
       )}
     </div>
   );
 }
-

@@ -62,8 +62,9 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
     const parsed = safeJsonParse(raw);
     if (!parsed || typeof parsed !== "object") return;
 
-    setState((prev) => (equals(prev, parsed as TState) ? prev : (parsed as TState)));
-  }, [equals, searchParams, storageKey, trackedKeys]);
+    const merged = { ...parsedFromUrl, ...(parsed as Record<string, unknown>) } as TState;
+    setState((prev) => (equals(prev, merged) ? prev : merged));
+  }, [equals, parsedFromUrl, searchParams, storageKey, trackedKeys]);
 
   React.useEffect(() => {
     if (!mountedRef.current) return;
@@ -97,4 +98,3 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
 
   return [state, setState] as const;
 }
-

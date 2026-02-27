@@ -2,54 +2,163 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Package, PackagePlus, Table2, Truck } from "lucide-react";
+import {
+  LayoutGrid,
+  Package,
+  PackagePlus,
+  SlidersHorizontal,
+  Table2,
+  Truck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { PantryEntryCreateDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-create-dialog";
 import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-edit-dialog";
 import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
-import { PantryItemCreateDialog } from "@/modules/pantry/features/items/ui/pantry-item-create-dialog";
 import { PantryItemEditDialog } from "@/modules/pantry/features/items/ui/pantry-item-edit-dialog";
 import { pantryOverviewStockColumns } from "@/modules/pantry/features/overview/config/pantry-overview-stock-columns";
 import { PANTRY_OVERVIEW_USAGE } from "@/modules/pantry/features/overview/domain/pantry-overview.constants";
 import { usePantryOverviewModel } from "@/modules/pantry/features/overview/hooks/use-pantry-overview-model";
 import { PantryAlertsDropdown } from "@/modules/pantry/features/overview/ui/components/pantry-alerts-dropdown";
-import { PantryOverviewConsumptionSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-consumption-section";
 import { PantryOverviewStockSection } from "@/modules/pantry/features/overview/ui/sections/pantry-overview-stock-section";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { CreateDropdown } from "@/web-client/control-panel/CreateDropdown";
+import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
+import type { Domain } from "@/web-client/domain/types";
+import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
+import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import { pantryStockSearchView } from "@/web-client/registry/searchViews/pantry";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import { useAuth } from "@/features/auth/auth-context";
+import { useRequireAuth } from "@/hooks/use-require-auth";
 import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
+import type { PantryDashboardResponse } from "@/modules/pantry/api";
+import { PaginationBar } from "@/web-client/ui/PaginationBar";
+
+type StockRow = PantryDashboardResponse["stockRows"][number];
+
+type PantryStockView = "list" | "kanban";
+
+type PantryStockFilters = {
+  view: PantryStockView;
+  searchText: string;
+  domain: Domain;
+  groupBy: string[];
+  pageIndex: number;
+  pageSize: number;
+};
+
+type PantryStockFavoriteState = Pick<
+  PantryStockFilters,
+  "view" | "searchText" | "domain" | "groupBy" | "pageSize"
+>;
+
+const DEFAULT_GROUP_BY = ["sector"];
+
+function normalizeView(value: string | null): PantryStockView {
+  switch (value) {
+    case "kanban":
+    // legacy alias from overview
+    case "cards":
+      return "kanban";
+    default:
+      return "list";
+  }
+}
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+const parsePantryStockFilters = (
+  params: URLSearchParams,
+): PantryStockFilters => {
+  const view = normalizeView(params.get("view") ?? params.get("v"));
+  const searchText = params.get("q") ?? "";
+  const domain = parseDomain(params.get("d")) ?? null;
+  const groupParam = params.get("g");
+  const groupBy =
+    groupParam === "none"
+      ? []
+      : (groupParam ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+  const page = parsePositiveInt(params.get("page"), 1);
+  const limit = parsePositiveInt(params.get("limit"), 100);
+
+  return {
+    view,
+    searchText,
+    domain,
+    groupBy:
+      groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    pageIndex: page - 1,
+    pageSize: Math.min(Math.max(limit, 1), 200),
+  };
+};
+
+const serializePantryStockFilters = (state: PantryStockFilters) => ({
+  view: state.view === "list" ? undefined : state.view,
+  q: state.searchText.trim() ? state.searchText.trim() : undefined,
+  d: state.domain ? serializeDomain(state.domain) : undefined,
+  g:
+    state.groupBy.length === 0
+      ? "none"
+      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
+        ? undefined
+        : state.groupBy.join(","),
+  page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
+  limit: state.pageSize === 100 ? undefined : String(state.pageSize),
+});
 
 export function PantryOverviewClientPage() {
+  const { token } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const model = usePantryOverviewModel();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
 
-  const [search, setSearch] = React.useState("");
+  const dataProvider = React.useMemo(
+    () => createRestDataProvider({ token }),
+    [token],
+  );
 
-  const [screenState, setScreenState] = usePersistedUrlState<{
-    view: "table" | "cards";
-  }>({
-    storageKey: "screenState:pantry.overview",
-    trackedKeys: ["v"],
-    parse: (params) => {
-      const raw = params.get("v");
-      return { view: raw === "cards" ? "cards" : "table" };
-    },
-    serialize: (state) => ({ v: state.view === "table" ? undefined : state.view }),
+  const [filters, setFilters] = usePersistedUrlState<PantryStockFilters>({
+    storageKey: "screenState:pantry.overview.stock",
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit"],
+    parse: parsePantryStockFilters,
+    serialize: serializePantryStockFilters,
   });
 
-  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "cards">[]>(
+  const [rows, setRows] = React.useState<StockRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pageCount, setPageCount] = React.useState(0);
+  const [totalCount, setTotalCount] = React.useState(0);
+
+  const enabled = Boolean(
+    token && isAuthenticated && model.canRead && !authLoading,
+  );
+
+  const viewOptions = React.useMemo<RecordBrowserViewOption<PantryStockView>[]>(
     () => [
-      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
-      { value: "cards", label: "Cards", icon: <LayoutGrid className="size-4" /> },
+      { value: "list", label: "List", icon: <Table2 className="size-4" /> },
+      {
+        value: "kanban",
+        label: "Kanban",
+        icon: <LayoutGrid className="size-4" />,
+      },
     ],
     [],
   );
@@ -68,6 +177,14 @@ export function PantryOverviewClientPage() {
     },
     [router, tenantSlug],
   );
+
+  const openCreateItemPage = React.useCallback(() => {
+    router.push(withTenantPath("/pantry/items/new", tenantSlug));
+  }, [router, tenantSlug]);
+
+  const openCreateEntryPage = React.useCallback(() => {
+    router.push(withTenantPath("/pantry/entries/new", tenantSlug));
+  }, [router, tenantSlug]);
 
   const usageItems = React.useMemo(
     () =>
@@ -93,18 +210,171 @@ export function PantryOverviewClientPage() {
 
   React.useEffect(() => {
     if (!model.error) return;
-    toast({ variant: "destructive", title: "Falha ao carregar", description: model.error });
+    toast({
+      variant: "destructive",
+      title: "Falha ao carregar",
+      description: model.error,
+    });
   }, [model.error, toast]);
 
-  const filteredStockRows = React.useMemo(() => {
-    const q = search.trim().toLocaleLowerCase();
-    if (!q) return model.stockRows;
-
-    return model.stockRows.filter((row) => {
-      const haystack = `${row.name} ${row.group ?? ""} ${row.sector}`.toLocaleLowerCase();
-      return haystack.includes(q);
+  React.useEffect(() => {
+    if (!error) return;
+    toast({
+      variant: "destructive",
+      title: "Falha ao carregar",
+      description: error,
     });
-  }, [model.stockRows, search]);
+  }, [error, toast]);
+
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const [debouncedDomainKey, setDebouncedDomainKey] = React.useState("");
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filters.searchText.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.searchText]);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDomainKey(
+        filters.domain ? serializeDomain(filters.domain) : "",
+      );
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.domain]);
+
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const key = `${debouncedSearch}:${debouncedDomainKey}`;
+    if (resetPaginationKeyRef.current === null) {
+      resetPaginationKeyRef.current = key;
+      return;
+    }
+    if (resetPaginationKeyRef.current === key) return;
+    resetPaginationKeyRef.current = key;
+    setFilters((prev) =>
+      prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 },
+    );
+  }, [debouncedSearch, debouncedDomainKey, setFilters]);
+
+  const requestKey = React.useMemo(() => {
+    return `${filters.pageIndex}:${filters.pageSize}:${debouncedSearch}:${debouncedDomainKey}`;
+  }, [
+    debouncedDomainKey,
+    debouncedSearch,
+    filters.pageIndex,
+    filters.pageSize,
+  ]);
+
+  const inFlightRequestRef = React.useRef<string | null>(null);
+  const lastRequestRef = React.useRef<string | null>(null);
+
+  const loadStock = React.useCallback(
+    async (force = false) => {
+      if (!enabled) return;
+
+      if (!force) {
+        if (inFlightRequestRef.current === requestKey) return;
+        if (lastRequestRef.current === requestKey) return;
+      }
+
+      inFlightRequestRef.current = requestKey;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await dataProvider.search<StockRow>("pantry.stock", {
+          domain: filters.domain,
+          searchText: debouncedSearch || undefined,
+          pagination: {
+            pageIndex: filters.pageIndex,
+            pageSize: filters.pageSize,
+          },
+        });
+
+        setRows(response.data);
+        setTotalCount(response.pagination.total);
+        setPageCount(response.pagination.pages);
+        lastRequestRef.current = requestKey;
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: string }).message)
+            : "Falha ao carregar estoque.";
+        setError(message);
+        setRows([]);
+        setTotalCount(0);
+        setPageCount(0);
+        lastRequestRef.current = requestKey;
+      } finally {
+        inFlightRequestRef.current = null;
+        setLoading(false);
+      }
+    },
+    [
+      dataProvider,
+      debouncedSearch,
+      enabled,
+      filters.domain,
+      filters.pageIndex,
+      filters.pageSize,
+      requestKey,
+    ],
+  );
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    void loadStock();
+  }, [enabled, loadStock, requestKey]);
+
+  const removeDomainCondition = React.useCallback(
+    (index: number) => {
+      setFilters((prev) => {
+        const nextDomain = removeConditionAtIndex(prev.domain, "and", index);
+        return { ...prev, domain: nextDomain, pageIndex: 0 };
+      });
+    },
+    [setFilters],
+  );
+
+  const queryFacets = React.useMemo(
+    () =>
+      buildQueryFacets({
+        domain: filters.domain,
+        groupBy: filters.groupBy,
+        searchView: pantryStockSearchView,
+        onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
+        onClearDomain: () =>
+          setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onRemoveDomainCondition: removeDomainCondition,
+      }),
+    [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
+  );
+
+  const valueSuggestions = React.useMemo(() => {
+    const sectors = new Set<string>();
+    const groups = new Set<string>();
+
+    model.stockRows.forEach((row) => {
+      const sector = String(row.sector ?? "").trim();
+      if (sector) sectors.add(sector);
+      const group = String(row.group ?? "").trim();
+      if (group) groups.add(group);
+    });
+
+    const sectorList = Array.from(sectors).sort((a, b) => a.localeCompare(b));
+    const groupList = Array.from(groups).sort((a, b) => a.localeCompare(b));
+
+    return (fieldName: string) => {
+      if (fieldName === "sector") return sectorList;
+      if (fieldName === "group") return groupList;
+      return [];
+    };
+  }, [model.stockRows]);
 
   if (!model.canRead) {
     return (
@@ -124,13 +394,13 @@ export function PantryOverviewClientPage() {
                 id: "create-item",
                 label: "Novo alimento",
                 icon: <Package className="size-4" />,
-                onSelect: () => model.setCreateItemOpen(true),
+                onSelect: openCreateItemPage,
               },
               {
                 id: "create-entry",
                 label: "Nova entrada",
                 icon: <PackagePlus className="size-4" />,
-                onSelect: () => model.setCreateEntryOpen(true),
+                onSelect: openCreateEntryPage,
               },
               {
                 id: "create-exit",
@@ -141,17 +411,81 @@ export function PantryOverviewClientPage() {
             ]}
           />
         }
-        searchSlot={<SearchBar value={search} onChange={setSearch} placeholder="Buscar por alimento" />}
+        searchSlot={
+          <SearchBar
+            value={filters.searchText}
+            onChange={(next) =>
+              setFilters((prev) => ({ ...prev, searchText: next }))
+            }
+            placeholder="Pesquisar"
+            facets={queryFacets}
+            rightSlot={
+              <SearchPanelMenu<PantryStockFavoriteState>
+                actionId="pantry.stock"
+                variant="compact"
+                allowEmptyGroupBy
+                groupByMode="multi"
+                valueSuggestions={valueSuggestions}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    title="Filtros"
+                    aria-label="Filtros"
+                  >
+                    <SlidersHorizontal className="size-4" />
+                  </Button>
+                }
+                searchView={pantryStockSearchView}
+                domain={filters.domain}
+                onDomainChange={(domain) =>
+                  setFilters((prev) => ({ ...prev, domain }))
+                }
+                groupBy={filters.groupBy}
+                onGroupByChange={(groupBy) =>
+                  setFilters((prev) => ({ ...prev, groupBy }))
+                }
+                snapshot={{
+                  view: filters.view,
+                  searchText: filters.searchText,
+                  domain: filters.domain,
+                  groupBy: filters.groupBy,
+                  pageSize: filters.pageSize,
+                }}
+                onApplyFavorite={(state) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    ...state,
+                    groupBy: Array.isArray(state.groupBy)
+                      ? state.groupBy
+                      : DEFAULT_GROUP_BY,
+                    pageIndex: 0,
+                  }))
+                }
+              />
+            }
+          />
+        }
         viewSwitcherSlot={
           <ViewSwitcher
-            value={screenState.view}
+            value={filters.view}
             options={viewOptions}
-            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
         rightSlot={
           <>
-            <Button size="sm" variant="outline" onClick={() => model.handleMovementSaved()}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                await model.handleMovementSaved();
+                await loadStock(true);
+              }}
+              disabled={loading}
+            >
               Atualizar
             </Button>
             <PantryAlertsDropdown
@@ -166,11 +500,10 @@ export function PantryOverviewClientPage() {
       />
 
       <PantryOverviewStockSection
-        view={screenState.view}
-        rows={filteredStockRows}
+        rows={rows}
         columns={pantryOverviewStockColumns}
-        onlyLowStock={model.onlyLowStock}
-        onToggleOnlyLowStock={() => model.setOnlyLowStock((prev) => !prev)}
+        view={filters.view}
+        groupBy={filters.groupBy}
         onRowClick={(row) => {
           openExitPage({ itemId: row.itemId, sector: row.sector });
         }}
@@ -193,42 +526,27 @@ export function PantryOverviewClientPage() {
         ]}
       />
 
-      <PantryOverviewConsumptionSection
-        consumption={model.consumption}
-        consumptionLoading={model.consumptionLoading}
-        consumptionError={model.consumptionError}
-        flow={model.flow}
-        flowError={model.flowError}
-        usage={model.usage}
-        usageError={model.usageError}
-        onRefresh={model.loadConsumption}
-        view={model.consumptionView}
-        onViewChange={(value) => {
-          model.setConsumptionView(value);
-          model.setSelectedItemId("all");
-          model.setSelectedGroup("all");
-        }}
-        exitType={model.consumptionExitType}
-        eventName={model.consumptionEventName}
-        onExitTypeChange={model.setConsumptionExitType}
-        onEventNameChange={model.setConsumptionEventName}
-        fromMonth={model.consumptionFromMonth}
-        toMonth={model.consumptionToMonth}
-        onFromMonthChange={model.setConsumptionFromMonth}
-        onToMonthChange={model.setConsumptionToMonth}
-        selectedItemId={model.selectedItemId}
-        selectedGroup={model.selectedGroup}
-        onSelectedItemIdChange={model.setSelectedItemId}
-        onSelectedGroupChange={model.setSelectedGroup}
-        groups={model.groups}
-        items={model.items}
-      />
+      {pageCount > 1 ? (
+        <PaginationBar
+          pageIndex={filters.pageIndex}
+          pageCount={pageCount}
+          pageSize={filters.pageSize}
+          onPageIndexChange={(next) =>
+            setFilters((prev) => ({ ...prev, pageIndex: next }))
+          }
+          onPageSizeChange={(next) =>
+            setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+          }
+          disabled={loading}
+        />
+      ) : null}
 
-      <PantryEntryCreateDialog
-        open={model.createEntryOpen}
-        onOpenChange={model.setCreateEntryOpen}
-        onCreated={model.handleMovementSaved}
-      />
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Carregando...</p>
+      ) : null}
+      {!loading && totalCount === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum registro.</p>
+      ) : null}
 
       <PantryEntryEditDialog
         open={model.editEntryOpen}
@@ -248,14 +566,6 @@ export function PantryOverviewClientPage() {
         }}
         exitId={model.editingExitId}
         onSaved={model.handleMovementSaved}
-      />
-
-      <PantryItemCreateDialog
-        open={model.createItemOpen}
-        onOpenChange={model.setCreateItemOpen}
-        onCreated={async () => {
-          await model.handleMovementSaved();
-        }}
       />
 
       <PantryItemEditDialog
@@ -283,4 +593,3 @@ export function PantryOverviewClientPage() {
     </div>
   );
 }
-

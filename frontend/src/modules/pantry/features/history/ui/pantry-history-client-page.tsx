@@ -7,13 +7,6 @@ import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-
 import { usePantryHistoryModel, type PantryHistoryView } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -42,6 +35,9 @@ import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import type { Domain } from "@/web-client/domain/types";
+import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { KanbanView } from "@/web-client/views/KanbanView";
+import { exitTypeLabel } from "@/modules/pantry/features/overview/domain/overview.helpers";
 
 function formatPantryMovementDate(value: string | null) {
   if (!value) return "—";
@@ -65,6 +61,7 @@ type PantryHistoryFavoriteState = {
   view: PantryHistoryView;
   searchText: string;
   domain: Domain;
+  groupBy: string[];
   pageSize: number;
 };
 
@@ -89,34 +86,45 @@ export function PantryHistoryClientPage() {
     <div className="flex flex-col gap-4">
       <PageControlPanel
         searchSlot={
-          <SearchBar
-            value={model.filters.searchText}
-            onChange={(next) =>
-              model.setFilters((prev) => ({ ...prev, searchText: next }))
-            }
-            placeholder="Buscar por alimento"
-          />
-        }
-        filterSlot={
-          <SearchPanelMenu<PantryHistoryFavoriteState>
-            actionId="pantry.history"
-            searchView={pantryHistorySearchView}
-            domain={model.filters.domain}
-            onDomainChange={(domain) => model.setFilters((prev) => ({ ...prev, domain }))}
-            snapshot={{
-              view: model.filters.view,
-              searchText: model.filters.searchText,
-              domain: model.filters.domain,
-              pageSize: model.filters.pageSize,
-            }}
-            onApplyFavorite={(state) =>
-              model.setFilters((prev) => ({
-                ...prev,
-                ...state,
-                pageIndex: 0,
-              }))
-            }
-          />
+          <div className="flex w-full items-center gap-1">
+            <SearchBar
+              value={model.filters.searchText}
+              onChange={(next) =>
+                model.setFilters((prev) => ({ ...prev, searchText: next }))
+              }
+              placeholder="Buscar por alimento"
+              className="flex-1"
+            />
+            <SearchPanelMenu<PantryHistoryFavoriteState>
+              actionId="pantry.history"
+              searchView={pantryHistorySearchView}
+              domain={model.filters.domain}
+              onDomainChange={(domain) =>
+                model.setFilters((prev) => ({ ...prev, domain }))
+              }
+              groupBy={model.filters.groupBy}
+              onGroupByChange={(groupBy) =>
+                model.setFilters((prev) => ({
+                  ...prev,
+                  groupBy: groupBy.length ? groupBy : ["kind"],
+                }))
+              }
+              snapshot={{
+                view: model.filters.view,
+                searchText: model.filters.searchText,
+                domain: model.filters.domain,
+                groupBy: model.filters.groupBy,
+                pageSize: model.filters.pageSize,
+              }}
+              onApplyFavorite={(state) =>
+                model.setFilters((prev) => ({
+                  ...prev,
+                  ...state,
+                  pageIndex: 0,
+                }))
+              }
+            />
+          </div>
         }
         viewSwitcherSlot={
           <ViewSwitcher
@@ -182,68 +190,18 @@ function PantryHistorySection({
   const showPagination = model.filters.view !== "graph" && model.pageCount > 1;
 
   const paginationNode = showPagination ? (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-3">
-      <div className="text-xs text-muted-foreground">
-        PÃ¡gina{" "}
-        <span className="font-mono tabular-nums text-foreground">
-          {model.filters.pageIndex + 1}
-        </span>{" "}
-        de{" "}
-        <span className="font-mono tabular-nums text-foreground">
-          {model.pageCount}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={String(model.filters.pageSize)}
-          onValueChange={(value) =>
-            model.setFilters((prev) => ({
-              ...prev,
-              pageSize: Number(value),
-              pageIndex: 0,
-            }))
-          }
-        >
-          <SelectTrigger className="w-[110px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="25">25</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-            <SelectItem value="100">100</SelectItem>
-            <SelectItem value="200">200</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            model.setFilters((prev) => ({
-              ...prev,
-              pageIndex: Math.max(0, prev.pageIndex - 1),
-            }))
-          }
-          disabled={model.loading || model.filters.pageIndex === 0}
-        >
-          Anterior
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            model.setFilters((prev) => ({
-              ...prev,
-              pageIndex: Math.min(model.pageCount - 1, prev.pageIndex + 1),
-            }))
-          }
-          disabled={model.loading || model.filters.pageIndex + 1 >= model.pageCount}
-        >
-          PrÃ³xima
-        </Button>
-      </div>
-    </div>
+    <PaginationBar
+      pageIndex={model.filters.pageIndex}
+      pageCount={model.pageCount}
+      pageSize={model.filters.pageSize}
+      onPageIndexChange={(next) =>
+        model.setFilters((prev) => ({ ...prev, pageIndex: next }))
+      }
+      onPageSizeChange={(next) =>
+        model.setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+      }
+      disabled={model.loading}
+    />
   ) : null;
 
   return (
@@ -383,31 +341,39 @@ function PantryHistorySection({
         />
         */}
 
-        {model.filters.view === "cards" ? (
+        {model.filters.view === "kanban" ? (
           model.loading ? (
             <div className="text-sm text-muted-foreground">Carregando...</div>
           ) : movements.length === 0 ? (
             <div className="text-sm text-muted-foreground">Nenhum movimento encontrado.</div>
           ) : (
-            <div className="grid gap-2 md:grid-cols-2">
-              {movements.map((movement) => (
+            <KanbanView
+              items={movements}
+              getColumnKey={(movement) => {
+                const field = model.filters.groupBy[0] ?? "kind";
+                if (field === "sector") return movement.sector?.trim() || "Geral";
+                if (field === "exitType") {
+                  return movement.kind === "EXIT"
+                    ? exitTypeLabel(movement.exitType ?? "")
+                    : "Entradas";
+                }
+                if (field === "itemId") return movement.itemName;
+                return movement.kind === "ENTRY" ? "Entradas" : "Saídas";
+              }}
+              renderCard={(movement) => (
                 <button
-                  key={movement.id}
                   type="button"
                   onClick={() => model.openMovementEdit(movement)}
-                  className="rounded-md border border-border/60 bg-background px-2 py-2 text-left shadow-none transition-colors hover:bg-muted/30"
+                  className="w-full rounded-md border border-border/60 bg-background px-2 py-2 text-left shadow-none transition-colors hover:bg-muted/30"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-foreground">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="truncate text-xs font-semibold text-foreground">
                         {movement.itemName}
                       </span>
                       <Badge variant={movement.kind === "ENTRY"}>
                         {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
                       </Badge>
-                      <span className="rounded-md bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        Setor: {movement.sector}
-                      </span>
                     </div>
                     <span className="rounded-md bg-muted/40 px-2 py-0.5 font-mono text-[11px] tabular-nums text-foreground">
                       {formatDate(movement.date)}
@@ -416,8 +382,7 @@ function PantryHistorySection({
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span className="font-mono tabular-nums text-foreground">
                       {movement.kind === "ENTRY" ? "+" : "-"}
-                      {Number(movement.quantity).toLocaleString("pt-BR")}{" "}
-                      {movement.unit}
+                      {Number(movement.quantity).toLocaleString("pt-BR")} {movement.unit}
                     </span>
                     <span className="truncate">{movement.meta}</span>
                   </div>
@@ -430,8 +395,8 @@ function PantryHistorySection({
                     </div>
                   ) : null}
                 </button>
-              ))}
-            </div>
+              )}
+            />
           )
         ) : null}
 
@@ -534,10 +499,10 @@ function PantryHistorySection({
 const HISTORY_VIEWS: RecordBrowserViewOption<
   ReturnType<typeof usePantryHistoryModel>["filters"]["view"]
 >[] = [
-  { value: "cards", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
+  { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
   { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
   { value: "timeline", label: "Timeline", icon: <Clock className="size-4" /> },
-  { value: "graph", label: "GrÃ¡fico", icon: <BarChart3 className="size-4" /> },
+  { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
 ];
 
 function HistoryGraph({

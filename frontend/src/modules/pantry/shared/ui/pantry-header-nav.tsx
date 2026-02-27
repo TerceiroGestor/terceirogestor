@@ -24,14 +24,15 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
 
   const stockHref = withTenantPath("/pantry", tenantSlug);
   const entriesHref = withTenantPath("/pantry/entries", tenantSlug);
-  const exitHref = withTenantPath("/pantry/exit", tenantSlug);
+  const exitFormHref = withTenantPath("/pantry/exit", tenantSlug);
   const exitsHref = withTenantPath("/pantry/exits", tenantSlug);
   const historyHref = withTenantPath("/pantry/history", tenantSlug);
   const donorsHref = withTenantPath("/pantry/donors", tenantSlug);
 
   const isStock = pathname === stockHref;
   const isEntries = pathname.startsWith(entriesHref);
-  const isExit = pathname.startsWith(exitHref) || pathname.startsWith(exitsHref);
+  const isExit =
+    pathname.startsWith(exitFormHref) || pathname.startsWith(exitsHref);
   const isHistory = pathname.startsWith(historyHref);
   const isDonors = pathname.startsWith(donorsHref);
 
@@ -54,8 +55,8 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
         },
         {
           id: "exit",
-          label: "Saída",
-          href: exitHref,
+          label: "Saídas",
+          href: exitsHref,
           active: isExit,
           icon: Truck,
         },
@@ -77,7 +78,7 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
     [
       stockHref,
       entriesHref,
-      exitHref,
+      exitsHref,
       historyHref,
       donorsHref,
       isStock,
@@ -127,4 +128,3 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
     </DropdownMenu>
   );
 }
-

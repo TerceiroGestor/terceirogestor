@@ -1,6 +1,6 @@
 "use client";
 
-import type { Domain, DomainOperator } from "@/web-client/domain/types";
+import type { Domain, DomainCombinator, DomainOperator } from "@/web-client/domain/types";
 
 export type SearchFieldType = "text" | "number" | "date" | "enum" | "uuid";
 
@@ -26,5 +26,5 @@ export type SearchViewDefinition = {
   fields: SearchFieldDefinition[];
   presets?: SearchViewPreset[];
   groupBy?: Array<{ field: string; label: string }>;
+  filterCombinators?: DomainCombinator[];
 };
-

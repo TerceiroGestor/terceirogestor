@@ -29,8 +29,6 @@ export function usePantryOverviewModel() {
     string | undefined
   >(undefined);
 
-  const [createEntryOpen, setCreateEntryOpen] = React.useState(false);
-  const [createItemOpen, setCreateItemOpen] = React.useState(false);
   const [editItemOpen, setEditItemOpen] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<
     Pick<StockRow, "itemId" | "name" | "group" | "unit" | "minStock" | "sector"> | null
@@ -138,10 +136,6 @@ export function usePantryOverviewModel() {
     setMovementPreferredSector,
     openMovementDialog,
 
-    createEntryOpen,
-    setCreateEntryOpen,
-    createItemOpen,
-    setCreateItemOpen,
     editItemOpen,
     setEditItemOpen,
     editingItem,

@@ -2,6 +2,9 @@
 
 import type { DataProvider, SearchArgs, SearchResult } from "@/web-client/data-provider/types";
 import { searchPantryHistory } from "@/web-client/data-provider/rest/pantry-history";
+import { searchPantryEntries } from "@/web-client/data-provider/rest/pantry-entries";
+import { searchPantryExits } from "@/web-client/data-provider/rest/pantry-exits";
+import { searchPantryStock } from "@/web-client/data-provider/rest/pantry-stock";
 
 export function createRestDataProvider({ token }: { token: string | null }): DataProvider {
   async function assertToken() {
@@ -17,6 +20,12 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.history":
           return (await searchPantryHistory(authToken, args)) as unknown as SearchResult<T>;
+        case "pantry.entries":
+          return (await searchPantryEntries(authToken, args)) as unknown as SearchResult<T>;
+        case "pantry.exits":
+          return (await searchPantryExits(authToken, args)) as unknown as SearchResult<T>;
+        case "pantry.stock":
+          return (await searchPantryStock(authToken, args)) as unknown as SearchResult<T>;
         default:
           throw new Error(`Model nao suportado: ${model}`);
       }

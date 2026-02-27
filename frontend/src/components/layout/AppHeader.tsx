@@ -21,6 +21,21 @@ export function AppHeader() {
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { breadcrumb } = useBreadcrumb();
 
+  const breadcrumbItems = React.useMemo(() => {
+    const items = breadcrumb.items.map((item) => ({ ...item }));
+
+    if (!items.length && breadcrumb.title) {
+      return [{ label: breadcrumb.title }];
+    }
+
+    const lastLabel = items.length ? items[items.length - 1]?.label : undefined;
+    if (breadcrumb.title && lastLabel !== breadcrumb.title) {
+      return [...items, { label: breadcrumb.title }];
+    }
+
+    return items;
+  }, [breadcrumb.items, breadcrumb.title]);
+
   const forceInstallButton =
     process.env.NODE_ENV !== "production" ||
     process.env.NEXT_PUBLIC_PWA_FORCE_INSTALL === "1";
@@ -29,22 +44,30 @@ export function AppHeader() {
     <header className="flex min-w-0 items-center gap-2 border-b border-border bg-card/95 px-3 py-2 backdrop-blur">
       <SidebarTrigger />
 
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          {breadcrumb.items.length ? (
+          {breadcrumbItems.length ? (
             <Breadcrumb className="min-w-0">
-              <BreadcrumbList className="min-w-0 flex-nowrap overflow-hidden text-[11px]">
-                {breadcrumb.items.map((item, index) => {
-                  const isLast = index === breadcrumb.items.length - 1;
+              <BreadcrumbList className="min-w-0 flex-nowrap overflow-hidden text-xs">
+                {breadcrumbItems.map((item, index) => {
+                  const isLast = index === breadcrumbItems.length - 1;
+                  const isModuleTitle = index === 0;
+                  const emphasizeClassName = isModuleTitle
+                    ? "font-semibold text-foreground"
+                    : undefined;
+                  const pageClassName = emphasizeClassName
+                    ? `truncate text-xs ${emphasizeClassName}`
+                    : "truncate text-xs";
+
                   return (
                     <React.Fragment key={`${item.label}-${index}`}>
                       <BreadcrumbItem>
                         {isLast || !item.href ? (
-                          <BreadcrumbPage className="truncate text-[11px]">
+                          <BreadcrumbPage className={pageClassName}>
                             {item.label}
                           </BreadcrumbPage>
                         ) : (
-                          <BreadcrumbLink asChild>
+                          <BreadcrumbLink asChild className={emphasizeClassName}>
                             <Link href={withTenantPath(item.href, tenantSlug)}>
                               <span className="truncate">{item.label}</span>
                             </Link>
@@ -58,18 +81,13 @@ export function AppHeader() {
               </BreadcrumbList>
             </Breadcrumb>
           ) : null}
-          {breadcrumb.title ? (
-            <div className="truncate text-sm font-semibold leading-tight text-foreground">
-              {breadcrumb.title}
-            </div>
-          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-2">
-        <PWAInstallButton
-          forceDisplay={forceInstallButton}
-          className={forceInstallButton ? "animate-pulse" : undefined}
-        />
+          <PWAInstallButton
+            forceDisplay={forceInstallButton}
+            className={forceInstallButton ? "animate-pulse" : undefined}
+          />
         </div>
       </div>
     </header>
