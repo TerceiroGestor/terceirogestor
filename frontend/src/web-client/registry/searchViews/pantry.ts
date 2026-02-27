@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { SearchViewDefinition } from "@/web-client/search/types";
 
@@ -51,7 +51,7 @@ export const pantryHistorySearchView: SearchViewDefinition = {
   groupBy: [
     { field: "kind", label: "Tipo (Entrada/Saída)" },
     { field: "sector", label: "Setor" },
-    { field: "exitType", label: "Tipo de saída" },
+    { field: "type", label: "Tipo de saída" },
     { field: "itemId", label: "Alimento" },
   ],
 };
@@ -151,6 +151,7 @@ export const pantryItemsSearchView: SearchViewDefinition = {
     { name: "group", label: "Grupo", type: "text" },
     { name: "defaultSector", label: "Setor", type: "text" },
     { name: "unit", label: "Unidade", type: "text" },
+    { name: "notes", label: "Notas internas", type: "text" },
     { name: "stock", label: "Saldo", type: "number" },
     { name: "minStock", label: "Mínimo", type: "number" },
     {
@@ -269,3 +270,4 @@ export const pantryStockSearchView: SearchViewDefinition = {
     { field: "isBelowMin", label: "Abaixo do mínimo" },
   ],
 };
+

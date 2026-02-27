@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -11,7 +11,6 @@ import {
   List,
   RefreshCcw,
   SlidersHorizontal,
-  Table2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,10 +43,8 @@ import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import { CalendarView } from "@/web-client/views/CalendarView";
 import { GraphView } from "@/web-client/views/GraphView";
-import { GroupedListView } from "@/web-client/views/GroupedListView";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { ListView } from "@/web-client/views/ListView";
-import { TableView } from "@/web-client/views/TableView";
 import { TimelineView } from "@/web-client/views/TimelineView";
 
 function formatDate(value: string | null) {
@@ -71,7 +68,7 @@ function resolveValidityBadge(status: ApiPantryItem["validityStatus"]) {
   }
 }
 
-type PantryItemsView = "list" | "table" | "kanban" | "timeline" | "calendar" | "graph";
+type PantryItemsView = "list" | "kanban" | "timeline" | "calendar" | "graph";
 
 type PantryItemsFilters = {
   view: PantryItemsView;
@@ -84,6 +81,7 @@ type PantryItemsFilters = {
   timelineField: string;
   graphGroupField: string;
   graphMetric: "count" | "stock";
+  graphType: "bar" | "line" | "area";
 };
 
 type PantryItemsFavoriteState = Pick<
@@ -97,6 +95,7 @@ type PantryItemsFavoriteState = Pick<
   | "timelineField"
   | "graphGroupField"
   | "graphMetric"
+  | "graphType"
 >;
 
 const DEFAULT_GROUP_BY = ["defaultSector"];
@@ -104,10 +103,12 @@ const DEFAULT_CALENDAR_FIELD = "nextExpiryDate";
 const DEFAULT_TIMELINE_FIELD = "lastMovementDate";
 const DEFAULT_GRAPH_GROUP_FIELD = "defaultSector";
 const DEFAULT_GRAPH_METRIC: PantryItemsFilters["graphMetric"] = "count";
+const DEFAULT_GRAPH_TYPE: PantryItemsFilters["graphType"] = "bar";
 
 function normalizeView(value: string | null): PantryItemsView {
   switch (value) {
     case "table":
+      return "list";
     case "kanban":
     case "timeline":
     case "calendar":
@@ -144,6 +145,11 @@ const parsePantryItemsFilters = (params: URLSearchParams): PantryItemsFilters =>
   const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
   const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
   const graphMetric = (params.get("gm") as PantryItemsFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
+  const graphTypeRaw = (params.get("gt") as PantryItemsFilters["graphType"]) ?? DEFAULT_GRAPH_TYPE;
+  const graphType =
+    graphTypeRaw === "line" || graphTypeRaw === "area" || graphTypeRaw === "bar"
+      ? graphTypeRaw
+      : DEFAULT_GRAPH_TYPE;
 
   return {
     view,
@@ -156,6 +162,7 @@ const parsePantryItemsFilters = (params: URLSearchParams): PantryItemsFilters =>
     timelineField,
     graphGroupField,
     graphMetric: graphMetric === "stock" ? "stock" : "count",
+    graphType,
   };
 };
 
@@ -175,6 +182,7 @@ const serializePantryItemsFilters = (state: PantryItemsFilters) => ({
   tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
   gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
   gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
+  gt: state.graphType !== DEFAULT_GRAPH_TYPE ? state.graphType : undefined,
 });
 
 function resolveGroupValue(item: ApiPantryItem, field: string) {
@@ -195,7 +203,17 @@ function resolveGroupValue(item: ApiPantryItem, field: string) {
 function resolveDate(item: ApiPantryItem, field: string) {
   const raw = (item as Record<string, unknown>)[field];
   if (!raw) return null;
-  const ms = Date.parse(String(raw));
+  const text = String(raw).trim();
+  if (!text) return null;
+
+  const iso = text.length >= 10 ? text.slice(0, 10) : text;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [year, month, day] = iso.split("-").map((part) => Number(part));
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  const ms = Date.parse(text);
   if (!Number.isFinite(ms)) return null;
   return new Date(ms);
 }
@@ -223,7 +241,7 @@ export function PantryItemsClientPage() {
 
   const [filters, setFilters] = usePersistedUrlState<PantryItemsFilters>({
     storageKey: "screenState:pantry.items",
-    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm"],
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt"],
     parse: parsePantryItemsFilters,
     serialize: serializePantryItemsFilters,
   });
@@ -255,7 +273,6 @@ export function PantryItemsClientPage() {
   const viewOptions = React.useMemo<RecordBrowserViewOption<PantryItemsView>[]>(
     () => [
       { value: "list", label: "Lista", icon: <List className="size-4" /> },
-      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
       { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
       { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
       { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },
@@ -571,6 +588,25 @@ export function PantryItemsClientPage() {
               <SelectItem value="stock">Saldo (soma)</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select
+            value={filters.graphType}
+            onValueChange={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                graphType: value === "line" || value === "area" ? value : "bar",
+              }))
+            }
+          >
+            <SelectTrigger className="h-8 w-[9.25rem] text-xs">
+              <SelectValue placeholder="Gráfico..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bar">Barras</SelectItem>
+              <SelectItem value="line">Linha</SelectItem>
+              <SelectItem value="area">Área</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       );
     }
@@ -581,6 +617,7 @@ export function PantryItemsClientPage() {
     filters.calendarField,
     filters.graphGroupField,
     filters.graphMetric,
+    filters.graphType,
     filters.timelineField,
     filters.view,
     setFilters,
@@ -662,6 +699,7 @@ export function PantryItemsClientPage() {
                     timelineField: filters.timelineField,
                     graphGroupField: filters.graphGroupField,
                     graphMetric: filters.graphMetric,
+                    graphType: filters.graphType,
                   }}
                   onApplyFavorite={(state) =>
                     setFilters((prev) => ({
@@ -783,32 +821,20 @@ export function PantryItemsClientPage() {
                 color: "hsl(var(--chart-1))",
               },
             ]}
-          />
-        ) : filters.groupBy.length ? (
-          <GroupedListView<ApiPantryItem>
-            data={rows}
-            columns={columns}
-            groupByFields={filters.groupBy}
-            getRowId={(row) => row.id}
-            onRowClick={openDetail}
-            resolveGroupLabel={(field, value) => {
-              if (field === "group") return String(value ?? "").trim() || "Sem grupo";
-              if (field === "defaultSector") return String(value ?? "").trim() || "Geral";
-              if (field === "isBelowMin") return String(value ?? "").includes("true") ? "Abaixo do mínimo" : "OK";
-              return String(value ?? "").trim() || "Sem valor";
-            }}
-          />
-        ) : filters.view === "table" ? (
-          <TableView<ApiPantryItem>
-            data={rows}
-            columns={columns}
-            getRowId={(row) => row.id}
-            onRowClick={openDetail}
+            chartType={filters.graphType}
           />
         ) : (
           <ListView<ApiPantryItem>
             data={rows}
             columns={columns}
+            groupByFields={filters.groupBy}
+            resolveGroupLabel={(field, value) => {
+              if (field === "group") return String(value ?? "").trim() || "Sem grupo";
+              if (field === "defaultSector") return String(value ?? "").trim() || "Geral";
+              if (field === "isBelowMin")
+                return String(value ?? "").includes("true") ? "Abaixo do mínimo" : "OK";
+              return String(value ?? "").trim() || "Sem valor";
+            }}
             getRowId={(row) => row.id}
             onRowClick={openDetail}
             renderCard={(item) => (
@@ -870,3 +896,4 @@ export function PantryItemsClientPage() {
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
 export type * from "./types/shared";
+export type * from "./types/audit";
 export type * from "./types/items";
 export type * from "./types/donors";
 export type * from "./types/entries";

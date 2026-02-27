@@ -25,6 +25,7 @@ export async function listPantryEntries(
     search?: string;
     page?: number;
     limit?: number;
+    all?: boolean;
     itemId?: string;
     donorId?: string;
     from?: string;
@@ -66,4 +67,3 @@ export async function deletePantryEntry(token: string, id: string) {
     token,
   );
 }
-

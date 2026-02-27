@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Package,
@@ -50,3 +50,4 @@ export const pantryManifest: ModuleManifest = {
     },
   ],
 };
+

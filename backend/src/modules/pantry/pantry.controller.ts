@@ -159,6 +159,20 @@ export class PantryController {
     return this.pantryService.getItem(user.tenantId, id);
   }
 
+  @Get('items/:id/audit')
+  @Permissions('pantry.read')
+  async listItemAuditLogs(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.pantryService.listItemAuditLogs(user.tenantId, id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   @Post('items')
   @Permissions('pantry.create')
   async createItem(@CurrentUser() user: JwtUser, @Body() dto: CreatePantryItemDto) {

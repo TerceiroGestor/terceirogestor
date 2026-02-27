@@ -3,6 +3,7 @@
 export type * from "./types";
 
 export * from "./overview";
+export * from "./audit";
 export * from "./items";
 export * from "./donors";
 export * from "./entries";

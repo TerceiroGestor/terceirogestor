@@ -1,62 +1,51 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  List,
+  RefreshCcw,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/DataTable";
-import type { DataTableApi } from "@/components/DataTable";
-import { FormEngine } from "@/components/FormEngine";
-import { SectionDialog } from "@/components/section-dialog";
-import { useConfirm } from "@/components/confirm/use-confirm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import {
-  createPantryExit,
-  createPantrySector,
-  deletePantryExit,
-  listPantryItems,
-  listPantrySectors,
-  updatePantryExit,
-  type ApiPantryExit,
-  type ApiPantryItem,
-} from "@/modules/pantry/api";
-import { buildPantryExitFormFields } from "@/modules/pantry/features/exits/config/pantry-exit-form-config";
-import { PANTRY_NEW_SECTOR_VALUE } from "@/modules/pantry/features/items/config/pantry-item-form-config";
-import type { PantryExitFormValues } from "@/modules/pantry/shared/domain/types";
-import { useRequireAuth } from "@/hooks/use-require-auth";
-import { formatDateOnlyPtBR, todayLocalIsoDate } from "@/lib/date";
+import { formatDateOnlyPtBR, parseLocalDateOnly } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
-import { createRestDataProvider } from "@/web-client/data-provider";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import type { Domain } from "@/web-client/domain/types";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { pantryExitsSearchView } from "@/web-client/registry/searchViews/pantry";
 import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import { CalendarView } from "@/web-client/views/CalendarView";
+import { GraphView } from "@/web-client/views/GraphView";
 import { KanbanView } from "@/web-client/views/KanbanView";
+import { ListView } from "@/web-client/views/ListView";
+import { TimelineView } from "@/web-client/views/TimelineView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
-import { Layers, LayoutGrid, Table2 } from "lucide-react";
+import type { ApiPantryExit } from "@/modules/pantry/api";
 
-function formatDate(value: string | null) {
-  return formatDateOnlyPtBR(value);
-}
-
-function toDateOnly(value: string | null | undefined) {
-  if (!value) return "";
-  return value.length >= 10 ? value.slice(0, 10) : value;
-}
-
-function todayIsoDate() {
-  return todayLocalIsoDate();
-}
-
-type PantryExitsView = "table" | "kanban";
+type PantryExitsView = "list" | "kanban" | "timeline" | "calendar" | "graph";
 
 type PantryExitsFilters = {
   view: PantryExitsView;
@@ -65,16 +54,46 @@ type PantryExitsFilters = {
   groupBy: string[];
   pageIndex: number;
   pageSize: number;
+  calendarField: string;
+  timelineField: string;
+  graphGroupField: string;
+  graphMetric: "count" | "quantity";
+  graphType: "bar" | "line" | "area";
 };
 
-const DEFAULT_GROUP_BY = ["type"];
+type PantryExitsFavoriteState = Pick<
+  PantryExitsFilters,
+  | "view"
+  | "searchText"
+  | "domain"
+  | "groupBy"
+  | "pageSize"
+  | "calendarField"
+  | "timelineField"
+  | "graphGroupField"
+  | "graphMetric"
+  | "graphType"
+>;
+
+const DEFAULT_GROUP_BY = ["sector"];
+const DEFAULT_CALENDAR_FIELD = "exitDate";
+const DEFAULT_TIMELINE_FIELD = "exitDate";
+const DEFAULT_GRAPH_GROUP_FIELD = "sector";
+const DEFAULT_GRAPH_METRIC: PantryExitsFilters["graphMetric"] = "quantity";
+const DEFAULT_GRAPH_TYPE: PantryExitsFilters["graphType"] = "bar";
 
 function normalizeView(value: string | null): PantryExitsView {
   switch (value) {
     case "kanban":
-      return "kanban";
+    case "timeline":
+    case "calendar":
+    case "graph":
+    case "list":
+      return value;
+    case "table":
+      return "list";
     default:
-      return "table";
+      return "list";
   }
 }
 
@@ -89,42 +108,67 @@ const parsePantryExitsFilters = (params: URLSearchParams): PantryExitsFilters =>
   const view = normalizeView(params.get("view") ?? params.get("v"));
   const searchText = params.get("q") ?? "";
   const domain = parseDomain(params.get("d")) ?? null;
-  const groupBy = (params.get("g") ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const groupParam = params.get("g");
+  const groupBy =
+    groupParam === "none"
+      ? []
+      : (groupParam ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
-  const limit = parsePositiveInt(params.get("limit"), 100);
+  const limit = parsePositiveInt(params.get("limit"), 50);
+  const calendarField = params.get("cf") ?? DEFAULT_CALENDAR_FIELD;
+  const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
+  const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
+  const graphMetric = (params.get("gm") as PantryExitsFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
+  const graphTypeRaw = (params.get("gt") as PantryExitsFilters["graphType"]) ?? DEFAULT_GRAPH_TYPE;
+  const graphType = graphTypeRaw === "line" || graphTypeRaw === "area" || graphTypeRaw === "bar" ? graphTypeRaw : DEFAULT_GRAPH_TYPE;
 
   return {
     view,
     searchText,
     domain,
-    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    groupBy: groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
+    calendarField,
+    timelineField,
+    graphGroupField,
+    graphMetric: graphMetric === "count" ? "count" : "quantity",
+    graphType,
   };
 };
 
 const serializePantryExitsFilters = (state: PantryExitsFilters) => ({
-  view: state.view === "table" ? undefined : state.view,
+  view: state.view === "list" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
   d: state.domain ? serializeDomain(state.domain) : undefined,
-  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
+  g:
+    state.groupBy.length === 0
+      ? "none"
+      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
+        ? undefined
+        : state.groupBy.join(","),
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
-  limit: state.pageSize === 100 ? undefined : String(state.pageSize),
+  limit: state.pageSize === 50 ? undefined : String(state.pageSize),
+  cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
+  tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
+  gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
+  gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
+  gt: state.graphType !== DEFAULT_GRAPH_TYPE ? state.graphType : undefined,
 });
 
-function exitTypeLabel(type: ApiPantryExit["type"] | string) {
+function resolveExitTypeLabel(type: ApiPantryExit["type"]) {
   switch (type) {
     case "ATTENDED":
       return "Atendidos";
     case "DONATION":
-      return "Doações";
+      return "Doação";
     case "EVENT":
-      return "Eventos";
+      return "Evento";
     case "PARTY":
-      return "Festas";
+      return "Festa";
     case "CORRECTION":
       return "Correção";
     default:
@@ -132,11 +176,30 @@ function exitTypeLabel(type: ApiPantryExit["type"] | string) {
   }
 }
 
+function resolveGroupValue(row: ApiPantryExit, field: string) {
+  switch (field) {
+    case "sector":
+      return row.sector?.trim() || "Geral";
+    case "itemId":
+      return row.item?.name?.trim() || "Item";
+    case "type":
+      return resolveExitTypeLabel(row.type);
+    case "exitDate":
+      return formatDateOnlyPtBR(row.exitDate);
+    default:
+      return String((row as Record<string, unknown>)[field] ?? "").trim() || "—";
+  }
+}
+
+function resolveDate(row: ApiPantryExit, field: string) {
+  const raw = (row as Record<string, unknown>)[field];
+  if (!raw) return null;
+  return parseLocalDateOnly(String(raw));
+}
+
 export function PantryExitsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
-  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
-  const { confirm } = useConfirm();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -144,158 +207,26 @@ export function PantryExitsClientPage() {
 
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
-  const canUpdate = permissions.includes("pantry.update");
-  const canDelete = permissions.includes("pantry.delete");
+
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
   const [rows, setRows] = React.useState<ApiPantryExit[]>([]);
-  const [items, setItems] = React.useState<ApiPantryItem[]>([]);
-  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
-    [],
-  );
-
-  const itemMap = React.useMemo(() => {
-    return new Map(items.map((item) => [item.id, item]));
-  }, [items]);
-
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
-  const tableApiRef = React.useRef<DataTableApi | null>(null);
 
   const [filters, setFilters] = usePersistedUrlState<PantryExitsFilters>({
     storageKey: "screenState:pantry.exits",
-    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit"],
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt"],
     parse: parsePantryExitsFilters,
     serialize: serializePantryExitsFilters,
   });
 
+  const shouldFetchAll = filters.view === "calendar" || filters.view === "timeline" || filters.view === "graph";
+
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  const [debouncedDomainKey, setDebouncedDomainKey] = React.useState("");
-
-  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
-
-  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
-    () => [
-      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
-      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
-    ],
-    [],
-  );
-
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<ApiPantryExit | null>(null);
-  const [saving, setSaving] = React.useState(false);
-
-  const itemOptions = React.useMemo(
-    () => items.map((item) => ({ label: item.name, value: item.id })),
-    [items],
-  );
-
-  const sectorOptions = React.useMemo(() => {
-    const set = new Set<string>();
-    const list: Array<{ label: string; value: string }> = [];
-
-    const push = (name: string) => {
-      const normalized = name.trim();
-      if (!normalized) return;
-      if (set.has(normalized)) return;
-      set.add(normalized);
-      list.push({ label: normalized, value: normalized });
-    };
-
-    (sectors ?? []).forEach((sector) => push(sector.name));
-    (items ?? []).forEach((item) => push(item.defaultSector ?? "Geral"));
-    if (editing?.sector) push(editing.sector);
-    push("Geral");
-
-    return list.sort((a, b) => a.label.localeCompare(b.label));
-  }, [editing?.sector, items, sectors]);
-
-  const columns = React.useMemo<ColumnDef<ApiPantryExit>[]>(
-    () => [
-      {
-        accessorKey: "exitDate",
-        header: "Data",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {formatDate(row.original.exitDate)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "item",
-        header: "Alimento",
-        cell: ({ row }) => (
-          <div className="space-y-0.5">
-            <p className="text-xs font-semibold text-foreground">
-              {row.original.item?.name ?? row.original.itemId}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Unidade: {row.original.item?.unit ?? row.original.unit}
-            </p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "sector",
-        header: "Setor",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.sector}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "type",
-        header: "Uso",
-        cell: ({ row }) => (
-          <Badge variant="outline">{exitTypeLabel(row.original.type)}</Badge>
-        ),
-      },
-      {
-        accessorKey: "quantity",
-        header: "Qtd.",
-        cell: ({ row }) => (
-          <span className="text-xs font-mono tabular-nums text-foreground">
-            {Number(row.original.quantity).toLocaleString("pt-BR")} {row.original.unit}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "eventName",
-        header: "Evento",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.eventName || "—"}
-          </span>
-        ),
-      },
-    ],
-    [],
-  );
-
-  const loadLookups = React.useCallback(async () => {
-    if (!token || !canRead) return;
-    try {
-      const [itemsResponse, sectorsResponse] = await Promise.all([
-        listPantryItems(token, { all: true, limit: 200 }),
-        listPantrySectors(token),
-      ]);
-      setItems(itemsResponse.data);
-      setSectors(sectorsResponse.data ?? []);
-    } catch {
-      // lookup failure should not block listing
-    }
-  }, [token, canRead]);
-
-  const enabled = Boolean(token && isAuthenticated && canRead && !authLoading);
-
-  const requestKey = React.useMemo(() => {
-    return `${filters.pageIndex}:${filters.pageSize}:${debouncedSearch}:${debouncedDomainKey}`;
-  }, [debouncedDomainKey, debouncedSearch, filters.pageIndex, filters.pageSize]);
-
-  const inFlightRequestRef = React.useRef<string | null>(null);
-  const lastRequestRef = React.useRef<string | null>(null);
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     const handler = setTimeout(() => {
@@ -305,15 +236,7 @@ export function PantryExitsClientPage() {
   }, [filters.searchText]);
 
   React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedDomainKey(filters.domain ? serializeDomain(filters.domain) : "");
-    }, 350);
-    return () => clearTimeout(handler);
-  }, [filters.domain]);
-
-  const resetPaginationKeyRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    const key = `${debouncedSearch}:${debouncedDomainKey}`;
+    const key = `${debouncedSearch}::${filters.domain ? serializeDomain(filters.domain) : ""}`;
     if (resetPaginationKeyRef.current === null) {
       resetPaginationKeyRef.current = key;
       return;
@@ -321,514 +244,442 @@ export function PantryExitsClientPage() {
     if (resetPaginationKeyRef.current === key) return;
     resetPaginationKeyRef.current = key;
     setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, debouncedDomainKey, setFilters]);
+  }, [debouncedSearch, filters.domain, setFilters]);
 
-  React.useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
-    void loadLookups();
-  }, [enabled, loadLookups]);
-
-  const loadExits = React.useCallback(async (force = false) => {
-    if (!enabled) return;
-
-    if (!force) {
-      if (inFlightRequestRef.current === requestKey) return;
-      if (lastRequestRef.current === requestKey) return;
-    }
-
-    inFlightRequestRef.current = requestKey;
-    setLoading(true);
-    try {
-      const response = await dataProvider.search<ApiPantryExit>("pantry.exits", {
-        domain: filters.domain,
-        searchText: debouncedSearch || undefined,
-        pagination: {
-          pageIndex: filters.pageIndex,
-          pageSize: filters.pageSize,
-        },
-      });
-      setRows(response.data);
-      setTotalCount(response.pagination.total);
-      setPageCount(response.pagination.pages);
-      lastRequestRef.current = requestKey;
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha ao carregar saídas.";
-      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
-      setRows([]);
-      setTotalCount(0);
-      setPageCount(0);
-    } finally {
-      setLoading(false);
-      inFlightRequestRef.current = null;
-    }
-  }, [
-    debouncedSearch,
-    enabled,
-    filters.domain,
-    filters.pageIndex,
-    filters.pageSize,
-    requestKey,
-    toast,
-    dataProvider,
-  ]);
-
-  React.useEffect(() => {
-    void loadExits();
-  }, [loadExits, requestKey]);
+  const viewOptions = React.useMemo<RecordBrowserViewOption<PantryExitsView>[]>(
+    () => [
+      { value: "list", label: "Lista", icon: <List className="size-4" /> },
+      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
+      { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+      { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },
+      { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
+    ],
+    [],
+  );
 
   const openCreate = React.useCallback(() => {
     router.push(withTenantPath("/pantry/exit", tenantSlug));
   }, [router, tenantSlug]);
 
-  const openEdit = React.useCallback(
-    (exit: ApiPantryExit) => {
-      if (!canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar saídas.",
-        });
-        return;
-      }
-      setEditing(exit);
-      setDialogOpen(true);
-    },
-    [canUpdate, toast],
-  );
+  const itemLabelById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((row) => {
+      map.set(row.itemId, row.item?.name ?? row.itemId);
+    });
+    return map;
+  }, [rows]);
 
-  const onDelete = React.useCallback(
-    async (exit: ApiPantryExit) => {
-      if (!token) return;
-      if (!canDelete) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para excluir saídas.",
-        });
-        return;
-      }
-      const confirmed = await confirm({
-        title: "Excluir saída",
-        description: "Excluir esta saída?",
-        confirmLabel: "Excluir",
-        cancelLabel: "Cancelar",
-        confirmVariant: "destructive",
+  const loadRows = React.useCallback(async () => {
+    if (!token || !canRead) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await dataProvider.search<ApiPantryExit>("pantry.exits", {
+        searchText: debouncedSearch,
+        domain: filters.domain,
+        all: shouldFetchAll ? true : undefined,
+        pagination: shouldFetchAll ? undefined : { pageIndex: filters.pageIndex, pageSize: filters.pageSize },
       });
-      if (!confirmed) return;
-      try {
-        await deletePantryExit(token, exit.id);
-        await loadExits();
-        toast({ title: "Saída excluída", variant: "success" });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao excluir saída.";
-        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
-      }
-    },
-    [token, canDelete, loadExits, confirm, toast],
-  );
 
-  const handleSubmit = React.useCallback(
-    async (values: PantryExitFormValues) => {
-      if (!token) return;
-      if (editing && !canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar saídas.",
-        });
-        return;
-      }
-      if (!editing && !canCreate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para criar saídas.",
-        });
-        return;
-      }
+      setRows(response.data);
+      const pages = response.pagination?.pages ?? 1;
+      const total = response.pagination?.total ?? response.data.length;
+      setPageCount(pages);
+      setTotalCount(total);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao carregar saídas.";
+      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
+      setRows([]);
+      setPageCount(0);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [canRead, dataProvider, debouncedSearch, filters.domain, filters.pageIndex, filters.pageSize, shouldFetchAll, toast, token]);
 
-      const item = items.find((candidate) => candidate.id === values.itemId);
-      const rawUnit = values.unit?.trim() ?? "";
-      const rawNotes = values.notes?.trim() ?? "";
-      const rawExitDate = values.exitDate?.trim() ?? "";
-      const rawEventName = values.eventName?.trim() ?? "";
-      const rawSector = values.sector?.trim() ?? "";
-      const rawNewSector = values.newSector?.trim() ?? "";
-      const quantity =
-        typeof values.quantity === "number" ? values.quantity : Number(values.quantity);
+  React.useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
 
-      if (!values.itemId) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Selecione um alimento.",
-        });
-        return;
-      }
-      const sector =
-        rawSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawSector;
-      if (!sector) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Informe o setor (local físico).",
-        });
-        return;
-      }
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Informe uma quantidade válida.",
-        });
-        return;
-      }
-      if ((values.type === "EVENT" || values.type === "PARTY") && !rawEventName) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Informe o nome do evento.",
-        });
-        return;
-      }
-
-      const payload = {
-        itemId: values.itemId,
-        sector,
-        quantity,
-        unit: rawUnit || item?.unit || "unidade",
-        exitDate: rawExitDate || undefined,
-        type: values.type,
-        eventName: rawEventName ? rawEventName : null,
-        notes: rawNotes ? rawNotes : null,
-      };
-
-      setSaving(true);
-      try {
-        if (rawSector === PANTRY_NEW_SECTOR_VALUE) {
-          try {
-            await createPantrySector(token, { name: sector });
-          } catch {
-            // best-effort
-          }
-        }
-        if (editing) {
-          await updatePantryExit(token, editing.id, payload);
-        } else {
-          await createPantryExit(token, payload);
-        }
-        setDialogOpen(false);
-        setEditing(null);
-        await loadExits();
-        toast({
-          title: editing ? "Saída atualizada" : "Saída criada",
-          variant: "success",
-        });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao salvar saída.";
-        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
-      } finally {
-        setSaving(false);
-      }
-    },
-    [token, editing, canUpdate, canCreate, items, loadExits, toast],
-  );
-
-  const resolvedPageCount =
-    pageCount > 0 ? pageCount : totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
-
-  const search = filters.searchText;
-  const setSearch = React.useCallback(
-    (next: string) => setFilters((prev) => ({ ...prev, searchText: next })),
-    [setFilters],
-  );
-
-  const screenState = React.useMemo(() => ({ view: filters.view }), [filters.view]);
-  const setScreenState = React.useCallback(
-    (updater: React.SetStateAction<{ view: PantryExitsView }>) => {
+  const removeDomainCondition = React.useCallback(
+    (index: number) => {
       setFilters((prev) => {
-        const current = { view: prev.view };
-        const next = typeof updater === "function" ? updater(current) : updater;
-        return { ...prev, view: next.view };
+        if (!prev.domain || prev.domain.type !== "group" || prev.domain.combinator !== "and")
+          return prev;
+        const next = prev.domain.children.filter((_child, i) => i !== index);
+        return {
+          ...prev,
+          domain: next.length ? { type: "group", combinator: "and", children: next } : null,
+          pageIndex: 0,
+        };
       });
     },
     [setFilters],
   );
 
-  const pagination = React.useMemo(
-    () => ({ pageIndex: filters.pageIndex, pageSize: filters.pageSize }),
-    [filters.pageIndex, filters.pageSize],
+  const queryFacets = React.useMemo(
+    () =>
+      buildQueryFacets({
+        domain: filters.domain,
+        groupBy: filters.groupBy,
+        searchView: pantryExitsSearchView,
+        onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
+        onClearDomain: () => setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onRemoveDomainCondition: removeDomainCondition,
+      }),
+    [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
   );
-  const setPagination = React.useCallback(
-    (updater: React.SetStateAction<{ pageIndex: number; pageSize: number }>) => {
-      setFilters((prev) => {
-        const current = { pageIndex: prev.pageIndex, pageSize: prev.pageSize };
-        const next = typeof updater === "function" ? updater(current) : updater;
-        return { ...prev, pageIndex: next.pageIndex, pageSize: next.pageSize };
-      });
-    },
-    [setFilters],
+
+  const valueSuggestions = React.useMemo(() => {
+    const sectors = new Set<string>();
+    const types = new Set<string>();
+    rows.forEach((row) => {
+      const sector = String(row.sector ?? "").trim();
+      if (sector) sectors.add(sector);
+      types.add(resolveExitTypeLabel(row.type));
+    });
+
+    const sectorList = Array.from(sectors).sort((a, b) => a.localeCompare(b));
+    const typeList = Array.from(types).sort((a, b) => a.localeCompare(b));
+
+    return (fieldName: string) => {
+      if (fieldName === "sector") return sectorList;
+      if (fieldName === "type") return typeList;
+      return [];
+    };
+  }, [rows]);
+
+  const columns = React.useMemo<ColumnDef<ApiPantryExit>[]>(
+    () => [
+      {
+        accessorKey: "itemId",
+        header: "Item",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="truncate font-medium text-foreground">{row.original.item?.name}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {row.original.sector || "Geral"} • {resolveExitTypeLabel(row.original.type)}
+              {row.original.eventName ? ` • ${row.original.eventName}` : ""}
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "quantity",
+        header: "Quantidade",
+        cell: ({ row }) => (
+          <div className="font-mono tabular-nums">
+            {Number(row.original.quantity).toLocaleString("pt-BR")} {row.original.unit}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "exitDate",
+        header: "Data",
+        cell: ({ row }) => formatDateOnlyPtBR(row.original.exitDate),
+      },
+      {
+        accessorKey: "notes",
+        header: "Notas",
+        cell: ({ row }) => (
+          <div className="max-w-[340px] truncate text-xs text-muted-foreground">{row.original.notes ?? ""}</div>
+        ),
+      },
+    ],
+    [],
   );
+
+  const dateFields = React.useMemo(
+    () => pantryExitsSearchView.fields.filter((f) => f.type === "date"),
+    [],
+  );
+
+  const viewConfig = React.useMemo(() => {
+    if (filters.view === "calendar") {
+      return (
+        <Select value={filters.calendarField} onValueChange={(value) => setFilters((prev) => ({ ...prev, calendarField: value }))}>
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "timeline") {
+      return (
+        <Select value={filters.timelineField} onValueChange={(value) => setFilters((prev) => ({ ...prev, timelineField: value }))}>
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "graph") {
+      const groupByFields = pantryExitsSearchView.groupBy ?? [];
+      return (
+        <div className="flex items-center gap-1">
+          <Select value={filters.graphGroupField} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}>
+            <SelectTrigger className="h-8 w-[11rem] text-xs">
+              <SelectValue placeholder="Agrupar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {groupByFields.map((opt) => (
+                <SelectItem key={opt.field} value={opt.field}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.graphMetric} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphMetric: value === "count" ? "count" : "quantity" }))}>
+            <SelectTrigger className="h-8 w-[9.5rem] text-xs">
+              <SelectValue placeholder="Métrica..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="quantity">Quantidade (soma)</SelectItem>
+              <SelectItem value="count">Registros</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.graphType} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: value === "line" || value === "area" ? value : "bar" }))}>
+            <SelectTrigger className="h-8 w-[9.25rem] text-xs">
+              <SelectValue placeholder="Gráfico..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bar">Barras</SelectItem>
+              <SelectItem value="line">Linha</SelectItem>
+              <SelectItem value="area">Área</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    return null;
+  }, [dateFields, filters.calendarField, filters.graphGroupField, filters.graphMetric, filters.graphType, filters.timelineField, filters.view, setFilters]);
+
+  const graphData = React.useMemo(() => {
+    if (filters.view !== "graph") return [];
+    const map = new Map<string, { x: string; value: number }>();
+    rows.forEach((row) => {
+      const key = resolveGroupValue(row, filters.graphGroupField);
+      const current = map.get(key) ?? { x: key, value: 0 };
+      current.value += filters.graphMetric === "count" ? 1 : Number(row.quantity);
+      map.set(key, current);
+    });
+    return Array.from(map.values()).sort((a, b) => a.x.localeCompare(b.x)).slice(0, 40);
+  }, [filters.graphGroupField, filters.graphMetric, filters.view, rows]);
 
   if (!canRead) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem permissão para acessar esta área.
-      </div>
-    );
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
   }
 
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
-        primaryAction={
-          canCreate
-            ? {
-                label: "Novo",
-                onClick: openCreate,
-              }
-            : undefined
-        }
+        primaryAction={canCreate ? { label: "Novo", onClick: openCreate } : undefined}
         searchSlot={
-          <div className="flex w-full items-center gap-1">
-            <SearchBar
-              value={search}
-              onChange={setSearch}
-              placeholder="Pesquisar saídas"
-              className="flex-1"
-            />
-            <SearchPanelMenu<
-              Pick<PantryExitsFilters, "view" | "searchText" | "domain" | "groupBy" | "pageSize">
-            >
-              actionId="pantry.exits"
-              searchView={pantryExitsSearchView}
-              domain={filters.domain}
-              onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
-              groupBy={filters.groupBy}
-              onGroupByChange={(groupBy) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
-                }))
-              }
-              snapshot={{
-                view: filters.view,
-                searchText: filters.searchText,
-                domain: filters.domain,
-                groupBy: filters.groupBy,
-                pageSize: filters.pageSize,
-              }}
-              onApplyFavorite={(state) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  ...state,
-                  pageIndex: 0,
-                }))
-              }
-            />
-          </div>
-        }
-        groupBySlot={
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={filters.view !== "table"}
-            onClick={() => tableApiRef.current?.openTools("groups")}
-            title="Agrupar"
-            aria-label="Agrupar"
-          >
-            <Layers className="size-4" />
-          </Button>
+          <SearchBar
+            value={filters.searchText}
+            onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+            placeholder="Pesquisar"
+            facets={queryFacets}
+            rightSlot={
+              <div className="flex items-center gap-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="Atualizar"
+                  aria-label="Atualizar"
+                  onClick={loadRows}
+                  disabled={loading}
+                >
+                  <RefreshCcw className="size-4" />
+                </Button>
+
+                <SearchPanelMenu<PantryExitsFavoriteState>
+                  actionId="pantry.exits"
+                  variant="compact"
+                  allowEmptyGroupBy
+                  groupByMode="multi"
+                  valueSuggestions={valueSuggestions}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      title="Filtros"
+                      aria-label="Filtros"
+                    >
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                  }
+                  searchView={pantryExitsSearchView}
+                  domain={filters.domain}
+                  onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+                  groupBy={filters.groupBy}
+                  onGroupByChange={(groupBy) => setFilters((prev) => ({ ...prev, groupBy }))}
+                  snapshot={{
+                    view: filters.view,
+                    searchText: filters.searchText,
+                    domain: filters.domain,
+                    groupBy: filters.groupBy,
+                    pageSize: filters.pageSize,
+                    calendarField: filters.calendarField,
+                    timelineField: filters.timelineField,
+                    graphGroupField: filters.graphGroupField,
+                    graphMetric: filters.graphMetric,
+                    graphType: filters.graphType,
+                  }}
+                  onApplyFavorite={(state) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      ...state,
+                      pageIndex: 0,
+                    }))
+                  }
+                />
+              </div>
+            }
+          />
         }
         viewSwitcherSlot={
           <ViewSwitcher
-            value={screenState.view}
+            value={filters.view}
             options={viewOptions}
-            onChange={(next) => setScreenState((prev) => ({ ...prev, view: next }))}
+            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
         rightSlot={
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => loadExits(true)}
-              disabled={loading}
-            >
-              Atualizar
-            </Button>
+            {viewConfig}
             <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-              Total:{" "}
-              <span className="font-mono tabular-nums text-foreground">
-                {totalCount.toLocaleString("pt-BR")}
-              </span>
+              Total: <span className="font-mono tabular-nums text-foreground">{totalCount.toLocaleString("pt-BR")}</span>
             </div>
           </>
         }
       />
 
-      <div className="w-full">
-        {screenState.view === "table" ? (
-          <DataTable
-            columns={columns}
-            data={rows}
-            apiRef={tableApiRef}
-            manualPagination
-            pageCount={resolvedPageCount}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            totalCount={totalCount}
-            toolbar={{ hidden: true, hideToolsSheet: false }}
-            rowActions={[
-              { id: "edit", label: "Editar", onSelect: openEdit },
-              { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
-            ]}
-          />
-        ) : (
-          <div className="space-y-3">
+      {error ? (
+        <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">{error}</div>
+      ) : loading ? (
+        <div className="text-sm text-muted-foreground">Carregando...</div>
+      ) : rows.length ? (
+        <>
+          {filters.view === "kanban" ? (
             <KanbanView<ApiPantryExit>
               items={rows}
-              getColumnKey={(row) => {
-                const field = filters.groupBy[0] ?? "type";
-                if (field === "itemId") {
-                  return row.item?.name ?? row.itemId;
-                }
-                if (field === "sector") {
-                  return row.sector?.trim() || "Geral";
-                }
-                if (field === "exitDate") {
-                  return (row.exitDate ?? "").slice(0, 10) || "Sem data";
-                }
-                return exitTypeLabel(row.type);
-              }}
+              getColumnKey={
+                filters.groupBy[0]
+                  ? (row) => resolveGroupValue(row, filters.groupBy[0]!)
+                  : undefined
+              }
               renderCard={(row) => (
-                <div className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20">
+                <div className="rounded-md border border-border/60 bg-background px-3 py-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-foreground">
-                        {row.item?.name ?? row.itemId}
-                      </div>
+                      <div className="truncate text-sm font-semibold text-foreground">{row.item?.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {(row.exitDate ?? "").slice(0, 10)} • Setor: {row.sector}
+                        {row.sector || "Geral"} • {resolveExitTypeLabel(row.type)}
+                        {row.eventName ? ` • ${row.eventName}` : ""}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono text-sm tabular-nums text-foreground">
-                        {Number(row.quantity).toLocaleString("pt-BR")} {row.unit}
-                      </div>
+                      <div className="font-mono text-sm tabular-nums text-foreground">{Number(row.quantity).toLocaleString("pt-BR")}</div>
+                      <div className="text-[11px] text-muted-foreground">{row.unit}</div>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{exitTypeLabel(row.type)}</Badge>
-                    {row.eventName ? <Badge variant="secondary">{row.eventName}</Badge> : null}
+                    <Badge variant="outline">{formatDateOnlyPtBR(row.exitDate)}</Badge>
+                    <Badge variant="secondary">{resolveExitTypeLabel(row.type)}</Badge>
                   </div>
                 </div>
               )}
             />
-            <PaginationBar
-              pageIndex={pagination.pageIndex}
-              pageCount={resolvedPageCount}
-              pageSize={pagination.pageSize}
-              onPageIndexChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageIndex: next }))
-              }
-              onPageSizeChange={(next) =>
-                setPagination((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
-              }
-              disabled={loading}
+          ) : filters.view === "calendar" ? (
+            <CalendarView<ApiPantryExit>
+              items={rows}
+              getDate={(row) => resolveDate(row, filters.calendarField)}
+              emptyState="Nenhuma saída neste dia."
+              renderItem={(row) => (
+                <div className="rounded-md border border-border/60 bg-background px-3 py-2">
+                  <div className="truncate text-sm font-semibold text-foreground">{row.item?.name}</div>
+                  <div className="text-xs text-muted-foreground">{row.sector || "Geral"} • {resolveExitTypeLabel(row.type)}</div>
+                </div>
+              )}
             />
-          </div>
-        )}
-        {loading ? (
-          <p className="text-xs text-muted-foreground">Carregando...</p>
-        ) : null}
-      </div>
+          ) : filters.view === "timeline" ? (
+            <TimelineView<ApiPantryExit>
+              items={rows}
+              getDate={(row) => resolveDate(row, filters.timelineField)}
+              renderTitle={(row) => row.item?.name ?? "Saída"}
+              renderBody={(row) => (
+                <span>
+                  {row.sector || "Geral"} • {resolveExitTypeLabel(row.type)} • {Number(row.quantity).toLocaleString("pt-BR")} {row.unit}
+                </span>
+              )}
+            />
+          ) : filters.view === "graph" ? (
+            <GraphView
+              data={graphData}
+              xKey="x"
+              series={[{ key: "value", label: filters.graphMetric === "count" ? "Registros" : "Quantidade (soma)", color: "hsl(var(--chart-1))" }]}
+              chartType={filters.graphType}
+            />
+          ) : (
+            <ListView<ApiPantryExit>
+              data={rows}
+              columns={columns}
+              groupByFields={filters.groupBy}
+              resolveGroupLabel={(field, value) => {
+                if (field === "sector") return String(value ?? "").trim() || "Geral";
+                if (field === "itemId") return itemLabelById.get(String(value ?? "")) ?? "Item";
+                if (field === "type")
+                  return typeof value === "string"
+                    ? resolveExitTypeLabel(value as ApiPantryExit["type"])
+                    : "Tipo";
+                if (field === "exitDate") return formatDateOnlyPtBR(String(value ?? ""));
+                return String(value ?? "").trim() || "Sem valor";
+              }}
+              getRowId={(row) => row.id}
+            />
+          )}
 
-      <SectionDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        title={editing ? "Editar saída" : "Nova saída"}
-        description="Registro rápido de consumo/uso da despensa."
-        contentClassName="max-w-[720px]"
-      >
-        <FormEngine<PantryExitFormValues>
-          fields={buildPantryExitFormFields({ itemOptions, sectorOptions })}
-          initialValues={
-            editing
-              ? {
-                  itemId: editing.itemId,
-                  sector: editing.sector ?? "Geral",
-                  newSector: "",
-                  quantity: editing.quantity,
-                  unit: editing.unit,
-                  exitDate: toDateOnly(editing.exitDate),
-                  type: editing.type,
-                  eventName: editing.eventName ?? "",
-                  notes: editing.notes ?? "",
-                }
-              : {
-                  itemId: "",
-                  sector: "Geral",
-                  newSector: "",
-                  quantity: "",
-                  unit: "",
-                  exitDate: todayIsoDate(),
-                  type: "ATTENDED",
-                  eventName: "",
-                  notes: "",
-                }
-          }
-          onFieldChange={({ name, value, nextValues }) => {
-            if (name === "sector") {
-              const nextSector = String(value ?? "").trim();
-              if (nextSector !== PANTRY_NEW_SECTOR_VALUE && nextValues.newSector) {
-                return { newSector: "" };
-              }
+          <PaginationBar
+            pageIndex={filters.pageIndex}
+            pageSize={filters.pageSize}
+            pageCount={pageCount}
+            onPageIndexChange={(pageIndex) => setFilters((prev) => ({ ...prev, pageIndex }))}
+            onPageSizeChange={(pageSize) =>
+              setFilters((prev) => ({ ...prev, pageSize, pageIndex: 0 }))
             }
-            if (name !== "itemId") return;
-            const itemId = String(value ?? "").trim();
-            const item = itemMap.get(itemId);
-            if (!item) {
-              return { sector: "Geral", unit: "", newSector: "" };
-            }
-            return {
-              sector: item.defaultSector || "Geral",
-              unit: item.unit || "",
-              newSector: "",
-            };
-          }}
-          disabled={saving}
-          onSubmit={handleSubmit}
-          actions={{
-            submit: {
-              label: saving ? "Salvando..." : "Salvar",
-              variant: "primary",
-            },
-            cancel: {
-              label: "Cancelar",
-              variant: "ghost",
-              onClick: () => setDialogOpen(false),
-            },
-          }}
-        />
-      </SectionDialog>
+          />
+        </>
+      ) : (
+        <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">Nenhum resultado.</div>
+      )}
     </div>
   );
 }

@@ -177,6 +177,7 @@ function applyLocalSearch(rows: ApiPantryItem[], needle: string) {
       row.group ?? "",
       row.defaultSector,
       row.unit,
+      row.notes ?? "",
       row.validityStatus,
       row.lastMovementDate ?? "",
       row.nextExpiryDate ?? "",
@@ -252,4 +253,3 @@ export async function searchPantryItems(
     },
   };
 }
-

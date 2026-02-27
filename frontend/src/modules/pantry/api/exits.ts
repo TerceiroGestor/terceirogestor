@@ -25,6 +25,7 @@ export async function listPantryExits(
     search?: string;
     page?: number;
     limit?: number;
+    all?: boolean;
     itemId?: string;
     type?: string;
     from?: string;
@@ -66,4 +67,3 @@ export async function deletePantryExit(token: string, id: string) {
     token,
   );
 }
-

@@ -546,6 +546,48 @@ export class PantryService {
     return enriched;
   }
 
+  async listItemAuditLogs(
+    tenantId: string,
+    itemId: string,
+    params?: { page?: number; limit?: number },
+  ) {
+    await this.getItem(tenantId, itemId);
+
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 50;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      tenantId,
+      entity: 'PantryItem',
+      entityId: itemId,
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
   async createItem(tenantId: string, dto: CreatePantryItemDto) {
     const defaultSector = await this.ensureSector(tenantId, dto.defaultSector ?? 'Geral');
     const item = await this.prisma.pantryItem.create({
@@ -556,6 +598,7 @@ export class PantryService {
         defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
+        notes: normalizeString(dto.notes),
       },
     });
 
@@ -579,6 +622,7 @@ export class PantryService {
         defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
       },
     });
 
@@ -2341,6 +2385,7 @@ export class PantryService {
         defaultSector: normalizeSector(item.defaultSector),
         unit: item.unit,
         minStock,
+        notes: item.notes ?? null,
         stock,
         entriesTotal,
         exitsTotal,

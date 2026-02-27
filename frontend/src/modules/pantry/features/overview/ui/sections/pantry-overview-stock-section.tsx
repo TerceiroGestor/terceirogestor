@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { GroupedListView } from "@/web-client/views/GroupedListView";
+import { ListView } from "@/web-client/views/ListView";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +41,7 @@ export function PantryOverviewStockSection({
   return (
     <div className="w-full">
       {view === "list" ? (
-        <GroupedListView
+        <ListView
           data={rows}
           columns={columns}
           groupByFields={groupBy}
@@ -165,3 +165,4 @@ export function PantryOverviewStockSection({
     </div>
   );
 }
+

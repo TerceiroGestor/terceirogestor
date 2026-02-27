@@ -1,7 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -16,10 +26,13 @@ export type GraphSeries = {
   color: string;
 };
 
+export type GraphChartType = "bar" | "line" | "area";
+
 export function GraphView<TDatum extends Record<string, unknown>>({
   data,
   xKey,
   series,
+  chartType = "bar",
   height = 320,
   className,
   emptyState = "Nada para exibir.",
@@ -27,6 +40,7 @@ export function GraphView<TDatum extends Record<string, unknown>>({
   data: TDatum[];
   xKey: keyof TDatum & string;
   series: GraphSeries[];
+  chartType?: GraphChartType;
   height?: number;
   className?: string;
   emptyState?: string;
@@ -53,21 +67,56 @@ export function GraphView<TDatum extends Record<string, unknown>>({
       className={cn("w-full", className)}
       style={{ height }}
     >
-      <BarChart data={data}>
-        <CartesianGrid vertical={false} />
-        <XAxis dataKey={xKey} tickLine={false} axisLine={false} />
-        <YAxis />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        {series.map((s) => (
-          <Bar
-            key={s.key}
-            dataKey={s.key}
-            fill={`var(--color-${s.key})`}
-            radius={[6, 6, 0, 0]}
-          />
-        ))}
-      </BarChart>
+      {chartType === "line" ? (
+        <LineChart data={data}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey={xKey} tickLine={false} axisLine={false} />
+          <YAxis />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          {series.map((s) => (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              stroke={`var(--color-${s.key})`}
+              strokeWidth={2}
+              dot={false}
+            />
+          ))}
+        </LineChart>
+      ) : chartType === "area" ? (
+        <AreaChart data={data}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey={xKey} tickLine={false} axisLine={false} />
+          <YAxis />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          {series.map((s) => (
+            <Area
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              stroke={`var(--color-${s.key})`}
+              fill={`var(--color-${s.key})`}
+              fillOpacity={0.2}
+            />
+          ))}
+        </AreaChart>
+      ) : (
+        <BarChart data={data}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey={xKey} tickLine={false} axisLine={false} />
+          <YAxis />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          {series.map((s) => (
+            <Bar
+              key={s.key}
+              dataKey={s.key}
+              fill={`var(--color-${s.key})`}
+              radius={[6, 6, 0, 0]}
+            />
+          ))}
+        </BarChart>
+      )}
     </ChartContainer>
   );
 }
-

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   PantryDonorsClientPage,
@@ -6,6 +6,7 @@ import {
   PantryExitsClientPage,
   PantryItemsClientPage,
   PantryOverviewClientPage,
+  PantryStockClientPage,
 } from "@/modules/pantry";
 import { PantryEntryCreateClientPage } from "@/modules/pantry/features/entries/ui/pantry-entry-create-client-page";
 import { PantryExitSheetPage } from "@/modules/pantry/features/exits/ui/pantry-exit-sheet-page";
@@ -19,7 +20,7 @@ import type { WindowAction } from "@/web-client/registry/types";
 
 export const pantryOverviewAction: WindowAction = {
   id: "pantry.overview",
-  title: "Despensa",
+  title: "Painel",
   breadcrumbs: [{ label: "Despensa", href: "/pantry" }],
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
@@ -36,6 +37,18 @@ export const pantryItemsAction: WindowAction = {
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryItemsClientPage />,
+};
+
+export const pantryStockAction: WindowAction = {
+  id: "pantry.stock",
+  title: "Estoque",
+  breadcrumbs: [
+    { label: "Despensa", href: "/pantry" },
+    { label: "Estoque", href: "/pantry/stock" },
+  ],
+  permissions: ["pantry.read"],
+  actionSlot: <PantryHeaderNav />,
+  render: () => <PantryStockClientPage />,
 };
 
 export const pantryItemsCreateAction: WindowAction = {
@@ -133,3 +146,4 @@ export const pantryHistoryAction: WindowAction = {
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryHistoryClientPage />,
 };
+

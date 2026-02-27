@@ -1,608 +1,689 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { PantryEntryEditDialog } from "@/modules/pantry/features/entries/ui/pantry-entry-edit-dialog";
-import { PantryExitEditDialog } from "@/modules/pantry/features/exits/ui/pantry-exit-edit-dialog";
-import { usePantryHistoryModel, type PantryHistoryView } from "@/modules/pantry/features/history/hooks/use-pantry-history-model";
-import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
-import { Button } from "@/components/ui/button";
+import type { ColumnDef } from "@tanstack/react-table";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  List,
+  RefreshCcw,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  PantryMovementTimeline,
-  type PantryMovementTimelineRow,
-} from "@/modules/pantry/shared/ui/pantry-movement-timeline";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
-import { BarChart3, Clock, LayoutGrid, Table2 } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/features/auth/auth-context";
+import { useCurrentUser } from "@/features/auth/current-user-context";
+import { formatDateOnlyPtBR, parseLocalDateOnly } from "@/lib/date";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
-import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
-import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
+import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import type { Domain } from "@/web-client/domain/types";
-import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
+import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import { CalendarView } from "@/web-client/views/CalendarView";
+import { GraphView } from "@/web-client/views/GraphView";
 import { KanbanView } from "@/web-client/views/KanbanView";
-import { exitTypeLabel } from "@/modules/pantry/features/overview/domain/overview.helpers";
+import { ListView } from "@/web-client/views/ListView";
+import { TimelineView } from "@/web-client/views/TimelineView";
+import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import type { ApiPantryHistoryMovement } from "@/modules/pantry/api";
 
-function formatPantryMovementDate(value: string | null) {
-  if (!value) return "—";
-  const trimmed = value.trim();
-  if (!trimmed) return "—";
+type PantryHistoryView = "list" | "kanban" | "timeline" | "calendar" | "graph";
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return formatDateOnlyPtBR(trimmed);
-  }
-
-  if (
-    /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?(Z|[+-]\d{2}:\d{2})?$/.test(trimmed)
-  ) {
-    return formatDateOnlyPtBR(trimmed.slice(0, 10));
-  }
-
-  return formatDateTimePtBR(trimmed);
-}
-
-type PantryHistoryFavoriteState = {
+type PantryHistoryFilters = {
   view: PantryHistoryView;
   searchText: string;
   domain: Domain;
   groupBy: string[];
+  pageIndex: number;
   pageSize: number;
+  calendarField: string;
+  timelineField: string;
+  graphGroupField: string;
+  graphMetric: "count" | "quantity";
+  graphType: "bar" | "line" | "area";
 };
 
+type PantryHistoryFavoriteState = Pick<
+  PantryHistoryFilters,
+  | "view"
+  | "searchText"
+  | "domain"
+  | "groupBy"
+  | "pageSize"
+  | "calendarField"
+  | "timelineField"
+  | "graphGroupField"
+  | "graphMetric"
+  | "graphType"
+>;
+
+const DEFAULT_GROUP_BY = ["movementDate"];
+const DEFAULT_CALENDAR_FIELD = "movementDate";
+const DEFAULT_TIMELINE_FIELD = "movementDate";
+const DEFAULT_GRAPH_GROUP_FIELD = "kind";
+const DEFAULT_GRAPH_METRIC: PantryHistoryFilters["graphMetric"] = "quantity";
+const DEFAULT_GRAPH_TYPE: PantryHistoryFilters["graphType"] = "bar";
+
+function normalizeView(value: string | null): PantryHistoryView {
+  switch (value) {
+    case "kanban":
+    case "timeline":
+    case "calendar":
+    case "graph":
+    case "list":
+      return value;
+    case "table":
+      return "list";
+    default:
+      return "list";
+  }
+}
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilters => {
+  const view = normalizeView(params.get("view") ?? params.get("v"));
+  const searchText = params.get("q") ?? "";
+  const domain = parseDomain(params.get("d")) ?? null;
+  const groupParam = params.get("g");
+  const groupBy =
+    groupParam === "none"
+      ? []
+      : (groupParam ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+  const page = parsePositiveInt(params.get("page"), 1);
+  const limit = parsePositiveInt(params.get("limit"), 50);
+  const calendarField = params.get("cf") ?? DEFAULT_CALENDAR_FIELD;
+  const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
+  const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
+  const graphMetric = (params.get("gm") as PantryHistoryFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
+  const graphTypeRaw = (params.get("gt") as PantryHistoryFilters["graphType"]) ?? DEFAULT_GRAPH_TYPE;
+  const graphType = graphTypeRaw === "line" || graphTypeRaw === "area" || graphTypeRaw === "bar" ? graphTypeRaw : DEFAULT_GRAPH_TYPE;
+
+  return {
+    view,
+    searchText,
+    domain,
+    groupBy: groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    pageIndex: page - 1,
+    pageSize: Math.min(Math.max(limit, 1), 200),
+    calendarField,
+    timelineField,
+    graphGroupField,
+    graphMetric: graphMetric === "count" ? "count" : "quantity",
+    graphType,
+  };
+};
+
+const serializePantryHistoryFilters = (state: PantryHistoryFilters) => ({
+  view: state.view === "list" ? undefined : state.view,
+  q: state.searchText.trim() ? state.searchText.trim() : undefined,
+  d: state.domain ? serializeDomain(state.domain) : undefined,
+  g:
+    state.groupBy.length === 0
+      ? "none"
+      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
+        ? undefined
+        : state.groupBy.join(","),
+  page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
+  limit: state.pageSize === 50 ? undefined : String(state.pageSize),
+  cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
+  tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
+  gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
+  gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
+  gt: state.graphType !== DEFAULT_GRAPH_TYPE ? state.graphType : undefined,
+});
+
+function resolveKindLabel(kind: ApiPantryHistoryMovement["kind"]) {
+  return kind === "ENTRY" ? "Entrada" : "Saída";
+}
+
+function resolveExitTypeLabel(type?: string | null) {
+  if (!type) return "";
+  switch (type) {
+    case "ATTENDED":
+      return "Atendidos";
+    case "DONATION":
+      return "Doação";
+    case "EVENT":
+      return "Evento";
+    case "PARTY":
+      return "Festa";
+    case "CORRECTION":
+      return "Correção";
+    default:
+      return type;
+  }
+}
+
+function resolveGroupValue(row: ApiPantryHistoryMovement, field: string) {
+  switch (field) {
+    case "kind":
+      return resolveKindLabel(row.kind);
+    case "sector":
+      return row.sector?.trim() || "Geral";
+    case "type":
+      return resolveExitTypeLabel(row.type);
+    case "itemId":
+      return row.item?.name?.trim() || "Item";
+    case "movementDate":
+      return formatDateOnlyPtBR(row.movementDate);
+    default:
+      return String((row as Record<string, unknown>)[field] ?? "").trim() || "—";
+  }
+}
+
+function resolveDate(row: ApiPantryHistoryMovement, field: string) {
+  const raw = (row as Record<string, unknown>)[field];
+  if (!raw) return null;
+  return parseLocalDateOnly(String(raw));
+}
+
 export function PantryHistoryClientPage() {
-  const model = usePantryHistoryModel();
+  const { token } = useAuth();
+  const { permissions } = useCurrentUser();
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
+
+  const canRead = permissions.includes("pantry.read");
+
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
+
+  const [rows, setRows] = React.useState<ApiPantryHistoryMovement[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [pageCount, setPageCount] = React.useState(0);
+  const [totalCount, setTotalCount] = React.useState(0);
+
+  const [filters, setFilters] = usePersistedUrlState<PantryHistoryFilters>({
+    storageKey: "screenState:pantry.history",
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt"],
+    parse: parsePantryHistoryFilters,
+    serialize: serializePantryHistoryFilters,
+  });
+
+  const shouldFetchAll = filters.view === "calendar" || filters.view === "timeline" || filters.view === "graph";
+
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  const resetPaginationKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (!model.error) return;
-    toast({ variant: "destructive", title: "Falha ao carregar", description: model.error });
-  }, [model.error, toast]);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filters.searchText.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [filters.searchText]);
 
-  if (!model.canRead) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem permissão para acessar esta área.
-      </div>
-    );
+  React.useEffect(() => {
+    const key = `${debouncedSearch}::${filters.domain ? serializeDomain(filters.domain) : ""}`;
+    if (resetPaginationKeyRef.current === null) {
+      resetPaginationKeyRef.current = key;
+      return;
+    }
+    if (resetPaginationKeyRef.current === key) return;
+    resetPaginationKeyRef.current = key;
+    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, filters.domain, setFilters]);
+
+  const viewOptions = React.useMemo<RecordBrowserViewOption<PantryHistoryView>[]>(
+    () => [
+      { value: "list", label: "Lista", icon: <List className="size-4" /> },
+      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
+      { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+      { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },
+      { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
+    ],
+    [],
+  );
+
+  const openItem = React.useCallback(
+    (row: ApiPantryHistoryMovement) => {
+      router.push(withTenantPath(`/pantry/items/${row.itemId}`, tenantSlug));
+    },
+    [router, tenantSlug],
+  );
+
+  const itemLabelById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((row) => {
+      map.set(row.itemId, row.item?.name ?? row.itemId);
+    });
+    return map;
+  }, [rows]);
+
+  const loadRows = React.useCallback(async () => {
+    if (!token || !canRead) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await dataProvider.search<ApiPantryHistoryMovement>("pantry.history", {
+        searchText: debouncedSearch,
+        domain: filters.domain,
+        all: shouldFetchAll ? true : undefined,
+        pagination: shouldFetchAll ? undefined : { pageIndex: filters.pageIndex, pageSize: filters.pageSize },
+      });
+
+      setRows(response.data);
+      const pages = response.pagination?.pages ?? 1;
+      const total = response.pagination?.total ?? response.data.length;
+      setPageCount(pages);
+      setTotalCount(total);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao carregar histórico.";
+      setError(message);
+      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
+      setRows([]);
+      setPageCount(0);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [canRead, dataProvider, debouncedSearch, filters.domain, filters.pageIndex, filters.pageSize, shouldFetchAll, toast, token]);
+
+  React.useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
+
+  const removeDomainCondition = React.useCallback(
+    (index: number) => {
+      setFilters((prev) => {
+        if (!prev.domain || prev.domain.type !== "group" || prev.domain.combinator !== "and")
+          return prev;
+        const next = prev.domain.children.filter((_child, i) => i !== index);
+        return {
+          ...prev,
+          domain: next.length ? { type: "group", combinator: "and", children: next } : null,
+          pageIndex: 0,
+        };
+      });
+    },
+    [setFilters],
+  );
+
+  const queryFacets = React.useMemo(
+    () =>
+      buildQueryFacets({
+        domain: filters.domain,
+        groupBy: filters.groupBy,
+        searchView: pantryHistorySearchView,
+        onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
+        onClearDomain: () => setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onRemoveDomainCondition: removeDomainCondition,
+      }),
+    [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
+  );
+
+  const columns = React.useMemo<ColumnDef<ApiPantryHistoryMovement>[]>(
+    () => [
+      {
+        accessorKey: "itemId",
+        header: "Item",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="truncate font-medium text-foreground">{row.original.item?.name}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {resolveKindLabel(row.original.kind)} • {row.original.sector || "Geral"}
+              {row.original.type ? ` • ${resolveExitTypeLabel(row.original.type)}` : ""}
+              {row.original.donorName ? ` • ${row.original.donorName}` : ""}
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "quantity",
+        header: "Quantidade",
+        cell: ({ row }) => (
+          <div className="font-mono tabular-nums">
+            {Number(row.original.quantity).toLocaleString("pt-BR")} {row.original.unit}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "movementDate",
+        header: "Data",
+        cell: ({ row }) => formatDateOnlyPtBR(row.original.movementDate),
+      },
+      {
+        accessorKey: "notes",
+        header: "Notas",
+        cell: ({ row }) => (
+          <div className="max-w-[340px] truncate text-xs text-muted-foreground">{row.original.notes ?? ""}</div>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const dateFields = React.useMemo(
+    () => pantryHistorySearchView.fields.filter((f) => f.type === "date"),
+    [],
+  );
+
+  const viewConfig = React.useMemo(() => {
+    if (filters.view === "calendar") {
+      return (
+        <Select value={filters.calendarField} onValueChange={(value) => setFilters((prev) => ({ ...prev, calendarField: value }))}>
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "timeline") {
+      return (
+        <Select value={filters.timelineField} onValueChange={(value) => setFilters((prev) => ({ ...prev, timelineField: value }))}>
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "graph") {
+      const groupByFields = pantryHistorySearchView.groupBy ?? [];
+      return (
+        <div className="flex items-center gap-1">
+          <Select value={filters.graphGroupField} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}>
+            <SelectTrigger className="h-8 w-[11rem] text-xs">
+              <SelectValue placeholder="Agrupar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {groupByFields.map((opt) => (
+                <SelectItem key={opt.field} value={opt.field}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.graphMetric} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphMetric: value === "count" ? "count" : "quantity" }))}>
+            <SelectTrigger className="h-8 w-[9.5rem] text-xs">
+              <SelectValue placeholder="Métrica..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="quantity">Quantidade (soma)</SelectItem>
+              <SelectItem value="count">Registros</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.graphType} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: value === "line" || value === "area" ? value : "bar" }))}>
+            <SelectTrigger className="h-8 w-[9.25rem] text-xs">
+              <SelectValue placeholder="Gráfico..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bar">Barras</SelectItem>
+              <SelectItem value="line">Linha</SelectItem>
+              <SelectItem value="area">Área</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    return null;
+  }, [dateFields, filters.calendarField, filters.graphGroupField, filters.graphMetric, filters.graphType, filters.timelineField, filters.view, setFilters]);
+
+  const graphData = React.useMemo(() => {
+    if (filters.view !== "graph") return [];
+    const map = new Map<string, { x: string; value: number }>();
+    rows.forEach((row) => {
+      const key = resolveGroupValue(row, filters.graphGroupField);
+      const current = map.get(key) ?? { x: key, value: 0 };
+      current.value += filters.graphMetric === "count" ? 1 : Number(row.quantity);
+      map.set(key, current);
+    });
+    return Array.from(map.values()).sort((a, b) => a.x.localeCompare(b.x)).slice(0, 40);
+  }, [filters.graphGroupField, filters.graphMetric, filters.view, rows]);
+
+  if (!canRead) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
   }
 
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
         searchSlot={
-          <div className="flex w-full items-center gap-1">
-            <SearchBar
-              value={model.filters.searchText}
-              onChange={(next) =>
-                model.setFilters((prev) => ({ ...prev, searchText: next }))
-              }
-              placeholder="Buscar por alimento"
-              className="flex-1"
-            />
-            <SearchPanelMenu<PantryHistoryFavoriteState>
-              actionId="pantry.history"
-              searchView={pantryHistorySearchView}
-              domain={model.filters.domain}
-              onDomainChange={(domain) =>
-                model.setFilters((prev) => ({ ...prev, domain }))
-              }
-              groupBy={model.filters.groupBy}
-              onGroupByChange={(groupBy) =>
-                model.setFilters((prev) => ({
-                  ...prev,
-                  groupBy: groupBy.length ? groupBy : ["kind"],
-                }))
-              }
-              snapshot={{
-                view: model.filters.view,
-                searchText: model.filters.searchText,
-                domain: model.filters.domain,
-                groupBy: model.filters.groupBy,
-                pageSize: model.filters.pageSize,
-              }}
-              onApplyFavorite={(state) =>
-                model.setFilters((prev) => ({
-                  ...prev,
-                  ...state,
-                  pageIndex: 0,
-                }))
-              }
-            />
-          </div>
+          <SearchBar
+            value={filters.searchText}
+            onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+            placeholder="Pesquisar"
+            facets={queryFacets}
+            rightSlot={
+              <div className="flex items-center gap-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="Atualizar"
+                  aria-label="Atualizar"
+                  onClick={loadRows}
+                  disabled={loading}
+                >
+                  <RefreshCcw className="size-4" />
+                </Button>
+
+                <SearchPanelMenu<PantryHistoryFavoriteState>
+                  actionId="pantry.history"
+                  variant="compact"
+                  allowEmptyGroupBy
+                  groupByMode="multi"
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      title="Filtros"
+                      aria-label="Filtros"
+                    >
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                  }
+                  searchView={pantryHistorySearchView}
+                  domain={filters.domain}
+                  onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+                  groupBy={filters.groupBy}
+                  onGroupByChange={(groupBy) => setFilters((prev) => ({ ...prev, groupBy }))}
+                  snapshot={{
+                    view: filters.view,
+                    searchText: filters.searchText,
+                    domain: filters.domain,
+                    groupBy: filters.groupBy,
+                    pageSize: filters.pageSize,
+                    calendarField: filters.calendarField,
+                    timelineField: filters.timelineField,
+                    graphGroupField: filters.graphGroupField,
+                    graphMetric: filters.graphMetric,
+                    graphType: filters.graphType,
+                  }}
+                  onApplyFavorite={(state) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      ...state,
+                      pageIndex: 0,
+                    }))
+                  }
+                />
+              </div>
+            }
+          />
         }
         viewSwitcherSlot={
           <ViewSwitcher
-            value={model.filters.view}
-            options={HISTORY_VIEWS}
-            onChange={(next) => model.setFilters((prev) => ({ ...prev, view: next }))}
+            value={filters.view}
+            options={viewOptions}
+            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
         rightSlot={
           <>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => model.reload()}
-              disabled={model.loading}
-            >
-              Atualizar
-            </Button>
+            {viewConfig}
             <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-              Total:{" "}
-              <span className="font-mono tabular-nums text-foreground">
-                {model.totalCount.toLocaleString("pt-BR")}
-              </span>
+              Total: <span className="font-mono tabular-nums text-foreground">{totalCount.toLocaleString("pt-BR")}</span>
             </div>
           </>
         }
       />
 
-      <PantryHistorySection model={model} formatDate={formatPantryMovementDate} />
-
-      <PantryEntryEditDialog
-        open={model.editEntryOpen}
-        onOpenChange={(open) => {
-          model.setEditEntryOpen(open);
-          if (!open) model.setEditingEntryId(null);
-        }}
-        entryId={model.editingEntryId}
-        onSaved={model.reload}
-      />
-
-      <PantryExitEditDialog
-        open={model.editExitOpen}
-        onOpenChange={(open) => {
-          model.setEditExitOpen(open);
-          if (!open) model.setEditingExitId(null);
-        }}
-        exitId={model.editingExitId}
-        onSaved={model.reload}
-      />
-    </div>
-  );
-}
-
-function PantryHistorySection({
-  model,
-  formatDate,
-}: {
-  model: ReturnType<typeof usePantryHistoryModel>;
-  formatDate: (value: string | null) => string;
-}) {
-  const movements = model.movements;
-  const showPagination = model.filters.view !== "graph" && model.pageCount > 1;
-
-  const paginationNode = showPagination ? (
-    <PaginationBar
-      pageIndex={model.filters.pageIndex}
-      pageCount={model.pageCount}
-      pageSize={model.filters.pageSize}
-      onPageIndexChange={(next) =>
-        model.setFilters((prev) => ({ ...prev, pageIndex: next }))
-      }
-      onPageSizeChange={(next) =>
-        model.setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
-      }
-      disabled={model.loading}
-    />
-  ) : null;
-
-  return (
-    <div className="w-full">
-      {/* Migrado para o ControlPanelShell (v0.3+) */}
-        {/*
-        <RecordBrowserToolbar
-          view={model.filters.view}
-          views={HISTORY_VIEWS}
-          onViewChange={(next) => model.setFilters((prev) => ({ ...prev, view: next }))}
-          query={model.filters.search}
-          onQueryChange={(next) => model.setFilters((prev) => ({ ...prev, search: next }))}
-          searchPlaceholder="Buscar por alimento"
-          filters={
-            <>
-              <div className="min-w-[200px]">
-                <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Tipo (saÃ­das)
-                </p>
-                <Select
-                  value={model.filters.exitType}
-                  onValueChange={(value) =>
-                    model.setFilters((prev) => ({
-                      ...prev,
-                      exitType: value as typeof prev.exitType,
-                    }))
-                  }
-                  disabled={model.filters.kind === "ENTRY"}
+      {error ? (
+        <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">{error}</div>
+      ) : loading ? (
+        <div className="text-sm text-muted-foreground">Carregando...</div>
+      ) : rows.length ? (
+        <>
+          {filters.view === "kanban" ? (
+            <KanbanView<ApiPantryHistoryMovement>
+              items={rows}
+              getColumnKey={
+                filters.groupBy[0]
+                  ? (row) => resolveGroupValue(row, filters.groupBy[0]!)
+                  : undefined
+              }
+              renderCard={(row) => (
+                <div
+                  className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openItem(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") openItem(row);
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="ATTENDED">Atendidos</SelectItem>
-                    <SelectItem value="DONATION">DoaÃ§Ãµes</SelectItem>
-                    <SelectItem value="EVENT">Eventos</SelectItem>
-                    <SelectItem value="PARTY">Festas</SelectItem>
-                    <SelectItem value="CORRECTION">CorreÃ§Ã£o</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="min-w-[240px]">
-                <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Evento (saÃ­das)
-                </p>
-                <Input
-                  value={model.filters.eventName}
-                  onChange={(e) =>
-                    model.setFilters((prev) => ({ ...prev, eventName: e.target.value }))
-                  }
-                  placeholder="Buscar por evento"
-                  disabled={model.filters.kind === "ENTRY"}
-                />
-              </div>
-
-              <div className="min-w-[150px]">
-                <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  De
-                </p>
-                <Input
-                  type="date"
-                  value={model.filters.fromDate}
-                  onChange={(e) =>
-                    model.setFilters((prev) => ({ ...prev, fromDate: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="min-w-[150px]">
-                <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  AtÃ©
-                </p>
-                <Input
-                  type="date"
-                  value={model.filters.toDate}
-                  onChange={(e) =>
-                    model.setFilters((prev) => ({ ...prev, toDate: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 py-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={model.filters.kind === "ALL" ? "default" : "outline"}
-                  onClick={() =>
-                    model.setFilters((prev) => ({ ...prev, kind: "ALL" }))
-                  }
-                >
-                  Todos
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={model.filters.kind === "ENTRY" ? "default" : "outline"}
-                  onClick={() =>
-                    model.setFilters((prev) => ({ ...prev, kind: "ENTRY" }))
-                  }
-                >
-                  Entradas
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={model.filters.kind === "EXIT" ? "default" : "outline"}
-                  onClick={() =>
-                    model.setFilters((prev) => ({ ...prev, kind: "EXIT" }))
-                  }
-                >
-                  SaÃ­das
-                </Button>
-              </div>
-            </>
-          }
-          rightActions={
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => model.reload()}
-                disabled={model.loading}
-              >
-                Atualizar
-              </Button>
-              <div className="text-xs text-muted-foreground">
-                Total:{" "}
-                <span className="font-mono tabular-nums text-foreground">
-                  {model.totalCount.toLocaleString("pt-BR")}
-                </span>
-              </div>
-            </>
-          }
-        />
-        */}
-
-        {model.filters.view === "kanban" ? (
-          model.loading ? (
-            <div className="text-sm text-muted-foreground">Carregando...</div>
-          ) : movements.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhum movimento encontrado.</div>
-          ) : (
-            <KanbanView
-              items={movements}
-              getColumnKey={(movement) => {
-                const field = model.filters.groupBy[0] ?? "kind";
-                if (field === "sector") return movement.sector?.trim() || "Geral";
-                if (field === "exitType") {
-                  return movement.kind === "EXIT"
-                    ? exitTypeLabel(movement.exitType ?? "")
-                    : "Entradas";
-                }
-                if (field === "itemId") return movement.itemName;
-                return movement.kind === "ENTRY" ? "Entradas" : "Saídas";
-              }}
-              renderCard={(movement) => (
-                <button
-                  type="button"
-                  onClick={() => model.openMovementEdit(movement)}
-                  className="w-full rounded-md border border-border/60 bg-background px-2 py-2 text-left shadow-none transition-colors hover:bg-muted/30"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="truncate text-xs font-semibold text-foreground">
-                        {movement.itemName}
-                      </span>
-                      <Badge variant={movement.kind === "ENTRY"}>
-                        {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
-                      </Badge>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-foreground">{row.item?.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {resolveKindLabel(row.kind)} • {row.sector || "Geral"}
+                        {row.type ? ` • ${resolveExitTypeLabel(row.type)}` : ""}
+                      </div>
                     </div>
-                    <span className="rounded-md bg-muted/40 px-2 py-0.5 font-mono text-[11px] tabular-nums text-foreground">
-                      {formatDate(movement.date)}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono tabular-nums text-foreground">
-                      {movement.kind === "ENTRY" ? "+" : "-"}
-                      {Number(movement.quantity).toLocaleString("pt-BR")} {movement.unit}
-                    </span>
-                    <span className="truncate">{movement.meta}</span>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Por: <span className="text-foreground">{movement.actor}</span>
-                  </div>
-                  {movement.notes ? (
-                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      Obs.: {movement.notes}
+                    <div className="text-right">
+                      <div className="font-mono text-sm tabular-nums text-foreground">{Number(row.quantity).toLocaleString("pt-BR")}</div>
+                      <div className="text-[11px] text-muted-foreground">{row.unit}</div>
                     </div>
-                  ) : null}
-                </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{formatDateOnlyPtBR(row.movementDate)}</Badge>
+                    <Badge variant="secondary">{row.actor}</Badge>
+                  </div>
+                </div>
               )}
             />
-          )
-        ) : null}
-
-        {model.filters.view === "table" ? (
-          model.loading ? (
-            <div className="text-sm text-muted-foreground">Carregando...</div>
-          ) : movements.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhum movimento encontrado.</div>
-          ) : (
-            <div className="rounded-md border border-border/60 bg-background">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Alimento</TableHead>
-                    <TableHead>Qtd</TableHead>
-                    <TableHead>Setor</TableHead>
-                    <TableHead>Por</TableHead>
-                    <TableHead>Meta</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movements.map((movement) => (
-                    <TableRow
-                      key={movement.id}
-                      className="cursor-pointer hover:bg-muted/30"
-                      onClick={() => model.openMovementEdit(movement)}
-                    >
-                      <TableCell className="whitespace-nowrap font-mono text-[11px] tabular-nums">
-                        {formatDate(movement.date)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={movement.kind === "ENTRY"}>
-                          {movement.kind === "ENTRY" ? "Entrada" : "Saída"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{movement.itemName}</TableCell>
-                      <TableCell className="whitespace-nowrap font-mono text-[11px] tabular-nums text-foreground">
-                        {movement.kind === "ENTRY" ? "+" : "-"}
-                        {Number(movement.quantity).toLocaleString("pt-BR")}{" "}
-                        {movement.unit}
-                      </TableCell>
-                      <TableCell>{movement.sector}</TableCell>
-                      <TableCell className="max-w-[220px] truncate">
-                        {movement.actor}
-                      </TableCell>
-                      <TableCell className="max-w-[280px] truncate text-muted-foreground">
-                        {movement.meta}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )
-        ) : null}
-
-        {model.filters.view === "timeline" ? (
-          <div className="mt-2">
-            <PantryMovementTimeline
-              rows={movements.map<PantryMovementTimelineRow>((movement) => ({
-                id: movement.id,
-                kind: movement.kind,
-                date: movement.date,
-                sector: movement.sector,
-                quantity: movement.quantity,
-                unit: movement.unit,
-                actor: movement.actor,
-                notes: movement.notes,
-                meta: movement.meta,
-                expiryDate: movement.expiryDate,
-                itemName: movement.itemName,
-                onClick: () => model.openMovementEdit(movement),
-              }))}
-              formatDate={formatDate}
-              emptyLabel={model.loading ? "" : "Nenhum movimento encontrado."}
-              scroll={false}
+          ) : filters.view === "calendar" ? (
+            <CalendarView<ApiPantryHistoryMovement>
+              items={rows}
+              getDate={(row) => resolveDate(row, filters.calendarField)}
+              emptyState="Nenhum movimento neste dia."
+              renderItem={(row) => (
+                <div
+                  className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openItem(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") openItem(row);
+                  }}
+                >
+                  <div className="truncate text-sm font-semibold text-foreground">{row.item?.name}</div>
+                  <div className="text-xs text-muted-foreground">{resolveKindLabel(row.kind)} • {row.sector || "Geral"}</div>
+                </div>
+              )}
             />
-          </div>
-        ) : null}
-
-        {model.filters.view === "graph" ? (
-          model.loading ? (
-            <div className="text-sm text-muted-foreground">Carregando...</div>
-          ) : movements.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Nenhum movimento encontrado para gerar o grÃ¡fico.
-            </div>
+          ) : filters.view === "timeline" ? (
+            <TimelineView<ApiPantryHistoryMovement>
+              items={rows}
+              getDate={(row) => resolveDate(row, filters.timelineField)}
+              renderTitle={(row) => row.item?.name ?? "Movimento"}
+              renderBody={(row) => (
+                <span>
+                  {resolveKindLabel(row.kind)} • {row.sector || "Geral"} • {Number(row.quantity).toLocaleString("pt-BR")} {row.unit}
+                </span>
+              )}
+            />
+          ) : filters.view === "graph" ? (
+            <GraphView
+              data={graphData}
+              xKey="x"
+              series={[{ key: "value", label: filters.graphMetric === "count" ? "Registros" : "Quantidade (soma)", color: "hsl(var(--chart-1))" }]}
+              chartType={filters.graphType}
+            />
           ) : (
-            <HistoryGraph movements={movements} />
-          )
-        ) : null}
+            <ListView<ApiPantryHistoryMovement>
+              data={rows}
+              columns={columns}
+              groupByFields={filters.groupBy}
+              resolveGroupLabel={(field, value) => {
+                if (field === "kind") return typeof value === "string" && value === "ENTRY" ? "Entrada" : "Saída";
+                if (field === "sector") return String(value ?? "").trim() || "Geral";
+                if (field === "type") return typeof value === "string" ? resolveExitTypeLabel(value) : "Tipo";
+                if (field === "itemId") return itemLabelById.get(String(value ?? "")) ?? "Item";
+                if (field === "movementDate") return formatDateOnlyPtBR(String(value ?? ""));
+                return String(value ?? "").trim() || "Sem valor";
+              }}
+              getRowId={(row) => row.id}
+              onRowClick={openItem}
+            />
+          )}
 
-        {paginationNode}
-    </div>
-  );
-}
-
-const HISTORY_VIEWS: RecordBrowserViewOption<
-  ReturnType<typeof usePantryHistoryModel>["filters"]["view"]
->[] = [
-  { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
-  { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
-  { value: "timeline", label: "Timeline", icon: <Clock className="size-4" /> },
-  { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
-];
-
-function HistoryGraph({
-  movements,
-}: {
-  movements: Array<{ kind: "ENTRY" | "EXIT"; date: string; quantity: number }>;
-}) {
-  const chart = React.useMemo(() => {
-    const monthMap = new Map<
-      string,
-      { key: string; label: string; entries: number; exits: number; movements: number }
-    >();
-
-    const formatMonthLabel = (key: string) => {
-      const [yearRaw, monthRaw] = key.split("-");
-      const year = Number(yearRaw);
-      const month = Number(monthRaw);
-      if (!year || !month) return key;
-      const date = new Date(year, month - 1, 1);
-      return new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(
-        date,
-      );
-    };
-
-    movements.forEach((movement) => {
-      const key = movement.date.length >= 7 ? movement.date.slice(0, 7) : movement.date;
-      if (!/^\d{4}-\d{2}$/.test(key)) return;
-
-      const current =
-        monthMap.get(key) ??
-        ({
-          key,
-          label: formatMonthLabel(key),
-          entries: 0,
-          exits: 0,
-          movements: 0,
-        } as const);
-
-      const qty = Number(movement.quantity) || 0;
-      const next = {
-        ...current,
-        entries: current.entries + (movement.kind === "ENTRY" ? qty : 0),
-        exits: current.exits + (movement.kind === "EXIT" ? qty : 0),
-        movements: current.movements + 1,
-      };
-      monthMap.set(key, next);
-    });
-
-    const data = Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
-
-    const config: ChartConfig = {
-      entries: { label: "Entradas", color: "#22c55e" },
-      exits: { label: "SaÃ­das", color: "#ef4444" },
-    };
-
-    const totals = data.reduce(
-      (acc, row) => ({
-        entries: acc.entries + row.entries,
-        exits: acc.exits + row.exits,
-        movements: acc.movements + row.movements,
-      }),
-      { entries: 0, exits: 0, movements: 0 },
-    );
-
-    return { data, config, totals };
-  }, [movements]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <span>
-          Movimentos:{" "}
-          <span className="font-mono tabular-nums text-foreground">
-            {chart.totals.movements.toLocaleString("pt-BR")}
-          </span>
-        </span>
-        <span>
-          Entradas:{" "}
-          <span className="font-mono tabular-nums text-foreground">
-            {chart.totals.entries.toLocaleString("pt-BR")}
-          </span>
-        </span>
-        <span>
-          SaÃ­das:{" "}
-          <span className="font-mono tabular-nums text-foreground">
-            {chart.totals.exits.toLocaleString("pt-BR")}
-          </span>
-        </span>
-      </div>
-
-      <ChartContainer config={chart.config} className="h-[320px] w-full">
-        <BarChart data={chart.data}>
-          <CartesianGrid vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Bar dataKey="entries" fill="var(--color-entries)" radius={[6, 6, 0, 0]} />
-          <Bar dataKey="exits" fill="var(--color-exits)" radius={[6, 6, 0, 0]} />
-        </BarChart>
-      </ChartContainer>
+          <PaginationBar
+            pageIndex={filters.pageIndex}
+            pageSize={filters.pageSize}
+            pageCount={pageCount}
+            onPageIndexChange={(pageIndex) => setFilters((prev) => ({ ...prev, pageIndex }))}
+            onPageSizeChange={(pageSize) =>
+              setFilters((prev) => ({ ...prev, pageSize, pageIndex: 0 }))
+            }
+          />
+        </>
+      ) : (
+        <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">Nenhum resultado.</div>
+      )}
     </div>
   );
 }

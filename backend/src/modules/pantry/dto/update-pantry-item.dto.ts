@@ -22,4 +22,8 @@ export class UpdatePantryItemDto {
   @Type(() => Number)
   @IsNumber()
   minStock?: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

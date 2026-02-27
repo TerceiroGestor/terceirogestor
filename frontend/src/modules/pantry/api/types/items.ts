@@ -8,6 +8,7 @@ export type ApiPantryItem = {
   defaultSector: string;
   unit: string;
   minStock: number;
+  notes: string | null;
   stock: number;
   entriesTotal: number;
   exitsTotal: number;
@@ -33,6 +34,7 @@ export type PantryItemInput = {
   defaultSector?: string;
   unit: string;
   minStock: number;
+  notes?: string | null;
 };
 
 export type ApiPantrySectorBalance = {

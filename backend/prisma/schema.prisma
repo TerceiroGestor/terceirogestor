@@ -1048,6 +1048,7 @@ model PantryItem {
   defaultSector String @default("Geral")
   unit      String
   minStock  Decimal  @db.Decimal(10, 2)
+  notes     String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

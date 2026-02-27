@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { getPantryDashboard, type PantryDashboardResponse } from "@/modules/pantry/api";
 import type { Domain, DomainCondition } from "@/web-client/domain/types";
@@ -260,6 +260,18 @@ export async function searchPantryStock(
     rows = rows.filter((row) => conditions.every((cond) => matchesStockCondition(row, cond)));
   }
 
+  if (args.all) {
+    return {
+      data: rows,
+      pagination: {
+        total: rows.length,
+        pages: 1,
+        page: 1,
+        limit: rows.length,
+      },
+    };
+  }
+
   const pageIndex = args.pagination?.pageIndex ?? 0;
   const pageSize = args.pagination?.pageSize ?? 100;
 
@@ -279,3 +291,4 @@ export async function searchPantryStock(
     },
   };
 }
+

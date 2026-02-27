@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
@@ -84,3 +84,4 @@ export function PaginationBar({
     </div>
   );
 }
+

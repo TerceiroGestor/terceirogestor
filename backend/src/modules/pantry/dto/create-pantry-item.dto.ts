@@ -19,4 +19,8 @@ export class CreatePantryItemDto {
   @Type(() => Number)
   @IsNumber()
   minStock: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

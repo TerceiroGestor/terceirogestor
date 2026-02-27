@@ -1,19 +1,40 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { formatDateOnlyPtBR } from "@/lib/date";
+import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
-import type { ApiPantryHistoryMovement, ApiPantryItem } from "@/modules/pantry/api";
+import {
+  createPantrySector,
+  listPantryItemAuditLogs,
+  listPantrySectors,
+  type ApiPantryAuditLog,
+  type ApiPantryItem,
+} from "@/modules/pantry/api";
 
 type Mode = "create" | "edit";
 
@@ -23,6 +44,7 @@ type ItemDraft = {
   defaultSector: string;
   unit: string;
   minStock: number;
+  notes: string | null;
 };
 
 const inputLineClassName =
@@ -40,6 +62,7 @@ function normalizeDraft(draft: ItemDraft): ItemDraft {
     defaultSector: draft.defaultSector.trim() || "Geral",
     unit: draft.unit.trim(),
     minStock: Number.isFinite(draft.minStock) ? draft.minStock : 0,
+    notes: draft.notes?.trim() ? draft.notes.trim() : null,
   };
 }
 
@@ -50,16 +73,56 @@ function draftFromItem(item: ApiPantryItem): ItemDraft {
     defaultSector: item.defaultSector ?? "Geral",
     unit: item.unit ?? "kg",
     minStock: Number(item.minStock ?? 0),
+    notes: item.notes ?? null,
   };
 }
 
-function describeHistoryRow(row: ApiPantryHistoryMovement) {
-  const kindLabel = row.kind === "ENTRY" ? "Entrada" : "Saída";
-  const qty = Number(row.quantity).toLocaleString("pt-BR");
-  const sector = row.sector ? ` • ${row.sector}` : "";
-  const donor = row.donorName ? ` • ${row.donorName}` : "";
-  const event = row.eventName ? ` • ${row.eventName}` : "";
-  return `${kindLabel} • ${qty} ${row.unit}${sector}${donor}${event}`;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+const ITEM_AUDIT_LABELS: Record<string, string> = {
+  name: "Nome",
+  group: "Grupo",
+  defaultSector: "Setor",
+  unit: "Unidade",
+  minStock: "Estoque mínimo",
+  notes: "Notas internas",
+};
+
+function resolveAuditActionLabel(action: ApiPantryAuditLog["action"]) {
+  switch (action) {
+    case "CREATE":
+      return "Criado";
+    case "UPDATE":
+      return "Atualizado";
+    case "DELETE":
+      return "Removido";
+    default:
+      return action;
+  }
+}
+
+function formatAuditValue(value: unknown) {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") return value.trim() ? value : "—";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function diffAuditFields(log: ApiPantryAuditLog) {
+  const before = isRecord(log.before) ? log.before : {};
+  const after = isRecord(log.after) ? log.after : {};
+  const keys = Object.keys({ ...before, ...after }).filter((k) => k in ITEM_AUDIT_LABELS);
+
+  return keys
+    .map((key) => ({
+      key,
+      label: ITEM_AUDIT_LABELS[key] ?? key,
+      before: before[key],
+      after: after[key],
+    }))
+    .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
 }
 
 export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
@@ -87,13 +150,20 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     defaultSector: "Geral",
     unit: "kg",
     minStock: 0,
+    notes: null,
   });
   const lastSavedRef = React.useRef<ItemDraft>(draft);
 
   const [loading, setLoading] = React.useState(mode === "edit");
   const [saving, setSaving] = React.useState(false);
-  const [historyLoading, setHistoryLoading] = React.useState(false);
-  const [history, setHistory] = React.useState<ApiPantryHistoryMovement[]>([]);
+
+  const [sectorsLoading, setSectorsLoading] = React.useState(false);
+  const [sectors, setSectors] = React.useState<string[]>([]);
+  const [newSectorOpen, setNewSectorOpen] = React.useState(false);
+  const [newSectorName, setNewSectorName] = React.useState("");
+
+  const [auditLoading, setAuditLoading] = React.useState(false);
+  const [auditLogs, setAuditLogs] = React.useState<ApiPantryAuditLog[]>([]);
 
   const backToList = React.useCallback(() => {
     router.push(withTenantPath("/pantry/items", tenantSlug));
@@ -120,33 +190,44 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     }
   }, [dataProvider, enabled, id, mode, toast]);
 
-  const loadHistory = React.useCallback(async () => {
-    if (!enabled || mode !== "edit") return;
-    setHistoryLoading(true);
+  const loadSectors = React.useCallback(async () => {
+    if (!token || !enabled) return;
+    setSectorsLoading(true);
     try {
-      const response = await dataProvider.search<ApiPantryHistoryMovement>("pantry.history", {
-        domain: { type: "condition", field: "itemId", operator: "=", value: id },
-        all: true,
-      });
-      setHistory(
-        response.data
-          .slice()
-          .sort((a, b) => Date.parse(b.movementDate) - Date.parse(a.movementDate)),
-      );
+      const response = await listPantrySectors(token);
+      const list = response.data.map((s) => s.name).filter(Boolean);
+      setSectors(list.sort((a, b) => a.localeCompare(b)));
     } catch {
-      setHistory([]);
+      setSectors([]);
     } finally {
-      setHistoryLoading(false);
+      setSectorsLoading(false);
     }
-  }, [dataProvider, enabled, id, mode]);
+  }, [enabled, token]);
+
+  const loadAudit = React.useCallback(async () => {
+    if (!token || !enabled || mode !== "edit") return;
+    setAuditLoading(true);
+    try {
+      const response = await listPantryItemAuditLogs(token, id, { limit: 120 });
+      setAuditLogs(response.data);
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [enabled, id, mode, token]);
 
   React.useEffect(() => {
     void loadItem();
   }, [loadItem]);
 
   React.useEffect(() => {
-    void loadHistory();
-  }, [loadHistory]);
+    void loadSectors();
+  }, [loadSectors]);
+
+  React.useEffect(() => {
+    void loadAudit();
+  }, [loadAudit]);
 
   const applyPatch = React.useCallback(
     async (patch: Partial<ItemDraft>) => {
@@ -231,6 +312,39 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     void applyPatch({ [key]: current[key] } as Partial<ItemDraft>);
   };
 
+  const sectorOptions = React.useMemo(() => {
+    const current = normalizeDraft(draft).defaultSector;
+    const set = new Set<string>(["Geral", ...sectors]);
+    if (current) set.add(current);
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [draft, sectors]);
+
+  const createSector = React.useCallback(async () => {
+    if (!token) return;
+    const name = newSectorName.trim();
+    if (!name) return;
+
+    setSaving(true);
+    try {
+      await createPantrySector(token, { name });
+      setNewSectorOpen(false);
+      setNewSectorName("");
+      await loadSectors();
+      setDraft((prev) => ({ ...prev, defaultSector: name }));
+      if (mode !== "create") {
+        await applyPatch({ defaultSector: name });
+      }
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao criar setor.";
+      toast({ variant: "destructive", title: "Falha ao criar", description: message });
+    } finally {
+      setSaving(false);
+    }
+  }, [applyPatch, loadSectors, mode, newSectorName, toast, token]);
+
   return (
     <div className="px-4 py-4">
       <div className="mx-auto w-full max-w-[1200px]">
@@ -302,16 +416,41 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
 
                 <div className="space-y-1">
                   <div className="text-[11px] font-medium text-muted-foreground">Setor</div>
-                  <Input
-                    value={draft.defaultSector}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, defaultSector: e.target.value }))
-                    }
-                    onBlur={() => maybeCommitField("defaultSector")}
-                    placeholder="Ex: Geral"
-                    className={inputLineClassName}
-                    readOnly={readOnly}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={draft.defaultSector}
+                      onValueChange={(value) => {
+                        setDraft((prev) => ({ ...prev, defaultSector: value }));
+                        if (mode !== "create") void applyPatch({ defaultSector: value });
+                      }}
+                      disabled={readOnly || sectorsLoading}
+                    >
+                      <SelectTrigger className={inputLineClassName}>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sectorOptions.map((sector) => (
+                          <SelectItem key={sector} value={sector}>
+                            {sector}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {!readOnly ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Novo setor"
+                        aria-label="Novo setor"
+                        onClick={() => setNewSectorOpen(true)}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -381,7 +520,7 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
             <Tabs defaultValue="activity">
               <TabsList>
                 <TabsTrigger value="activity">Atividade</TabsTrigger>
-                <TabsTrigger value="notes" disabled>
+                <TabsTrigger value="notes">
                   Notas internas
                 </TabsTrigger>
               </TabsList>
@@ -389,48 +528,101 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
               <TabsContent value="activity">
                 {mode !== "edit" ? (
                   <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                    Salve o registro para ver o histórico.
+                    Salve o registro para ver a auditoria.
                   </div>
-                ) : historyLoading ? (
+                ) : auditLoading ? (
                   <div className="text-sm text-muted-foreground">Carregando...</div>
-                ) : history.length ? (
+                ) : auditLogs.length ? (
                   <div className="space-y-2">
-                    {history.slice(0, 80).map((row) => (
-                      <div
-                        key={row.id}
-                        className="rounded-md border border-border/60 bg-muted/10 px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="truncate text-xs font-semibold text-foreground">
-                            {row.actor}
+                    {auditLogs.slice(0, 120).map((log) => {
+                      const actor = log.user?.name ?? log.user?.email ?? "Sistema";
+                      const rows = log.action === "UPDATE" ? diffAuditFields(log) : [];
+
+                      return (
+                        <div
+                          key={log.id}
+                          className="rounded-md border border-border/60 bg-muted/10 px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="truncate text-xs font-semibold text-foreground">
+                              {actor}
+                            </div>
+                            <div className="shrink-0 text-[11px] text-muted-foreground">
+                              {formatDateTimePtBR(log.createdAt)}
+                            </div>
                           </div>
-                          <div className="shrink-0 text-[11px] text-muted-foreground">
-                            {formatDateOnlyPtBR(row.movementDate)}
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {resolveAuditActionLabel(log.action)}
                           </div>
+                          {rows.length ? (
+                            <div className="mt-2 space-y-1">
+                              {rows.map((row) => (
+                                <div key={row.key} className="text-xs text-foreground">
+                                  <span className="text-muted-foreground">{row.label}:</span>{" "}
+                                  <span className="font-mono">{formatAuditValue(row.before)}</span>{" "}
+                                  <span className="text-muted-foreground">→</span>{" "}
+                                  <span className="font-mono">{formatAuditValue(row.after)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {describeHistoryRow(row)}
-                        </div>
-                        {row.notes ? (
-                          <div className="mt-1 text-xs text-foreground">{row.notes}</div>
-                        ) : null}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                    Sem histórico.
+                    Sem auditoria.
                   </div>
                 )}
               </TabsContent>
 
               <TabsContent value="notes">
-                <div className="text-sm text-muted-foreground">Em breve.</div>
+                <div className="space-y-2">
+                  <Textarea
+                    value={draft.notes ?? ""}
+                    onChange={(e) =>
+                      setDraft((prev) => ({ ...prev, notes: e.target.value || null }))
+                    }
+                    onBlur={() => maybeCommitField("notes")}
+                    placeholder="Anotações internas..."
+                    className="min-h-[220px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                    readOnly={readOnly}
+                  />
+                  <div className="text-[11px] text-muted-foreground">
+                    Essas notas ficam salvas no registro.
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
         </div>
       </div>
+
+      <Dialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Novo setor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">Nome do setor</div>
+            <Input
+              value={newSectorName}
+              onChange={(e) => setNewSectorName(e.target.value)}
+              placeholder="Ex: Congelados"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNewSectorOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={createSector} disabled={!newSectorName.trim() || saving}>
+              {saving ? "Salvando..." : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

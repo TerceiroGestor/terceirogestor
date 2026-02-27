@@ -3,4 +3,4 @@ export { PantryItemsClientPage } from "@/modules/pantry/features/items/ui/pantry
 export { PantryEntriesClientPage } from "@/modules/pantry/features/entries/ui/pantry-entries-client-page";
 export { PantryExitsClientPage } from "@/modules/pantry/features/exits/ui/pantry-exits-client-page";
 export { PantryDonorsClientPage } from "@/modules/pantry/features/donors/ui/pantry-donors-client-page";
-
+export { PantryStockClientPage } from "@/modules/pantry/features/stock/ui/pantry-stock-client-page";

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export function toLocalIsoDate(date: Date) {
   const year = date.getFullYear();
@@ -45,5 +45,15 @@ export function formatDateTimePtBR(value: string | Date | null | undefined) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+export function parseLocalDateOnly(value: string | Date | null | undefined) {
+  const iso = toDateOnlyIso(value);
+  if (!iso) return null;
+  const [yearRaw, monthRaw, dayRaw] = iso.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
 }
 

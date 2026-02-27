@@ -61,6 +61,7 @@ export async function searchPantryEntries(
 
   const pageIndex = args.pagination?.pageIndex ?? 0;
   const pageSize = args.pagination?.pageSize ?? 100;
+  const shouldFetchAll = Boolean(args.all);
 
   return listPantryEntries(token, {
     itemId: queryParams.itemId,
@@ -68,8 +69,8 @@ export async function searchPantryEntries(
     from: queryParams.from,
     to: queryParams.to,
     search: args.searchText?.trim() ? args.searchText.trim() : undefined,
-    page: pageIndex + 1,
-    limit: pageSize,
+    page: shouldFetchAll ? undefined : pageIndex + 1,
+    limit: shouldFetchAll ? undefined : pageSize,
+    all: shouldFetchAll ? true : undefined,
   });
 }
-
