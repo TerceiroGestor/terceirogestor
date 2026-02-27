@@ -111,7 +111,20 @@ function getPinnedStyles<TData>(
   column: Column<TData, unknown>,
   table: TanstackTable<TData>,
 ) {
-  const pinned = column.getIsPinned?.();
+  const pinningState = table.getState().columnPinning;
+  const pinnedFromState: false | "left" | "right" =
+    pinningState.left?.includes(column.id)
+      ? "left"
+      : pinningState.right?.includes(column.id)
+        ? "right"
+        : false;
+
+  const pinnedFromApi =
+    typeof column.getIsPinned === "function"
+      ? (column.getIsPinned() as false | "left" | "right")
+      : false;
+
+  const pinned = pinnedFromState || pinnedFromApi;
   if (!pinned) return undefined;
 
   if (pinned === "left") {
@@ -164,7 +177,18 @@ function ColumnMenu<TData>({
 }) {
   const canSort = column.getCanSort?.() ?? false;
   const canHide = column.getCanHide?.() ?? true;
-  const isPinned = column.getIsPinned?.() as false | "left" | "right";
+  const pinningState = table.getState().columnPinning;
+  const pinnedFromState: false | "left" | "right" =
+    pinningState.left?.includes(column.id)
+      ? "left"
+      : pinningState.right?.includes(column.id)
+        ? "right"
+        : false;
+  const pinnedFromApi =
+    typeof column.getIsPinned === "function"
+      ? (column.getIsPinned() as false | "left" | "right")
+      : false;
+  const isPinned = pinnedFromState || pinnedFromApi;
 
   const pinLeft = () => table.setColumnPinning((prev: ColumnPinningState) => {
     const left = (prev.left ?? []).filter((id) => id !== column.id);
@@ -349,6 +373,7 @@ export function ListView<TData>({
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnPinningChange: setColumnPinning,
+    enableColumnPinning: true,
     enableRowSelection,
     getRowId: getRowId
       ? (originalRow: TData, index: number) => getRowId(originalRow, index)
