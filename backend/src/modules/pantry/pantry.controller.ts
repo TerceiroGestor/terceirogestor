@@ -141,6 +141,12 @@ export class PantryController {
     return this.pantryService.listItems(user.tenantId, query);
   }
 
+  @Get('items/suggestions')
+  @Permissions('pantry.read')
+  async listItemSuggestions(@CurrentUser() user: JwtUser) {
+    return this.pantryService.listItemSuggestions(user.tenantId);
+  }
+
   @Get('items/:id/sectors')
   @Permissions('pantry.read')
   async listItemSectors(

@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarDays, Clock3, LayoutGrid, List, RefreshCcw, SlidersHorizontal } from "lucide-react";
+import { BarChart3, CalendarDays, Clock3, LayoutGrid, RefreshCcw, SlidersHorizontal, Table2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,7 +69,6 @@ type PantryStockFavoriteState = Pick<
   | "graphType"
 >;
 
-const DEFAULT_GROUP_BY = ["sector"];
 const DEFAULT_CALENDAR_FIELD = "nextExpiryDate";
 const DEFAULT_TIMELINE_FIELD = "nextExpiryDate";
 const DEFAULT_GRAPH_GROUP_FIELD = "sector";
@@ -84,6 +83,8 @@ function normalizeView(value: string | null): PantryStockView {
     case "graph":
     case "list":
       return value;
+    case "table":
+      return "list";
     default:
       return "list";
   }
@@ -124,7 +125,7 @@ const parsePantryStockFilters = (params: URLSearchParams): PantryStockFilters =>
     view,
     searchText,
     domain,
-    groupBy: groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    groupBy: groupParam === "none" ? [] : groupBy,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
     calendarField,
@@ -139,12 +140,7 @@ const serializePantryStockFilters = (state: PantryStockFilters) => ({
   view: state.view === "list" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
   d: state.domain ? serializeDomain(state.domain) : undefined,
-  g:
-    state.groupBy.length === 0
-      ? "none"
-      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
-        ? undefined
-        : state.groupBy.join(","),
+  g: state.groupBy.length ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 20 ? undefined : String(state.pageSize),
   cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
@@ -230,7 +226,7 @@ export function PantryStockClientPage() {
 
   const viewOptions = React.useMemo<RecordBrowserViewOption<PantryStockView>[]>(
     () => [
-      { value: "list", label: "Lista", icon: <List className="size-4" /> },
+      { value: "list", label: "Tabela", icon: <Table2 className="size-4" /> },
       { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
       { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
       { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },

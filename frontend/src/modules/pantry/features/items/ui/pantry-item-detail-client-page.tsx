@@ -31,6 +31,7 @@ import { createRestDataProvider } from "@/web-client/data-provider";
 import {
   createPantrySector,
   listPantryItemAuditLogs,
+  listPantryItemSuggestions,
   listPantrySectors,
   type ApiPantryAuditLog,
   type ApiPantryItem,
@@ -110,6 +111,15 @@ function formatAuditValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function initialsFromLabel(label: string) {
+  const cleaned = label.replace(/\s+/g, " ").trim().slice(0, 64);
+  if (!cleaned) return "?";
+  const parts = cleaned.split(" ").filter(Boolean);
+  const a = parts[0]?.[0] ?? "?";
+  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
+  return `${a}${b}`.toUpperCase();
+}
+
 function diffAuditFields(log: ApiPantryAuditLog) {
   const before = isRecord(log.before) ? log.before : {};
   const after = isRecord(log.after) ? log.after : {};
@@ -165,6 +175,9 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
   const [auditLoading, setAuditLoading] = React.useState(false);
   const [auditLogs, setAuditLogs] = React.useState<ApiPantryAuditLog[]>([]);
 
+  const [unitSuggestions, setUnitSuggestions] = React.useState<string[]>([]);
+  const [groupSuggestions, setGroupSuggestions] = React.useState<string[]>([]);
+
   const backToList = React.useCallback(() => {
     router.push(withTenantPath("/pantry/items", tenantSlug));
   }, [router, tenantSlug]);
@@ -217,6 +230,18 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     }
   }, [enabled, id, mode, token]);
 
+  const loadSuggestions = React.useCallback(async () => {
+    if (!token || !enabled) return;
+    try {
+      const response = await listPantryItemSuggestions(token);
+      setUnitSuggestions(Array.isArray(response.units) ? response.units : []);
+      setGroupSuggestions(Array.isArray(response.groups) ? response.groups : []);
+    } catch {
+      setUnitSuggestions([]);
+      setGroupSuggestions([]);
+    }
+  }, [enabled, token]);
+
   React.useEffect(() => {
     void loadItem();
   }, [loadItem]);
@@ -224,6 +249,10 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
   React.useEffect(() => {
     void loadSectors();
   }, [loadSectors]);
+
+  React.useEffect(() => {
+    void loadSuggestions();
+  }, [loadSuggestions]);
 
   React.useEffect(() => {
     void loadAudit();
@@ -346,8 +375,8 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
   }, [applyPatch, loadSectors, mode, newSectorName, toast, token]);
 
   return (
-    <div className="px-4 py-4">
-      <div className="mx-auto w-full max-w-[1200px]">
+    <div className="w-full px-4 py-4">
+      <div className="w-full">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">
@@ -395,13 +424,16 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
                     onChange={(e) => setDraft((prev) => ({ ...prev, unit: e.target.value }))}
                     onBlur={() => maybeCommitField("unit")}
                     placeholder="Ex: kg"
+                    list="pantry-item-unit-options"
                     className={inputLineClassName}
                     readOnly={readOnly}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">Grupo</div>
+                  <div className="text-[11px] font-medium text-muted-foreground">
+                    Grupo de alimentos
+                  </div>
                   <Input
                     value={draft.group ?? ""}
                     onChange={(e) =>
@@ -409,6 +441,7 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
                     }
                     onBlur={() => maybeCommitField("group")}
                     placeholder="Opcional"
+                    list="pantry-item-group-options"
                     className={inputLineClassName}
                     readOnly={readOnly}
                   />
@@ -533,39 +566,58 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
                 ) : auditLoading ? (
                   <div className="text-sm text-muted-foreground">Carregando...</div>
                 ) : auditLogs.length ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {auditLogs.slice(0, 120).map((log) => {
                       const actor = log.user?.name ?? log.user?.email ?? "Sistema";
                       const rows = log.action === "UPDATE" ? diffAuditFields(log) : [];
+                      const initials = initialsFromLabel(actor);
 
                       return (
-                        <div
-                          key={log.id}
-                          className="rounded-md border border-border/60 bg-muted/10 px-3 py-2"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="truncate text-xs font-semibold text-foreground">
-                              {actor}
-                            </div>
-                            <div className="shrink-0 text-[11px] text-muted-foreground">
-                              {formatDateTimePtBR(log.createdAt)}
-                            </div>
+                        <div key={log.id} className="flex items-start gap-3">
+                          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-xs font-semibold text-foreground">
+                            {initials}
                           </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {resolveAuditActionLabel(log.action)}
-                          </div>
-                          {rows.length ? (
-                            <div className="mt-2 space-y-1">
-                              {rows.map((row) => (
-                                <div key={row.key} className="text-xs text-foreground">
-                                  <span className="text-muted-foreground">{row.label}:</span>{" "}
-                                  <span className="font-mono">{formatAuditValue(row.before)}</span>{" "}
-                                  <span className="text-muted-foreground">→</span>{" "}
-                                  <span className="font-mono">{formatAuditValue(row.after)}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="truncate text-xs font-semibold text-foreground">
+                                {actor}
+                              </div>
+                              <div className="shrink-0 text-[11px] text-muted-foreground">
+                                {formatDateTimePtBR(log.createdAt)}
+                              </div>
+                            </div>
+                            <div className="mt-1 rounded-md border border-border/60 bg-muted/10 px-3 py-2">
+                              <div className="text-xs text-muted-foreground">
+                                {resolveAuditActionLabel(log.action)}
+                              </div>
+                              {rows.length ? (
+                                <div className="mt-2 space-y-1">
+                                  {rows.map((row) => (
+                                    <div key={row.key} className="text-xs text-foreground">
+                                      <span className="text-muted-foreground">
+                                        {row.label}:
+                                      </span>{" "}
+                                      <span className="font-mono">
+                                        {formatAuditValue(row.before)}
+                                      </span>{" "}
+                                      <span className="text-muted-foreground">→</span>{" "}
+                                      <span className="font-mono">
+                                        {formatAuditValue(row.after)}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              ) : (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {log.action === "CREATE"
+                                    ? "Registro criado."
+                                    : log.action === "DELETE"
+                                      ? "Registro removido."
+                                      : null}
+                                </div>
+                              )}
                             </div>
-                          ) : null}
+                          </div>
                         </div>
                       );
                     })}
@@ -623,6 +675,17 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <datalist id="pantry-item-unit-options">
+        {unitSuggestions.map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
+      <datalist id="pantry-item-group-options">
+        {groupSuggestions.map((group) => (
+          <option key={group} value={group} />
+        ))}
+      </datalist>
     </div>
   );
 }

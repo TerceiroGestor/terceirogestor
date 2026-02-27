@@ -60,8 +60,6 @@ type PantryDonorsFavoriteState = Pick<
   "view" | "searchText" | "groupBy" | "pageSize"
 >;
 
-const DEFAULT_GROUP_BY = ["type"];
-
 function normalizeView(value: string | null): PantryDonorsView {
   return value === "kanban" ? "kanban" : "table";
 }
@@ -86,7 +84,7 @@ const parsePantryDonorsFilters = (params: URLSearchParams): PantryDonorsFilters 
   return {
     view,
     searchText,
-    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    groupBy,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
   };
@@ -95,7 +93,7 @@ const parsePantryDonorsFilters = (params: URLSearchParams): PantryDonorsFilters 
 const serializePantryDonorsFilters = (state: PantryDonorsFilters) => ({
   view: state.view === "table" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
-  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
+  g: state.groupBy.length ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 10 ? undefined : String(state.pageSize),
 });
@@ -385,7 +383,7 @@ export function PantryDonorsClientPage() {
               onGroupByChange={(groupBy) =>
                 setFilters((prev) => ({
                   ...prev,
-                  groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+                  groupBy,
                 }))
               }
               snapshot={{
@@ -453,7 +451,7 @@ export function PantryDonorsClientPage() {
             <KanbanView<ApiPantryDonor>
               items={rows}
               getColumnKey={(row) => {
-                const field = filters.groupBy[0] ?? DEFAULT_GROUP_BY[0];
+                const field = filters.groupBy[0];
                 if (field === "type") {
                   return row.type === "COMPANY" ? "Empresa" : "Pessoa";
                 }

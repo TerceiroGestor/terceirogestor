@@ -3,6 +3,7 @@ import type {
   ApiPantryItem,
   PantryItemInput,
   PantryItemSectorsResponse,
+  PantryItemSuggestionsResponse,
   PantryItemsListResponse,
 } from "./types";
 
@@ -24,6 +25,14 @@ export async function listPantryItems(
 ) {
   const query = buildQuery(params);
   return apiRequest<PantryItemsListResponse>(`/pantry/items${query}`, {}, token);
+}
+
+export async function listPantryItemSuggestions(token: string) {
+  return apiRequest<PantryItemSuggestionsResponse>(
+    "/pantry/items/suggestions",
+    {},
+    token,
+  );
 }
 
 export async function createPantryItem(token: string, payload: PantryItemInput) {

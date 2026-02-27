@@ -52,3 +52,8 @@ export type PantryItemSectorsResponse = {
   itemId: string;
   sectors: ApiPantrySectorBalance[];
 };
+
+export type PantryItemSuggestionsResponse = {
+  units: string[];
+  groups: string[];
+};

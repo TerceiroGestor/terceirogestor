@@ -58,8 +58,6 @@ type PantryStockFavoriteState = Pick<
   "view" | "searchText" | "domain" | "groupBy" | "pageSize"
 >;
 
-const DEFAULT_GROUP_BY = ["sector"];
-
 function normalizeView(value: string | null): PantryStockView {
   switch (value) {
     case "kanban":
@@ -99,8 +97,7 @@ const parsePantryStockFilters = (
     view,
     searchText,
     domain,
-    groupBy:
-      groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    groupBy: groupParam === "none" ? [] : groupBy,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
   };
@@ -110,12 +107,7 @@ const serializePantryStockFilters = (state: PantryStockFilters) => ({
   view: state.view === "list" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
   d: state.domain ? serializeDomain(state.domain) : undefined,
-  g:
-    state.groupBy.length === 0
-      ? "none"
-      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
-        ? undefined
-        : state.groupBy.join(","),
+  g: state.groupBy.length ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 100 ? undefined : String(state.pageSize),
 });
@@ -153,7 +145,7 @@ export function PantryOverviewClientPage() {
 
   const viewOptions = React.useMemo<RecordBrowserViewOption<PantryStockView>[]>(
     () => [
-      { value: "list", label: "List", icon: <Table2 className="size-4" /> },
+      { value: "list", label: "Tabela", icon: <Table2 className="size-4" /> },
       {
         value: "kanban",
         label: "Kanban",
@@ -460,7 +452,7 @@ export function PantryOverviewClientPage() {
                     ...state,
                     groupBy: Array.isArray(state.groupBy)
                       ? state.groupBy
-                      : DEFAULT_GROUP_BY,
+                      : [],
                     pageIndex: 0,
                   }))
                 }

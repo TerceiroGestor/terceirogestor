@@ -495,6 +495,39 @@ export class PantryService {
     };
   }
 
+  async listItemSuggestions(tenantId: string) {
+    const [unitsRows, groupRows] = await this.prisma.$transaction([
+      this.prisma.pantryItem.findMany({
+        where: { tenantId },
+        select: { unit: true },
+        distinct: ['unit'],
+      }),
+      this.prisma.pantryItem.findMany({
+        where: { tenantId, group: { not: null } },
+        select: { group: true },
+        distinct: ['group'],
+      }),
+    ]);
+
+    const units = Array.from(
+      new Set(
+        unitsRows
+          .map((row) => normalizeString(row.unit))
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    const groups = Array.from(
+      new Set(
+        groupRows
+          .map((row) => normalizeString(row.group))
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return { units, groups };
+  }
+
   async getEntry(tenantId: string, id: string) {
     const entry = await this.prisma.pantryEntry.findFirst({
       where: { id, tenantId },
