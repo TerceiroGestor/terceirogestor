@@ -128,10 +128,63 @@ export const pantryExitsSearchView: SearchViewDefinition = {
 export const pantryItemsSearchView: SearchViewDefinition = {
   id: "pantry.items.search",
   model: "pantry.items",
-  fields: [],
+  filterCombinators: ["and"],
+  presets: [
+    {
+      id: "below-min",
+      label: "Abaixo do mínimo",
+      domain: { type: "condition", field: "isBelowMin", operator: "=", value: "true" },
+    },
+    {
+      id: "expired",
+      label: "Vencidos",
+      domain: { type: "condition", field: "validityStatus", operator: "=", value: "Vencido" },
+    },
+    {
+      id: "urgent",
+      label: "Urgente",
+      domain: { type: "condition", field: "validityStatus", operator: "=", value: "Urgente" },
+    },
+  ],
+  fields: [
+    { name: "name", label: "Alimento", type: "text" },
+    { name: "group", label: "Grupo", type: "text" },
+    { name: "defaultSector", label: "Setor", type: "text" },
+    { name: "unit", label: "Unidade", type: "text" },
+    { name: "stock", label: "Saldo", type: "number" },
+    { name: "minStock", label: "Mínimo", type: "number" },
+    {
+      name: "isBelowMin",
+      label: "Abaixo do mínimo",
+      type: "enum",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
+    {
+      name: "validityStatus",
+      label: "Validade",
+      type: "enum",
+      options: [
+        { value: "Normal", label: "Normal" },
+        { value: "Atencao", label: "Atenção" },
+        { value: "Alerta", label: "Alerta" },
+        { value: "Urgente", label: "Urgente" },
+        { value: "Vencido", label: "Vencido" },
+        { value: "Sem validade", label: "Sem validade" },
+      ],
+    },
+    { name: "nextExpiryDate", label: "Próx. validade", type: "date" },
+    { name: "lastMovementDate", label: "Último movimento", type: "date" },
+    { name: "createdAt", label: "Criado em", type: "date" },
+    { name: "updatedAt", label: "Atualizado em", type: "date" },
+  ],
   groupBy: [
     { field: "defaultSector", label: "Setor" },
     { field: "group", label: "Grupo" },
+    { field: "validityStatus", label: "Validade" },
+    { field: "isBelowMin", label: "Abaixo do mínimo" },
   ],
 };
 

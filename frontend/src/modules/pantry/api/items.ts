@@ -6,6 +6,10 @@ import type {
   PantryItemsListResponse,
 } from "./types";
 
+export async function getPantryItem(token: string, id: string) {
+  return apiRequest<ApiPantryItem>(`/pantry/items/${id}`, {}, token);
+}
+
 export async function getPantryItemSectors(token: string, itemId: string) {
   return apiRequest<PantryItemSectorsResponse>(
     `/pantry/items/${itemId}/sectors`,
@@ -49,4 +53,3 @@ export async function deletePantryItem(token: string, id: string) {
     token,
   );
 }
-

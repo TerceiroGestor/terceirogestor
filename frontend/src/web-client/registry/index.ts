@@ -8,6 +8,7 @@ import {
   pantryHistoryAction,
   pantryItemsAction,
   pantryItemsCreateAction,
+  pantryItemsDetailAction,
   pantryOverviewAction,
 } from "@/web-client/registry/actions/pantry";
 import type { SearchViewDefinition } from "@/web-client/search/types";
@@ -24,6 +25,7 @@ const WINDOW_ACTIONS: WindowAction[] = [
   pantryOverviewAction,
   pantryItemsAction,
   pantryItemsCreateAction,
+  pantryItemsDetailAction,
   pantryEntriesAction,
   pantryEntriesCreateAction,
   pantryExitsAction,

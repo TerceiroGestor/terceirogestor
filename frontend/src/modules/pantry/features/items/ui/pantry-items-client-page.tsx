@@ -3,42 +3,52 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  List,
+  RefreshCcw,
+  SlidersHorizontal,
+  Table2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/DataTable";
-import { FormEngine } from "@/components/FormEngine";
-import { SectionDialog } from "@/components/section-dialog";
-import { useConfirm } from "@/components/confirm/use-confirm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import {
-  createPantryItem,
-  createPantrySector,
-  deletePantryItem,
-  listPantryItems,
-  listPantrySectors,
-  updatePantryItem,
-  type ApiPantryItem,
-} from "@/modules/pantry/api";
-import {
-  buildPantryItemFormFields,
-  PANTRY_NEW_SECTOR_VALUE,
-} from "@/modules/pantry/features/items/config/pantry-item-form-config";
-import type { PantryItemFormValues } from "@/modules/pantry/shared/domain/types";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
-import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
-import { KanbanView } from "@/web-client/views/KanbanView";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import type { ApiPantryItem } from "@/modules/pantry/api";
+import type { Domain } from "@/web-client/domain/types";
+import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
+import { removeConditionAtIndex } from "@/web-client/domain/conditions";
 import { pantryItemsSearchView } from "@/web-client/registry/searchViews/pantry";
-import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
-import { LayoutGrid, Table2 } from "lucide-react";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { CalendarView } from "@/web-client/views/CalendarView";
+import { GraphView } from "@/web-client/views/GraphView";
+import { GroupedListView } from "@/web-client/views/GroupedListView";
+import { KanbanView } from "@/web-client/views/KanbanView";
+import { ListView } from "@/web-client/views/ListView";
+import { TableView } from "@/web-client/views/TableView";
+import { TimelineView } from "@/web-client/views/TimelineView";
 
 function formatDate(value: string | null) {
   return formatDateOnlyPtBR(value);
@@ -49,17 +59,9 @@ function resolveValidityBadge(status: ApiPantryItem["validityStatus"]) {
     case "Normal":
       return <Badge variant="secondary">Normal</Badge>;
     case "Atencao":
-      return (
-        <Badge className="border-transparent bg-amber-500 text-white">
-          Atenção
-        </Badge>
-      );
+      return <Badge className="border-transparent bg-amber-500 text-white">Atenção</Badge>;
     case "Alerta":
-      return (
-        <Badge className="border-transparent bg-orange-500 text-white">
-          Alerta
-        </Badge>
-      );
+      return <Badge className="border-transparent bg-orange-500 text-white">Alerta</Badge>;
     case "Urgente":
       return <Badge variant="destructive">Urgente</Badge>;
     case "Vencido":
@@ -69,45 +71,52 @@ function resolveValidityBadge(status: ApiPantryItem["validityStatus"]) {
   }
 }
 
-function normalizeItemValues(values: PantryItemFormValues) {
-  const name = values.name?.trim() ?? "";
-  const group = values.group?.trim() || null;
-  const rawDefaultSector = values.defaultSector?.trim() ?? "";
-  const rawNewSector = values.newSector?.trim() ?? "";
-  const defaultSector =
-    rawDefaultSector === PANTRY_NEW_SECTOR_VALUE ? rawNewSector : rawDefaultSector;
-  const unit = values.unit?.trim() ?? "";
-  const minStock =
-    typeof values.minStock === "number" ? values.minStock : Number(values.minStock);
-
-  return {
-    name,
-    group,
-    defaultSector,
-    unit,
-    minStock: Number.isFinite(minStock) ? minStock : 0,
-  };
-}
-
-type PantryItemsView = "table" | "kanban";
+type PantryItemsView = "list" | "table" | "kanban" | "timeline" | "calendar" | "graph";
 
 type PantryItemsFilters = {
   view: PantryItemsView;
   searchText: string;
+  domain: Domain;
   groupBy: string[];
   pageIndex: number;
   pageSize: number;
+  calendarField: string;
+  timelineField: string;
+  graphGroupField: string;
+  graphMetric: "count" | "stock";
 };
 
 type PantryItemsFavoriteState = Pick<
   PantryItemsFilters,
-  "view" | "searchText" | "groupBy" | "pageSize"
+  | "view"
+  | "searchText"
+  | "domain"
+  | "groupBy"
+  | "pageSize"
+  | "calendarField"
+  | "timelineField"
+  | "graphGroupField"
+  | "graphMetric"
 >;
 
 const DEFAULT_GROUP_BY = ["defaultSector"];
+const DEFAULT_CALENDAR_FIELD = "nextExpiryDate";
+const DEFAULT_TIMELINE_FIELD = "lastMovementDate";
+const DEFAULT_GRAPH_GROUP_FIELD = "defaultSector";
+const DEFAULT_GRAPH_METRIC: PantryItemsFilters["graphMetric"] = "count";
 
 function normalizeView(value: string | null): PantryItemsView {
-  return value === "kanban" ? "kanban" : "table";
+  switch (value) {
+    case "table":
+    case "kanban":
+    case "timeline":
+    case "calendar":
+    case "graph":
+    case "list":
+      return value;
+    default:
+      return "list";
+  }
 }
 
 function parsePositiveInt(value: string | null, fallback: number) {
@@ -120,35 +129,81 @@ function parsePositiveInt(value: string | null, fallback: number) {
 const parsePantryItemsFilters = (params: URLSearchParams): PantryItemsFilters => {
   const view = normalizeView(params.get("view") ?? params.get("v"));
   const searchText = params.get("q") ?? "";
-  const groupBy = (params.get("g") ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const domain = parseDomain(params.get("d")) ?? null;
+  const groupParam = params.get("g");
+  const groupBy =
+    groupParam === "none"
+      ? []
+      : (groupParam ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = parsePositiveInt(params.get("limit"), 10);
+  const calendarField = params.get("cf") ?? DEFAULT_CALENDAR_FIELD;
+  const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
+  const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
+  const graphMetric = (params.get("gm") as PantryItemsFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
 
   return {
     view,
     searchText,
-    groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
+    domain,
+    groupBy: groupParam === "none" ? [] : groupBy.length ? groupBy : DEFAULT_GROUP_BY,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
+    calendarField,
+    timelineField,
+    graphGroupField,
+    graphMetric: graphMetric === "stock" ? "stock" : "count",
   };
 };
 
 const serializePantryItemsFilters = (state: PantryItemsFilters) => ({
-  view: state.view === "table" ? undefined : state.view,
+  view: state.view === "list" ? undefined : state.view,
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
-  g: state.groupBy[0] && state.groupBy[0] !== DEFAULT_GROUP_BY[0] ? state.groupBy.join(",") : undefined,
+  d: state.domain ? serializeDomain(state.domain) : undefined,
+  g:
+    state.groupBy.length === 0
+      ? "none"
+      : state.groupBy.length === 1 && state.groupBy[0] === DEFAULT_GROUP_BY[0]
+        ? undefined
+        : state.groupBy.join(","),
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 10 ? undefined : String(state.pageSize),
+  cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
+  tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
+  gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
+  gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
 });
+
+function resolveGroupValue(item: ApiPantryItem, field: string) {
+  switch (field) {
+    case "defaultSector":
+      return item.defaultSector?.trim() || "Geral";
+    case "group":
+      return item.group?.trim() || "Sem grupo";
+    case "validityStatus":
+      return item.validityStatus;
+    case "isBelowMin":
+      return item.isBelowMin ? "Abaixo do mínimo" : "OK";
+    default:
+      return String((item as Record<string, unknown>)[field] ?? "").trim() || "—";
+  }
+}
+
+function resolveDate(item: ApiPantryItem, field: string) {
+  const raw = (item as Record<string, unknown>)[field];
+  if (!raw) return null;
+  const ms = Date.parse(String(raw));
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms);
+}
 
 export function PantryItemsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
-  const { confirm } = useConfirm();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -157,22 +212,24 @@ export function PantryItemsClientPage() {
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
   const canUpdate = permissions.includes("pantry.update");
-  const canDelete = permissions.includes("pantry.delete");
+
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
   const [rows, setRows] = React.useState<ApiPantryItem[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [sectors, setSectors] = React.useState<Array<{ id: string; name: string }>>(
-    [],
-  );
+  const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
 
   const [filters, setFilters] = usePersistedUrlState<PantryItemsFilters>({
     storageKey: "screenState:pantry.items",
-    trackedKeys: ["view", "v", "q", "g", "page", "limit"],
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm"],
     parse: parsePantryItemsFilters,
     serialize: serializePantryItemsFilters,
   });
+
+  const shouldFetchAll =
+    filters.view === "calendar" || filters.view === "graph" || filters.view === "timeline";
 
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const resetPaginationKeyRef = React.useRef<string | null>(null);
@@ -185,7 +242,7 @@ export function PantryItemsClientPage() {
   }, [filters.searchText]);
 
   React.useEffect(() => {
-    const key = debouncedSearch;
+    const key = `${debouncedSearch}::${filters.domain ? serializeDomain(filters.domain) : ""}`;
     if (resetPaginationKeyRef.current === null) {
       resetPaginationKeyRef.current = key;
       return;
@@ -193,25 +250,27 @@ export function PantryItemsClientPage() {
     if (resetPaginationKeyRef.current === key) return;
     resetPaginationKeyRef.current = key;
     setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, setFilters]);
+  }, [debouncedSearch, filters.domain, setFilters]);
 
-  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
+  const viewOptions = React.useMemo<RecordBrowserViewOption<PantryItemsView>[]>(
     () => [
+      { value: "list", label: "Lista", icon: <List className="size-4" /> },
       { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
       { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
+      { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
+      { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },
+      { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
     ],
     [],
   );
 
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<ApiPantryItem | null>(null);
-  const [saving, setSaving] = React.useState(false);
+  const openCreate = React.useCallback(() => {
+    router.push(withTenantPath("/pantry/items/new", tenantSlug));
+  }, [router, tenantSlug]);
 
-  const openExitPage = React.useCallback(
+  const openDetail = React.useCallback(
     (item: ApiPantryItem) => {
-      const qs = new URLSearchParams();
-      qs.set("itemId", item.id);
-      router.push(`${withTenantPath("/pantry/exit", tenantSlug)}?${qs.toString()}`);
+      router.push(withTenantPath(`/pantry/items/${item.id}`, tenantSlug));
     },
     [router, tenantSlug],
   );
@@ -223,9 +282,7 @@ export function PantryItemsClientPage() {
         header: "Alimento",
         cell: ({ row }) => (
           <div className="space-y-0.5">
-            <p className="text-xs font-semibold text-foreground">
-              {row.original.name}
-            </p>
+            <p className="text-xs font-semibold text-foreground">{row.original.name}</p>
             <p className="text-[11px] text-muted-foreground">
               {row.original.group || "Sem grupo"}
             </p>
@@ -233,12 +290,19 @@ export function PantryItemsClientPage() {
         ),
       },
       {
+        accessorKey: "defaultSector",
+        header: "Setor",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {row.original.defaultSector || "Geral"}
+          </span>
+        ),
+      },
+      {
         accessorKey: "unit",
         header: "Unidade",
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.unit}
-          </span>
+          <span className="text-xs text-muted-foreground">{row.original.unit}</span>
         ),
       },
       {
@@ -297,65 +361,73 @@ export function PantryItemsClientPage() {
     [],
   );
 
-  const sectorOptions = React.useMemo(() => {
-    const set = new Set<string>();
-    const list: Array<{ label: string; value: string }> = [];
-
-    const push = (name: string) => {
-      const normalized = name.trim();
-      if (!normalized) return;
-      if (set.has(normalized)) return;
-      set.add(normalized);
-      list.push({ label: normalized, value: normalized });
-    };
-
-    (sectors ?? []).forEach((sector) => push(sector.name));
-    if (editing?.defaultSector) push(editing.defaultSector);
-    push("Geral");
-
-    return list.sort((a, b) => a.label.localeCompare(b.label));
-  }, [editing?.defaultSector, sectors]);
-
-  const formFields = React.useMemo(
-    () => buildPantryItemFormFields({ sectorOptions }),
-    [sectorOptions],
+  const requestKey = React.useMemo(
+    () =>
+      JSON.stringify({
+        q: debouncedSearch,
+        d: filters.domain ? serializeDomain(filters.domain) : "",
+        g: filters.groupBy,
+        pageIndex: filters.pageIndex,
+        pageSize: filters.pageSize,
+        all: shouldFetchAll,
+      }),
+    [
+      debouncedSearch,
+      filters.domain,
+      filters.groupBy,
+      filters.pageIndex,
+      filters.pageSize,
+      shouldFetchAll,
+    ],
   );
 
-  const loadLookups = React.useCallback(async () => {
-    if (!token || !canRead) return;
-    try {
-      const sectorsResponse = await listPantrySectors(token);
-      setSectors(sectorsResponse.data ?? []);
-    } catch {
-      // lookup failure should not block listing
-    }
-  }, [token, canRead]);
+  const inFlightRequestRef = React.useRef<string | null>(null);
 
   const loadItems = React.useCallback(async () => {
     if (!token || !canRead) return;
+    inFlightRequestRef.current = requestKey;
     setLoading(true);
+    setError(null);
     try {
-      const response = await listPantryItems(token, {
-        q: debouncedSearch || undefined,
-        page: filters.pageIndex + 1,
-        limit: filters.pageSize,
+      const response = await dataProvider.search<ApiPantryItem>("pantry.items", {
+        domain: filters.domain,
+        searchText: debouncedSearch || undefined,
+        pagination: shouldFetchAll
+          ? undefined
+          : { pageIndex: filters.pageIndex, pageSize: filters.pageSize },
+        all: shouldFetchAll ? true : undefined,
       });
+      if (inFlightRequestRef.current !== requestKey) return;
       setRows(response.data);
       setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
     } catch (err) {
+      if (inFlightRequestRef.current !== requestKey) return;
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
           : "Falha ao carregar alimentos.";
       toast({ variant: "destructive", title: "Falha ao carregar", description: message });
+      setError(message);
       setRows([]);
       setTotalCount(0);
       setPageCount(0);
     } finally {
+      if (inFlightRequestRef.current === requestKey) inFlightRequestRef.current = null;
       setLoading(false);
     }
-  }, [token, canRead, filters.pageIndex, filters.pageSize, debouncedSearch, toast]);
+  }, [
+    canRead,
+    dataProvider,
+    debouncedSearch,
+    filters.domain,
+    filters.pageIndex,
+    filters.pageSize,
+    requestKey,
+    shouldFetchAll,
+    toast,
+    token,
+  ]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -363,194 +435,245 @@ export function PantryItemsClientPage() {
       setLoading(false);
       return;
     }
-    loadLookups();
-    loadItems();
-  }, [authLoading, token, isAuthenticated, canRead, loadLookups, loadItems]);
-
-  const openCreate = React.useCallback(() => {
-    router.push(withTenantPath("/pantry/items/new", tenantSlug));
-  }, [router, tenantSlug]);
-
-  const openEdit = React.useCallback(
-    (item: ApiPantryItem) => {
-      if (!canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar alimentos.",
-        });
-        return;
-      }
-      setEditing(item);
-      setDialogOpen(true);
-    },
-    [canUpdate, toast],
-  );
-
-  const onDelete = React.useCallback(
-    async (item: ApiPantryItem) => {
-      if (!token) return;
-      if (!canDelete) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para excluir alimentos.",
-        });
-        return;
-      }
-      const confirmed = await confirm({
-        title: "Excluir alimento",
-        description: `Excluir o alimento "${item.name}"?`,
-        confirmLabel: "Excluir",
-        cancelLabel: "Cancelar",
-        confirmVariant: "destructive",
-      });
-      if (!confirmed) return;
-      try {
-        await deletePantryItem(token, item.id);
-        await loadItems();
-        toast({ title: "Alimento excluído", variant: "success" });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao excluir alimento.";
-        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
-      }
-    },
-    [token, canDelete, loadItems, confirm, toast],
-  );
-
-  const handleSubmit = React.useCallback(
-    async (values: PantryItemFormValues) => {
-      if (!token) return;
-      if (editing && !canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar alimentos.",
-        });
-        return;
-      }
-      if (!editing && !canCreate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para criar alimentos.",
-        });
-        return;
-      }
-
-      const payload = normalizeItemValues(values);
-      if (!payload.name || !payload.unit) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Preencha nome e unidade.",
-        });
-        return;
-      }
-      if (!payload.defaultSector) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Informe o setor padrão.",
-        });
-        return;
-      }
-
-      setSaving(true);
-      try {
-        if (values.defaultSector?.trim() === PANTRY_NEW_SECTOR_VALUE) {
-          try {
-            await createPantrySector(token, { name: payload.defaultSector });
-            await loadLookups();
-          } catch {
-            // best-effort
-          }
-        }
-        if (editing) {
-          await updatePantryItem(token, editing.id, payload);
-        } else {
-          await createPantryItem(token, payload);
-        }
-        setDialogOpen(false);
-        setEditing(null);
-        await loadItems();
-        toast({
-          title: editing ? "Alimento atualizado" : "Alimento criado",
-          variant: "success",
-        });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao salvar alimento.";
-        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
-      } finally {
-        setSaving(false);
-      }
-    },
-    [token, editing, canUpdate, canCreate, loadLookups, loadItems, toast],
-  );
-
-  if (!canRead) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem permissão para acessar esta área.
-      </div>
-    );
-  }
+    void loadItems();
+  }, [authLoading, canRead, isAuthenticated, loadItems, requestKey, token]);
 
   const resolvedPageCount =
     pageCount > 0 ? pageCount : totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
 
+  const removeDomainCondition = React.useCallback(
+    (index: number) => {
+      setFilters((prev) => ({
+        ...prev,
+        domain: removeConditionAtIndex(prev.domain, "and", index),
+        pageIndex: 0,
+      }));
+    },
+    [setFilters],
+  );
+
+  const queryFacets = React.useMemo(
+    () =>
+      buildQueryFacets({
+        domain: filters.domain,
+        groupBy: filters.groupBy,
+        searchView: pantryItemsSearchView,
+        onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
+        onClearDomain: () => setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onRemoveDomainCondition: removeDomainCondition,
+      }),
+    [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
+  );
+
+  const valueSuggestions = React.useMemo(() => {
+    const sectors = new Set<string>();
+    const groups = new Set<string>();
+    const units = new Set<string>();
+
+    rows.forEach((row) => {
+      const sector = String(row.defaultSector ?? "").trim();
+      if (sector) sectors.add(sector);
+      const group = String(row.group ?? "").trim();
+      if (group) groups.add(group);
+      const unit = String(row.unit ?? "").trim();
+      if (unit) units.add(unit);
+    });
+
+    const sectorList = Array.from(sectors).sort((a, b) => a.localeCompare(b));
+    const groupList = Array.from(groups).sort((a, b) => a.localeCompare(b));
+    const unitList = Array.from(units).sort((a, b) => a.localeCompare(b));
+
+    return (fieldName: string) => {
+      if (fieldName === "defaultSector") return sectorList;
+      if (fieldName === "group") return groupList;
+      if (fieldName === "unit") return unitList;
+      return [];
+    };
+  }, [rows]);
+
+  const dateFields = React.useMemo(
+    () => pantryItemsSearchView.fields.filter((f) => f.type === "date"),
+    [],
+  );
+
+  const viewConfig = React.useMemo(() => {
+    if (filters.view === "calendar") {
+      return (
+        <Select
+          value={filters.calendarField}
+          onValueChange={(value) => setFilters((prev) => ({ ...prev, calendarField: value }))}
+        >
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "timeline") {
+      return (
+        <Select
+          value={filters.timelineField}
+          onValueChange={(value) => setFilters((prev) => ({ ...prev, timelineField: value }))}
+        >
+          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectValue placeholder="Data..." />
+          </SelectTrigger>
+          <SelectContent>
+            {dateFields.map((field) => (
+              <SelectItem key={field.name} value={field.name}>
+                {field.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (filters.view === "graph") {
+      const groupByFields = pantryItemsSearchView.groupBy ?? [];
+      return (
+        <div className="flex items-center gap-1">
+          <Select
+            value={filters.graphGroupField}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}
+          >
+            <SelectTrigger className="h-8 w-[11rem] text-xs">
+              <SelectValue placeholder="Agrupar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {groupByFields.map((opt) => (
+                <SelectItem key={opt.field} value={opt.field}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.graphMetric}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, graphMetric: value === "stock" ? "stock" : "count" }))
+            }
+          >
+            <SelectTrigger className="h-8 w-[9.5rem] text-xs">
+              <SelectValue placeholder="Métrica..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="count">Quantidade</SelectItem>
+              <SelectItem value="stock">Saldo (soma)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    return null;
+  }, [
+    dateFields,
+    filters.calendarField,
+    filters.graphGroupField,
+    filters.graphMetric,
+    filters.timelineField,
+    filters.view,
+    setFilters,
+  ]);
+
+  const graphData = React.useMemo(() => {
+    if (filters.view !== "graph") return [];
+    const map = new Map<string, { x: string; value: number }>();
+    rows.forEach((row) => {
+      const key = resolveGroupValue(row, filters.graphGroupField);
+      const current = map.get(key) ?? { x: key, value: 0 };
+      current.value += filters.graphMetric === "stock" ? Number(row.stock) : 1;
+      map.set(key, current);
+    });
+    return Array.from(map.values())
+      .sort((a, b) => a.x.localeCompare(b.x))
+      .slice(0, 40);
+  }, [filters.graphGroupField, filters.graphMetric, filters.view, rows]);
+
+  if (!canRead) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
-        primaryAction={
-          canCreate
-            ? {
-                label: "Novo",
-                onClick: openCreate,
-              }
-            : undefined
-        }
+        primaryAction={canCreate ? { label: "Novo", onClick: openCreate } : undefined}
         searchSlot={
-          <div className="flex w-full items-center gap-1">
-            <SearchBar
-              value={filters.searchText}
-              onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
-              placeholder="Pesquisar alimentos"
-              className="flex-1"
-            />
-            <SearchPanelMenu<PantryItemsFavoriteState>
-              actionId="pantry.items"
-              searchView={pantryItemsSearchView}
-              domain={null}
-              onDomainChange={() => {}}
-              groupBy={filters.groupBy}
-              onGroupByChange={(groupBy) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  groupBy: groupBy.length ? groupBy : DEFAULT_GROUP_BY,
-                }))
-              }
-              snapshot={{
-                view: filters.view,
-                searchText: filters.searchText,
-                groupBy: filters.groupBy,
-                pageSize: filters.pageSize,
-              }}
-              onApplyFavorite={(state) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  ...state,
-                  pageIndex: 0,
-                }))
-              }
-            />
-          </div>
+          <SearchBar
+            value={filters.searchText}
+            onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+            placeholder="Pesquisar"
+            facets={queryFacets}
+            rightSlot={
+              <div className="flex items-center gap-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="Atualizar"
+                  aria-label="Atualizar"
+                  onClick={loadItems}
+                  disabled={loading}
+                >
+                  <RefreshCcw className="size-4" />
+                </Button>
+
+                <SearchPanelMenu<PantryItemsFavoriteState>
+                  actionId="pantry.items"
+                  variant="compact"
+                  allowEmptyGroupBy
+                  groupByMode="multi"
+                  valueSuggestions={valueSuggestions}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      title="Filtros"
+                      aria-label="Filtros"
+                    >
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                  }
+                  searchView={pantryItemsSearchView}
+                  domain={filters.domain}
+                  onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+                  groupBy={filters.groupBy}
+                  onGroupByChange={(groupBy) => setFilters((prev) => ({ ...prev, groupBy }))}
+                  snapshot={{
+                    view: filters.view,
+                    searchText: filters.searchText,
+                    domain: filters.domain,
+                    groupBy: filters.groupBy,
+                    pageSize: filters.pageSize,
+                    calendarField: filters.calendarField,
+                    timelineField: filters.timelineField,
+                    graphGroupField: filters.graphGroupField,
+                    graphMetric: filters.graphMetric,
+                  }}
+                  onApplyFavorite={(state) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      ...state,
+                      pageIndex: 0,
+                    }))
+                  }
+                />
+              </div>
+            }
+          />
         }
         viewSwitcherSlot={
           <ViewSwitcher
@@ -561,9 +684,7 @@ export function PantryItemsClientPage() {
         }
         rightSlot={
           <>
-            <Button size="sm" variant="outline" onClick={loadItems} disabled={loading}>
-              Atualizar
-            </Button>
+            {viewConfig}
             <div className="whitespace-nowrap text-[11px] text-muted-foreground">
               Total:{" "}
               <span className="font-mono tabular-nums text-foreground">
@@ -574,133 +695,178 @@ export function PantryItemsClientPage() {
         }
       />
 
-      <div className="w-full">
-        {filters.view === "table" ? (
-          <DataTable
-            columns={columns}
-            data={rows}
-            manualPagination
-            pageCount={resolvedPageCount}
-            pagination={{ pageIndex: filters.pageIndex, pageSize: filters.pageSize }}
-            onPaginationChange={(next) =>
-              setFilters((prev) => ({
-                ...prev,
-                pageIndex: next.pageIndex,
-                pageSize: next.pageSize,
-              }))
+      <div className="w-full space-y-3">
+        {filters.view === "kanban" ? (
+          <KanbanView<ApiPantryItem>
+            items={rows}
+            getColumnKey={
+              filters.groupBy[0]
+                ? (item) => resolveGroupValue(item, filters.groupBy[0]!)
+                : undefined
             }
-            totalCount={totalCount}
-            toolbar={{ hidden: true }}
-            rowActions={[
-              { id: "move", label: "Movimentar", onSelect: openExitPage },
-              { id: "edit", label: "Editar", onSelect: openEdit },
-              { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
-            ]}
-            onRowClick={(row) => openExitPage(row)}
-          />
-        ) : (
-          <div className="space-y-3">
-            <KanbanView<ApiPantryItem>
-              items={rows}
-              getColumnKey={(item) => {
-                const field = filters.groupBy[0] ?? DEFAULT_GROUP_BY[0];
-                if (field === "group") return item.group?.trim() || "Sem grupo";
-                return item.defaultSector?.trim() || "Geral";
-              }}
-              renderCard={(item) => (
-                <div
-                  className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openExitPage(item)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") openExitPage(item);
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-foreground">
-                        {item.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.group || "Sem grupo"} • Unidade: {item.unit}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm tabular-nums text-foreground">
-                        {Number(item.stock).toLocaleString("pt-BR")}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">saldo</div>
+            renderCard={(item) => (
+              <div
+                className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openDetail(item);
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">{item.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.group || "Sem grupo"} • {item.defaultSector || "Geral"} • {item.unit}
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {resolveValidityBadge(item.validityStatus)}
-                    {item.isBelowMin ? (
-                      <Badge variant="destructive">Abaixo do mínimo</Badge>
-                    ) : (
-                      <Badge variant="secondary">OK</Badge>
-                    )}
+                  <div className="text-right">
+                    <div className="font-mono text-sm tabular-nums text-foreground">
+                      {Number(item.stock).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">saldo</div>
                   </div>
                 </div>
-              )}
-            />
-            <PaginationBar
-              pageIndex={filters.pageIndex}
-              pageCount={resolvedPageCount}
-              pageSize={filters.pageSize}
-              onPageIndexChange={(next) =>
-                setFilters((prev) => ({ ...prev, pageIndex: next }))
-              }
-              onPageSizeChange={(next) =>
-                setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
-              }
-              disabled={loading}
-            />
-          </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {resolveValidityBadge(item.validityStatus)}
+                  {item.isBelowMin ? (
+                    <Badge variant="destructive">Abaixo do mínimo</Badge>
+                  ) : (
+                    <Badge variant="secondary">OK</Badge>
+                  )}
+                </div>
+              </div>
+            )}
+          />
+        ) : filters.view === "calendar" ? (
+          <CalendarView<ApiPantryItem>
+            items={rows}
+            getDate={(item) => resolveDate(item, filters.calendarField)}
+            renderItem={(item) => (
+              <div
+                className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openDetail(item);
+                }}
+              >
+                <div className="truncate text-sm font-semibold text-foreground">{item.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {item.defaultSector || "Geral"} • {item.group || "Sem grupo"}
+                </div>
+              </div>
+            )}
+          />
+        ) : filters.view === "timeline" ? (
+          <TimelineView<ApiPantryItem>
+            items={rows}
+            getDate={(item) => resolveDate(item, filters.timelineField)}
+            renderTitle={(item) => item.name}
+            renderBody={(item) => (
+              <span>
+                {item.defaultSector || "Geral"} • {item.group || "Sem grupo"} • saldo{" "}
+                {Number(item.stock).toLocaleString("pt-BR")} {item.unit}
+              </span>
+            )}
+          />
+        ) : filters.view === "graph" ? (
+          <GraphView
+            data={graphData}
+            xKey="x"
+            series={[
+              {
+                key: "value",
+                label: filters.graphMetric === "stock" ? "Saldo" : "Quantidade",
+                color: "hsl(var(--chart-1))",
+              },
+            ]}
+          />
+        ) : filters.groupBy.length ? (
+          <GroupedListView<ApiPantryItem>
+            data={rows}
+            columns={columns}
+            groupByFields={filters.groupBy}
+            getRowId={(row) => row.id}
+            onRowClick={openDetail}
+            resolveGroupLabel={(field, value) => {
+              if (field === "group") return String(value ?? "").trim() || "Sem grupo";
+              if (field === "defaultSector") return String(value ?? "").trim() || "Geral";
+              if (field === "isBelowMin") return String(value ?? "").includes("true") ? "Abaixo do mínimo" : "OK";
+              return String(value ?? "").trim() || "Sem valor";
+            }}
+          />
+        ) : filters.view === "table" ? (
+          <TableView<ApiPantryItem>
+            data={rows}
+            columns={columns}
+            getRowId={(row) => row.id}
+            onRowClick={openDetail}
+          />
+        ) : (
+          <ListView<ApiPantryItem>
+            data={rows}
+            columns={columns}
+            getRowId={(row) => row.id}
+            onRowClick={openDetail}
+            renderCard={(item) => (
+              <div
+                className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openDetail(item);
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">{item.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.group || "Sem grupo"} • {item.defaultSector || "Geral"} • {item.unit}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-sm tabular-nums text-foreground">
+                      {Number(item.stock).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">saldo</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          />
         )}
-        {loading ? (
-          <p className="text-xs text-muted-foreground">Carregando...</p>
+
+        {!shouldFetchAll && filters.view !== "graph" ? (
+          <PaginationBar
+            pageIndex={filters.pageIndex}
+            pageCount={resolvedPageCount}
+            pageSize={filters.pageSize}
+            onPageIndexChange={(next) => setFilters((prev) => ({ ...prev, pageIndex: next }))}
+            onPageSizeChange={(next) =>
+              setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
+            }
+            disabled={loading}
+          />
+        ) : null}
+
+        {loading ? <p className="text-xs text-muted-foreground">Carregando...</p> : null}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        {!loading && !rows.length ? (
+          <div className="rounded-md border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+            Nenhum registro.
+          </div>
+        ) : null}
+
+        {!canUpdate ? (
+          <p className="text-[11px] text-muted-foreground">
+            Você tem permissão somente de leitura.
+          </p>
         ) : null}
       </div>
-
-      <SectionDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        title={editing ? "Editar alimento" : "Novo alimento"}
-        description="Cadastro simplificado: nome, unidade e estoque mínimo."
-      >
-        <FormEngine<PantryItemFormValues>
-          fields={formFields}
-          initialValues={
-            editing
-              ? {
-                  name: editing.name,
-                  group: editing.group ?? "",
-                  defaultSector: editing.defaultSector ?? "Geral",
-                  newSector: "",
-                  unit: editing.unit,
-                  minStock: editing.minStock,
-                }
-              : { unit: "kg", defaultSector: "Geral", newSector: "", minStock: 0 }
-          }
-          disabled={saving}
-          onSubmit={handleSubmit}
-          actions={{
-            submit: {
-              label: saving ? "Salvando..." : "Salvar",
-              variant: "primary",
-            },
-            cancel: {
-              label: "Cancelar",
-              variant: "ghost",
-              onClick: () => setDialogOpen(false),
-            },
-          }}
-        />
-      </SectionDialog>
     </div>
   );
 }
