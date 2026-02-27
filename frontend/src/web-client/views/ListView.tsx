@@ -233,7 +233,15 @@ function ColumnMenu<TData>({
           Limpar ordenação
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => column.toggleVisibility(false)} disabled={!canHide}>
+        <DropdownMenuItem
+          onClick={() =>
+            table.setColumnVisibility((prev) => ({
+              ...prev,
+              [column.id]: false,
+            }))
+          }
+          disabled={!canHide}
+        >
           Ocultar coluna
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -261,6 +269,8 @@ function ColumnsMenu<TData>({ table }: { table: TanstackTable<TData> }) {
 
   if (!columns.length) return null;
 
+  const visibility = table.getState().columnVisibility;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -277,15 +287,25 @@ function ColumnsMenu<TData>({ table }: { table: TanstackTable<TData> }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[220px]">
-        {columns.map((col) => (
-          <DropdownMenuCheckboxItem
-            key={col.id}
-            checked={col.getIsVisible?.() ?? true}
-            onCheckedChange={(checked) => col.toggleVisibility?.(Boolean(checked))}
-          >
-            {typeof col.columnDef.header === "string" ? col.columnDef.header : col.id}
-          </DropdownMenuCheckboxItem>
-        ))}
+        {columns.map((col) => {
+          const isVisible = visibility[col.id] !== false;
+          const label = typeof col.columnDef.header === "string" ? col.columnDef.header : col.id;
+
+          return (
+            <DropdownMenuCheckboxItem
+              key={col.id}
+              checked={isVisible}
+              onCheckedChange={(checked) =>
+                table.setColumnVisibility((prev) => ({
+                  ...prev,
+                  [col.id]: Boolean(checked),
+                }))
+              }
+            >
+              {label}
+            </DropdownMenuCheckboxItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
