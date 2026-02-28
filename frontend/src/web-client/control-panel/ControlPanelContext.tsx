@@ -13,6 +13,7 @@ export type ControlPanelState = {
   favoritesSlot?: React.ReactNode;
   viewSwitcherSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
+  viewControlsSlot?: React.ReactNode;
 };
 
 type ControlPanelContextValue = {

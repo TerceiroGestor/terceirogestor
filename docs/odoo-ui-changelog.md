@@ -2,6 +2,8 @@
 
 Este documento troca a estrategia de "parecer com o Odoo" por uma estrategia de **ferramentas definitivas**: um conjunto pequeno de componentes + contratos que funcionam igual em qualquer modulo.
 
+Implementacao de referencia (contrato aplicado): `docs/modules/pantry/dev-guide.md`.
+
 ## Objetivo
 - 1 padrao de tela para navegacao de registros (Kanban/List/Table/Timeline/Graph/Calendar...).
 - 1 estado de query por *Action* que dirige a view ativa.

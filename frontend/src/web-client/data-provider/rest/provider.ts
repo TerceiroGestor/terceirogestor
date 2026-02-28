@@ -1,11 +1,9 @@
 "use client";
 
 import type { DataProvider, SearchArgs, SearchResult } from "@/web-client/data-provider/types";
+import { searchPantryDonors } from "@/web-client/data-provider/rest/pantry-donors";
 import { searchPantryHistory } from "@/web-client/data-provider/rest/pantry-history";
-import { searchPantryEntries } from "@/web-client/data-provider/rest/pantry-entries";
-import { searchPantryExits } from "@/web-client/data-provider/rest/pantry-exits";
 import { searchPantryStock } from "@/web-client/data-provider/rest/pantry-stock";
-import { searchPantryItems } from "@/web-client/data-provider/rest/pantry-items";
 import {
   createPantryItem,
   deletePantryItem,
@@ -27,14 +25,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.history":
           return (await searchPantryHistory(authToken, args)) as unknown as SearchResult<T>;
-        case "pantry.entries":
-          return (await searchPantryEntries(authToken, args)) as unknown as SearchResult<T>;
-        case "pantry.exits":
-          return (await searchPantryExits(authToken, args)) as unknown as SearchResult<T>;
+        case "pantry.donors":
+          return (await searchPantryDonors(authToken, args)) as unknown as SearchResult<T>;
         case "pantry.stock":
           return (await searchPantryStock(authToken, args)) as unknown as SearchResult<T>;
-        case "pantry.items":
-          return (await searchPantryItems(authToken, args)) as unknown as SearchResult<T>;
         default:
           throw new Error(`Model nao suportado: ${model}`);
       }

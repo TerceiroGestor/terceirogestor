@@ -2,67 +2,44 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { usePathname, useRouter } from "next/navigation";
+import { Plus, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/DataTable";
-import { FormEngine } from "@/components/FormEngine";
-import { SectionDialog } from "@/components/section-dialog";
-import { useConfirm } from "@/components/confirm/use-confirm";
-import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import {
-  createPantryDonor,
-  deletePantryDonor,
-  listPantryDonors,
-  updatePantryDonor,
-  type ApiPantryDonor,
-} from "@/modules/pantry/api";
-import { pantryDonorFormFields } from "@/modules/pantry/features/donors/config/pantry-donor-form-config";
-import type { PantryDonorFormValues } from "@/modules/pantry/shared/domain/types";
-import { useRequireAuth } from "@/hooks/use-require-auth";
 import { formatDateOnlyPtBR } from "@/lib/date";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
-import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
-import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
+import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import type { Domain } from "@/web-client/domain/types";
+import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { pantryDonorsSearchView } from "@/web-client/registry/searchViews/pantry";
-import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
-import { KanbanView } from "@/web-client/views/KanbanView";
+import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
+import { createRestDataProvider } from "@/web-client/data-provider";
+import { ListView } from "@/web-client/views/ListView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
-import { LayoutGrid, Table2 } from "lucide-react";
-
-function formatDate(value: string) {
-  return formatDateOnlyPtBR(value);
-}
-
-function normalizeDonorValues(values: PantryDonorFormValues) {
-  const name = values.name?.trim() ?? "";
-  const type: "PERSON" | "COMPANY" =
-    values.type === "COMPANY" ? "COMPANY" : "PERSON";
-  const contact = values.contact?.trim() || null;
-  return { name, type, contact };
-}
-
-type PantryDonorsView = "table" | "kanban";
+import type { ApiPantryDonor } from "@/modules/pantry/api";
+import { PantryDonorCreateDialog } from "@/modules/pantry/features/donors/ui/pantry-donor-create-dialog";
+import { PANTRY_ACTION_IDS, PANTRY_ROUTES, PANTRY_SCREEN_STATE_KEYS } from "@/modules/pantry/shared/domain/pantry.constants";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type PantryDonorsFilters = {
-  view: PantryDonorsView;
   searchText: string;
+  domain: Domain;
   groupBy: string[];
   pageIndex: number;
   pageSize: number;
 };
 
-type PantryDonorsFavoriteState = Pick<
-  PantryDonorsFilters,
-  "view" | "searchText" | "groupBy" | "pageSize"
->;
-
-function normalizeView(value: string | null): PantryDonorsView {
-  return value === "kanban" ? "kanban" : "table";
-}
+type PantryDonorsFavoriteState = Pick<PantryDonorsFilters, "searchText" | "domain" | "groupBy" | "pageSize">;
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -71,458 +48,263 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
-const parsePantryDonorsFilters = (params: URLSearchParams): PantryDonorsFilters => {
-  const view = normalizeView(params.get("view") ?? params.get("v"));
+const parseFilters = (params: URLSearchParams): PantryDonorsFilters => {
   const searchText = params.get("q") ?? "";
-  const groupBy = (params.get("g") ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const domain = parseDomain(params.get("d")) ?? null;
+  const groupParam = params.get("g");
+  const groupBy =
+    groupParam === "none"
+      ? []
+      : (groupParam ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
-  const limit = parsePositiveInt(params.get("limit"), 10);
+  const limit = parsePositiveInt(params.get("limit"), 50);
 
   return {
-    view,
     searchText,
-    groupBy,
+    domain,
+    groupBy: groupParam === "none" ? [] : groupBy,
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
   };
 };
 
-const serializePantryDonorsFilters = (state: PantryDonorsFilters) => ({
-  view: state.view === "table" ? undefined : state.view,
+const serializeFilters = (state: PantryDonorsFilters) => ({
   q: state.searchText.trim() ? state.searchText.trim() : undefined,
+  d: state.domain ? serializeDomain(state.domain) : undefined,
   g: state.groupBy.length ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
-  limit: state.pageSize === 10 ? undefined : String(state.pageSize),
+  limit: state.pageSize === 50 ? undefined : String(state.pageSize),
 });
+
+function typeLabel(value: ApiPantryDonor["type"]) {
+  return value === "COMPANY" ? "Empresa" : "Pessoa";
+}
 
 export function PantryDonorsClientPage() {
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
-  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
-  const { confirm } = useConfirm();
-  const { toast } = useToast();
-
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
-  const canUpdate = permissions.includes("pantry.update");
-  const canDelete = permissions.includes("pantry.delete");
 
-  const [rows, setRows] = React.useState<ApiPantryDonor[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [pageCount, setPageCount] = React.useState(0);
-  const [totalCount, setTotalCount] = React.useState(0);
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
 
   const [filters, setFilters] = usePersistedUrlState<PantryDonorsFilters>({
-    storageKey: "screenState:pantry.donors",
-    trackedKeys: ["view", "v", "q", "g", "page", "limit"],
-    parse: parsePantryDonorsFilters,
-    serialize: serializePantryDonorsFilters,
+    storageKey: PANTRY_SCREEN_STATE_KEYS.donors,
+    trackedKeys: ["q", "d", "g", "page", "limit"],
+    parse: parseFilters,
+    serialize: serializeFilters,
   });
 
-  const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  const resetPaginationKeyRef = React.useRef<string | null>(null);
+  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(filters.searchText.trim());
-    }, 350);
-    return () => clearTimeout(handler);
-  }, [filters.searchText]);
+  const [loading, setLoading] = React.useState(false);
+  const [rows, setRows] = React.useState<ApiPantryDonor[]>([]);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [pageCount, setPageCount] = React.useState(0);
 
-  React.useEffect(() => {
-    const key = debouncedSearch;
-    if (resetPaginationKeyRef.current === null) {
-      resetPaginationKeyRef.current = key;
-      return;
-    }
-    if (resetPaginationKeyRef.current === key) return;
-    resetPaginationKeyRef.current = key;
-    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, setFilters]);
-
-  const viewOptions = React.useMemo<RecordBrowserViewOption<"table" | "kanban">[]>(
-    () => [
-      { value: "table", label: "Tabela", icon: <Table2 className="size-4" /> },
-      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
-    ],
-    [],
+  const requestKey = React.useMemo(
+    () => JSON.stringify({ q: filters.searchText, d: filters.domain, p: filters.pageIndex, l: filters.pageSize }),
+    [filters.domain, filters.pageIndex, filters.pageSize, filters.searchText],
   );
 
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<ApiPantryDonor | null>(null);
-  const [saving, setSaving] = React.useState(false);
+  const loadRows = React.useCallback(async () => {
+    if (!token || !canRead) return;
+    setLoading(true);
+    try {
+      const res = await dataProvider.search<ApiPantryDonor>("pantry.donors", {
+        domain: filters.domain,
+        searchText: filters.searchText.trim() ? filters.searchText.trim() : undefined,
+        pagination: { pageIndex: filters.pageIndex, pageSize: filters.pageSize },
+      });
+      setRows(res.data ?? []);
+      setTotalCount(res.pagination.total);
+      setPageCount(res.pagination.pages);
+    } finally {
+      setLoading(false);
+    }
+  }, [canRead, dataProvider, filters.domain, filters.pageIndex, filters.pageSize, filters.searchText, token]);
 
-  const columns = React.useMemo<ColumnDef<ApiPantryDonor>[]>(
+  React.useEffect(() => {
+    void loadRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
+
+  const removeDomainCondition = React.useCallback(
+    (index: number) => {
+      setFilters((prev) => ({
+        ...prev,
+        domain: removeConditionAtIndex(prev.domain, "and", index),
+        pageIndex: 0,
+      }));
+    },
+    [setFilters],
+  );
+
+  const queryFacets = React.useMemo(
+    () =>
+      buildQueryFacets({
+        domain: filters.domain,
+        groupBy: filters.groupBy,
+        searchView: pantryDonorsSearchView,
+        onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
+        onClearDomain: () => setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onRemoveDomainCondition: removeDomainCondition,
+      }),
+    [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
+  );
+
+  const valueSuggestions = React.useMemo(() => {
+    const types = Array.from(new Set(rows.map((r) => r.type))).sort();
+    return (fieldName: string) => {
+      if (fieldName === "type") return types;
+      return [];
+    };
+  }, [rows]);
+
+  const columns = React.useMemo<ColumnDef<ApiPantryDonor, unknown>[]>(
     () => [
       {
         accessorKey: "name",
-        header: "Doador",
-        cell: ({ row }) => (
-          <span className="text-xs font-semibold text-foreground">
-            {row.original.name}
-          </span>
-        ),
+        header: "Nome",
+        cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
       },
       {
         accessorKey: "type",
         header: "Tipo",
-        cell: ({ row }) => (
-          <Badge variant="outline">
-            {row.original.type === "COMPANY" ? "Empresa" : "Pessoa"}
-          </Badge>
-        ),
+        cell: ({ row }) => <div className="text-sm text-muted-foreground">{typeLabel(row.original.type)}</div>,
       },
       {
         accessorKey: "contact",
         header: "Contato",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.contact || "—"}
-          </span>
-        ),
+        cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.contact ?? "—"}</div>,
       },
       {
         accessorKey: "createdAt",
         header: "Criado em",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {formatDate(row.original.createdAt)}
-          </span>
-        ),
+        cell: ({ row }) => <div className="text-sm text-muted-foreground">{formatDateOnlyPtBR(row.original.createdAt)}</div>,
       },
     ],
     [],
   );
 
-  const loadDonors = React.useCallback(async () => {
-    if (!token || !canRead) return;
-    setLoading(true);
-    try {
-      const response = await listPantryDonors(token, {
-        q: debouncedSearch || undefined,
-        page: filters.pageIndex + 1,
-        limit: filters.pageSize,
-      });
-      setRows(response.data);
-      setTotalCount(response.pagination.total);
-      setPageCount(response.pagination.pages);
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message?: string }).message)
-          : "Falha ao carregar doadores.";
-      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
-      setRows([]);
-      setTotalCount(0);
-      setPageCount(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, canRead, filters.pageIndex, filters.pageSize, debouncedSearch, toast]);
-
-  React.useEffect(() => {
-    if (authLoading) return;
-    if (!token || !isAuthenticated || !canRead) {
-      setLoading(false);
-      return;
-    }
-    loadDonors();
-  }, [authLoading, token, isAuthenticated, canRead, loadDonors]);
-
-  const openCreate = React.useCallback(() => {
-    setEditing(null);
-    setDialogOpen(true);
-  }, []);
-
-  const openEdit = React.useCallback(
-    (donor: ApiPantryDonor) => {
-      if (!canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar doadores.",
-        });
-        return;
-      }
-      setEditing(donor);
-      setDialogOpen(true);
-    },
-    [canUpdate, toast],
-  );
-
-  const onDelete = React.useCallback(
-    async (donor: ApiPantryDonor) => {
-      if (!token) return;
-      if (!canDelete) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para excluir doadores.",
-        });
-        return;
-      }
-      const confirmed = await confirm({
-        title: "Excluir doador",
-        description: `Excluir o doador "${donor.name}"?`,
-        confirmLabel: "Excluir",
-        cancelLabel: "Cancelar",
-        confirmVariant: "destructive",
-      });
-      if (!confirmed) return;
-      try {
-        await deletePantryDonor(token, donor.id);
-        await loadDonors();
-        toast({ title: "Doador excluído", variant: "success" });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao excluir doador.";
-        toast({ title: "Falha ao excluir", description: message, variant: "destructive" });
-      }
-    },
-    [token, canDelete, loadDonors, confirm, toast],
-  );
-
-  const handleSubmit = React.useCallback(
-    async (values: PantryDonorFormValues) => {
-      if (!token) return;
-      if (editing && !canUpdate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para editar doadores.",
-        });
-        return;
-      }
-      if (!editing && !canCreate) {
-        toast({
-          variant: "destructive",
-          title: "Sem permissão",
-          description: "Você não tem permissão para criar doadores.",
-        });
-        return;
-      }
-
-      const payload = normalizeDonorValues(values);
-      if (!payload.name) {
-        toast({
-          variant: "destructive",
-          title: "Dados inválidos",
-          description: "Preencha o nome.",
-        });
-        return;
-      }
-
-      setSaving(true);
-      try {
-        if (editing) {
-          await updatePantryDonor(token, editing.id, payload);
-        } else {
-          await createPantryDonor(token, payload);
-        }
-        setDialogOpen(false);
-        setEditing(null);
-        await loadDonors();
-        toast({
-          title: editing ? "Doador atualizado" : "Doador criado",
-          variant: "success",
-        });
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message?: string }).message)
-            : "Falha ao salvar doador.";
-        toast({ title: "Falha ao salvar", description: message, variant: "destructive" });
-      } finally {
-        setSaving(false);
-      }
-    },
-    [token, editing, canUpdate, canCreate, loadDonors, toast],
-  );
+  const [newDonorOpen, setNewDonorOpen] = React.useState(false);
 
   if (!canRead) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem permissão para acessar esta área.
-      </div>
-    );
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
   }
-
-  const resolvedPageCount =
-    pageCount > 0 ? pageCount : totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
 
   return (
     <div className="flex flex-col gap-4">
       <PageControlPanel
-        primaryAction={
-          canCreate
-            ? {
-                label: "Novo",
-                onClick: openCreate,
-              }
-            : undefined
+        primaryActionSlot={
+          canCreate ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="sm" className="h-8 gap-2">
+                  <Plus className="size-4" />
+                  Novo
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => router.push(withTenantPath(PANTRY_ROUTES.itemsNew, tenantSlug))}>
+                  Novo alimento
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setNewDonorOpen(true)}>Novo doador</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : undefined
         }
         searchSlot={
-          <div className="flex w-full items-center gap-1">
-            <SearchBar
-              value={filters.searchText}
-              onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
-              placeholder="Pesquisar doadores"
-              className="flex-1"
-            />
-            <SearchPanelMenu<PantryDonorsFavoriteState>
-              actionId="pantry.donors"
-              searchView={pantryDonorsSearchView}
-              domain={null}
-              onDomainChange={() => {}}
-              groupBy={filters.groupBy}
-              onGroupByChange={(groupBy) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  groupBy,
-                }))
-              }
-              snapshot={{
-                view: filters.view,
-                searchText: filters.searchText,
-                groupBy: filters.groupBy,
-                pageSize: filters.pageSize,
-              }}
-              onApplyFavorite={(state) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  ...state,
-                  pageIndex: 0,
-                }))
-              }
-            />
-          </div>
-        }
-        viewSwitcherSlot={
-          <ViewSwitcher
-            value={filters.view}
-            options={viewOptions}
-            onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
+          <SearchBar
+            value={filters.searchText}
+            onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+            placeholder="Pesquisar"
+            facets={queryFacets}
+            rightSlot={
+              <SearchPanelMenu<PantryDonorsFavoriteState>
+                actionId={PANTRY_ACTION_IDS.donors}
+                variant="compact"
+                allowEmptyGroupBy
+                groupByMode="multi"
+                valueSuggestions={valueSuggestions}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    title="Filtros"
+                    aria-label="Filtros"
+                  >
+                    <SlidersHorizontal className="size-4" />
+                  </Button>
+                }
+                searchView={pantryDonorsSearchView}
+                domain={filters.domain}
+                onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+                groupBy={filters.groupBy}
+                onGroupByChange={(groupBy) => setFilters((prev) => ({ ...prev, groupBy }))}
+                snapshot={{
+                  searchText: filters.searchText,
+                  domain: filters.domain,
+                  groupBy: filters.groupBy,
+                  pageSize: filters.pageSize,
+                }}
+                onApplyFavorite={(state) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    searchText: state.searchText,
+                    domain: state.domain,
+                    groupBy: state.groupBy,
+                    pageSize: state.pageSize,
+                    pageIndex: 0,
+                  }))
+                }
+              />
+            }
           />
         }
         rightSlot={
-          <>
-            <Button size="sm" variant="outline" onClick={loadDonors} disabled={loading}>
-              Atualizar
-            </Button>
-            <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-              Total:{" "}
-              <span className="font-mono tabular-nums text-foreground">
-                {totalCount.toLocaleString("pt-BR")}
-              </span>
-            </div>
-          </>
+          <div className="whitespace-nowrap text-[11px] text-muted-foreground">
+            Total:{" "}
+            <span className="font-mono tabular-nums text-foreground">
+              {totalCount.toLocaleString("pt-BR")}
+            </span>
+          </div>
         }
       />
 
-      <div className="w-full">
-        {filters.view === "table" ? (
-          <DataTable
-            columns={columns}
-            data={rows}
-            manualPagination
-            pageCount={resolvedPageCount}
-            pagination={{ pageIndex: filters.pageIndex, pageSize: filters.pageSize }}
-            onPaginationChange={(next) =>
-              setFilters((prev) => ({
-                ...prev,
-                pageIndex: next.pageIndex,
-                pageSize: next.pageSize,
-              }))
-            }
-            totalCount={totalCount}
-            toolbar={{ hidden: true }}
-            rowActions={[
-              { id: "edit", label: "Editar", onSelect: openEdit },
-              { id: "delete", label: "Excluir", destructive: true, onSelect: onDelete },
-            ]}
-          />
-        ) : (
-          <div className="space-y-3">
-            <KanbanView<ApiPantryDonor>
-              items={rows}
-              getColumnKey={(row) => {
-                const field = filters.groupBy[0];
-                if (field === "type") {
-                  return row.type === "COMPANY" ? "Empresa" : "Pessoa";
-                }
-                return "Doadores";
-              }}
-              renderCard={(row) => (
-                <div className="rounded-md border border-border/60 bg-background px-3 py-2 hover:bg-muted/20">
-                  <div className="truncate text-sm font-semibold text-foreground">{row.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Tipo: {row.type === "COMPANY" ? "Empresa" : "Pessoa"}
-                  </div>
-                  {row.contact ? (
-                    <div className="mt-1 text-xs text-muted-foreground truncate">{row.contact}</div>
-                  ) : null}
-                </div>
-              )}
-            />
-            <PaginationBar
-              pageIndex={filters.pageIndex}
-              pageCount={resolvedPageCount}
-              pageSize={filters.pageSize}
-              onPageIndexChange={(next) =>
-                setFilters((prev) => ({ ...prev, pageIndex: next }))
-              }
-              onPageSizeChange={(next) =>
-                setFilters((prev) => ({ ...prev, pageSize: next, pageIndex: 0 }))
-              }
-              disabled={loading}
-            />
-          </div>
-        )}
-        {loading ? (
-          <p className="text-xs text-muted-foreground">Carregando...</p>
-        ) : null}
+      <div className="flex flex-col gap-2">
+        <ListView<ApiPantryDonor>
+          data={rows}
+          columns={columns}
+          groupByFields={filters.groupBy}
+          resolveGroupLabel={(field, groupValue) => (field === "type" ? typeLabel(groupValue as ApiPantryDonor["type"]) : String(groupValue))}
+          enableRowSelection={false}
+        />
+
+        <PaginationBar
+          pageIndex={filters.pageIndex}
+          pageCount={pageCount}
+          pageSize={filters.pageSize}
+          disabled={loading}
+          onPageIndexChange={(pageIndex) => setFilters((prev) => ({ ...prev, pageIndex }))}
+          onPageSizeChange={(pageSize) =>
+            setFilters((prev) => ({ ...prev, pageIndex: 0, pageSize }))
+          }
+        />
       </div>
 
-      <SectionDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        title={editing ? "Editar doador" : "Novo doador"}
-        description="Cadastro rápido para vincular entradas."
-      >
-        <FormEngine<PantryDonorFormValues>
-          fields={pantryDonorFormFields}
-          initialValues={
-            editing
-              ? {
-                  name: editing.name,
-                  type: editing.type,
-                  contact: editing.contact ?? "",
-                }
-              : { type: "PERSON" }
-          }
-          disabled={saving}
-          onSubmit={handleSubmit}
-          actions={{
-            submit: {
-              label: saving ? "Salvando..." : "Salvar",
-              variant: "primary",
-            },
-            cancel: {
-              label: "Cancelar",
-              variant: "ghost",
-              onClick: () => setDialogOpen(false),
-            },
-          }}
-        />
-      </SectionDialog>
+      <PantryDonorCreateDialog
+        open={newDonorOpen}
+        onOpenChange={setNewDonorOpen}
+        onCreated={() => loadRows()}
+      />
     </div>
   );
 }

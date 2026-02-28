@@ -57,3 +57,41 @@ export function parseLocalDateOnly(value: string | Date | null | undefined) {
   return new Date(year, month - 1, day);
 }
 
+export type DateBucket = "day" | "week" | "month" | "year";
+
+function isoWeekOfLocalDate(date: Date) {
+  const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = localMidnight.getDay() || 7; // 1..7 (Mon..Sun)
+  localMidnight.setDate(localMidnight.getDate() + 4 - day);
+  const yearStart = new Date(localMidnight.getFullYear(), 0, 1);
+  const diffDays = Math.floor((localMidnight.getTime() - yearStart.getTime()) / 86400000);
+  const week = Math.ceil((diffDays + 1) / 7);
+  return { year: localMidnight.getFullYear(), week };
+}
+
+export function bucketLocalDate(date: Date, bucket: DateBucket) {
+  const isoDay = toLocalIsoDate(date);
+
+  switch (bucket) {
+    case "day":
+      return { key: isoDay, label: formatDateOnlyPtBR(isoDay) };
+    case "month": {
+      const key = isoDay.slice(0, 7);
+      const year = key.slice(0, 4);
+      const month = key.slice(5, 7);
+      return { key, label: `${month}/${year}` };
+    }
+    case "year": {
+      const key = isoDay.slice(0, 4);
+      return { key, label: key };
+    }
+    case "week": {
+      const { year, week } = isoWeekOfLocalDate(date);
+      const weekLabel = String(week).padStart(2, "0");
+      return { key: `${year}-W${weekLabel}`, label: `W${weekLabel}/${year}` };
+    }
+    default:
+      return { key: isoDay, label: formatDateOnlyPtBR(isoDay) };
+  }
+}
+

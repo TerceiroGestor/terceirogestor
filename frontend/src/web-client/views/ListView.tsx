@@ -189,6 +189,9 @@ function ColumnMenu<TData>({
       ? (column.getIsPinned() as false | "left" | "right")
       : false;
   const isPinned = pinnedFromState || pinnedFromApi;
+  const contentKey = `${column.id}:${String(isPinned)}:${String(
+    table.getState().columnVisibility?.[column.id] !== false,
+  )}`;
 
   const pinLeft = () => table.setColumnPinning((prev: ColumnPinningState) => {
     const left = (prev.left ?? []).filter((id) => id !== column.id);
@@ -222,7 +225,7 @@ function ColumnMenu<TData>({
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent key={contentKey} align="end">
         <DropdownMenuItem onClick={() => column.toggleSorting(false)} disabled={!canSort}>
           Ordenar A–Z
         </DropdownMenuItem>
@@ -270,6 +273,7 @@ function ColumnsMenu<TData>({ table }: { table: TanstackTable<TData> }) {
   if (!columns.length) return null;
 
   const visibility = table.getState().columnVisibility;
+  const contentKey = React.useMemo(() => JSON.stringify(visibility ?? {}), [visibility]);
 
   return (
     <DropdownMenu>
@@ -286,7 +290,7 @@ function ColumnsMenu<TData>({ table }: { table: TanstackTable<TData> }) {
           <span className="hidden sm:inline">Colunas</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[220px]">
+      <DropdownMenuContent key={contentKey} align="end" className="min-w-[220px]">
         {columns.map((col) => {
           const isVisible = visibility[col.id] !== false;
           const label = typeof col.columnDef.header === "string" ? col.columnDef.header : col.id;

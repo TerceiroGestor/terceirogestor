@@ -21,16 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { formatDateOnlyPtBR, parseLocalDateOnly } from "@/lib/date";
+import {
+  bucketLocalDate,
+  formatDateOnlyPtBR,
+  parseLocalDateOnly,
+  type DateBucket,
+  toLocalIsoDate,
+} from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { ViewSwitcher } from "@/web-client/control-panel/ViewSwitcher";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
+import { removeConditionAtIndex } from "@/web-client/domain/conditions";
 import type { Domain } from "@/web-client/domain/types";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { pantryHistorySearchView } from "@/web-client/registry/searchViews/pantry";
@@ -38,12 +46,13 @@ import { usePersistedUrlState } from "@/web-client/screen/usePersistedUrlState";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { CalendarView } from "@/web-client/views/CalendarView";
-import { GraphView } from "@/web-client/views/GraphView";
+import { GraphView, type GraphChartType } from "@/web-client/views/GraphView";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { ListView } from "@/web-client/views/ListView";
 import { TimelineView } from "@/web-client/views/TimelineView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import type { ApiPantryHistoryMovement } from "@/modules/pantry/api";
+import { PANTRY_ACTION_IDS, PANTRY_ROUTES, PANTRY_SCREEN_STATE_KEYS } from "@/modules/pantry/shared/domain/pantry.constants";
 
 type PantryHistoryView = "list" | "kanban" | "timeline" | "calendar" | "graph";
 
@@ -58,7 +67,12 @@ type PantryHistoryFilters = {
   timelineField: string;
   graphGroupField: string;
   graphMetric: "count" | "quantity";
-  graphType: "bar" | "line" | "area";
+  graphType: GraphChartType;
+  graphItemId: string;
+  graphTimeField: string;
+  graphFrom: string;
+  graphTo: string;
+  graphBucket: DateBucket;
 };
 
 type PantryHistoryFavoriteState = Pick<
@@ -73,6 +87,11 @@ type PantryHistoryFavoriteState = Pick<
   | "graphGroupField"
   | "graphMetric"
   | "graphType"
+  | "graphItemId"
+  | "graphTimeField"
+  | "graphFrom"
+  | "graphTo"
+  | "graphBucket"
 >;
 
 const DEFAULT_CALENDAR_FIELD = "movementDate";
@@ -80,6 +99,8 @@ const DEFAULT_TIMELINE_FIELD = "movementDate";
 const DEFAULT_GRAPH_GROUP_FIELD = "kind";
 const DEFAULT_GRAPH_METRIC: PantryHistoryFilters["graphMetric"] = "quantity";
 const DEFAULT_GRAPH_TYPE: PantryHistoryFilters["graphType"] = "bar";
+const DEFAULT_GRAPH_TIME_FIELD = "movementDate";
+const DEFAULT_GRAPH_BUCKET: PantryHistoryFilters["graphBucket"] = "day";
 
 function normalizeView(value: string | null): PantryHistoryView {
   switch (value) {
@@ -103,6 +124,39 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
+function normalizeIsoDateOnly(value: string | null) {
+  const text = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function normalizeBucket(value: string | null): DateBucket {
+  switch (value) {
+    case "day":
+    case "week":
+    case "month":
+    case "year":
+      return value;
+    default:
+      return DEFAULT_GRAPH_BUCKET;
+  }
+}
+
+function normalizeGraphType(value: string | null): GraphChartType {
+  switch (value) {
+    case "bar":
+    case "bar_horizontal":
+    case "bar_stacked":
+    case "line":
+    case "area":
+    case "area_stacked":
+    case "pie":
+    case "donut":
+      return value;
+    default:
+      return DEFAULT_GRAPH_TYPE;
+  }
+}
+
 const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilters => {
   const view = normalizeView(params.get("view") ?? params.get("v"));
   const searchText = params.get("q") ?? "";
@@ -121,8 +175,12 @@ const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilter
   const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
   const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
   const graphMetric = (params.get("gm") as PantryHistoryFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
-  const graphTypeRaw = (params.get("gt") as PantryHistoryFilters["graphType"]) ?? DEFAULT_GRAPH_TYPE;
-  const graphType = graphTypeRaw === "line" || graphTypeRaw === "area" || graphTypeRaw === "bar" ? graphTypeRaw : DEFAULT_GRAPH_TYPE;
+  const graphType = normalizeGraphType(params.get("gt"));
+  const graphItemId = params.get("gi") ?? "";
+  const graphTimeField = params.get("gdf") ?? DEFAULT_GRAPH_TIME_FIELD;
+  const graphFrom = normalizeIsoDateOnly(params.get("gfrom"));
+  const graphTo = normalizeIsoDateOnly(params.get("gto"));
+  const graphBucket = normalizeBucket(params.get("gb"));
 
   return {
     view,
@@ -136,6 +194,11 @@ const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilter
     graphGroupField,
     graphMetric: graphMetric === "count" ? "count" : "quantity",
     graphType,
+    graphItemId,
+    graphTimeField,
+    graphFrom,
+    graphTo,
+    graphBucket,
   };
 };
 
@@ -151,6 +214,11 @@ const serializePantryHistoryFilters = (state: PantryHistoryFilters) => ({
   gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
   gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
   gt: state.graphType !== DEFAULT_GRAPH_TYPE ? state.graphType : undefined,
+  gi: state.graphItemId ? state.graphItemId : undefined,
+  gdf: state.graphTimeField !== DEFAULT_GRAPH_TIME_FIELD ? state.graphTimeField : undefined,
+  gfrom: state.graphFrom || undefined,
+  gto: state.graphTo || undefined,
+  gb: state.graphBucket !== DEFAULT_GRAPH_BUCKET ? state.graphBucket : undefined,
 });
 
 function resolveKindLabel(kind: ApiPantryHistoryMovement["kind"]) {
@@ -217,8 +285,8 @@ export function PantryHistoryClientPage() {
   const [totalCount, setTotalCount] = React.useState(0);
 
   const [filters, setFilters] = usePersistedUrlState<PantryHistoryFilters>({
-    storageKey: "screenState:pantry.history",
-    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt"],
+    storageKey: PANTRY_SCREEN_STATE_KEYS.history,
+    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt", "gi", "gdf", "gfrom", "gto", "gb"],
     parse: parsePantryHistoryFilters,
     serialize: serializePantryHistoryFilters,
   });
@@ -259,7 +327,7 @@ export function PantryHistoryClientPage() {
 
   const openItem = React.useCallback(
     (row: ApiPantryHistoryMovement) => {
-      router.push(withTenantPath(`/pantry/items/${row.itemId}`, tenantSlug));
+      router.push(withTenantPath(`${PANTRY_ROUTES.items}/${row.itemId}`, tenantSlug));
     },
     [router, tenantSlug],
   );
@@ -311,12 +379,9 @@ export function PantryHistoryClientPage() {
   const removeDomainCondition = React.useCallback(
     (index: number) => {
       setFilters((prev) => {
-        if (!prev.domain || prev.domain.type !== "group" || prev.domain.combinator !== "and")
-          return prev;
-        const next = prev.domain.children.filter((_child, i) => i !== index);
         return {
           ...prev,
-          domain: next.length ? { type: "group", combinator: "and", children: next } : null,
+          domain: removeConditionAtIndex(prev.domain, "and", index),
           pageIndex: 0,
         };
       });
@@ -421,7 +486,7 @@ export function PantryHistoryClientPage() {
     if (filters.view === "graph") {
       const groupByFields = pantryHistorySearchView.groupBy ?? [];
       return (
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Select value={filters.graphGroupField} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}>
             <SelectTrigger className="h-8 w-[11rem] text-xs">
               <SelectValue placeholder="Agrupar..." />
@@ -445,14 +510,89 @@ export function PantryHistoryClientPage() {
             </SelectContent>
           </Select>
 
-          <Select value={filters.graphType} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: value === "line" || value === "area" ? value : "bar" }))}>
+          <Select value={filters.graphType} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: normalizeGraphType(value) }))}>
             <SelectTrigger className="h-8 w-[9.25rem] text-xs">
               <SelectValue placeholder="Gráfico..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="bar">Barras</SelectItem>
+              <SelectItem value="bar_horizontal">Barras (horizontal)</SelectItem>
+              <SelectItem value="bar_stacked">Barras (empilhadas)</SelectItem>
               <SelectItem value="line">Linha</SelectItem>
               <SelectItem value="area">Área</SelectItem>
+              <SelectItem value="area_stacked">Área (empilhada)</SelectItem>
+              <SelectItem value="pie">Pizza</SelectItem>
+              <SelectItem value="donut">Rosca</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="hidden h-6 w-px bg-border/60 sm:block" />
+
+          <Select
+            value={filters.graphItemId ? filters.graphItemId : "all"}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, graphItemId: value === "all" ? "" : value }))
+            }
+          >
+            <SelectTrigger className="h-8 w-[12rem] text-xs">
+              <SelectValue placeholder="Item..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os itens</SelectItem>
+              {Array.from(itemLabelById.entries())
+                .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+                .slice(0, 200)
+                .map(([id, label]) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.graphTimeField}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, graphTimeField: value }))}
+          >
+            <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+              <SelectValue placeholder="Tempo..." />
+            </SelectTrigger>
+            <SelectContent>
+              {dateFields.map((field) => (
+                <SelectItem key={field.name} value={field.name}>
+                  {field.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Input
+            type="date"
+            value={filters.graphFrom}
+            onChange={(e) => setFilters((prev) => ({ ...prev, graphFrom: e.target.value }))}
+            className="h-8 w-[9rem] text-xs"
+          />
+          <Input
+            type="date"
+            value={filters.graphTo}
+            onChange={(e) => setFilters((prev) => ({ ...prev, graphTo: e.target.value }))}
+            className="h-8 w-[9rem] text-xs"
+          />
+
+          <Select
+            value={filters.graphBucket}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, graphBucket: normalizeBucket(value) }))
+            }
+          >
+            <SelectTrigger className="h-8 w-[9rem] text-xs">
+              <SelectValue placeholder="Agrupar tempo..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Dia</SelectItem>
+              <SelectItem value="week">Semana</SelectItem>
+              <SelectItem value="month">Mês</SelectItem>
+              <SelectItem value="year">Ano</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -460,19 +600,77 @@ export function PantryHistoryClientPage() {
     }
 
     return null;
-  }, [dateFields, filters.calendarField, filters.graphGroupField, filters.graphMetric, filters.graphType, filters.timelineField, filters.view, setFilters]);
+  }, [
+    dateFields,
+    filters.calendarField,
+    filters.graphBucket,
+    filters.graphFrom,
+    filters.graphGroupField,
+    filters.graphItemId,
+    filters.graphMetric,
+    filters.graphTimeField,
+    filters.graphTo,
+    filters.graphType,
+    filters.timelineField,
+    filters.view,
+    itemLabelById,
+    setFilters,
+  ]);
 
   const graphData = React.useMemo(() => {
     if (filters.view !== "graph") return [];
-    const map = new Map<string, { x: string; value: number }>();
-    rows.forEach((row) => {
-      const key = resolveGroupValue(row, filters.graphGroupField);
-      const current = map.get(key) ?? { x: key, value: 0 };
-      current.value += filters.graphMetric === "count" ? 1 : Number(row.quantity);
-      map.set(key, current);
+    const dateFieldNames = new Set(dateFields.map((field) => field.name));
+    const from = filters.graphFrom;
+    const to = filters.graphTo;
+
+    const filtered = rows.filter((row) => {
+      if (filters.graphItemId && row.itemId !== filters.graphItemId) return false;
+      if (!from && !to) return true;
+      const date = resolveDate(row, filters.graphTimeField);
+      if (!date) return false;
+      const iso = toLocalIsoDate(date);
+      if (from && iso < from) return false;
+      if (to && iso > to) return false;
+      return true;
     });
-    return Array.from(map.values()).sort((a, b) => a.x.localeCompare(b.x)).slice(0, 40);
-  }, [filters.graphGroupField, filters.graphMetric, filters.view, rows]);
+
+    const map = new Map<string, { sortKey: string; x: string; value: number }>();
+
+    filtered.forEach((row) => {
+      const groupField = filters.graphGroupField;
+
+      if (dateFieldNames.has(groupField)) {
+        const date = resolveDate(row, groupField);
+        if (!date) return;
+        const bucketed = bucketLocalDate(date, filters.graphBucket);
+        const current = map.get(bucketed.key) ?? { sortKey: bucketed.key, x: bucketed.label, value: 0 };
+        current.value += filters.graphMetric === "count" ? 1 : Number(row.quantity);
+        map.set(bucketed.key, current);
+        return;
+      }
+
+      const label = resolveGroupValue(row, groupField);
+      const current = map.get(label) ?? { sortKey: label, x: label, value: 0 };
+      current.value += filters.graphMetric === "count" ? 1 : Number(row.quantity);
+      map.set(label, current);
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .slice(0, 120)
+      .map(({ x, value }) => ({ x, value }));
+  }, [
+    dateFields,
+    filters.graphBucket,
+    filters.graphFrom,
+    filters.graphGroupField,
+    filters.graphItemId,
+    filters.graphMetric,
+    filters.graphTimeField,
+    filters.graphTo,
+    filters.view,
+    rows,
+  ]);
 
   if (!canRead) {
     return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
@@ -503,7 +701,7 @@ export function PantryHistoryClientPage() {
                 </Button>
 
                 <SearchPanelMenu<PantryHistoryFavoriteState>
-                  actionId="pantry.history"
+                  actionId={PANTRY_ACTION_IDS.history}
                   variant="compact"
                   allowEmptyGroupBy
                   groupByMode="multi"
@@ -535,6 +733,11 @@ export function PantryHistoryClientPage() {
                     graphGroupField: filters.graphGroupField,
                     graphMetric: filters.graphMetric,
                     graphType: filters.graphType,
+                    graphItemId: filters.graphItemId,
+                    graphTimeField: filters.graphTimeField,
+                    graphFrom: filters.graphFrom,
+                    graphTo: filters.graphTo,
+                    graphBucket: filters.graphBucket,
                   }}
                   onApplyFavorite={(state) =>
                     setFilters((prev) => ({
@@ -555,9 +758,9 @@ export function PantryHistoryClientPage() {
             onChange={(next) => setFilters((prev) => ({ ...prev, view: next }))}
           />
         }
+        viewControlsSlot={viewConfig}
         rightSlot={
           <>
-            {viewConfig}
             <div className="whitespace-nowrap text-[11px] text-muted-foreground">
               Total: <span className="font-mono tabular-nums text-foreground">{totalCount.toLocaleString("pt-BR")}</span>
             </div>
@@ -644,8 +847,10 @@ export function PantryHistoryClientPage() {
             <GraphView
               data={graphData}
               xKey="x"
-              series={[{ key: "value", label: filters.graphMetric === "count" ? "Registros" : "Quantidade (soma)", color: "hsl(var(--chart-1))" }]}
+              series={[{ key: "value", label: filters.graphMetric === "count" ? "Registros" : "Quantidade (soma)", color: "var(--chart-1)" }]}
               chartType={filters.graphType}
+              className="mt-3"
+              downloadFileName="historico"
             />
           ) : (
             <ListView<ApiPantryHistoryMovement>

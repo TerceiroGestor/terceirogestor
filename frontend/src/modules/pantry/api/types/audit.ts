@@ -4,6 +4,7 @@ export type ApiPantryAuditLogUser = {
   id: string;
   name: string | null;
   email: string | null;
+  avatarUrl: string | null;
 };
 
 export type ApiPantryAuditLog = {
@@ -30,4 +31,3 @@ export type PantryAuditLogListResponse = {
     pages: number;
   };
 };
-

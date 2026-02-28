@@ -1,6 +1,6 @@
-import { ScreenHost } from "@/web-client/screen/ScreenHost";
+import { redirect } from "next/navigation";
+import { withTenantPath } from "@/lib/tenant-path";
 
-export default function PantryEntriesNewPage() {
-  return <ScreenHost actionId="pantry.entries.new" />;
+export default function PantryEntriesNewPage({ params }: { params: { tenant: string } }) {
+  redirect(withTenantPath("/pantry/stock", params.tenant));
 }
-

@@ -1,50 +1,22 @@
-﻿"use client";
+"use client";
 
-import {
-  PantryDonorsClientPage,
-  PantryEntriesClientPage,
-  PantryExitsClientPage,
-  PantryItemsClientPage,
-  PantryOverviewClientPage,
-  PantryStockClientPage,
-} from "@/modules/pantry";
-import { PantryEntryCreateClientPage } from "@/modules/pantry/features/entries/ui/pantry-entry-create-client-page";
-import { PantryExitSheetPage } from "@/modules/pantry/features/exits/ui/pantry-exit-sheet-page";
 import { PantryHistoryClientPage } from "@/modules/pantry/features/history/ui/pantry-history-client-page";
 import {
   PantryItemEditClientPage,
   PantryItemNewClientPage,
 } from "@/modules/pantry/features/items/ui/pantry-item-detail-client-page";
+import { PantryStockClientPage } from "@/modules/pantry/features/stock/ui/pantry-stock-client-page";
+import { PantryDonorsClientPage } from "@/modules/pantry/features/donors/ui/pantry-donors-client-page";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
+import { PANTRY_ACTION_IDS, PANTRY_ROUTES } from "@/modules/pantry/shared/domain/pantry.constants";
 import type { WindowAction } from "@/web-client/registry/types";
 
-export const pantryOverviewAction: WindowAction = {
-  id: "pantry.overview",
-  title: "Painel",
-  breadcrumbs: [{ label: "Despensa", href: "/pantry" }],
-  permissions: ["pantry.read"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryOverviewClientPage />,
-};
-
-export const pantryItemsAction: WindowAction = {
-  id: "pantry.items",
-  title: "Itens",
-  breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Itens", href: "/pantry/items" },
-  ],
-  permissions: ["pantry.read"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryItemsClientPage />,
-};
-
 export const pantryStockAction: WindowAction = {
-  id: "pantry.stock",
+  id: PANTRY_ACTION_IDS.stock,
   title: "Estoque",
   breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Estoque", href: "/pantry/stock" },
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
@@ -52,11 +24,11 @@ export const pantryStockAction: WindowAction = {
 };
 
 export const pantryItemsCreateAction: WindowAction = {
-  id: "pantry.items.new",
+  id: PANTRY_ACTION_IDS.itemsNew,
   title: "Novo alimento",
   breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Itens", href: "/pantry/items" },
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
   permissions: ["pantry.create"],
   actionSlot: <PantryHeaderNav />,
@@ -64,71 +36,23 @@ export const pantryItemsCreateAction: WindowAction = {
 };
 
 export const pantryItemsDetailAction: WindowAction = {
-  id: "pantry.items.detail",
+  id: PANTRY_ACTION_IDS.itemsDetail,
   title: "Alimento",
   breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Itens", href: "/pantry/items" },
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryItemEditClientPage />,
 };
 
-export const pantryEntriesAction: WindowAction = {
-  id: "pantry.entries",
-  title: "Entradas",
-  breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Entradas", href: "/pantry/entries" },
-  ],
-  permissions: ["pantry.read"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryEntriesClientPage />,
-};
-
-export const pantryEntriesCreateAction: WindowAction = {
-  id: "pantry.entries.new",
-  title: "Nova entrada",
-  breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Entradas", href: "/pantry/entries" },
-  ],
-  permissions: ["pantry.create"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryEntryCreateClientPage />,
-};
-
-export const pantryExitsAction: WindowAction = {
-  id: "pantry.exits",
-  title: "Saídas",
-  breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Saídas", href: "/pantry/exits" },
-  ],
-  permissions: ["pantry.read"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryExitsClientPage />,
-};
-
-export const pantryExitSheetAction: WindowAction = {
-  id: "pantry.exit",
-  title: "Registrar saída",
-  breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Registrar saída", href: "/pantry/exit" },
-  ],
-  permissions: ["pantry.create"],
-  actionSlot: <PantryHeaderNav />,
-  render: () => <PantryExitSheetPage />,
-};
-
 export const pantryDonorsAction: WindowAction = {
-  id: "pantry.donors",
+  id: PANTRY_ACTION_IDS.donors,
   title: "Doadores",
   breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Doadores", href: "/pantry/donors" },
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Doadores", href: PANTRY_ROUTES.donors },
   ],
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
@@ -136,14 +60,13 @@ export const pantryDonorsAction: WindowAction = {
 };
 
 export const pantryHistoryAction: WindowAction = {
-  id: "pantry.history",
+  id: PANTRY_ACTION_IDS.history,
   title: "Histórico",
   breadcrumbs: [
-    { label: "Despensa", href: "/pantry" },
-    { label: "Histórico", href: "/pantry/history" },
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Histórico", href: PANTRY_ROUTES.history },
   ],
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryHistoryClientPage />,
 };
-

@@ -69,6 +69,13 @@ export function ControlPanelShell() {
           {controlPanel.rightSlot}
         </div>
       </div>
+      {controlPanel.viewControlsSlot ? (
+        <div className="border-t border-border/60 bg-primary/5 py-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {controlPanel.viewControlsSlot}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

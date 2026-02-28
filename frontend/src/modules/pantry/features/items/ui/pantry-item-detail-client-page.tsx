@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,57 +13,63 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
+import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import {
+  createPantryEntry,
+  createPantryExit,
   createPantrySector,
+  listPantryDonors,
+  listPantryEntries,
+  listPantryExits,
+  listPantryHistory,
   listPantryItemAuditLogs,
   listPantryItemSuggestions,
   listPantrySectors,
   type ApiPantryAuditLog,
+  type ApiPantryDonor,
+  type ApiPantryEntry,
+  type ApiPantryExit,
+  type ApiPantryHistoryMovement,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
-
-type Mode = "create" | "edit";
-
-type ItemDraft = {
-  name: string;
-  group: string | null;
-  defaultSector: string;
-  unit: string;
-  minStock: number;
-  notes: string | null;
-};
+import { PantryDonorCreateDialog } from "@/modules/pantry/features/donors/ui/pantry-donor-create-dialog";
+import type {
+  EntryDraft,
+  ExitDraft,
+  ItemDraft,
+  PantryItemDetailMode,
+} from "@/modules/pantry/features/items/domain/pantry-item-detail.types";
+import {
+  localIsoDate,
+  normalizeSector,
+  normalizeStringOrNull,
+} from "@/modules/pantry/features/items/domain/pantry-item-detail.helpers";
+import { PantryItemActivityNotesPanel } from "@/modules/pantry/features/items/ui/detail/pantry-item-activity-notes-panel";
+import { PantryItemDetailForm } from "@/modules/pantry/features/items/ui/detail/pantry-item-detail-form";
+import { PantryItemMovementsTabs } from "@/modules/pantry/features/items/ui/detail/pantry-item-movements-tabs";
+import {
+  PANTRY_DEFAULT_SECTOR,
+  PANTRY_DEFAULT_UNIT,
+  PANTRY_ROUTES,
+} from "@/modules/pantry/shared/domain/pantry.constants";
+import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 
 const inputLineClassName =
   "h-9 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:ring-0";
-
-function toInt(value: string) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 function normalizeDraft(draft: ItemDraft): ItemDraft {
   return {
     name: draft.name.trim(),
     group: draft.group?.trim() ? draft.group.trim() : null,
-    defaultSector: draft.defaultSector.trim() || "Geral",
+    defaultSector: normalizeSector(draft.defaultSector),
     unit: draft.unit.trim(),
     minStock: Number.isFinite(draft.minStock) ? draft.minStock : 0,
-    notes: draft.notes?.trim() ? draft.notes.trim() : null,
+    notes: normalizeStringOrNull(draft.notes),
   };
 }
 
@@ -71,71 +77,14 @@ function draftFromItem(item: ApiPantryItem): ItemDraft {
   return {
     name: item.name ?? "",
     group: item.group ?? null,
-    defaultSector: item.defaultSector ?? "Geral",
-    unit: item.unit ?? "kg",
+    defaultSector: item.defaultSector ?? PANTRY_DEFAULT_SECTOR,
+    unit: item.unit ?? PANTRY_DEFAULT_UNIT,
     minStock: Number(item.minStock ?? 0),
     notes: item.notes ?? null,
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-const ITEM_AUDIT_LABELS: Record<string, string> = {
-  name: "Nome",
-  group: "Grupo",
-  defaultSector: "Setor",
-  unit: "Unidade",
-  minStock: "Estoque mínimo",
-  notes: "Notas internas",
-};
-
-function resolveAuditActionLabel(action: ApiPantryAuditLog["action"]) {
-  switch (action) {
-    case "CREATE":
-      return "Criado";
-    case "UPDATE":
-      return "Atualizado";
-    case "DELETE":
-      return "Removido";
-    default:
-      return action;
-  }
-}
-
-function formatAuditValue(value: unknown) {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return value.trim() ? value : "—";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return JSON.stringify(value);
-}
-
-function initialsFromLabel(label: string) {
-  const cleaned = label.replace(/\s+/g, " ").trim().slice(0, 64);
-  if (!cleaned) return "?";
-  const parts = cleaned.split(" ").filter(Boolean);
-  const a = parts[0]?.[0] ?? "?";
-  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
-  return `${a}${b}`.toUpperCase();
-}
-
-function diffAuditFields(log: ApiPantryAuditLog) {
-  const before = isRecord(log.before) ? log.before : {};
-  const after = isRecord(log.after) ? log.after : {};
-  const keys = Object.keys({ ...before, ...after }).filter((k) => k in ITEM_AUDIT_LABELS);
-
-  return keys
-    .map((key) => ({
-      key,
-      label: ITEM_AUDIT_LABELS[key] ?? key,
-      before: before[key],
-      after: after[key],
-    }))
-    .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
-}
-
-export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
+export function PantryItemDetailClientPage({ mode }: { mode: PantryItemDetailMode }) {
   const params = useParams<{ id?: string }>();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
@@ -157,8 +106,8 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
   const [draft, setDraft] = React.useState<ItemDraft>({
     name: "",
     group: null,
-    defaultSector: "Geral",
-    unit: "kg",
+    defaultSector: PANTRY_DEFAULT_SECTOR,
+    unit: PANTRY_DEFAULT_UNIT,
     minStock: 0,
     notes: null,
   });
@@ -174,12 +123,42 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
 
   const [auditLoading, setAuditLoading] = React.useState(false);
   const [auditLogs, setAuditLogs] = React.useState<ApiPantryAuditLog[]>([]);
+  const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
 
   const [unitSuggestions, setUnitSuggestions] = React.useState<string[]>([]);
   const [groupSuggestions, setGroupSuggestions] = React.useState<string[]>([]);
 
+  const [movementsLoading, setMovementsLoading] = React.useState(false);
+  const [entryRows, setEntryRows] = React.useState<ApiPantryEntry[]>([]);
+  const [exitRows, setExitRows] = React.useState<ApiPantryExit[]>([]);
+  const [historyRows, setHistoryRows] = React.useState<ApiPantryHistoryMovement[]>([]);
+
+  const [donorsLoading, setDonorsLoading] = React.useState(false);
+  const [donors, setDonors] = React.useState<ApiPantryDonor[]>([]);
+  const [newDonorOpen, setNewDonorOpen] = React.useState(false);
+
+  const [entryDraft, setEntryDraft] = React.useState<EntryDraft>(() => ({
+    donorId: null,
+    quantity: 1,
+    unit: PANTRY_DEFAULT_UNIT,
+    sector: PANTRY_DEFAULT_SECTOR,
+    entryDate: localIsoDate(),
+    expiryDate: "",
+    notes: "",
+  }));
+  const [exitDraft, setExitDraft] = React.useState<ExitDraft>(() => ({
+    entryId: "",
+    quantity: 1,
+    unit: PANTRY_DEFAULT_UNIT,
+    sector: PANTRY_DEFAULT_SECTOR,
+    exitDate: localIsoDate(),
+    type: "ATTENDED",
+    eventName: "",
+    notes: "",
+  }));
+
   const backToList = React.useCallback(() => {
-    router.push(withTenantPath("/pantry/items", tenantSlug));
+    router.push(withTenantPath(PANTRY_ROUTES.stock, tenantSlug));
   }, [router, tenantSlug]);
 
   const loadItem = React.useCallback(async () => {
@@ -191,6 +170,16 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
       const nextDraft = draftFromItem(loaded);
       setDraft(nextDraft);
       lastSavedRef.current = nextDraft;
+      setEntryDraft((prev) => ({
+        ...prev,
+        unit: nextDraft.unit || prev.unit,
+        sector: nextDraft.defaultSector || prev.sector,
+      }));
+      setExitDraft((prev) => ({
+        ...prev,
+        unit: nextDraft.unit || prev.unit,
+        sector: nextDraft.defaultSector || prev.sector,
+      }));
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
@@ -217,16 +206,64 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     }
   }, [enabled, token]);
 
+  const loadDonors = React.useCallback(async () => {
+    if (!token || !enabled) return;
+    setDonorsLoading(true);
+    try {
+      const limit = 200;
+      let page = 1;
+      const all: ApiPantryDonor[] = [];
+
+      for (;;) {
+        const res = await listPantryDonors(token, { page, limit });
+        all.push(...(res.data ?? []));
+        if (page >= (res.pagination?.pages ?? 1)) break;
+        page += 1;
+      }
+
+      all.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      setDonors(all);
+    } catch {
+      setDonors([]);
+    } finally {
+      setDonorsLoading(false);
+    }
+  }, [enabled, token]);
+
   const loadAudit = React.useCallback(async () => {
     if (!token || !enabled || mode !== "edit") return;
     setAuditLoading(true);
     try {
       const response = await listPantryItemAuditLogs(token, id, { limit: 120 });
       setAuditLogs(response.data);
+      setAuditVisibleCount(24);
     } catch {
       setAuditLogs([]);
+      setAuditVisibleCount(24);
     } finally {
       setAuditLoading(false);
+    }
+  }, [enabled, id, mode, token]);
+
+  const loadMovements = React.useCallback(async () => {
+    if (!token || !enabled || mode !== "edit" || !id) return;
+    setMovementsLoading(true);
+    try {
+      const [entriesResponse, exitsResponse, historyResponse] = await Promise.all([
+        listPantryEntries(token, { itemId: id, all: true }),
+        listPantryExits(token, { itemId: id, all: true }),
+        listPantryHistory(token, { itemId: id, all: true, kind: "ALL" }),
+      ]);
+
+      setEntryRows(entriesResponse.data ?? []);
+      setExitRows(exitsResponse.data ?? []);
+      setHistoryRows(historyResponse.data ?? []);
+    } catch {
+      setEntryRows([]);
+      setExitRows([]);
+      setHistoryRows([]);
+    } finally {
+      setMovementsLoading(false);
     }
   }, [enabled, id, mode, token]);
 
@@ -251,12 +288,20 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
   }, [loadSectors]);
 
   React.useEffect(() => {
+    void loadDonors();
+  }, [loadDonors]);
+
+  React.useEffect(() => {
     void loadSuggestions();
   }, [loadSuggestions]);
 
   React.useEffect(() => {
     void loadAudit();
   }, [loadAudit]);
+
+  React.useEffect(() => {
+    void loadMovements();
+  }, [loadMovements]);
 
   const applyPatch = React.useCallback(
     async (patch: Partial<ItemDraft>) => {
@@ -316,7 +361,7 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     try {
       const created = await dataProvider.create<ApiPantryItem>("pantry.items", normalized);
       toast({ variant: "success", title: "Alimento criado" });
-      router.replace(withTenantPath(`/pantry/items/${created.id}`, tenantSlug));
+      router.replace(withTenantPath(`${PANTRY_ROUTES.items}/${created.id}`, tenantSlug));
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
@@ -328,9 +373,7 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     }
   }, [canCreate, dataProvider, draft, enabled, router, tenantSlug, toast]);
 
-  const headerTitle =
-    mode === "create" ? "Novo alimento" : item?.name ? item.name : "Alimento";
-
+  const headerTitle = mode === "create" ? "Novo alimento" : item?.name ? item.name : "Alimento";
   const readOnly = mode === "edit" ? !canUpdate : !canCreate;
 
   const maybeCommitField = (key: keyof ItemDraft) => {
@@ -343,7 +386,7 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
 
   const sectorOptions = React.useMemo(() => {
     const current = normalizeDraft(draft).defaultSector;
-    const set = new Set<string>(["Geral", ...sectors]);
+    const set = new Set<string>([PANTRY_DEFAULT_SECTOR, ...sectors]);
     if (current) set.add(current);
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [draft, sectors]);
@@ -374,279 +417,235 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
     }
   }, [applyPatch, loadSectors, mode, newSectorName, toast, token]);
 
+  const submitEntry = React.useCallback(async () => {
+    if (!token || !enabled || mode !== "edit" || !id) return;
+    if (!canCreate) {
+      toast({
+        variant: "destructive",
+        title: "Sem permissão",
+        description: "Você não tem permissão para registrar entradas.",
+      });
+      return;
+    }
+
+    const quantity = Number(entryDraft.quantity);
+    const unit = entryDraft.unit.trim();
+    const sector = normalizeSector(entryDraft.sector);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !unit) {
+      toast({
+        variant: "destructive",
+        title: "Dados inválidos",
+        description: "Informe quantidade e unidade.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createPantryEntry(token, {
+        itemId: id,
+        donorId: entryDraft.donorId ?? null,
+        sector,
+        quantity,
+        unit,
+        entryDate: entryDraft.entryDate.trim() ? entryDraft.entryDate.trim() : undefined,
+        expiryDate: entryDraft.expiryDate.trim() ? entryDraft.expiryDate.trim() : null,
+        notes: entryDraft.notes.trim() ? entryDraft.notes.trim() : null,
+      });
+      toast({ variant: "success", title: "Entrada registrada" });
+      setEntryDraft((prev) => ({
+        ...prev,
+        quantity: 1,
+        entryDate: localIsoDate(),
+        expiryDate: "",
+        notes: "",
+      }));
+      await Promise.all([loadMovements(), loadItem()]);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao registrar entrada.";
+      toast({ variant: "destructive", title: "Falha", description: message });
+    } finally {
+      setSaving(false);
+    }
+  }, [canCreate, enabled, entryDraft, id, loadItem, loadMovements, mode, toast, token]);
+
+  const submitExit = React.useCallback(async () => {
+    if (!token || !enabled || mode !== "edit" || !id) return;
+    if (!canCreate) {
+      toast({
+        variant: "destructive",
+        title: "Sem permissão",
+        description: "Você não tem permissão para registrar saídas.",
+      });
+      return;
+    }
+
+    const quantity = Number(exitDraft.quantity);
+    const unit = exitDraft.unit.trim();
+    const sector = normalizeSector(exitDraft.sector);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !unit) {
+      toast({
+        variant: "destructive",
+        title: "Dados inválidos",
+        description: "Informe quantidade e unidade.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createPantryExit(token, {
+        itemId: id,
+        entryId: exitDraft.entryId.trim() ? exitDraft.entryId.trim() : undefined,
+        sector,
+        quantity,
+        unit,
+        exitDate: exitDraft.exitDate.trim() ? exitDraft.exitDate.trim() : undefined,
+        type: exitDraft.type,
+        eventName: exitDraft.eventName.trim() ? exitDraft.eventName.trim() : null,
+        notes: exitDraft.notes.trim() ? exitDraft.notes.trim() : null,
+      });
+      toast({ variant: "success", title: "Saída registrada" });
+      setExitDraft((prev) => ({
+        ...prev,
+        entryId: "",
+        quantity: 1,
+        exitDate: localIsoDate(),
+        eventName: "",
+        notes: "",
+      }));
+      await Promise.all([loadMovements(), loadItem()]);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: string }).message)
+          : "Falha ao registrar saída.";
+      toast({ variant: "destructive", title: "Falha", description: message });
+    } finally {
+      setSaving(false);
+    }
+  }, [canCreate, enabled, exitDraft, id, loadItem, loadMovements, mode, toast, token]);
+
+  const exitEntryOptions = React.useMemo(() => {
+    return entryRows
+      .filter((row) => !row.isClosed)
+      .sort((a, b) => {
+        const aKey = String(a.expiryDate ?? a.entryDate ?? "");
+        const bKey = String(b.expiryDate ?? b.entryDate ?? "");
+        return aKey.localeCompare(bKey);
+      });
+  }, [entryRows]);
+
+  const selectedExitEntry = React.useMemo(() => {
+    if (!exitDraft.entryId) return null;
+    return exitEntryOptions.find((row) => row.id === exitDraft.entryId) ?? null;
+  }, [exitDraft.entryId, exitEntryOptions]);
+
+  const exitEntryTriggerLabel = React.useMemo(() => {
+    if (!selectedExitEntry) return "Automático (por validade/FEFO)";
+    const remaining =
+      typeof selectedExitEntry.remaining === "number"
+        ? selectedExitEntry.remaining
+        : selectedExitEntry.quantity;
+    const expiry = selectedExitEntry.expiryDate
+      ? formatDateOnlyPtBR(selectedExitEntry.expiryDate)
+      : "—";
+    const sector = normalizeSector(selectedExitEntry.sector);
+    return `Validade ${expiry} • ${sector} • ${Number(remaining).toLocaleString("pt-BR")} ${selectedExitEntry.unit}`;
+  }, [selectedExitEntry]);
+
   return (
-    <div className="w-full px-4 py-4">
-      <div className="w-full">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">
-              {mode === "create" ? "Criar" : "Detalhes"}
-            </div>
-            <h1 className="truncate text-2xl font-semibold text-foreground">{headerTitle}</h1>
-          </div>
+    <>
+      <PageBreadcrumb
+        title={headerTitle}
+        items={[{ label: "Despensa", href: PANTRY_ROUTES.stock }]}
+        actionSlot={<PantryHeaderNav />}
+      />
 
-          <div className="flex items-center gap-2">
-            {mode === "create" ? (
-              <Button size="sm" onClick={createItem} disabled={saving || readOnly}>
-                {saving ? "Salvando..." : "Salvar"}
+      <div className="w-full px-4 py-4">
+        <div className="w-full">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">
+                {mode === "create" ? "Criar" : "Detalhes"}
+              </div>
+              <h1 className="truncate text-2xl font-semibold text-foreground">{headerTitle}</h1>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {mode === "create" ? (
+                <Button size="sm" onClick={createItem} disabled={saving || readOnly}>
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
+              ) : (
+                <div className="text-[11px] text-muted-foreground">
+                  {saving ? "Salvando..." : loading ? "Carregando..." : "Pronto"}
+                </div>
+              )}
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={backToList}>
+                <X className="size-4" />
               </Button>
-            ) : (
-              <div className="text-[11px] text-muted-foreground">
-                {saving ? "Salvando..." : loading ? "Carregando..." : "Pronto"}
-              </div>
-            )}
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={backToList}>
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px]">
-          <div className="rounded-md border border-border/60 bg-background p-4">
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">Nome</div>
-                  <Input
-                    value={draft.name}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
-                    onBlur={() => maybeCommitField("name")}
-                    placeholder="Ex: Arroz"
-                    className={inputLineClassName}
-                    readOnly={readOnly}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">Unidade</div>
-                  <Input
-                    value={draft.unit}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, unit: e.target.value }))}
-                    onBlur={() => maybeCommitField("unit")}
-                    placeholder="Ex: kg"
-                    list="pantry-item-unit-options"
-                    className={inputLineClassName}
-                    readOnly={readOnly}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    Grupo de alimentos
-                  </div>
-                  <Input
-                    value={draft.group ?? ""}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, group: e.target.value || null }))
-                    }
-                    onBlur={() => maybeCommitField("group")}
-                    placeholder="Opcional"
-                    list="pantry-item-group-options"
-                    className={inputLineClassName}
-                    readOnly={readOnly}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">Setor</div>
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={draft.defaultSector}
-                      onValueChange={(value) => {
-                        setDraft((prev) => ({ ...prev, defaultSector: value }));
-                        if (mode !== "create") void applyPatch({ defaultSector: value });
-                      }}
-                      disabled={readOnly || sectorsLoading}
-                    >
-                      <SelectTrigger className={inputLineClassName}>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sectorOptions.map((sector) => (
-                          <SelectItem key={sector} value={sector}>
-                            {sector}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {!readOnly ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Novo setor"
-                        aria-label="Novo setor"
-                        onClick={() => setNewSectorOpen(true)}
-                      >
-                        <Plus className="size-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    Estoque mínimo
-                  </div>
-                  <Input
-                    type="number"
-                    value={String(draft.minStock)}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, minStock: toInt(e.target.value) }))
-                    }
-                    onBlur={() => maybeCommitField("minStock")}
-                    className={inputLineClassName}
-                    readOnly={readOnly}
-                  />
-                </div>
-              </div>
-
-              {mode === "edit" && item ? (
-                <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-3">
-                  <div className="rounded-md border border-border/60 bg-muted/10 p-3">
-                    <div className="text-[11px] text-muted-foreground">Saldo</div>
-                    <div className="font-mono text-lg tabular-nums text-foreground">
-                      {Number(item.stock).toLocaleString("pt-BR")}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      {item.isBelowMin ? (
-                        <Badge variant="destructive">Abaixo do mínimo</Badge>
-                      ) : (
-                        <Badge variant="secondary">OK</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-border/60 bg-muted/10 p-3">
-                    <div className="text-[11px] text-muted-foreground">Próx. validade</div>
-                    <div className="text-sm font-medium text-foreground">
-                      {item.nextExpiryDate ? formatDateOnlyPtBR(item.nextExpiryDate) : "—"}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {item.daysToExpire !== null ? `${item.daysToExpire} dia(s)` : ""}
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-border/60 bg-muted/10 p-3">
-                    <div className="text-[11px] text-muted-foreground">Último movimento</div>
-                    <div className="text-sm font-medium text-foreground">
-                      {item.lastMovementDate ? formatDateOnlyPtBR(item.lastMovementDate) : "—"}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Criado em {formatDateOnlyPtBR(item.createdAt)}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {readOnly ? (
-                <div className="rounded-md border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
-                  {mode === "create"
-                    ? "Você não tem permissão para criar."
-                    : "Você não tem permissão para editar."}
-                </div>
-              ) : null}
             </div>
           </div>
 
-          <div className="rounded-md border border-border/60 bg-background p-3">
-            <Tabs defaultValue="activity">
-              <TabsList>
-                <TabsTrigger value="activity">Atividade</TabsTrigger>
-                <TabsTrigger value="notes">
-                  Notas internas
-                </TabsTrigger>
-              </TabsList>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px]">
+            <PantryItemDetailForm
+              mode={mode}
+              readOnly={readOnly}
+              draft={draft}
+              setDraft={setDraft}
+              onCommitField={maybeCommitField}
+              item={item}
+              sectorsLoading={sectorsLoading}
+              sectorOptions={sectorOptions}
+              onDefaultSectorChange={(value) => {
+                if (mode !== "create") void applyPatch({ defaultSector: value });
+              }}
+              onOpenNewSector={() => setNewSectorOpen(true)}
+              inputLineClassName={inputLineClassName}
+              unitSuggestions={unitSuggestions}
+              groupSuggestions={groupSuggestions}
+              movements={
+                <PantryItemMovementsTabs
+                  mode={mode}
+                  saving={saving}
+                  readOnly={readOnly}
+                  movementsLoading={movementsLoading}
+                  entryRows={entryRows}
+                  exitRows={exitRows}
+                  historyRows={historyRows}
+                  entryDraft={entryDraft}
+                  setEntryDraft={setEntryDraft}
+                  exitDraft={exitDraft}
+                  setExitDraft={setExitDraft}
+                  sectorOptions={sectorOptions}
+                  sectorsLoading={sectorsLoading}
+                  donors={donors}
+                  donorsLoading={donorsLoading}
+                  onOpenNewDonor={() => setNewDonorOpen(true)}
+                  submitEntry={submitEntry}
+                  submitExit={submitExit}
+                  exitEntryOptions={exitEntryOptions}
+                  exitEntryTriggerLabel={exitEntryTriggerLabel}
+                  inputLineClassName={inputLineClassName}
+                />
+              }
+            />
 
-              <TabsContent value="activity">
-                {mode !== "edit" ? (
-                  <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                    Salve o registro para ver a auditoria.
-                  </div>
-                ) : auditLoading ? (
-                  <div className="text-sm text-muted-foreground">Carregando...</div>
-                ) : auditLogs.length ? (
-                  <div className="space-y-3">
-                    {auditLogs.slice(0, 120).map((log) => {
-                      const actor = log.user?.name ?? log.user?.email ?? "Sistema";
-                      const rows = log.action === "UPDATE" ? diffAuditFields(log) : [];
-                      const initials = initialsFromLabel(actor);
-
-                      return (
-                        <div key={log.id} className="flex items-start gap-3">
-                          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-xs font-semibold text-foreground">
-                            {initials}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <div className="truncate text-xs font-semibold text-foreground">
-                                {actor}
-                              </div>
-                              <div className="shrink-0 text-[11px] text-muted-foreground">
-                                {formatDateTimePtBR(log.createdAt)}
-                              </div>
-                            </div>
-                            <div className="mt-1 rounded-md border border-border/60 bg-muted/10 px-3 py-2">
-                              <div className="text-xs text-muted-foreground">
-                                {resolveAuditActionLabel(log.action)}
-                              </div>
-                              {rows.length ? (
-                                <div className="mt-2 space-y-1">
-                                  {rows.map((row) => (
-                                    <div key={row.key} className="text-xs text-foreground">
-                                      <span className="text-muted-foreground">
-                                        {row.label}:
-                                      </span>{" "}
-                                      <span className="font-mono">
-                                        {formatAuditValue(row.before)}
-                                      </span>{" "}
-                                      <span className="text-muted-foreground">→</span>{" "}
-                                      <span className="font-mono">
-                                        {formatAuditValue(row.after)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                  {log.action === "CREATE"
-                                    ? "Registro criado."
-                                    : log.action === "DELETE"
-                                      ? "Registro removido."
-                                      : null}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                    Sem auditoria.
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="notes">
-                <div className="space-y-2">
-                  <Textarea
-                    value={draft.notes ?? ""}
-                    onChange={(e) =>
-                      setDraft((prev) => ({ ...prev, notes: e.target.value || null }))
-                    }
-                    onBlur={() => maybeCommitField("notes")}
-                    placeholder="Anotações internas..."
-                    className="min-h-[220px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:ring-0"
-                    readOnly={readOnly}
-                  />
-                  <div className="text-[11px] text-muted-foreground">
-                    Essas notas ficam salvas no registro.
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+            <PantryItemActivityNotesPanel
+              mode={mode}
+              readOnly={readOnly}
+              auditLoading={auditLoading}
+              auditLogs={auditLogs}
+              auditVisibleCount={auditVisibleCount}
+              onAuditVisibleCountChange={setAuditVisibleCount}
+              notes={draft.notes}
+              onNotesChange={(next) => setDraft((prev) => ({ ...prev, notes: next }))}
+              onNotesBlur={() => maybeCommitField("notes")}
+            />
           </div>
         </div>
       </div>
@@ -676,17 +675,15 @@ export function PantryItemDetailClientPage({ mode }: { mode: Mode }) {
         </DialogContent>
       </Dialog>
 
-      <datalist id="pantry-item-unit-options">
-        {unitSuggestions.map((unit) => (
-          <option key={unit} value={unit} />
-        ))}
-      </datalist>
-      <datalist id="pantry-item-group-options">
-        {groupSuggestions.map((group) => (
-          <option key={group} value={group} />
-        ))}
-      </datalist>
-    </div>
+      <PantryDonorCreateDialog
+        open={newDonorOpen}
+        onOpenChange={setNewDonorOpen}
+        onCreated={(created) => {
+          void loadDonors();
+          setEntryDraft((prev) => ({ ...prev, donorId: created.id }));
+        }}
+      />
+    </>
   );
 }
 

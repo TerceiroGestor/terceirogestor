@@ -2,27 +2,17 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Check,
-  ChevronDown,
-  History,
-  LayoutDashboard,
-  Package,
-  PackagePlus,
-  PackageSearch,
-  Truck,
-} from "lucide-react";
+import { Check, ChevronDown, History, Package, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { PANTRY_ROUTES } from "@/modules/pantry/shared/domain/pantry.constants";
 
 type PantryHeaderNavProps = {
   className?: string;
@@ -34,7 +24,6 @@ type NavItem = {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   active: boolean;
-  section: "Painel" | "Registros" | "Relatórios";
 };
 
 export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
@@ -42,61 +31,29 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
 
-  const panelHref = withTenantPath("/pantry", tenantSlug);
-  const stockHref = withTenantPath("/pantry/stock", tenantSlug);
-  const itemsHref = withTenantPath("/pantry/items", tenantSlug);
-  const entriesHref = withTenantPath("/pantry/entries", tenantSlug);
-  const exitsHref = withTenantPath("/pantry/exits", tenantSlug);
-  const historyHref = withTenantPath("/pantry/history", tenantSlug);
+  const stockHref = withTenantPath(PANTRY_ROUTES.stock, tenantSlug);
+  const donorsHref = withTenantPath(PANTRY_ROUTES.donors, tenantSlug);
+  const historyHref = withTenantPath(PANTRY_ROUTES.history, tenantSlug);
 
-  const isPanel = pathname === panelHref;
-  const isStock = pathname.startsWith(stockHref);
-  const isItems = pathname.startsWith(itemsHref);
-  const isEntries = pathname.startsWith(entriesHref);
-  const isExits = pathname.startsWith(exitsHref) || pathname.startsWith(withTenantPath("/pantry/exit", tenantSlug));
   const isHistory = pathname.startsWith(historyHref);
+  const isDonors = pathname.startsWith(donorsHref);
+  const isStock = !isHistory && !isDonors;
 
   const items = React.useMemo<NavItem[]>(
     () => [
-      {
-        id: "panel",
-        label: "Painel",
-        href: panelHref,
-        active: isPanel,
-        icon: LayoutDashboard,
-        section: "Painel",
-      },
       {
         id: "stock",
         label: "Estoque",
         href: stockHref,
         active: isStock,
         icon: Package,
-        section: "Painel",
       },
       {
-        id: "items",
-        label: "Itens",
-        href: itemsHref,
-        active: isItems,
-        icon: PackageSearch,
-        section: "Registros",
-      },
-      {
-        id: "exits",
-        label: "Saídas",
-        href: exitsHref,
-        active: isExits,
-        icon: Truck,
-        section: "Registros",
-      },
-      {
-        id: "entries",
-        label: "Entradas",
-        href: entriesHref,
-        active: isEntries,
-        icon: PackagePlus,
-        section: "Registros",
+        id: "donors",
+        label: "Doadores",
+        href: donorsHref,
+        active: isDonors,
+        icon: Users,
       },
       {
         id: "history",
@@ -104,37 +61,13 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
         href: historyHref,
         active: isHistory,
         icon: History,
-        section: "Relatórios",
       },
     ],
-    [
-      entriesHref,
-      exitsHref,
-      historyHref,
-      isEntries,
-      isExits,
-      isHistory,
-      isItems,
-      isPanel,
-      isStock,
-      itemsHref,
-      panelHref,
-      stockHref,
-    ],
+    [donorsHref, historyHref, isDonors, isHistory, isStock, stockHref],
   );
 
   const activeItem = React.useMemo(() => {
     return items.find((item) => item.active) ?? items[0];
-  }, [items]);
-
-  const bySection = React.useMemo(() => {
-    const map = new Map<NavItem["section"], NavItem[]>();
-    items.forEach((item) => {
-      const list = map.get(item.section) ?? [];
-      list.push(item);
-      map.set(item.section, list);
-    });
-    return map;
   }, [items]);
 
   return (
@@ -154,30 +87,18 @@ export function PantryHeaderNav({ className }: PantryHeaderNavProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[220px]">
-        {(["Painel", "Registros", "Relatórios"] as const).map((section, index) => {
-          const sectionItems = bySection.get(section) ?? [];
-          if (!sectionItems.length) return null;
+        {items.map((item) => {
+          const Icon = item.icon;
           return (
-            <React.Fragment key={section}>
-              {index > 0 ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuLabel className="text-[11px]">{section}</DropdownMenuLabel>
-              {sectionItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <DropdownMenuItem
-                    key={item.id}
-                    onSelect={() => router.push(item.href)}
-                    className="gap-2 text-xs"
-                  >
-                    <Icon className="size-4 text-muted-foreground" />
-                    <span>{item.label}</span>
-                    {item.active ? (
-                      <Check className="ml-auto size-4 opacity-70" />
-                    ) : null}
-                  </DropdownMenuItem>
-                );
-              })}
-            </React.Fragment>
+            <DropdownMenuItem
+              key={item.id}
+              onSelect={() => router.push(item.href)}
+              className="gap-2 text-xs"
+            >
+              <Icon className="size-4 text-muted-foreground" />
+              <span>{item.label}</span>
+              {item.active ? <Check className="ml-auto size-4 opacity-70" /> : null}
+            </DropdownMenuItem>
           );
         })}
       </DropdownMenuContent>
