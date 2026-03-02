@@ -5,6 +5,7 @@ import type { SearchViewDefinition } from "@/web-client/search/types";
 export const pantryHistorySearchView: SearchViewDefinition = {
   id: "pantry.history.search",
   model: "pantry.history",
+  filterCombinators: ["and", "or"],
   fields: [
     {
       name: "kind",
@@ -21,6 +22,12 @@ export const pantryHistorySearchView: SearchViewDefinition = {
       label: "Data do movimento",
       type: "date",
       operators: ["between", ">=", "<="],
+    },
+    {
+      name: "sector",
+      label: "Setor",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
     },
     {
       name: "type",
@@ -42,6 +49,42 @@ export const pantryHistorySearchView: SearchViewDefinition = {
       operators: ["ilike", "contains", "="],
     },
     {
+      name: "donorName",
+      label: "Doador",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
+      name: "itemName",
+      label: "Alimento",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
+      name: "itemGroup",
+      label: "Grupo do alimento",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
+      name: "expiryDate",
+      label: "Validade",
+      type: "date",
+      operators: ["between", ">=", "<=", "=", "!="],
+    },
+    {
+      name: "actor",
+      label: "Usuário",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
+      name: "notes",
+      label: "Notas",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
       name: "itemId",
       label: "Item (ID)",
       type: "uuid",
@@ -53,6 +96,15 @@ export const pantryHistorySearchView: SearchViewDefinition = {
     { field: "sector", label: "Setor" },
     { field: "type", label: "Tipo de saída" },
     { field: "itemId", label: "Alimento" },
+    { field: "itemGroup", label: "Grupo" },
+    { field: "eventName", label: "Evento" },
+    { field: "donorName", label: "Doador" },
+    { field: "quantity", label: "Quantidade" },
+    { field: "unit", label: "Un." },
+    { field: "movementDate", label: "Data" },
+    { field: "expiryDate", label: "Validade" },
+    { field: "actor", label: "Usuário" },
+    { field: "notes", label: "Notas" },
   ],
 };
 
@@ -147,10 +199,17 @@ export const pantryStockSearchView: SearchViewDefinition = {
     },
   ],
   groupBy: [
+    { field: "name", label: "Alimento" },
     { field: "sector", label: "Setor" },
     { field: "group", label: "Grupo" },
+    { field: "sectorStock", label: "Saldo (setor)" },
+    { field: "itemStock", label: "Saldo (total)" },
+    { field: "unit", label: "Un." },
+    { field: "minStock", label: "Mínimo" },
     { field: "validityStatus", label: "Validade" },
     { field: "isBelowMin", label: "Abaixo do mínimo" },
+    { field: "nextExpiryDate", label: "Próx. validade" },
+    { field: "daysToExpire", label: "Dias" },
   ],
 };
 

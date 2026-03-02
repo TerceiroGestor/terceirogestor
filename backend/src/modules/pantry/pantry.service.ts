@@ -731,6 +731,24 @@ export class PantryService {
     });
   }
 
+  async getDonor(tenantId: string, id: string) {
+    const donor = await this.prisma.pantryDonor.findFirst({
+      where: { id, tenantId },
+    });
+    if (!donor) {
+      throw new NotFoundException('Doador não encontrado');
+    }
+
+    return {
+      id: donor.id,
+      name: donor.name,
+      type: donor.type,
+      contact: donor.contact,
+      createdAt: donor.createdAt,
+      updatedAt: donor.updatedAt,
+    };
+  }
+
   async updateDonor(tenantId: string, id: string, dto: UpdatePantryDonorDto) {
     const donor = await this.prisma.pantryDonor.findFirst({
       where: { id, tenantId },

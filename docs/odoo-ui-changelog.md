@@ -28,6 +28,11 @@ Implementacao de referencia (contrato aplicado): `docs/modules/pantry/dev-guide.
 - `PaginationBar`: paginacao para views nao-table (ex.: Kanban, Timeline).
 - `usePersistedUrlState`: estado persistido (URL + localStorage) com migracao segura.
 
+## DetailShell (padrao definitivo de create/edit/view)
+O padrao de listagem (Search/Filter/Group/View) resolve a navegacao. Para create/edit/view, o padrao definitivo e o `DetailShell` com slots e contratos.
+
+Documento de contrato: `docs/detail-shell-changelog.md`.
+
 ## Contrato de estado (ActionQueryState)
 Minimo (por action):
 - `view` (ViewType)

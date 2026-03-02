@@ -1,6 +1,8 @@
 import type { WindowAction } from "@/web-client/registry/types";
 import {
   pantryDonorsAction,
+  pantryDonorsCreateAction,
+  pantryDonorsDetailAction,
   pantryHistoryAction,
   pantryItemsCreateAction,
   pantryItemsDetailAction,
@@ -18,6 +20,8 @@ const WINDOW_ACTIONS: WindowAction[] = [
   pantryItemsCreateAction,
   pantryItemsDetailAction,
   pantryDonorsAction,
+  pantryDonorsCreateAction,
+  pantryDonorsDetailAction,
   pantryHistoryAction,
 ];
 const SEARCH_VIEWS: SearchViewDefinition[] = [

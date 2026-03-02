@@ -6,9 +6,13 @@ import { searchPantryHistory } from "@/web-client/data-provider/rest/pantry-hist
 import { searchPantryStock } from "@/web-client/data-provider/rest/pantry-stock";
 import {
   createPantryItem,
+  createPantryDonor,
   deletePantryItem,
+  deletePantryDonor,
   getPantryItem,
+  getPantryDonor,
   updatePantryItem,
+  updatePantryDonor,
 } from "@/modules/pantry/api";
 
 export function createRestDataProvider({ token }: { token: string | null }): DataProvider {
@@ -38,6 +42,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.items":
           return (await getPantryItem(authToken, id)) as unknown as T;
+        case "pantry.donors":
+          return (await getPantryDonor(authToken, id)) as unknown as T;
         default:
           throw new Error(`read() nao implementado para ${model}`);
       }
@@ -47,6 +53,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.items":
           return (await createPantryItem(authToken, payload as never)) as unknown as T;
+        case "pantry.donors":
+          return (await createPantryDonor(authToken, payload as never)) as unknown as T;
         default:
           throw new Error(`create() nao implementado para ${model}`);
       }
@@ -56,6 +64,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.items":
           return (await updatePantryItem(authToken, id, payload as never)) as unknown as T;
+        case "pantry.donors":
+          return (await updatePantryDonor(authToken, id, payload as never)) as unknown as T;
         default:
           throw new Error(`update() nao implementado para ${model}`);
       }
@@ -65,6 +75,9 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       switch (model) {
         case "pantry.items":
           await deletePantryItem(authToken, id);
+          return;
+        case "pantry.donors":
+          await deletePantryDonor(authToken, id);
           return;
         default:
           throw new Error(`delete() nao implementado para ${model}`);

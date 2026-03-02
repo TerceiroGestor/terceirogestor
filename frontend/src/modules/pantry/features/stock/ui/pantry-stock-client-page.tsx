@@ -3,7 +3,16 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CalendarDays, Clock3, LayoutGrid, Plus, RefreshCcw, SlidersHorizontal, Table2 } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  Plus,
+  RefreshCcw,
+  SlidersHorizontal,
+  Table2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +32,13 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { bucketLocalDate, formatDateOnlyPtBR, parseLocalDateOnly, type DateBucket, toLocalIsoDate } from "@/lib/date";
+import {
+  bucketLocalDate,
+  formatDateOnlyPtBR,
+  parseLocalDateOnly,
+  type DateBucket,
+  toLocalIsoDate,
+} from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { PageControlPanel } from "@/web-client/control-panel/PageControlPanel";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
@@ -44,8 +59,11 @@ import { ListView } from "@/web-client/views/ListView";
 import { TimelineView } from "@/web-client/views/TimelineView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import type { PantryDashboardResponse } from "@/modules/pantry/api";
-import { PantryDonorCreateDialog } from "@/modules/pantry/features/donors/ui/pantry-donor-create-dialog";
-import { PANTRY_ACTION_IDS, PANTRY_ROUTES, PANTRY_SCREEN_STATE_KEYS } from "@/modules/pantry/shared/domain/pantry.constants";
+import {
+  PANTRY_ACTION_IDS,
+  PANTRY_ROUTES,
+  PANTRY_SCREEN_STATE_KEYS,
+} from "@/modules/pantry/shared/domain/pantry.constants";
 
 type StockRow = PantryDashboardResponse["stockRows"][number];
 
@@ -59,6 +77,9 @@ type PantryStockFilters = {
   pageIndex: number;
   pageSize: number;
   calendarField: string;
+  calendarMode: DateBucket;
+  calendarFrom: string;
+  calendarTo: string;
   timelineField: string;
   graphGroupField: string;
   graphMetric: "count" | "quantity";
@@ -78,6 +99,9 @@ type PantryStockFavoriteState = Pick<
   | "groupBy"
   | "pageSize"
   | "calendarField"
+  | "calendarMode"
+  | "calendarFrom"
+  | "calendarTo"
   | "timelineField"
   | "graphGroupField"
   | "graphMetric"
@@ -90,12 +114,16 @@ type PantryStockFavoriteState = Pick<
 >;
 
 const DEFAULT_CALENDAR_FIELD = "nextExpiryDate";
+const DEFAULT_CALENDAR_MODE: PantryStockFilters["calendarMode"] = "month";
 const DEFAULT_TIMELINE_FIELD = "nextExpiryDate";
 const DEFAULT_GRAPH_GROUP_FIELD = "sector";
 const DEFAULT_GRAPH_METRIC: PantryStockFilters["graphMetric"] = "quantity";
 const DEFAULT_GRAPH_TYPE: PantryStockFilters["graphType"] = "bar";
 const DEFAULT_GRAPH_TIME_FIELD = DEFAULT_TIMELINE_FIELD;
 const DEFAULT_GRAPH_BUCKET: PantryStockFilters["graphBucket"] = "day";
+
+const controlLineClassName =
+  "h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0";
 
 function normalizeView(value: string | null): PantryStockView {
   switch (value) {
@@ -125,6 +153,18 @@ function normalizeIsoDateOnly(value: string | null) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
+function normalizeCalendarMode(value: string | null): PantryStockFilters["calendarMode"] {
+  switch (value) {
+    case "day":
+    case "week":
+    case "month":
+    case "year":
+      return value;
+    default:
+      return DEFAULT_CALENDAR_MODE;
+  }
+}
+
 function normalizeBucket(value: string | null): DateBucket {
   switch (value) {
     case "day":
@@ -141,10 +181,8 @@ function normalizeGraphType(value: string | null): GraphChartType {
   switch (value) {
     case "bar":
     case "bar_horizontal":
-    case "bar_stacked":
     case "line":
     case "area":
-    case "area_stacked":
     case "pie":
     case "donut":
       return value;
@@ -153,7 +191,9 @@ function normalizeGraphType(value: string | null): GraphChartType {
   }
 }
 
-const parsePantryStockFilters = (params: URLSearchParams): PantryStockFilters => {
+const parsePantryStockFilters = (
+  params: URLSearchParams,
+): PantryStockFilters => {
   const view = normalizeView(params.get("view") ?? params.get("v"));
   const searchText = params.get("q") ?? "";
   const domain = parseDomain(params.get("d")) ?? null;
@@ -168,9 +208,14 @@ const parsePantryStockFilters = (params: URLSearchParams): PantryStockFilters =>
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = parsePositiveInt(params.get("limit"), 20);
   const calendarField = params.get("cf") ?? DEFAULT_CALENDAR_FIELD;
+  const calendarMode = normalizeCalendarMode(params.get("cm"));
+  const calendarFrom = normalizeIsoDateOnly(params.get("cfrom"));
+  const calendarTo = normalizeIsoDateOnly(params.get("cto"));
   const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
   const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
-  const graphMetric = (params.get("gm") as PantryStockFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
+  const graphMetric =
+    (params.get("gm") as PantryStockFilters["graphMetric"]) ??
+    DEFAULT_GRAPH_METRIC;
   const graphType = normalizeGraphType(params.get("gt"));
   const graphItemId = params.get("gi") ?? "";
   const graphTimeField = params.get("gdf") ?? DEFAULT_GRAPH_TIME_FIELD;
@@ -186,6 +231,9 @@ const parsePantryStockFilters = (params: URLSearchParams): PantryStockFilters =>
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
     calendarField,
+    calendarMode,
+    calendarFrom,
+    calendarTo,
     timelineField,
     graphGroupField,
     graphMetric: graphMetric === "count" ? "count" : "quantity",
@@ -205,16 +253,33 @@ const serializePantryStockFilters = (state: PantryStockFilters) => ({
   g: state.groupBy.length ? state.groupBy.join(",") : undefined,
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 20 ? undefined : String(state.pageSize),
-  cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
-  tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
-  gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
-  gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
+  cf:
+    state.calendarField !== DEFAULT_CALENDAR_FIELD
+      ? state.calendarField
+      : undefined,
+  cm: state.calendarMode !== DEFAULT_CALENDAR_MODE ? state.calendarMode : undefined,
+  cfrom: state.calendarFrom || undefined,
+  cto: state.calendarTo || undefined,
+  tf:
+    state.timelineField !== DEFAULT_TIMELINE_FIELD
+      ? state.timelineField
+      : undefined,
+  gf:
+    state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD
+      ? state.graphGroupField
+      : undefined,
+  gm:
+    state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
   gt: state.graphType !== DEFAULT_GRAPH_TYPE ? state.graphType : undefined,
   gi: state.graphItemId ? state.graphItemId : undefined,
-  gdf: state.graphTimeField !== DEFAULT_GRAPH_TIME_FIELD ? state.graphTimeField : undefined,
+  gdf:
+    state.graphTimeField !== DEFAULT_GRAPH_TIME_FIELD
+      ? state.graphTimeField
+      : undefined,
   gfrom: state.graphFrom || undefined,
   gto: state.graphTo || undefined,
-  gb: state.graphBucket !== DEFAULT_GRAPH_BUCKET ? state.graphBucket : undefined,
+  gb:
+    state.graphBucket !== DEFAULT_GRAPH_BUCKET ? state.graphBucket : undefined,
 });
 
 function resolveGroupValue(row: StockRow, field: string) {
@@ -228,19 +293,26 @@ function resolveGroupValue(row: StockRow, field: string) {
     case "isBelowMin":
       return row.isBelowMin ? "Abaixo do mínimo" : "OK";
     default:
-      return String((row as Record<string, unknown>)[field] ?? "").trim() || "—";
+      return (
+        String((row as Record<string, unknown>)[field] ?? "").trim() || "—"
+      );
   }
 }
 
 function resolveDate(row: StockRow, field: string) {
   const raw = (row as Record<string, unknown>)[field];
   if (raw === null || raw === undefined) return null;
-  if (typeof raw === "string" || raw instanceof Date) return parseLocalDateOnly(raw);
+  if (typeof raw === "string" || raw instanceof Date)
+    return parseLocalDateOnly(raw);
   return parseLocalDateOnly(String(raw));
 }
 
 function resolveBelowMinBadge(row: StockRow) {
-  return row.isBelowMin ? <Badge variant="destructive">Abaixo do mínimo</Badge> : <Badge variant="secondary">OK</Badge>;
+  return row.isBelowMin ? (
+    <Badge variant="destructive">Abaixo do mínimo</Badge>
+  ) : (
+    <Badge variant="secondary">OK</Badge>
+  );
 }
 
 export function PantryStockClientPage() {
@@ -254,7 +326,10 @@ export function PantryStockClientPage() {
   const canRead = permissions.includes("pantry.read");
   const canCreate = permissions.includes("pantry.create");
 
-  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
+  const dataProvider = React.useMemo(
+    () => createRestDataProvider({ token }),
+    [token],
+  );
 
   const [rows, setRows] = React.useState<StockRow[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -264,12 +339,33 @@ export function PantryStockClientPage() {
 
   const [filters, setFilters] = usePersistedUrlState<PantryStockFilters>({
     storageKey: PANTRY_SCREEN_STATE_KEYS.stock,
-    trackedKeys: ["view", "v", "q", "d", "g", "page", "limit", "cf", "tf", "gf", "gm", "gt", "gi", "gdf", "gfrom", "gto", "gb"],
+    trackedKeys: [
+      "view",
+      "v",
+      "q",
+      "d",
+      "g",
+      "page",
+      "limit",
+      "cf",
+      "tf",
+      "gf",
+      "gm",
+      "gt",
+      "gi",
+      "gdf",
+      "gfrom",
+      "gto",
+      "gb",
+    ],
     parse: parsePantryStockFilters,
     serialize: serializePantryStockFilters,
   });
 
-  const shouldFetchAll = filters.view === "calendar" || filters.view === "timeline" || filters.view === "graph";
+  const shouldFetchAll =
+    filters.view === "calendar" ||
+    filters.view === "timeline" ||
+    filters.view === "graph";
 
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const resetPaginationKeyRef = React.useRef<string | null>(null);
@@ -289,23 +385,43 @@ export function PantryStockClientPage() {
     }
     if (resetPaginationKeyRef.current === key) return;
     resetPaginationKeyRef.current = key;
-    setFilters((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+    setFilters((prev) =>
+      prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 },
+    );
   }, [debouncedSearch, filters.domain, setFilters]);
 
   const viewOptions = React.useMemo<RecordBrowserViewOption<PantryStockView>[]>(
     () => [
       { value: "list", label: "Tabela", icon: <Table2 className="size-4" /> },
-      { value: "kanban", label: "Kanban", icon: <LayoutGrid className="size-4" /> },
-      { value: "timeline", label: "Timeline", icon: <Clock3 className="size-4" /> },
-      { value: "calendar", label: "Calendário", icon: <CalendarDays className="size-4" /> },
-      { value: "graph", label: "Gráfico", icon: <BarChart3 className="size-4" /> },
+      {
+        value: "kanban",
+        label: "Kanban",
+        icon: <LayoutGrid className="size-4" />,
+      },
+      {
+        value: "timeline",
+        label: "Timeline",
+        icon: <Clock3 className="size-4" />,
+      },
+      {
+        value: "calendar",
+        label: "Calendário",
+        icon: <CalendarDays className="size-4" />,
+      },
+      {
+        value: "graph",
+        label: "Gráfico",
+        icon: <BarChart3 className="size-4" />,
+      },
     ],
     [],
   );
 
   const openItem = React.useCallback(
     (row: StockRow) => {
-      router.push(withTenantPath(`${PANTRY_ROUTES.items}/${row.itemId}`, tenantSlug));
+      router.push(
+        withTenantPath(`${PANTRY_ROUTES.items}/${row.itemId}`, tenantSlug),
+      );
     },
     [router, tenantSlug],
   );
@@ -313,8 +429,6 @@ export function PantryStockClientPage() {
   const openCreate = React.useCallback(() => {
     router.push(withTenantPath(PANTRY_ROUTES.itemsNew, tenantSlug));
   }, [router, tenantSlug]);
-
-  const [newDonorOpen, setNewDonorOpen] = React.useState(false);
 
   const loadRows = React.useCallback(async () => {
     if (!token || !canRead) return;
@@ -341,14 +455,28 @@ export function PantryStockClientPage() {
           ? String((err as { message?: string }).message)
           : "Falha ao carregar estoque.";
       setError(message);
-      toast({ variant: "destructive", title: "Falha ao carregar", description: message });
+      toast({
+        variant: "destructive",
+        title: "Falha ao carregar",
+        description: message,
+      });
       setRows([]);
       setPageCount(0);
       setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, [canRead, dataProvider, debouncedSearch, filters.domain, filters.pageIndex, filters.pageSize, shouldFetchAll, toast, token]);
+  }, [
+    canRead,
+    dataProvider,
+    debouncedSearch,
+    filters.domain,
+    filters.pageIndex,
+    filters.pageSize,
+    shouldFetchAll,
+    toast,
+    token,
+  ]);
 
   React.useEffect(() => {
     void loadRows();
@@ -374,7 +502,8 @@ export function PantryStockClientPage() {
         groupBy: filters.groupBy,
         searchView: pantryStockSearchView,
         onClearGroupBy: () => setFilters((prev) => ({ ...prev, groupBy: [] })),
-        onClearDomain: () => setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
+        onClearDomain: () =>
+          setFilters((prev) => ({ ...prev, domain: null, pageIndex: 0 })),
         onRemoveDomainCondition: removeDomainCondition,
       }),
     [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
@@ -417,12 +546,23 @@ export function PantryStockClientPage() {
         accessorKey: "name",
         header: "Alimento",
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{row.original.name}</div>
-            <div className="truncate text-xs text-muted-foreground">
-              {row.original.group || "Sem grupo"} • {row.original.sector || "Geral"}
-            </div>
+          <div className="min-w-0 truncate font-medium text-foreground">
+            {row.original.name}
           </div>
+        ),
+      },
+      {
+        accessorKey: "group",
+        header: "Grupo",
+        cell: ({ row }) => (
+          <div className="min-w-0 truncate">{row.original.group || "Sem grupo"}</div>
+        ),
+      },
+      {
+        accessorKey: "sector",
+        header: "Setor",
+        cell: ({ row }) => (
+          <div className="min-w-0 truncate">{row.original.sector || "Geral"}</div>
         ),
       },
       {
@@ -430,7 +570,7 @@ export function PantryStockClientPage() {
         header: "Saldo (setor)",
         cell: ({ row }) => (
           <div className="font-mono tabular-nums">
-            {Number(row.original.sectorStock).toLocaleString("pt-BR")} {row.original.unit}
+            {Number(row.original.sectorStock).toLocaleString("pt-BR")}
           </div>
         ),
       },
@@ -439,18 +579,28 @@ export function PantryStockClientPage() {
         header: "Saldo (total)",
         cell: ({ row }) => (
           <div className="font-mono tabular-nums">
-            {Number(row.original.itemStock).toLocaleString("pt-BR")} {row.original.unit}
+            {Number(row.original.itemStock).toLocaleString("pt-BR")}
           </div>
         ),
+      },
+      {
+        accessorKey: "unit",
+        header: "Un.",
+        cell: ({ row }) => <div className="truncate">{row.original.unit}</div>,
       },
       {
         accessorKey: "minStock",
         header: "Mínimo",
         cell: ({ row }) => (
           <div className="font-mono tabular-nums">
-            {Number(row.original.minStock).toLocaleString("pt-BR")} {row.original.unit}
+            {Number(row.original.minStock).toLocaleString("pt-BR")}
           </div>
         ),
+      },
+      {
+        accessorKey: "isBelowMin",
+        header: "Abaixo",
+        cell: ({ row }) => <div>{resolveBelowMinBadge(row.original)}</div>,
       },
       {
         accessorKey: "nextExpiryDate",
@@ -458,13 +608,22 @@ export function PantryStockClientPage() {
         cell: ({ row }) => formatDateOnlyPtBR(row.original.nextExpiryDate),
       },
       {
+        accessorKey: "daysToExpire",
+        header: "Dias",
+        cell: ({ row }) => (
+          <div className="font-mono tabular-nums">
+            {row.original.daysToExpire === null ||
+            row.original.daysToExpire === undefined
+              ? "—"
+              : Number(row.original.daysToExpire).toLocaleString("pt-BR")}
+          </div>
+        ),
+      },
+      {
         accessorKey: "validityStatus",
         header: "Validade",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            {resolveBelowMinBadge(row.original)}
-            <span className="text-xs text-muted-foreground">{row.original.validityStatus}</span>
-          </div>
+          <div className="min-w-0 truncate">{row.original.validityStatus}</div>
         ),
       },
     ],
@@ -478,32 +637,18 @@ export function PantryStockClientPage() {
 
   const viewConfig = React.useMemo(() => {
     if (filters.view === "calendar") {
-      return (
-        <Select
-          value={filters.calendarField}
-          onValueChange={(value) => setFilters((prev) => ({ ...prev, calendarField: value }))}
-        >
-          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
-            <SelectValue placeholder="Data..." />
-          </SelectTrigger>
-          <SelectContent>
-            {dateFields.map((field) => (
-              <SelectItem key={field.name} value={field.name}>
-                {field.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
+      return null;
     }
 
     if (filters.view === "timeline") {
       return (
         <Select
           value={filters.timelineField}
-          onValueChange={(value) => setFilters((prev) => ({ ...prev, timelineField: value }))}
+          onValueChange={(value) =>
+            setFilters((prev) => ({ ...prev, timelineField: value }))
+          }
         >
-          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+          <SelectTrigger className={`${controlLineClassName} w-[11.5rem]`}>
             <SelectValue placeholder="Data..." />
           </SelectTrigger>
           <SelectContent>
@@ -523,9 +668,11 @@ export function PantryStockClientPage() {
         <div className="flex flex-wrap items-center gap-1.5">
           <Select
             value={filters.graphGroupField}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, graphGroupField: value }))
+            }
           >
-            <SelectTrigger className="h-8 w-[11rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[11rem]`}>
               <SelectValue placeholder="Agrupar..." />
             </SelectTrigger>
             <SelectContent>
@@ -540,10 +687,13 @@ export function PantryStockClientPage() {
           <Select
             value={filters.graphMetric}
             onValueChange={(value) =>
-              setFilters((prev) => ({ ...prev, graphMetric: value === "count" ? "count" : "quantity" }))
+              setFilters((prev) => ({
+                ...prev,
+                graphMetric: value === "count" ? "count" : "quantity",
+              }))
             }
           >
-            <SelectTrigger className="h-8 w-[9.5rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[9.5rem]`}>
               <SelectValue placeholder="Métrica..." />
             </SelectTrigger>
             <SelectContent>
@@ -554,18 +704,23 @@ export function PantryStockClientPage() {
 
           <Select
             value={filters.graphType}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: normalizeGraphType(value) }))}
+            onValueChange={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                graphType: normalizeGraphType(value),
+              }))
+            }
           >
-            <SelectTrigger className="h-8 w-[9.25rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[9.25rem]`}>
               <SelectValue placeholder="Gráfico..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="bar">Barras</SelectItem>
-              <SelectItem value="bar_horizontal">Barras (horizontal)</SelectItem>
-              <SelectItem value="bar_stacked">Barras (empilhadas)</SelectItem>
+              <SelectItem value="bar_horizontal">
+                Barras (horizontal)
+              </SelectItem>
               <SelectItem value="line">Linha</SelectItem>
               <SelectItem value="area">Área</SelectItem>
-              <SelectItem value="area_stacked">Área (empilhada)</SelectItem>
               <SelectItem value="pie">Pizza</SelectItem>
               <SelectItem value="donut">Rosca</SelectItem>
             </SelectContent>
@@ -575,9 +730,14 @@ export function PantryStockClientPage() {
 
           <Select
             value={filters.graphItemId ? filters.graphItemId : "all"}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, graphItemId: value === "all" ? "" : value }))}
+            onValueChange={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                graphItemId: value === "all" ? "" : value,
+              }))
+            }
           >
-            <SelectTrigger className="h-8 w-[12rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[12rem]`}>
               <SelectValue placeholder="Item..." />
             </SelectTrigger>
             <SelectContent>
@@ -593,8 +753,13 @@ export function PantryStockClientPage() {
             </SelectContent>
           </Select>
 
-          <Select value={filters.graphTimeField} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphTimeField: value }))}>
-            <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+          <Select
+            value={filters.graphTimeField}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, graphTimeField: value }))
+            }
+          >
+            <SelectTrigger className={`${controlLineClassName} w-[11.5rem]`}>
               <SelectValue placeholder="Tempo..." />
             </SelectTrigger>
             <SelectContent>
@@ -609,18 +774,30 @@ export function PantryStockClientPage() {
           <Input
             type="date"
             value={filters.graphFrom}
-            onChange={(e) => setFilters((prev) => ({ ...prev, graphFrom: e.target.value }))}
-            className="h-8 w-[9rem] text-xs"
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, graphFrom: e.target.value }))
+            }
+            className={`${controlLineClassName} w-[9rem]`}
           />
           <Input
             type="date"
             value={filters.graphTo}
-            onChange={(e) => setFilters((prev) => ({ ...prev, graphTo: e.target.value }))}
-            className="h-8 w-[9rem] text-xs"
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, graphTo: e.target.value }))
+            }
+            className={`${controlLineClassName} w-[9rem]`}
           />
 
-          <Select value={filters.graphBucket} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphBucket: normalizeBucket(value) }))}>
-            <SelectTrigger className="h-8 w-[9rem] text-xs">
+          <Select
+            value={filters.graphBucket}
+            onValueChange={(value) =>
+              setFilters((prev) => ({
+                ...prev,
+                graphBucket: normalizeBucket(value),
+              }))
+            }
+          >
+            <SelectTrigger className={`${controlLineClassName} w-[9rem]`}>
               <SelectValue placeholder="Agrupar tempo..." />
             </SelectTrigger>
             <SelectContent>
@@ -637,7 +814,6 @@ export function PantryStockClientPage() {
     return null;
   }, [
     dateFields,
-    filters.calendarField,
     filters.graphBucket,
     filters.graphFrom,
     filters.graphGroupField,
@@ -659,7 +835,8 @@ export function PantryStockClientPage() {
     const to = filters.graphTo;
 
     const filtered = rows.filter((row) => {
-      if (filters.graphItemId && row.itemId !== filters.graphItemId) return false;
+      if (filters.graphItemId && row.itemId !== filters.graphItemId)
+        return false;
       if (!from && !to) return true;
       const date = resolveDate(row, filters.graphTimeField);
       if (!date) return false;
@@ -669,7 +846,10 @@ export function PantryStockClientPage() {
       return true;
     });
 
-    const map = new Map<string, { sortKey: string; x: string; value: number }>();
+    const map = new Map<
+      string,
+      { sortKey: string; x: string; value: number }
+    >();
 
     filtered.forEach((row) => {
       const groupField = filters.graphGroupField;
@@ -678,15 +858,21 @@ export function PantryStockClientPage() {
         const date = resolveDate(row, groupField);
         if (!date) return;
         const bucketed = bucketLocalDate(date, filters.graphBucket);
-        const current = map.get(bucketed.key) ?? { sortKey: bucketed.key, x: bucketed.label, value: 0 };
-        current.value += filters.graphMetric === "count" ? 1 : Number(row.sectorStock);
+        const current = map.get(bucketed.key) ?? {
+          sortKey: bucketed.key,
+          x: bucketed.label,
+          value: 0,
+        };
+        current.value +=
+          filters.graphMetric === "count" ? 1 : Number(row.sectorStock);
         map.set(bucketed.key, current);
         return;
       }
 
       const key = resolveGroupValue(row, groupField);
       const current = map.get(key) ?? { sortKey: key, x: key, value: 0 };
-      current.value += filters.graphMetric === "count" ? 1 : Number(row.sectorStock);
+      current.value +=
+        filters.graphMetric === "count" ? 1 : Number(row.sectorStock);
       map.set(key, current);
     });
 
@@ -707,7 +893,11 @@ export function PantryStockClientPage() {
   ]);
 
   if (!canRead) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        Você não tem permissão.
+      </div>
+    );
   }
 
   return (
@@ -723,8 +913,18 @@ export function PantryStockClientPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onSelect={openCreate}>Novo alimento</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setNewDonorOpen(true)}>Novo doador</DropdownMenuItem>
+                <DropdownMenuItem onSelect={openCreate}>
+                  Alimento
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    router.push(
+                      withTenantPath(PANTRY_ROUTES.donorsNew, tenantSlug),
+                    )
+                  }
+                >
+                  Doador
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : undefined
@@ -732,7 +932,9 @@ export function PantryStockClientPage() {
         searchSlot={
           <SearchBar
             value={filters.searchText}
-            onChange={(next) => setFilters((prev) => ({ ...prev, searchText: next }))}
+            onChange={(next) =>
+              setFilters((prev) => ({ ...prev, searchText: next }))
+            }
             placeholder="Pesquisar"
             facets={queryFacets}
             rightSlot={
@@ -770,9 +972,13 @@ export function PantryStockClientPage() {
                   }
                   searchView={pantryStockSearchView}
                   domain={filters.domain}
-                  onDomainChange={(domain) => setFilters((prev) => ({ ...prev, domain }))}
+                  onDomainChange={(domain) =>
+                    setFilters((prev) => ({ ...prev, domain }))
+                  }
                   groupBy={filters.groupBy}
-                  onGroupByChange={(groupBy) => setFilters((prev) => ({ ...prev, groupBy }))}
+                  onGroupByChange={(groupBy) =>
+                    setFilters((prev) => ({ ...prev, groupBy }))
+                  }
                   snapshot={{
                     view: filters.view,
                     searchText: filters.searchText,
@@ -780,6 +986,9 @@ export function PantryStockClientPage() {
                     groupBy: filters.groupBy,
                     pageSize: filters.pageSize,
                     calendarField: filters.calendarField,
+                    calendarMode: filters.calendarMode,
+                    calendarFrom: filters.calendarFrom,
+                    calendarTo: filters.calendarTo,
                     timelineField: filters.timelineField,
                     graphGroupField: filters.graphGroupField,
                     graphMetric: filters.graphMetric,
@@ -794,6 +1003,8 @@ export function PantryStockClientPage() {
                     setFilters((prev) => ({
                       ...prev,
                       ...state,
+                      calendarFrom: state.calendarFrom ?? "",
+                      calendarTo: state.calendarTo ?? "",
                       pageIndex: 0,
                     }))
                   }
@@ -821,9 +1032,6 @@ export function PantryStockClientPage() {
           </>
         }
       />
-
-      <PantryDonorCreateDialog open={newDonorOpen} onOpenChange={setNewDonorOpen} />
-
       {error ? (
         <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           {error}
@@ -852,7 +1060,9 @@ export function PantryStockClientPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-foreground">{row.name}</div>
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {row.name}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {row.group || "Sem grupo"} • {row.sector || "Geral"}
                       </div>
@@ -861,7 +1071,9 @@ export function PantryStockClientPage() {
                       <div className="font-mono text-sm tabular-nums text-foreground">
                         {Number(row.sectorStock).toLocaleString("pt-BR")}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">saldo</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        saldo
+                      </div>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -875,6 +1087,23 @@ export function PantryStockClientPage() {
             <CalendarView<StockRow>
               items={rows}
               getDate={(row) => resolveDate(row, filters.calendarField)}
+              mode={filters.calendarMode}
+              onModeChange={(nextMode) =>
+                setFilters((prev) => ({ ...prev, calendarMode: nextMode }))
+              }
+              dateFieldOptions={dateFields.map((field) => ({ value: field.name, label: field.label }))}
+              activeDateField={filters.calendarField}
+              onActiveDateFieldChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarField: value }))
+              }
+              rangeFrom={filters.calendarFrom}
+              rangeTo={filters.calendarTo}
+              onRangeFromChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarFrom: normalizeIsoDateOnly(value) }))
+              }
+              onRangeToChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarTo: normalizeIsoDateOnly(value) }))
+              }
               emptyState="Nenhum vencimento neste dia."
               renderItem={(row) => (
                 <div
@@ -886,7 +1115,9 @@ export function PantryStockClientPage() {
                     if (e.key === "Enter" || e.key === " ") openItem(row);
                   }}
                 >
-                  <div className="truncate text-sm font-semibold text-foreground">{row.name}</div>
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {row.name}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {row.sector || "Geral"} • {row.group || "Sem grupo"}
                   </div>
@@ -912,7 +1143,10 @@ export function PantryStockClientPage() {
               series={[
                 {
                   key: "value",
-                  label: filters.graphMetric === "count" ? "Registros" : "Saldo (soma)",
+                  label:
+                    filters.graphMetric === "count"
+                      ? "Registros"
+                      : "Saldo (soma)",
                   color: "var(--chart-1)",
                 },
               ]}
@@ -926,10 +1160,16 @@ export function PantryStockClientPage() {
               columns={columns}
               groupByFields={filters.groupBy}
               resolveGroupLabel={(field, value) => {
-                if (field === "sector") return String(value ?? "").trim() || "Geral";
-                if (field === "group") return String(value ?? "").trim() || "Sem grupo";
-                if (field === "validityStatus") return String(value ?? "").trim() || "Sem validade";
-                if (field === "isBelowMin") return String(value ?? "").includes("true") ? "Abaixo do mínimo" : "OK";
+                if (field === "sector")
+                  return String(value ?? "").trim() || "Geral";
+                if (field === "group")
+                  return String(value ?? "").trim() || "Sem grupo";
+                if (field === "validityStatus")
+                  return String(value ?? "").trim() || "Sem validade";
+                if (field === "isBelowMin")
+                  return String(value ?? "").includes("true")
+                    ? "Abaixo do mínimo"
+                    : "OK";
                 return String(value ?? "").trim() || "Sem valor";
               }}
               getRowId={(row) => `${row.itemId}:${row.sector}`}
@@ -941,7 +1181,9 @@ export function PantryStockClientPage() {
             pageIndex={filters.pageIndex}
             pageSize={filters.pageSize}
             pageCount={pageCount}
-            onPageIndexChange={(pageIndex) => setFilters((prev) => ({ ...prev, pageIndex }))}
+            onPageIndexChange={(pageIndex) =>
+              setFilters((prev) => ({ ...prev, pageIndex }))
+            }
             onPageSizeChange={(pageSize) =>
               setFilters((prev) => ({ ...prev, pageSize, pageIndex: 0 }))
             }

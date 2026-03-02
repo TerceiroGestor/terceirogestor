@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-28 — DetailShell (contrato definitivo)
+
+### O que foi definido
+- Contrato v1 para telas de detalhe (create/edit/view) com slots: header info, main, side (audit/notes/chat) e bottom (relacionamentos).
+- Regras de uso: selects de listas fixas via `*.constants.ts`, dialog apenas para cadastro rápido simples, relacionamentos criados/editados em telas DetailShell dedicadas.
+
+Documento: `docs/detail-shell-changelog.md`.
+
 ## 2026-02-26 - Padrao UI (inspirado no Odoo) + History Pantry
 
 ### O que foi entregue

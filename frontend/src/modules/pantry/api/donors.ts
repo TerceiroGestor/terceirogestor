@@ -18,3 +18,27 @@ export async function createPantryDonor(token: string, payload: PantryDonorInput
     token,
   );
 }
+
+export async function getPantryDonor(token: string, id: string) {
+  return apiRequest<ApiPantryDonor>(`/pantry/donors/${id}`, {}, token);
+}
+
+export async function updatePantryDonor(
+  token: string,
+  id: string,
+  payload: Partial<PantryDonorInput>,
+) {
+  return apiRequest<ApiPantryDonor>(
+    `/pantry/donors/${id}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deletePantryDonor(token: string, id: string) {
+  return apiRequest<{ ok: true }>(
+    `/pantry/donors/${id}`,
+    { method: "DELETE" },
+    token,
+  );
+}

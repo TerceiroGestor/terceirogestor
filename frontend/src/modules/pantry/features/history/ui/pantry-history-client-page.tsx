@@ -56,6 +56,11 @@ import { PANTRY_ACTION_IDS, PANTRY_ROUTES, PANTRY_SCREEN_STATE_KEYS } from "@/mo
 
 type PantryHistoryView = "list" | "kanban" | "timeline" | "calendar" | "graph";
 
+type HistoryRow = ApiPantryHistoryMovement & {
+  itemName: string;
+  itemGroup: string;
+};
+
 type PantryHistoryFilters = {
   view: PantryHistoryView;
   searchText: string;
@@ -64,6 +69,9 @@ type PantryHistoryFilters = {
   pageIndex: number;
   pageSize: number;
   calendarField: string;
+  calendarMode: DateBucket;
+  calendarFrom: string;
+  calendarTo: string;
   timelineField: string;
   graphGroupField: string;
   graphMetric: "count" | "quantity";
@@ -83,6 +91,9 @@ type PantryHistoryFavoriteState = Pick<
   | "groupBy"
   | "pageSize"
   | "calendarField"
+  | "calendarMode"
+  | "calendarFrom"
+  | "calendarTo"
   | "timelineField"
   | "graphGroupField"
   | "graphMetric"
@@ -95,12 +106,16 @@ type PantryHistoryFavoriteState = Pick<
 >;
 
 const DEFAULT_CALENDAR_FIELD = "movementDate";
+const DEFAULT_CALENDAR_MODE: PantryHistoryFilters["calendarMode"] = "month";
 const DEFAULT_TIMELINE_FIELD = "movementDate";
 const DEFAULT_GRAPH_GROUP_FIELD = "kind";
 const DEFAULT_GRAPH_METRIC: PantryHistoryFilters["graphMetric"] = "quantity";
 const DEFAULT_GRAPH_TYPE: PantryHistoryFilters["graphType"] = "bar";
 const DEFAULT_GRAPH_TIME_FIELD = "movementDate";
 const DEFAULT_GRAPH_BUCKET: PantryHistoryFilters["graphBucket"] = "day";
+
+const controlLineClassName =
+  "h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0";
 
 function normalizeView(value: string | null): PantryHistoryView {
   switch (value) {
@@ -129,6 +144,18 @@ function normalizeIsoDateOnly(value: string | null) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
+function normalizeCalendarMode(value: string | null): PantryHistoryFilters["calendarMode"] {
+  switch (value) {
+    case "day":
+    case "week":
+    case "month":
+    case "year":
+      return value;
+    default:
+      return DEFAULT_CALENDAR_MODE;
+  }
+}
+
 function normalizeBucket(value: string | null): DateBucket {
   switch (value) {
     case "day":
@@ -145,10 +172,8 @@ function normalizeGraphType(value: string | null): GraphChartType {
   switch (value) {
     case "bar":
     case "bar_horizontal":
-    case "bar_stacked":
     case "line":
     case "area":
-    case "area_stacked":
     case "pie":
     case "donut":
       return value;
@@ -172,6 +197,9 @@ const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilter
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = parsePositiveInt(params.get("limit"), 50);
   const calendarField = params.get("cf") ?? DEFAULT_CALENDAR_FIELD;
+  const calendarMode = normalizeCalendarMode(params.get("cm"));
+  const calendarFrom = normalizeIsoDateOnly(params.get("cfrom"));
+  const calendarTo = normalizeIsoDateOnly(params.get("cto"));
   const timelineField = params.get("tf") ?? DEFAULT_TIMELINE_FIELD;
   const graphGroupField = params.get("gf") ?? DEFAULT_GRAPH_GROUP_FIELD;
   const graphMetric = (params.get("gm") as PantryHistoryFilters["graphMetric"]) ?? DEFAULT_GRAPH_METRIC;
@@ -190,6 +218,9 @@ const parsePantryHistoryFilters = (params: URLSearchParams): PantryHistoryFilter
     pageIndex: page - 1,
     pageSize: Math.min(Math.max(limit, 1), 200),
     calendarField,
+    calendarMode,
+    calendarFrom,
+    calendarTo,
     timelineField,
     graphGroupField,
     graphMetric: graphMetric === "count" ? "count" : "quantity",
@@ -210,6 +241,9 @@ const serializePantryHistoryFilters = (state: PantryHistoryFilters) => ({
   page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
   limit: state.pageSize === 50 ? undefined : String(state.pageSize),
   cf: state.calendarField !== DEFAULT_CALENDAR_FIELD ? state.calendarField : undefined,
+  cm: state.calendarMode !== DEFAULT_CALENDAR_MODE ? state.calendarMode : undefined,
+  cfrom: state.calendarFrom || undefined,
+  cto: state.calendarTo || undefined,
   tf: state.timelineField !== DEFAULT_TIMELINE_FIELD ? state.timelineField : undefined,
   gf: state.graphGroupField !== DEFAULT_GRAPH_GROUP_FIELD ? state.graphGroupField : undefined,
   gm: state.graphMetric !== DEFAULT_GRAPH_METRIC ? state.graphMetric : undefined,
@@ -253,8 +287,12 @@ function resolveGroupValue(row: ApiPantryHistoryMovement, field: string) {
       return resolveExitTypeLabel(row.type);
     case "itemId":
       return row.item?.name?.trim() || "Item";
+    case "itemGroup":
+      return row.item?.group?.trim() || "Sem grupo";
     case "movementDate":
       return formatDateOnlyPtBR(row.movementDate);
+    case "expiryDate":
+      return row.expiryDate ? formatDateOnlyPtBR(row.expiryDate) : "Sem validade";
     default:
       return String((row as Record<string, unknown>)[field] ?? "").trim() || "—";
   }
@@ -340,6 +378,49 @@ export function PantryHistoryClientPage() {
     return map;
   }, [rows]);
 
+  const viewRows = React.useMemo<HistoryRow[]>(() => {
+    return rows.map((row) => ({
+      ...row,
+      itemName: row.item?.name ?? "",
+      itemGroup: row.item?.group ?? "",
+    }));
+  }, [rows]);
+
+  const valueSuggestions = React.useMemo(() => {
+    const sectors = new Set<string>();
+    const donors = new Set<string>();
+    const items = new Set<string>();
+    const groups = new Set<string>();
+    const actors = new Set<string>();
+    const events = new Set<string>();
+
+    rows.forEach((row) => {
+      if (row.sector?.trim()) sectors.add(row.sector.trim());
+      if (row.donorName?.trim()) donors.add(row.donorName.trim());
+      if (row.item?.name?.trim()) items.add(row.item.name.trim());
+      if (row.item?.group?.trim()) groups.add(row.item.group.trim());
+      if (row.actor?.trim()) actors.add(row.actor.trim());
+      if (row.eventName?.trim()) events.add(row.eventName.trim());
+    });
+
+    const sectorList = Array.from(sectors).sort((a, b) => a.localeCompare(b));
+    const donorList = Array.from(donors).sort((a, b) => a.localeCompare(b));
+    const itemList = Array.from(items).sort((a, b) => a.localeCompare(b));
+    const groupList = Array.from(groups).sort((a, b) => a.localeCompare(b));
+    const actorList = Array.from(actors).sort((a, b) => a.localeCompare(b));
+    const eventList = Array.from(events).sort((a, b) => a.localeCompare(b));
+
+    return (fieldName: string) => {
+      if (fieldName === "sector") return sectorList;
+      if (fieldName === "donorName") return donorList;
+      if (fieldName === "itemName") return itemList;
+      if (fieldName === "itemGroup") return groupList;
+      if (fieldName === "actor") return actorList;
+      if (fieldName === "eventName") return eventList;
+      return [];
+    };
+  }, [rows]);
+
   const loadRows = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
@@ -402,35 +483,93 @@ export function PantryHistoryClientPage() {
     [filters.domain, filters.groupBy, removeDomainCondition, setFilters],
   );
 
-  const columns = React.useMemo<ColumnDef<ApiPantryHistoryMovement>[]>(
+  const columns = React.useMemo<ColumnDef<HistoryRow>[]>(
     () => [
       {
-        accessorKey: "itemId",
-        header: "Item",
+        id: "itemName",
+        header: "Alimento",
+        accessorFn: (row) => row.item?.name ?? "",
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">{row.original.item?.name}</div>
-            <div className="truncate text-xs text-muted-foreground">
-              {resolveKindLabel(row.original.kind)} • {row.original.sector || "Geral"}
-              {row.original.type ? ` • ${resolveExitTypeLabel(row.original.type)}` : ""}
-              {row.original.donorName ? ` • ${row.original.donorName}` : ""}
-            </div>
+          <div className="min-w-0 truncate font-medium text-foreground">{row.original.item?.name}</div>
+        ),
+      },
+      {
+        id: "itemGroup",
+        header: "Grupo",
+        accessorFn: (row) => row.item?.group ?? "",
+        cell: ({ row }) => (
+          <div className="truncate text-sm text-muted-foreground">{row.original.item?.group ?? "—"}</div>
+        ),
+      },
+      {
+        accessorKey: "kind",
+        header: "Movimento",
+        cell: ({ row }) => (
+          <div className="text-sm">{resolveKindLabel(row.original.kind)}</div>
+        ),
+      },
+      {
+        accessorKey: "sector",
+        header: "Setor",
+        cell: ({ row }) => (
+          <div className="truncate text-sm text-muted-foreground">{row.original.sector}</div>
+        ),
+      },
+      {
+        accessorKey: "type",
+        header: "Tipo de saída",
+        cell: ({ row }) => (
+          <div className="truncate text-sm text-muted-foreground">
+            {row.original.kind === "EXIT" && row.original.type
+              ? resolveExitTypeLabel(row.original.type)
+              : "—"}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "eventName",
+        header: "Evento",
+        cell: ({ row }) => (
+          <div className="truncate text-sm text-muted-foreground">
+            {row.original.kind === "EXIT" ? row.original.eventName ?? "—" : "—"}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "donorName",
+        header: "Doador",
+        cell: ({ row }) => (
+          <div className="truncate text-sm text-muted-foreground">
+            {row.original.kind === "ENTRY" ? row.original.donorName ?? "—" : "—"}
           </div>
         ),
       },
       {
         accessorKey: "quantity",
-        header: "Quantidade",
+        header: "Qtd.",
         cell: ({ row }) => (
-          <div className="font-mono tabular-nums">
-            {Number(row.original.quantity).toLocaleString("pt-BR")} {row.original.unit}
-          </div>
+          <div className="font-mono tabular-nums">{Number(row.original.quantity).toLocaleString("pt-BR")}</div>
         ),
+      },
+      {
+        accessorKey: "unit",
+        header: "Un.",
+        cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
       },
       {
         accessorKey: "movementDate",
         header: "Data",
         cell: ({ row }) => formatDateOnlyPtBR(row.original.movementDate),
+      },
+      {
+        accessorKey: "expiryDate",
+        header: "Validade",
+        cell: ({ row }) => (row.original.expiryDate ? formatDateOnlyPtBR(row.original.expiryDate) : "—"),
+      },
+      {
+        accessorKey: "actor",
+        header: "Usuário",
+        cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.actor ?? "—"}</div>,
       },
       {
         accessorKey: "notes",
@@ -450,26 +589,13 @@ export function PantryHistoryClientPage() {
 
   const viewConfig = React.useMemo(() => {
     if (filters.view === "calendar") {
-      return (
-        <Select value={filters.calendarField} onValueChange={(value) => setFilters((prev) => ({ ...prev, calendarField: value }))}>
-          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
-            <SelectValue placeholder="Data..." />
-          </SelectTrigger>
-          <SelectContent>
-            {dateFields.map((field) => (
-              <SelectItem key={field.name} value={field.name}>
-                {field.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
+      return null;
     }
 
     if (filters.view === "timeline") {
       return (
         <Select value={filters.timelineField} onValueChange={(value) => setFilters((prev) => ({ ...prev, timelineField: value }))}>
-          <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+          <SelectTrigger className={`${controlLineClassName} w-[11.5rem]`}>
             <SelectValue placeholder="Data..." />
           </SelectTrigger>
           <SelectContent>
@@ -488,7 +614,7 @@ export function PantryHistoryClientPage() {
       return (
         <div className="flex flex-wrap items-center gap-1.5">
           <Select value={filters.graphGroupField} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphGroupField: value }))}>
-            <SelectTrigger className="h-8 w-[11rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[11rem]`}>
               <SelectValue placeholder="Agrupar..." />
             </SelectTrigger>
             <SelectContent>
@@ -501,7 +627,7 @@ export function PantryHistoryClientPage() {
           </Select>
 
           <Select value={filters.graphMetric} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphMetric: value === "count" ? "count" : "quantity" }))}>
-            <SelectTrigger className="h-8 w-[9.5rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[9.5rem]`}>
               <SelectValue placeholder="Métrica..." />
             </SelectTrigger>
             <SelectContent>
@@ -511,16 +637,14 @@ export function PantryHistoryClientPage() {
           </Select>
 
           <Select value={filters.graphType} onValueChange={(value) => setFilters((prev) => ({ ...prev, graphType: normalizeGraphType(value) }))}>
-            <SelectTrigger className="h-8 w-[9.25rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[9.25rem]`}>
               <SelectValue placeholder="Gráfico..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="bar">Barras</SelectItem>
               <SelectItem value="bar_horizontal">Barras (horizontal)</SelectItem>
-              <SelectItem value="bar_stacked">Barras (empilhadas)</SelectItem>
               <SelectItem value="line">Linha</SelectItem>
               <SelectItem value="area">Área</SelectItem>
-              <SelectItem value="area_stacked">Área (empilhada)</SelectItem>
               <SelectItem value="pie">Pizza</SelectItem>
               <SelectItem value="donut">Rosca</SelectItem>
             </SelectContent>
@@ -534,7 +658,7 @@ export function PantryHistoryClientPage() {
               setFilters((prev) => ({ ...prev, graphItemId: value === "all" ? "" : value }))
             }
           >
-            <SelectTrigger className="h-8 w-[12rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[12rem]`}>
               <SelectValue placeholder="Item..." />
             </SelectTrigger>
             <SelectContent>
@@ -554,7 +678,7 @@ export function PantryHistoryClientPage() {
             value={filters.graphTimeField}
             onValueChange={(value) => setFilters((prev) => ({ ...prev, graphTimeField: value }))}
           >
-            <SelectTrigger className="h-8 w-[11.5rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[11.5rem]`}>
               <SelectValue placeholder="Tempo..." />
             </SelectTrigger>
             <SelectContent>
@@ -570,13 +694,13 @@ export function PantryHistoryClientPage() {
             type="date"
             value={filters.graphFrom}
             onChange={(e) => setFilters((prev) => ({ ...prev, graphFrom: e.target.value }))}
-            className="h-8 w-[9rem] text-xs"
+            className={`${controlLineClassName} w-[9rem]`}
           />
           <Input
             type="date"
             value={filters.graphTo}
             onChange={(e) => setFilters((prev) => ({ ...prev, graphTo: e.target.value }))}
-            className="h-8 w-[9rem] text-xs"
+            className={`${controlLineClassName} w-[9rem]`}
           />
 
           <Select
@@ -585,7 +709,7 @@ export function PantryHistoryClientPage() {
               setFilters((prev) => ({ ...prev, graphBucket: normalizeBucket(value) }))
             }
           >
-            <SelectTrigger className="h-8 w-[9rem] text-xs">
+            <SelectTrigger className={`${controlLineClassName} w-[9rem]`}>
               <SelectValue placeholder="Agrupar tempo..." />
             </SelectTrigger>
             <SelectContent>
@@ -602,7 +726,6 @@ export function PantryHistoryClientPage() {
     return null;
   }, [
     dateFields,
-    filters.calendarField,
     filters.graphBucket,
     filters.graphFrom,
     filters.graphGroupField,
@@ -623,7 +746,7 @@ export function PantryHistoryClientPage() {
     const from = filters.graphFrom;
     const to = filters.graphTo;
 
-    const filtered = rows.filter((row) => {
+    const filtered = viewRows.filter((row) => {
       if (filters.graphItemId && row.itemId !== filters.graphItemId) return false;
       if (!from && !to) return true;
       const date = resolveDate(row, filters.graphTimeField);
@@ -669,7 +792,7 @@ export function PantryHistoryClientPage() {
     filters.graphTimeField,
     filters.graphTo,
     filters.view,
-    rows,
+    viewRows,
   ]);
 
   if (!canRead) {
@@ -705,6 +828,7 @@ export function PantryHistoryClientPage() {
                   variant="compact"
                   allowEmptyGroupBy
                   groupByMode="multi"
+                  valueSuggestions={valueSuggestions}
                   trigger={
                     <Button
                       type="button"
@@ -729,6 +853,9 @@ export function PantryHistoryClientPage() {
                     groupBy: filters.groupBy,
                     pageSize: filters.pageSize,
                     calendarField: filters.calendarField,
+                    calendarMode: filters.calendarMode,
+                    calendarFrom: filters.calendarFrom,
+                    calendarTo: filters.calendarTo,
                     timelineField: filters.timelineField,
                     graphGroupField: filters.graphGroupField,
                     graphMetric: filters.graphMetric,
@@ -743,6 +870,8 @@ export function PantryHistoryClientPage() {
                     setFilters((prev) => ({
                       ...prev,
                       ...state,
+                      calendarFrom: state.calendarFrom ?? "",
+                      calendarTo: state.calendarTo ?? "",
                       pageIndex: 0,
                     }))
                   }
@@ -775,8 +904,8 @@ export function PantryHistoryClientPage() {
       ) : rows.length ? (
         <>
           {filters.view === "kanban" ? (
-            <KanbanView<ApiPantryHistoryMovement>
-              items={rows}
+            <KanbanView<HistoryRow>
+              items={viewRows}
               getColumnKey={
                 filters.groupBy[0]
                   ? (row) => resolveGroupValue(row, filters.groupBy[0]!)
@@ -813,9 +942,26 @@ export function PantryHistoryClientPage() {
               )}
             />
           ) : filters.view === "calendar" ? (
-            <CalendarView<ApiPantryHistoryMovement>
-              items={rows}
+            <CalendarView<HistoryRow>
+              items={viewRows}
               getDate={(row) => resolveDate(row, filters.calendarField)}
+              mode={filters.calendarMode}
+              onModeChange={(nextMode) =>
+                setFilters((prev) => ({ ...prev, calendarMode: nextMode }))
+              }
+              dateFieldOptions={dateFields.map((field) => ({ value: field.name, label: field.label }))}
+              activeDateField={filters.calendarField}
+              onActiveDateFieldChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarField: value }))
+              }
+              rangeFrom={filters.calendarFrom}
+              rangeTo={filters.calendarTo}
+              onRangeFromChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarFrom: normalizeIsoDateOnly(value) }))
+              }
+              onRangeToChange={(value) =>
+                setFilters((prev) => ({ ...prev, calendarTo: normalizeIsoDateOnly(value) }))
+              }
               emptyState="Nenhum movimento neste dia."
               renderItem={(row) => (
                 <div
@@ -833,8 +979,8 @@ export function PantryHistoryClientPage() {
               )}
             />
           ) : filters.view === "timeline" ? (
-            <TimelineView<ApiPantryHistoryMovement>
-              items={rows}
+            <TimelineView<HistoryRow>
+              items={viewRows}
               getDate={(row) => resolveDate(row, filters.timelineField)}
               renderTitle={(row) => row.item?.name ?? "Movimento"}
               renderBody={(row) => (
@@ -853,16 +999,31 @@ export function PantryHistoryClientPage() {
               downloadFileName="historico"
             />
           ) : (
-            <ListView<ApiPantryHistoryMovement>
-              data={rows}
+            <ListView<HistoryRow>
+              data={viewRows}
               columns={columns}
               groupByFields={filters.groupBy}
               resolveGroupLabel={(field, value) => {
-                if (field === "kind") return typeof value === "string" && value === "ENTRY" ? "Entrada" : "Saída";
+                if (field === "kind") {
+                  if (value === "ENTRY") return "Entrada";
+                  if (value === "EXIT") return "Saída";
+                  return "Movimento";
+                }
                 if (field === "sector") return String(value ?? "").trim() || "Geral";
-                if (field === "type") return typeof value === "string" ? resolveExitTypeLabel(value) : "Tipo";
+                if (field === "type") return typeof value === "string" ? resolveExitTypeLabel(value) : "Sem tipo";
                 if (field === "itemId") return itemLabelById.get(String(value ?? "")) ?? "Item";
-                if (field === "movementDate") return formatDateOnlyPtBR(String(value ?? ""));
+                if (field === "itemGroup") return String(value ?? "").trim() || "Sem grupo";
+                if (field === "eventName") return String(value ?? "").trim() || "Sem evento";
+                if (field === "donorName") return String(value ?? "").trim() || "Sem doador";
+                if (field === "quantity") {
+                  const num = typeof value === "number" ? value : Number(value);
+                  return Number.isFinite(num) ? num.toLocaleString("pt-BR") : "Sem valor";
+                }
+                if (field === "unit") return String(value ?? "").trim() || "—";
+                if (field === "movementDate") return String(value ?? "").trim() ? formatDateOnlyPtBR(String(value)) : "Sem data";
+                if (field === "expiryDate") return String(value ?? "").trim() ? formatDateOnlyPtBR(String(value)) : "Sem validade";
+                if (field === "actor") return String(value ?? "").trim() || "Sistema";
+                if (field === "notes") return String(value ?? "").trim() || "Sem notas";
                 return String(value ?? "").trim() || "Sem valor";
               }}
               getRowId={(row) => row.id}

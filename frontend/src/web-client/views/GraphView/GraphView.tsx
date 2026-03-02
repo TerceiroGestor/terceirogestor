@@ -1,26 +1,9 @@
 "use client";
 
 import * as React from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Download } from "lucide-react";
 import {
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
@@ -32,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { AreaChartView, BarChartView, LineChartView, PieChartView } from "./charts";
+import { safeLabel } from "./charts/chartUtils";
 
 export type GraphSeries = {
   key: string;
@@ -42,78 +27,13 @@ export type GraphSeries = {
 export type GraphChartType =
   | "bar"
   | "bar_horizontal"
-  | "bar_stacked"
   | "line"
   | "area"
-  | "area_stacked"
   | "pie"
   | "donut";
 
-function CategoryTick({
-  x,
-  y,
-  payload,
-  fill,
-  angle,
-  textAnchor,
-  maxLen = 18,
-}: {
-  x?: number;
-  y?: number;
-  payload?: { value?: unknown };
-  fill: string;
-  angle?: number;
-  textAnchor?: "start" | "middle" | "end";
-  maxLen?: number;
-}) {
-  const raw = payload?.value === null || payload?.value === undefined ? "" : String(payload.value);
-  const text = raw.length > maxLen ? `${raw.slice(0, Math.max(0, maxLen - 1))}…` : raw;
-  const xPos = typeof x === "number" && Number.isFinite(x) ? x : 0;
-  const yPos = typeof y === "number" && Number.isFinite(y) ? y : 0;
-
-  return (
-    <g transform={`translate(${xPos},${yPos})`}>
-      <text
-        dy={16}
-        fill={fill}
-        fontSize={12}
-        textAnchor={textAnchor ?? "middle"}
-        transform={angle ? `rotate(${angle})` : undefined}
-      >
-        {text}
-        <title>{raw}</title>
-      </text>
-    </g>
-  );
-}
-
-function NumberTick({
-  x,
-  y,
-  payload,
-  fill,
-  formatter,
-  textAnchor = "end",
-  dx = -6,
-}: {
-  x?: number;
-  y?: number;
-  payload?: { value?: unknown };
-  fill: string;
-  formatter: (value: unknown) => string;
-  textAnchor?: "start" | "middle" | "end";
-  dx?: number;
-}) {
-  const xPos = typeof x === "number" && Number.isFinite(x) ? x : 0;
-  const yPos = typeof y === "number" && Number.isFinite(y) ? y : 0;
-  const value = formatter(payload?.value);
-
-  return (
-    <text x={xPos} y={yPos} dx={dx} dy={4} fill={fill} fontSize={12} textAnchor={textAnchor}>
-      {value}
-    </text>
-  );
-}
+const INTERNAL_CATEGORY_KEY = "__graph_category_key";
+const INTERNAL_CATEGORY_LABEL = "__graph_category_label";
 
 export function GraphView<TDatum extends Record<string, unknown>>({
   data,
@@ -139,7 +59,6 @@ export function GraphView<TDatum extends Record<string, unknown>>({
     return Number.isFinite(numeric) && numeric > 0 ? numeric : 520;
   }, [height]);
 
-  const primarySeries = series[0];
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const [downloading, setDownloading] = React.useState(false);
 
@@ -180,15 +99,6 @@ export function GraphView<TDatum extends Record<string, unknown>>({
     return next;
   }, [resolvedSeries]);
 
-  const tooltipLabelFormatter = React.useCallback(
-    (_value: unknown, payload: unknown[]) => {
-      const first = payload?.[0] as { payload?: Record<string, unknown> } | undefined;
-      const labelValue = first?.payload?.[xKey];
-      return labelValue === null || labelValue === undefined ? "" : String(labelValue);
-    },
-    [xKey],
-  );
-
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat("pt-BR"), []);
   const formatValue = React.useCallback(
     (value: unknown) => {
@@ -198,6 +108,61 @@ export function GraphView<TDatum extends Record<string, unknown>>({
       return value === null || value === undefined ? "" : String(value);
     },
     [numberFormatter],
+  );
+
+  const prepared = React.useMemo<{
+    data: Array<Record<string, unknown>>;
+    axisKey: string;
+    labelKey: string;
+    labelByAxisValue: Map<string, string> | null;
+  }>(() => {
+    const counts = new Map<string, number>();
+    const values = data.map((row) => safeLabel((row as Record<string, unknown>)[xKey]).trim());
+    values.forEach((v) => {
+      const key = v;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+
+    const hasDuplicates = Array.from(counts.values()).some((count) => count > 1);
+    if (!hasDuplicates) {
+      return {
+        data: data as Array<Record<string, unknown>>,
+        axisKey: xKey,
+        labelKey: xKey,
+        labelByAxisValue: null,
+      };
+    }
+
+    const seen = new Map<string, number>();
+    const labelByAxisValue = new Map<string, string>();
+    const next = data.map((row) => {
+      const raw = safeLabel((row as Record<string, unknown>)[xKey]).trim();
+      const idx = (seen.get(raw) ?? 0) + 1;
+      seen.set(raw, idx);
+      const axisValue = `${raw}__${idx}`;
+      labelByAxisValue.set(axisValue, raw);
+      return {
+        ...(row as Record<string, unknown>),
+        [INTERNAL_CATEGORY_KEY]: axisValue,
+        [INTERNAL_CATEGORY_LABEL]: raw,
+      };
+    });
+
+    return {
+      data: next,
+      axisKey: INTERNAL_CATEGORY_KEY,
+      labelKey: INTERNAL_CATEGORY_LABEL,
+      labelByAxisValue,
+    };
+  }, [data, xKey]);
+
+  const tooltipLabelFormatterSafe = React.useCallback(
+    (_value: unknown, payload: unknown[]) => {
+      const first = payload?.[0] as { payload?: Record<string, unknown> } | undefined;
+      const labelValue = first?.payload?.[prepared.labelKey];
+      return labelValue === null || labelValue === undefined ? "" : String(labelValue);
+    },
+    [prepared.labelKey],
   );
 
   const getChartSvgElement = React.useCallback(() => {
@@ -449,21 +414,10 @@ export function GraphView<TDatum extends Record<string, unknown>>({
     win.document.close();
   }, [data, downloadFileName, formatValue, getChartSvgElement, series, xKey]);
 
-  if (!data.length) {
-    return (
-      <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-        {emptyState}
-      </div>
-    );
-  }
-
-  const isStacked = chartType === "bar_stacked" || chartType === "area_stacked";
   const isPie = chartType === "pie" || chartType === "donut";
   const isHorizontalBar = chartType === "bar_horizontal";
   const gridStroke = resolveCssColorToRgb("var(--border)");
-  const xTickInterval = React.useMemo(() => (data.length <= 12 ? 0 : "preserveStartEnd"), [data.length]);
   const xAxisAngle = React.useMemo(() => (data.length > 10 ? -30 : 0), [data.length]);
-  const xAxisHeight = React.useMemo(() => (data.length > 10 ? 68 : 44), [data.length]);
   const xAxisTextAnchor = React.useMemo(() => (data.length > 10 ? "end" : "middle"), [data.length]);
   const pieColors = [
     resolveCssColorToRgb("var(--chart-1)"),
@@ -473,24 +427,48 @@ export function GraphView<TDatum extends Record<string, unknown>>({
     resolveCssColorToRgb("var(--chart-5)"),
   ];
   const tickFill = React.useMemo(() => resolveCssColorToRgb("var(--foreground)"), [resolveCssColorToRgb]);
-  const labelFill = tickFill;
-  const categoryTick = React.useMemo(
-    () => <CategoryTick fill={tickFill} angle={xAxisAngle} textAnchor={xAxisTextAnchor} />,
-    [tickFill, xAxisAngle, xAxisTextAnchor],
-  );
-  const categoryTickHorizontal = React.useMemo(
-    () => <CategoryTick fill={tickFill} angle={0} textAnchor="end" maxLen={22} />,
-    [tickFill],
-  );
-  const yNumberTick = React.useMemo(
-    () => <NumberTick fill={tickFill} formatter={formatValue} />,
-    [formatValue, tickFill],
-  );
-  const xNumberTick = React.useMemo(
-    () => <NumberTick fill={tickFill} formatter={formatValue} textAnchor="middle" dx={0} />,
-    [formatValue, tickFill],
-  );
+
+  const xTickMaxLen = React.useMemo(() => (data.length > 10 ? 12 : 18), [data.length]);
+  const yCategoryMaxLen = React.useMemo(() => 28, []);
+
+  const yCategoryWidth = React.useMemo(() => {
+    if (!isHorizontalBar) return 120;
+    const labels = prepared.data.map((row) => row[prepared.labelKey]);
+    const longest = labels.reduce<number>(
+      (acc, value) => Math.max(acc, safeLabel(value).trim().length),
+      0,
+    );
+    const px = Math.round(Math.min(260, Math.max(140, longest * 6.8 + 26)));
+    return px;
+  }, [isHorizontalBar, prepared.data, prepared.labelKey]);
+
   const yAxisWidth = React.useMemo(() => 80, []);
+
+  const chartHeight = React.useMemo(() => {
+    if (chartType === "bar_horizontal") {
+      const needed = prepared.data.length * 54 + 180;
+      return Math.max(safeHeight, needed);
+    }
+    return safeHeight;
+  }, [chartType, prepared.data.length, safeHeight]);
+
+  if (!data.length) {
+    return (
+      <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+        {emptyState}
+      </div>
+    );
+  }
+
+  if (!series.length) {
+    return (
+      <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+        Selecione ao menos uma métrica.
+      </div>
+    );
+  }
+
+  const primarySeries = series[0]!;
 
   return (
     <div ref={rootRef} className={cn("relative w-full", className)}>
@@ -518,164 +496,63 @@ export function GraphView<TDatum extends Record<string, unknown>>({
         </DropdownMenu>
       </div>
 
-      <ChartContainer config={config} className="w-full aspect-auto" style={{ height: safeHeight }}>
+      <ChartContainer config={config} className="w-full aspect-auto" style={{ height: chartHeight }}>
         {isPie ? (
-          <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} />} />
-            {primarySeries ? (
-              <Pie
-                data={data}
-                dataKey={primarySeries.key}
-                nameKey={xKey}
-                innerRadius={chartType === "donut" ? 60 : 0}
-                outerRadius={Math.min(160, Math.max(100, safeHeight / 2.5))}
-                paddingAngle={2}
-                stroke="transparent"
-                labelLine={false}
-                label={(props: { name?: unknown; value?: unknown }) => {
-                  const name = formatValue(props.name);
-                  const value = formatValue(props.value);
-                  return value ? `${name} ${value}` : name;
-                }}
-              >
-                {data.map((_, index) => (
-                  <Cell key={index} fill={pieColors[index % pieColors.length]} />
-                ))}
-              </Pie>
-            ) : null}
-          </PieChart>
+          <PieChartView
+            data={prepared.data}
+            valueKey={primarySeries.key}
+            nameKey={prepared.labelKey}
+            colors={pieColors}
+            isDonut={chartType === "donut"}
+            tooltipLabelFormatter={tooltipLabelFormatterSafe}
+            formatValue={formatValue}
+          />
         ) : chartType === "line" ? (
-          <LineChart data={data} margin={{ top: 18, right: 20, bottom: 32, left: 24 }}>
-            <CartesianGrid vertical={false} stroke={gridStroke} strokeOpacity={0.45} />
-            <XAxis
-              dataKey={xKey}
-              axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tick={categoryTick}
-              minTickGap={18}
-              interval={xTickInterval}
-              tickMargin={8}
-              height={xAxisHeight}
-            />
-            <YAxis
-              tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tick={yNumberTick}
-              width={56}
-            />
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} />} />
-            {resolvedSeries.map((s) => (
-              <Line
-                key={s.key}
-                type="monotone"
-                dataKey={s.key}
-                stroke={s.resolvedColor}
-                strokeWidth={2}
-                dot={false}
-                label={{ position: "top", fill: labelFill, fontSize: 12 }}
-              />
-            ))}
-          </LineChart>
-        ) : chartType === "area" || chartType === "area_stacked" ? (
-          <AreaChart data={data} margin={{ top: 18, right: 20, bottom: 32, left: 24 }}>
-            <CartesianGrid vertical={false} stroke={gridStroke} strokeOpacity={0.45} />
-            <XAxis
-              dataKey={xKey}
-              axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tick={categoryTick}
-              minTickGap={18}
-              interval={xTickInterval}
-              tickMargin={8}
-              height={xAxisHeight}
-            />
-            <YAxis
-              tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-              tick={yNumberTick}
-              width={56}
-            />
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} />} />
-            {resolvedSeries.map((s) => (
-              <Area
-                key={s.key}
-                type="monotone"
-                dataKey={s.key}
-                stroke={s.resolvedColor}
-                fill={s.resolvedColor}
-                fillOpacity={0.2}
-                stackId={isStacked ? "a" : undefined}
-                label={{ position: "top", fill: labelFill, fontSize: 12 }}
-              />
-            ))}
-          </AreaChart>
+          <LineChartView
+            data={prepared.data}
+            axisKey={prepared.axisKey}
+            labelByAxisValue={prepared.labelByAxisValue}
+            gridStroke={gridStroke}
+            tickFill={tickFill}
+            xAxisAngle={xAxisAngle}
+            xAxisTextAnchor={xAxisTextAnchor}
+            xTickMaxLen={xTickMaxLen}
+            series={resolvedSeries.map((s) => ({ key: s.key, color: s.resolvedColor }))}
+            formatValue={formatValue}
+            tooltipLabelFormatter={tooltipLabelFormatterSafe}
+          />
+        ) : chartType === "area" ? (
+          <AreaChartView
+            data={prepared.data}
+            axisKey={prepared.axisKey}
+            labelByAxisValue={prepared.labelByAxisValue}
+            gridStroke={gridStroke}
+            tickFill={tickFill}
+            xAxisAngle={xAxisAngle}
+            xAxisTextAnchor={xAxisTextAnchor}
+            xTickMaxLen={xTickMaxLen}
+            series={resolvedSeries.map((s) => ({ key: s.key, color: s.resolvedColor }))}
+            formatValue={formatValue}
+            tooltipLabelFormatter={tooltipLabelFormatterSafe}
+          />
         ) : (
-          <BarChart
-            data={data}
-            layout={isHorizontalBar ? "vertical" : "horizontal"}
-            margin={
-              isHorizontalBar
-                ? { top: 20, right: 28, bottom: 24, left: 24 }
-                : { top: 26, right: 28, bottom: xAxisHeight + 40, left: 32 }
-            }
-          >
-            <CartesianGrid vertical={false} stroke={gridStroke} strokeOpacity={0.45} />
-            {isHorizontalBar ? (
-              <>
-                <XAxis
-                  type="number"
-                  tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  tick={xNumberTick}
-                />
-                <YAxis
-                  type="category"
-                  dataKey={xKey}
-                  tickLine={false}
-                  axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  tick={categoryTickHorizontal}
-                  width={180}
-                />
-              </>
-            ) : (
-              <>
-                <XAxis
-                  dataKey={xKey}
-                  axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  tick={categoryTick}
-                  minTickGap={18}
-                  interval={xTickInterval}
-                  tickMargin={8}
-                  height={xAxisHeight}
-                />
-                <YAxis
-                  tickLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  axisLine={{ stroke: gridStroke, strokeOpacity: 0.6 }}
-                  tick={yNumberTick}
-                  width={yAxisWidth}
-                />
-              </>
-            )}
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabelFormatter} />} />
-            {resolvedSeries.map((s) => (
-              <Bar
-                key={s.key}
-                dataKey={s.key}
-                fill={s.resolvedColor}
-                radius={isHorizontalBar ? [0, 6, 6, 0] : [6, 6, 0, 0]}
-                stackId={chartType === "bar_stacked" ? "a" : undefined}
-              >
-                <LabelList
-                  dataKey={s.key}
-                  position={isHorizontalBar ? "right" : "top"}
-                  formatter={formatValue}
-                  fill={labelFill}
-                  className="text-[11px]"
-                />
-              </Bar>
-            ))}
-          </BarChart>
+          <BarChartView
+            data={prepared.data}
+            axisKey={prepared.axisKey}
+            labelByAxisValue={prepared.labelByAxisValue}
+            isHorizontal={isHorizontalBar}
+            gridStroke={gridStroke}
+            tickFill={tickFill}
+            xAxisAngle={xAxisAngle}
+            xAxisTextAnchor={xAxisTextAnchor}
+            xTickMaxLen={xTickMaxLen}
+            yCategoryMaxLen={yCategoryMaxLen}
+            yCategoryWidth={yCategoryWidth}
+            yAxisWidth={yAxisWidth}
+            series={resolvedSeries.map((s) => ({ key: s.key, color: s.resolvedColor }))}
+            formatValue={formatValue}
+            tooltipLabelFormatter={tooltipLabelFormatterSafe}
+          />
         )}
       </ChartContainer>
     </div>

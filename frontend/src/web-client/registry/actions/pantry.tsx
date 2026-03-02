@@ -7,8 +7,15 @@ import {
 } from "@/modules/pantry/features/items/ui/pantry-item-detail-client-page";
 import { PantryStockClientPage } from "@/modules/pantry/features/stock/ui/pantry-stock-client-page";
 import { PantryDonorsClientPage } from "@/modules/pantry/features/donors/ui/pantry-donors-client-page";
+import {
+  PantryDonorEditClientPage,
+  PantryDonorNewClientPage,
+} from "@/modules/pantry/features/donors/ui/pantry-donor-detail-client-page";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
-import { PANTRY_ACTION_IDS, PANTRY_ROUTES } from "@/modules/pantry/shared/domain/pantry.constants";
+import {
+  PANTRY_ACTION_IDS,
+  PANTRY_ROUTES,
+} from "@/modules/pantry/shared/domain/pantry.constants";
 import type { WindowAction } from "@/web-client/registry/types";
 
 export const pantryStockAction: WindowAction = {
@@ -57,6 +64,30 @@ export const pantryDonorsAction: WindowAction = {
   permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
   render: () => <PantryDonorsClientPage />,
+};
+
+export const pantryDonorsCreateAction: WindowAction = {
+  id: PANTRY_ACTION_IDS.donorsNew,
+  title: "Novo doador",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Doadores", href: PANTRY_ROUTES.donors },
+  ],
+  permissions: ["pantry.create"],
+  actionSlot: <PantryHeaderNav />,
+  render: () => <PantryDonorNewClientPage />,
+};
+
+export const pantryDonorsDetailAction: WindowAction = {
+  id: PANTRY_ACTION_IDS.donorsDetail,
+  title: "Doador",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Doadores", href: PANTRY_ROUTES.donors },
+  ],
+  permissions: ["pantry.read"],
+  actionSlot: <PantryHeaderNav />,
+  render: () => <PantryDonorEditClientPage />,
 };
 
 export const pantryHistoryAction: WindowAction = {

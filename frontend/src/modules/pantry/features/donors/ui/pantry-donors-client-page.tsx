@@ -22,7 +22,6 @@ import { createRestDataProvider } from "@/web-client/data-provider";
 import { ListView } from "@/web-client/views/ListView";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import type { ApiPantryDonor } from "@/modules/pantry/api";
-import { PantryDonorCreateDialog } from "@/modules/pantry/features/donors/ui/pantry-donor-create-dialog";
 import { PANTRY_ACTION_IDS, PANTRY_ROUTES, PANTRY_SCREEN_STATE_KEYS } from "@/modules/pantry/shared/domain/pantry.constants";
 import {
   DropdownMenu,
@@ -134,6 +133,17 @@ export function PantryDonorsClientPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
 
+  const openDonor = React.useCallback(
+    (row: ApiPantryDonor) => {
+      router.push(withTenantPath(`${PANTRY_ROUTES.donors}/${row.id}`, tenantSlug));
+    },
+    [router, tenantSlug],
+  );
+
+  const openCreateDonor = React.useCallback(() => {
+    router.push(withTenantPath(PANTRY_ROUTES.donorsNew, tenantSlug));
+  }, [router, tenantSlug]);
+
   const removeDomainCondition = React.useCallback(
     (index: number) => {
       setFilters((prev) => ({
@@ -192,7 +202,6 @@ export function PantryDonorsClientPage() {
     [],
   );
 
-  const [newDonorOpen, setNewDonorOpen] = React.useState(false);
 
   if (!canRead) {
     return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão.</div>;
@@ -214,7 +223,7 @@ export function PantryDonorsClientPage() {
                 <DropdownMenuItem onSelect={() => router.push(withTenantPath(PANTRY_ROUTES.itemsNew, tenantSlug))}>
                   Novo alimento
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setNewDonorOpen(true)}>Novo doador</DropdownMenuItem>
+                <DropdownMenuItem onSelect={openCreateDonor}>Novo doador</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : undefined
@@ -286,6 +295,7 @@ export function PantryDonorsClientPage() {
           groupByFields={filters.groupBy}
           resolveGroupLabel={(field, groupValue) => (field === "type" ? typeLabel(groupValue as ApiPantryDonor["type"]) : String(groupValue))}
           enableRowSelection={false}
+          onRowClick={openDonor}
         />
 
         <PaginationBar
@@ -300,11 +310,6 @@ export function PantryDonorsClientPage() {
         />
       </div>
 
-      <PantryDonorCreateDialog
-        open={newDonorOpen}
-        onOpenChange={setNewDonorOpen}
-        onCreated={() => loadRows()}
-      />
     </div>
   );
 }

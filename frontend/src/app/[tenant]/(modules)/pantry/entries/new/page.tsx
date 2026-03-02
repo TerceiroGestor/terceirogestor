@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { withTenantPath } from "@/lib/tenant-path";
+import { PantryEntryNewClientPage } from "@/modules/pantry/features/entries/ui/pantry-entry-new-client-page";
 
-export default function PantryEntriesNewPage({ params }: { params: { tenant: string } }) {
-  redirect(withTenantPath("/pantry/stock", params.tenant));
+export default function PantryEntriesNewPage() {
+  return <PantryEntryNewClientPage />;
 }

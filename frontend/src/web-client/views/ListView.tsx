@@ -10,14 +10,12 @@ import type {
   RowSelectionState,
   SortingState,
   Table as TanstackTable,
-  VisibilityState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronRight, ChevronUp, Columns2, MoreHorizontal, PinIcon, PinOff } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, PinIcon, PinOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -176,7 +174,6 @@ function ColumnMenu<TData>({
   table: TanstackTable<TData>;
 }) {
   const canSort = column.getCanSort?.() ?? false;
-  const canHide = column.getCanHide?.() ?? true;
   const pinningState = table.getState().columnPinning;
   const pinnedFromState: false | "left" | "right" =
     pinningState.left?.includes(column.id)
@@ -189,9 +186,7 @@ function ColumnMenu<TData>({
       ? (column.getIsPinned() as false | "left" | "right")
       : false;
   const isPinned = pinnedFromState || pinnedFromApi;
-  const contentKey = `${column.id}:${String(isPinned)}:${String(
-    table.getState().columnVisibility?.[column.id] !== false,
-  )}`;
+  const contentKey = `${column.id}:${String(isPinned)}`;
 
   const pinLeft = () => table.setColumnPinning((prev: ColumnPinningState) => {
     const left = (prev.left ?? []).filter((id) => id !== column.id);
@@ -236,18 +231,6 @@ function ColumnMenu<TData>({
           Limpar ordenação
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() =>
-            table.setColumnVisibility((prev) => ({
-              ...prev,
-              [column.id]: false,
-            }))
-          }
-          disabled={!canHide}
-        >
-          Ocultar coluna
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={pinLeft}>
           <PinIcon className="mr-2 size-4" />
           Fixar à esquerda
@@ -260,56 +243,6 @@ function ColumnMenu<TData>({
           <PinOff className="mr-2 size-4" />
           Soltar coluna
         </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function ColumnsMenu<TData>({ table }: { table: TanstackTable<TData> }) {
-  const columns = table
-    .getAllLeafColumns()
-    .filter((col) => col.id !== "__select__" && (col.getCanHide?.() ?? true));
-
-  if (!columns.length) return null;
-
-  const visibility = table.getState().columnVisibility;
-  const contentKey = React.useMemo(() => JSON.stringify(visibility ?? {}), [visibility]);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-2 px-2 text-xs text-muted-foreground hover:text-foreground"
-          title="Colunas"
-          aria-label="Colunas"
-        >
-          <Columns2 className="size-4" />
-          <span className="hidden sm:inline">Colunas</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent key={contentKey} align="end" className="min-w-[220px]">
-        {columns.map((col) => {
-          const isVisible = visibility[col.id] !== false;
-          const label = typeof col.columnDef.header === "string" ? col.columnDef.header : col.id;
-
-          return (
-            <DropdownMenuCheckboxItem
-              key={col.id}
-              checked={isVisible}
-              onCheckedChange={(checked) =>
-                table.setColumnVisibility((prev) => ({
-                  ...prev,
-                  [col.id]: Boolean(checked),
-                }))
-              }
-            >
-              {label}
-            </DropdownMenuCheckboxItem>
-          );
-        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -328,7 +261,6 @@ export function ListView<TData>({
   groupByFields,
   resolveGroupLabel = defaultGroupLabel,
   enableColumnTools = true,
-  initialColumnVisibility,
   initialColumnPinning,
 }: {
   data: TData[];
@@ -343,14 +275,10 @@ export function ListView<TData>({
   groupByFields?: string[] | null;
   resolveGroupLabel?: (field: string, groupValue: unknown) => string;
   enableColumnTools?: boolean;
-  initialColumnVisibility?: VisibilityState;
   initialColumnPinning?: ColumnPinningState;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
-    () => initialColumnVisibility ?? {},
-  );
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
     () => initialColumnPinning ?? {},
   );
@@ -390,12 +318,11 @@ export function ListView<TData>({
   const table = useReactTable({
     data,
     columns: effectiveColumns,
-    state: { sorting, rowSelection, columnVisibility, columnPinning },
+    state: { sorting, rowSelection, columnPinning },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    onColumnVisibilityChange: setColumnVisibility,
     onColumnPinningChange: setColumnPinning,
     enableColumnPinning: true,
     enableRowSelection,
@@ -515,11 +442,6 @@ export function ListView<TData>({
       ) : null}
 
       <div className={cn(renderCard ? "hidden md:block" : undefined)}>
-        {enableColumnTools ? (
-          <div className="flex items-center justify-end border-b border-border/60 px-2 py-1">
-            <ColumnsMenu table={table} />
-          </div>
-        ) : null}
         <UiTable>
           <TableHeader className="sticky top-0 z-10 bg-background">
             {table.getHeaderGroups().map((headerGroup) => (

@@ -227,6 +227,15 @@ export class PantryController {
     return this.pantryService.createDonor(user.tenantId, dto);
   }
 
+  @Get('donors/:id')
+  @Permissions('pantry.read')
+  async getDonor(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.pantryService.getDonor(user.tenantId, id);
+  }
+
   @Patch('donors/:id')
   @Permissions('pantry.update')
   async updateDonor(

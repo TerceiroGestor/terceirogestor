@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,13 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateOnlyPtBR } from "@/lib/date";
-import type { ApiPantryItem } from "@/modules/pantry/api";
 import type {
   ItemDraft,
   PantryItemDetailMode,
 } from "@/modules/pantry/features/items/domain/pantry-item-detail.types";
 import { toInt } from "@/modules/pantry/features/items/domain/pantry-item-detail.helpers";
+import {
+  PANTRY_ITEM_GROUP,
+  PANTRY_ITEM_UNIT,
+} from "@/modules/pantry/shared/domain/pantry.constants";
 
 export type PantryItemDetailFormProps = {
   mode: PantryItemDetailMode;
@@ -26,15 +27,13 @@ export type PantryItemDetailFormProps = {
   draft: ItemDraft;
   setDraft: React.Dispatch<React.SetStateAction<ItemDraft>>;
   onCommitField: (key: keyof ItemDraft) => void;
-  item: ApiPantryItem | null;
+  onUnitChange: (value: string) => void;
+  onGroupChange: (value: string | null) => void;
   sectorsLoading: boolean;
   sectorOptions: string[];
   onDefaultSectorChange: (value: string) => void;
   onOpenNewSector: () => void;
   inputLineClassName: string;
-  unitSuggestions: string[];
-  groupSuggestions: string[];
-  movements: React.ReactNode;
 };
 
 export function PantryItemDetailForm({
@@ -43,25 +42,51 @@ export function PantryItemDetailForm({
   draft,
   setDraft,
   onCommitField,
-  item,
+  onUnitChange,
+  onGroupChange,
   sectorsLoading,
   sectorOptions,
   onDefaultSectorChange,
   onOpenNewSector,
   inputLineClassName,
-  unitSuggestions,
-  groupSuggestions,
-  movements,
 }: PantryItemDetailFormProps) {
+  const unitOptions = React.useMemo(() => {
+    const base = PANTRY_ITEM_UNIT.map((opt) => ({
+      label: String(opt.label),
+      value: String(opt.value),
+    }));
+    const current = draft.unit?.trim();
+    if (current && !base.some((opt) => opt.value === current)) {
+      return [{ label: current, value: current }, ...base];
+    }
+    return base;
+  }, [draft.unit]);
+
+  const groupOptions = React.useMemo(() => {
+    const base = PANTRY_ITEM_GROUP.map((opt) => ({
+      label: String(opt.label),
+      value: String(opt.value),
+    }));
+    const current = (draft.group ?? "").trim();
+    if (current && !base.some((opt) => opt.value === current)) {
+      return [{ label: current, value: current }, ...base];
+    }
+    return base;
+  }, [draft.group]);
+
   return (
     <div className="rounded-md border border-border/60 bg-card p-4">
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Nome</div>
+            <div className="text-[11px] font-medium text-muted-foreground">
+              Nome
+            </div>
             <Input
               value={draft.name}
-              onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, name: e.target.value }))
+              }
               onBlur={() => onCommitField("name")}
               placeholder="Ex: Arroz"
               className={inputLineClassName}
@@ -70,33 +95,61 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Unidade</div>
-            <Input
+            <div className="text-[11px] font-medium text-muted-foreground">
+              Unidade
+            </div>
+            <Select
               value={draft.unit}
-              onChange={(e) => setDraft((prev) => ({ ...prev, unit: e.target.value }))}
-              onBlur={() => onCommitField("unit")}
-              placeholder="Ex: kg"
-              list="pantry-item-unit-options"
-              className={inputLineClassName}
-              readOnly={readOnly}
-            />
+              onValueChange={(value) => {
+                setDraft((prev) => ({ ...prev, unit: value }));
+                onUnitChange(value);
+              }}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={inputLineClassName}>
+                <SelectValue placeholder="Selecione..." />
+              </SelectTrigger>
+              <SelectContent>
+                {unitOptions.map((unit) => (
+                  <SelectItem key={unit.value} value={unit.value}>
+                    {unit.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Grupo de alimentos</div>
-            <Input
-              value={draft.group ?? ""}
-              onChange={(e) => setDraft((prev) => ({ ...prev, group: e.target.value || null }))}
-              onBlur={() => onCommitField("group")}
-              placeholder="Opcional"
-              list="pantry-item-group-options"
-              className={inputLineClassName}
-              readOnly={readOnly}
-            />
+            <div className="text-[11px] font-medium text-muted-foreground">
+              Grupo de alimentos
+            </div>
+            <Select
+              value={draft.group ?? "__none__"}
+              onValueChange={(value) => {
+                const next = value === "__none__" ? null : value;
+                setDraft((prev) => ({ ...prev, group: next }));
+                onGroupChange(next);
+              }}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={inputLineClassName}>
+                <SelectValue placeholder="Sem grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem grupo</SelectItem>
+                {groupOptions.map((group) => (
+                  <SelectItem key={group.value} value={group.value}>
+                    {group.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Setor</div>
+            <div className="text-[11px] font-medium text-muted-foreground">
+              Setor
+            </div>
             <div className="flex items-center gap-2">
               <Select
                 value={draft.defaultSector}
@@ -135,55 +188,21 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">Estoque mínimo</div>
+            <div className="text-[11px] font-medium text-muted-foreground">
+              Estoque mínimo
+            </div>
             <Input
               type="number"
               value={String(draft.minStock)}
-              onChange={(e) => setDraft((prev) => ({ ...prev, minStock: toInt(e.target.value) }))}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, minStock: toInt(e.target.value) }))
+              }
               onBlur={() => onCommitField("minStock")}
               className={inputLineClassName}
               readOnly={readOnly}
             />
           </div>
         </div>
-
-        {mode === "edit" && item ? (
-          <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-3">
-            <div className="rounded-md border border-border/60 bg-muted/5 p-3">
-              <div className="text-[11px] text-muted-foreground">Saldo</div>
-              <div className="font-mono text-lg tabular-nums text-foreground">
-                {Number(item.stock).toLocaleString("pt-BR")}
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                {item.isBelowMin ? (
-                  <Badge variant="destructive">Abaixo do mínimo</Badge>
-                ) : (
-                  <Badge variant="secondary">OK</Badge>
-                )}
-              </div>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/5 p-3">
-              <div className="text-[11px] text-muted-foreground">Próx. validade</div>
-              <div className="text-sm font-medium text-foreground">
-                {item.nextExpiryDate ? formatDateOnlyPtBR(item.nextExpiryDate) : "—"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                {item.daysToExpire !== null ? `${item.daysToExpire} dia(s)` : ""}
-              </div>
-            </div>
-            <div className="rounded-md border border-border/60 bg-muted/5 p-3">
-              <div className="text-[11px] text-muted-foreground">Último movimento</div>
-              <div className="text-sm font-medium text-foreground">
-                {item.lastMovementDate ? formatDateOnlyPtBR(item.lastMovementDate) : "—"}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Criado em {formatDateOnlyPtBR(item.createdAt)}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {movements}
 
         {readOnly ? (
           <div className="rounded-md border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
@@ -193,17 +212,6 @@ export function PantryItemDetailForm({
           </div>
         ) : null}
       </div>
-
-      <datalist id="pantry-item-unit-options">
-        {unitSuggestions.map((unit) => (
-          <option key={unit} value={unit} />
-        ))}
-      </datalist>
-      <datalist id="pantry-item-group-options">
-        {groupSuggestions.map((group) => (
-          <option key={group} value={group} />
-        ))}
-      </datalist>
     </div>
   );
 }
