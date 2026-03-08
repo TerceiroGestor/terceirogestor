@@ -1,9 +1,14 @@
+<<<<<<< Updated upstream
 -- Importa movimentações da despensa a partir do CSV `vw_movimentacoes_alimentos.csv`.
 --
 -- Requisitos:
 -- - MySQL 5.7+ (usa RANDOM_BYTES)
 --
 -- Ajuste as variáveis (@tenant_id, @default_sector, @default_unit, @exit_type) se necessário.
+=======
+﻿-- SQL gerado automaticamente a partir de produtos.json
+-- Ajuste @default_unit, @default_sector e @exit_type se necessário.
+>>>>>>> Stashed changes
 -- No Workbench: selecione o schema correto antes de rodar (ou use USE seu_banco;).
 
 -- Desabilita safe updates nesta sessão para evitar bloqueios.
@@ -17,10 +22,11 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 START TRANSACTION;
 
 SET @tenant_id = '2d2ab1db-7e40-45af-8fd8-b2e2d27bd60c';
-SET @default_sector = 'Geral';
+SET @default_sector = CONVERT('Geral' USING utf8mb4) COLLATE utf8mb4_0900_ai_ci;
 SET @default_unit = 'un';
 SET @min_stock = 0;
 SET @exit_type = 'ATTENDED';
+<<<<<<< Updated upstream
 SET @entry_note = 'Importado do vw_movimentacoes_alimentos.csv';
 SET @exit_note = 'Importado do vw_movimentacoes_alimentos.csv';
 
@@ -469,10 +475,477 @@ WHERE NOT EXISTS (
   FROM PantrySector
   WHERE tenantId = @tenant_id
     AND name = (@default_sector COLLATE utf8mb4_unicode_ci)
+=======
+SET @entry_note = 'Importado do produtos.json';
+SET @exit_note = 'Importado do produtos.json';
+
+DROP TEMPORARY TABLE IF EXISTS tmp_pantry_backup;
+CREATE TEMPORARY TABLE tmp_pantry_backup (
+  movimento ENUM('ENTRADA','SAIDA') NOT NULL,
+  item_name VARCHAR(191) NOT NULL,
+  note VARCHAR(191) NULL,
+  quantidade DECIMAL(10,2) NOT NULL,
+  data_movimentacao DATETIME NOT NULL,
+  validade DATE NULL,
+  entry_id CHAR(36) NULL,
+  exit_id CHAR(36) NULL
+) ENGINE=InnoDB;
+
+INSERT INTO tmp_pantry_backup (movimento, item_name, note, quantidade, data_movimentacao, validade) VALUES
+('ENTRADA', 'Sal', 'Sal', 3, '2026-01-22 13:31:59', '2026-05-01'),
+('ENTRADA', 'Molho', 'Calda', 180, '2026-01-26 13:41:09', '2026-02-07'),
+('ENTRADA', 'Arroz', NULL, 1, '2026-01-22 15:17:52', '2026-08-29'),
+('ENTRADA', 'Bebidas', 'Guaraná', 18, '2026-01-26 13:57:12', '2026-05-07'),
+('ENTRADA', 'Leite', 'Integral', 49, '2026-01-22 11:35:37', '2026-02-07'),
+('ENTRADA', 'Feijão', 'Carioca', 8, '2026-01-15 10:35:10', '2026-02-11'),
+('ENTRADA', 'Massas', 'Parafuso', 5, '2026-01-15 15:00:44', '2027-01-01'),
+('ENTRADA', 'Arroz', 'Branco Tipo 1', 20, '2026-01-15 09:46:11', '2026-07-01'),
+('ENTRADA', 'Molho', 'Molho Tradicional', 1, '2026-01-22 11:13:40', '2026-08-12'),
+('ENTRADA', 'Feijão', 'Carioca', 30, '2026-01-15 10:23:43', '2026-03-01'),
+('ENTRADA', 'Açúcar', 'Extra Fino', 1, '2026-01-22 15:13:19', '2027-08-12'),
+('ENTRADA', 'Sal', NULL, 2, '2026-01-22 14:05:46', '2027-06-01'),
+('ENTRADA', 'Leite', 'Integral', 12, '2026-01-22 11:57:58', '2026-02-28'),
+('ENTRADA', 'Massas', 'Penne', 1, '2026-01-29 07:40:11', '2026-10-01'),
+('ENTRADA', 'Feijão', 'Preto', 1, '2026-01-15 11:07:22', '2026-04-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:34:06', '2026-09-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 6, '2026-01-22 10:31:42', '2027-02-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 17, '2026-01-22 10:48:24', '2026-07-01'),
+('ENTRADA', 'Óleo', 'Óleo de Girassol', 1, '2026-01-16 14:18:00', '2026-06-09'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 8, '2026-01-22 10:33:29', '2027-11-01'),
+('ENTRADA', 'Óleo', 'Óleo de Soja', 4, '2026-01-16 14:16:05', '2026-08-01'),
+('ENTRADA', 'Sobremesa', NULL, 1, '2026-02-26 16:59:42', '2026-05-27'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 1, '2026-01-22 11:06:58', '2026-07-01'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 3, '2026-01-22 14:57:50', '2026-02-05'),
+('ENTRADA', 'Massas', 'Espaguete', 21, '2026-01-15 14:46:26', '2027-01-01'),
+('ENTRADA', 'Sobremesa', 'Gelatina', 6, '2026-01-26 13:53:11', '2026-10-01'),
+('ENTRADA', 'Sal', 'Sal', 2, '2026-01-22 13:59:57', '2027-01-01'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 3, '2026-01-22 10:52:33', '2026-02-01'),
+('ENTRADA', 'Feijão', 'Carioca tipo 1', 1, '2026-01-29 07:32:07', '2026-05-01'),
+('ENTRADA', 'Massas', 'Espaguete', 32, '2026-01-15 14:47:54', '2027-01-01'),
+('ENTRADA', 'Arroz', 'Branco', 6, '2026-01-15 09:50:10', '2026-01-15'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:18:27', '2027-07-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 11, '2026-01-22 10:30:55', '2026-03-01'),
+('ENTRADA', 'Arroz', 'Arroz Branco Tipo 1', 19, '2026-01-15 09:38:38', '2026-09-01'),
+('ENTRADA', 'Farinha', 'Farinha de trigo', 5, '2026-01-22 14:24:55', '2026-03-01'),
+('ENTRADA', 'Massas', 'Espaguete', 27, '2026-01-15 14:32:50', '2027-01-01'),
+('ENTRADA', 'Massas', 'Parafuso', 5, '2026-01-15 15:14:21', '2027-01-13'),
+('ENTRADA', 'Massas', 'Parafuso', 1, '2026-01-15 15:16:06', '2027-01-15'),
+('ENTRADA', 'Feijão', 'Carioca tipo 1', 1, '2026-01-29 07:27:37', '2026-10-01'),
+('ENTRADA', 'Pão', 'Panettone', 226, '2026-01-22 13:57:11', '2026-03-01'),
+('ENTRADA', 'Leite', 'Integral', 31, '2026-01-22 12:01:44', '2026-04-06'),
+('ENTRADA', 'Massas', 'Espaguete', 6, '2026-01-15 14:52:52', '2027-01-01'),
+('ENTRADA', 'Maizena', 'Maizena', 2, '2026-01-16 13:59:30', '2026-09-26'),
+('ENTRADA', 'Sal', NULL, 2, '2026-01-22 14:03:44', '2027-02-01'),
+('ENTRADA', 'Feijão', 'Carioca', 5, '2026-01-15 11:08:09', '2026-05-19'),
+('ENTRADA', 'Molho', 'Tradicional', 3, '2026-01-22 10:37:37', '2026-07-01'),
+('ENTRADA', 'Achocolatado', 'Original', 2, '2026-01-22 09:32:19', '2026-08-01'),
+('ENTRADA', 'Farinha', 'Tipo 1', 20, '2026-01-22 14:23:02', '2026-03-10'),
+('ENTRADA', 'Açúcar', 'Açúcar Cristal', 15, '2026-01-22 14:57:02', '2028-01-26'),
+('ENTRADA', 'Molho', 'Pizza', 1, '2026-01-22 10:50:25', '2026-12-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:06:36', '2026-06-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 11, '2026-01-22 10:38:16', '2026-09-01'),
+('ENTRADA', 'Massas', 'Parafuso', 5, '2026-01-15 15:29:08', '2027-01-01'),
+('ENTRADA', 'Massas', 'Espaguete', 11, '2026-01-15 14:34:04', '2027-01-15'),
+('ENTRADA', 'Massas', 'Lasanha', 8, '2026-01-26 13:46:51', '2027-11-07'),
+('ENTRADA', 'Massas', 'Parafuso', 2, '2026-01-15 15:13:52', '2026-04-10'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 1, '2026-01-26 14:30:01', '2027-10-01'),
+('ENTRADA', 'Massas', 'Parafuso', 13, '2026-01-15 15:24:49', '2027-01-01'),
+('ENTRADA', 'Açúcar', 'Açúcar Cristal', 1, '2026-01-22 14:59:13', '2027-10-01'),
+('ENTRADA', 'Leite', 'Integral', 6, '2026-01-22 11:40:52', '2026-02-10'),
+('ENTRADA', 'Leite', 'Integral', 12, '2026-01-22 11:39:08', '2026-02-18'),
+('ENTRADA', 'Massas', 'Espaguete', 38, '2026-01-15 10:54:35', '2026-09-01'),
+('ENTRADA', 'Leite', 'Leite em Pó', 25, '2026-01-26 14:12:44', '2026-10-13'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 2, '2026-01-22 15:01:12', '2026-08-25'),
+('ENTRADA', 'Sal', 'Sal', 4, '2026-01-22 13:33:42', '2027-02-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:17:54', '2026-05-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 11:10:16', '2026-05-29'),
+('ENTRADA', 'Biscoito | Bolacha', 'Biscoito Salgado', 78, '2026-01-16 13:31:02', '2026-05-30'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:17:06', '2027-06-01'),
+('ENTRADA', 'Leite', 'Integral', 2, '2026-01-22 11:36:47', '2026-02-07'),
+('ENTRADA', 'Arroz', 'Arroz', 94, '2026-01-15 09:13:04', '2026-09-02'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:20:02', '2026-05-01'),
+('ENTRADA', 'Massas', 'Espaguete', 100, '2026-01-15 10:40:46', '2026-09-01'),
+('ENTRADA', 'Massas', 'Espaguete', 20, '2026-01-15 10:49:21', '2026-06-01'),
+('ENTRADA', 'Massas', 'Parafuso', 6, '2026-01-15 15:17:40', '2027-01-01'),
+('ENTRADA', 'Leite', 'Integral', 50, '2026-01-15 15:04:06', '2026-01-31'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-22 08:57:05', '2026-01-10'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:27:52', '2028-08-01'),
+('ENTRADA', 'Feijão', 'Carioca Tipo 1', 1, '2026-01-29 07:09:11', '2026-05-01'),
+('ENTRADA', 'Sobremesa', 'Gelatina', 2, '2026-01-22 15:22:23', '2026-07-01'),
+('ENTRADA', 'Maizena', 'Maizena', 23, '2026-01-16 13:49:07', '2026-05-12'),
+('ENTRADA', 'Sal', 'Sal', 2, '2026-01-22 13:39:44', '2026-12-01'),
+('ENTRADA', 'Óleo', 'Óleo de Soja', 9, '2026-01-16 14:14:23', '2026-04-01'),
+('ENTRADA', 'Maizena', 'Maizena', 4, '2026-01-16 13:57:58', '2026-09-05'),
+('ENTRADA', 'Bebidas', 'Soco de Morando (Pó)', 1, '2026-01-26 14:11:01', '2026-07-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:20:59', '2026-05-04'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 10:50:30', '2026-02-11'),
+('ENTRADA', 'Farinha', 'Farinha de Trigo', 2, '2026-01-22 14:26:02', '2026-04-30'),
+('ENTRADA', 'Feijão', 'Preto', 1, '2026-01-15 11:04:32', '2026-04-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 9, '2026-01-22 10:30:46', '2027-01-05'),
+('ENTRADA', 'Feijão', 'Carioca', 2, '2026-01-26 14:36:45', '2026-03-26'),
+('ENTRADA', 'Massas', 'Parafuso', 1, '2026-01-29 07:41:47', '2026-10-31'),
+('ENTRADA', 'Massas', 'Penne', 1, '2026-01-29 07:43:55', '2027-01-01'),
+('ENTRADA', 'Feijão', 'Carioca tipo-1', 1, '2026-01-29 07:28:15', '2026-04-01'),
+('ENTRADA', 'Achocolatado', 'Achocolatado', 4, '2026-01-22 10:00:29', '2026-05-13'),
+('ENTRADA', 'Massas', NULL, 3, '2026-01-15 11:46:29', '2026-01-01'),
+('ENTRADA', 'Óleo', 'Óleo de Soja', 18, '2026-01-16 14:12:53', '2026-05-26'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 136, '2026-01-22 10:05:20', '2027-01-05'),
+('ENTRADA', 'Achocolatado', 'Original', 1, '2026-01-22 10:10:24', '2026-08-19'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 3, '2026-01-22 14:56:13', '2026-10-12'),
+('ENTRADA', 'Feijão', 'Carioca', 3, '2026-01-15 10:57:14', '2026-04-01'),
+('ENTRADA', 'Tempero', NULL, 1, '2026-03-02 09:06:22', '2026-03-27'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 1, '2026-01-22 10:41:56', '2026-07-01'),
+('ENTRADA', 'Pipoca', 'Tradicional', 2, '2026-01-22 11:18:20', '2026-07-01'),
+('ENTRADA', 'Leite', 'Integral', 71, '2026-01-15 15:38:07', '2026-01-21'),
+('ENTRADA', 'Massas', 'Parafuso', 4, '2026-01-15 14:59:55', '2026-03-04'),
+('ENTRADA', 'Sal', 'Sal', 4, '2026-01-22 13:40:39', '2027-04-01'),
+('ENTRADA', 'Molho', 'Tradicional', 35, '2026-01-22 10:19:09', '2026-12-01'),
+('ENTRADA', 'Feijão', 'Carioca', 9, '2026-01-15 10:32:25', '2026-01-15'),
+('ENTRADA', 'Pipoca', 'Premium', 1, '2026-01-22 11:19:30', '2026-08-05'),
+('ENTRADA', 'Chá', 'Menta e Limão', 38, '2026-01-22 09:36:28', '2027-11-01'),
+('ENTRADA', 'Feijão', 'Preto', 1, '2026-01-15 11:10:55', '2026-05-25'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 11:03:38', '2026-04-27'),
+('ENTRADA', 'Leite', 'Integral', 23, '2026-01-22 11:38:04', '2026-02-12'),
+('ENTRADA', 'Cesta Básica', NULL, 70, '2026-01-22 14:16:15', '2026-06-01'),
+('ENTRADA', 'Açúcar', 'Açúcar Refinado', 1, '2026-01-22 15:14:51', '2027-07-25'),
+('ENTRADA', 'Massas', 'Parafuso', 20, '2026-01-15 11:11:00', '2026-08-01'),
+('ENTRADA', 'Café', 'Tradicional', 20, '2026-01-26 14:01:50', '2026-12-08'),
+('ENTRADA', 'Molho', 'Tomate', 2, '2026-01-26 14:22:06', '2027-03-01'),
+('ENTRADA', 'Sal', 'Nobre', 8, '2026-01-22 13:25:26', '2027-03-01'),
+('ENTRADA', 'Farinha', 'Tipo 1', 10, '2026-01-22 14:27:03', '2026-02-12'),
+('ENTRADA', 'Feijão', 'Preto', 3, '2026-01-15 10:53:28', '2026-04-01'),
+('ENTRADA', 'Arroz', NULL, 1, '2026-01-15 10:16:07', '2026-10-01'),
+('ENTRADA', 'Óleo', 'Óleo Misto', 3, '2026-01-22 14:40:20', '2027-07-07'),
+('ENTRADA', 'Molho', 'Extrato', 71, '2026-01-22 10:57:46', '2027-06-04'),
+('ENTRADA', 'Feijão', 'Preto', 1, '2026-01-15 10:50:02', '2026-02-04'),
+('ENTRADA', 'Massas', NULL, 14, '2026-01-15 14:49:39', '2027-01-01'),
+('ENTRADA', 'Farinha', 'Original', 1, '2026-01-26 14:31:21', '2026-02-24'),
+('ENTRADA', 'Sal', 'Nobre', 1, '2026-01-22 14:12:43', '2027-08-01'),
+('ENTRADA', 'Arroz', NULL, 6, '2026-01-15 09:49:01', '2026-01-15'),
+('ENTRADA', 'Achocolatado', 'Achocolatado', 5, '2026-01-22 09:34:38', '2026-07-11'),
+('ENTRADA', 'Farinha', 'Mandioca Fina', 1, '2026-01-22 15:24:16', '2026-09-09'),
+('ENTRADA', 'Biscoito | Bolacha', 'Biscoito Salgado', 58, '2026-01-16 13:29:41', '2026-06-29'),
+('ENTRADA', 'Frutas', 'Azeitona', 1, '2026-01-22 11:13:22', '2026-12-01'),
+('ENTRADA', 'Feijão', 'Carioca tipo 1', 1, '2026-01-29 07:33:17', '2026-03-01'),
+('ENTRADA', 'Leite', 'Integral', 12, '2026-01-22 11:37:31', '2026-02-09'),
+('ENTRADA', 'Sobremesa', 'Creme de Leite', 1, '2026-01-22 14:04:35', '2026-02-06'),
+('ENTRADA', 'Arroz', NULL, 6, '2026-01-15 09:42:20', '2026-09-08'),
+('ENTRADA', 'Achocolatado', 'Achocolatado', 9, '2026-01-22 09:28:44', '2026-04-11'),
+('ENTRADA', 'Arroz', NULL, 1, '2026-01-22 15:15:11', '2026-07-01'),
+('ENTRADA', 'Leite', 'Leite em Pó', 2, '2026-01-26 14:16:16', '2026-09-25'),
+('ENTRADA', 'Tempero', 'Bicarbonato de Sódio', 2, '2026-01-26 14:19:13', '2027-11-07'),
+('ENTRADA', 'Feijão', 'Feijão Preto', 1, '2026-01-29 07:23:49', '2026-11-01'),
+('ENTRADA', 'Acompanhamentos', 'Batata Palha', 5, '2026-01-26 13:45:02', '2026-07-03'),
+('ENTRADA', 'Arroz', 'Arroz Branco Tipo 1', 107, '2026-01-15 09:14:50', '2026-04-04'),
+('ENTRADA', 'Leite', 'Integral', 121, '2026-01-22 11:44:00', '2026-02-12'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:17:14', '2026-04-01'),
+('ENTRADA', 'Leite', 'Integral', 18, '2026-01-22 13:31:39', '2026-04-02'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 1, '2026-01-22 15:05:06', '2026-04-03'),
+('ENTRADA', 'Pipoca', 'Milho', 1, '2026-01-22 11:21:06', '2026-05-19'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 11:04:52', '2026-04-01'),
+('ENTRADA', 'Massas', 'Parafuso', 1, '2026-01-29 07:42:44', '2026-09-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:10:11', '2026-04-16'),
+('ENTRADA', 'Massas', 'Parafuso', 2, '2026-01-15 15:16:20', '2027-01-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:05:52', '2026-07-30'),
+('ENTRADA', 'Arroz', NULL, 3, '2026-01-15 10:17:53', '2026-07-01'),
+('ENTRADA', 'Biscoito | Bolacha', 'Bolacha Recheada', 33, '2026-01-26 14:43:40', '2026-06-28'),
+('ENTRADA', 'Carne', 'Sardinha', 31, '2026-01-26 14:14:56', '2029-09-01'),
+('ENTRADA', 'Sal', 'Sal', 1, '2026-01-22 14:02:10', '2027-03-01'),
+('ENTRADA', 'Feijão', 'Preto', 3, '2026-01-15 10:51:35', '2026-03-01'),
+('ENTRADA', 'Arroz', NULL, 1, '2026-01-22 15:16:22', '2026-07-01'),
+('ENTRADA', 'Massas', 'Espaguete', 27, '2026-01-15 14:35:10', '2027-01-01'),
+('ENTRADA', 'Tempero', 'Vinagre', 7, '2026-01-26 13:54:37', '2026-10-22'),
+('ENTRADA', 'Achocolatado', 'Achocolatado', 3, '2026-01-22 09:35:11', '2026-07-21'),
+('ENTRADA', 'Massas', 'Espaguete', 141, '2026-01-15 10:37:10', '2027-01-01'),
+('ENTRADA', 'Massas', 'Parafuso', 11, '2026-01-15 15:05:03', '2027-01-01'),
+('ENTRADA', 'Óleo', NULL, 2, '2026-01-22 14:44:54', '2026-05-01'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:14:52', '2027-04-01'),
+('ENTRADA', 'Achocolatado', 'Achocolatado Chocky', 4, '2026-01-22 09:31:47', '2027-01-16'),
+('ENTRADA', 'Feijão', 'Carioca', 20, '2026-01-15 10:25:55', '2026-01-15'),
+('ENTRADA', 'Açúcar', 'Reginado', 1, '2026-01-22 15:19:28', '2026-10-01'),
+('ENTRADA', 'Açúcar', 'Açúcar Refinado', 2, '2026-01-22 15:17:43', '2026-07-26'),
+('ENTRADA', 'Leite', 'Integral', 10, '2026-01-22 13:36:12', '2026-01-28'),
+('ENTRADA', 'Feijão', 'Carioca tipo-1', 1, '2026-01-29 07:16:12', '2026-05-01'),
+('ENTRADA', 'Molho', 'Molho Rosé', 3, '2026-01-22 11:16:32', '2026-06-18'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 10:52:44', '2026-03-15'),
+('ENTRADA', 'Molho', 'Molho Mostarda', 3, '2026-01-22 09:45:15', '2025-09-08'),
+('ENTRADA', 'Molho', 'Tradicional', 4, '2026-01-22 10:35:10', '2026-07-01'),
+('ENTRADA', 'Biscoito | Bolacha', 'Cream Cracker', 24, '2026-01-16 13:38:44', '2026-01-26'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 11:09:46', '2026-05-21'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-15 11:04:11', '2026-04-01'),
+('ENTRADA', 'Açúcar', 'Açúcar Refinado', 1, '2026-01-22 15:16:07', '2026-09-17'),
+('ENTRADA', 'Massas', 'Parafuso', 9, '2026-01-15 14:57:08', '2027-01-01'),
+('ENTRADA', 'Feijão', 'Carioca', 1, '2026-01-29 07:30:46', '2026-04-01'),
+('ENTRADA', 'Molho', 'Molho de Tomate', 5, '2026-01-22 10:40:03', '2026-10-01'),
+('ENTRADA', 'Massas', 'Espaguete', 9, '2026-01-15 14:41:17', '2027-01-01'),
+('ENTRADA', 'Leite', 'Integral', 12, '2026-01-15 15:15:13', '2026-01-23'),
+('ENTRADA', 'Arroz', NULL, 6, '2026-01-15 09:44:11', '2026-11-01'),
+('ENTRADA', 'Massas', 'Parafuso', 1, '2026-01-15 15:20:37', '2026-03-03'),
+('ENTRADA', 'Sobremesa', 'Creme de Leite', 49, '2026-01-22 11:06:36', '2026-04-01'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 2, '2026-01-22 10:56:47', '2027-02-01'),
+('ENTRADA', 'Sobremesa', 'Leite Condensado', 26, '2026-01-22 11:05:32', '2026-11-01'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:21:52', '2027-04-01'),
+('ENTRADA', 'Feijão', 'Preto', 19, '2026-01-15 10:37:13', '2026-03-07'),
+('ENTRADA', 'Leite', 'Integral', 101, '2026-01-22 13:32:20', '2026-03-01'),
+('ENTRADA', 'Pipoca', 'Premium', 1, '2026-01-22 15:13:24', '2026-06-01'),
+('ENTRADA', 'Óleo', NULL, 24, '2026-03-02 09:03:22', '2026-10-24'),
+('ENTRADA', 'Sobremesa', 'Leite Condensado', 16, '2026-01-22 11:03:55', '2026-09-01'),
+('ENTRADA', 'Feijão', 'Carioca', 3, '2026-01-29 07:11:49', '2026-05-01'),
+('ENTRADA', 'Molho', 'Molho Limão', 3, '2026-01-22 11:17:34', '2026-06-17'),
+('ENTRADA', 'Arroz', NULL, 1, '2026-01-22 15:12:24', '2026-09-01'),
+('ENTRADA', 'Feijão', 'Carioca', 5, '2026-01-15 19:57:04', '2026-01-20'),
+('ENTRADA', 'Massas', 'Parafuso', 4, '2026-01-15 15:24:04', '2026-12-12'),
+('ENTRADA', 'Tempero', 'Orégano', 2, '2026-01-22 15:27:02', '2026-03-19'),
+('ENTRADA', 'Leite', 'Integral', 144, '2026-01-22 11:31:34', '2026-02-04'),
+('ENTRADA', 'Massas', 'Parafuso', 3, '2026-01-15 15:33:28', '2027-01-01'),
+('ENTRADA', 'Óleo', NULL, 1, '2026-01-22 14:53:28', '2026-03-01'),
+('ENTRADA', 'Massas', 'Parafuso', 60, '2026-01-15 10:56:11', '2026-07-01'),
+('ENTRADA', 'Farinha', 'Mandioca', 2, '2026-01-22 15:21:32', '2026-08-03'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 1, '2026-01-22 11:02:17', '2026-08-01'),
+('ENTRADA', 'Farinha', 'Carioca', 1, '2026-01-26 14:38:09', '2026-02-22'),
+('ENTRADA', 'Molho', 'Extrato de tomate', 12, '2026-01-22 10:36:24', '2026-07-14'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 1, '2026-01-22 15:08:45', '2026-09-17'),
+('ENTRADA', 'Massas', 'Parafuso', 1, '2026-01-15 15:22:02', '2026-03-04'),
+('ENTRADA', 'Feijão', 'Carioca tipo 1', 1, '2026-01-29 07:29:54', '2026-03-01'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 1, '2026-01-22 15:03:14', '2026-04-13'),
+('ENTRADA', 'Feijão', 'Carioca', 2, '2026-01-15 10:50:57', '2026-02-21'),
+('ENTRADA', 'Feijão', 'Feijão Preto', 1, '2026-01-29 07:26:07', '2026-03-01'),
+('ENTRADA', 'Biscoito | Bolacha', 'Biscoito Salgado', 26, '2026-01-16 13:33:56', '2026-07-26'),
+('ENTRADA', 'Açúcar', 'Açúcar Refinado', 1, '2026-01-22 15:16:57', '2026-07-27'),
+('ENTRADA', 'Massas', 'Parafuso', 14, '2026-01-15 15:07:10', '2027-01-01'),
+('ENTRADA', 'Leite', 'Integral', 59, '2026-01-22 11:58:24', '2026-03-06'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 1, '2026-01-22 15:07:31', '2026-06-05'),
+('ENTRADA', 'Biscoito | Bolacha', 'Água e Sal', 1, '2026-01-26 14:35:16', '2026-08-29'),
+('ENTRADA', 'Sal', NULL, 1, '2026-01-22 14:26:17', '2027-05-01'),
+('ENTRADA', 'Leite', 'Integral', 12, '2026-01-26 13:58:56', '2026-05-05'),
+('ENTRADA', 'Achocolatado', 'Chocolate em Pó', 1, '2026-01-26 14:05:18', '2026-11-19'),
+('ENTRADA', 'Feijão', 'Carioca tipo-1', 1, '2026-01-29 07:14:35', '2026-03-01'),
+('ENTRADA', 'Farinha', 'Farinha de Rosca', 1, '2026-01-26 14:06:43', '2026-06-20'),
+('ENTRADA', 'Biscoito | Bolacha', 'Nikito', 1, '2026-01-26 14:51:23', '2026-02-22'),
+('ENTRADA', 'Sobremesa', 'Fermento', 1, '2026-01-22 15:24:46', '2026-08-01'),
+('ENTRADA', 'Tempero', 'Colorífico', 1, '2026-02-12 09:30:42', '2026-10-26'),
+('ENTRADA', 'Óleo', 'Soja', 3, '2026-01-22 14:46:53', '2026-03-01'),
+('ENTRADA', 'Açúcar', NULL, 1, '2026-01-22 14:58:36', '2027-09-01'),
+('ENTRADA', 'Massas', 'Parafuso', 2, '2026-01-15 15:21:01', '2027-01-01'),
+('ENTRADA', 'Massas', 'Espaguete', 2, '2026-01-15 14:40:25', '2027-01-01'),
+('ENTRADA', 'Massas', 'Parafuso', 2, '2026-01-15 15:04:35', '2026-05-01'),
+('ENTRADA', 'Feijão', 'Carioca', 10, '2026-01-15 10:30:17', '2026-02-24'),
+('ENTRADA', 'Farinha', 'Fubá Mimoso', 2, '2026-01-22 14:59:26', '2026-06-19'),
+('ENTRADA', 'Massas', 'Parafuso', 21, '2026-01-15 11:09:57', '2026-06-01'),
+('ENTRADA', 'Feijão', 'Preto', 1, '2026-01-15 10:52:03', '2026-03-07'),
+('SAIDA', 'Molho', 'Calda', 116, '2026-01-29 12:35:15', '2026-02-07'),
+('SAIDA', 'Molho', 'Calda', 4, '2026-02-02 15:38:42', '2026-02-07'),
+('SAIDA', 'Molho', 'Calda', 60, '2026-02-05 09:02:38', '2026-02-07'),
+('SAIDA', 'Leite', 'Integral', 49, '2026-02-02 15:31:44', '2026-02-07'),
+('SAIDA', 'Feijão', 'Carioca', 8, '2026-02-23 08:56:56', '2026-02-11'),
+('SAIDA', 'Açúcar', 'Extra Fino', 1, '2026-02-12 09:27:52', '2027-08-12'),
+('SAIDA', 'Óleo', 'Óleo de Girassol', 1, '2026-02-12 09:28:23', '2026-06-09'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 2, '2026-02-02 15:38:18', '2026-08-01'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 2, '2026-01-28 07:56:04', '2026-08-01'),
+('SAIDA', 'Sobremesa', NULL, 1, '2026-02-26 17:00:22', '2026-05-27'),
+('SAIDA', 'Molho', 'Extrato de tomate', 1, '2026-02-05 09:01:26', '2026-02-01'),
+('SAIDA', 'Massas', 'Espaguete', 6, '2026-02-09 16:15:55', '2027-01-01'),
+('SAIDA', 'Sal', NULL, 1, '2026-02-09 16:12:36', '2027-07-01'),
+('SAIDA', 'Farinha', 'Farinha de trigo', 5, '2026-01-28 08:34:04', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-02-06 16:04:29', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 9, '2026-01-26 08:58:06', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-02-02 15:39:08', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-02-09 16:30:01', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-02-06 15:45:29', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 15, '2026-02-23 08:58:07', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 58, '2026-01-29 12:41:42', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 1, '2026-01-23 07:40:53', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-02-05 07:45:00', '2026-03-01'),
+('SAIDA', 'Pão', 'Panettone', 18, '2026-03-02 09:15:37', '2026-03-01'),
+('SAIDA', 'Leite', 'Integral', 31, '2026-02-23 09:01:20', '2026-04-06'),
+('SAIDA', 'Achocolatado', 'Original', 2, '2026-02-02 15:32:27', '2026-08-01'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 1, '2026-02-12 09:25:01', '2028-01-26'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 2, '2026-01-26 08:52:40', '2028-01-26'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 2, '2026-03-02 09:10:52', '2028-01-26'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 2, '2026-02-23 08:53:23', '2028-01-26'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 3, '2026-02-19 09:23:08', '2028-01-26'),
+('SAIDA', 'Massas', 'Lasanha', 2, '2026-01-26 13:47:33', '2027-11-07'),
+('SAIDA', 'Açúcar', 'Açúcar Cristal', 1, '2026-02-12 09:25:49', '2027-10-01'),
+('SAIDA', 'Leite', 'Integral', 6, '2026-02-09 07:35:51', '2026-02-10'),
+('SAIDA', 'Leite', 'Integral', 12, '2026-02-09 07:35:26', '2026-02-18'),
+('SAIDA', 'Leite', 'Leite em Pó', 2, '2026-02-25 08:33:25', '2026-10-13'),
+('SAIDA', 'Sal', 'Sal', 1, '2026-03-02 09:08:58', '2027-02-01'),
+('SAIDA', 'Leite', 'Integral', 2, '2026-01-28 08:27:54', '2026-02-07'),
+('SAIDA', 'Arroz', 'Arroz', 2, '2026-01-26 08:44:18', '2026-09-02'),
+('SAIDA', 'Arroz', 'Arroz', 3, '2026-02-09 16:11:51', '2026-09-02'),
+('SAIDA', 'Arroz', 'Arroz', 1, '2026-01-22 08:54:03', '2026-09-02'),
+('SAIDA', 'Arroz', 'Arroz', 1, '2026-01-28 08:24:45', '2026-09-02'),
+('SAIDA', 'Massas', 'Espaguete', 2, '2026-02-09 16:16:22', '2026-09-01'),
+('SAIDA', 'Massas', 'Espaguete', 18, '2026-02-23 08:57:50', '2026-06-01'),
+('SAIDA', 'Massas', 'Espaguete', 2, '2026-03-02 09:11:17', '2026-06-01'),
+('SAIDA', 'Leite', 'Integral', 20, '2026-01-22 09:48:10', '2026-01-31'),
+('SAIDA', 'Leite', 'Integral', 6, '2026-01-22 10:46:08', '2026-01-31'),
+('SAIDA', 'Leite', 'Integral', 24, '2026-01-22 09:48:34', '2026-01-31'),
+('SAIDA', 'Feijão', 'Carioca', 1, '2026-01-22 08:56:01', '2026-01-10'),
+('SAIDA', 'Sal', NULL, 1, '2026-02-09 16:12:07', '2028-08-01'),
+('SAIDA', 'Sobremesa', 'Gelatina', 2, '2026-01-26 08:43:22', '2026-07-01'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 1, '2026-01-22 09:05:06', '2026-04-01'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 5, '2026-01-26 08:53:45', '2026-04-01'),
+('SAIDA', 'Feijão', 'Carioca', 1, '2026-01-26 08:51:06', '2026-02-11'),
+('SAIDA', 'Feijão', 'Carioca', 2, '2026-02-02 15:32:48', '2026-03-26'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 2, '2026-02-12 09:26:33', '2026-05-13'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 2, '2026-02-12 09:27:01', '2026-05-13'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 3, '2026-02-19 07:26:10', '2026-05-26'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 1, '2026-02-09 07:40:34', '2026-05-26'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 8, '2026-02-09 16:17:49', '2026-05-26'),
+('SAIDA', 'Óleo', 'Óleo de Soja', 6, '2026-02-23 08:54:50', '2026-05-26'),
+('SAIDA', 'Molho', 'Molho de Tomate', 27, '2026-02-23 08:54:38', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 4, '2026-02-19 14:12:41', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 8, '2026-02-19 09:27:44', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 2, '2026-02-02 15:34:38', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 1, '2026-02-05 07:44:15', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 20, '2026-02-05 07:44:19', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 14, '2026-02-18 12:04:11', '2027-01-05'),
+('SAIDA', 'Molho', 'Molho de Tomate', 30, '2026-01-26 08:40:22', '2027-01-05'),
+('SAIDA', 'Feijão', 'Carioca', 2, '2026-01-26 08:48:44', '2026-04-01'),
+('SAIDA', 'Tempero', NULL, 1, '2026-03-02 09:07:12', '2026-03-27'),
+('SAIDA', 'Leite', 'Integral', 71, '2026-01-22 09:46:32', '2026-01-21'),
+('SAIDA', 'Molho', 'Tradicional', 20, '2026-03-02 09:09:42', '2026-12-01'),
+('SAIDA', 'Feijão', 'Carioca', 9, '2026-02-09 16:33:36', '2026-01-15'),
+('SAIDA', 'Pipoca', 'Premium', 1, '2026-02-23 08:52:33', '2026-08-05'),
+('SAIDA', 'Chá', 'Menta e Limão', 1, '2026-02-09 16:12:54', '2027-11-01'),
+('SAIDA', 'Feijão', 'Carioca', 1, '2026-01-26 08:48:00', '2026-04-27'),
+('SAIDA', 'Leite', 'Integral', 19, '2026-02-05 16:16:14', '2026-02-12'),
+('SAIDA', 'Cesta Básica', NULL, 50, '2026-02-24 11:05:37', '2026-06-01'),
+('SAIDA', 'Cesta Básica', NULL, 1, '2026-02-24 11:01:46', '2026-06-01'),
+('SAIDA', 'Cesta Básica', NULL, 3, '2026-02-24 13:45:44', '2026-06-01'),
+('SAIDA', 'Cesta Básica', NULL, 7, '2026-02-10 13:42:45', '2026-06-01'),
+('SAIDA', 'Açúcar', 'Açúcar Refinado', 1, '2026-02-12 09:28:09', '2027-07-25'),
+('SAIDA', 'Café', 'Tradicional', 4, '2026-02-09 16:13:44', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 5, '2026-02-23 08:51:08', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 2, '2026-02-02 15:33:38', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 2, '2026-01-26 14:02:23', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 1, '2026-01-28 08:22:28', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 1, '2026-02-05 07:43:48', '2026-12-08'),
+('SAIDA', 'Café', 'Tradicional', 3, '2026-03-02 09:07:40', '2026-12-08'),
+('SAIDA', 'Farinha', 'Tipo 1', 10, '2026-02-09 16:18:21', '2026-02-12'),
+('SAIDA', 'Arroz', NULL, 1, '2026-02-02 15:37:25', '2026-10-01'),
+('SAIDA', 'Óleo', 'Óleo Misto', 1, '2026-02-02 15:41:40', '2027-07-07'),
+('SAIDA', 'Óleo', 'Óleo Misto', 1, '2026-02-09 16:29:18', '2027-07-07'),
+('SAIDA', 'Óleo', 'Óleo Misto', 1, '2026-02-23 08:53:55', '2027-07-07'),
+('SAIDA', 'Massas', NULL, 6, '2026-02-18 12:04:56', '2027-01-01'),
+('SAIDA', 'Farinha', 'Original', 1, '2026-02-09 16:18:39', '2026-02-24'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 1, '2026-02-23 08:50:39', '2026-07-11'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 3, '2026-02-19 07:25:52', '2026-07-11'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 1, '2026-02-09 16:14:24', '2026-07-11'),
+('SAIDA', 'Frutas', 'Azeitona', 1, '2026-01-28 08:26:23', '2026-12-01'),
+('SAIDA', 'Leite', 'Integral', 12, '2026-02-05 16:00:37', '2026-02-09'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 1, '2026-01-26 08:47:25', '2026-02-06'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 1, '2026-02-09 16:14:09', '2026-04-11'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 4, '2026-02-23 08:50:51', '2026-04-11'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 3, '2026-03-02 09:09:18', '2026-04-11'),
+('SAIDA', 'Leite', 'Leite em Pó', 2, '2026-01-28 08:16:56', '2026-09-25'),
+('SAIDA', 'Tempero', 'Bicarbonato de Sódio', 1, '2026-01-28 08:26:04', '2027-11-07'),
+('SAIDA', 'Acompanhamentos', 'Batata Palha', 1, '2026-01-28 16:19:15', '2026-07-03'),
+('SAIDA', 'Arroz', 'Arroz Branco Tipo 1', 3, '2026-03-02 09:09:52', '2026-04-04'),
+('SAIDA', 'Arroz', 'Arroz Branco Tipo 1', 4, '2026-02-23 08:53:43', '2026-04-04'),
+('SAIDA', 'Arroz', 'Arroz Branco Tipo 1', 1, '2026-02-10 13:59:00', '2026-04-04'),
+('SAIDA', 'Leite', 'Integral', 121, '2026-02-05 09:03:12', '2026-02-12'),
+('SAIDA', 'Pipoca', 'Milho', 1, '2026-02-23 08:53:13', '2026-05-19'),
+('SAIDA', 'Feijão', 'Carioca', 1, '2026-01-26 08:49:01', '2026-04-01'),
+('SAIDA', 'Carne', 'Sardinha', 6, '2026-02-06 10:29:08', '2029-09-01'),
+('SAIDA', 'Carne', 'Sardinha', 2, '2026-02-06 10:30:30', '2029-09-01'),
+('SAIDA', 'Carne', 'Sardinha', 1, '2026-01-28 08:17:16', '2029-09-01'),
+('SAIDA', 'Massas', 'Espaguete', 1, '2026-02-09 16:16:09', '2027-01-01'),
+('SAIDA', 'Tempero', 'Vinagre', 1, '2026-02-19 07:25:35', '2026-10-22'),
+('SAIDA', 'Tempero', 'Vinagre', 1, '2026-02-05 07:44:44', '2026-10-22'),
+('SAIDA', 'Tempero', 'Vinagre', 1, '2026-02-09 16:18:08', '2026-10-22'),
+('SAIDA', 'Tempero', 'Vinagre', 2, '2026-03-02 09:08:27', '2026-10-22'),
+('SAIDA', 'Tempero', 'Vinagre', 1, '2026-02-23 08:56:09', '2026-10-22'),
+('SAIDA', 'Tempero', 'Vinagre', 1, '2026-01-28 07:57:04', '2026-10-22'),
+('SAIDA', 'Achocolatado', 'Achocolatado', 3, '2026-02-09 16:14:52', '2026-07-21'),
+('SAIDA', 'Massas', 'Espaguete', 40, '2026-02-06 15:46:33', '2027-01-01'),
+('SAIDA', 'Óleo', NULL, 1, '2026-02-09 07:41:22', '2026-05-01'),
+('SAIDA', 'Óleo', NULL, 1, '2026-02-12 09:26:07', '2026-05-01'),
+('SAIDA', 'Achocolatado', 'Achocolatado Chocky', 3, '2026-02-02 15:33:09', '2027-01-16'),
+('SAIDA', 'Achocolatado', 'Achocolatado Chocky', 1, '2026-01-28 08:23:07', '2027-01-16'),
+('SAIDA', 'Feijão', 'Carioca', 20, '2026-02-09 16:35:20', '2026-01-15'),
+('SAIDA', 'Açúcar', 'Reginado', 1, '2026-02-12 09:28:42', '2026-10-01'),
+('SAIDA', 'Açúcar', 'Açúcar Refinado', 2, '2026-02-12 09:27:27', '2026-07-26'),
+('SAIDA', 'Leite', 'Integral', 10, '2026-01-28 08:28:32', '2026-01-28'),
+('SAIDA', 'Biscoito | Bolacha', 'Cream Cracker', 24, '2026-01-16 13:52:09', '2026-01-26'),
+('SAIDA', 'Feijão', 'Carioca', 1, '2026-01-26 08:52:24', '2026-04-01'),
+('SAIDA', 'Leite', 'Integral', 12, '2026-01-22 09:47:31', '2026-01-23'),
+('SAIDA', 'Arroz', NULL, 2, '2026-02-02 15:37:03', '2026-11-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 2, '2026-01-28 08:27:06', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 10, '2026-02-19 09:21:23', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 6, '2026-02-23 08:54:04', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 2, '2026-02-02 15:34:04', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 2, '2026-02-09 16:13:09', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Creme de Leite', 5, '2026-01-26 08:46:46', '2026-04-01'),
+('SAIDA', 'Sobremesa', 'Leite Condensado', 8, '2026-02-09 16:13:21', '2026-11-01'),
+('SAIDA', 'Sobremesa', 'Leite Condensado', 2, '2026-02-02 15:34:19', '2026-11-01'),
+('SAIDA', 'Sal', NULL, 1, '2026-02-09 16:12:21', '2027-04-01'),
+('SAIDA', 'Leite', 'Integral', 3, '2026-02-26 17:01:01', '2026-03-01'),
+('SAIDA', 'Leite', 'Integral', 66, '2026-03-02 09:13:00', '2026-03-01'),
+('SAIDA', 'Leite', 'Integral', 15, '2026-02-26 17:00:48', '2026-03-01'),
+('SAIDA', 'Leite', 'Integral', 17, '2026-02-23 08:58:28', '2026-03-01'),
+('SAIDA', 'Pipoca', 'Premium', 1, '2026-02-23 08:52:23', '2026-06-01'),
+('SAIDA', 'Óleo', NULL, 6, '2026-03-02 09:04:15', '2026-10-24'),
+('SAIDA', 'Sobremesa', 'Leite Condensado', 8, '2026-02-23 08:51:26', '2026-09-01'),
+('SAIDA', 'Sobremesa', 'Leite Condensado', 5, '2026-01-28 08:29:24', '2026-09-01'),
+('SAIDA', 'Feijão', 'Carioca', 5, '2026-02-09 16:34:08', '2026-01-20'),
+('SAIDA', 'Tempero', 'Orégano', 1, '2026-01-22 15:28:39', '2026-03-19'),
+('SAIDA', 'Tempero', 'Orégano', 1, '2026-02-06 10:28:13', '2026-03-19'),
+('SAIDA', 'Óleo', NULL, 1, '2026-02-06 10:29:33', '2026-03-01'),
+('SAIDA', 'Farinha', 'Carioca', 1, '2026-02-23 08:56:28', '2026-02-22'),
+('SAIDA', 'Farinha', 'Fubá Mimoso', 1, '2026-02-09 16:19:10', '2026-09-17'),
+('SAIDA', 'Leite', 'Integral', 40, '2026-02-09 16:11:23', '2026-03-06'),
+('SAIDA', 'Achocolatado', 'Chocolate em Pó', 1, '2026-01-28 08:25:34', '2026-11-19'),
+('SAIDA', 'Biscoito | Bolacha', 'Nikito', 1, '2026-02-25 08:21:04', '2026-02-22'),
+('SAIDA', 'Sobremesa', 'Fermento', 1, '2026-01-28 08:26:44', '2026-08-01'),
+('SAIDA', 'Tempero', 'Colorífico', 1, '2026-02-12 09:31:24', '2026-10-26'),
+('SAIDA', 'Óleo', 'Soja', 3, '2026-01-26 08:53:59', '2026-03-01'),
+('SAIDA', 'Açúcar', NULL, 1, '2026-02-02 15:37:51', '2027-09-01'),
+('SAIDA', 'Farinha', 'Fubá Mimoso', 1, '2026-02-09 16:18:50', '2026-06-19');
+
+UPDATE tmp_pantry_backup
+SET entry_id = LOWER(CONCAT(
+  LPAD(HEX(RANDOM_BYTES(4)), 8, '0'), '-',
+  LPAD(HEX(RANDOM_BYTES(2)), 4, '0'), '-',
+  '4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  SUBSTR('89ab', 1 + FLOOR(RAND() * 4), 1),
+  SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  LPAD(HEX(RANDOM_BYTES(6)), 12, '0')
+))
+WHERE movimento = 'ENTRADA';
+
+UPDATE tmp_pantry_backup
+SET exit_id = LOWER(CONCAT(
+  LPAD(HEX(RANDOM_BYTES(4)), 8, '0'), '-',
+  LPAD(HEX(RANDOM_BYTES(2)), 4, '0'), '-',
+  '4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  SUBSTR('89ab', 1 + FLOOR(RAND() * 4), 1),
+  SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  LPAD(HEX(RANDOM_BYTES(6)), 12, '0')
+))
+WHERE movimento = 'SAIDA';
+
+-- garante setor padrão
+INSERT INTO PantrySector (id, tenantId, name, createdAt, updatedAt)
+SELECT LOWER(CONCAT(
+  LPAD(HEX(RANDOM_BYTES(4)), 8, '0'), '-',
+  LPAD(HEX(RANDOM_BYTES(2)), 4, '0'), '-',
+  '4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  SUBSTR('89ab', 1 + FLOOR(RAND() * 4), 1),
+  SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  LPAD(HEX(RANDOM_BYTES(6)), 12, '0')
+)), @tenant_id, @default_sector, NOW(), NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM PantrySector
+  WHERE BINARY tenantId = BINARY @tenant_id
+    AND BINARY name = BINARY @default_sector
+>>>>>>> Stashed changes
 );
 
 -- 3) Cria itens ausentes (UUID v4)
 INSERT INTO PantryItem (id, tenantId, name, `group`, defaultSector, unit, minStock, createdAt, updatedAt)
+<<<<<<< Updated upstream
 SELECT
   LOWER(CONCAT(
     SUBSTR(h, 1, 8), '-',
@@ -502,6 +975,21 @@ WHERE NOT EXISTS (
   FROM PantryItem i
   WHERE i.tenantId = @tenant_id
     AND i.name = (b.item_name COLLATE utf8mb4_unicode_ci)
+=======
+SELECT LOWER(CONCAT(
+  LPAD(HEX(RANDOM_BYTES(4)), 8, '0'), '-',
+  LPAD(HEX(RANDOM_BYTES(2)), 4, '0'), '-',
+  '4', SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  SUBSTR('89ab', 1 + FLOOR(RAND() * 4), 1),
+  SUBSTR(HEX(RANDOM_BYTES(2)), 2, 3), '-',
+  LPAD(HEX(RANDOM_BYTES(6)), 12, '0')
+)), @tenant_id, b.item_name, NULL, @default_sector, @default_unit, @min_stock, NOW(), NOW()
+FROM (SELECT DISTINCT item_name FROM tmp_pantry_backup) b
+WHERE NOT EXISTS (
+  SELECT 1 FROM PantryItem i
+  WHERE BINARY i.tenantId = BINARY @tenant_id
+    AND BINARY i.name = BINARY b.item_name
+>>>>>>> Stashed changes
 );
 
 -- 4) Mapeia items por nome (se houver duplicados, usa o menor id)
@@ -509,9 +997,10 @@ DROP TEMPORARY TABLE IF EXISTS tmp_pantry_item_map;
 CREATE TEMPORARY TABLE tmp_pantry_item_map AS
 SELECT name AS item_name, MIN(id) AS item_id, MIN(unit) AS unit
 FROM PantryItem
-WHERE tenantId = @tenant_id
+WHERE BINARY tenantId = BINARY @tenant_id
 GROUP BY name;
 
+<<<<<<< Updated upstream
 -- 5) Prepara importação (gera IDs v4 por linha)
 DROP TEMPORARY TABLE IF EXISTS tmp_pantry_entry_import;
 CREATE TEMPORARY TABLE tmp_pantry_entry_import (
@@ -533,6 +1022,10 @@ CREATE TEMPORARY TABLE tmp_pantry_entry_import (
 INSERT INTO tmp_pantry_entry_import (
   row_id, entry_id, item_id, quantity, unit, sector, entry_date, expiry_date
 )
+=======
+-- insere entradas por movimentação (entryDate = data_movimentacao, expiryDate = validade)
+INSERT INTO PantryEntry (id, tenantId, itemId, donorId, sector, quantity, unit, entryDate, expiryDate, notes, reversalOfExitId, createdAt, updatedAt)
+>>>>>>> Stashed changes
 SELECT
   t.row_id,
   LOWER(CONCAT(
@@ -543,6 +1036,7 @@ SELECT
     SUBSTR(t.h, 21, 12)
   )),
   m.item_id,
+<<<<<<< Updated upstream
   t.quantity,
   m.unit,
   @default_sector,
@@ -621,18 +1115,45 @@ FROM tmp_pantry_entry_import e;
 INSERT INTO PantryExit (
   id, tenantId, itemId, sector, quantity, unit, exitDate, type, eventName, notes, reversalOfEntryId, createdAt, updatedAt
 )
+=======
+  NULL,
+  @default_sector,
+  b.quantidade,
+  m.unit,
+  b.data_movimentacao,
+  b.validade,
+  COALESCE(NULLIF(b.note, ''), @entry_note),
+  NULL,
+  NOW(),
+  NOW()
+FROM tmp_pantry_backup b
+JOIN tmp_pantry_item_map m ON BINARY m.item_name = BINARY b.item_name
+WHERE b.movimento = 'ENTRADA';
+
+-- insere saídas por movimentação (exitDate = data_movimentacao)
+INSERT INTO PantryExit (id, tenantId, itemId, sector, quantity, unit, exitDate, type, eventName, notes, reversalOfEntryId, createdAt, updatedAt)
+>>>>>>> Stashed changes
 SELECT
   x.exit_id,
   @tenant_id,
+<<<<<<< Updated upstream
   x.item_id,
   x.sector,
   x.quantity,
   x.unit,
   x.exit_date,
+=======
+  m.item_id,
+  @default_sector,
+  b.quantidade,
+  m.unit,
+  b.data_movimentacao,
+>>>>>>> Stashed changes
   @exit_type,
   NULL,
-  @exit_note,
+  COALESCE(NULLIF(b.note, ''), @exit_note),
   NULL,
+<<<<<<< Updated upstream
   x.exit_date,
   NOW(3)
 FROM tmp_pantry_exit_import x;
@@ -643,6 +1164,13 @@ DELIMITER $$
 CREATE PROCEDURE sp_allocate_pantry_exits_import()
 BEGIN
   DECLARE done INT DEFAULT 0;
+=======
+  NOW(),
+  NOW()
+FROM tmp_pantry_backup b
+JOIN tmp_pantry_item_map m ON BINARY m.item_name = BINARY b.item_name
+WHERE b.movimento = 'SAIDA';
+>>>>>>> Stashed changes
 
   DECLARE v_exit_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   DECLARE v_item_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
