@@ -3,10 +3,10 @@
 import * as React from "react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { formatCategoryTick, type AxisLabelByValue } from "./chartUtils";
+import { formatCategoryTick, truncateText, type AxisLabelByValue } from "./chartUtils";
 import { HorizontalBarChartView } from "./HorizontalBarChartView";
 
-export type BarChartSeries = { key: string; color: string };
+export type BarChartSeries = { key: string; color: string; label: string };
 
 function toFiniteNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -85,6 +85,65 @@ function NumberTick({
   );
 }
 
+function SeriesValueLabel({
+  x,
+  y,
+  width,
+  value,
+  fill,
+  formatter,
+  seriesLabel,
+  showSeriesLabel,
+}: {
+  x?: number;
+  y?: number;
+  width?: number;
+  value?: unknown;
+  fill?: string;
+  formatter: (value: unknown) => string;
+  seriesLabel: string;
+  showSeriesLabel: boolean;
+}) {
+  const xPos = toFiniteNumber(x);
+  const yPos = toFiniteNumber(y);
+  const barWidth = Math.max(0, toFiniteNumber(width));
+  const valueLabel = formatter(value);
+  const color = fill ?? "#0f172a";
+
+  if (!showSeriesLabel || barWidth < 34) {
+    return (
+      <text
+        x={xPos + barWidth / 2}
+        y={yPos - 8}
+        style={{ fill: color, opacity: 1 }}
+        fontSize={12}
+        textAnchor="middle"
+      >
+        {valueLabel}
+      </text>
+    );
+  }
+
+  const compactSeriesLabel = truncateText(seriesLabel, barWidth < 56 ? 8 : 12);
+
+  return (
+    <text
+      x={xPos + barWidth / 2}
+      y={yPos - 18}
+      style={{ fill: color, opacity: 1 }}
+      textAnchor="middle"
+    >
+      <title>{`${seriesLabel} ${valueLabel}`}</title>
+      <tspan x={xPos + barWidth / 2} dy="0" fontSize={10}>
+        {compactSeriesLabel}
+      </tspan>
+      <tspan x={xPos + barWidth / 2} dy="12" fontSize={12} fontWeight={600}>
+        {valueLabel}
+      </tspan>
+    </text>
+  );
+}
+
 export function BarChartView({
   width,
   height,
@@ -124,6 +183,8 @@ export function BarChartView({
 }) {
   if (!width || !height) return null;
 
+  const showSeriesLabel = series.length > 1;
+
   if (isHorizontal) {
     return (
       <HorizontalBarChartView
@@ -144,6 +205,7 @@ export function BarChartView({
   }
 
   const xAxisHeight = xAxisAngle ? 86 : 66;
+  const marginTop = showSeriesLabel ? 44 : 18;
 
   return (
     <BarChart
@@ -153,7 +215,7 @@ export function BarChartView({
       layout="horizontal"
       barGap={6}
       barCategoryGap="18%"
-      margin={{ top: 18, right: 20, bottom: xAxisAngle ? 96 : 82, left: 24 }}
+      margin={{ top: marginTop, right: 20, bottom: xAxisAngle ? 96 : 82, left: 24 }}
     >
       <CartesianGrid
         vertical={false}
@@ -208,10 +270,13 @@ export function BarChartView({
         >
           <LabelList
             dataKey={s.key}
-            position="top"
-            formatter={formatValue}
-            fill={tickFill}
-            className="text-[11px]"
+            content={
+              <SeriesValueLabel
+                formatter={formatValue}
+                seriesLabel={s.label}
+                showSeriesLabel={showSeriesLabel}
+              />
+            }
           />
         </Bar>
       ))}

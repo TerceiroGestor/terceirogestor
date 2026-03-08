@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { resolveAxisLabel, truncateText, type AxisLabelByValue } from "./chartUtils";
 
-export type HorizontalBarChartSeries = { key: string; color: string };
+export type HorizontalBarChartSeries = { key: string; color: string; label: string };
 
 type TickLabel = { raw: string; display: string };
 
@@ -100,6 +100,8 @@ function ValueLabel({
   value,
   fill,
   formatter,
+  seriesLabel,
+  showSeriesLabel,
   chartWidth,
   rightLimit,
 }: {
@@ -110,6 +112,8 @@ function ValueLabel({
   value?: unknown;
   fill?: string;
   formatter: (value: unknown) => string;
+  seriesLabel: string;
+  showSeriesLabel: boolean;
   chartWidth: number;
   rightLimit: number;
 }) {
@@ -117,7 +121,9 @@ function ValueLabel({
   const yPos = toFiniteNumber(y);
   const barWidth = Math.max(0, toFiniteNumber(width));
   const barHeight = Math.max(0, toFiniteNumber(height));
-  const text = formatter(value);
+  const valueLabel = formatter(value);
+  const compactSeriesLabel = truncateText(seriesLabel, 18);
+  const text = showSeriesLabel ? `${compactSeriesLabel} ${valueLabel}` : valueLabel;
   const color = fill ?? "#0f172a";
 
   const desiredX = xPos + barWidth + 6;
@@ -134,6 +140,7 @@ function ValueLabel({
       textAnchor={anchor}
       dominantBaseline="middle"
     >
+      <title>{`${seriesLabel} ${valueLabel}`}</title>
       {text}
     </text>
   );
@@ -183,7 +190,16 @@ export function HorizontalBarChartView({
     return { keyField, data: next, labelByKey };
   }, [axisKey, data, labelByAxisValue, yCategoryMaxLen]);
 
-  const margin = React.useMemo(() => ({ top: 18, right: 56, bottom: 18, left: 18 }), []);
+  const showSeriesLabel = series.length > 1;
+  const rightMargin = React.useMemo(() => {
+    if (!showSeriesLabel) return 56;
+    const longestLabel = series.reduce((max, item) => Math.max(max, item.label.length), 0);
+    return Math.min(220, Math.max(128, Math.round(longestLabel * 6.4 + 44)));
+  }, [series, showSeriesLabel]);
+  const margin = React.useMemo(
+    () => ({ top: 18, right: rightMargin, bottom: 18, left: 18 }),
+    [rightMargin],
+  );
 
   const maxBarSize = React.useMemo(() => {
     const usableHeight = Math.max(0, safeHeight - margin.top - margin.bottom);
@@ -245,7 +261,15 @@ export function HorizontalBarChartView({
           ) : null}
           <LabelList
             dataKey={s.key}
-            content={<ValueLabel formatter={formatValue} chartWidth={safeWidth} rightLimit={margin.right + 6} />}
+            content={
+              <ValueLabel
+                formatter={formatValue}
+                seriesLabel={s.label}
+                showSeriesLabel={showSeriesLabel}
+                chartWidth={safeWidth}
+                rightLimit={margin.right + 6}
+              />
+            }
             fill={tickFill}
             className="text-[11px]"
           />

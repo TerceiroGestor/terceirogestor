@@ -48,10 +48,24 @@ function describeValue(
   searchView: SearchViewDefinition,
 ): string {
   const field = searchView.fields.find((f) => f.name === fieldName);
-  if (field?.type === "enum") {
-    const v = Array.isArray(value) ? value[0] : value;
-    const opt = field.options?.find((o) => o.value === String(v));
-    return opt?.label ?? String(v ?? "");
+  if (
+    field?.type === "select" ||
+    field?.type === "multi-select" ||
+    field?.type === "boolean" ||
+    field?.type === "enum"
+  ) {
+    if (Array.isArray(value)) {
+      return value
+        .map((entry) => {
+          const option = field.options?.find((candidate) => candidate.value === String(entry));
+          return option?.label ?? String(entry ?? "");
+        })
+        .filter(Boolean)
+        .join(", ");
+    }
+
+    const option = field.options?.find((candidate) => candidate.value === String(value));
+    return option?.label ?? String(value ?? "");
   }
   if (field?.type === "date" && Array.isArray(value)) {
     const [from, to] = value;
@@ -97,6 +111,7 @@ export function buildQueryFacets({
       key: `groupBy:${groupBy.join(",")}`,
       label,
       icon: <Layers className="size-3.5" />,
+      tone: "group",
       onRemove: onClearGroupBy,
       removeLabel: "Limpar agrupamento",
     });

@@ -60,6 +60,20 @@ function extractApiErrorMessage(payload: unknown, status: number) {
 }
 
 let refreshPromise: Promise<string | null> | null = null;
+const inflightGetRequests = new Map<string, Promise<unknown>>();
+
+function withInFlightGetRequest<T>(key: string, load: () => Promise<T>) {
+  const existing = inflightGetRequests.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const request = load().finally(() => {
+    inflightGetRequests.delete(key);
+  });
+  inflightGetRequests.set(key, request as Promise<unknown>);
+  return request;
+}
 
 export async function refreshAccessToken() {
   const slug = getTenantSlug();
@@ -188,7 +202,16 @@ export async function apiRequest<T>(
     return payload as T;
   };
 
-  return execute(token ?? null, true);
+  const method = String(options.method ?? "GET").toUpperCase();
+  const tenantSlug = getTenantSlug() ?? "";
+  const canDeduplicate = method === "GET" && !options.body;
+
+  if (!canDeduplicate) {
+    return execute(token ?? null, true);
+  }
+
+  const requestKey = JSON.stringify([tenantSlug, path, token ?? null]);
+  return withInFlightGetRequest(requestKey, () => execute(token ?? null, true));
 }
 
 export async function publicApiRequest<T>(

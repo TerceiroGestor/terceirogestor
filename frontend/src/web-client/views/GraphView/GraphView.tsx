@@ -15,22 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import {
+  ModuleEmptyState,
+  MODULE_SURFACE_CLASS_NAME,
+} from "@/web-client/ui/ModulePrimitives";
 import { AreaChartView, BarChartView, LineChartView, PieChartView } from "./charts";
 import { safeLabel } from "./charts/chartUtils";
-
-export type GraphSeries = {
-  key: string;
-  label: string;
-  color: string;
-};
-
-export type GraphChartType =
-  | "bar"
-  | "bar_horizontal"
-  | "line"
-  | "area"
-  | "pie"
-  | "donut";
+import type { GraphChartType, GraphSeries } from "./types";
 
 const INTERNAL_CATEGORY_KEY = "__graph_category_key";
 const INTERNAL_CATEGORY_LABEL = "__graph_category_label";
@@ -454,25 +445,27 @@ export function GraphView<TDatum extends Record<string, unknown>>({
 
   if (!data.length) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-        {emptyState}
-      </div>
+      <ModuleEmptyState title="Sem dados" description={emptyState} />
     );
   }
 
   if (!series.length) {
     return (
-      <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-        Selecione ao menos uma métrica.
-      </div>
+      <ModuleEmptyState
+        title="Sem metricas"
+        description="Selecione ao menos uma metrica."
+      />
     );
   }
 
   const primarySeries = series[0]!;
 
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
-      <div className="absolute right-2 top-2 z-10">
+    <div
+      ref={rootRef}
+      className={cn(MODULE_SURFACE_CLASS_NAME, "relative w-full p-3", className)}
+    >
+      <div className="absolute right-3 top-3 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -496,7 +489,11 @@ export function GraphView<TDatum extends Record<string, unknown>>({
         </DropdownMenu>
       </div>
 
-      <ChartContainer config={config} className="w-full aspect-auto" style={{ height: chartHeight }}>
+      <ChartContainer
+        config={config}
+        className="w-full aspect-auto pt-6"
+        style={{ height: chartHeight }}
+      >
         {isPie ? (
           <PieChartView
             data={prepared.data}
@@ -517,7 +514,11 @@ export function GraphView<TDatum extends Record<string, unknown>>({
             xAxisAngle={xAxisAngle}
             xAxisTextAnchor={xAxisTextAnchor}
             xTickMaxLen={xTickMaxLen}
-            series={resolvedSeries.map((s) => ({ key: s.key, color: s.resolvedColor }))}
+            series={resolvedSeries.map((s) => ({
+              key: s.key,
+              color: s.resolvedColor,
+              label: s.label,
+            }))}
             formatValue={formatValue}
             tooltipLabelFormatter={tooltipLabelFormatterSafe}
           />
@@ -549,7 +550,11 @@ export function GraphView<TDatum extends Record<string, unknown>>({
             yCategoryMaxLen={yCategoryMaxLen}
             yCategoryWidth={yCategoryWidth}
             yAxisWidth={yAxisWidth}
-            series={resolvedSeries.map((s) => ({ key: s.key, color: s.resolvedColor }))}
+            series={resolvedSeries.map((s) => ({
+              key: s.key,
+              color: s.resolvedColor,
+              label: s.label,
+            }))}
             formatValue={formatValue}
             tooltipLabelFormatter={tooltipLabelFormatterSafe}
           />

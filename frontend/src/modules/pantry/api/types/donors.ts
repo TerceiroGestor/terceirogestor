@@ -5,6 +5,7 @@ export type ApiPantryDonor = {
   name: string;
   type: "PERSON" | "COMPANY";
   contact: string | null;
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,5 +19,5 @@ export type PantryDonorInput = {
   name: string;
   type?: "PERSON" | "COMPANY";
   contact?: string | null;
+  avatarUrl?: string | null;
 };
-

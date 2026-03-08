@@ -591,10 +591,44 @@ export class PantryService {
       params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 50;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const [entryRows, exitRows] = await this.prisma.$transaction([
+      this.prisma.pantryEntry.findMany({
+        where: { tenantId, itemId },
+        select: { id: true },
+      }),
+      this.prisma.pantryExit.findMany({
+        where: { tenantId, itemId },
+        select: { id: true },
+      }),
+    ]);
+
+    const entryIds = entryRows.map((entry) => entry.id);
+    const exitIds = exitRows.map((exit) => exit.id);
+
+    const where: Prisma.AuditLogWhereInput = {
       tenantId,
-      entity: 'PantryItem',
-      entityId: itemId,
+      OR: [
+        {
+          entity: 'PantryItem',
+          entityId: itemId,
+        },
+        ...(entryIds.length
+          ? [
+              {
+                entity: 'PantryEntry',
+                entityId: { in: entryIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+        ...(exitIds.length
+          ? [
+              {
+                entity: 'PantryExit',
+                entityId: { in: exitIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+      ],
     };
 
     const [data, total] = await this.prisma.$transaction([
@@ -708,6 +742,7 @@ export class PantryService {
         name: donor.name,
         type: donor.type,
         contact: donor.contact,
+        avatarUrl: donor.avatarUrl,
         createdAt: donor.createdAt,
         updatedAt: donor.updatedAt,
       })),
@@ -727,6 +762,7 @@ export class PantryService {
         name: dto.name,
         type: dto.type ?? undefined,
         contact: dto.contact ?? null,
+        avatarUrl: normalizeString(dto.avatarUrl),
       },
     });
   }
@@ -744,8 +780,193 @@ export class PantryService {
       name: donor.name,
       type: donor.type,
       contact: donor.contact,
+      avatarUrl: donor.avatarUrl,
       createdAt: donor.createdAt,
       updatedAt: donor.updatedAt,
+    };
+  }
+
+  async listDonorAuditLogs(
+    tenantId: string,
+    donorId: string,
+    params?: { page?: number; limit?: number },
+  ) {
+    await this.getDonor(tenantId, donorId);
+
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 50;
+    const skip = (page - 1) * limit;
+
+    const entryRows = await this.prisma.pantryEntry.findMany({
+      where: { tenantId, donorId },
+      select: { id: true },
+    });
+
+    const entryIds = entryRows.map((entry) => entry.id);
+
+    const where: Prisma.AuditLogWhereInput = {
+      tenantId,
+      OR: [
+        {
+          entity: 'PantryDonor',
+          entityId: donorId,
+        },
+        ...(entryIds.length
+          ? [
+              {
+                entity: 'PantryEntry',
+                entityId: { in: entryIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+      ],
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async listEntryAuditLogs(
+    tenantId: string,
+    entryId: string,
+    params?: { page?: number; limit?: number },
+  ) {
+    await this.getEntry(tenantId, entryId);
+
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 50;
+    const skip = (page - 1) * limit;
+
+    const allocationRows = await this.prisma.pantryExitAllocation.findMany({
+      where: { tenantId, entryId },
+      select: { exitId: true },
+    });
+
+    const exitIds = Array.from(new Set(allocationRows.map((row) => row.exitId)));
+
+    const where: Prisma.AuditLogWhereInput = {
+      tenantId,
+      OR: [
+        {
+          entity: 'PantryEntry',
+          entityId: entryId,
+        },
+        ...(exitIds.length
+          ? [
+              {
+                entity: 'PantryExit',
+                entityId: { in: exitIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+      ],
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  async listExitAuditLogs(
+    tenantId: string,
+    exitId: string,
+    params?: { page?: number; limit?: number },
+  ) {
+    const exit = await this.getExit(tenantId, exitId);
+
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit =
+      params?.limit && params.limit > 0 ? Math.min(params.limit, 200) : 50;
+    const skip = (page - 1) * limit;
+
+    const entryIds = Array.from(
+      new Set(
+        (exit.allocations ?? [])
+          .map((allocation) => allocation.entryId)
+          .filter(Boolean),
+      ),
+    );
+
+    const where: Prisma.AuditLogWhereInput = {
+      tenantId,
+      OR: [
+        {
+          entity: 'PantryExit',
+          entityId: exitId,
+        },
+        ...(entryIds.length
+          ? [
+              {
+                entity: 'PantryEntry',
+                entityId: { in: entryIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+      ],
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
     };
   }
 
@@ -763,6 +984,9 @@ export class PantryService {
         name: dto.name,
         type: dto.type,
         contact: dto.contact ?? undefined,
+        ...(dto.avatarUrl !== undefined
+          ? { avatarUrl: normalizeString(dto.avatarUrl) }
+          : {}),
       },
     });
   }

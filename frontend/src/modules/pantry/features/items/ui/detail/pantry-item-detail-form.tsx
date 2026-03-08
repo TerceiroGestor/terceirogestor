@@ -75,11 +75,11 @@ export function PantryItemDetailForm({
   }, [draft.group]);
 
   return (
-    <div className="rounded-md border border-border/60 bg-card p-4">
+    <div className="border-y border-border/60 bg-transparent py-4">
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Nome
             </div>
             <Input
@@ -95,7 +95,7 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Unidade
             </div>
             <Select
@@ -120,7 +120,7 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Grupo de alimentos
             </div>
             <Select
@@ -147,7 +147,7 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Setor
             </div>
             <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export function PantryItemDetailForm({
           </div>
 
           <div className="space-y-1">
-            <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Estoque mínimo
             </div>
             <Input
@@ -205,7 +205,7 @@ export function PantryItemDetailForm({
         </div>
 
         {readOnly ? (
-          <div className="rounded-md border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
+          <div className="border border-dashed border-border/60 px-4 py-3 text-xs text-muted-foreground">
             {mode === "create"
               ? "Você não tem permissão para criar."
               : "Você não tem permissão para editar."}

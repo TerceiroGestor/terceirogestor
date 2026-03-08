@@ -37,7 +37,10 @@ export function RecordBrowserViewSwitcher<V extends string>({
         if (!next) return;
         onChange(next as V);
       }}
-      className={cn(size === "sm" ? "shrink-0 p-0.5" : "shrink-0", className)}
+      className={cn(
+        "shrink-0 items-center gap-0 border-b border-border/60",
+        className,
+      )}
     >
       {options.map((option) => (
         <ToggleGroupItem
@@ -46,10 +49,15 @@ export function RecordBrowserViewSwitcher<V extends string>({
           disabled={option.disabled}
           title={option.label}
           aria-label={option.label}
-          className={cn("px-2", itemClassName)}
+          className={cn(
+            "rounded-none border-b-2 border-transparent bg-transparent px-2 text-muted-foreground shadow-none",
+            "data-[state=on]:border-primary data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:shadow-none",
+            "hover:bg-transparent hover:text-foreground",
+            itemClassName,
+          )}
         >
           {option.icon ? (
-            <span className="text-muted-foreground">{option.icon}</span>
+            <span className="text-current">{option.icon}</span>
           ) : null}
           <span
             className={cn(

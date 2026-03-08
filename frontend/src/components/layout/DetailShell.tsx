@@ -40,6 +40,8 @@ export type DetailShellProps = {
   headerActionsSlot?: React.ReactNode;
   headerInfoSlot?: React.ReactNode;
   headerInfoClassName?: string;
+  viewControlsSlot?: React.ReactNode;
+  viewControlsClassName?: string;
 
   mainSlot?: React.ReactNode;
   sideSlot?: React.ReactNode;
@@ -79,6 +81,8 @@ export function DetailShell({
   headerActionsSlot,
   headerInfoSlot,
   headerInfoClassName,
+  viewControlsSlot,
+  viewControlsClassName,
   mainSlot,
   sideSlot,
   bottomSlot,
@@ -101,32 +105,14 @@ export function DetailShell({
       ? mergedLabels.loading
       : mergedLabels.ready;
 
-  return (
-    <>
-      <PageBreadcrumb
-        title={breadcrumbTitle}
-        items={breadcrumbItems}
-        actionSlot={actionSlot}
-      />
-
-      <div className={cn("w-full px-4 py-4", className)}>
-        <div className="mb-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_420px] lg:items-start">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold text-foreground">
+  const headerBlock = (
+    <div className="mb-4 border-b border-border/60 pb-4">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="truncate text-[1.85rem] font-semibold tracking-tight text-foreground">
               {headerTitle}
             </h1>
-
-            {headerInfoSlot ? (
-              <div className={cn("mt-2 min-w-0", headerInfoClassName)}>
-                {headerInfoSlot}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex items-center justify-end gap-2">
-            {headerActionsSlot ? (
-              <div className="flex items-center gap-2">{headerActionsSlot}</div>
-            ) : null}
 
             {mode === "create" ? (
               onSave ? (
@@ -139,7 +125,7 @@ export function DetailShell({
                 </Button>
               ) : null
             ) : (
-              <div className="rounded-sm border border-border/60 bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground">
+              <div className="border-b border-border/50 px-0 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 {statusText}
               </div>
             )}
@@ -155,18 +141,79 @@ export function DetailShell({
               <X className="size-4" />
             </Button>
           </div>
+
+          {headerActionsSlot ? (
+            <div className="flex items-center gap-2">{headerActionsSlot}</div>
+          ) : null}
         </div>
 
+        {headerInfoSlot ? (
+          <div className={cn("mt-4 min-w-0", headerInfoClassName)}>
+            {headerInfoSlot}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const viewControlsBlock = viewControlsSlot ? (
+    <div
+      className={cn(
+        "mb-4 flex flex-wrap items-center gap-2 border-b border-border/50 pb-3",
+        viewControlsClassName,
+      )}
+    >
+      {viewControlsSlot}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <PageBreadcrumb
+        title={breadcrumbTitle}
+        items={breadcrumbItems}
+        actionSlot={actionSlot}
+      />
+
+      <div className={cn("w-full px-4 py-3", className)}>
         {mainSlot || sideSlot || bottomSlot ? (
-          <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px]", bodyClassName)}>
-            <div className={cn("min-w-0 space-y-4", mainClassName)}>
-              {mainSlot}
-              {bottomSlot ? <div className={bottomClassName}>{bottomSlot}</div> : null}
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-6",
+              sideSlot ? "lg:grid-cols-[minmax(0,1fr)_minmax(420px,36vw)]" : null,
+              bodyClassName,
+            )}
+          >
+            <div className={cn("min-w-0", mainClassName)}>
+              {headerBlock}
+              {viewControlsBlock}
+
+              <div className="space-y-6">
+                {mainSlot}
+                {bottomSlot ? (
+                  <div className={cn("border-t border-border/50 pt-4", bottomClassName)}>
+                    {bottomSlot}
+                  </div>
+                ) : null}
+              </div>
             </div>
-            <div className={cn("min-w-0", sideClassName)}>{sideSlot}</div>
+            {sideSlot ? (
+              <div
+                className={cn(
+                  "min-w-0 lg:sticky lg:top-4 lg:flex lg:h-[calc(100vh-7.5rem)] lg:self-start lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:pl-8",
+                  sideClassName,
+                )}
+              >
+                {sideSlot}
+              </div>
+            ) : null}
           </div>
         ) : (
-          children
+          <>
+            {headerBlock}
+            {viewControlsBlock}
+            {children}
+          </>
         )}
       </div>
     </>

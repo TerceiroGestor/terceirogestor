@@ -13,4 +13,8 @@ export class UpdatePantryDonorDto {
   @IsOptional()
   @IsString()
   contact?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
 }

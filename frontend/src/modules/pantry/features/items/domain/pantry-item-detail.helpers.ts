@@ -1,11 +1,19 @@
 "use client";
 
-import type { ApiPantryAuditLog, ApiPantryExit } from "@/modules/pantry/api";
+import {
+  formatDateOnlyPtBR,
+  formatDateTimePtBR,
+} from "@/lib/date";
+import type {
+  ApiPantryEntry,
+  ApiPantryExit,
+} from "@/modules/pantry/api";
 import {
   PANTRY_AUDIT_FIELD_LABELS,
   PANTRY_DEFAULT_SECTOR,
   PANTRY_EXIT_TYPE_LABELS,
 } from "@/modules/pantry/shared/domain/pantry.constants";
+import type { DetailAuditFeedItem } from "@/web-client/detail/audit-types";
 
 export function toInt(value: string) {
   const parsed = Number.parseInt(value, 10);
@@ -45,7 +53,7 @@ export function resolveExitTypeLabel(type: ApiPantryExit["type"] | string | null
   return String(type);
 }
 
-export function resolveAuditActionLabel(action: ApiPantryAuditLog["action"]) {
+export function resolveAuditActionLabel(action: DetailAuditFeedItem["action"]) {
   switch (action) {
     case "CREATE":
       return "Criado";
@@ -58,24 +66,106 @@ export function resolveAuditActionLabel(action: ApiPantryAuditLog["action"]) {
   }
 }
 
-export function formatAuditValue(value: unknown) {
+export function formatAuditNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString("pt-BR")
+    : "—";
+}
+
+export function formatAuditDate(value: unknown) {
+  return typeof value === "string" && value.trim()
+    ? formatDateOnlyPtBR(value)
+    : "—";
+}
+
+export function formatAuditReferenceLabel(
+  label: string | null | undefined,
+  value: unknown,
+  fallbackPrefix: string,
+) {
+  const resolvedLabel = String(label ?? "").trim();
+  if (resolvedLabel) return resolvedLabel;
+
+  const id = typeof value === "string" ? value.trim() : "";
+  if (!id) return "—";
+
+  return `${fallbackPrefix} #${id.slice(0, 8)}`;
+}
+
+export function buildPantryEntryAuditLabel(entry: ApiPantryEntry) {
+  const parts = [
+    formatDateOnlyPtBR(entry.entryDate),
+    `${Number(entry.quantity ?? 0).toLocaleString("pt-BR")} ${entry.unit}`,
+  ];
+
+  if (entry.donor?.name) {
+    parts.push(entry.donor.name);
+  }
+
+  return `Entrada ${parts.join(" | ")}`;
+}
+
+export function buildPantryExitAuditLabel(exit: ApiPantryExit) {
+  const parts = [
+    resolveExitTypeLabel(exit.type),
+    formatDateOnlyPtBR(exit.exitDate),
+    `${Number(exit.quantity ?? 0).toLocaleString("pt-BR")} ${exit.unit}`,
+  ];
+
+  const eventName = normalizeStringOrNull(exit.eventName);
+  if (eventName) {
+    parts.push(eventName);
+  }
+
+  return `Saida ${parts.join(" | ")}`;
+}
+
+function isDateOnlyValue(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isDateTimeValue(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T/.test(value);
+}
+
+export function formatAuditValue(
+  value: unknown,
+  formatter?: ((value: unknown) => string) | undefined,
+): string {
+  if (formatter) {
+    const formatted = String(formatter(value) ?? "").trim();
+    if (formatted) return formatted;
+  }
   if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return value.trim() ? value : "—";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "—";
+    if (isDateOnlyValue(trimmed)) return formatDateOnlyPtBR(trimmed);
+    if (isDateTimeValue(trimmed)) return formatDateTimePtBR(trimmed);
+    return trimmed;
+  }
+  if (typeof value === "number") return formatAuditNumber(value);
+  if (typeof value === "boolean") return value ? "Sim" : "Nao";
+  if (Array.isArray(value)) {
+    return value.length ? value.map((item) => formatAuditValue(item)).join(", ") : "—";
+  }
   return JSON.stringify(value);
 }
 
-export function diffAuditFields(log: ApiPantryAuditLog) {
+export function diffAuditFields(log: DetailAuditFeedItem) {
   const before = isRecord(log.before) ? log.before : {};
   const after = isRecord(log.after) ? log.after : {};
-  const keys = Object.keys({ ...before, ...after }).filter((k) => k in PANTRY_AUDIT_FIELD_LABELS);
+  const fieldLabels = log.fieldLabels ?? PANTRY_AUDIT_FIELD_LABELS;
+  const keys = Object.keys({ ...before, ...after }).filter((key) => key in fieldLabels);
 
   return keys
     .map((key) => ({
       key,
-      label: PANTRY_AUDIT_FIELD_LABELS[key] ?? key,
+      label: fieldLabels[key] ?? key,
       before: before[key],
       after: after[key],
+      beforeLabel: formatAuditValue(before[key], log.valueFormatters?.[key]),
+      afterLabel: formatAuditValue(after[key], log.valueFormatters?.[key]),
     }))
     .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
 }
@@ -107,3 +197,98 @@ export function pickAvatarPalette(seed: string) {
   return AVATAR_PALETTE[idx]!;
 }
 
+function isMeaningfulAuditFormatterValue(formatted: string, value: unknown) {
+  if (!formatted) {
+    return false;
+  }
+
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  return formatted !== "—" && formatted !== "â€”" && formatted !== "-";
+}
+
+function normalizeAuditNumberString(value: string) {
+  if (!/^-?\d+([.,]\d+)?$/.test(value)) {
+    return null;
+  }
+
+  const normalized =
+    value.includes(",") && !value.includes(".")
+      ? value.replace(",", ".")
+      : value;
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed.toLocaleString("pt-BR") : null;
+}
+
+function formatAuditValueStable(
+  value: unknown,
+  formatter?: ((value: unknown) => string) | undefined,
+): string {
+  if (formatter) {
+    const formatted = String(formatter(value) ?? "").trim();
+    if (isMeaningfulAuditFormatterValue(formatted, value)) {
+      return formatted;
+    }
+  }
+
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "—";
+    }
+    if (isDateOnlyValue(trimmed)) {
+      return formatDateOnlyPtBR(trimmed);
+    }
+    if (isDateTimeValue(trimmed)) {
+      return formatDateTimePtBR(trimmed);
+    }
+
+    const numericLabel = normalizeAuditNumberString(trimmed);
+    if (numericLabel) {
+      return numericLabel;
+    }
+
+    return trimmed;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toLocaleString("pt-BR") : "—";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Sim" : "Nao";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length
+      ? value.map((item) => formatAuditValueStable(item)).join(", ")
+      : "—";
+  }
+
+  return JSON.stringify(value);
+}
+
+export function diffAuditFieldsStable(log: DetailAuditFeedItem) {
+  const before = isRecord(log.before) ? log.before : {};
+  const after = isRecord(log.after) ? log.after : {};
+  const fieldLabels = log.fieldLabels ?? PANTRY_AUDIT_FIELD_LABELS;
+  const keys = Object.keys({ ...before, ...after }).filter((key) => key in fieldLabels);
+
+  return keys
+    .map((key) => ({
+      key,
+      label: fieldLabels[key] ?? key,
+      before: before[key],
+      after: after[key],
+      beforeLabel: formatAuditValueStable(before[key], log.valueFormatters?.[key]),
+      afterLabel: formatAuditValueStable(after[key], log.valueFormatters?.[key]),
+    }))
+    .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
+}

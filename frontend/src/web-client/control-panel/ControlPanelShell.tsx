@@ -45,32 +45,36 @@ export function ControlPanelShell() {
     ) : null);
 
   return (
-    <div className="border-b border-border bg-card/95 px-3 backdrop-blur">
-      <div className="grid grid-cols-1 gap-2 py-2 lg:grid-cols-[auto_1fr_auto] lg:items-center lg:gap-3 lg:py-1">
+    <div className="border-b border-border/60 bg-background/90 px-4 backdrop-blur">
+      <div className="grid grid-cols-1 gap-3 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           {createButtonNode}
           {actionSlot}
           {controlPanel.leftSlot ? (
-            <div className="flex flex-wrap items-center gap-2">{controlPanel.leftSlot}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {controlPanel.leftSlot}
+            </div>
           ) : null}
         </div>
 
-        <div className="flex min-w-0 items-center justify-center gap-1">
+        <div className="flex min-w-0 items-center justify-center gap-2">
           {controlPanel.searchSlot ? (
-            <div className="w-full max-w-[560px] flex-1">{controlPanel.searchSlot}</div>
+            <div className="w-full max-w-[860px] flex-1 xl:max-w-[980px]">
+              {controlPanel.searchSlot}
+            </div>
           ) : null}
           {controlPanel.filterSlot}
           {controlPanel.groupBySlot}
           {controlPanel.favoritesSlot}
         </div>
 
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-2">
           {controlPanel.viewSwitcherSlot}
           {controlPanel.rightSlot}
         </div>
       </div>
       {controlPanel.viewControlsSlot ? (
-        <div className="border-t border-border/60 bg-primary/5 py-2">
+        <div className="border-t border-border/50 py-2.5">
           <div className="flex flex-wrap items-center justify-end gap-2">
             {controlPanel.viewControlsSlot}
           </div>

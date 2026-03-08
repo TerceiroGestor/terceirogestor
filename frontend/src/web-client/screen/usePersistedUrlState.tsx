@@ -39,6 +39,17 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const mountedRef = React.useRef(false);
+  const equalsRef = React.useRef(equals);
+  const trackedKeysKey = trackedKeys.join("\u0000");
+
+  React.useEffect(() => {
+    equalsRef.current = equals;
+  }, [equals]);
+
+  const isEqual = React.useCallback(
+    (left: TState, right: TState) => equalsRef.current(left, right),
+    [],
+  );
 
   const parsedFromUrl = React.useMemo(
     () => parse(new URLSearchParams(searchParams.toString())),
@@ -48,8 +59,8 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
   const [state, setState] = React.useState<TState>(parsedFromUrl);
 
   React.useEffect(() => {
-    setState((prev) => (equals(prev, parsedFromUrl) ? prev : parsedFromUrl));
-  }, [equals, parsedFromUrl]);
+    setState((prev) => (isEqual(prev, parsedFromUrl) ? prev : parsedFromUrl));
+  }, [isEqual, parsedFromUrl]);
 
   React.useEffect(() => {
     if (mountedRef.current) return;
@@ -63,14 +74,22 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
     if (!parsed || typeof parsed !== "object") return;
 
     const merged = { ...parsedFromUrl, ...(parsed as Record<string, unknown>) } as TState;
-    setState((prev) => (equals(prev, merged) ? prev : merged));
-  }, [equals, parsedFromUrl, searchParams, storageKey, trackedKeys]);
+    setState((prev) => (isEqual(prev, merged) ? prev : merged));
+  }, [isEqual, parsedFromUrl, searchParams, storageKey, trackedKeysKey]);
 
   React.useEffect(() => {
     if (!mountedRef.current) return;
 
     const nextParams = new URLSearchParams(searchParams.toString());
     const serialized = serialize(state);
+    const trackedKeySet = new Set(trackedKeys);
+
+    trackedKeySet.forEach((key) => {
+      const value = serialized[key];
+      if (value === undefined || value === null || value === "") {
+        nextParams.delete(key);
+      }
+    });
 
     Object.entries(serialized).forEach(([key, value]) => {
       if (value === undefined || value === null || value === "") {
@@ -94,7 +113,7 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
         // ignore quota errors
       }
     }
-  }, [pathname, router, searchParams, serialize, state, storageKey]);
+  }, [pathname, router, searchParams, serialize, state, storageKey, trackedKeysKey]);
 
   return [state, setState] as const;
 }

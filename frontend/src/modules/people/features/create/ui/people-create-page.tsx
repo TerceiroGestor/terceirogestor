@@ -1,3 +1,5 @@
+"use client";
+
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { PeopleCreateClient } from "@/modules/people/shared/ui/people-create-client";
 

@@ -5,6 +5,7 @@ import { personManifest } from "@/modules/person/manifest";
 import { pantryManifest } from "@/modules/pantry/manifest";
 import { programsManifest } from "@/modules/programs/manifest";
 import { projectsManifest } from "@/modules/projects/manifest";
+import { tasksManifest } from "@/modules/tasks/manifest";
 import { NAV_GROUP_ORDER } from "@/modules/nav/groups";
 
 export const moduleManifests: ModuleManifest[] = [
@@ -14,6 +15,7 @@ export const moduleManifests: ModuleManifest[] = [
   projectsManifest,
   actionsManifest,
   pantryManifest,
+  tasksManifest,
 ];
 
 const resolveGroupOrder = (label: string) => NAV_GROUP_ORDER[label] ?? 999;

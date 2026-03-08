@@ -1,6 +1,5 @@
-import { PeopleDetailRouteClientPage } from "@/modules/person";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PersonDetailRoutePage() {
-  return <PeopleDetailRouteClientPage />;
+  return <ScreenHost actionId="people.detail" />;
 }
-

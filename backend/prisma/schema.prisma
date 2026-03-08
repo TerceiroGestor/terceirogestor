@@ -1,6 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../src/generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -89,6 +89,27 @@ enum PantryExitType {
   CORRECTION
 }
 
+enum TaskOrganizerStatus {
+  BACKLOG
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskOrganizerPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskOrganizerKind {
+  FEATURE
+  BUG
+  ROUTINE
+}
+
 enum TenantRegistrationMethod {
   EMAIL
   GOOGLE
@@ -119,95 +140,104 @@ enum SensitiveAccessAction {
 }
 
 model Tenant {
-  id        String       @id @default(uuid()) @db.Char(36)
-  name      String       @unique
-  slug      String       @unique
-  logoUrl   String?
-  cnpj      String?
-  startYear Int?
-  description String? @db.Text
-  status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id          String       @id @default(uuid()) @db.Char(36)
+  name        String       @unique
+  slug        String       @unique
+  logoUrl     String?
+  cnpj        String?
+  startYear   Int?
+  description String?      @db.Text
+  status      TenantStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  users           User[]
-  roles           Role[]
-  mfaTotpSetups   UserMfaTotpSetup[]
-  mfaChallenges   UserMfaChallenge[]
-  trustedDevices  UserTrustedDevice[]
-  mfaRecoveryCodes UserMfaRecoveryCode[]
-  people          Person[]
-  personContacts  PersonContact[]
-  personSensitiveDocuments PersonSensitiveDocument[]
-  personSensitiveAccessLogs PersonSensitiveAccessLog[]
-  rolePermissions RolePermission[]
-  userRoles       UserRole[]
-  households      Household[]
-  householdMembers HouseholdMember[]
-  householdProfiles HouseholdProfile[]
-  personRelations PersonRelation[]
-  personIncomes   PersonIncome[]
-  personExpenses  PersonExpense[]
-  personBenefits  PersonBenefit[]
-  personDetentions PersonDetention[]
-  householdAssets HouseholdAsset[]
-  personAssets    PersonAsset[]
-  householdTransfers HouseholdTransfer[]
-  personHealthConditions PersonHealthCondition[]
-  personMedications PersonMedication[]
-  personEducations PersonEducation[]
-  userSessions    UserSession[]
-  passwordResetTokens PasswordResetToken[]
-  accessLogs      AccessLog[]
-  auditLogs       AuditLog[]
-  pantryItems     PantryItem[]
-  pantrySectors   PantrySector[]
-  pantryEntries   PantryEntry[]
-  pantryExits     PantryExit[]
-  pantryDonors    PantryDonor[]
-  pantryExitAllocations PantryExitAllocation[]
-  programs        Program[]
-  projects        Project[]
-  projectGroups   ProjectGroup[]
-  projectCycles   ProjectCycle[]
-  projectEnrollments ProjectEnrollment[]
-  projectEnrollmentGroupMemberships ProjectEnrollmentGroupMembership[]
+  users                                User[]
+  roles                                Role[]
+  mfaTotpSetups                        UserMfaTotpSetup[]
+  mfaChallenges                        UserMfaChallenge[]
+  trustedDevices                       UserTrustedDevice[]
+  mfaRecoveryCodes                     UserMfaRecoveryCode[]
+  people                               Person[]
+  personContacts                       PersonContact[]
+  personSensitiveDocuments             PersonSensitiveDocument[]
+  personSensitiveAccessLogs            PersonSensitiveAccessLog[]
+  rolePermissions                      RolePermission[]
+  userRoles                            UserRole[]
+  households                           Household[]
+  householdMembers                     HouseholdMember[]
+  householdProfiles                    HouseholdProfile[]
+  personRelations                      PersonRelation[]
+  personIncomes                        PersonIncome[]
+  personExpenses                       PersonExpense[]
+  personBenefits                       PersonBenefit[]
+  personDetentions                     PersonDetention[]
+  householdAssets                      HouseholdAsset[]
+  personAssets                         PersonAsset[]
+  householdTransfers                   HouseholdTransfer[]
+  personHealthConditions               PersonHealthCondition[]
+  personMedications                    PersonMedication[]
+  personEducations                     PersonEducation[]
+  userSessions                         UserSession[]
+  passwordResetTokens                  PasswordResetToken[]
+  accessLogs                           AccessLog[]
+  auditLogs                            AuditLog[]
+  pantryItems                          PantryItem[]
+  pantrySectors                        PantrySector[]
+  pantryEntries                        PantryEntry[]
+  pantryExits                          PantryExit[]
+  pantryDonors                         PantryDonor[]
+  pantryExitAllocations                PantryExitAllocation[]
+  taskOrganizerTasks                   TaskOrganizerTask[]
+  taskOrganizerChecklistItems          TaskOrganizerChecklistItem[]
+  taskOrganizerSubtasks                TaskOrganizerSubtask[]
+  taskOrganizerComments                TaskOrganizerComment[]
+  taskOrganizerTaskDependencies        TaskOrganizerTaskDependency[]
+  programs                             Program[]
+  projects                             Project[]
+  projectGroups                        ProjectGroup[]
+  projectCycles                        ProjectCycle[]
+  projectEnrollments                   ProjectEnrollment[]
+  projectEnrollmentGroupMemberships    ProjectEnrollmentGroupMembership[]
   projectEnrollmentCycleParticipations ProjectEnrollmentCycleParticipation[]
-  actionTypes     ActionType[]
-  projectActions  ProjectAction[]
-  projectActionAttendances ProjectActionAttendance[]
+  actionTypes                          ActionType[]
+  projectActions                       ProjectAction[]
+  projectActionAttendances             ProjectActionAttendance[]
 
   @@index([status])
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Char(36)
-  tenantId     String   @db.Char(36)
-  name         String?
-  email        String
-  phone        String?
-  bio          String?  @db.Text
-  passwordHash String
-  avatarUrl    String?
-  isActive     Boolean  @default(true)
+  id                String    @id @default(uuid()) @db.Char(36)
+  tenantId          String    @db.Char(36)
+  name              String?
+  email             String
+  phone             String?
+  bio               String?   @db.Text
+  passwordHash      String
+  avatarUrl         String?
+  isActive          Boolean   @default(true)
   mfaTotpEnabled    Boolean   @default(false)
   mfaTotpSecretEnc  String?   @db.Text
   mfaTotpVerifiedAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  roles  UserRole[]
-  sessions UserSession[]
-  passwordResetTokens PasswordResetToken[]
-  accessLogs AccessLog[]
-  auditLogs AuditLog[]
-  mfaTotpSetups     UserMfaTotpSetup[]
-  mfaChallenges     UserMfaChallenge[]
-  trustedDevices    UserTrustedDevice[]
-  recoveryCodes     UserMfaRecoveryCode[]
-  personSensitiveAccessLogs PersonSensitiveAccessLog[]
-  projectActionsCreated ProjectAction[]
+  tenant                     Tenant                     @relation(fields: [tenantId], references: [id])
+  roles                      UserRole[]
+  sessions                   UserSession[]
+  passwordResetTokens        PasswordResetToken[]
+  accessLogs                 AccessLog[]
+  auditLogs                  AuditLog[]
+  mfaTotpSetups              UserMfaTotpSetup[]
+  mfaChallenges              UserMfaChallenge[]
+  trustedDevices             UserTrustedDevice[]
+  recoveryCodes              UserMfaRecoveryCode[]
+  personSensitiveAccessLogs  PersonSensitiveAccessLog[]
+  projectActionsCreated      ProjectAction[]
+  assignedTaskOrganizerTasks TaskOrganizerTask[]        @relation("TaskOrganizerAssignedUser")
+  assignedTaskOrganizerChecklistItems TaskOrganizerChecklistItem[] @relation("TaskOrganizerChecklistAssignedUser")
+  assignedTaskOrganizerSubtasks TaskOrganizerSubtask[] @relation("TaskOrganizerSubtaskAssignedUser")
+  taskOrganizerComments TaskOrganizerComment[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -221,7 +251,7 @@ model Role {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
   users       UserRole[]
   permissions RolePermission[]
 
@@ -262,84 +292,84 @@ model UserRole {
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
 
   @@unique([tenantId, userId, roleId])
   @@index([tenantId])
 }
 
 model Person {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  fullName  String
-  birthDate DateTime?
-  socialName     String?
-  sex            String?
-  gender         String?
-  raceColor      String?
-  maritalStatus  String?
-  nationality    String?
-  email          String?
-  phone          String?
-  document       String?
-  rg             String?
-  nis            String?
-  personType     String   @default("Atendido")
-  status         String?
-  departureReason String? @db.Text
-  tags           String? @db.Text
-  notes          String? @db.Text
-  profileSummary String? @db.Text
-  avatarUrl      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(uuid()) @db.Char(36)
+  tenantId        String    @db.Char(36)
+  fullName        String
+  birthDate       DateTime?
+  socialName      String?
+  sex             String?
+  gender          String?
+  raceColor       String?
+  maritalStatus   String?
+  nationality     String?
+  email           String?
+  phone           String?
+  document        String?
+  rg              String?
+  nis             String?
+  personType      String    @default("Atendido")
+  status          String?
+  departureReason String?   @db.Text
+  tags            String?   @db.Text
+  notes           String?   @db.Text
+  profileSummary  String?   @db.Text
+  avatarUrl       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  householdMembers HouseholdMember[]
-  relations PersonRelation[] @relation("PersonRelationPerson")
-  relatedRelations PersonRelation[] @relation("PersonRelationRelated")
-  incomes PersonIncome[]
-  expenses PersonExpense[]
-  benefits PersonBenefit[]
-  detentions PersonDetention[]
-  assets  PersonAsset[]
-  transfers HouseholdTransfer[]
-  healthConditions PersonHealthCondition[]
-  medications PersonMedication[]
-  educations PersonEducation[]
-  contacts PersonContact[]
-  sensitiveDocument PersonSensitiveDocument?
+  tenant              Tenant                     @relation(fields: [tenantId], references: [id])
+  householdMembers    HouseholdMember[]
+  relations           PersonRelation[]           @relation("PersonRelationPerson")
+  relatedRelations    PersonRelation[]           @relation("PersonRelationRelated")
+  incomes             PersonIncome[]
+  expenses            PersonExpense[]
+  benefits            PersonBenefit[]
+  detentions          PersonDetention[]
+  assets              PersonAsset[]
+  transfers           HouseholdTransfer[]
+  healthConditions    PersonHealthCondition[]
+  medications         PersonMedication[]
+  educations          PersonEducation[]
+  contacts            PersonContact[]
+  sensitiveDocument   PersonSensitiveDocument?
   sensitiveAccessLogs PersonSensitiveAccessLog[]
-  projectEnrollments ProjectEnrollment[]
+  projectEnrollments  ProjectEnrollment[]
 
   @@index([tenantId])
   @@index([fullName])
 }
 
 model PersonContact {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  personId  String   @db.Char(36)
-  role      PersonContactRole @default(SELF)
-  type      PersonContactType
-  label     String?
-  name      String?
+  id           String            @id @default(uuid()) @db.Char(36)
+  tenantId     String            @db.Char(36)
+  personId     String            @db.Char(36)
+  role         PersonContactRole @default(SELF)
+  type         PersonContactType
+  label        String?
+  name         String?
   relationship String?
-  value     String
-  isPrimary Boolean  @default(false)
-  isWhatsapp Boolean @default(false)
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  value        String
+  isPrimary    Boolean           @default(false)
+  isWhatsapp   Boolean           @default(false)
+  notes        String?           @db.Text
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
 
+  @@unique([tenantId, personId, type, value])
   @@index([tenantId])
   @@index([personId])
   @@index([tenantId, personId, type])
-  @@unique([tenantId, personId, type, value])
 }
 
 model PersonSensitiveDocument {
@@ -360,14 +390,14 @@ model PersonSensitiveDocument {
 }
 
 model PersonSensitiveAccessLog {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  personId  String   @db.Char(36)
-  userId    String   @db.Char(36)
+  id        String                @id @default(uuid()) @db.Char(36)
+  tenantId  String                @db.Char(36)
+  personId  String                @db.Char(36)
+  userId    String                @db.Char(36)
   action    SensitiveAccessAction
-  ipAddress String?  @db.VarChar(64)
-  userAgent String?  @db.Text
-  createdAt DateTime @default(now())
+  ipAddress String?               @db.VarChar(64)
+  userAgent String?               @db.Text
+  createdAt DateTime              @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
@@ -386,13 +416,13 @@ model Household {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant  Tenant            @relation(fields: [tenantId], references: [id])
-  members HouseholdMember[]
-  profile HouseholdProfile?
-  assets  HouseholdAsset[]
-  incomes PersonIncome[]
-  expenses PersonExpense[]
-  benefits PersonBenefit[]
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  members           HouseholdMember[]
+  profile           HouseholdProfile?
+  assets            HouseholdAsset[]
+  incomes           PersonIncome[]
+  expenses          PersonExpense[]
+  benefits          PersonBenefit[]
   outgoingTransfers HouseholdTransfer[] @relation("HouseholdTransferFrom")
   incomingTransfers HouseholdTransfer[] @relation("HouseholdTransferTo")
 
@@ -400,21 +430,21 @@ model Household {
 }
 
 model HouseholdMember {
-  id                  String   @id @default(uuid()) @db.Char(36)
-  tenantId            String   @db.Char(36)
-  householdId         String   @db.Char(36)
-  personId            String   @db.Char(36)
+  id                  String    @id @default(uuid()) @db.Char(36)
+  tenantId            String    @db.Char(36)
+  householdId         String    @db.Char(36)
+  personId            String    @db.Char(36)
   role                String?
-  isLegalGuardian     Boolean  @default(false)
-  isHouseholdHead     Boolean  @default(false)
-  isIncomeContributor Boolean  @default(false)
-  isProvider          Boolean  @default(false)
-  isDependent         Boolean  @default(false)
-  notes               String?  @db.Text
+  isLegalGuardian     Boolean   @default(false)
+  isHouseholdHead     Boolean   @default(false)
+  isIncomeContributor Boolean   @default(false)
+  isProvider          Boolean   @default(false)
+  isDependent         Boolean   @default(false)
+  notes               String?   @db.Text
   startDate           DateTime?
   endDate             DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   household Household @relation(fields: [householdId], references: [id])
@@ -427,30 +457,30 @@ model HouseholdMember {
 }
 
 model HouseholdProfile {
-  id          String   @id @default(uuid()) @db.Char(36)
-  tenantId    String   @db.Char(36)
-  householdId String   @unique @db.Char(36)
-  type        String?
-  condition   String?
-  ownership   String?
-  areaM2      Float?
-  rooms       Int?
-  bathrooms   Int?
-  cep         String?  @db.VarChar(8)
-  street      String?
-  number      String?
-  complement  String?
+  id           String   @id @default(uuid()) @db.Char(36)
+  tenantId     String   @db.Char(36)
+  householdId  String   @unique @db.Char(36)
+  type         String?
+  condition    String?
+  ownership    String?
+  areaM2       Float?
+  rooms        Int?
+  bathrooms    Int?
+  cep          String?  @db.VarChar(8)
+  street       String?
+  number       String?
+  complement   String?
   neighborhood String?
-  city        String?
-  state       String?  @db.VarChar(2)
-  ibge        String?  @db.VarChar(7)
-  gia         String?
-  ddd         String?  @db.VarChar(3)
-  siafi       String?  @db.VarChar(4)
-  reference   String?  @db.Text
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  city         String?
+  state        String?  @db.VarChar(2)
+  ibge         String?  @db.VarChar(7)
+  gia          String?
+  ddd          String?  @db.VarChar(3)
+  siafi        String?  @db.VarChar(4)
+  reference    String?  @db.Text
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   household Household @relation(fields: [householdId], references: [id])
@@ -498,21 +528,21 @@ model PersonAsset {
 }
 
 model PersonIncome {
-  id                     String          @id @default(uuid()) @db.Char(36)
-  tenantId               String          @db.Char(36)
-  personId               String          @db.Char(36)
-  householdId            String?         @db.Char(36)
-  type                   String
-  amount                 Decimal         @db.Decimal(10, 2)
-  frequency              IncomeFrequency @default(MONTHLY)
-  contractType           String?
-  isHouseholdContribution Boolean        @default(true)
-  notes                  String?         @db.Text
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
+  id                      String          @id @default(uuid()) @db.Char(36)
+  tenantId                String          @db.Char(36)
+  personId                String          @db.Char(36)
+  householdId             String?         @db.Char(36)
+  type                    String
+  amount                  Decimal         @db.Decimal(10, 2)
+  frequency               IncomeFrequency @default(MONTHLY)
+  contractType            String?
+  isHouseholdContribution Boolean         @default(true)
+  notes                   String?         @db.Text
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  person Person @relation(fields: [personId], references: [id])
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  person    Person     @relation(fields: [personId], references: [id])
   household Household? @relation(fields: [householdId], references: [id])
 
   @@index([tenantId])
@@ -521,16 +551,16 @@ model PersonIncome {
 }
 
 model PersonRelation {
-  id               String   @id @default(uuid()) @db.Char(36)
-  tenantId         String   @db.Char(36)
-  personId         String   @db.Char(36)
-  relatedPersonId  String   @db.Char(36)
-  type             String
-  livesTogether    Boolean  @default(false)
-  isLegalGuardian  Boolean  @default(false)
-  notes            String?  @db.Text
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Char(36)
+  tenantId        String   @db.Char(36)
+  personId        String   @db.Char(36)
+  relatedPersonId String   @db.Char(36)
+  type            String
+  livesTogether   Boolean  @default(false)
+  isLegalGuardian Boolean  @default(false)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   tenant        Tenant @relation(fields: [tenantId], references: [id])
   person        Person @relation("PersonRelationPerson", fields: [personId], references: [id])
@@ -543,20 +573,20 @@ model PersonRelation {
 }
 
 model PersonExpense {
-  id        String          @id @default(uuid()) @db.Char(36)
-  tenantId  String          @db.Char(36)
-  personId  String          @db.Char(36)
-  householdId String?       @db.Char(36)
-  type      String
-  amount    Decimal         @db.Decimal(10, 2)
-  frequency IncomeFrequency @default(MONTHLY)
-  isHouseholdExpense Boolean @default(true)
-  notes     String?         @db.Text
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id                 String          @id @default(uuid()) @db.Char(36)
+  tenantId           String          @db.Char(36)
+  personId           String          @db.Char(36)
+  householdId        String?         @db.Char(36)
+  type               String
+  amount             Decimal         @db.Decimal(10, 2)
+  frequency          IncomeFrequency @default(MONTHLY)
+  isHouseholdExpense Boolean         @default(true)
+  notes              String?         @db.Text
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  person Person @relation(fields: [personId], references: [id])
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  person    Person     @relation(fields: [personId], references: [id])
   household Household? @relation(fields: [householdId], references: [id])
 
   @@index([tenantId])
@@ -565,19 +595,19 @@ model PersonExpense {
 }
 
 model PersonBenefit {
-  id         String          @id @default(uuid()) @db.Char(36)
-  tenantId   String          @db.Char(36)
-  personId   String          @db.Char(36)
-  householdId String?        @db.Char(36)
-  type       String
-  status     String?
-  amount     Decimal?        @db.Decimal(10, 2)
-  frequency  IncomeFrequency @default(MONTHLY)
-  startDate  DateTime?
-  endDate    DateTime?
-  notes      String?         @db.Text
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  id          String          @id @default(uuid()) @db.Char(36)
+  tenantId    String          @db.Char(36)
+  personId    String          @db.Char(36)
+  householdId String?         @db.Char(36)
+  type        String
+  status      String?
+  amount      Decimal?        @db.Decimal(10, 2)
+  frequency   IncomeFrequency @default(MONTHLY)
+  startDate   DateTime?
+  endDate     DateTime?
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
   person    Person     @relation(fields: [personId], references: [id])
@@ -590,17 +620,17 @@ model PersonBenefit {
 }
 
 model PersonDetention {
-  id         String   @id @default(uuid()) @db.Char(36)
-  tenantId   String   @db.Char(36)
-  personId   String   @db.Char(36)
-  status     String
-  type       String?
-  unit       String?
-  startDate  DateTime?
-  endDate    DateTime?
-  notes      String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  personId  String    @db.Char(36)
+  status    String
+  type      String?
+  unit      String?
+  startDate DateTime?
+  endDate   DateTime?
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
@@ -611,17 +641,17 @@ model PersonDetention {
 }
 
 model PersonHealthCondition {
-  id            String   @id @default(uuid()) @db.Char(36)
-  tenantId      String   @db.Char(36)
-  personId      String   @db.Char(36)
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @db.Char(36)
+  personId      String    @db.Char(36)
   type          String
-  description   String?  @db.Text
+  description   String?   @db.Text
   severity      String?
   diagnosisDate DateTime?
   documentUrl   String?
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
@@ -631,21 +661,21 @@ model PersonHealthCondition {
 }
 
 model PersonMedication {
-  id                   String   @id @default(uuid()) @db.Char(36)
-  tenantId             String   @db.Char(36)
-  personId             String   @db.Char(36)
-  reason               String?
-  medication           String
-  dosage               String?
-  schedule             String?
-  startDate            DateTime?
-  endDate              DateTime?
-  prescribingDoctor    String?
+  id                    String    @id @default(uuid()) @db.Char(36)
+  tenantId              String    @db.Char(36)
+  personId              String    @db.Char(36)
+  reason                String?
+  medication            String
+  dosage                String?
+  schedule              String?
+  startDate             DateTime?
+  endDate               DateTime?
+  prescribingDoctor     String?
   permissionDocumentUrl String?
-  documentUrl          String?
-  notes                String?  @db.Text
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  documentUrl           String?
+  notes                 String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
@@ -655,20 +685,20 @@ model PersonMedication {
 }
 
 model PersonEducation {
-  id          String   @id @default(uuid()) @db.Char(36)
-  tenantId    String   @db.Char(36)
-  personId    String   @db.Char(36)
+  id          String    @id @default(uuid()) @db.Char(36)
+  tenantId    String    @db.Char(36)
+  personId    String    @db.Char(36)
   level       String
   status      String?
   institution String?
   grade       String?
   schoolYear  String?
-  isCurrent   Boolean  @default(true)
+  isCurrent   Boolean   @default(true)
   startDate   DateTime?
   endDate     DateTime?
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   person Person @relation(fields: [personId], references: [id])
@@ -707,19 +737,18 @@ model HouseholdTransfer {
   @@index([toHouseholdId])
 }
 
-
 model UserSession {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  userId    String   @db.Char(36)
-  tokenHash String   @db.VarChar(128)
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
+  expiresAt  DateTime
+  ipAddress  String?
+  userAgent  String?
   lastUsedAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
@@ -731,18 +760,18 @@ model UserSession {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  userId    String   @db.Char(36)
-  tokenHash String   @db.VarChar(128)
-  expiresAt DateTime
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
+  expiresAt  DateTime
   consumedAt DateTime?
-  revokedAt DateTime?
-  ipAddress String?
-  userAgent String?
-  requestId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  revokedAt  DateTime?
+  ipAddress  String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -760,7 +789,7 @@ model AccessLog {
   action    AccessLogAction
   ipAddress String?
   userAgent String?
-  createdAt DateTime @default(now())
+  createdAt DateTime        @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
@@ -806,7 +835,7 @@ model Program {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
   projects Project[]
 
   @@index([tenantId])
@@ -826,12 +855,12 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  program Program @relation(fields: [programId], references: [id])
-  groups ProjectGroup[]
-  cycles ProjectCycle[]
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  program     Program             @relation(fields: [programId], references: [id])
+  groups      ProjectGroup[]
+  cycles      ProjectCycle[]
   enrollments ProjectEnrollment[]
-  actions ProjectAction[]
+  actions     ProjectAction[]
 
   @@index([tenantId])
   @@index([programId])
@@ -848,10 +877,10 @@ model ProjectGroup {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
+  tenant      Tenant                             @relation(fields: [tenantId], references: [id])
+  project     Project                            @relation(fields: [projectId], references: [id])
   memberships ProjectEnrollmentGroupMembership[]
-  actions ProjectAction[]
+  actions     ProjectAction[]
 
   @@unique([tenantId, projectId, name])
   @@index([tenantId])
@@ -860,19 +889,19 @@ model ProjectGroup {
 }
 
 model ProjectCycle {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  projectId String   @db.Char(36)
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  projectId String    @db.Char(36)
   name      String
   startsAt  DateTime?
   endsAt    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
+  tenant         Tenant                                @relation(fields: [tenantId], references: [id])
+  project        Project                               @relation(fields: [projectId], references: [id])
   participations ProjectEnrollmentCycleParticipation[]
-  actions ProjectAction[]
+  actions        ProjectAction[]
 
   @@unique([tenantId, projectId, name])
   @@index([tenantId])
@@ -891,12 +920,12 @@ model ProjectEnrollment {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
-  person  Person  @relation(fields: [personId], references: [id])
-  groupMemberships ProjectEnrollmentGroupMembership[]
+  tenant              Tenant                                @relation(fields: [tenantId], references: [id])
+  project             Project                               @relation(fields: [projectId], references: [id])
+  person              Person                                @relation(fields: [personId], references: [id])
+  groupMemberships    ProjectEnrollmentGroupMembership[]
   cycleParticipations ProjectEnrollmentCycleParticipation[]
-  actionAttendances ProjectActionAttendance[]
+  actionAttendances   ProjectActionAttendance[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -905,20 +934,20 @@ model ProjectEnrollment {
 }
 
 model ProjectEnrollmentGroupMembership {
-  id           String   @id @default(uuid()) @db.Char(36)
-  tenantId     String   @db.Char(36)
-  enrollmentId String   @db.Char(36)
-  groupId      String   @db.Char(36)
-  activeKey    String?  @db.VarChar(80)
-  isActive     Boolean  @default(true)
-  startsAt     DateTime @default(now())
+  id           String    @id @default(uuid()) @db.Char(36)
+  tenantId     String    @db.Char(36)
+  enrollmentId String    @db.Char(36)
+  groupId      String    @db.Char(36)
+  activeKey    String?   @db.VarChar(80)
+  isActive     Boolean   @default(true)
+  startsAt     DateTime  @default(now())
   endsAt       DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant     Tenant          @relation(fields: [tenantId], references: [id])
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
   enrollment ProjectEnrollment @relation(fields: [enrollmentId], references: [id])
-  group      ProjectGroup    @relation(fields: [groupId], references: [id])
+  group      ProjectGroup      @relation(fields: [groupId], references: [id])
 
   @@unique([tenantId, activeKey])
   @@index([tenantId])
@@ -929,20 +958,20 @@ model ProjectEnrollmentGroupMembership {
 }
 
 model ProjectEnrollmentCycleParticipation {
-  id           String   @id @default(uuid()) @db.Char(36)
-  tenantId     String   @db.Char(36)
-  enrollmentId String   @db.Char(36)
-  cycleId      String   @db.Char(36)
-  activeKey    String?  @db.Char(36)
-  isActive     Boolean  @default(true)
-  startsAt     DateTime @default(now())
+  id           String    @id @default(uuid()) @db.Char(36)
+  tenantId     String    @db.Char(36)
+  enrollmentId String    @db.Char(36)
+  cycleId      String    @db.Char(36)
+  activeKey    String?   @db.Char(36)
+  isActive     Boolean   @default(true)
+  startsAt     DateTime  @default(now())
   endsAt       DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant     Tenant            @relation(fields: [tenantId], references: [id])
-  enrollment ProjectEnrollment @relation(fields: [enrollmentId], references: [id])
-  cycle      ProjectCycle      @relation(fields: [cycleId], references: [id])
+  tenant            Tenant                    @relation(fields: [tenantId], references: [id])
+  enrollment        ProjectEnrollment         @relation(fields: [enrollmentId], references: [id])
+  cycle             ProjectCycle              @relation(fields: [cycleId], references: [id])
   actionAttendances ProjectActionAttendance[]
 
   @@unique([tenantId, activeKey])
@@ -954,16 +983,16 @@ model ProjectEnrollmentCycleParticipation {
 }
 
 model ActionType {
-  id          String   @id @default(uuid()) @db.Char(36)
-  tenantId    String   @db.Char(36)
+  id          String       @id @default(uuid()) @db.Char(36)
+  tenantId    String       @db.Char(36)
   name        String
-  description String?  @db.Text
+  description String?      @db.Text
   target      ActionTarget @default(PROJECT)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  tenant  Tenant          @relation(fields: [tenantId], references: [id])
   actions ProjectAction[]
 
   @@unique([tenantId, name])
@@ -973,35 +1002,35 @@ model ActionType {
 }
 
 model ProjectAction {
-  id             String       @id @default(uuid()) @db.Char(36)
-  tenantId       String       @db.Char(36)
-  projectId      String       @db.Char(36)
-  createdByUserId String?     @db.Char(36)
-  groupId        String?      @db.Char(36)
-  cycleId        String?      @db.Char(36)
-  actionTypeId   String       @db.Char(36)
-  title          String
-  description    String?      @db.Text
-  planHtml       String?      @db.Text
-  executedHtml   String?      @db.Text
-  conclusionHtml String?      @db.Text
+  id                String       @id @default(uuid()) @db.Char(36)
+  tenantId          String       @db.Char(36)
+  projectId         String       @db.Char(36)
+  createdByUserId   String?      @db.Char(36)
+  groupId           String?      @db.Char(36)
+  cycleId           String?      @db.Char(36)
+  actionTypeId      String       @db.Char(36)
+  title             String
+  description       String?      @db.Text
+  planHtml          String?      @db.Text
+  executedHtml      String?      @db.Text
+  conclusionHtml    String?      @db.Text
   completionPercent Int?
-  photoPaths     Json?
-  status         ActionStatus @default(PLANNED)
-  plannedStartAt DateTime?
-  plannedEndAt   DateTime?
-  executedStartAt DateTime?
-  executedEndAt  DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  photoPaths        Json?
+  status            ActionStatus @default(PLANNED)
+  plannedStartAt    DateTime?
+  plannedEndAt      DateTime?
+  executedStartAt   DateTime?
+  executedEndAt     DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
-  project    Project     @relation(fields: [projectId], references: [id])
-  createdByUser User?    @relation(fields: [createdByUserId], references: [id])
-  group      ProjectGroup? @relation(fields: [groupId], references: [id])
-  cycle      ProjectCycle? @relation(fields: [cycleId], references: [id])
-  actionType ActionType  @relation(fields: [actionTypeId], references: [id])
-  attendances ProjectActionAttendance[]
+  tenant        Tenant                    @relation(fields: [tenantId], references: [id])
+  project       Project                   @relation(fields: [projectId], references: [id])
+  createdByUser User?                     @relation(fields: [createdByUserId], references: [id])
+  group         ProjectGroup?             @relation(fields: [groupId], references: [id])
+  cycle         ProjectCycle?             @relation(fields: [cycleId], references: [id])
+  actionType    ActionType                @relation(fields: [actionTypeId], references: [id])
+  attendances   ProjectActionAttendance[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -1027,9 +1056,9 @@ model ProjectActionAttendance {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
-  tenant            Tenant                           @relation(fields: [tenantId], references: [id])
-  action            ProjectAction                    @relation(fields: [actionId], references: [id])
-  enrollment        ProjectEnrollment                @relation(fields: [enrollmentId], references: [id])
+  tenant             Tenant                               @relation(fields: [tenantId], references: [id])
+  action             ProjectAction                        @relation(fields: [actionId], references: [id])
+  enrollment         ProjectEnrollment                    @relation(fields: [enrollmentId], references: [id])
   cycleParticipation ProjectEnrollmentCycleParticipation? @relation(fields: [cycleParticipationId], references: [id])
 
   @@unique([tenantId, actionId, enrollmentId])
@@ -1041,20 +1070,20 @@ model ProjectActionAttendance {
 }
 
 model PantryItem {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  name      String
-  group     String?
-  defaultSector String @default("Geral")
-  unit      String
-  minStock  Decimal  @db.Decimal(10, 2)
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  name          String
+  group         String?
+  defaultSector String   @default("Geral")
+  unit          String
+  minStock      Decimal  @db.Decimal(10, 2)
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id])
-  entries  PantryEntry[]
-  exits    PantryExit[]
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  entries PantryEntry[]
+  exits   PantryExit[]
 
   @@index([tenantId])
   @@index([name])
@@ -1069,8 +1098,8 @@ model PantrySector {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId])
   @@unique([tenantId, name])
+  @@index([tenantId])
 }
 
 model PantryDonor {
@@ -1079,6 +1108,7 @@ model PantryDonor {
   name      String
   type      PantryDonorType @default(PERSON)
   contact   String?
+  avatarUrl String?
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
@@ -1090,26 +1120,26 @@ model PantryDonor {
 }
 
 model PantryEntry {
-  id         String   @id @default(uuid()) @db.Char(36)
-  tenantId   String   @db.Char(36)
-  itemId     String   @db.Char(36)
-  donorId    String?  @db.Char(36)
-  sector     String
-  quantity   Decimal  @db.Decimal(10, 2)
-  unit       String
-  entryDate  DateTime @default(now())
-  expiryDate DateTime?
-  notes      String?  @db.Text
-  reversalOfExitId String? @db.Char(36)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String    @id @default(uuid()) @db.Char(36)
+  tenantId         String    @db.Char(36)
+  itemId           String    @db.Char(36)
+  donorId          String?   @db.Char(36)
+  sector           String
+  quantity         Decimal   @db.Decimal(10, 2)
+  unit             String
+  entryDate        DateTime  @default(now())
+  expiryDate       DateTime?
+  notes            String?   @db.Text
+  reversalOfExitId String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  tenant Tenant      @relation(fields: [tenantId], references: [id])
-  item   PantryItem  @relation(fields: [itemId], references: [id])
-  donor  PantryDonor? @relation(fields: [donorId], references: [id])
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+  item            PantryItem             @relation(fields: [itemId], references: [id])
+  donor           PantryDonor?           @relation(fields: [donorId], references: [id])
   exitAllocations PantryExitAllocation[]
-  reversalOfExit PantryExit? @relation("PantryEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
-  reversalExits PantryExit[] @relation("PantryExitReversalOfEntry")
+  reversalOfExit  PantryExit?            @relation("PantryEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
+  reversalExits   PantryExit[]           @relation("PantryExitReversalOfEntry")
 
   @@index([tenantId])
   @@index([itemId])
@@ -1121,25 +1151,25 @@ model PantryEntry {
 }
 
 model PantryExit {
-  id        String         @id @default(uuid()) @db.Char(36)
-  tenantId  String         @db.Char(36)
-  itemId    String         @db.Char(36)
-  sector    String
-  quantity  Decimal        @db.Decimal(10, 2)
-  unit      String
-  exitDate  DateTime       @default(now())
-  type      PantryExitType @default(ATTENDED)
-  eventName String?
-  notes     String?        @db.Text
-  reversalOfEntryId String? @db.Char(36)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id                String         @id @default(uuid()) @db.Char(36)
+  tenantId          String         @db.Char(36)
+  itemId            String         @db.Char(36)
+  sector            String
+  quantity          Decimal        @db.Decimal(10, 2)
+  unit              String
+  exitDate          DateTime       @default(now())
+  type              PantryExitType @default(ATTENDED)
+  eventName         String?
+  notes             String?        @db.Text
+  reversalOfEntryId String?        @db.Char(36)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id])
-  item   PantryItem @relation(fields: [itemId], references: [id])
-  allocations PantryExitAllocation[]
-  reversalOfEntry PantryEntry? @relation("PantryExitReversalOfEntry", fields: [reversalOfEntryId], references: [id])
-  reversalEntries PantryEntry[] @relation("PantryEntryReversalOfExit")
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+  item            PantryItem             @relation(fields: [itemId], references: [id])
+  allocations     PantryExitAllocation[]
+  reversalOfEntry PantryEntry?           @relation("PantryExitReversalOfEntry", fields: [reversalOfEntryId], references: [id])
+  reversalEntries PantryEntry[]          @relation("PantryEntryReversalOfExit")
 
   @@index([tenantId])
   @@index([itemId])
@@ -1156,7 +1186,7 @@ model PantryExitAllocation {
   quantity  Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
 
-  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
   exit   PantryExit  @relation(fields: [exitId], references: [id], onDelete: Cascade)
   entry  PantryEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
 
@@ -1166,10 +1196,133 @@ model PantryExitAllocation {
   @@index([entryId])
 }
 
+model TaskOrganizerTask {
+  id            String                @id @default(uuid()) @db.Char(36)
+  tenantId      String                @db.Char(36)
+  title         String
+  summary       String?               @db.Text
+  description   String?               @db.Text
+  status        TaskOrganizerStatus   @default(BACKLOG)
+  priority      TaskOrganizerPriority @default(MEDIUM)
+  kind          TaskOrganizerKind     @default(FEATURE)
+  owner         String?
+  ownerUserId   String?               @db.Char(36)
+  team          String?
+  startDate     DateTime?
+  dueDate       DateTime?
+  isMilestone   Boolean               @default(false)
+  progress      Int                   @default(0)
+  effortPoints  Int?
+  tags          Json?
+  internalNotes String?               @db.Text
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  tenant         Tenant                       @relation(fields: [tenantId], references: [id])
+  ownerUser      User?                        @relation("TaskOrganizerAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  checklistItems TaskOrganizerChecklistItem[]
+  subtasks       TaskOrganizerSubtask[]
+  comments       TaskOrganizerComment[]
+  blockedByDependencies TaskOrganizerTaskDependency[] @relation("TaskOrganizerTaskBlockedBy")
+  dependentTaskLinks TaskOrganizerTaskDependency[] @relation("TaskOrganizerTaskBlocks")
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, priority])
+  @@index([tenantId, kind])
+  @@index([tenantId, owner])
+  @@index([ownerUserId])
+  @@index([startDate])
+  @@index([dueDate])
+}
+
+model TaskOrganizerChecklistItem {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  taskId    String    @db.Char(36)
+  label     String
+  done      Boolean   @default(false)
+  owner     String?
+  ownerUserId String? @db.Char(36)
+  dueDate   DateTime?
+  notes     String?   @db.Text
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id])
+  task   TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ownerUser User?          @relation("TaskOrganizerChecklistAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([taskId, sortOrder])
+  @@index([ownerUserId])
+}
+
+model TaskOrganizerSubtask {
+  id        String              @id @default(uuid()) @db.Char(36)
+  tenantId  String              @db.Char(36)
+  taskId    String              @db.Char(36)
+  title     String
+  status    TaskOrganizerStatus @default(BACKLOG)
+  owner     String?
+  ownerUserId String?           @db.Char(36)
+  startDate DateTime?
+  dueDate   DateTime?
+  description String?           @db.Text
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id])
+  task   TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ownerUser User?          @relation("TaskOrganizerSubtaskAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([taskId, sortOrder])
+  @@index([ownerUserId])
+}
+
+model TaskOrganizerComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  taskId         String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  task       TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorUser User?             @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([taskId, createdAt])
+  @@index([authorUserId])
+}
+
+model TaskOrganizerTaskDependency {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  taskId        String   @db.Char(36)
+  dependsOnTaskId String @db.Char(36)
+  createdAt     DateTime @default(now())
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  task          TaskOrganizerTask @relation("TaskOrganizerTaskBlockedBy", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask TaskOrganizerTask @relation("TaskOrganizerTaskBlocks", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([tenantId])
+  @@index([taskId])
+  @@index([dependsOnTaskId])
+}
+
 model TenantRegistration {
-  id        String                   @id @default(uuid()) @db.Char(36)
-  method    TenantRegistrationMethod
-  status    TenantRegistrationStatus @default(PENDING_VERIFICATION)
+  id     String                   @id @default(uuid()) @db.Char(36)
+  method TenantRegistrationMethod
+  status TenantRegistrationStatus @default(PENDING_VERIFICATION)
 
   tenantName String
   tenantSlug String
@@ -1184,8 +1337,8 @@ model TenantRegistration {
   verificationCodeHash      String?
   verificationCodeExpiresAt DateTime?
 
-  tenantId    String?  @db.Char(36)
-  adminUserId String?  @db.Char(36)
+  tenantId    String?   @db.Char(36)
+  adminUserId String?   @db.Char(36)
   confirmedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -1214,14 +1367,14 @@ model UserMfaTotpSetup {
 }
 
 model UserMfaChallenge {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  userId    String   @db.Char(36)
-  type      String
-  attempts  Int      @default(0)
-  expiresAt DateTime
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  type       String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
   consumedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1232,17 +1385,17 @@ model UserMfaChallenge {
 }
 
 model UserTrustedDevice {
-  id         String   @id @default(uuid()) @db.Char(36)
-  tenantId   String   @db.Char(36)
-  userId     String   @db.Char(36)
-  tokenHash  String   @db.VarChar(128)
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
   label      String?
   ipAddress  String?
   userAgent  String?
   lastUsedAt DateTime?
   expiresAt  DateTime
   revokedAt  DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1254,11 +1407,11 @@ model UserTrustedDevice {
 }
 
 model UserMfaRecoveryCode {
-  id        String   @id @default(uuid()) @db.Char(36)
-  tenantId  String   @db.Char(36)
-  userId    String   @db.Char(36)
-  codeHash  String   @db.VarChar(128)
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  userId    String    @db.Char(36)
+  codeHash  String    @db.VarChar(128)
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])

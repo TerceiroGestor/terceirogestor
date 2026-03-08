@@ -30,6 +30,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import {
+  ModuleEmptyState,
+  ModuleSurface,
+} from "@/web-client/ui/ModulePrimitives";
 
 type GroupNode<TData> = {
   key: string;
@@ -45,6 +49,30 @@ type GroupNode<TData> = {
 function defaultGroupLabel(_field: string, value: unknown) {
   const label = String(value ?? "").trim();
   return label ? label : "Sem valor";
+}
+
+function resolveGroupValues(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [value];
+  }
+
+  const normalized = Array.from(
+    new Map(
+      value.map((entry) => {
+        const nextValue =
+          typeof entry === "string"
+            ? entry.trim().replace(/\s+/g, " ")
+            : entry;
+        return [String(nextValue ?? "").trim(), nextValue];
+      }),
+    ).values(),
+  ).filter((entry) => {
+    if (entry === null || entry === undefined) return false;
+    if (typeof entry === "string") return entry.length > 0;
+    return true;
+  });
+
+  return normalized.length ? normalized : [null];
 }
 
 function buildGroupNodes<TData>({
@@ -67,14 +95,17 @@ function buildGroupNodes<TData>({
 
   rows.forEach((row) => {
     const raw = row.original as Record<string, unknown>;
-    const value = raw[field];
-    const label = resolveGroupLabel(field, value);
-    const rawKey = `${field}:${String(value ?? "").trim()}`;
-    const key = parentKey ? `${parentKey}|${rawKey}` : rawKey;
+    const values = resolveGroupValues(raw[field]);
 
-    const current = map.get(key) ?? { key, value, label, rows: [] as Row<TData>[] };
-    current.rows.push(row);
-    map.set(key, current);
+    values.forEach((value) => {
+      const label = resolveGroupLabel(field, value);
+      const rawKey = `${field}:${String(value ?? "").trim()}`;
+      const key = parentKey ? `${parentKey}|${rawKey}` : rawKey;
+
+      const current = map.get(key) ?? { key, value, label, rows: [] as Row<TData>[] };
+      current.rows.push(row);
+      map.set(key, current);
+    });
   });
 
   const nextFields = fields.slice(1);
@@ -364,9 +395,9 @@ export function ListView<TData>({
   const visibleColumnsCount = table.getVisibleLeafColumns().length;
 
   return (
-    <div className={cn("rounded-md border border-border/60 bg-background", className)}>
+    <ModuleSurface className={className}>
       {enableRowSelection && bulkActions && selectedRows.length ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
           <div className="text-muted-foreground">
             Selecionados:{" "}
             <span className="font-mono tabular-nums text-foreground">
@@ -378,7 +409,7 @@ export function ListView<TData>({
       ) : null}
 
       {renderCard ? (
-        <div className="grid gap-2 p-3 md:hidden">
+        <div className="grid gap-3 p-4 md:hidden">
           {grouped ? (
             <div className="space-y-2">
               {(() => {
@@ -434,16 +465,14 @@ export function ListView<TData>({
               <div key={getRowId?.(row, index) ?? String(index)}>{renderCard(row)}</div>
             ))
           ) : (
-            <div className="rounded-md border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
-              Nenhum registro.
-            </div>
+            <ModuleEmptyState title="Sem registros" description="Nenhum registro." compact />
           )}
         </div>
       ) : null}
 
       <div className={cn(renderCard ? "hidden md:block" : undefined)}>
-        <UiTable>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+        <UiTable className="[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:border-b [&_thead_th]:border-border/50 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]">
+          <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -571,16 +600,21 @@ export function ListView<TData>({
               <TableRow>
                 <TableCell
                   colSpan={effectiveColumns.length}
-                  className="h-24 text-center text-sm text-muted-foreground"
+                  className="py-10"
                 >
-                  Nenhum registro.
+                  <ModuleEmptyState
+                    title="Sem registros"
+                    description="Nenhum registro."
+                    compact
+                    className="py-6"
+                  />
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </UiTable>
       </div>
-    </div>
+    </ModuleSurface>
   );
 }
 

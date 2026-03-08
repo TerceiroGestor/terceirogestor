@@ -33,6 +33,7 @@ import { RateLimitModule } from './core/rate-limit/rate-limit.module';
 import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
 import { CepModule } from './core/cep/cep.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ActionsModule,
     RegistrationModule,
     DashboardModule,
+    TasksModule,
     FilesModule,
     AuditModule,
     RequestContextModule,

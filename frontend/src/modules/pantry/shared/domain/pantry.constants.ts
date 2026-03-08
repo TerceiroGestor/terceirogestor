@@ -76,10 +76,43 @@ export const PANTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   notes: "Notas internas",
 };
 
+export const PANTRY_DONOR_AUDIT_FIELD_LABELS: Record<string, string> = {
+  name: "Nome",
+  type: "Tipo",
+  contact: "Contato",
+  avatarUrl: "Foto",
+};
+
+export const PANTRY_ENTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
+  donorId: "Doador",
+  sector: "Setor",
+  quantity: "Quantidade",
+  unit: "Unidade",
+  entryDate: "Data da entrada",
+  expiryDate: "Validade",
+  notes: "Notas",
+  reversalOfExitId: "Estorno de saida",
+};
+
+export const PANTRY_EXIT_AUDIT_FIELD_LABELS: Record<string, string> = {
+  sector: "Setor",
+  quantity: "Quantidade",
+  unit: "Unidade",
+  exitDate: "Data da saida",
+  type: "Tipo de saida",
+  eventName: "Evento",
+  notes: "Notas",
+  reversalOfEntryId: "Estorno de entrada",
+};
+
 export const PANTRY_SCREEN_STATE_KEYS = {
   stock: "screenState:pantry.stock",
   donors: "screenState:pantry.donors",
   history: "screenState:pantry.history",
+  itemsDetail: "screenState:pantry.items.detail",
+  donorsDetail: "screenState:pantry.donors.detail",
+  entriesDetail: "screenState:pantry.entries.detail",
+  exitsDetail: "screenState:pantry.exits.detail",
 } as const;
 
 export const PANTRY_ROUTES = {
@@ -102,6 +135,10 @@ export const PANTRY_ACTION_IDS = {
   donorsNew: "pantry.donors.new",
   donorsDetail: "pantry.donors.detail",
   history: "pantry.history",
+  entriesNew: "pantry.entries.new",
+  entriesDetail: "pantry.entries.detail",
+  exitsNew: "pantry.exits.new",
+  exitsDetail: "pantry.exits.detail",
   itemsNew: "pantry.items.new",
   itemsDetail: "pantry.items.detail",
 } as const;
@@ -110,4 +147,6 @@ export const PANTRY_SEARCH_VIEW_IDS = {
   stock: "pantry.stock.search",
   donors: "pantry.donors.search",
   history: "pantry.history.search",
+  entries: "pantry.entries.search",
+  exits: "pantry.exits.search",
 } as const;

@@ -29,9 +29,9 @@ export function PaginationBar({
   if (pageCount <= 1) return null;
 
   return (
-    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-border/60 bg-muted/10 px-3 py-2 text-xs">
+    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-border/60 bg-background px-4 py-3 text-xs">
       <div className="text-muted-foreground">
-        Página{" "}
+        Pagina{" "}
         <span className="font-mono tabular-nums text-foreground">{pageIndex + 1}</span>{" "}
         de <span className="font-mono tabular-nums text-foreground">{pageCount}</span>
       </div>
@@ -54,7 +54,7 @@ export function PaginationBar({
           onValueChange={(value) => onPageSizeChange(Number(value))}
           disabled={disabled}
         >
-          <SelectTrigger className="h-8 w-[128px]">
+          <SelectTrigger className="h-8 w-[128px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus:ring-0">
             <List className="mr-2 size-4 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>

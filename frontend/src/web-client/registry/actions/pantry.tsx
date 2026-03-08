@@ -1,103 +1,187 @@
 "use client";
 
-import { PantryHistoryClientPage } from "@/modules/pantry/features/history/ui/pantry-history-client-page";
+import { PantryHistoryModuleClientPage } from "@/modules/pantry/features/history/ui/pantry-history-module-client-page";
 import {
-  PantryItemEditClientPage,
-  PantryItemNewClientPage,
-} from "@/modules/pantry/features/items/ui/pantry-item-detail-client-page";
-import { PantryStockClientPage } from "@/modules/pantry/features/stock/ui/pantry-stock-client-page";
-import { PantryDonorsClientPage } from "@/modules/pantry/features/donors/ui/pantry-donors-client-page";
+  PantryItemEditEngineClientPage,
+  PantryItemNewEngineClientPage,
+} from "@/modules/pantry/features/items/ui/pantry-item-detail-engine-client-page";
+import { PantryStockModuleClientPage } from "@/modules/pantry/features/stock/ui/pantry-stock-module-client-page";
 import {
-  PantryDonorEditClientPage,
-  PantryDonorNewClientPage,
-} from "@/modules/pantry/features/donors/ui/pantry-donor-detail-client-page";
+  PantryDonorEditEngineClientPage,
+  PantryDonorNewEngineClientPage,
+} from "@/modules/pantry/features/donors/ui/pantry-donor-detail-engine-client-page";
+import {
+  PantryEntryEditEngineClientPage,
+  PantryEntryNewEngineClientPage,
+} from "@/modules/pantry/features/entries/ui/pantry-entry-detail-engine-client-page";
+import {
+  PantryExitEditEngineClientPage,
+  PantryExitNewEngineClientPage,
+} from "@/modules/pantry/features/exits/ui/pantry-exit-detail-engine-client-page";
+import { PantryDonorsModuleClientPage } from "@/modules/pantry/features/donors/ui/pantry-donors-module-client-page";
 import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import {
   PANTRY_ACTION_IDS,
   PANTRY_ROUTES,
 } from "@/modules/pantry/shared/domain/pantry.constants";
-import type { WindowAction } from "@/web-client/registry/types";
+import {
+  pantryDonorDetailModuleDefinition,
+  pantryDonorsModuleDefinition,
+  pantryEntryDetailModuleDefinition,
+  pantryExitDetailModuleDefinition,
+  pantryHistoryModuleDefinition,
+  pantryItemDetailModuleDefinition,
+  pantryStockModuleDefinition,
+} from "@/modules/pantry/config/pantry-module-contract";
+import { createModuleWindowAction } from "@/web-client/registry/window-actions";
 
-export const pantryStockAction: WindowAction = {
+export const pantryStockAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.stock,
-  title: "Estoque",
+  moduleDefinition: pantryStockModuleDefinition,
+  modulePermissionKey: "canRead",
+  titleVariant: "list",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
-  permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryStockClientPage />,
-};
+  render: () => <PantryStockModuleClientPage />,
+});
 
-export const pantryItemsCreateAction: WindowAction = {
+export const pantryItemsCreateAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.itemsNew,
-  title: "Novo alimento",
+  moduleDefinition: pantryItemDetailModuleDefinition,
+  moduleActionKey: "create",
+  titleVariant: "create",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
-  permissions: ["pantry.create"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryItemNewClientPage />,
-};
+  hideBreadcrumb: true,
+  render: () => <PantryItemNewEngineClientPage />,
+});
 
-export const pantryItemsDetailAction: WindowAction = {
+export const pantryItemsDetailAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.itemsDetail,
-  title: "Alimento",
+  moduleDefinition: pantryItemDetailModuleDefinition,
+  moduleActionKey: "view",
+  titleVariant: "detail",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Estoque", href: PANTRY_ROUTES.stock },
   ],
-  permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryItemEditClientPage />,
-};
+  hideBreadcrumb: true,
+  render: () => <PantryItemEditEngineClientPage />,
+});
 
-export const pantryDonorsAction: WindowAction = {
+export const pantryDonorsAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.donors,
-  title: "Doadores",
+  moduleDefinition: pantryDonorsModuleDefinition,
+  modulePermissionKey: "canRead",
+  titleVariant: "list",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Doadores", href: PANTRY_ROUTES.donors },
   ],
-  permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryDonorsClientPage />,
-};
+  render: () => <PantryDonorsModuleClientPage />,
+});
 
-export const pantryDonorsCreateAction: WindowAction = {
+export const pantryDonorsCreateAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.donorsNew,
-  title: "Novo doador",
+  moduleDefinition: pantryDonorDetailModuleDefinition,
+  moduleActionKey: "create",
+  titleVariant: "create",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Doadores", href: PANTRY_ROUTES.donors },
   ],
-  permissions: ["pantry.create"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryDonorNewClientPage />,
-};
+  hideBreadcrumb: true,
+  render: () => <PantryDonorNewEngineClientPage />,
+});
 
-export const pantryDonorsDetailAction: WindowAction = {
+export const pantryDonorsDetailAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.donorsDetail,
-  title: "Doador",
+  moduleDefinition: pantryDonorDetailModuleDefinition,
+  moduleActionKey: "view",
+  titleVariant: "detail",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Doadores", href: PANTRY_ROUTES.donors },
   ],
-  permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryDonorEditClientPage />,
-};
+  hideBreadcrumb: true,
+  render: () => <PantryDonorEditEngineClientPage />,
+});
 
-export const pantryHistoryAction: WindowAction = {
+export const pantryHistoryAction = createModuleWindowAction({
   id: PANTRY_ACTION_IDS.history,
-  title: "Histórico",
+  modulePermissionKey: "canRead",
+  titleVariant: "list",
   breadcrumbs: [
     { label: "Despensa", href: PANTRY_ROUTES.root },
     { label: "Histórico", href: PANTRY_ROUTES.history },
   ],
-  permissions: ["pantry.read"],
   actionSlot: <PantryHeaderNav />,
-  render: () => <PantryHistoryClientPage />,
-};
+  moduleDefinition: pantryHistoryModuleDefinition,
+  render: () => <PantryHistoryModuleClientPage />,
+});
+
+export const pantryEntriesCreateAction = createModuleWindowAction({
+  id: PANTRY_ACTION_IDS.entriesNew,
+  moduleDefinition: pantryEntryDetailModuleDefinition,
+  moduleActionKey: "create",
+  titleVariant: "create",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Entradas", href: PANTRY_ROUTES.entries },
+  ],
+  actionSlot: <PantryHeaderNav />,
+  hideBreadcrumb: true,
+  render: () => <PantryEntryNewEngineClientPage />,
+});
+
+export const pantryEntriesDetailAction = createModuleWindowAction({
+  id: PANTRY_ACTION_IDS.entriesDetail,
+  moduleDefinition: pantryEntryDetailModuleDefinition,
+  moduleActionKey: "view",
+  titleVariant: "detail",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Entradas", href: PANTRY_ROUTES.entries },
+  ],
+  actionSlot: <PantryHeaderNav />,
+  hideBreadcrumb: true,
+  render: () => <PantryEntryEditEngineClientPage />,
+});
+
+export const pantryExitsCreateAction = createModuleWindowAction({
+  id: PANTRY_ACTION_IDS.exitsNew,
+  moduleDefinition: pantryExitDetailModuleDefinition,
+  moduleActionKey: "create",
+  titleVariant: "create",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Saidas", href: PANTRY_ROUTES.exits },
+  ],
+  actionSlot: <PantryHeaderNav />,
+  hideBreadcrumb: true,
+  render: () => <PantryExitNewEngineClientPage />,
+});
+
+export const pantryExitsDetailAction = createModuleWindowAction({
+  id: PANTRY_ACTION_IDS.exitsDetail,
+  moduleDefinition: pantryExitDetailModuleDefinition,
+  moduleActionKey: "view",
+  titleVariant: "detail",
+  breadcrumbs: [
+    { label: "Despensa", href: PANTRY_ROUTES.root },
+    { label: "Saidas", href: PANTRY_ROUTES.exits },
+  ],
+  actionSlot: <PantryHeaderNav />,
+  hideBreadcrumb: true,
+  render: () => <PantryExitEditEngineClientPage />,
+});

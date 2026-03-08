@@ -12,4 +12,8 @@ export class CreatePantryDonorDto {
   @IsOptional()
   @IsString()
   contact?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
 }

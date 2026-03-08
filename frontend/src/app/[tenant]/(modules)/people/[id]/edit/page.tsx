@@ -6,5 +6,5 @@ export default function PeopleEditLegacyPage({
 }: {
   params: { tenant: string; id: string };
 }) {
-  redirect(withTenantPath(`/person/${params.id}/edit`, params.tenant));
+  redirect(withTenantPath(`/person/${params.id}`, params.tenant));
 }

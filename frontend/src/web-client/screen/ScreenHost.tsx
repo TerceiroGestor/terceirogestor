@@ -1,12 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
 import { getWindowAction } from "@/web-client/registry";
+import { hasPermissionRequirement } from "@/web-client/registry/module-utils";
+import { resolveWindowActionPermissionRequirement } from "@/web-client/registry/window-actions";
 
 export function ScreenHost({ actionId }: { actionId: string }) {
-  const { permissions } = useCurrentUser();
+  const { isLoading: authLoading } = useAuth();
+  const { permissions, isLoading: userLoading } = useCurrentUser();
   const action = React.useMemo(() => getWindowAction(actionId), [actionId]);
 
   if (!action) {
@@ -17,9 +21,20 @@ export function ScreenHost({ actionId }: { actionId: string }) {
     );
   }
 
-  const required = action.permissions ?? [];
-  const canRead =
-    required.length === 0 || required.every((permission) => permissions.includes(permission));
+  if (authLoading || userLoading) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
+
+  const requiredPermission = resolveWindowActionPermissionRequirement(action);
+  const canRead = hasPermissionRequirement(
+    requiredPermission,
+    permissions,
+    true,
+  );
 
   if (!canRead) {
     return (
@@ -29,13 +44,18 @@ export function ScreenHost({ actionId }: { actionId: string }) {
     );
   }
 
+  const shouldRenderBreadcrumb =
+    !action.hideBreadcrumb && action.moduleDefinition?.defaultView !== "detail";
+
   return (
     <>
-      <PageBreadcrumb
-        title={action.title}
-        items={action.breadcrumbs}
-        actionSlot={action.actionSlot}
-      />
+      {shouldRenderBreadcrumb ? (
+        <PageBreadcrumb
+          title={action.title}
+          items={action.breadcrumbs}
+          actionSlot={action.actionSlot}
+        />
+      ) : null}
       {action.render()}
     </>
   );

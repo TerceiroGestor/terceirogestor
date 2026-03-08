@@ -17,14 +17,131 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Domain, DomainCombinator } from "@/web-client/domain/types";
-import type { SearchViewDefinition } from "@/web-client/search/types";
 import { AdvancedFilterBuilder } from "@/web-client/control-panel/AdvancedFilterBuilder";
 import {
   loadFavorites,
   saveFavorites,
   type FavoriteDefinition,
 } from "@/web-client/control-panel/favorites-storage";
+import type { Domain, DomainCombinator } from "@/web-client/domain/types";
+import type { SearchViewDefinition } from "@/web-client/search/types";
+import { ModuleEmptyState } from "@/web-client/ui/ModulePrimitives";
+
+type SearchPanelGroupByOption = {
+  field: string;
+  label: string;
+};
+
+function PanelSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {icon}
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="h-px w-full bg-border/60" />;
+}
+
+function renderGroupButtons({
+  options,
+  groupBy,
+  onGroupByChange,
+  groupByMode,
+  allowEmptyGroupBy,
+}: {
+  options: SearchPanelGroupByOption[];
+  groupBy: string[];
+  onGroupByChange: (next: string[]) => void;
+  groupByMode: "single" | "multi";
+  allowEmptyGroupBy: boolean;
+}) {
+  if (!options.length) {
+    return (
+      <ModuleEmptyState
+        title={null}
+        description="Nenhuma opcao."
+        compact
+        className="px-0 py-3"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {options.map((option) => {
+        const isActive = groupBy.includes(option.field);
+
+        return (
+          <button
+            key={option.field}
+            type="button"
+            className={[
+              "flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs",
+              isActive
+                ? "bg-muted/40 text-foreground"
+                : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+            ].join(" ")}
+            onClick={(event) => {
+              event.preventDefault();
+
+              if (groupByMode === "multi") {
+                onGroupByChange(
+                  isActive
+                    ? groupBy.filter((field) => field !== option.field)
+                    : [...groupBy, option.field],
+                );
+                return;
+              }
+
+              if (isActive) {
+                if (allowEmptyGroupBy) onGroupByChange([]);
+                return;
+              }
+
+              onGroupByChange([option.field]);
+            }}
+            title="Organizar por"
+          >
+            <span className="truncate">{option.label}</span>
+            {isActive ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                <Check className="size-3.5" />
+                Ativo
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+
+      {(groupByMode === "multi" || allowEmptyGroupBy) && groupBy.length ? (
+        <button
+          type="button"
+          className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+          onClick={(event) => {
+            event.preventDefault();
+            onGroupByChange([]);
+          }}
+        >
+          Limpar agrupamento
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export function SearchPanelMenu<TState extends Record<string, unknown>>({
   actionId,
@@ -35,6 +152,14 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   onGroupByChange,
   groupByMode = "single",
   allowEmptyGroupBy = false,
+  groupByOptions,
+  analysisTitle = "Analise",
+  analysisSlot,
+  hasActiveFilters = false,
+  hasActiveAnalysis = false,
+  onClearFilters,
+  onResetAnalysis,
+  onClearAll,
   variant = "wide",
   trigger,
   valueSuggestions,
@@ -49,6 +174,14 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   onGroupByChange: (next: string[]) => void;
   groupByMode?: "single" | "multi";
   allowEmptyGroupBy?: boolean;
+  groupByOptions?: SearchPanelGroupByOption[];
+  analysisTitle?: string;
+  analysisSlot?: React.ReactNode;
+  hasActiveFilters?: boolean;
+  hasActiveAnalysis?: boolean;
+  onClearFilters?: () => void;
+  onResetAnalysis?: () => void;
+  onClearAll?: () => void;
   variant?: "wide" | "compact";
   trigger?: React.ReactNode;
   valueSuggestions?: (fieldName: string) => string[];
@@ -56,7 +189,15 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   onApplyFavorite: (state: TState) => void;
 }) {
   const storageKey = `favorites:${actionId}`;
+  const resolvedGroupByOptions = groupByOptions ?? searchView.groupBy ?? [];
   const hasAdvancedFilters = searchView.fields.length > 0;
+  const features = searchView.features ?? {};
+  const allowPresets = features.presets ?? true;
+  const allowAdvancedFilters = features.advancedFilters ?? true;
+  const allowGroupBy = (features.groupBy ?? true) && resolvedGroupByOptions.length > 0;
+  const allowFavorites = features.favorites ?? true;
+  const allowClearAll = features.clearAll ?? true;
+  const hasAnalysis = Boolean(analysisSlot);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [favorites, setFavorites] = React.useState<Array<FavoriteDefinition<TState>>>([]);
   const [saveOpen, setSaveOpen] = React.useState(false);
@@ -85,9 +226,149 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
     [storageKey],
   );
 
+  const handleClearAll = React.useCallback(() => {
+    if (onClearAll) {
+      onClearAll();
+      return;
+    }
+
+    if (onClearFilters) {
+      onClearFilters();
+    } else {
+      onDomainChange(null);
+    }
+
+    if (onResetAnalysis) {
+      onResetAnalysis();
+    } else {
+      onGroupByChange([]);
+    }
+  }, [onClearAll, onClearFilters, onDomainChange, onGroupByChange, onResetAnalysis]);
+
+  const filtersPanel = (
+    <PanelSection title="Filtros" icon={<SlidersHorizontal className="size-4" />}>
+      {allowPresets && searchView.presets?.length ? (
+        <div className="space-y-1">
+          {searchView.presets.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+              onClick={(event) => {
+                event.preventDefault();
+                onDomainChange(preset.domain);
+              }}
+            >
+              <span className="truncate">{preset.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        className="flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground disabled:opacity-50"
+        disabled={!hasAdvancedFilters || !allowAdvancedFilters}
+        onClick={(event) => {
+          event.preventDefault();
+          setMenuOpen(false);
+          setCustomFilterOpen(true);
+        }}
+      >
+        <span className="truncate">Filtro personalizado...</span>
+      </button>
+
+      {!hasAdvancedFilters || !allowAdvancedFilters ? (
+        <ModuleEmptyState
+          title={null}
+          description="Nenhum filtro configurado."
+          compact
+          className="px-0 py-3"
+        />
+      ) : null}
+    </PanelSection>
+  );
+
+  const groupByPanel = allowGroupBy ? (
+    <PanelSection title="Agrupar por">
+      {renderGroupButtons({
+        options: resolvedGroupByOptions,
+        groupBy,
+        onGroupByChange,
+        groupByMode,
+        allowEmptyGroupBy,
+      })}
+    </PanelSection>
+  ) : null;
+
+  const analysisPanel = hasAnalysis ? (
+    <PanelSection title={analysisTitle}>{analysisSlot}</PanelSection>
+  ) : null;
+
+  const favoritesPanel = allowFavorites ? (
+    <PanelSection title="Favoritos" icon={<Star className="size-4" />}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+        onClick={(event) => {
+          event.preventDefault();
+          setName("");
+          setMenuOpen(false);
+          setSaveOpen(true);
+        }}
+      >
+        <Star className="size-4" />
+        Salvar pesquisa atual...
+      </button>
+
+      <div className="max-h-[40vh] space-y-1 overflow-auto pr-1">
+        {favorites.length ? (
+          favorites.map((favorite) => (
+            <div
+              key={favorite.id}
+              className="flex items-center justify-between gap-2 rounded-sm px-2 py-1 text-xs hover:bg-muted/30"
+            >
+              <button
+                type="button"
+                className="min-w-0 flex-1 truncate text-left"
+                title={favorite.name}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onApplyFavorite(favorite.state);
+                }}
+              >
+                {favorite.name}
+              </button>
+              <button
+                type="button"
+                className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
+                title="Remover"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (!window.confirm(`Remover favorito "${favorite.name}"?`)) return;
+                  persist(favorites.filter((item) => item.id !== favorite.id));
+                }}
+              >
+                <Trash2 className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+          ))
+        ) : (
+          <ModuleEmptyState
+            title={null}
+            description="Nenhum favorito salvo."
+            compact
+            className="px-0 py-3"
+          />
+        )}
+      </div>
+    </PanelSection>
+  ) : null;
+
   return (
     <>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           {trigger ?? (
             <Button
@@ -107,344 +388,126 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
           align={variant === "compact" ? "end" : "start"}
           sideOffset={6}
           className={
-            variant === "compact" ? "w-[min(96vw,36rem)] p-2" : "w-[min(96vw,68rem)] p-0"
+            variant === "compact"
+              ? "w-[min(96vw,42rem)] rounded-lg border border-border/60 bg-background/95 p-2 shadow-xl"
+              : "w-[min(96vw,72rem)] rounded-lg border border-border/60 bg-background/95 p-2 shadow-xl"
           }
         >
           {variant === "compact" ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  <SlidersHorizontal className="size-4" />
-                  Filtros
-                </div>
-
-                {searchView.presets?.length ? (
-                  <div className="space-y-1">
-                    {searchView.presets.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className="flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onDomainChange(preset.domain);
-                        }}
-                      >
-                        <span className="truncate">{preset.label}</span>
-                      </button>
-                    ))}
-                  </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <div className="space-y-3 rounded-lg border border-border/60 bg-background px-3 py-3">
+                {filtersPanel}
+                {analysisPanel ? <Divider /> : null}
+                {analysisPanel}
+                {hasActiveFilters || hasActiveAnalysis ? <Divider /> : null}
+                {hasActiveFilters && onClearFilters ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onClearFilters();
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
                 ) : null}
-
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground disabled:opacity-50"
-                  disabled={!hasAdvancedFilters}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setMenuOpen(false);
-                    setCustomFilterOpen(true);
-                  }}
-                >
-                  <span className="truncate">Filtro personalizado...</span>
-                </button>
-
-                {!hasAdvancedFilters ? (
-                  <div className="px-2 text-xs text-muted-foreground">
-                    Nenhum filtro configurado.
-                  </div>
+                {hasActiveAnalysis && onResetAnalysis ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onResetAnalysis();
+                    }}
+                  >
+                    Resetar analise
+                  </button>
+                ) : null}
+                {allowClearAll && (hasActiveFilters || hasActiveAnalysis) ? (
+                  <>
+                    <button
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleClearAll();
+                      }}
+                    >
+                      Limpar tudo
+                    </button>
+                  </>
                 ) : null}
               </div>
 
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Agrupar por
-                  </div>
-                  {searchView.groupBy?.length ? (
-                    <div className="space-y-1">
-                      {searchView.groupBy.map((opt) => (
-                        <button
-                          key={opt.field}
-                          type="button"
-                          className={[
-                            "flex w-full items-center justify-between rounded-sm px-2 py-1 text-left text-xs",
-                            groupBy.includes(opt.field)
-                              ? "bg-muted/40 text-foreground"
-                              : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
-                          ].join(" ")}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            const isActive = groupBy.includes(opt.field);
-                            if (groupByMode === "multi") {
-                              const next = isActive
-                                ? groupBy.filter((field) => field !== opt.field)
-                                : [...groupBy, opt.field];
-                              onGroupByChange(next);
-                              return;
-                            }
-                            if (isActive) {
-                              if (allowEmptyGroupBy) onGroupByChange([]);
-                              return;
-                            }
-                            onGroupByChange([opt.field]);
-                          }}
-                          title="Organizar por"
-                        >
-                          <span className="truncate">{opt.label}</span>
-                          {groupBy.includes(opt.field) ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                              <Check className="size-3.5" />
-                              Ativo
-                            </span>
-                          ) : null}
-                        </button>
-                      ))}
-                      {groupByMode === "multi" && groupBy.length ? (
-                        <button
-                          type="button"
-                          className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            onGroupByChange([]);
-                          }}
-                        >
-                          Limpar agrupamento
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="px-2 text-xs text-muted-foreground">Nenhuma opção.</div>
-                  )}
-                </div>
-
-                <div className="h-px w-full bg-border/60" />
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    <Star className="size-4" />
-                    Favoritos
-                  </div>
-
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setName("");
-                      setMenuOpen(false);
-                      setSaveOpen(true);
-                    }}
-                  >
-                    <Star className="size-4" />
-                    Salvar pesquisa atual...
-                  </button>
-
-                  <div className="max-h-[40vh] space-y-1 overflow-auto pr-1">
-                    {favorites.length ? (
-                      favorites.map((fav) => (
-                        <div
-                          key={fav.id}
-                          className="flex items-center justify-between gap-2 rounded-sm px-2 py-1 text-xs hover:bg-muted/30"
-                        >
-                          <button
-                            type="button"
-                            className="min-w-0 flex-1 truncate text-left"
-                            title={fav.name}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onApplyFavorite(fav.state);
-                            }}
-                          >
-                            {fav.name}
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
-                            title="Remover"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (!window.confirm(`Remover favorito "${fav.name}"?`)) return;
-                              persist(favorites.filter((item) => item.id !== fav.id));
-                            }}
-                          >
-                            <Trash2 className="size-4 text-muted-foreground" />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-2 text-xs text-muted-foreground">
-                        Nenhum favorito salvo.
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="space-y-3 rounded-lg border border-border/60 bg-background px-3 py-3">
+                {groupByPanel}
+                {groupByPanel && favoritesPanel ? <Divider /> : null}
+                {favoritesPanel}
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-0 md:grid-cols-3">
-            <div className="border-b border-border/60 p-3 md:border-b-0 md:border-r">
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                <SlidersHorizontal className="size-4 text-muted-foreground" />
-                Filtros
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,0.95fr)]">
+              <div className="space-y-3 rounded-lg border border-border/60 bg-background p-3">
+                {filtersPanel}
+                {analysisPanel ? <Divider /> : null}
+                {analysisPanel}
+                {hasActiveFilters || hasActiveAnalysis ? <Divider /> : null}
+                {hasActiveFilters && onClearFilters ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onClearFilters();
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                ) : null}
+                {hasActiveAnalysis && onResetAnalysis ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onResetAnalysis();
+                    }}
+                  >
+                    Resetar analise
+                  </button>
+                ) : null}
+                {allowClearAll && (hasActiveFilters || hasActiveAnalysis) ? (
+                  <>
+                    <button
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleClearAll();
+                      }}
+                    >
+                      Limpar tudo
+                    </button>
+                  </>
+                ) : null}
               </div>
 
-              {searchView.presets?.length ? (
-                <div className="mb-3 space-y-1">
-                  {searchView.presets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs hover:bg-muted/30"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onDomainChange(preset.domain);
-                      }}
-                    >
-                      <span className="truncate">{preset.label}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                className="mt-2 w-full rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground disabled:opacity-50"
-                disabled={!hasAdvancedFilters}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMenuOpen(false);
-                  setCustomFilterOpen(true);
-                }}
-              >
-                Filtro personalizado...
-              </button>
-
-              {!hasAdvancedFilters ? (
-                <div className="mt-2 text-xs text-muted-foreground">Nenhum filtro configurado.</div>
-              ) : null}
-            </div>
-
-            <div className="border-b border-border/60 p-3 md:border-b-0 md:border-r">
-              <div className="mb-2 text-xs font-semibold text-foreground">Agrupar por</div>
-              {searchView.groupBy?.length ? (
-                <div className="space-y-1">
-                  {searchView.groupBy.map((opt) => (
-                    <button
-                      key={opt.field}
-                      type="button"
-                      className={[
-                        "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs",
-                        groupBy.includes(opt.field)
-                          ? "bg-muted/40 text-foreground"
-                          : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
-                      ].join(" ")}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const isActive = groupBy.includes(opt.field);
-                        if (groupByMode === "multi") {
-                          const next = isActive
-                            ? groupBy.filter((field) => field !== opt.field)
-                            : [...groupBy, opt.field];
-                          onGroupByChange(next);
-                          return;
-                        }
-                        if (isActive) {
-                          if (allowEmptyGroupBy) onGroupByChange([]);
-                          return;
-                        }
-                        onGroupByChange([opt.field]);
-                      }}
-                      title="Organizar por"
-                    >
-                      <span className="truncate">{opt.label}</span>
-                      {groupBy.includes(opt.field) ? (
-                        <span className="text-[10px] font-medium text-muted-foreground">
-                          Ativo
-                        </span>
-                      ) : null}
-                    </button>
-                  ))}
-                  {groupByMode === "multi" && groupBy.length ? (
-                    <button
-                      type="button"
-                      className="mt-2 w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onGroupByChange([]);
-                      }}
-                    >
-                      Limpar agrupamento
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">Nenhuma opção.</div>
-              )}
-            </div>
-
-            <div className="p-3">
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Star className="size-4 text-muted-foreground" />
-                Favoritos
+              <div className="rounded-lg border border-border/60 bg-background p-3">
+                {groupByPanel}
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 w-full justify-start"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setName("");
-                  setMenuOpen(false);
-                  setSaveOpen(true);
-                }}
-              >
-                <Star className="mr-2 size-4" />
-                Salvar pesquisa atual...
-              </Button>
-
-              <div className="mt-3 max-h-[60vh] space-y-1 overflow-auto pr-1">
-                {favorites.length ? (
-                  favorites.map((fav) => (
-                    <div
-                      key={fav.id}
-                      className="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted/30"
-                    >
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 truncate text-left"
-                        title={fav.name}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onApplyFavorite(fav.state);
-                        }}
-                      >
-                        {fav.name}
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
-                        title="Remover"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (!window.confirm(`Remover favorito "${fav.name}"?`)) return;
-                          persist(favorites.filter((item) => item.id !== fav.id));
-                        }}
-                      >
-                        <Trash2 className="size-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-xs text-muted-foreground">Nenhum favorito salvo.</div>
+              <div className="rounded-lg border border-border/60 bg-background p-3">
+                {favoritesPanel ?? (
+                  <ModuleEmptyState
+                    title={null}
+                    description="Favoritos desativados."
+                    compact
+                    className="px-0 py-3"
+                  />
                 )}
               </div>
             </div>
-          </div>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -459,7 +522,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
             <Input
               id="favorite-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               placeholder="Ex: Entradas em fevereiro"
               autoFocus
             />
@@ -494,7 +557,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
           <DialogHeader>
             <DialogTitle>Filtro personalizado</DialogTitle>
           </DialogHeader>
-          {hasAdvancedFilters ? (
+          {hasAdvancedFilters && allowAdvancedFilters ? (
             <AdvancedFilterBuilder
               key={customFilterOpen ? "open" : "closed"}
               searchView={searchView}
@@ -510,11 +573,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
             <div className="text-sm text-muted-foreground">Nenhum filtro configurado.</div>
           )}
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCustomFilterOpen(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => setCustomFilterOpen(false)}>
               Cancelar
             </Button>
             <Button
@@ -523,7 +582,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
                 onDomainChange(pendingDomain);
                 setCustomFilterOpen(false);
               }}
-              disabled={!hasAdvancedFilters}
+              disabled={!hasAdvancedFilters || !allowAdvancedFilters}
             >
               Aplicar
             </Button>

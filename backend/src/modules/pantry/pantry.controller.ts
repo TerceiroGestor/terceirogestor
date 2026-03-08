@@ -236,6 +236,20 @@ export class PantryController {
     return this.pantryService.getDonor(user.tenantId, id);
   }
 
+  @Get('donors/:id/audit')
+  @Permissions('pantry.read')
+  async listDonorAuditLogs(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.pantryService.listDonorAuditLogs(user.tenantId, id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   @Patch('donors/:id')
   @Permissions('pantry.update')
   async updateDonor(
@@ -279,6 +293,20 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
     return this.pantryService.getEntry(user.tenantId, id);
+  }
+
+  @Get('entries/:id/audit')
+  @Permissions('pantry.read')
+  async listEntryAuditLogs(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.pantryService.listEntryAuditLogs(user.tenantId, id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Post('entries')
@@ -333,6 +361,20 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
     return this.pantryService.getExit(user.tenantId, id);
+  }
+
+  @Get('exits/:id/audit')
+  @Permissions('pantry.read')
+  async listExitAuditLogs(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.pantryService.listExitAuditLogs(user.tenantId, id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Post('exits')

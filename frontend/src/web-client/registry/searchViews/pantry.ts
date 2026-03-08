@@ -5,12 +5,20 @@ import type { SearchViewDefinition } from "@/web-client/search/types";
 export const pantryHistorySearchView: SearchViewDefinition = {
   id: "pantry.history.search",
   model: "pantry.history",
+  searchPlaceholder: "Pesquisar movimentos, itens, doadores ou eventos",
+  features: {
+    favorites: true,
+    presets: false,
+    advancedFilters: true,
+    groupBy: true,
+    clearAll: true,
+  },
   filterCombinators: ["and", "or"],
   fields: [
     {
       name: "kind",
       label: "Tipo de movimento",
-      type: "enum",
+      type: "select",
       options: [
         { value: "ENTRY", label: "Entrada" },
         { value: "EXIT", label: "Saída" },
@@ -32,7 +40,7 @@ export const pantryHistorySearchView: SearchViewDefinition = {
     {
       name: "type",
       label: "Tipo de saída",
-      type: "enum",
+      type: "select",
       options: [
         { value: "ATTENDED", label: "Atendidos" },
         { value: "DONATION", label: "Doação" },
@@ -111,29 +119,134 @@ export const pantryHistorySearchView: SearchViewDefinition = {
 export const pantryDonorsSearchView: SearchViewDefinition = {
   id: "pantry.donors.search",
   model: "pantry.donors",
+  searchPlaceholder: "Pesquisar doadores por nome, tipo ou contato",
+  features: {
+    favorites: true,
+    presets: false,
+    advancedFilters: true,
+    groupBy: true,
+    clearAll: true,
+  },
   filterCombinators: ["and"],
   fields: [
-    { name: "name", label: "Nome", type: "text", operators: ["ilike", "contains", "=", "starts_with", "ends_with"] },
+    {
+      name: "name",
+      label: "Nome",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
     {
       name: "type",
       label: "Tipo",
-      type: "enum",
+      type: "select",
       options: [
         { value: "PERSON", label: "Pessoa" },
         { value: "COMPANY", label: "Empresa" },
       ],
       operators: ["="],
     },
-    { name: "contact", label: "Contato", type: "text", operators: ["ilike", "contains", "=", "starts_with", "ends_with"] },
-    { name: "createdAt", label: "Criado em", type: "date", operators: ["between", ">=", "<="] },
-    { name: "updatedAt", label: "Atualizado em", type: "date", operators: ["between", ">=", "<="] },
+    {
+      name: "contact",
+      label: "Contato",
+      type: "text",
+      operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
+    },
+    {
+      name: "createdAt",
+      label: "Criado em",
+      type: "date",
+      operators: ["between", ">=", "<="],
+    },
+    {
+      name: "updatedAt",
+      label: "Atualizado em",
+      type: "date",
+      operators: ["between", ">=", "<="],
+    },
   ],
   groupBy: [{ field: "type", label: "Tipo" }],
+};
+
+export const pantryEntriesSearchView: SearchViewDefinition = {
+  id: "pantry.entries.search",
+  model: "pantry.entries",
+  searchPlaceholder: "Pesquisar entradas por setor, doador ou notas",
+  features: {
+    favorites: true,
+    presets: false,
+    advancedFilters: true,
+    groupBy: true,
+    clearAll: true,
+  },
+  filterCombinators: ["and"],
+  fields: [
+    { name: "donorId", label: "Doador (ID)", type: "uuid", operators: ["="] },
+    { name: "sector", label: "Setor", type: "text", operators: ["ilike", "contains", "="] },
+    { name: "quantity", label: "Quantidade", type: "number", operators: ["=", ">=", "<=", "between"] },
+    { name: "unit", label: "Unidade", type: "text", operators: ["=", "!="] },
+    { name: "entryDate", label: "Data da entrada", type: "date", operators: ["between", ">=", "<=", "="] },
+    { name: "expiryDate", label: "Validade", type: "date", operators: ["between", ">=", "<=", "="] },
+    { name: "notes", label: "Notas", type: "text", operators: ["ilike", "contains", "="] },
+  ],
+  groupBy: [
+    { field: "sector", label: "Setor" },
+    { field: "unit", label: "Unidade" },
+    { field: "entryDate", label: "Data da entrada" },
+    { field: "expiryDate", label: "Validade" },
+  ],
+};
+
+export const pantryExitsSearchView: SearchViewDefinition = {
+  id: "pantry.exits.search",
+  model: "pantry.exits",
+  searchPlaceholder: "Pesquisar saídas por setor, tipo ou evento",
+  features: {
+    favorites: true,
+    presets: false,
+    advancedFilters: true,
+    groupBy: true,
+    clearAll: true,
+  },
+  filterCombinators: ["and"],
+  fields: [
+    { name: "sector", label: "Setor", type: "text", operators: ["ilike", "contains", "="] },
+    { name: "quantity", label: "Quantidade", type: "number", operators: ["=", ">=", "<=", "between"] },
+    { name: "unit", label: "Unidade", type: "text", operators: ["=", "!="] },
+    {
+      name: "type",
+      label: "Tipo",
+      type: "select",
+      options: [
+        { value: "ATTENDED", label: "Atendido" },
+        { value: "DONATION", label: "Doação" },
+        { value: "EVENT", label: "Evento" },
+        { value: "PARTY", label: "Festa" },
+        { value: "CORRECTION", label: "Correção" },
+      ],
+      operators: ["="],
+    },
+    { name: "exitDate", label: "Data da saída", type: "date", operators: ["between", ">=", "<=", "="] },
+    { name: "eventName", label: "Evento", type: "text", operators: ["ilike", "contains", "="] },
+    { name: "notes", label: "Notas", type: "text", operators: ["ilike", "contains", "="] },
+  ],
+  groupBy: [
+    { field: "sector", label: "Setor" },
+    { field: "type", label: "Tipo" },
+    { field: "exitDate", label: "Data da saída" },
+  ],
 };
 
 export const pantryStockSearchView: SearchViewDefinition = {
   id: "pantry.stock.search",
   model: "pantry.stock",
+  searchPlaceholder: "Pesquisar alimentos, grupos ou setores",
+  features: {
+    favorites: true,
+    presets: true,
+    advancedFilters: true,
+    groupBy: true,
+    clearAll: true,
+  },
   presets: [
     {
       id: "below-min",
@@ -170,17 +283,12 @@ export const pantryStockSearchView: SearchViewDefinition = {
     {
       name: "isBelowMin",
       label: "Abaixo do mínimo",
-      type: "enum",
-      options: [
-        { value: "true", label: "Sim" },
-        { value: "false", label: "Não" },
-      ],
-
+      type: "boolean",
     },
     {
       name: "validityStatus",
       label: "Validade",
-      type: "enum",
+      type: "select",
       options: [
         { value: "Normal", label: "Normal" },
         { value: "Atencao", label: "Atenção" },
@@ -189,13 +297,11 @@ export const pantryStockSearchView: SearchViewDefinition = {
         { value: "Vencido", label: "Vencido" },
         { value: "Sem validade", label: "Sem validade" },
       ],
-
     },
     {
       name: "nextExpiryDate",
       label: "Próx. validade",
       type: "date",
-
     },
   ],
   groupBy: [
