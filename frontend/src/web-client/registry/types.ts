@@ -497,6 +497,7 @@ export type DetailLayoutConfig<
   editing?: DetailEditingConfig;
   header?: {
     title?: (context: TContext) => string;
+    leadingSlot?: (context: TContext) => React.ReactNode;
     slot?: (context: TContext) => React.ReactNode;
   };
   headerSlot?: (context: TContext) => React.ReactNode;

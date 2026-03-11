@@ -1,8 +1,5 @@
-"use client";
-
-import { AuditTimelinePage } from "@/modules/core/features/audit/ui/audit-timeline-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function AuditLogsPage() {
-  return <AuditTimelinePage />;
+  return <ScreenHost actionId="admin.audit.list" />;
 }
-

@@ -8,6 +8,7 @@ import {
   type CurrentUserProfile,
   type TenantProfile,
 } from "@/features/auth/api";
+import { isDetailAutoSaveSuspended } from "@/web-client/detail/detail-media-autosave-guard";
 
 type CurrentUserContextValue = {
   user: CurrentUserProfile | null;
@@ -66,6 +67,7 @@ export function CurrentUserProvider({
   const refreshIfStale = React.useCallback(() => {
     if (!token) return;
     if (refreshInFlightRef.current) return;
+    if (isDetailAutoSaveSuspended()) return;
     const now = Date.now();
     if (now - lastRefreshAtRef.current < 5_000) return;
     lastRefreshAtRef.current = now;

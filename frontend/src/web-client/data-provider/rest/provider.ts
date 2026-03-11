@@ -5,6 +5,23 @@ import { listAuditLogs } from "@/web-client/data-provider/rest/audit";
 import { searchPantryDonors } from "@/web-client/data-provider/rest/pantry-donors";
 import { searchPantryHistory } from "@/web-client/data-provider/rest/pantry-history";
 import {
+  createAdminRole,
+  createAdminUser,
+  deleteAdminRole,
+  deleteAdminUser,
+  readAdminRole,
+  readAdminSettingsOverview,
+  readAdminTenant,
+  readAdminUser,
+  searchAdminAuditLogs,
+  searchAdminPermissions,
+  searchAdminRoles,
+  searchAdminUsers,
+  updateAdminRole,
+  updateAdminTenant,
+  updateAdminUser,
+} from "@/web-client/data-provider/rest/admin";
+import {
   createPersonRecord,
   deletePersonRecord,
   readPerson,
@@ -107,6 +124,14 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       const requestKey = JSON.stringify(["search", authToken, model, args]);
       return withInFlightRequest(inflightSearchRequests, requestKey, async () => {
         switch (model) {
+          case "admin.users":
+            return (await searchAdminUsers(authToken, args)) as unknown as SearchResult<T>;
+          case "admin.roles":
+            return (await searchAdminRoles(authToken, args)) as unknown as SearchResult<T>;
+          case "admin.permissions":
+            return (await searchAdminPermissions(authToken, args)) as unknown as SearchResult<T>;
+          case "admin.audit":
+            return (await searchAdminAuditLogs(authToken, args)) as unknown as SearchResult<T>;
           case "pantry.history":
             return (await searchPantryHistory(authToken, args)) as unknown as SearchResult<T>;
           case "pantry.donors":
@@ -283,6 +308,14 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
       const requestKey = JSON.stringify(["read", authToken, model, id]);
       return withInFlightRequest(inflightReadRequests, requestKey, async () => {
         switch (model) {
+          case "admin.settings":
+            return (await readAdminSettingsOverview(authToken)) as unknown as T;
+          case "admin.tenant":
+            return (await readAdminTenant(authToken)) as unknown as T;
+          case "admin.users":
+            return (await readAdminUser(authToken, id)) as unknown as T;
+          case "admin.roles":
+            return (await readAdminRole(authToken, id)) as unknown as T;
           case "pantry.items":
             return (await getPantryItem(authToken, id)) as unknown as T;
           case "pantry.donors":
@@ -303,6 +336,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
     async create<T>(model: string, payload: unknown) {
       const authToken = await assertToken();
       switch (model) {
+        case "admin.users":
+          return (await createAdminUser(authToken, payload as never)) as unknown as T;
+        case "admin.roles":
+          return (await createAdminRole(authToken, payload as never)) as unknown as T;
         case "pantry.items":
           return (await createPantryItem(authToken, payload as never)) as unknown as T;
         case "pantry.donors":
@@ -322,6 +359,12 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
     async update<T>(model: string, id: string, payload: unknown) {
       const authToken = await assertToken();
       switch (model) {
+        case "admin.tenant":
+          return (await updateAdminTenant(authToken, payload as never)) as unknown as T;
+        case "admin.users":
+          return (await updateAdminUser(authToken, id, payload as never)) as unknown as T;
+        case "admin.roles":
+          return (await updateAdminRole(authToken, id, payload as never)) as unknown as T;
         case "pantry.items":
           return (await updatePantryItem(authToken, id, payload as never)) as unknown as T;
         case "pantry.donors":
@@ -341,6 +384,12 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
     async delete(model: string, id: string) {
       const authToken = await assertToken();
       switch (model) {
+        case "admin.users":
+          await deleteAdminUser(authToken, id);
+          return;
+        case "admin.roles":
+          await deleteAdminRole(authToken, id);
+          return;
         case "pantry.items":
           await deletePantryItem(authToken, id);
           return;

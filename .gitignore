@@ -1,2 +1,7 @@
 .env
 /docker/certbot/
+tmp-playwright-local/
+.tmp-playwright/
+test-results/
+frontend/*.log
+backend/*.log

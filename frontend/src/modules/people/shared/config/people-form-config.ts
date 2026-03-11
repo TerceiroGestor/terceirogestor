@@ -21,17 +21,17 @@ const buildOptions = (
 
 export const personFormFields: FormField<PersonFormData>[] = [
   {
-    name: "avatarUrl",
-    label: PEOPLE_FORM_TEXT.fields.avatarUrl.label,
-    type: "image",
-    defaultValue: "/avatar.jpg",
-  },
-  {
     name: "fullName",
     label: PEOPLE_FORM_TEXT.fields.fullName.label,
     type: "text",
     placeholder: PEOPLE_FORM_TEXT.fields.fullName.placeholder,
     required: true,
+  },
+  {
+    name: "avatarUrl",
+    label: PEOPLE_FORM_TEXT.fields.avatarUrl.label,
+    type: "image",
+    defaultValue: null,
   },
   {
     name: "socialName",
@@ -110,8 +110,8 @@ export const personFormSteps: FormStep[] = [
     title: PEOPLE_FORM_TEXT.steps.identification.title,
     description: PEOPLE_FORM_TEXT.steps.identification.description,
     fields: [
-      "avatarUrl",
       "fullName",
+      "avatarUrl",
       "socialName",
       "birthDate",
       "sex",

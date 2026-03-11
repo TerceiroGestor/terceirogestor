@@ -49,6 +49,7 @@ import {
   PANTRY_ITEM_UNIT,
 } from "@/modules/pantry/shared/domain/pantry.constants";
 import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
+import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
 import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
 import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
@@ -89,7 +90,7 @@ export type PantryDonorDraft = {
   name: string;
   type: ApiPantryDonor["type"];
   contact: string | null;
-  avatarUrl: string | null;
+  avatarUrl: string | File | null;
 };
 
 export type PantryDonorDetailLayoutContext = DetailShellAuditContext & {
@@ -100,8 +101,7 @@ export type PantryDonorDetailLayoutContext = DetailShellAuditContext & {
   setDraft: React.Dispatch<React.SetStateAction<PantryDonorDraft>>;
   onCommitField: (key: keyof PantryDonorDraft) => void;
   onTypeChange: (type: ApiPantryDonor["type"]) => void;
-  onAvatarFileSelect: (file: File) => void;
-  onAvatarRemove: () => void;
+  onAvatarFileSelect: (file: File) => Promise<void> | void;
   donor: ApiPantryDonor | null;
   donorNameById: Record<string, string>;
   entries: ApiPantryEntry[];
@@ -896,25 +896,42 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
 export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
   header: {
+    leadingSlot: ({
+      draft,
+      readOnly,
+      avatarUploading,
+      onAvatarFileSelect,
+    }) => (
+      <DetailIdentityMediaField
+        variant="header"
+        name={draft.name || "Doador"}
+        value={draft.avatarUrl}
+        readOnly={readOnly}
+        busy={avatarUploading}
+        onFileSelect={onAvatarFileSelect}
+      />
+    ),
     slot: ({ donor, draft }) => {
-      const avatarUrl = draft.avatarUrl ?? donor?.avatarUrl ?? null;
-      const avatarSrc = avatarUrl ? resolveMediaUrl(avatarUrl) : "";
       const donorLabel = draft.name.trim() || donor?.name || "Novo doador";
 
       return (
         <div className={PANTRY_DETAIL_BAND_CLASS}>
-          <div className="flex items-center gap-3">
-            <Avatar className="size-10 border border-border/60">
-              {avatarSrc ? <AvatarImage src={avatarSrc} alt={donorLabel} /> : null}
-              <AvatarFallback>
-                {donorLabel.slice(0, 2).toUpperCase() || "DN"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-foreground">{donorLabel}</div>
-              <div className="text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Tipo</div>
+              <div className="font-medium text-foreground">
+                {PANTRY_DONOR_TYPE_LABELS[draft.type]}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Contato</div>
+              <div className="font-medium text-foreground">
                 {draft.contact ?? donor?.contact ?? "Sem contato cadastrado."}
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Nome</div>
+              <div className="font-medium text-foreground">{donorLabel}</div>
             </div>
           </div>
         </div>
@@ -923,70 +940,13 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
   },
   main: ({
     readOnly,
-    avatarUploading,
     draft,
     setDraft,
     onCommitField,
     onTypeChange,
-    onAvatarFileSelect,
-    onAvatarRemove,
   }) => (
     <div className={PANTRY_DETAIL_SECTION_CLASS}>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className={`${PANTRY_DETAIL_SUBSECTION_CLASS} px-0 lg:border-b-0 lg:border-r lg:pr-6 lg:pb-0`}>
-          <div className="space-y-3">
-            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Foto
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <Avatar className="size-24 border border-border/60">
-                {draft.avatarUrl ? (
-                  <AvatarImage src={resolveMediaUrl(draft.avatarUrl)} alt={draft.name || "Doador"} />
-                ) : null}
-                <AvatarFallback>
-                  {(draft.name || "DN").slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-
-              <label className="w-full">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  disabled={readOnly || avatarUploading}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      onAvatarFileSelect(file);
-                    }
-                    event.currentTarget.value = "";
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full rounded-none border-x-0 border-t-0 px-0 justify-start"
-                  disabled={readOnly || avatarUploading}
-                  asChild
-                >
-                  <span>{avatarUploading ? "Enviando..." : "Enviar foto"}</span>
-                </Button>
-              </label>
-
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full rounded-none px-0 justify-start"
-                disabled={readOnly || avatarUploading || !draft.avatarUrl}
-                onClick={onAvatarRemove}
-              >
-                Remover foto
-              </Button>
-            </div>
-          </div>
-        </div>
-
+      <div className="space-y-4">
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="space-y-1">

@@ -12,6 +12,7 @@ export type AdminUser = {
   email: string;
   avatarUrl?: string | null;
   isActive: boolean;
+  mfaTotpEnabled?: boolean;
   roles: AdminUserRole[];
   createdAt: string;
   updatedAt: string;
@@ -33,6 +34,7 @@ export type AdminAuditLogUser = {
   id: string;
   name?: string | null;
   email?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type AdminAuditLog = {
@@ -119,6 +121,7 @@ export async function createUser(
     password: string;
     isActive?: boolean;
     roleIds?: string[];
+    avatarUrl?: string;
   },
 ) {
   return apiRequest<AdminUser>(
@@ -140,6 +143,7 @@ export async function updateUser(
     password?: string;
     isActive?: boolean;
     roleIds?: string[];
+    avatarUrl?: string;
   },
 ) {
   return apiRequest<AdminUser>(
@@ -154,6 +158,16 @@ export async function updateUser(
 
 export async function getUserById(token: string, userId: string) {
   return apiRequest<AdminUser>(`/users/${userId}`, {}, token);
+}
+
+export async function resetUserMfa(token: string, userId: string) {
+  return apiRequest<AdminUser>(
+    `/users/${userId}/mfa/reset`,
+    {
+      method: "POST",
+    },
+    token,
+  );
 }
 
 export async function getUserAccessLogs(
@@ -224,6 +238,10 @@ export async function createRole(
     },
     token,
   );
+}
+
+export async function getRoleById(token: string, roleId: string) {
+  return apiRequest<RoleSummary>(`/roles/${roleId}`, {}, token);
 }
 
 export async function updateRole(

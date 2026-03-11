@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { withTenantPath } from "@/lib/tenant-path";
 
-export default function PeopleEditLegacyPage({
+export default async function PeopleEditLegacyPage({
   params,
 }: {
-  params: { tenant: string; id: string };
+  params: Promise<{ tenant: string; id: string }>;
 }) {
-  redirect(withTenantPath(`/person/${params.id}`, params.tenant));
+  const { tenant, id } = await params;
+  redirect(withTenantPath(`/person/${id}`, tenant));
 }

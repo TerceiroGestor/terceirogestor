@@ -67,10 +67,16 @@ export function PeopleDetailEngineClientPage() {
   );
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
   const [tabValue, setTabValue] = React.useState("resumo");
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const personRef = React.useRef<ReturnType<typeof mapApiPersonToPerson> | null>(null);
+
+  React.useEffect(() => {
+    personRef.current = person;
+  }, [person]);
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
@@ -127,7 +133,7 @@ export function PeopleDetailEngineClientPage() {
         const avatarUrl =
           typeof values.avatarUrl === "string"
             ? stripApiUrl(values.avatarUrl)
-            : person.avatarUrl ?? "/avatar.jpg";
+            : person.avatarUrl ?? null;
 
         let resolvedAvatarUrl = avatarUrl;
         if (values.avatarUrl instanceof File) {
@@ -171,6 +177,34 @@ export function PeopleDetailEngineClientPage() {
       }
     },
     [canUpdate, dataProvider, person, token],
+  );
+
+  const handleAvatarUpdate = React.useCallback(
+    async (file: File | null) => {
+      const currentPerson = personRef.current;
+      if (!token || !currentPerson || !canUpdate) return;
+
+      setAvatarUploading(true);
+      setError(null);
+      try {
+        const avatarUrl = file ? (await uploadAvatar(token, file)).path : null;
+        const updated = await dataProvider.update<ApiPerson>(
+          peopleDetailModuleDefinition.queryAdapters.detailDataProvider?.model ?? "people.detail",
+          currentPerson.id,
+          { avatarUrl },
+        );
+        setPerson(mapApiPersonToPerson(updated));
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao atualizar foto.";
+        setError(message);
+      } finally {
+        setAvatarUploading(false);
+      }
+    },
+    [canUpdate, dataProvider, token],
   );
 
   const handleUpdateTags = React.useCallback(
@@ -219,7 +253,7 @@ export function PeopleDetailEngineClientPage() {
       departureReason: person.departureReason ?? "",
       tags: person.tags ?? [],
       profileSummary: person.profileSummary ?? "",
-      avatarUrl: resolveMediaUrl(person.avatarUrl ?? "/avatar.jpg"),
+      avatarUrl: person.avatarUrl ? resolveMediaUrl(person.avatarUrl) : null,
     };
   }, [person]);
 
@@ -237,9 +271,13 @@ export function PeopleDetailEngineClientPage() {
         ? {
             person,
             readOnly: !canUpdate,
+            avatarUploading,
             canAudit,
             tagSuggestions,
             onUpdateTags: canUpdate ? handleUpdateTags : undefined,
+            onAvatarFileSelect: canUpdate
+              ? (file) => handleAvatarUpdate(file)
+              : undefined,
             tabValue,
             onTabChange: setTabValue,
             auditVisibleCount,
@@ -248,8 +286,10 @@ export function PeopleDetailEngineClientPage() {
         : null,
     [
       auditVisibleCount,
+      avatarUploading,
       canAudit,
       canUpdate,
+      handleAvatarUpdate,
       handleUpdateTags,
       person,
       tabValue,
@@ -298,7 +338,7 @@ export function PeopleDetailEngineClientPage() {
         auditEnabled={canAudit}
         mode="edit"
         headerTitle={displayNames.primary}
-        saving={saving}
+        saving={saving || avatarUploading}
         loading={loading}
         readOnly={!canUpdate}
         onClose={backToList}

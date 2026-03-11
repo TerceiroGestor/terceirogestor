@@ -196,6 +196,7 @@ export class UsersService {
         email: user.email,
         avatarUrl: user.avatarUrl,
         isActive: user.isActive,
+        mfaTotpEnabled: user.mfaTotpEnabled,
         roles: user.roles.map((entry) => ({
           id: entry.role.id,
           name: entry.role.name,
@@ -221,6 +222,9 @@ export class UsersService {
         name: dto.name,
         email: dto.email,
         passwordHash,
+        ...(dto.avatarUrl !== undefined
+          ? { avatarUrl: dto.avatarUrl.trim() ? dto.avatarUrl : null }
+          : {}),
         isActive: dto.isActive ?? true,
       },
     });
@@ -253,11 +257,15 @@ export class UsersService {
       email?: string;
       passwordHash?: string;
       isActive?: boolean;
+      avatarUrl?: string | null;
     } = {};
 
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+    if (dto.avatarUrl !== undefined) {
+      updateData.avatarUrl = dto.avatarUrl.trim() ? dto.avatarUrl : null;
+    }
     if (dto.password) {
       updateData.passwordHash = await bcrypt.hash(dto.password, 10);
     }
@@ -271,6 +279,42 @@ export class UsersService {
       const roleIds = await this.resolveRoleIds(tenantId, dto.roleIds);
       await this.syncUserRoles(tenantId, userId, roleIds);
     }
+
+    return this.getProfile(tenantId, userId);
+  }
+
+  async resetUserMfa(tenantId: string, userId: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Usuario nao encontrado');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          mfaTotpEnabled: false,
+          mfaTotpSecretEnc: null,
+          mfaTotpVerifiedAt: null,
+        },
+      }),
+      this.prisma.userMfaTotpSetup.deleteMany({
+        where: { tenantId, userId },
+      }),
+      this.prisma.userMfaRecoveryCode.deleteMany({
+        where: { tenantId, userId },
+      }),
+      this.prisma.userTrustedDevice.updateMany({
+        where: { tenantId, userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.userMfaChallenge.deleteMany({
+        where: { tenantId, userId },
+      }),
+    ]);
 
     return this.getProfile(tenantId, userId);
   }

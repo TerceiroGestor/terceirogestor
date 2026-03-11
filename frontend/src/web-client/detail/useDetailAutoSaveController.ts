@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { isDetailAutoSaveSuspended } from "@/web-client/detail/detail-media-autosave-guard";
 import type { DetailEditingConfig } from "@/web-client/registry/types";
 
 type UseDetailAutoSaveControllerOptions<TDraft extends Record<string, unknown>> = {
@@ -115,6 +116,11 @@ export function useDetailAutoSaveController<
         return;
       }
 
+      if (isDetailAutoSaveSuspended()) {
+        queuedDraftRef.current = normalizedDraft;
+        return;
+      }
+
       if (savingRef.current) {
         queuedDraftRef.current = normalizedDraft;
         return;
@@ -138,10 +144,38 @@ export function useDetailAutoSaveController<
       return;
     }
 
+    if (isDetailAutoSaveSuspended()) {
+      return;
+    }
+
     const nextDraft = queuedDraftRef.current;
     queuedDraftRef.current = null;
     void commitDraftAsync(nextDraft);
   }, [commitDraftAsync, saving]);
+
+  React.useEffect(() => {
+    const handleSuspensionChange = () => {
+      if (savingRef.current || !queuedDraftRef.current || isDetailAutoSaveSuspended()) {
+        return;
+      }
+
+      const nextDraft = queuedDraftRef.current;
+      queuedDraftRef.current = null;
+      void commitDraftAsync(nextDraft);
+    };
+
+    window.addEventListener(
+      "detail:media-autosave-suspension-change",
+      handleSuspensionChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "detail:media-autosave-suspension-change",
+        handleSuspensionChange,
+      );
+    };
+  }, [commitDraftAsync]);
 
   const commitDraft = React.useCallback(
     (nextDraft?: TDraft | null) => {

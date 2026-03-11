@@ -108,6 +108,13 @@ export class UsersController {
     return this.usersService.updateUser(user.tenantId, id, dto);
   }
 
+  @Post(':id/mfa/reset')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('users.update')
+  async resetUserMfa(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.usersService.resetUserMfa(user.tenantId, id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('users.delete')

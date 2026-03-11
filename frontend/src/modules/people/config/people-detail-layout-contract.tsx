@@ -11,6 +11,7 @@ import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs"
 import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
+import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
 import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
@@ -18,9 +19,11 @@ import type { DetailLayoutConfig } from "@/web-client/registry/types";
 export type PeopleDetailLayoutContext = DetailShellAuditContext & {
   person: Person;
   readOnly: boolean;
+  avatarUploading: boolean;
   canAudit: boolean;
   tagSuggestions: string[];
   onUpdateTags?: (tags: string[]) => Promise<void> | void;
+  onAvatarFileSelect?: (file: File) => Promise<void> | void;
   tabValue: string;
   onTabChange: (value: string) => void;
   auditVisibleCount: number;
@@ -144,6 +147,16 @@ export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
 export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> = {
   header: {
     title: ({ person }) => resolvePersonDisplayNames(person.fullName, person.socialName).primary,
+    leadingSlot: ({ person, readOnly, avatarUploading, onAvatarFileSelect }) => (
+      <DetailIdentityMediaField
+        variant="header"
+        name={resolvePersonDisplayNames(person.fullName, person.socialName).primary}
+        value={person.avatarUrl ?? null}
+        readOnly={readOnly}
+        busy={avatarUploading}
+        onFileSelect={onAvatarFileSelect}
+      />
+    ),
     slot: ({ person }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">

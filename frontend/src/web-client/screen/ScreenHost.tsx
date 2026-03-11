@@ -10,7 +10,7 @@ import { resolveWindowActionPermissionRequirement } from "@/web-client/registry/
 
 export function ScreenHost({ actionId }: { actionId: string }) {
   const { isLoading: authLoading } = useAuth();
-  const { permissions, isLoading: userLoading } = useCurrentUser();
+  const { permissions, isLoading: userLoading, user, tenant } = useCurrentUser();
   const action = React.useMemo(() => getWindowAction(actionId), [actionId]);
 
   if (!action) {
@@ -21,7 +21,9 @@ export function ScreenHost({ actionId }: { actionId: string }) {
     );
   }
 
-  if (authLoading || userLoading) {
+  const hasResolvedCurrentUser = Boolean(user || tenant || permissions.length);
+
+  if (authLoading || (userLoading && !hasResolvedCurrentUser)) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
         Carregando...

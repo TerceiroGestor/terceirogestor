@@ -1,10 +1,5 @@
-import { AdminUserDetailClientPage } from "@/modules/core/features/admin-users/ui/admin-user-detail-client-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
-export default async function AdminUserDetailPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const resolved = await params;
-  return <AdminUserDetailClientPage userId={resolved.id} />;
+export default function AdminUserDetailPage() {
+  return <ScreenHost actionId="admin.users.detail" />;
 }

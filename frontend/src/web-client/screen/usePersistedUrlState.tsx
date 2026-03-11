@@ -3,14 +3,46 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-function shallowEqualRecord(a: Record<string, unknown>, b: Record<string, unknown>) {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (a[key] !== b[key]) return false;
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function deepEqualValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (!deepEqualValue(left[index], right[index])) return false;
+    }
+    return true;
   }
-  return true;
+
+  if (left instanceof Date || right instanceof Date) {
+    if (!(left instanceof Date) || !(right instanceof Date)) return false;
+    return left.getTime() === right.getTime();
+  }
+
+  if (isPlainObject(left) || isPlainObject(right)) {
+    if (!isPlainObject(left) || !isPlainObject(right)) return false;
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) return false;
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+      if (!deepEqualValue(left[key], right[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function deepEqualRecord(a: Record<string, unknown>, b: Record<string, unknown>) {
+  return deepEqualValue(a, b);
 }
 
 function safeJsonParse(value: string | null) {
@@ -27,7 +59,7 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
   trackedKeys,
   parse,
   serialize,
-  equals = shallowEqualRecord as unknown as (a: TState, b: TState) => boolean,
+  equals = deepEqualRecord as unknown as (a: TState, b: TState) => boolean,
 }: {
   storageKey: string;
   trackedKeys: string[];
@@ -40,7 +72,10 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
   const searchParams = useSearchParams();
   const mountedRef = React.useRef(false);
   const equalsRef = React.useRef(equals);
+  const pendingQueryRef = React.useRef<string | null>(null);
   const trackedKeysKey = trackedKeys.join("\u0000");
+  const currentQuery = searchParams.toString();
+  const lastUrlQueryRef = React.useRef(currentQuery);
 
   React.useEffect(() => {
     equalsRef.current = equals;
@@ -52,35 +87,52 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
   );
 
   const parsedFromUrl = React.useMemo(
-    () => parse(new URLSearchParams(searchParams.toString())),
-    [parse, searchParams],
+    () => parse(new URLSearchParams(currentQuery)),
+    [currentQuery, parse],
   );
 
   const [state, setState] = React.useState<TState>(parsedFromUrl);
+  const [isReadyToWrite, setIsReadyToWrite] = React.useState(false);
 
   React.useEffect(() => {
+    if (currentQuery === lastUrlQueryRef.current) {
+      return;
+    }
+
+    lastUrlQueryRef.current = currentQuery;
+
+    if (pendingQueryRef.current !== null && currentQuery === pendingQueryRef.current) {
+      pendingQueryRef.current = null;
+      return;
+    }
+
+    pendingQueryRef.current = null;
     setState((prev) => (isEqual(prev, parsedFromUrl) ? prev : parsedFromUrl));
-  }, [isEqual, parsedFromUrl]);
+  }, [currentQuery, isEqual, parsedFromUrl]);
 
   React.useEffect(() => {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    const hasUrlState = trackedKeys.some((key) => searchParams.has(key));
-    if (hasUrlState) return;
+    const params = new URLSearchParams(currentQuery);
+    const hasUrlState = trackedKeys.some((key) => params.has(key));
+    if (!hasUrlState) {
+      const raw =
+        typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+      const parsed = safeJsonParse(raw);
+      if (parsed && typeof parsed === "object") {
+        const merged = { ...parsedFromUrl, ...(parsed as Record<string, unknown>) } as TState;
+        setState((prev) => (isEqual(prev, merged) ? prev : merged));
+      }
+    }
 
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
-    const parsed = safeJsonParse(raw);
-    if (!parsed || typeof parsed !== "object") return;
-
-    const merged = { ...parsedFromUrl, ...(parsed as Record<string, unknown>) } as TState;
-    setState((prev) => (isEqual(prev, merged) ? prev : merged));
-  }, [isEqual, parsedFromUrl, searchParams, storageKey, trackedKeysKey]);
+    setIsReadyToWrite(true);
+  }, [currentQuery, isEqual, parsedFromUrl, storageKey, trackedKeysKey]);
 
   React.useEffect(() => {
-    if (!mountedRef.current) return;
+    if (!isReadyToWrite) return;
 
-    const nextParams = new URLSearchParams(searchParams.toString());
+    const nextParams = new URLSearchParams(currentQuery);
     const serialized = serialize(state);
     const trackedKeySet = new Set(trackedKeys);
 
@@ -100,9 +152,9 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
     });
 
     const nextQuery = nextParams.toString();
-    const currentQuery = searchParams.toString();
     if (nextQuery !== currentQuery) {
       const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+      pendingQueryRef.current = nextQuery;
       router.replace(nextUrl, { scroll: false });
     }
 
@@ -113,7 +165,7 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
         // ignore quota errors
       }
     }
-  }, [pathname, router, searchParams, serialize, state, storageKey, trackedKeysKey]);
+  }, [currentQuery, isReadyToWrite, pathname, router, serialize, state, storageKey, trackedKeysKey]);
 
   return [state, setState] as const;
 }

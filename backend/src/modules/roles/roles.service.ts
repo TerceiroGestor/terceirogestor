@@ -101,7 +101,7 @@ export class RolesService {
     return { ok: true };
   }
 
-  private async getRoleDetail(tenantId: string, roleId: string) {
+  async getRoleDetail(tenantId: string, roleId: string) {
     const role = await this.prisma.role.findFirst({
       where: { id: roleId, tenantId },
       include: {

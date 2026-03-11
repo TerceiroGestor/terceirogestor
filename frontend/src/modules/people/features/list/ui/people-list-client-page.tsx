@@ -146,7 +146,7 @@ export function PeopleListClientPage() {
       age: getAgeFromBirthDate(person.birthDate),
       isBirthdayMonth: isBirthdayInCurrentMonth(person.birthDate),
       isBirthdayToday: isBirthdayToday(person.birthDate),
-      avatarUrl: person.avatarUrl ?? "/avatar.jpg",
+      avatarUrl: person.avatarUrl ?? null,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
     }),
@@ -304,7 +304,7 @@ export function PeopleListClientPage() {
       tags: editing.tags ?? [],
       profileSummary: editing.profileSummary ?? "",
       birthDate: toDateInputValue(editing.birthDate),
-      avatarUrl: resolveMediaUrl(editing.avatarUrl ?? "/avatar.jpg"),
+      avatarUrl: editing.avatarUrl ? resolveMediaUrl(editing.avatarUrl) : null,
     };
   }, [editing]);
 
@@ -330,7 +330,7 @@ export function PeopleListClientPage() {
       let avatarUrl =
         typeof values.avatarUrl === "string"
           ? stripApiUrl(values.avatarUrl)
-          : (editing?.avatarUrl ?? "/avatar.jpg");
+          : (editing?.avatarUrl ?? null);
       if (values.avatarUrl instanceof File) {
         const upload = await uploadAvatar(token, values.avatarUrl);
         avatarUrl = upload.path;

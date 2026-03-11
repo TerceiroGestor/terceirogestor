@@ -19,6 +19,13 @@ export class RolesController {
     return this.rolesService.listRoles(user.tenantId);
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('roles.manage')
+  async getRole(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.rolesService.getRoleDetail(user.tenantId, id);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('roles.manage')

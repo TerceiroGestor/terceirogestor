@@ -59,7 +59,7 @@ export function mapApiPersonToTableItem(person: ApiPerson): PeopleTableItem {
     age: getAgeFromBirthDate(person.birthDate),
     isBirthdayMonth: isBirthdayInCurrentMonth(person.birthDate),
     isBirthdayToday: isBirthdayToday(person.birthDate),
-    avatarUrl: person.avatarUrl ?? "/avatar.jpg",
+    avatarUrl: person.avatarUrl ?? null,
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
   };

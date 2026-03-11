@@ -1,5 +1,17 @@
 import type { WindowAction } from "@/web-client/registry/types";
 import {
+  adminAuditListAction,
+  adminInstitutionAction,
+  adminOverviewAction,
+  adminPermissionsListAction,
+  adminRolesCreateAction,
+  adminRolesDetailAction,
+  adminRolesListAction,
+  adminUsersCreateAction,
+  adminUsersDetailAction,
+  adminUsersListAction,
+} from "@/web-client/registry/actions/admin";
+import {
   pantryDonorsAction,
   pantryDonorsCreateAction,
   pantryDonorsDetailAction,
@@ -32,6 +44,13 @@ import {
 } from "@/web-client/registry/searchViews/pantry";
 import { peopleSearchView } from "@/web-client/registry/searchViews/people";
 import { tasksSearchView } from "@/web-client/registry/searchViews/tasks";
+import {
+  adminAuditSearchView,
+  adminPermissionsSearchView,
+  adminRolesSearchView,
+  adminSingletonSearchView,
+  adminUsersSearchView,
+} from "@/web-client/registry/searchViews/admin";
 export {
   createModuleWindowAction,
   resolveModuleWindowActionTitle,
@@ -39,6 +58,16 @@ export {
 } from "@/web-client/registry/window-actions";
 
 const WINDOW_ACTIONS: WindowAction[] = [
+  adminOverviewAction,
+  adminInstitutionAction,
+  adminUsersListAction,
+  adminUsersDetailAction,
+  adminUsersCreateAction,
+  adminRolesListAction,
+  adminRolesDetailAction,
+  adminRolesCreateAction,
+  adminPermissionsListAction,
+  adminAuditListAction,
   pantryStockAction,
   pantryItemsCreateAction,
   pantryItemsDetailAction,
@@ -58,6 +87,11 @@ const WINDOW_ACTIONS: WindowAction[] = [
   tasksCreateAction,
 ];
 const SEARCH_VIEWS: SearchViewDefinition[] = [
+  adminSingletonSearchView,
+  adminUsersSearchView,
+  adminRolesSearchView,
+  adminPermissionsSearchView,
+  adminAuditSearchView,
   pantryDonorsSearchView,
   pantryEntriesSearchView,
   pantryExitsSearchView,

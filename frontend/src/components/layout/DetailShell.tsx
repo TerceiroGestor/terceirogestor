@@ -38,6 +38,7 @@ export type DetailShellProps = {
   onClose: () => void;
 
   headerActionsSlot?: React.ReactNode;
+  headerTitleSlot?: React.ReactNode;
   headerInfoSlot?: React.ReactNode;
   headerInfoClassName?: string;
   viewControlsSlot?: React.ReactNode;
@@ -79,6 +80,7 @@ export function DetailShell({
   onSave,
   onClose,
   headerActionsSlot,
+  headerTitleSlot,
   headerInfoSlot,
   headerInfoClassName,
   viewControlsSlot,
@@ -110,6 +112,9 @@ export function DetailShell({
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
+            {headerTitleSlot ? (
+              <div className="shrink-0">{headerTitleSlot}</div>
+            ) : null}
             <h1 className="truncate text-[1.85rem] font-semibold tracking-tight text-foreground">
               {headerTitle}
             </h1>

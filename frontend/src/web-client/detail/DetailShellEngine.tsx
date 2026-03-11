@@ -96,6 +96,10 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
       null,
     [engineContext, layout],
   );
+  const headerTitleSlot = React.useMemo(
+    () => layout?.header?.leadingSlot?.(engineContext) ?? null,
+    [engineContext, layout],
+  );
 
   const titleFromLayout = layout?.header?.title?.(engineContext);
 
@@ -181,6 +185,7 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
       onSave={onSave}
       onClose={onClose}
       headerActionsSlot={headerActionsSlot}
+      headerTitleSlot={headerTitleSlot}
       headerInfoSlot={headerSlot}
       viewControlsSlot={viewControlsSlot}
       mainSlot={composedMainSlot}

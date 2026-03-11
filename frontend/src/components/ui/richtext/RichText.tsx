@@ -15,9 +15,10 @@ interface Props {
   value: string;
   disabled?: boolean;
   onChange: (value: string) => void;
+  onBlur?: () => void;
 }
 
-export function RichText({ value, disabled, onChange }: Props) {
+export function RichText({ value, disabled, onChange, onBlur }: Props) {
   const editor = useEditor({
     extensions: [
       Document,
@@ -43,6 +44,9 @@ export function RichText({ value, disabled, onChange }: Props) {
     immediatelyRender: false,
     onUpdate({ editor }) {
       onChange(editor.getHTML());
+    },
+    onBlur() {
+      onBlur?.();
     },
   });
 

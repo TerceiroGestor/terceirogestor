@@ -47,7 +47,7 @@ export function PeopleCreateClient() {
         let avatarUrl =
           typeof values.avatarUrl === "string"
             ? stripApiUrl(values.avatarUrl)
-            : "/avatar.jpg";
+            : null;
         if (values.avatarUrl instanceof File) {
           const upload = await uploadAvatar(token, values.avatarUrl);
           avatarUrl = upload.path;

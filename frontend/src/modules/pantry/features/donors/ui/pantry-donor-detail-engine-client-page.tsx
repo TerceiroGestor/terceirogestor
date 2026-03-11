@@ -47,9 +47,11 @@ function normalizeDraft(draft: PantryDonorDraft): PantryDonorDraft {
     type: draft.type,
     contact: normalizeStringOrNull(draft.contact),
     avatarUrl:
-      typeof draft.avatarUrl === "string"
-        ? normalizeStringOrNull(stripApiUrl(draft.avatarUrl))
-        : null,
+      draft.avatarUrl instanceof File
+        ? draft.avatarUrl
+        : typeof draft.avatarUrl === "string"
+          ? normalizeStringOrNull(stripApiUrl(draft.avatarUrl))
+          : null,
   };
 }
 
@@ -118,7 +120,6 @@ export function PantryDonorDetailEngineClientPage({
   });
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
-  const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entries, setEntries] = React.useState<ApiPantryEntry[]>([]);
@@ -127,18 +128,25 @@ export function PantryDonorDetailEngineClientPage({
   const persistDonorDraft = React.useCallback(
     async (nextDraft: PantryDonorDraft) => {
       const normalizedDraft = normalizeDraft(nextDraft);
+      const avatarUrl =
+        normalizedDraft.avatarUrl instanceof File
+          ? (await uploadAvatar(token ?? "", normalizedDraft.avatarUrl)).path
+          : normalizedDraft.avatarUrl;
       const updated = await dataProvider.update<ApiPantryDonor>(
         pantryDonorDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
           "pantry.donors",
         id,
-        normalizedDraft,
+        {
+          ...normalizedDraft,
+          avatarUrl,
+        },
       );
       const savedDraft = draftFromDonor(updated);
       setDonor(updated);
       setDraft(savedDraft);
       return savedDraft;
     },
-    [dataProvider, id],
+    [dataProvider, id, token],
   );
 
   const autoSave = useDetailAutoSaveController<PantryDonorDraft>({
@@ -164,8 +172,9 @@ export function PantryDonorDetailEngineClientPage({
     saving: autoSaving,
     replaceSavedDraft,
     commitField,
+    commitDraft,
   } = autoSave;
-  const saving = busy || avatarUploading || autoSaving;
+  const saving = busy || autoSaving;
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
@@ -283,10 +292,17 @@ export function PantryDonorDetailEngineClientPage({
 
     setBusy(true);
     try {
+      const avatarUrl =
+        normalized.avatarUrl instanceof File
+          ? (await uploadAvatar(token ?? "", normalized.avatarUrl)).path
+          : normalized.avatarUrl;
       const created = await dataProvider.create<ApiPantryDonor>(
         pantryDonorDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
           "pantry.donors",
-        normalized,
+        {
+          ...normalized,
+          avatarUrl,
+        },
       );
 
       toast({ variant: "success", title: "Doador criado" });
@@ -314,7 +330,7 @@ export function PantryDonorDetailEngineClientPage({
     } finally {
       setBusy(false);
     }
-  }, [canCreate, dataProvider, draft, enabled, returnTo, router, tenantSlug, toast]);
+  }, [canCreate, dataProvider, draft, enabled, returnTo, router, tenantSlug, toast, token]);
 
   const openEntryDetail = React.useCallback(
     (entryId: string) => {
@@ -342,19 +358,31 @@ export function PantryDonorDetailEngineClientPage({
 
   const commitAvatar = React.useCallback(
     async (file: File | null) => {
-      if (!token) return;
+      if (mode !== "edit") {
+        setDraft((currentDraft) => ({
+          ...currentDraft,
+          avatarUrl: file,
+        }));
+        return;
+      }
 
-      setAvatarUploading(true);
+      if (!donor || !canUpdate || !token) {
+        return;
+      }
+
+      setBusy(true);
       try {
-        const avatarUrl = file ? (await uploadAvatar(token, file)).path : null;
-
-        if (mode === "create") {
-          setDraft((previous) => ({ ...previous, avatarUrl }));
-          return;
-        }
-
-        setDraft((previous) => ({ ...previous, avatarUrl }));
-        void commitField("avatarUrl", avatarUrl);
+        const avatarUrl = file ? (await uploadAvatar(token, file)).path : "";
+        const updated = await dataProvider.update<ApiPantryDonor>(
+          pantryDonorDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
+            "pantry.donors",
+          donor.id,
+          { avatarUrl },
+        );
+        const nextDraft = draftFromDonor(updated);
+        setDonor(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -363,14 +391,14 @@ export function PantryDonorDetailEngineClientPage({
 
         toast({
           variant: "destructive",
-          title: "Falha na foto",
+          title: "Falha ao salvar",
           description: message,
         });
       } finally {
-        setAvatarUploading(false);
+        setBusy(false);
       }
     },
-    [commitField, mode, toast, token],
+    [canUpdate, dataProvider, donor, mode, replaceSavedDraft, toast, token],
   );
 
   const headerTitle =
@@ -380,7 +408,7 @@ export function PantryDonorDetailEngineClientPage({
     () => ({
       mode,
       readOnly,
-      avatarUploading,
+      avatarUploading: saving,
       draft,
       setDraft,
       onCommitField: (key) => {
@@ -389,12 +417,7 @@ export function PantryDonorDetailEngineClientPage({
       onTypeChange: (type) => {
         void commitField("type", type);
       },
-      onAvatarFileSelect: (file) => {
-        void commitAvatar(file);
-      },
-      onAvatarRemove: () => {
-        void commitAvatar(null);
-      },
+      onAvatarFileSelect: (file) => commitAvatar(file),
       donor,
       donorNameById,
       entries,
@@ -406,7 +429,6 @@ export function PantryDonorDetailEngineClientPage({
     [
       auditVisibleCount,
       commitField,
-      avatarUploading,
       commitAvatar,
       donor,
       donorNameById,
