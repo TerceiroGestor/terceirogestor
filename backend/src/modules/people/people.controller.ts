@@ -21,6 +21,7 @@ import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
+import { CreatePersonFinancialEntryDto } from './dto/create-person-financial-entry.dto';
 import { CreatePersonHealthConditionDto } from './dto/create-person-health-condition.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonMedicationDto } from './dto/create-person-medication.dto';
@@ -36,6 +37,7 @@ import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonContactDto } from './dto/update-person-contact.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
+import { UpdatePersonFinancialEntryDto } from './dto/update-person-financial-entry.dto';
 import { UpdatePersonHealthConditionDto } from './dto/update-person-health-condition.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonMedicationDto } from './dto/update-person-medication.dto';
@@ -169,6 +171,50 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.listIncomes(tenantId, id);
+  }
+
+  @Get(':id/financial-entries')
+  @Permissions('people.read')
+  async listFinancialEntries(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.listFinancialEntries(tenantId, id);
+  }
+
+  @Post(':id/financial-entries')
+  @Permissions('people.update')
+  async createFinancialEntry(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonFinancialEntryDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.createFinancialEntry(tenantId, id, dto);
+  }
+
+  @Patch(':id/financial-entries/:entryId')
+  @Permissions('people.update')
+  async updateFinancialEntry(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('entryId', new ParseUUIDPipe({ version: '4' })) entryId: string,
+    @Body() dto: UpdatePersonFinancialEntryDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.updateFinancialEntry(tenantId, id, entryId, dto);
+  }
+
+  @Delete(':id/financial-entries/:entryId')
+  @Permissions('people.update')
+  async removeFinancialEntry(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('entryId', new ParseUUIDPipe({ version: '4' })) entryId: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.peopleService.removeFinancialEntry(tenantId, id, entryId);
   }
 
   @Post(':id/incomes')

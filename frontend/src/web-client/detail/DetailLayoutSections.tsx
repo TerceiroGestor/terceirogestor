@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type {
@@ -16,14 +17,17 @@ import {
 } from "@/web-client/ui/ModulePrimitives";
 import { ListView } from "@/web-client/views/ListView";
 
-function renderRelationSection<
+function DetailRelationSection<
   TContext extends Record<string, unknown>,
   TRow,
->(relation: DetailRelationConfig<TContext, TRow>, context: TContext) {
+>({ relation, context }: {
+  relation: DetailRelationConfig<TContext, TRow>;
+  context: TContext;
+}) {
   if (relation.visible && !relation.visible(context)) return null;
 
   const loading = relation.loading?.(context) ?? false;
-  const rows = relation.rows(context) ?? [];
+  const allRows = relation.rows(context) ?? [];
   const action = relation.action;
   const actionHidden = action?.hidden?.(context) ?? false;
   const actionDisabled = action?.disabled?.(context) ?? false;
@@ -31,9 +35,40 @@ function renderRelationSection<
     typeof relation.emptyLabel === "function"
       ? relation.emptyLabel(context)
       : relation.emptyLabel;
+  const searchable = relation.searchable ?? false;
+  const searchPlaceholder =
+    typeof relation.searchPlaceholder === "function"
+      ? relation.searchPlaceholder(context)
+      : relation.searchPlaceholder;
+  const [searchText, setSearchText] = React.useState("");
+
+  const rows = React.useMemo(() => {
+    if (!searchText.trim()) return allRows;
+    if (relation.filterRows) {
+      return relation.filterRows(allRows, searchText, context);
+    }
+    const query = searchText.trim().toLocaleLowerCase();
+    return allRows.filter((row) => {
+      const haystack = Object.values(row as Record<string, unknown>)
+        .flatMap((value) => {
+          if (Array.isArray(value)) {
+            return value.map((entry) => String(entry ?? ""));
+          }
+          if (value && typeof value === "object") {
+            return Object.values(value as Record<string, unknown>).map((entry) =>
+              String(entry ?? ""),
+            );
+          }
+          return [String(value ?? "")];
+        })
+        .join(" ")
+        .toLocaleLowerCase();
+      return haystack.includes(query);
+    });
+  }, [allRows, context, relation, searchText]);
 
   return (
-    <section key={relation.key} className="border-t border-border/60 pt-4">
+    <section className="border-t border-border/60 pt-4">
       <ModuleSectionHeader
         title={relation.label}
         description={relation.description}
@@ -55,7 +90,17 @@ function renderRelationSection<
         }
       />
 
-      <div className="pt-1">
+      <div className="space-y-3 pt-1">
+        {searchable ? (
+          <div className="max-w-md">
+            <Input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder={searchPlaceholder ?? `Pesquisar em ${relation.label.toLowerCase()}`}
+              className="h-9 rounded-none border-x-0 border-t-0 border-border/70 px-0 text-sm shadow-none focus-visible:ring-0"
+            />
+          </div>
+        ) : null}
         {loading ? (
           <ModuleEmptyState
             title="Carregando"
@@ -114,9 +159,13 @@ export function DetailRelationsRenderer<
 
   return (
     <div className={cn("space-y-4", className)}>
-      {visibleRelations.map((relation) =>
-        renderRelationSection(relation, context),
-      )}
+      {visibleRelations.map((relation) => (
+        <DetailRelationSection
+          key={relation.key}
+          relation={relation}
+          context={context}
+        />
+      ))}
     </div>
   );
 }

@@ -6,6 +6,18 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAuditLogById(tenantId: string, id: string) {
+    return this.prisma.auditLog.findFirstOrThrow({
+      where: {
+        id,
+        tenantId,
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
+    });
+  }
+
   async listAuditLogs(
     tenantId: string,
     params: {

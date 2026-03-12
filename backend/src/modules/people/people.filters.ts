@@ -29,6 +29,14 @@ const SEARCH_FIELDS = [
   'nis',
   'email',
   'phone',
+  'maritalStatus',
+  'nationality',
+  'status',
+  'personType',
+  'departureReason',
+  'notes',
+  'profileSummary',
+  'tags',
 ] as const;
 
 const ALLOWED_FILTER_FIELDS = new Set([

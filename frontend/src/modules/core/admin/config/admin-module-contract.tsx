@@ -29,9 +29,11 @@ import { ADMIN_ACTION_IDS, ADMIN_ROUTES } from "@/modules/core/admin/admin.const
 import { ADMIN_SETTINGS_PERMISSIONS } from "@/modules/core/features/settings/domain/admin-settings-access";
 import {
   adminOverviewLayout,
+  adminAuditDetailLayout,
   adminRoleDetailLayout,
   adminTenantDetailLayout,
   adminUserDetailLayout,
+  type AdminAuditDetailLayoutContext,
   type AdminOverviewLayoutContext,
   type AdminRoleDetailLayoutContext,
   type AdminTenantLayoutContext,
@@ -62,6 +64,8 @@ export type AdminDetailQueryState = {
   pageIndex: number;
   pageSize: number;
 };
+
+export type AdminAuditDetailQueryState = AdminDetailQueryState;
 
 export type AdminUsersListViewId = "list" | "kanban" | "timeline" | "calendar" | "graph";
 export type AdminRolesListViewId = "list" | "timeline" | "calendar" | "graph";
@@ -868,11 +872,48 @@ export const adminAuditListModuleDefinition = defineRecordModule<AdminAuditListQ
   }),
 });
 
+export const adminAuditDetailModuleDefinition = defineRecordModule<
+  AdminAuditDetailQueryState,
+  AdminAuditDetailLayoutContext
+>({
+  moduleId: "admin.audit.detail",
+  basePath: ADMIN_ROUTES.auditDetail,
+  featureFlags: createStandardFeatureFlags({ detail: true }),
+  actionKey: "admin.audit.detail.screen",
+  favoriteKey: "admin.audit.detail.favorites",
+  permissions: ADMIN_AUDIT_PERMISSIONS,
+  actions: {
+    view: {
+      key: "view",
+      label: "Detalhe da auditoria",
+      permissionKey: "canRead",
+      scope: "detail",
+    },
+  },
+  queryAdapters: {
+    listDataProvider: { model: "admin.audit" },
+    detailDataProvider: { model: "admin.audit" },
+  },
+  domainAdapter: {
+    entity: { singular: "Registro de auditoria", plural: "Auditoria" },
+    detail: {
+      fallbackTitle: "Auditoria",
+    },
+    fields: auditFieldMap,
+  },
+  searchConfig: adminAuditSearchView,
+  views: [createStandardDetailView()],
+  defaultView: "detail",
+  defaultQueryState: createStandardDetailQueryState<AdminAuditDetailQueryState>(),
+  detailLayout: adminAuditDetailLayout,
+});
+
 export type AdminAnyModuleDefinition =
   | RecordModuleDefinition<AdminUsersListQueryState>
   | RecordModuleDefinition<AdminRolesListQueryState>
   | RecordModuleDefinition<AdminPermissionsListQueryState>
   | RecordModuleDefinition<AdminAuditListQueryState>
+  | RecordModuleDefinition<AdminAuditDetailQueryState, AdminAuditDetailLayoutContext>
   | RecordModuleDefinition<AdminDetailQueryState, AdminOverviewLayoutContext>
   | RecordModuleDefinition<AdminDetailQueryState, AdminTenantLayoutContext>
   | RecordModuleDefinition<AdminDetailQueryState, AdminUserDetailLayoutContext>

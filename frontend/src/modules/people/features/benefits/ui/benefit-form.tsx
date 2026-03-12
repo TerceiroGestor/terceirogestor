@@ -29,7 +29,10 @@ type BenefitFormProps = {
   initialValues: BenefitFormValues;
   submitLabel: string;
   onSubmit: (values: BenefitFormValues) => void | Promise<void>;
+  onValuesChange?: (values: BenefitFormValues) => void;
+  onFieldCommit?: (values: BenefitFormValues) => void;
   onCancel?: () => void;
+  hideActions?: boolean;
 };
 
 const OTHER_VALUE = "__OTHER__";
@@ -38,7 +41,10 @@ export function BenefitForm({
   initialValues,
   submitLabel,
   onSubmit,
+  onValuesChange,
+  onFieldCommit,
   onCancel,
+  hideActions = false,
 }: BenefitFormProps) {
   const engineInitialValues = React.useMemo<BenefitEngineValues>(() => {
     const isKnown = BENEFIT_TYPE_OPTIONS.some(
@@ -110,8 +116,41 @@ export function BenefitForm({
 
   return (
     <FormEngine<BenefitEngineValues>
+      appearance="inline-detail"
       initialValues={engineInitialValues}
       fields={fields}
+      onValuesChange={(values) => {
+        const resolvedType =
+          values.typeOption === OTHER_VALUE
+            ? values.typeCustom.trim()
+            : values.typeOption;
+
+        onValuesChange?.({
+          type: resolvedType,
+          status: values.status,
+          amount: values.amount,
+          frequency: values.frequency,
+          startDate: values.startDate,
+          endDate: values.endDate,
+          notes: values.notes,
+        });
+      }}
+      onFieldCommit={({ values }) => {
+        const resolvedType =
+          values.typeOption === OTHER_VALUE
+            ? values.typeCustom.trim()
+            : values.typeOption;
+
+        onFieldCommit?.({
+          type: resolvedType,
+          status: values.status,
+          amount: values.amount,
+          frequency: values.frequency,
+          startDate: values.startDate,
+          endDate: values.endDate,
+          notes: values.notes,
+        });
+      }}
       onSubmit={(values) => {
         const resolvedType =
           values.typeOption === OTHER_VALUE
@@ -128,10 +167,16 @@ export function BenefitForm({
           notes: values.notes,
         });
       }}
-      actions={{
-        cancel: onCancel ? { label: "Cancelar", onClick: onCancel, variant: "ghost" } : undefined,
-        submit: { label: submitLabel, variant: "primary" },
-      }}
+      actions={
+        hideActions
+          ? undefined
+          : {
+              cancel: onCancel
+                ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
+                : undefined,
+              submit: { label: submitLabel, variant: "primary" },
+            }
+      }
     />
   );
 }

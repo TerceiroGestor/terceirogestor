@@ -5,7 +5,6 @@ export type * from "./types/household";
 export type * from "./types/health-conditions";
 export type * from "./types/medications";
 export type * from "./types/education";
-export type * from "./types/benefits";
 export type * from "./types/detentions";
 export type * from "./types/contacts";
 export type * from "./types/sensitive-documents";

@@ -1,62 +1,23 @@
-﻿"use client";
+"use client";
 
-import { Fragment, useMemo } from "react";
+import * as React from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import {
-  ChevronDown,
   ClipboardList,
-  FileText,
-  FolderOpen,
+  ChevronRight,
   GraduationCap,
-  HandCoins,
   HeartPulse,
-  History,
   Lock,
   Pill,
-  UserRound,
   Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import type { Person } from "../domain/types";
-import { useAuth } from "@/features/auth/auth-context";
-import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
-import {
-  downloadFamilyCsv,
-  exportFamilyPdf,
-} from "@/modules/people/features/family-members/utils/family-export-actions";
-import { usePeopleFinancial } from "@/modules/people/features/people-financial/data/use-people-financial";
-import {
-  downloadPeopleFinancialCsv,
-  exportPeopleFinancialPdf,
-} from "@/modules/people/features/people-financial/utils/people-financial-export-actions";
-import { useHealthConditions } from "@/modules/people/features/health-conditions/data/use-health-conditions";
-import {
-  downloadHealthCsv,
-  exportHealthPdf,
-} from "@/modules/people/features/health-conditions/utils/health-export-actions";
-import { useMedications } from "@/modules/people/features/medications/data/use-medications";
-import {
-  downloadMedicationCsv,
-  exportMedicationPdf,
-} from "@/modules/people/features/medications/utils/medication-export-actions";
-import type { FamilyReportType } from "@/modules/people/features/family-members/utils/family-report";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
 
 type PeopleDetailTabsProps = {
-  value: string;
-  onValueChange: (value: string) => void;
-  person: Person;
+  value: PeopleDetailTabValue;
+  onValueChange: (value: PeopleDetailTabValue) => void;
 };
 
 type TabItem = {
@@ -66,395 +27,83 @@ type TabItem = {
   disabled?: boolean;
 };
 
-type TabGroup = {
-  label: string;
-  items: TabItem[];
-};
+const tabItems: TabItem[] = [
+  { value: "familia", label: "Familia", icon: Users },
+  { value: "financeiro", label: "Financeiro", icon: Wallet },
+  { value: "saude", label: "Condicoes", icon: HeartPulse },
+  { value: "medicacoes", label: "Medicacoes", icon: Pill },
+  { value: "escolaridade", label: "Escolaridade", icon: GraduationCap },
+  { value: "reclusao", label: "Reclusao", icon: Lock },
+  { value: "atendimentos", label: "Atendimentos", icon: ClipboardList, disabled: true },
+];
 
-const EMPTY_INCOME_CONTRIBUTOR_IDS: string[] = [];
+export function PeopleDetailTabs({ value, onValueChange }: PeopleDetailTabsProps) {
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-const tabGroups: TabGroup[] = [
-  {
-    label: "Perfil",
-    items: [
-      { value: "resumo", label: "Resumo", icon: FileText },
-    ],
-  },
-  {
-    label: "Vinculos",
-    items: [
-      {
-        value: "familia",
-        label: "Familiares",
-        icon: Users,
-        disabled: false,
-      },
-      {
-        value: "responsaveis",
-        label: "Responsaveis",
-        icon: UserRound,
-        disabled: true,
-      },
-    ],
-  },
-  {
-    label: "Saúde",
-    items: [
-      {
-        value: "saude",
-        label: "Condições",
-        icon: HeartPulse,
-        disabled: false,
-      },
-      {
-        value: "medicacoes",
-        label: "Medicações",
-        icon: Pill,
-        disabled: false,
-      },
-    ],
-  },
-  {
-    label: "Condições",
-    items: [
-      {
-        value: "financeiro",
-        label: "Financeiro",
-        icon: Wallet,
-        disabled: false,
-      },
-      {
-        value: "escolaridade",
-        label: "Escolaridade",
-        icon: GraduationCap,
-        disabled: false,
-      },
-      {
-        value: "beneficios",
-        label: "Benefícios",
-        icon: HandCoins,
-        disabled: false,
-      },
-      {
-        value: "reclusao",
-        label: "Reclusão",
-        icon: Lock,
-        disabled: false,
-      },
-    ],
-  },
-  {
-    label: "Registros",
-    items: [
-      {
-        value: "atendimentos",
-        label: "Atendimentos",
-        icon: ClipboardList,
-        disabled: true,
-      },
-      {
-        value: "documentos",
-        label: "Documentos",
-        icon: FolderOpen,
-        disabled: true,
-      },
-      {
-        value: "historico",
-        label: "Historico",
-        icon: History,
-        disabled: true,
-      },
-    ],
-  },
-] as const;
+  const updateScrollState = React.useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const remaining = element.scrollWidth - element.clientWidth - element.scrollLeft;
+    setCanScrollRight(remaining > 12);
+  }, []);
 
-const allItems = tabGroups.flatMap((group) =>
-  group.items.map((item) => ({ ...item, group: group.label })),
-);
+  React.useEffect(() => {
+    updateScrollState();
+    const element = scrollRef.current;
+    if (!element) return;
+    const handle = () => updateScrollState();
+    element.addEventListener("scroll", handle, { passive: true });
+    window.addEventListener("resize", handle);
+    return () => {
+      element.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [updateScrollState]);
 
-export function PeopleDetailTabs({
-  value,
-  onValueChange,
-  person,
-}: PeopleDetailTabsProps) {
-  const current = allItems.find((item) => item.value === value) ?? allItems[0];
-  const currentGroup = tabGroups.find((group) => group.label === current.group);
-  const shouldShowGroupLabel = Boolean(
-    currentGroup && currentGroup.items.length > 1,
-  );
-  const { token } = useAuth();
-  const {
-    data,
-    incomeSummary,
-    householdProfile,
-    householdAssets,
-    personAssetsByMember,
-  } = useFamilyRelationsContext();
-  const { incomes, expenses, transfers } = usePeopleFinancial(person.id, {
-    enabled: value === "financeiro",
-  });
-  const { conditions } = useHealthConditions(person.id, {
-    enabled: value === "saude",
-  });
-  const { medications } = useMedications(person.id, {
-    enabled: value === "medicacoes",
-  });
-
-  const incomeContributorIds = useMemo(
-    () => incomeSummary?.contributors ?? EMPTY_INCOME_CONTRIBUTOR_IDS,
-    [incomeSummary?.contributors],
-  );
-
-  const canExportFamily = Boolean(data && token);
-  const canExportFinancial = Boolean(token);
-
-  const reportItems = useMemo(() => {
-    if (value === "familia") {
-      const items: {
-        label: string;
-        onSelect: () => void;
-        disabled?: boolean;
-      }[] = [];
-      const handleFamilyPdf = (reportType: FamilyReportType) => () => {
-        if (!canExportFamily || !data) return;
-        exportFamilyPdf({
-          token,
-          person,
-          householdMembers: data.householdMembers ?? [],
-          relations: data.relations ?? [],
-          incomeSummary,
-          householdProfile,
-          householdAssets,
-          personAssetsByMember,
-          reportType,
-        });
-      };
-      const handleFamilyCsv = () => {
-        if (!data) return;
-        downloadFamilyCsv({
-          person,
-          householdMembers: data.householdMembers ?? [],
-          relations: data.relations ?? [],
-          incomeContributorIds,
-          incomeSummary,
-          householdAssets,
-          personAssetsByMember,
-        });
-      };
-      items.push({
-        label: "Relatorio completo (PDF)",
-        onSelect: handleFamilyPdf("full"),
-        disabled: !canExportFamily,
-      });
-      items.push({
-        label: "Relatorio de composicao familiar (PDF)",
-        onSelect: handleFamilyPdf("composition"),
-        disabled: !canExportFamily,
-      });
-      items.push({
-        label: "Relatorio residencial (PDF)",
-        onSelect: handleFamilyPdf("residential"),
-        disabled: !canExportFamily,
-      });
-      items.push({
-        label: "Exportar CSV (familia)",
-        onSelect: handleFamilyCsv,
-        disabled: !data,
-      });
-      return items;
-    }
-
-    if (value === "financeiro") {
-      const handleFinancialPdf = () => {
-        if (!canExportFinancial) return;
-        exportPeopleFinancialPdf({
-          token,
-          person,
-          incomes,
-          expenses,
-          transfers,
-        });
-      };
-      const handleFinancialCsv = () => {
-        downloadPeopleFinancialCsv({
-          person,
-          incomes,
-          expenses,
-          transfers,
-        });
-      };
-      return [
-        {
-          label: "Relatorio financeiro (PDF)",
-          onSelect: handleFinancialPdf,
-          disabled: !canExportFinancial,
-        },
-        {
-          label: "Exportar CSV (financeiro)",
-          onSelect: handleFinancialCsv,
-          disabled: false,
-        },
-      ];
-    }
-
-    if (value === "saude") {
-      const handleHealthPdf = () => {
-        if (!token) return;
-        exportHealthPdf({ token, person, conditions });
-      };
-      const handleHealthCsv = () => {
-        downloadHealthCsv({ person, conditions });
-      };
-      return [
-        {
-          label: "Relatorio de saude (PDF)",
-          onSelect: handleHealthPdf,
-          disabled: !token,
-        },
-        {
-          label: "Exportar CSV (saude)",
-          onSelect: handleHealthCsv,
-          disabled: false,
-        },
-      ];
-    }
-
-    if (value === "medicacoes") {
-      const handleMedicationPdf = () => {
-        if (!token) return;
-        exportMedicationPdf({ token, person, medications });
-      };
-      const handleMedicationCsv = () => {
-        downloadMedicationCsv({ person, medications });
-      };
-      return [
-        {
-          label: "Relatorio de medicacoes (PDF)",
-          onSelect: handleMedicationPdf,
-          disabled: !token,
-        },
-        {
-          label: "Exportar CSV (medicacoes)",
-          onSelect: handleMedicationCsv,
-          disabled: false,
-        },
-      ];
-    }
-
-    return [
-      {
-        label: "Sem relatorios disponiveis",
-        onSelect: () => {},
-        disabled: true,
-      },
-    ];
-  }, [
-    value,
-    canExportFamily,
-    canExportFinancial,
-    data,
-    token,
-    person,
-    incomeSummary,
-    householdProfile,
-    householdAssets,
-    personAssetsByMember,
-    incomeContributorIds,
-    incomes,
-    expenses,
-    transfers,
-    conditions,
-    medications,
-  ]);
+  const scrollRight = React.useCallback(() => {
+    scrollRef.current?.scrollBy({ left: 220, behavior: "smooth" });
+  }, []);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-2 px-3 text-xs"
-          >
-            {shouldShowGroupLabel ? (
-              <span className="text-muted-foreground">{current.group}</span>
-            ) : null}
-            <span className="font-medium text-foreground">{current.label}</span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-64">
-          <DropdownMenuRadioGroup value={value} onValueChange={onValueChange}>
-            {tabGroups.map((group, groupIndex) => (
-              <Fragment key={group.label}>
-                {group.items.length > 1 ? (
-                  <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {group.label}
-                  </DropdownMenuLabel>
-                ) : null}
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <DropdownMenuRadioItem
-                      key={item.value}
-                      value={item.value}
-                      disabled={item.disabled}
-                    >
-                      <Icon className="size-4" />
-                      {item.label}
-                      {item.disabled ? (
-                        <DropdownMenuShortcut className="text-[10px] tracking-wide">
-                          Em breve
-                        </DropdownMenuShortcut>
-                      ) : null}
-                    </DropdownMenuRadioItem>
-                  );
-                })}
-                {groupIndex < tabGroups.length - 1 ? (
-                  <DropdownMenuSeparator />
-                ) : null}
-              </Fragment>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-2 px-3 text-xs"
-          >
-            <FileText className="size-3.5 text-muted-foreground" />
-            <span className="font-medium text-foreground">Relatorios</span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
-          <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-            {value === "familia"
-              ? "Familia"
-              : value === "financeiro"
-              ? "Financeiro"
-              : "Relatorios"}
-          </DropdownMenuLabel>
-          {reportItems.map((item, index) => (
-            <Fragment key={item.label}>
-              <DropdownMenuItem
-                onSelect={item.onSelect}
+    <div className="relative border-t border-border/60 pt-2">
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto pr-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-none border-0 bg-transparent p-0">
+          {tabItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <TabsTrigger
+                key={item.value}
+                value={item.value}
                 disabled={item.disabled}
+                onClick={() =>
+                  !item.disabled && onValueChange(item.value as PeopleDetailTabValue)
+                }
+                className="group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
               >
-                {item.label}
-              </DropdownMenuItem>
-              {index < reportItems.length - 1 ? (
-                <DropdownMenuSeparator />
-              ) : null}
-            </Fragment>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                <span className="flex items-center gap-2">
+                  <Icon className="size-4" />
+                  <span>{item.label}</span>
+                </span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </div>
+      {canScrollRight ? (
+        <button
+          type="button"
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-sm transition hover:text-foreground"
+          aria-label="Ver mais abas"
+          title="Ver mais abas"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      ) : null}
     </div>
   );
 }
-

@@ -1,11 +1,16 @@
 "use client";
 
+import * as React from "react";
+import { BarChart3, CalendarDays, Clock3, LayoutGrid } from "lucide-react";
 import type { Domain } from "@/web-client/domain/types";
 import { peopleSearchView } from "@/web-client/registry/searchViews/people";
 import {
+  type CalendarMode,
   defineRecordModule,
+  type GraphBuilderState,
   type RecordModuleActionMap,
   type RecordModuleDefinition,
+  type SortDirection,
 } from "@/web-client/registry/types";
 import {
   createStandardDetailQueryState,
@@ -20,13 +25,22 @@ import {
   peopleDetailLayout,
 } from "@/modules/people/config/people-detail-layout-contract";
 
+export type PeopleListViewId = "list" | "kanban" | "timeline" | "calendar" | "graph";
+
 export type PeopleListQueryState = {
-  view: "list";
+  view: PeopleListViewId;
   searchText: string;
   domain: Domain;
   groupBy: string[];
   pageIndex: number;
   pageSize: number;
+  timelineField: string;
+  timelineSortDirection: SortDirection;
+  calendarField: string;
+  calendarMode: CalendarMode;
+  rangeFrom: string;
+  rangeTo: string;
+  graph: GraphBuilderState;
 };
 
 export type PeopleDetailQueryState = {
@@ -131,7 +145,14 @@ const PEOPLE_FIELDS = {
 export const peopleListModuleDefinition = defineRecordModule<PeopleListQueryState>({
   moduleId: "people.list",
   basePath: PEOPLE_ROUTES.list,
-  featureFlags: createStandardFeatureFlags({ list: true, detail: false }),
+  featureFlags: createStandardFeatureFlags({
+    list: true,
+    detail: false,
+    kanban: true,
+    timeline: true,
+    calendar: true,
+    graph: true,
+  }),
   actionKey: "people.list.screen",
   favoriteKey: "people.list.favorites",
   permissions: PEOPLE_PERMISSIONS,
@@ -169,10 +190,104 @@ export const peopleListModuleDefinition = defineRecordModule<PeopleListQueryStat
         sortFields: ["fullName", "status", "personType", "birthDate", "createdAt"],
       },
     }),
+    {
+      id: "kanban",
+      title: "Kanban",
+      viewType: "kanban",
+      icon: <LayoutGrid className="size-4" />,
+      params: {
+        columnField: "status",
+        titleField: "fullName",
+        groupByFields: [
+          "status",
+          "personType",
+          "sex",
+          "gender",
+          "raceColor",
+          "maritalStatus",
+          "nationality",
+          "hasHealthCondition",
+          "hasMedication",
+        ],
+        defaultGroupByField: "status",
+      },
+    },
+    {
+      id: "timeline",
+      title: "Timeline",
+      viewType: "timeline",
+      icon: <Clock3 className="size-4" />,
+      params: {
+        startDateField: "createdAt",
+        titleField: "fullName",
+        dateFields: ["createdAt", "updatedAt", "birthDate"],
+        defaultDateField: "createdAt",
+        sortDirections: ["desc", "asc"],
+        defaultSortDirection: "desc",
+      },
+    },
+    {
+      id: "calendar",
+      title: "Calendario",
+      viewType: "calendar",
+      icon: <CalendarDays className="size-4" />,
+      params: {
+        startDateField: "birthDate",
+        titleField: "fullName",
+        dateFields: ["birthDate", "createdAt", "updatedAt"],
+        defaultDateField: "birthDate",
+        modes: ["day", "week", "month", "year"],
+        defaultMode: "month",
+      },
+    },
+    {
+      id: "graph",
+      title: "Grafico",
+      viewType: "graph",
+      icon: <BarChart3 className="size-4" />,
+      params: {
+        builder: {
+          fields: [
+            { field: "status", label: "Status", kind: "dimension" },
+            { field: "personType", label: "Tipo", kind: "dimension" },
+            { field: "sex", label: "Sexo", kind: "dimension" },
+            { field: "gender", label: "Genero", kind: "dimension" },
+            { field: "raceColor", label: "Raca/Cor", kind: "dimension" },
+            { field: "tags", label: "Tags", kind: "dimension", emptyValueLabel: "Sem tag" },
+            { field: "createdAt", label: "Cadastro", kind: "date" },
+            { field: "updatedAt", label: "Atualizado em", kind: "date" },
+            { field: "birthDate", label: "Nascimento", kind: "date" },
+            { field: "age", label: "Idade", kind: "metric", allowedOps: ["avg", "min", "max"] },
+          ],
+          defaultState: {
+            groupBy: "status",
+            metric: { field: null, op: "count" },
+            timeField: null,
+            timeBucket: null,
+            chartType: "bar",
+            filters: undefined,
+          },
+        },
+      },
+    },
   ],
   defaultView: "list",
   defaultQueryState: createStandardListQueryState<PeopleListQueryState>({
     pageSize: 20,
+    timelineField: "createdAt",
+    timelineSortDirection: "desc",
+    calendarField: "birthDate",
+    calendarMode: "month",
+    rangeFrom: "",
+    rangeTo: "",
+    graph: {
+      groupBy: "status",
+      metric: { field: null, op: "count" },
+      timeField: null,
+      timeBucket: null,
+      chartType: "bar",
+      filters: undefined,
+    },
   }),
 });
 

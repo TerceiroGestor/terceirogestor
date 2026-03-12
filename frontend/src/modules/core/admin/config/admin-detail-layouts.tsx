@@ -21,6 +21,7 @@ import { resolveMediaUrl } from "@/lib/api";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type {
+  AdminAuditRecord,
   AdminPermissionRecord,
   AdminRoleFormDraft,
   AdminRolePermissionOption,
@@ -727,11 +728,13 @@ function PermissionMatrix({
       string,
       {
         moduleLabel: string;
-        actions: Array<{
-          key: string;
-          action: string;
-          description: string | null | undefined;
-        }>;
+        actions: Map<
+          string,
+          {
+            key: string;
+            description: string | null | undefined;
+          }
+        >;
       }
     >();
 
@@ -741,11 +744,10 @@ function PermissionMatrix({
       const action = parsed?.action ?? permission.key;
       const current = grouped.get(moduleKey) ?? {
         moduleLabel: RBAC_MODULE_LABELS[moduleKey] ?? moduleKey,
-        actions: [],
+        actions: new Map(),
       };
-      current.actions.push({
+      current.actions.set(action, {
         key: permission.key,
-        action,
         description: permission.description,
       });
       grouped.set(moduleKey, current);
@@ -755,62 +757,89 @@ function PermissionMatrix({
       .map(([moduleKey, group]) => ({
         moduleKey,
         moduleLabel: group.moduleLabel,
-        actions: group.actions.sort((left, right) => {
+        actions: Array.from(group.actions.entries())
+          .map(([action, value]) => ({
+            action,
+            key: value.key,
+            description: value.description,
+          }))
+          .sort((left, right) => {
           const leftIndex = RBAC_ACTION_ORDER.indexOf(left.action as never);
           const rightIndex = RBAC_ACTION_ORDER.indexOf(right.action as never);
           return (leftIndex >= 0 ? leftIndex : 99) - (rightIndex >= 0 ? rightIndex : 99);
-        }),
+          }),
       }))
       .sort((left, right) => left.moduleLabel.localeCompare(right.moduleLabel));
   }, [permissionOptions]);
 
-  return (
-    <div className="space-y-4 rounded-lg border border-border/60 bg-background/50 p-3">
-      {modules.map((module) => (
-        <div
-          key={module.moduleKey}
-          className="space-y-3 border-b border-border/40 pb-4 last:border-b-0 last:pb-0"
-        >
-          <div className="space-y-1">
-            <div className="text-sm font-medium text-foreground">{module.moduleLabel}</div>
-            <div className="font-mono text-[11px] text-muted-foreground">{module.moduleKey}</div>
-          </div>
+  const actionColumns = React.useMemo(() => {
+    const actions = Array.from(
+      new Set(modules.flatMap((module) => module.actions.map((action) => action.action))),
+    );
+    return actions.sort((left, right) => {
+      const leftIndex = RBAC_ACTION_ORDER.indexOf(left as never);
+      const rightIndex = RBAC_ACTION_ORDER.indexOf(right as never);
+      return (leftIndex >= 0 ? leftIndex : 99) - (rightIndex >= 0 ? rightIndex : 99);
+    });
+  }, [modules]);
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {module.actions.map((permission) => {
-              const checked = selectedPermissionKeys.includes(permission.key);
-              return (
-                <label
-                  key={permission.key}
-                  className="flex items-start gap-3 rounded-none border border-border/50 px-3 py-2"
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(next) => {
-                      if (readOnly) return;
-                      onChange(
-                        next
-                          ? [...selectedPermissionKeys, permission.key]
-                          : selectedPermissionKeys.filter((entry) => entry !== permission.key),
-                      );
-                    }}
-                    disabled={readOnly}
-                  />
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">
-                      {RBAC_ACTION_LABELS[permission.action as keyof typeof RBAC_ACTION_LABELS] ??
-                        permission.action}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {permission.description?.trim() || permission.key}
-                    </div>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/50">
+      <table className="min-w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-border/60 bg-muted/30">
+            <th className="w-[240px] px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              Modulo
+            </th>
+            {actionColumns.map((action) => (
+              <th
+                key={action}
+                className="min-w-[88px] px-3 py-2 text-center text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+                title={RBAC_ACTION_LABELS[action as keyof typeof RBAC_ACTION_LABELS] ?? action}
+              >
+                {RBAC_ACTION_LABELS[action as keyof typeof RBAC_ACTION_LABELS] ?? action}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {modules.map((module) => (
+            <tr key={module.moduleKey} className="border-b border-border/40 last:border-b-0">
+              <td className="px-3 py-3 align-middle">
+                <div className="space-y-1">
+                  <div className="font-medium text-foreground">{module.moduleLabel}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">{module.moduleKey}</div>
+                </div>
+              </td>
+              {actionColumns.map((action) => {
+                const permission = module.actions.find((entry) => entry.action === action);
+                const checked = permission ? selectedPermissionKeys.includes(permission.key) : false;
+                return (
+                  <td key={`${module.moduleKey}:${action}`} className="px-3 py-3 text-center align-middle">
+                    {permission ? (
+                      <Checkbox
+                        checked={checked}
+                        title={permission.description?.trim() || permission.key}
+                        onCheckedChange={(next) => {
+                          if (readOnly) return;
+                          onChange(
+                            next
+                              ? [...selectedPermissionKeys, permission.key]
+                              : selectedPermissionKeys.filter((entry) => entry !== permission.key),
+                          );
+                        }}
+                        disabled={readOnly}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1074,6 +1103,110 @@ export type AdminRoleDetailLayoutContext = DetailShellAuditContext & {
   onCommitDraft?: (nextDraft: AdminRoleFormDraft) => void;
 };
 
+export type AdminAuditDetailLayoutContext = {
+  record: AdminAuditRecord;
+};
+
+function summarizeAuditValue(value: unknown) {
+  if (value === null || typeof value === "undefined") return "—";
+  if (Array.isArray(value)) return value.length ? value.map((entry) => String(entry ?? "")).join(", ") : "—";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function buildAuditChangeRows(record: AdminAuditRecord) {
+  const before = record.before && typeof record.before === "object" ? (record.before as Record<string, unknown>) : {};
+  const after = record.after && typeof record.after === "object" ? (record.after as Record<string, unknown>) : {};
+  const fieldNames = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+
+  return fieldNames
+    .map((field) => ({
+      field,
+      before: summarizeAuditValue(before[field]),
+      after: summarizeAuditValue(after[field]),
+    }))
+    .filter((entry) => entry.before !== entry.after);
+}
+
+function AuditDetailMain({ record }: AdminAuditDetailLayoutContext) {
+  const changeRows = React.useMemo(() => buildAuditChangeRows(record), [record]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionField label="Entidade">
+          <div className={summaryValueClassName}>{record.entity}</div>
+        </SectionField>
+        <SectionField label="Acao">
+          <div className={summaryValueClassName}>{record.action}</div>
+        </SectionField>
+        <SectionField label="ID da entidade">
+          <div className="font-mono text-sm text-foreground">{record.entityId || "—"}</div>
+        </SectionField>
+        <SectionField label="Data">
+          <div className={summaryValueClassName}>{formatDateTimePtBR(record.createdAt)}</div>
+        </SectionField>
+        <SectionField label="Usuario">
+          <div className={summaryValueClassName}>{record.userName || "Sistema"}</div>
+        </SectionField>
+        <SectionField label="Email">
+          <div className={summaryValueClassName}>{record.userEmail || "—"}</div>
+        </SectionField>
+      </div>
+
+      <section className="space-y-3">
+        <ModuleSectionHeader
+          title="Alteracoes"
+          description="Campos modificados neste evento de auditoria."
+          meta={changeRows.length}
+        />
+        {changeRows.length ? (
+          <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/50">
+            <table className="min-w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30">
+                  <th className="px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Campo</th>
+                  <th className="px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Antes</th>
+                  <th className="px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Depois</th>
+                </tr>
+              </thead>
+              <tbody>
+                {changeRows.map((entry) => (
+                  <tr key={entry.field} className="border-b border-border/40 last:border-b-0">
+                    <td className="px-3 py-3 font-medium text-foreground">{entry.field}</td>
+                    <td className="px-3 py-3 whitespace-pre-wrap text-muted-foreground">{entry.before}</td>
+                    <td className="px-3 py-3 whitespace-pre-wrap text-foreground">{entry.after}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <ModuleEmptyState
+            title="Sem diff detalhado"
+            description="Este registro nao possui campos comparaveis no before/after."
+            compact
+          />
+        )}
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionField label="Before">
+          <pre className="min-h-[180px] overflow-auto rounded-none border border-border/60 bg-background/50 p-3 text-xs text-muted-foreground">
+            {JSON.stringify(record.before ?? null, null, 2)}
+          </pre>
+        </SectionField>
+        <SectionField label="After">
+          <pre className="min-h-[180px] overflow-auto rounded-none border border-border/60 bg-background/50 p-3 text-xs text-muted-foreground">
+            {JSON.stringify(record.after ?? null, null, 2)}
+          </pre>
+        </SectionField>
+      </div>
+    </div>
+  );
+}
+
 export const adminOverviewLayout: DetailLayoutConfig<AdminOverviewLayoutContext> = {
   header: {
     title: ({ record }) => record.name,
@@ -1124,7 +1257,9 @@ export const adminTenantDetailLayout: DetailLayoutConfig<AdminTenantLayoutContex
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Status</div>
-            <div className="font-medium text-foreground">{record.status ?? "-"}</div>
+            <div className="font-medium text-foreground">
+              {record.status === "ACTIVE" ? "Ativo" : record.status === "INACTIVE" ? "Inativo" : record.status ?? "-"}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Slug</div>
@@ -1265,23 +1400,6 @@ export const adminUserDetailLayout: DetailLayoutConfig<AdminUserDetailLayoutCont
       onAuditVisibleCountChange={onAuditVisibleCountChange}
     />
   ),
-  tabTemplates: [
-    {
-      key: "roles",
-      label: "Perfis",
-      badge: ({ user }) => user.roles.length,
-      relations: [
-        {
-          key: "assigned-roles",
-          label: "Perfis vinculados",
-          rows: ({ user }) => user.roles,
-          columns: userRoleColumns(),
-          getRowId: (row) => row.id,
-          emptyLabel: "Nenhum perfil vinculado.",
-        },
-      ],
-    },
-  ],
   auditSources: {
     primaryEntity: {
       key: "user",
@@ -1396,4 +1514,33 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
     sort: [{ field: "createdAt", direction: "desc" }],
     pagination: { limit: 120 },
   },
+};
+
+export const adminAuditDetailLayout: DetailLayoutConfig<AdminAuditDetailLayoutContext> = {
+  header: {
+    title: ({ record }) => `${record.entity} • ${record.action}`,
+    slot: ({ record }) => (
+      <div className="border-y border-border/60 bg-transparent px-0 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Usuario</div>
+            <div className="font-medium text-foreground">{record.userName || "Sistema"}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Entidade</div>
+            <div className="font-medium text-foreground">{record.entity}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Acao</div>
+            <div className="font-medium text-foreground">{record.action}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Data</div>
+            <div className="font-medium text-foreground">{formatDateTimePtBR(record.createdAt)}</div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  main: (context) => <AuditDetailMain {...context} />,
 };

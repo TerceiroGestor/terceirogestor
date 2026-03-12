@@ -21,14 +21,20 @@ type EducationFormProps = {
   initialValues: EducationFormValues;
   submitLabel: string;
   onSubmit: (values: EducationFormValues) => void | Promise<void>;
+  onValuesChange?: (values: EducationFormValues) => void;
+  onFieldCommit?: (values: EducationFormValues) => void;
   onCancel?: () => void;
+  hideActions?: boolean;
 };
 
 export function EducationForm({
   initialValues,
   submitLabel,
   onSubmit,
+  onValuesChange,
+  onFieldCommit,
   onCancel,
+  hideActions = false,
 }: EducationFormProps) {
   const fields = React.useMemo<FormField<EducationFormValues>[]>(
     () => [
@@ -88,8 +94,11 @@ export function EducationForm({
 
   return (
     <FormEngine<EducationFormValues>
+      appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}
+      onValuesChange={onValuesChange}
+      onFieldCommit={({ values }) => onFieldCommit?.(values)}
       onSubmit={(values) => {
         const normalized: EducationFormValues = {
           ...values,
@@ -97,10 +106,16 @@ export function EducationForm({
         };
         onSubmit(normalized);
       }}
-      actions={{
-        cancel: onCancel ? { label: "Cancelar", onClick: onCancel, variant: "ghost" } : undefined,
-        submit: { label: submitLabel, variant: "primary" },
-      }}
+      actions={
+        hideActions
+          ? undefined
+          : {
+              cancel: onCancel
+                ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
+                : undefined,
+              submit: { label: submitLabel, variant: "primary" },
+            }
+      }
     />
   );
 }

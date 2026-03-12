@@ -233,6 +233,7 @@ export interface FormEngineProps<
   TValues extends Record<string, unknown> = Record<string, unknown>,
 > {
   id?: string;
+  appearance?: "default" | "inline-detail";
 
   /** Lista de campos do formulário */
   fields: ReadonlyArray<FormField<TValues>>;
@@ -256,6 +257,12 @@ export interface FormEngineProps<
     prevValues: TValues;
     nextValues: TValues;
   }) => Partial<TValues> | void;
+
+  onFieldCommit?: (params: {
+    name: keyof TValues & string;
+    value: unknown;
+    values: TValues;
+  }) => void;
 
   /** Renderização customizada de botões */
   /** Callback a cada mudança de valores */

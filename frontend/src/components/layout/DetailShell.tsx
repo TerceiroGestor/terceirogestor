@@ -108,7 +108,7 @@ export function DetailShell({
       : mergedLabels.ready;
 
   const headerBlock = (
-    <div className="mb-4 border-b border-border/60 pb-4">
+    <div className="sticky top-[var(--app-shell-sticky-offset,0px)] z-20 -mx-4 mb-4 border-b border-border/60 bg-background/95 px-4 pb-4 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">

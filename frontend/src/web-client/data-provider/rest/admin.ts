@@ -16,6 +16,7 @@ import {
   createUser,
   deleteRole,
   deleteUser,
+  getAuditLogById,
   getAuditLogs,
   getRoleById,
   getUserById,
@@ -396,6 +397,11 @@ export async function readAdminUser(token: string, id: string): Promise<AdminUse
 export async function readAdminRole(token: string, id: string): Promise<AdminRoleRecord> {
   const role = await getRoleById(token, id);
   return mapAdminRoleRecord(role);
+}
+
+export async function readAdminAuditLog(token: string, id: string): Promise<AdminAuditRecord> {
+  const log = await getAuditLogById(token, id);
+  return mapAuditRecord(log);
 }
 
 export async function createAdminUser(

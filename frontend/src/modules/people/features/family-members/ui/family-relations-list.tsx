@@ -53,11 +53,11 @@ type FamilyRelationsListProps = {
   error?: string | null;
   currentPersonId: string;
   onRefresh: () => void;
-  onCreate: (payload: PersonRelationInput) => Promise<void>;
+  onCreate: (payload: PersonRelationInput) => Promise<unknown>;
   onUpdate: (
     relationId: string,
     payload: Partial<PersonRelationInput>,
-  ) => Promise<void>;
+  ) => Promise<unknown>;
   onDelete: (relationId: string) => Promise<void>;
   incomeSummary: FamilyIncomeSummary | null;
 };

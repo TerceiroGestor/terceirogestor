@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarInset } from "@/components/ui/sidebar";
@@ -56,6 +57,7 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const stickyHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const isAuthRoute =
     AUTH_ROUTES.some((route) => pathname?.startsWith(route)) ||
     PUBLIC_ROUTES.some((route) => pathname?.startsWith(route)) ||
@@ -65,11 +67,33 @@ export function AppShell({ children }: AppShellProps) {
     return <>{children}</>;
   }
 
+  React.useEffect(() => {
+    const element = stickyHeaderRef.current;
+    if (!element) return;
+
+    const root = document.documentElement;
+    const syncOffset = () => {
+      root.style.setProperty("--app-shell-sticky-offset", `${element.offsetHeight}px`);
+    };
+
+    syncOffset();
+
+    const observer = new ResizeObserver(syncOffset);
+    observer.observe(element);
+    window.addEventListener("resize", syncOffset);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncOffset);
+      root.style.removeProperty("--app-shell-sticky-offset");
+    };
+  }, []);
+
   return (
     <>
       <AppSidebar />
       <SidebarInset>
-        <div className="sticky top-0 z-30">
+        <div ref={stickyHeaderRef} className="sticky top-0 z-30">
           <AppHeader />
           <ControlPanelShell />
         </div>

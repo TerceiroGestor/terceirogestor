@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,16 @@ import { AuditService } from './audit.service';
 @Controller('audit-logs')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('audit.read')
+  async getAuditLogById(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+  ) {
+    return this.auditService.getAuditLogById(user.tenantId, id);
+  }
 
   @Get()
   @UseGuards(JwtAuthGuard, PermissionsGuard)

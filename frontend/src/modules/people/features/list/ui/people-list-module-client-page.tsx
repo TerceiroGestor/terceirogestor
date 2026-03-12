@@ -9,6 +9,17 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { ApiPerson } from "@/modules/people/api";
 import {
+  buildAnalysisFacets,
+  buildAnalysisSlot,
+  buildFavoriteSnapshot,
+  buildGraphModel,
+  hasActiveAnalysis,
+  parseAdminCollectionState,
+  serializeAdminCollectionState,
+  toDate,
+  type AdminFavoriteState,
+} from "@/modules/core/admin/ui/admin-list-shared";
+import {
   peopleListModuleDefinition,
   type PeopleListQueryState,
 } from "@/modules/people/config/people-module-contract";
@@ -26,50 +37,16 @@ import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
   canUseModuleAction,
+  getModuleGraphBuilderConfig,
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { CalendarView } from "@/web-client/views/CalendarView";
+import { GraphView } from "@/web-client/views/GraphView";
+import { KanbanView } from "@/web-client/views/KanbanView";
 import { ListView } from "@/web-client/views/ListView";
-
-type PeopleFavoriteState = Pick<
-  PeopleListQueryState,
-  "view" | "searchText" | "domain" | "groupBy" | "pageSize"
->;
-
-function parsePositiveInt(value: string | null, fallback: number) {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
-
-function parsePeopleListState(params: URLSearchParams): PeopleListQueryState {
-  const groupParam = params.get("g");
-
-  return {
-    view: "list",
-    searchText: params.get("q") ?? "",
-    domain: parseDomain(params.get("d")) ?? null,
-    groupBy: (groupParam ?? "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-    pageIndex: parsePositiveInt(params.get("page"), 1) - 1,
-    pageSize: Math.min(Math.max(parsePositiveInt(params.get("limit"), 20), 1), 100),
-  };
-}
-
-function serializePeopleListState(state: PeopleListQueryState) {
-  return {
-    view: undefined,
-    q: state.searchText.trim() ? state.searchText.trim() : undefined,
-    d: state.domain ? serializeDomain(state.domain) : undefined,
-    g: state.groupBy.length ? state.groupBy.join(",") : undefined,
-    page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
-    limit: state.pageSize === 20 ? undefined : String(state.pageSize),
-  };
-}
+import { TimelineView } from "@/web-client/views/TimelineView";
 
 function resolveGroupLabel(field: string, value: unknown) {
   switch (field) {
@@ -91,6 +68,30 @@ function resolveGroupLabel(field: string, value: unknown) {
       return formatDate(typeof value === "string" ? value : null) || "Sem data";
     default:
       return String(value ?? "Sem valor").trim() || "Sem valor";
+  }
+}
+
+function resolveKanbanColumnValue(person: PeopleTableItem, field: string) {
+  switch (field) {
+    case "personType":
+      return person.personType ?? "Sem tipo";
+    case "sex":
+      return person.sex ?? "Nao informado";
+    case "gender":
+      return person.gender ?? "Nao informado";
+    case "raceColor":
+      return person.raceColor ?? "Nao informado";
+    case "maritalStatus":
+      return person.maritalStatus ?? "Nao informado";
+    case "nationality":
+      return person.nationality ?? "Nao informada";
+    case "hasHealthCondition":
+      return person.hasHealthCondition ? "Com condicao" : "Sem condicao";
+    case "hasMedication":
+      return person.hasMedication ? "Com medicacao" : "Sem medicacao";
+    case "status":
+    default:
+      return person.status ?? "Sem status";
   }
 }
 
@@ -147,6 +148,7 @@ export function PeopleListModuleClientPage() {
     () => createRestDataProvider({ token }),
     [token],
   );
+  const graphBuilder = getModuleGraphBuilderConfig(peopleListModuleDefinition);
   const columns = usePeopleColumns();
 
   const [rows, setRows] = React.useState<PeopleTableItem[]>([]);
@@ -157,9 +159,42 @@ export function PeopleListModuleClientPage() {
 
   const [state, setState] = useModuleQueryState<PeopleListQueryState>({
     moduleDefinition: peopleListModuleDefinition,
-    trackedKeys: ["view", "q", "d", "g", "page", "limit"],
-    parse: parsePeopleListState,
-    serialize: serializePeopleListState,
+    trackedKeys: [
+      "view",
+      "q",
+      "d",
+      "g",
+      "page",
+      "limit",
+      "timelineField",
+      "timelineSort",
+      "calendarField",
+      "calendarMode",
+      "rangeFrom",
+      "rangeTo",
+      "graphGroupBy",
+      "graphMetricField",
+      "graphMetricOp",
+      "graphTimeField",
+      "graphTimeBucket",
+      "graphChartType",
+      "graphFilters",
+    ],
+    parse: (params) =>
+      parseAdminCollectionState({
+        params,
+        defaultState: peopleListModuleDefinition.defaultQueryState,
+        allowedViews: ["list", "kanban", "timeline", "calendar", "graph"],
+        parseDomain: (value) => parseDomain(value) ?? null,
+        graphBuilder,
+      }) as PeopleListQueryState,
+    serialize: (nextState) =>
+      serializeAdminCollectionState(
+        nextState,
+        peopleListModuleDefinition.defaultQueryState,
+        serializeDomain,
+        graphBuilder,
+      ),
   });
 
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
@@ -316,26 +351,69 @@ export function PeopleListModuleClientPage() {
     );
   }
 
+  const analysisSlot = React.useMemo(
+    () =>
+      buildAnalysisSlot({
+        moduleDefinition: peopleListModuleDefinition,
+        state,
+        setState,
+        rows: rows as Array<Record<string, unknown>>,
+      }),
+    [rows, setState, state],
+  );
+
+  const analysisFacets = React.useMemo(
+    () =>
+      buildAnalysisFacets({
+        moduleDefinition: peopleListModuleDefinition,
+        state,
+        setState,
+      }),
+    [setState, state],
+  );
+
+  const graphModel = React.useMemo(
+    () =>
+      buildGraphModel(
+        rows as Array<Record<string, unknown>>,
+        state,
+        peopleListModuleDefinition,
+      ),
+    [rows, state],
+  );
+
   return (
-    <EntityModuleShell<PeopleListQueryState, PeopleFavoriteState>
+    <EntityModuleShell<PeopleListQueryState, AdminFavoriteState<PeopleListQueryState["view"]>>
       moduleDefinition={peopleListModuleDefinition}
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}
+      analysisFacets={analysisFacets}
       valueSuggestions={valueSuggestions}
-      favoriteSnapshot={{
-        view: state.view,
-        searchText: state.searchText,
-        domain: state.domain,
-        groupBy: state.groupBy,
-        pageSize: state.pageSize,
-      }}
+      favoriteSnapshot={buildFavoriteSnapshot(state)}
       mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}
       onRefresh={loadRows}
       totalCount={totalCount}
       onCreate={openCreate}
       canCreate={canCreate}
+      analysisSlot={analysisSlot}
+      hasActiveAnalysis={hasActiveAnalysis(peopleListModuleDefinition, state)}
+      onResetAnalysis={() =>
+        setState((previous) => ({
+          ...previous,
+          groupBy: [],
+          pageIndex: 0,
+          timelineField: peopleListModuleDefinition.defaultQueryState.timelineField,
+          timelineSortDirection:
+            peopleListModuleDefinition.defaultQueryState.timelineSortDirection,
+          calendarField: peopleListModuleDefinition.defaultQueryState.calendarField,
+          calendarMode: peopleListModuleDefinition.defaultQueryState.calendarMode,
+          rangeFrom: peopleListModuleDefinition.defaultQueryState.rangeFrom,
+          rangeTo: peopleListModuleDefinition.defaultQueryState.rangeTo,
+          graph: peopleListModuleDefinition.defaultQueryState.graph,
+        }))
+      }
     >
       {error ? (
         <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
@@ -345,6 +423,50 @@ export function PeopleListModuleClientPage() {
         <div className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
           Carregando...
         </div>
+      ) : state.view === "kanban" ? (
+        <KanbanView
+          items={rows}
+          getColumnKey={(person) => resolveKanbanColumnValue(person, state.groupBy[0] ?? "status")}
+          getColumnLabel={(value) => String(value ?? "Sem valor")}
+          renderCard={(person) => (
+            <button type="button" className="w-full text-left" onClick={() => openDetail(person)}>
+              <PeopleCard person={person} />
+            </button>
+          )}
+        />
+      ) : state.view === "timeline" ? (
+        <TimelineView
+          items={rows}
+          getDate={(row) => toDate(String((row as Record<string, unknown>)[state.timelineField] ?? ""))}
+          renderTitle={(row) => resolvePersonDisplayNames(row.fullName, row.socialName).primary}
+          renderBody={(row) => `${row.personType ?? "Sem tipo"} • ${row.status ?? "Sem status"}`}
+          sortDirection={state.timelineSortDirection}
+        />
+      ) : state.view === "calendar" ? (
+        <CalendarView
+          items={rows}
+          getDate={(row) => toDate(String((row as Record<string, unknown>)[state.calendarField] ?? ""))}
+          renderItem={(row) => <PeopleCard person={row} />}
+          mode={state.calendarMode}
+          onModeChange={(calendarMode) =>
+            setState((previous) => ({ ...previous, calendarMode }))
+          }
+          showModeSelect={false}
+          showDateFieldSelect={false}
+          showRangeInputs={false}
+        />
+      ) : state.view === "graph" ? (
+        graphModel ? (
+          <GraphView
+            data={graphModel.data}
+            xKey={graphModel.xKey}
+            chartType={graphModel.chartType}
+            series={graphModel.series}
+            height={420}
+            emptyState={graphModel.emptyState}
+            downloadFileName={graphModel.downloadFileName}
+          />
+        ) : null
       ) : (
         <>
           <ListView<PeopleTableItem>

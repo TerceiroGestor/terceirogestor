@@ -64,6 +64,13 @@ enum IncomeFrequency {
   ONCE
 }
 
+enum PersonFinancialEntryType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  BENEFIT
+}
+
 enum AccessLogAction {
   LOGIN
   REFRESH
@@ -167,6 +174,7 @@ model Tenant {
   householdMembers                     HouseholdMember[]
   householdProfiles                    HouseholdProfile[]
   personRelations                      PersonRelation[]
+  personFinancialEntries               PersonFinancialEntry[]
   personIncomes                        PersonIncome[]
   personExpenses                       PersonExpense[]
   personBenefits                       PersonBenefit[]
@@ -329,6 +337,7 @@ model Person {
   householdMembers    HouseholdMember[]
   relations           PersonRelation[]           @relation("PersonRelationPerson")
   relatedRelations    PersonRelation[]           @relation("PersonRelationRelated")
+  financialEntries    PersonFinancialEntry[]
   incomes             PersonIncome[]
   expenses            PersonExpense[]
   benefits            PersonBenefit[]
@@ -419,6 +428,9 @@ model Household {
   tenant            Tenant              @relation(fields: [tenantId], references: [id])
   members           HouseholdMember[]
   profile           HouseholdProfile?
+  financialEntries  PersonFinancialEntry[]
+  outgoingFinancialEntries PersonFinancialEntry[] @relation("PersonFinancialEntryFromHousehold")
+  incomingFinancialEntries PersonFinancialEntry[] @relation("PersonFinancialEntryToHousehold")
   assets            HouseholdAsset[]
   incomes           PersonIncome[]
   expenses          PersonExpense[]
@@ -548,6 +560,42 @@ model PersonIncome {
   @@index([tenantId])
   @@index([personId])
   @@index([householdId])
+}
+
+model PersonFinancialEntry {
+  id                       String                   @id @default(uuid()) @db.Char(36)
+  tenantId                 String                   @db.Char(36)
+  personId                 String                   @db.Char(36)
+  householdId              String?                  @db.Char(36)
+  fromHouseholdId          String?                  @db.Char(36)
+  toHouseholdId            String?                  @db.Char(36)
+  entryType                PersonFinancialEntryType
+  category                 String
+  subcategory              String?
+  status                   String?
+  amount                   Decimal?                 @db.Decimal(10, 2)
+  frequency                IncomeFrequency          @default(MONTHLY)
+  contractType             String?
+  includeInHouseholdBudget Boolean                  @default(true)
+  startDate                DateTime?
+  endDate                  DateTime?
+  notes                    String?                  @db.Text
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  person        Person     @relation(fields: [personId], references: [id])
+  household     Household? @relation(fields: [householdId], references: [id])
+  fromHousehold Household? @relation("PersonFinancialEntryFromHousehold", fields: [fromHouseholdId], references: [id])
+  toHousehold   Household? @relation("PersonFinancialEntryToHousehold", fields: [toHouseholdId], references: [id])
+
+  @@index([tenantId])
+  @@index([personId])
+  @@index([householdId])
+  @@index([fromHouseholdId])
+  @@index([toHouseholdId])
+  @@index([entryType])
+  @@index([tenantId, personId, entryType])
 }
 
 model PersonRelation {

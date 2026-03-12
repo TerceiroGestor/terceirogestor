@@ -39,6 +39,18 @@ export const personFormFields: FormField<PersonFormData>[] = [
     type: "text",
     placeholder: PEOPLE_FORM_TEXT.fields.socialName.placeholder,
   },
+  {
+    name: "email",
+    label: PEOPLE_FORM_TEXT.fields.email.label,
+    type: "text",
+    placeholder: PEOPLE_FORM_TEXT.fields.email.placeholder,
+  },
+  {
+    name: "phone",
+    label: PEOPLE_FORM_TEXT.fields.phone.label,
+    type: "text",
+    placeholder: PEOPLE_FORM_TEXT.fields.phone.placeholder,
+  },
   { name: "birthDate", label: PEOPLE_FORM_TEXT.fields.birthDate.label, type: "date" },
   {
     name: "sex",
@@ -113,6 +125,8 @@ export const personFormSteps: FormStep[] = [
       "fullName",
       "avatarUrl",
       "socialName",
+      "email",
+      "phone",
       "birthDate",
       "sex",
       "personType",

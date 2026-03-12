@@ -9,6 +9,7 @@ export const ADMIN_ROUTES = {
   rolesNew: "/admin/roles/new",
   permissions: "/admin/permissions",
   audit: "/admin/audit-logs",
+  auditDetail: "/admin/audit-logs",
 } as const;
 
 export const ADMIN_ACTION_IDS = {
@@ -22,6 +23,7 @@ export const ADMIN_ACTION_IDS = {
   rolesCreate: "admin.roles.create",
   permissionsList: "admin.permissions.list",
   auditList: "admin.audit.list",
+  auditDetail: "admin.audit.detail",
 } as const;
 
 export const ADMIN_USER_STATUS_OPTIONS = [

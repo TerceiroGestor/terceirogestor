@@ -210,6 +210,10 @@ export async function getAuditLogs(
   );
 }
 
+export async function getAuditLogById(token: string, id: string) {
+  return apiRequest<AdminAuditLog>(`/audit-logs/${id}`, {}, token);
+}
+
 export async function deleteUser(token: string, userId: string) {
   return apiRequest<{ ok: boolean }>(
     `/users/${userId}`,

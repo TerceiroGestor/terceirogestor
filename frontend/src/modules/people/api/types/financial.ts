@@ -1,40 +1,27 @@
 import type { ApiHouseholdProfile } from "./household";
 
-export type ApiPersonIncome = {
+export type ApiPersonFinancialEntryType =
+  | "INCOME"
+  | "EXPENSE"
+  | "TRANSFER"
+  | "BENEFIT";
+
+export type ApiPersonFinancialEntry = {
   id: string;
   personId: string;
   householdId?: string | null;
-  type: string;
-  amount: number;
+  fromHouseholdId?: string | null;
+  toHouseholdId?: string | null;
+  entryType: ApiPersonFinancialEntryType;
+  category: string;
+  subcategory?: string | null;
+  status?: string | null;
+  amount?: number | null;
   frequency: string;
   contractType?: string | null;
-  isHouseholdContribution: boolean;
-  notes?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export type ApiPersonExpense = {
-  id: string;
-  personId: string;
-  householdId?: string | null;
-  type: string;
-  amount: number;
-  frequency: string;
-  isHouseholdExpense: boolean;
-  notes?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export type ApiHouseholdTransfer = {
-  id: string;
-  personId: string;
-  fromHouseholdId: string;
-  toHouseholdId: string;
-  type: string;
-  amount: number;
-  frequency: string;
+  includeInHouseholdBudget: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -71,4 +58,3 @@ export type ApiFamilySummary = {
   incomeSummary: ApiFamilyIncomeSummary;
   householdProfile: ApiHouseholdProfile | null;
 };
-

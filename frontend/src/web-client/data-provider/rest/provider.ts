@@ -9,6 +9,7 @@ import {
   createAdminUser,
   deleteAdminRole,
   deleteAdminUser,
+  readAdminAuditLog,
   readAdminRole,
   readAdminSettingsOverview,
   readAdminTenant,
@@ -316,6 +317,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await readAdminUser(authToken, id)) as unknown as T;
           case "admin.roles":
             return (await readAdminRole(authToken, id)) as unknown as T;
+          case "admin.audit":
+            return (await readAdminAuditLog(authToken, id)) as unknown as T;
           case "pantry.items":
             return (await getPantryItem(authToken, id)) as unknown as T;
           case "pantry.donors":

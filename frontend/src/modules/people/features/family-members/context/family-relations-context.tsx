@@ -7,6 +7,7 @@ import type {
   HouseholdProfile,
   HouseholdAsset,
   PersonAssetsGroup,
+  PersonRelation,
   PersonRelationInput,
   PersonRelationsResponse,
   PersonSummary,
@@ -37,11 +38,11 @@ type FamilyRelationsContextValue = {
   loadDetailed: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   loadTimes: { summaryMs?: number; detailedMs?: number };
-  create: (payload: PersonRelationInput) => Promise<void>;
+  create: (payload: PersonRelationInput) => Promise<PersonRelation | null>;
   update: (
     relationId: string,
     payload: Partial<PersonRelationInput>,
-  ) => Promise<void>;
+  ) => Promise<PersonRelation | null>;
   remove: (relationId: string) => Promise<void>;
   upsertHouseholdProfile: (payload: Partial<HouseholdProfile>) => Promise<void>;
   createHouseholdAsset: (payload: AssetInput) => Promise<void>;

@@ -15,11 +15,13 @@ type UseDetentionsResult = {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  create: (payload: Omit<PersonDetention, "id" | "personId">) => Promise<void>;
+  create: (
+    payload: Omit<PersonDetention, "id" | "personId">,
+  ) => Promise<PersonDetention | null>;
   update: (
     detentionId: string,
     payload: Partial<Omit<PersonDetention, "id" | "personId">>,
-  ) => Promise<void>;
+  ) => Promise<PersonDetention | null>;
   remove: (detentionId: string) => Promise<void>;
 };
 
@@ -58,11 +60,12 @@ export function useDetentions(
 
   const create = React.useCallback(
     async (payload: Omit<PersonDetention, "id" | "personId">) => {
-      if (!token) return;
-      await createPersonDetention(token, personId, payload);
-      await refresh();
+      if (!token) return null;
+      const created = await createPersonDetention(token, personId, payload);
+      setDetentions((previous) => [created, ...previous]);
+      return created;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const update = React.useCallback(
@@ -70,11 +73,14 @@ export function useDetentions(
       detentionId: string,
       payload: Partial<Omit<PersonDetention, "id" | "personId">>,
     ) => {
-      if (!token) return;
-      await updatePersonDetention(token, personId, detentionId, payload);
-      await refresh();
+      if (!token) return null;
+      const updated = await updatePersonDetention(token, personId, detentionId, payload);
+      setDetentions((previous) =>
+        previous.map((item) => (item.id === detentionId ? updated : item)),
+      );
+      return updated;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const remove = React.useCallback(
@@ -88,4 +94,3 @@ export function useDetentions(
 
   return { detentions, isLoading, error, refresh, create, update, remove };
 }
-

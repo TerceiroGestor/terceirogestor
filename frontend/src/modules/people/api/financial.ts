@@ -2,131 +2,27 @@ import { apiRequest } from "@/lib/api";
 import type {
   ApiFamilyIncomeSummary,
   ApiFamilySummary,
-  ApiHouseholdTransfer,
-  ApiPersonExpense,
-  ApiPersonIncome,
+  ApiPersonFinancialEntry,
 } from "./types";
 
-export async function getPersonIncomes(token: string, id: string) {
-  return apiRequest<ApiPersonIncome[]>(`/people/${id}/incomes`, {}, token);
-}
-
-export async function createPersonIncome(
-  token: string,
-  id: string,
-  payload: Omit<ApiPersonIncome, "id" | "personId" | "createdAt" | "updatedAt">,
-) {
-  return apiRequest<ApiPersonIncome>(
-    `/people/${id}/incomes`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
-export async function updatePersonIncome(
-  token: string,
-  id: string,
-  incomeId: string,
-  payload: Partial<
-    Omit<ApiPersonIncome, "id" | "personId" | "createdAt" | "updatedAt">
-  >,
-) {
-  return apiRequest<ApiPersonIncome>(
-    `/people/${id}/incomes/${incomeId}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
-export async function deletePersonIncome(
-  token: string,
-  id: string,
-  incomeId: string,
-) {
-  return apiRequest<{ deleted: boolean }>(
-    `/people/${id}/incomes/${incomeId}`,
-    {
-      method: "DELETE",
-    },
-    token,
-  );
-}
-
-export async function getPersonExpenses(token: string, id: string) {
-  return apiRequest<ApiPersonExpense[]>(`/people/${id}/expenses`, {}, token);
-}
-
-export async function createPersonExpense(
-  token: string,
-  id: string,
-  payload: Omit<ApiPersonExpense, "id" | "personId" | "createdAt" | "updatedAt">,
-) {
-  return apiRequest<ApiPersonExpense>(
-    `/people/${id}/expenses`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
-export async function updatePersonExpense(
-  token: string,
-  id: string,
-  expenseId: string,
-  payload: Partial<
-    Omit<ApiPersonExpense, "id" | "personId" | "createdAt" | "updatedAt">
-  >,
-) {
-  return apiRequest<ApiPersonExpense>(
-    `/people/${id}/expenses/${expenseId}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
-export async function deletePersonExpense(
-  token: string,
-  id: string,
-  expenseId: string,
-) {
-  return apiRequest<{ deleted: boolean }>(
-    `/people/${id}/expenses/${expenseId}`,
-    {
-      method: "DELETE",
-    },
-    token,
-  );
-}
-
-export async function getPersonTransfers(token: string, id: string) {
-  return apiRequest<ApiHouseholdTransfer[]>(
-    `/people/${id}/transfers`,
+export async function getPersonFinancialEntries(token: string, id: string) {
+  return apiRequest<ApiPersonFinancialEntry[]>(
+    `/people/${id}/financial-entries`,
     {},
     token,
   );
 }
 
-export async function createPersonTransfer(
+export async function createPersonFinancialEntry(
   token: string,
   id: string,
   payload: Omit<
-    ApiHouseholdTransfer,
+    ApiPersonFinancialEntry,
     "id" | "personId" | "createdAt" | "updatedAt"
   >,
 ) {
-  return apiRequest<ApiHouseholdTransfer>(
-    `/people/${id}/transfers`,
+  return apiRequest<ApiPersonFinancialEntry>(
+    `/people/${id}/financial-entries`,
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -135,16 +31,16 @@ export async function createPersonTransfer(
   );
 }
 
-export async function updatePersonTransfer(
+export async function updatePersonFinancialEntry(
   token: string,
   id: string,
-  transferId: string,
+  entryId: string,
   payload: Partial<
-    Omit<ApiHouseholdTransfer, "id" | "personId" | "createdAt" | "updatedAt">
+    Omit<ApiPersonFinancialEntry, "id" | "personId" | "createdAt" | "updatedAt">
   >,
 ) {
-  return apiRequest<ApiHouseholdTransfer>(
-    `/people/${id}/transfers/${transferId}`,
+  return apiRequest<ApiPersonFinancialEntry>(
+    `/people/${id}/financial-entries/${entryId}`,
     {
       method: "PATCH",
       body: JSON.stringify(payload),
@@ -153,13 +49,13 @@ export async function updatePersonTransfer(
   );
 }
 
-export async function deletePersonTransfer(
+export async function deletePersonFinancialEntry(
   token: string,
   id: string,
-  transferId: string,
+  entryId: string,
 ) {
   return apiRequest<{ deleted: boolean }>(
-    `/people/${id}/transfers/${transferId}`,
+    `/people/${id}/financial-entries/${entryId}`,
     {
       method: "DELETE",
     },
@@ -178,4 +74,3 @@ export async function getFamilyIncomeSummary(token: string, id: string) {
 export async function getFamilySummary(token: string, id: string) {
   return apiRequest<ApiFamilySummary>(`/people/${id}/family-summary`, {}, token);
 }
-

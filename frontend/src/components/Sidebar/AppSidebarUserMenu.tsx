@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronUp, LogOut, Settings, User } from "lucide-react";
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { canAccessAdminSettings } from "@/modules/core/features/settings/domain/
 
 export function AppSidebarUserMenu() {
   const pathname = usePathname();
+  const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { logout, isAuthenticated } = useAuth();
   const { user, permissions } = useCurrentUser();
@@ -34,6 +35,11 @@ export function AppSidebarUserMenu() {
       .join("") || "US";
   const avatarUrl = user?.avatarUrl ? resolveMediaUrl(user.avatarUrl) : null;
   const canSeeSettings = canAccessAdminSettings(permissions);
+
+  const handleLogout = () => {
+    logout();
+    router.replace(withTenantPath("/login", tenantSlug));
+  };
 
   const userActions = [
     { label: "Perfil", icon: User, href: "/dashboard/profile" },
@@ -75,7 +81,7 @@ export function AppSidebarUserMenu() {
 
         <DropdownMenuItem
           variant="destructive"
-          onClick={logout}
+          onClick={handleLogout}
           disabled={!isAuthenticated}
         >
           <LogOut />

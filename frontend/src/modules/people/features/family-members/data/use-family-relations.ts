@@ -8,6 +8,7 @@ import type {
   HouseholdProfile,
   HouseholdAsset,
   PersonAssetsGroup,
+  PersonRelation,
   PersonRelationInput,
   PersonRelationsResponse,
   PersonSummary,
@@ -64,11 +65,11 @@ type UseFamilyRelationsResult = {
   loadDetailed: (force?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   loadTimes: LoadTimes;
-  create: (payload: PersonRelationInput) => Promise<void>;
+  create: (payload: PersonRelationInput) => Promise<PersonRelation | null>;
   update: (
     relationId: string,
     payload: Partial<PersonRelationInput>,
-  ) => Promise<void>;
+  ) => Promise<PersonRelation | null>;
   remove: (relationId: string) => Promise<void>;
   upsertHouseholdProfile: (payload: Partial<HouseholdProfile>) => Promise<void>;
   createHouseholdAsset: (payload: AssetInput) => Promise<void>;
@@ -312,26 +313,72 @@ export function useFamilyRelations(
   }, [peopleIndex]);
 
   React.useEffect(() => {
-    if (!data || !peopleIndexRef.current) return;
+    if (!peopleLoaded) return;
     setData((prev) =>
       prev ? mergeRelationsResponse(prev, peopleIndexRef.current) : prev,
     );
-  }, [data, peopleIndex]);
+  }, [peopleIndex, peopleLoaded]);
 
   const create = React.useCallback(
     async (payload: PersonRelationInput) => {
-      if (!token) return;
-      await createPersonRelation(token, personId, payload);
+      if (!token) return null;
+      const created = await createPersonRelation(token, personId, payload);
+      setData((previous) =>
+        previous
+          ? {
+              ...previous,
+              relations: [
+                ...previous.relations,
+                {
+                  ...created,
+                  relatedPerson:
+                    previous.householdMembers.find(
+                      (member) => member.personId === created.relatedPersonId,
+                    )?.person ??
+                    previous.relations.find(
+                      (relation) => relation.relatedPersonId === created.relatedPersonId,
+                    )?.relatedPerson ??
+                    peopleOptions.find((person) => person.id === created.relatedPersonId) ?? {
+                      id: created.relatedPersonId,
+                      fullName: "Pessoa relacionada",
+                    },
+                },
+              ],
+            }
+          : previous,
+      );
+      return created;
     },
-    [token, personId],
+    [token, personId, peopleOptions],
   );
 
   const update = React.useCallback(
     async (relationId: string, payload: Partial<PersonRelationInput>) => {
-      if (!token) return;
-      await updatePersonRelation(token, personId, relationId, payload);
+      if (!token) return null;
+      const updated = await updatePersonRelation(token, personId, relationId, payload);
+      setData((previous) =>
+        previous
+          ? {
+              ...previous,
+              relations: previous.relations.map((relation) =>
+                relation.id === relationId
+                  ? {
+                      ...updated,
+                      relatedPerson:
+                        relation.relatedPerson ??
+                        peopleOptions.find((person) => person.id === updated.relatedPersonId) ?? {
+                          id: updated.relatedPersonId,
+                          fullName: "Pessoa relacionada",
+                        },
+                    }
+                  : relation,
+              ),
+            }
+          : previous,
+      );
+      return updated;
     },
-    [token, personId],
+    [token, personId, peopleOptions],
   );
 
   const remove = React.useCallback(

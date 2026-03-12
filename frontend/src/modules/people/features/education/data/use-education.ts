@@ -15,11 +15,13 @@ type UseEducationResult = {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  create: (payload: Omit<EducationRecord, "id" | "personId">) => Promise<void>;
+  create: (
+    payload: Omit<EducationRecord, "id" | "personId">,
+  ) => Promise<EducationRecord | null>;
   update: (
     educationId: string,
     payload: Partial<Omit<EducationRecord, "id" | "personId">>,
-  ) => Promise<void>;
+  ) => Promise<EducationRecord | null>;
   remove: (educationId: string) => Promise<void>;
 };
 
@@ -58,11 +60,12 @@ export function useEducation(
 
   const create = React.useCallback(
     async (payload: Omit<EducationRecord, "id" | "personId">) => {
-      if (!token) return;
-      await createPersonEducation(token, personId, payload);
-      await refresh();
+      if (!token) return null;
+      const created = await createPersonEducation(token, personId, payload);
+      setEducations((previous) => [created, ...previous]);
+      return created;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const update = React.useCallback(
@@ -70,11 +73,14 @@ export function useEducation(
       educationId: string,
       payload: Partial<Omit<EducationRecord, "id" | "personId">>,
     ) => {
-      if (!token) return;
-      await updatePersonEducation(token, personId, educationId, payload);
-      await refresh();
+      if (!token) return null;
+      const updated = await updatePersonEducation(token, personId, educationId, payload);
+      setEducations((previous) =>
+        previous.map((item) => (item.id === educationId ? updated : item)),
+      );
+      return updated;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const remove = React.useCallback(
@@ -88,4 +94,3 @@ export function useEducation(
 
   return { educations, isLoading, error, refresh, create, update, remove };
 }
-

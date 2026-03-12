@@ -23,7 +23,9 @@ interface FieldRendererProps<
   value: unknown;
   disabled?: boolean;
   required?: boolean;
+  appearance?: "default" | "inline-detail";
   onChange: (value: unknown) => void;
+  onCommit?: (value?: unknown) => void;
 }
 
 function normalizeChange(onChange: (value: unknown) => void) {
@@ -76,7 +78,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
   value,
   disabled,
   required = false,
+  appearance = "default",
   onChange,
+  onCommit,
 }: FieldRendererProps<TValues>) {
   const isDisabled = disabled || field.disabled;
   const handleChange = normalizeChange(onChange);
@@ -120,13 +124,23 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
     return undefined;
   }, [field.type, value]);
 
+  const inlineInputClassName =
+    appearance === "inline-detail"
+      ? "rounded-none border-0 border-b border-border/70 bg-transparent px-0 shadow-none focus-visible:ring-0 focus-visible:border-foreground"
+      : undefined;
+
+  const inlineTextareaClassName =
+    appearance === "inline-detail"
+      ? "min-h-[72px] rounded-none border-0 border-b border-border/70 bg-transparent px-0 shadow-none focus-visible:ring-0 focus-visible:border-foreground"
+      : undefined;
+
   const renderHelperText = () =>
     field.helperText ? (
       <p className="text-muted-foreground text-xs">{field.helperText}</p>
     ) : null;
 
   const renderLabeledField = (content: React.ReactNode) => (
-    <div className="space-y-2">
+    <div className={appearance === "inline-detail" ? "space-y-1.5" : "space-y-2"}>
       <Label className="text-sm font-medium">
         {field.label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
@@ -161,6 +175,7 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           value={toTextValue(value)}
           placeholder={"placeholder" in field ? field.placeholder : undefined}
           disabled={isDisabled}
+          className={inlineInputClassName}
           onChange={(event) => {
             const raw = event.target.value;
             if (field.type === "number") {
@@ -168,6 +183,13 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
               return;
             }
             handleChange(event);
+          }}
+          onBlur={(event) => {
+            if (field.type === "number") {
+              onCommit?.(parseNumberValue(event.target.value));
+              return;
+            }
+            onCommit?.(event.target.value);
           }}
         />
       );
@@ -179,7 +201,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           inputMode="decimal"
           value={toTextValue(value)}
           disabled={isDisabled}
+          className={inlineInputClassName}
           onChange={(event) => onChange(parseNumberValue(event.target.value))}
+          onBlur={(event) => onCommit?.(parseNumberValue(event.target.value))}
         />
       );
 
@@ -190,7 +214,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           inputMode="numeric"
           value={toTextValue(value)}
           disabled={isDisabled}
+          className={inlineInputClassName}
           onChange={handleChange}
+          onBlur={(event) => onCommit?.(event.target.value)}
         />
       );
 
@@ -201,7 +227,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           placeholder={"placeholder" in field ? field.placeholder : undefined}
           rows={"rows" in field ? field.rows : undefined}
           disabled={isDisabled}
+          className={inlineTextareaClassName}
           onChange={handleChange}
+          onBlur={(event) => onCommit?.(event.target.value)}
         />
       );
 
@@ -212,13 +240,18 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           disabled={isDisabled}
           accept={field.accept}
           multiple={field.multiple}
+          className={inlineInputClassName}
           onChange={(event) => {
             const files = event.target.files;
             if (field.multiple) {
-              onChange(files ? Array.from(files) : []);
+              const nextValue = files ? Array.from(files) : [];
+              onChange(nextValue);
+              onCommit?.(nextValue);
               return;
             }
-            onChange(files?.[0] ?? null);
+            const nextValue = files?.[0] ?? null;
+            onChange(nextValue);
+            onCommit?.(nextValue);
           }}
         />
       );
@@ -238,9 +271,11 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
             type="file"
             accept={field.accept ?? "image/*"}
             disabled={isDisabled}
+            className={inlineInputClassName}
             onChange={(event) => {
               const file = event.target.files?.[0] ?? null;
               onChange(file);
+              onCommit?.(file);
             }}
           />
         </div>
@@ -252,7 +287,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           type="color"
           value={typeof value === "string" && value.trim() ? value : "#000000"}
           disabled={isDisabled}
+          className={inlineInputClassName}
           onChange={handleChange}
+          onBlur={(event) => onCommit?.(event.target.value)}
         />
       );
 
@@ -266,9 +303,11 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
               id={switchId}
               checked={Boolean(value)}
               disabled={isDisabled}
-              onCheckedChange={(checked) =>
-                onChange(persistAs === "number" ? (checked ? 1 : 0) : checked)
-              }
+              onCheckedChange={(checked) => {
+                const nextValue = persistAs === "number" ? (checked ? 1 : 0) : checked;
+                onChange(nextValue);
+                onCommit?.(nextValue);
+              }}
             />
             <Label htmlFor={switchId}>{field.label}</Label>
           </div>
@@ -281,11 +320,14 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
       return renderLabeledField(
         <Select
           value={toTextValue(value)}
-          onValueChange={(v) => onChange(v)}
+          onValueChange={(v) => {
+            onChange(v);
+            onCommit?.(v);
+          }}
           disabled={isDisabled}
           onOpenChange={setSelectOpen}
         >
-          <SelectTrigger>
+          <SelectTrigger className={inlineInputClassName}>
             <SelectValue placeholder={field.label} />
           </SelectTrigger>
           <SelectContent>
@@ -295,6 +337,7 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
                   type="text"
                   value={selectQuery}
                   placeholder={field.searchPlaceholder ?? "Buscar..."}
+                  className={inlineInputClassName}
                   onChange={(event) => setSelectQuery(event.target.value)}
                   onKeyDown={(event) => event.stopPropagation()}
                 />
@@ -336,6 +379,7 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
                       ? [...selectedValues, option.value]
                       : selectedValues.filter((item) => item !== option.value);
                     onChange(nextValues);
+                    onCommit?.(nextValues);
                   }}
                 />
                 <Label htmlFor={checkboxId}>{option.label}</Label>
@@ -353,7 +397,10 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
       return renderLabeledField(
         <TagInput
           value={tagsValue}
-          onChange={onChange}
+          onChange={(nextValues) => {
+            onChange(nextValues);
+            onCommit?.(nextValues);
+          }}
           disabled={isDisabled}
           placeholder={"placeholder" in field ? field.placeholder : undefined}
           maxTags={"maxTags" in field ? field.maxTags : undefined}
@@ -368,6 +415,7 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           value={toTextValue(value)}
           disabled={isDisabled}
           onChange={handleChange}
+          onBlur={() => onCommit?.(toTextValue(value))}
         />
       );
 
@@ -377,7 +425,9 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
           type="date"
           value={toDateInputValue(value)}
           disabled={isDisabled}
+          className={inlineInputClassName}
           onChange={handleChange}
+          onBlur={(event) => onCommit?.(event.target.value)}
         />
       );
 
@@ -394,25 +444,31 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
             type="date"
             value={toDateInputValue(start)}
             disabled={isDisabled}
+            className={inlineInputClassName}
             placeholder={"startPlaceholder" in field ? field.startPlaceholder : undefined}
-            onChange={(event) =>
-              onChange({
+            onChange={(event) => {
+              const nextValue = {
                 start: event.target.value,
                 end,
-              })
-            }
+              };
+              onChange(nextValue);
+              onCommit?.(nextValue);
+            }}
           />
           <Input
             type="date"
             value={toDateInputValue(end)}
             disabled={isDisabled}
+            className={inlineInputClassName}
             placeholder={"endPlaceholder" in field ? field.endPlaceholder : undefined}
-            onChange={(event) =>
-              onChange({
+            onChange={(event) => {
+              const nextValue = {
                 start,
                 end: event.target.value,
-              })
-            }
+              };
+              onChange(nextValue);
+              onCommit?.(nextValue);
+            }}
           />
         </div>
       );
@@ -434,13 +490,16 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
             inputMode={isCurrency ? "decimal" : undefined}
             value={min}
             disabled={isDisabled}
+            className={inlineInputClassName}
             placeholder={"minPlaceholder" in field ? field.minPlaceholder : undefined}
             onChange={(event) => {
               const raw = event.target.value;
-              onChange({
+              const nextValue = {
                 min: parseNumberValue(raw),
                 max: max ? parseNumberValue(max) : "",
-              });
+              };
+              onChange(nextValue);
+              onCommit?.(nextValue);
             }}
           />
           <Input
@@ -448,13 +507,16 @@ export function FieldRenderer<TValues extends Record<string, unknown>>({
             inputMode={isCurrency ? "decimal" : undefined}
             value={max}
             disabled={isDisabled}
+            className={inlineInputClassName}
             placeholder={"maxPlaceholder" in field ? field.maxPlaceholder : undefined}
             onChange={(event) => {
               const raw = event.target.value;
-              onChange({
+              const nextValue = {
                 min: min ? parseNumberValue(min) : "",
                 max: parseNumberValue(raw),
-              });
+              };
+              onChange(nextValue);
+              onCommit?.(nextValue);
             }}
           />
         </div>

@@ -2,6 +2,8 @@ export type PersonFormData = {
   avatarUrl?: string | File | null;
   fullName: string;
   socialName?: string | null;
+  email?: string | null;
+  phone?: string | null;
   birthDate?: string | null;
   sex?: string | null;
   gender?: string | null;
@@ -182,46 +184,6 @@ export type PersonRelationInput = {
   isDependent?: boolean;
 };
 
-export type PersonIncome = {
-  id: string;
-  personId: string;
-  householdId?: string | null;
-  type: string;
-  amount: number;
-  frequency: string;
-  contractType?: string | null;
-  isHouseholdContribution: boolean;
-  notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-
-export type PersonExpense = {
-  id: string;
-  personId: string;
-  householdId?: string | null;
-  type: string;
-  amount: number;
-  frequency: string;
-  isHouseholdExpense: boolean;
-  notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-
-export type HouseholdTransfer = {
-  id: string;
-  personId: string;
-  fromHouseholdId: string;
-  toHouseholdId: string;
-  type: string;
-  amount: number;
-  frequency: string;
-  notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-
 export type HouseholdProfile = {
   id: string;
   householdId: string;
@@ -244,6 +206,33 @@ export type HouseholdProfile = {
   siafi?: string | null;
   reference?: string | null;
   notes?: string | null;
+};
+
+export type PersonFinancialEntryType =
+  | "INCOME"
+  | "EXPENSE"
+  | "TRANSFER"
+  | "BENEFIT";
+
+export type PersonFinancialEntry = {
+  id: string;
+  personId: string;
+  householdId?: string | null;
+  fromHouseholdId?: string | null;
+  toHouseholdId?: string | null;
+  entryType: PersonFinancialEntryType;
+  category: string;
+  subcategory?: string | null;
+  status?: string | null;
+  amount?: number | null;
+  frequency: string;
+  contractType?: string | null;
+  includeInHouseholdBudget: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type HouseholdAsset = {
@@ -314,21 +303,6 @@ export type EducationRecord = {
   grade?: string | null;
   schoolYear?: string | null;
   isCurrent: boolean;
-  startDate?: string | null;
-  endDate?: string | null;
-  notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-
-export type PersonBenefit = {
-  id: string;
-  personId: string;
-  householdId?: string | null;
-  type: string;
-  status?: string | null;
-  amount?: number | null;
-  frequency: string;
   startDate?: string | null;
   endDate?: string | null;
   notes?: string | null;

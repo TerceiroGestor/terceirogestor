@@ -1,18 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { FormEngineProps, FormField } from "./types";
-import { FieldRenderer } from "./fieldRenderers";
 import { Button } from "@/components/ui/button";
-import {
-  User,
-  Wallet,
-  CalendarRange,
-  FileText,
-  ClipboardList,
-  LayoutGrid,
-  Check,
-} from "lucide-react";
+import { Check, ClipboardList, FileText, LayoutGrid, User, Wallet, CalendarRange } from "lucide-react";
+import { FieldRenderer } from "./fieldRenderers";
+import { FormEngineProps, FormField } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -25,7 +17,6 @@ function getEmptyValue<TValues extends Record<string, unknown>>(
     case "boolean":
       return false;
     case "multiselect":
-      return [];
     case "tags":
       return [];
     case "date_range":
@@ -82,11 +73,13 @@ export function FormEngine<TValues extends Record<string, unknown>>(
 
 function FormEngineInner<TValues extends Record<string, unknown>>({
   id,
+  appearance = "default",
   fields,
   steps,
   initialState,
   onSubmit,
   onFieldChange,
+  onFieldCommit,
   onValuesChange,
   disabled,
   actions,
@@ -94,6 +87,7 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
   const [values, setValues] = React.useState<TValues>(initialState);
   const [currentStep, setCurrentStep] = React.useState(0);
   const notifyValuesChangeRef = React.useRef(false);
+  const isInlineDetail = appearance === "inline-detail";
 
   React.useEffect(() => {
     if (!notifyValuesChangeRef.current) return;
@@ -121,6 +115,22 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
     [onFieldChange],
   );
 
+  const handleCommit = React.useCallback(
+    (name: keyof TValues & string, value?: unknown) => {
+      if (!onFieldCommit) return;
+      const nextValues =
+        typeof value === "undefined"
+          ? values
+          : ({ ...values, [name]: value } as TValues);
+      onFieldCommit({
+        name,
+        value: typeof value === "undefined" ? values[name] : value,
+        values: nextValues,
+      });
+    },
+    [onFieldCommit, values],
+  );
+
   const isFieldRequired = React.useCallback(
     (field: FormField<TValues>) => {
       const conditional = field.requiredWhen?.(values) ?? false;
@@ -146,12 +156,7 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
           if (!isRecord(value)) return false;
           const min = value["min"];
           const max = value["max"];
-          return (
-            min !== "" &&
-            min !== undefined &&
-            max !== "" &&
-            max !== undefined
-          );
+          return min !== "" && min !== undefined && max !== "" && max !== undefined;
         }
         case "file":
         case "image":
@@ -286,123 +291,186 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
     isFieldFilled,
   ]);
 
-  /* ======================================================
-   * RENDER
-   * ====================================================== */
-
   return (
     <form id={id} onSubmit={handleSubmit} className="space-y-6">
       {steps ? (
-        <div className="rounded-xl border border-border/60 bg-card shadow-sm">
-          {/* STEPS */}
-          <div className="rounded-t-xl border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-[220px]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Etapa {currentStep + 1} de {stepStates.length}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {stepStates[currentStep]?.title}
-                </p>
-              </div>
-
-              <div className="text-[11px] text-muted-foreground">
-                {isCurrentStepValid
-                  ? "Tudo certo para continuar"
-                  : "Preencha os campos obrigatórios"}
-              </div>
-            </div>
-
-            <div className="mt-3 overflow-x-auto pb-1">
-              <div className="min-w-[520px]">
-                <div className="relative pt-1">
-                  <div className="absolute inset-x-0 top-6 h-[2px] rounded-full bg-border/60" />
-                  <div
-                    className="absolute left-0 top-6 h-[2px] rounded-full bg-primary transition-[width] duration-300"
-                    style={{
-                      width:
-                        stepStates.length <= 1
-                          ? "100%"
-                          : `${Math.min(
-                              100,
-                              Math.max(
-                                0,
-                                (currentStep / (stepStates.length - 1)) * 100,
-                              ),
-                            )}%`,
-                    }}
-                  />
-
-                  <div
-                    className="grid items-start gap-4"
-                    style={{
-                      gridTemplateColumns: `repeat(${Math.max(stepStates.length, 1)}, minmax(120px, 1fr))`,
-                    }}
-                  >
-                    {stepStates.map((step) => {
-                      const iconClasses = step.complete
-                        ? "bg-primary text-primary-foreground border-primary/30"
-                        : step.active
-                          ? "bg-background text-primary border-primary/40 ring-4 ring-primary/10"
-                          : "bg-background text-muted-foreground border-border/70";
-
-                      return (
-                        <div
-                          key={step.id}
-                          className="flex flex-col items-center gap-2"
-                        >
-                          <button
-                            type="button"
-                            disabled={!step.canGoTo}
-                            onClick={() => {
-                              if (!step.canGoTo) return;
-                              const index = Number(step.id);
-                              if (!Number.isNaN(index)) setCurrentStep(index);
-                            }}
-                            aria-current={step.active ? "step" : undefined}
-                            className="group flex flex-col items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                            title={step.title}
+        <div
+          className={
+            isInlineDetail
+              ? "space-y-4"
+              : "rounded-xl border border-border/60 bg-card shadow-sm"
+          }
+        >
+          <div
+            className={
+              isInlineDetail
+                ? "border-b border-border/60 pb-3"
+                : "rounded-t-xl border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-6"
+            }
+          >
+            {isInlineDetail ? (
+              <>
+                <div className="overflow-x-auto pb-1">
+                  <div className="flex min-w-max items-center gap-6 border-b border-border/60">
+                    {stepStates.map((step) => (
+                      <button
+                        key={step.id}
+                        type="button"
+                        disabled={!step.canGoTo}
+                        onClick={() => {
+                          if (!step.canGoTo) return;
+                          const index = Number(step.id);
+                          if (!Number.isNaN(index)) setCurrentStep(index);
+                        }}
+                        aria-current={step.active ? "step" : undefined}
+                        className={[
+                          "relative -mb-px whitespace-nowrap border-b-2 px-0 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                          step.active
+                            ? "border-primary text-foreground"
+                            : "border-transparent text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                        title={step.title}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className={[
+                              "inline-flex size-5 items-center justify-center rounded-full text-[11px]",
+                              step.active
+                                ? "bg-primary text-primary-foreground"
+                                : step.complete
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted text-muted-foreground",
+                            ].join(" ")}
                           >
-                            <span
-                              className={[
-                                "relative z-10 flex size-11 items-center justify-center rounded-full border shadow-sm transition-colors",
-                                iconClasses,
-                              ].join(" ")}
-                            >
-                              {step.complete ? (
-                                <Check className="size-5" />
-                              ) : (
-                                <step.Icon className="size-5" />
-                              )}
-                            </span>
-                            <span
-                              className={[
-                                "text-center text-[11px] font-semibold transition-colors",
-                                step.active
-                                  ? "text-foreground"
-                                  : "text-muted-foreground group-hover:text-foreground",
-                              ].join(" ")}
-                            >
-                              {step.title}
-                            </span>
-                          </button>
-                        </div>
-                      );
-                    })}
+                            {step.complete ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              Number(step.id) + 1
+                            )}
+                          </span>
+                          {step.title}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {steps[currentStep]?.description ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {steps[currentStep].description}
-              </p>
-            ) : null}
+                {steps[currentStep]?.description ? (
+                  <p className="pt-2 text-sm text-muted-foreground">
+                    {steps[currentStep].description}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-[220px]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Etapa {currentStep + 1} de {stepStates.length}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {stepStates[currentStep]?.title}
+                    </p>
+                  </div>
+
+                  <div className="text-[11px] text-muted-foreground">
+                    {isCurrentStepValid
+                      ? "Tudo certo para continuar"
+                      : "Preencha os campos obrigatorios"}
+                  </div>
+                </div>
+
+                <div className="mt-3 overflow-x-auto pb-1">
+                  <div className="min-w-[520px]">
+                    <div className="relative pt-1">
+                      <div className="absolute inset-x-0 top-6 h-[2px] rounded-full bg-border/60" />
+                      <div
+                        className="absolute left-0 top-6 h-[2px] rounded-full bg-primary transition-[width] duration-300"
+                        style={{
+                          width:
+                            stepStates.length <= 1
+                              ? "100%"
+                              : `${Math.min(
+                                  100,
+                                  Math.max(
+                                    0,
+                                    (currentStep / (stepStates.length - 1)) * 100,
+                                  ),
+                                )}%`,
+                        }}
+                      />
+
+                      <div
+                        className="grid items-start gap-4"
+                        style={{
+                          gridTemplateColumns: `repeat(${Math.max(stepStates.length, 1)}, minmax(120px, 1fr))`,
+                        }}
+                      >
+                        {stepStates.map((step) => {
+                          const iconClasses = step.complete
+                            ? "bg-primary text-primary-foreground border-primary/30"
+                            : step.active
+                              ? "bg-background text-primary border-primary/40 ring-4 ring-primary/10"
+                              : "bg-background text-muted-foreground border-border/70";
+
+                          return (
+                            <div
+                              key={step.id}
+                              className="flex flex-col items-center gap-2"
+                            >
+                              <button
+                                type="button"
+                                disabled={!step.canGoTo}
+                                onClick={() => {
+                                  if (!step.canGoTo) return;
+                                  const index = Number(step.id);
+                                  if (!Number.isNaN(index)) setCurrentStep(index);
+                                }}
+                                aria-current={step.active ? "step" : undefined}
+                                className="group flex flex-col items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                                title={step.title}
+                              >
+                                <span
+                                  className={[
+                                    "relative z-10 flex size-11 items-center justify-center rounded-full border shadow-sm transition-colors",
+                                    iconClasses,
+                                  ].join(" ")}
+                                >
+                                  {step.complete ? (
+                                    <Check className="size-5" />
+                                  ) : (
+                                    <step.Icon className="size-5" />
+                                  )}
+                                </span>
+                                <span
+                                  className={[
+                                    "text-center text-[11px] font-semibold transition-colors",
+                                    step.active
+                                      ? "text-foreground"
+                                      : "text-muted-foreground group-hover:text-foreground",
+                                  ].join(" ")}
+                                >
+                                  {step.title}
+                                </span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {steps[currentStep]?.description ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {steps[currentStep].description}
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
 
-          {/* FIELDS */}
-          <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+          <div className={isInlineDetail ? "space-y-5" : "space-y-5 px-4 py-5 sm:px-6 sm:py-6"}>
             {visibleFields.map((field) => (
               <FieldRenderer
                 key={field.name}
@@ -410,61 +478,67 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
                 value={values[field.name]}
                 disabled={disabled}
                 required={isFieldRequired(field)}
+                appearance={appearance}
                 onChange={(value) => handleChange(field.name, value)}
+                onCommit={(value) => handleCommit(field.name, value)}
               />
             ))}
 
-            {/* FOOTER */}
-            <div className="border-t pt-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {actions?.cancel && (
-                    <Button
-                      type="button"
-                      variant={resolveButtonVariant(
-                        actions.cancel.variant ?? "ghost",
-                      )}
-                      onClick={actions.cancel.onClick}
-                    >
-                      {actions.cancel.label ?? "Cancelar"}
-                    </Button>
-                  )}
-                  {currentStep > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setCurrentStep((s) => s - 1)}
-                    >
-                      Voltar
-                    </Button>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    variant={resolveButtonVariant(
-                      currentStep < steps.length - 1
-                        ? "secondary"
-                        : (actions?.submit?.variant ?? "primary"),
+            {!(isInlineDetail && !actions) ? (
+              <div className="border-t border-border/60 pt-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {actions?.cancel && (
+                      <Button
+                        type="button"
+                        variant={resolveButtonVariant(actions.cancel.variant ?? "ghost")}
+                        onClick={actions.cancel.onClick}
+                      >
+                        {actions.cancel.label ?? "Cancelar"}
+                      </Button>
                     )}
-                    disabled={
-                      !isCurrentStepValid ||
-                      disabled ||
-                      (currentStep === steps.length - 1 && !isFormValid)
-                    }
-                  >
-                    {currentStep < steps.length - 1
-                      ? "Próximo"
-                      : (actions?.submit?.label ?? "Salvar")}
-                  </Button>
+                    {currentStep > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setCurrentStep((s) => s - 1)}
+                      >
+                        Voltar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      variant={resolveButtonVariant(
+                        currentStep < steps.length - 1
+                          ? "secondary"
+                          : (actions?.submit?.variant ?? "primary"),
+                      )}
+                      disabled={
+                        !isCurrentStepValid ||
+                        disabled ||
+                        (currentStep === steps.length - 1 && !isFormValid)
+                      }
+                    >
+                      {currentStep < steps.length - 1
+                        ? "Proximo"
+                        : (actions?.submit?.label ?? "Salvar")}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       ) : (
-        /* FORM SEM STEPS */
-        <div className="space-y-5 rounded-lg border bg-card/70 p-6 shadow-sm">
+        <div
+          className={
+            isInlineDetail
+              ? "space-y-5"
+              : "space-y-5 rounded-lg border bg-card/70 p-6 shadow-sm"
+          }
+        >
           {visibleFields.map((field) => (
             <FieldRenderer
               key={field.name}
@@ -472,20 +546,19 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
               value={values[field.name]}
               disabled={disabled}
               required={isFieldRequired(field)}
+              appearance={appearance}
               onChange={(value) => handleChange(field.name, value)}
+              onCommit={(value) => handleCommit(field.name, value)}
             />
           ))}
 
-          {/* FOOTER */}
-          <div className="border-t pt-4">
+          <div className="border-t border-border/60 pt-4">
             {actions ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 {actions.cancel && (
                   <Button
                     type="button"
-                    variant={resolveButtonVariant(
-                      actions.cancel.variant ?? "secondary",
-                    )}
+                    variant={resolveButtonVariant(actions.cancel.variant ?? "secondary")}
                     onClick={actions.cancel.onClick}
                   >
                     {actions.cancel.label ?? "Cancelar"}
@@ -495,9 +568,7 @@ function FormEngineInner<TValues extends Record<string, unknown>>({
                 {actions.submit && (
                   <Button
                     type="submit"
-                    variant={resolveButtonVariant(
-                      actions.submit.variant ?? "primary",
-                    )}
+                    variant={resolveButtonVariant(actions.submit.variant ?? "primary")}
                     disabled={!isFormValid || disabled}
                   >
                     {actions.submit.label ?? "Salvar"}

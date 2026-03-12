@@ -2,14 +2,17 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { ADMIN_ROUTES } from "@/modules/core/admin/admin.constants";
+import type { AdminAuditRecord } from "@/modules/core/admin/admin.types";
 import {
   adminAuditListModuleDefinition,
   type AdminAuditListQueryState,
   type AdminAuditListViewId,
 } from "@/modules/core/admin/config/admin-module-contract";
-import type { AdminAuditRecord } from "@/modules/core/admin/admin.types";
 import {
   buildAnalysisFacets,
   buildAnalysisSlot,
@@ -25,9 +28,9 @@ import {
   type AdminFavoriteState,
 } from "@/modules/core/admin/ui/admin-list-shared";
 import { createRestDataProvider } from "@/web-client/data-provider";
+import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
-import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
   getModuleGraphBuilderConfig,
@@ -57,6 +60,56 @@ function AuditCalendarItem({ log }: { log: AdminAuditRecord }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function AuditTimelineTitle({
+  log,
+  onOpen,
+}: {
+  log: AdminAuditRecord;
+  onOpen: (log: AdminAuditRecord) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="truncate text-left text-sm font-medium text-foreground hover:text-primary"
+      onClick={() => onOpen(log)}
+    >
+      {log.entity} • {log.action}
+    </button>
+  );
+}
+
+function AuditTimelineBody({
+  log,
+  onOpen,
+}: {
+  log: AdminAuditRecord;
+  onOpen: (log: AdminAuditRecord) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="text-left text-[13px] text-muted-foreground hover:text-foreground"
+      onClick={() => onOpen(log)}
+    >
+      {log.userName} • {trimText(log.entityId)}
+    </button>
+  );
+}
+
+function AuditCalendarCard({
+  log,
+  onOpen,
+}: {
+  log: AdminAuditRecord;
+  onOpen: (log: AdminAuditRecord) => void;
+}) {
+  return (
+    <button type="button" className="block w-full text-left" onClick={() => onOpen(log)}>
+      <AuditCalendarItem log={log} />
+    </button>
   );
 }
 
@@ -103,6 +156,9 @@ function auditColumns(): ColumnDef<AdminAuditRecord>[] {
 export function AdminAuditListModuleClientPage() {
   const { token, isLoading: authLoading } = useAuth();
   const { permissions, isLoading: userLoading } = useCurrentUser();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
   const graphBuilder = getModuleGraphBuilderConfig(adminAuditListModuleDefinition);
   const columns = React.useMemo(() => auditColumns(), []);
@@ -250,6 +306,13 @@ export function AdminAuditListModuleClientPage() {
     [rows, state],
   );
 
+  const openDetail = React.useCallback(
+    (log: AdminAuditRecord) => {
+      router.push(withTenantPath(`${ADMIN_ROUTES.audit}/${log.id}`, tenantSlug));
+    },
+    [router, tenantSlug],
+  );
+
   if (!canRead) {
     return <div className="px-4 py-6 text-sm text-muted-foreground">Voce nao tem permissao para acessar esta area.</div>;
   }
@@ -292,15 +355,15 @@ export function AdminAuditListModuleClientPage() {
         <TimelineView
           items={rows}
           getDate={(log) => toDate(log.createdAt)}
-          renderTitle={(log) => `${log.entity} • ${log.action}`}
-          renderBody={(log) => `${log.userName} • ${trimText(log.entityId)}`}
+          renderTitle={(log) => <AuditTimelineTitle log={log} onOpen={openDetail} />}
+          renderBody={(log) => <AuditTimelineBody log={log} onOpen={openDetail} />}
           sortDirection={state.timelineSortDirection}
         />
       ) : state.view === "calendar" ? (
         <CalendarView
           items={rows}
           getDate={(log) => toDate(log.createdAt)}
-          renderItem={(log) => <AuditCalendarItem log={log} />}
+          renderItem={(log) => <AuditCalendarCard log={log} onOpen={openDetail} />}
           mode={state.calendarMode}
           onModeChange={(calendarMode) =>
             setState((previous) => ({ ...previous, calendarMode }))
@@ -330,6 +393,7 @@ export function AdminAuditListModuleClientPage() {
             groupByFields={state.groupBy}
             resolveGroupLabel={(_field, value) => trimText(value, "Sem valor")}
             initialColumnPinning={{ left: ["action"] }}
+            onRowClick={openDetail}
           />
 
           <PaginationBar

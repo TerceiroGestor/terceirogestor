@@ -106,6 +106,14 @@ export const PEOPLE_FORM_TEXT = {
       label: "Nome social",
       placeholder: "Nome social",
     },
+    email: {
+      label: "Email",
+      placeholder: "email@exemplo.com",
+    },
+    phone: {
+      label: "Telefone",
+      placeholder: "(00) 00000-0000",
+    },
     birthDate: {
       label: "Data de nascimento",
     },

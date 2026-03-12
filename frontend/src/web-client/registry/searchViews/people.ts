@@ -12,7 +12,8 @@ import type { SearchViewDefinition } from "@/web-client/search/types";
 export const peopleSearchView: SearchViewDefinition = {
   id: "people.search",
   model: "people.list",
-  searchPlaceholder: "Pesquisar pessoas por nome, documento, email ou telefone",
+  searchPlaceholder:
+    "Pesquisar pessoas em qualquer campo relevante do cadastro",
   features: {
     favorites: true,
     presets: true,
@@ -75,8 +76,14 @@ export const peopleSearchView: SearchViewDefinition = {
     },
     { name: "maritalStatus", label: "Estado civil", type: "text", operators: ["=", "contains"] },
     { name: "nationality", label: "Nacionalidade", type: "text", operators: ["=", "contains", "ilike"] },
+    { name: "document", label: "CPF", type: "text", operators: ["contains", "=", "starts_with", "ends_with"] },
+    { name: "rg", label: "RG", type: "text", operators: ["contains", "=", "starts_with", "ends_with"] },
+    { name: "nis", label: "NIS", type: "text", operators: ["contains", "=", "starts_with", "ends_with"] },
     { name: "email", label: "Email", type: "text", operators: ["ilike", "contains", "=", "starts_with", "ends_with"] },
     { name: "phone", label: "Telefone", type: "text", operators: ["contains", "=", "starts_with", "ends_with"] },
+    { name: "departureReason", label: "Motivo do desligamento", type: "text", operators: ["ilike", "contains", "="] },
+    { name: "notes", label: "Notas", type: "text", operators: ["ilike", "contains"] },
+    { name: "profileSummary", label: "Resumo", type: "text", operators: ["ilike", "contains"] },
     {
       name: "personType",
       label: "Tipo",
@@ -103,6 +110,9 @@ export const peopleSearchView: SearchViewDefinition = {
     { field: "sex", label: "Sexo" },
     { field: "gender", label: "Genero" },
     { field: "raceColor", label: "Raca/Cor" },
+    { field: "nationality", label: "Nacionalidade" },
+    { field: "maritalStatus", label: "Estado civil" },
+    { field: "tags", label: "Tags" },
     { field: "hasHealthCondition", label: "Condicao de saude" },
     { field: "hasMedication", label: "Medicacao" },
     { field: "createdAt", label: "Cadastro" },

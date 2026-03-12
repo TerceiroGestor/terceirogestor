@@ -476,6 +476,9 @@ export type DetailRelationConfig<
   renderCard?: (row: TRow, context: TContext) => React.ReactNode;
   emptyLabel?: string | ((context: TContext) => string);
   groupBy?: (context: TContext) => string[];
+  searchable?: boolean;
+  searchPlaceholder?: string | ((context: TContext) => string);
+  filterRows?: (rows: TRow[], query: string, context: TContext) => TRow[];
   action?: DetailRelationActionConfig<TContext>;
 };
 

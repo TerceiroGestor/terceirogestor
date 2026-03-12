@@ -18,14 +18,20 @@ type DetentionFormProps = {
   initialValues: DetentionFormValues;
   submitLabel: string;
   onSubmit: (values: DetentionFormValues) => void | Promise<void>;
+  onValuesChange?: (values: DetentionFormValues) => void;
+  onFieldCommit?: (values: DetentionFormValues) => void;
   onCancel?: () => void;
+  hideActions?: boolean;
 };
 
 export function DetentionForm({
   initialValues,
   submitLabel,
   onSubmit,
+  onValuesChange,
+  onFieldCommit,
   onCancel,
+  hideActions = false,
 }: DetentionFormProps) {
   const fields = React.useMemo<FormField<DetentionFormValues>[]>(
     () => [
@@ -62,13 +68,22 @@ export function DetentionForm({
 
   return (
     <FormEngine<DetentionFormValues>
+      appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}
+      onValuesChange={onValuesChange}
+      onFieldCommit={({ values }) => onFieldCommit?.(values)}
       onSubmit={onSubmit}
-      actions={{
-        cancel: onCancel ? { label: "Cancelar", onClick: onCancel, variant: "ghost" } : undefined,
-        submit: { label: submitLabel, variant: "primary" },
-      }}
+      actions={
+        hideActions
+          ? undefined
+          : {
+              cancel: onCancel
+                ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
+                : undefined,
+              submit: { label: submitLabel, variant: "primary" },
+            }
+      }
     />
   );
 }

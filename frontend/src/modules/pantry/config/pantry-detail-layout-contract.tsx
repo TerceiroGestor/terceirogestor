@@ -298,6 +298,16 @@ const pantryItemEntryRelationColumns: ColumnDef<ApiPantryEntry>[] = [
     ),
   },
   {
+    id: "remaining",
+    header: "Saldo",
+    accessorFn: (row) => Number(row.remaining ?? row.quantity),
+    cell: ({ row }) => (
+      <div className="font-mono text-sm tabular-nums text-foreground">
+        {Number(row.original.remaining ?? row.original.quantity).toLocaleString("pt-BR")}
+      </div>
+    ),
+  },
+  {
     id: "unit",
     header: "Unid.",
     accessorKey: "unit",
@@ -705,6 +715,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           rows: ({ mode, entryRows }) => (mode === "edit" ? entryRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemEntryRelationColumns,
+          searchable: true,
+          searchPlaceholder: "Pesquisar entradas por doador, setor, notas ou lote",
           getRowId: (row) => row.id,
           onRowClick: (row, context) => context.onOpenEntry(row.id),
           emptyLabel: ({ mode }) =>
@@ -733,6 +745,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           rows: ({ mode, exitRows }) => (mode === "edit" ? exitRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemExitRelationColumns,
+          searchable: true,
+          searchPlaceholder: "Pesquisar saídas por tipo, setor, evento ou notas",
           getRowId: (row) => row.id,
           onRowClick: (row, context) => context.onOpenExit(row.id),
           emptyLabel: ({ mode }) =>
@@ -759,6 +773,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemHistoryRelationColumns,
+          searchable: true,
+          searchPlaceholder: "Pesquisar histórico por movimento, usuário, setor ou notas",
           getRowId: (row) => row.id,
           onRowClick: (row, context) =>
             row.kind === "ENTRY"

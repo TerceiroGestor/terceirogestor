@@ -1,5 +1,6 @@
 import type { WindowAction } from "@/web-client/registry/types";
 import {
+  adminAuditDetailAction,
   adminAuditListAction,
   adminInstitutionAction,
   adminOverviewAction,
@@ -68,6 +69,7 @@ const WINDOW_ACTIONS: WindowAction[] = [
   adminRolesCreateAction,
   adminPermissionsListAction,
   adminAuditListAction,
+  adminAuditDetailAction,
   pantryStockAction,
   pantryItemsCreateAction,
   pantryItemsDetailAction,

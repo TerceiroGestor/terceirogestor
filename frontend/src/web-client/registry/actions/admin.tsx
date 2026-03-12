@@ -6,6 +6,7 @@ import {
 } from "@/modules/core/admin/admin.constants";
 import {
   adminAuditListModuleDefinition,
+  adminAuditDetailModuleDefinition,
   adminInstitutionModuleDefinition,
   adminOverviewModuleDefinition,
   adminPermissionsListModuleDefinition,
@@ -14,6 +15,7 @@ import {
   adminUserDetailModuleDefinition,
   adminUsersListModuleDefinition,
 } from "@/modules/core/admin/config/admin-module-contract";
+import { AdminAuditDetailEngineClientPage } from "@/modules/core/admin/ui/admin-audit-detail-engine-client-page";
 import { AdminAuditListModuleClientPage } from "@/modules/core/admin/ui/admin-audit-list-module-client-page";
 import { AdminInstitutionDetailClientPage } from "@/modules/core/admin/ui/admin-institution-detail-client-page";
 import { AdminOverviewClientPage } from "@/modules/core/admin/ui/admin-overview-client-page";
@@ -115,4 +117,14 @@ export const adminAuditListAction = createModuleWindowAction({
   titleVariant: "list",
   breadcrumbs: [{ label: "Auditoria", href: ADMIN_ROUTES.audit }],
   render: () => <AdminAuditListModuleClientPage />,
+});
+
+export const adminAuditDetailAction = createModuleWindowAction({
+  id: ADMIN_ACTION_IDS.auditDetail,
+  moduleDefinition: adminAuditDetailModuleDefinition,
+  moduleActionKey: "view",
+  titleVariant: "detail",
+  breadcrumbs: [{ label: "Auditoria", href: ADMIN_ROUTES.audit }],
+  hideBreadcrumb: true,
+  render: () => <AdminAuditDetailEngineClientPage />,
 });

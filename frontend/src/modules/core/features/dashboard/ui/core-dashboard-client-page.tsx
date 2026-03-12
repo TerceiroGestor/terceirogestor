@@ -165,6 +165,7 @@ export function CoreDashboardClientPage() {
   const { token } = useAuth();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { setPageBreadcrumb } = useBreadcrumb();
+  const [isHydrated, setIsHydrated] = React.useState(false);
 
   const [overview, setOverview] = React.useState<DashboardOverviewResponse | null>(
     null,
@@ -189,6 +190,10 @@ export function CoreDashboardClientPage() {
   React.useEffect(() => {
     setPageBreadcrumb("Dashboard", []);
   }, [setPageBreadcrumb]);
+
+  React.useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const loadOverview = React.useCallback(async () => {
     if (!token) return;
@@ -420,6 +425,7 @@ export function CoreDashboardClientPage() {
             <Button
               variant="outline"
               size="sm"
+              disabled={!isHydrated}
               onClick={() =>
                 downloadChartPng({
                   container: attendanceChartRef.current,
@@ -431,26 +437,30 @@ export function CoreDashboardClientPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div ref={attendanceChartRef}>
-              <ChartContainer config={attendanceConfig} className="h-[280px] w-full">
-                <BarChart data={attendanceSeries} accessibilityLayer>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} width={36} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="attendances"
-                    fill={attendanceConfig.attendances.color}
-                    radius={4}
-                  />
-                  <Bar
-                    dataKey="actionsExecuted"
-                    fill={attendanceConfig.actionsExecuted.color}
-                    radius={4}
-                  />
-                </BarChart>
-              </ChartContainer>
-            </div>
+            {isHydrated ? (
+              <div ref={attendanceChartRef}>
+                <ChartContainer config={attendanceConfig} className="h-[280px] w-full">
+                  <BarChart data={attendanceSeries} accessibilityLayer>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} width={36} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="attendances"
+                      fill={attendanceConfig.attendances.color}
+                      radius={4}
+                    />
+                    <Bar
+                      dataKey="actionsExecuted"
+                      fill={attendanceConfig.actionsExecuted.color}
+                      radius={4}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            ) : (
+              <div className="h-[280px] rounded-xl border border-dashed border-border/60 bg-muted/20" />
+            )}
           </CardContent>
         </Card>
 
@@ -528,6 +538,7 @@ export function CoreDashboardClientPage() {
             <Button
               variant="outline"
               size="sm"
+              disabled={!isHydrated}
               onClick={() =>
                 downloadChartPng({
                   container: typeChartRef.current,
@@ -539,28 +550,32 @@ export function CoreDashboardClientPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div ref={typeChartRef}>
-              <ChartContainer config={typesConfig} className="h-[260px]">
-                <PieChart>
-                  <ChartTooltip
-                    content={<ChartTooltipContent nameKey="name" labelKey="name" />}
-                  />
-                  <Pie
-                    data={actionTypeData}
-                    dataKey="total"
-                    nameKey="name"
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={4}
-                    stroke="var(--background)"
-                  />
-                  <ChartLegend
-                    content={<ChartLegendContent nameKey="name" />}
-                    verticalAlign="bottom"
-                  />
-                </PieChart>
-              </ChartContainer>
-            </div>
+            {isHydrated ? (
+              <div ref={typeChartRef}>
+                <ChartContainer config={typesConfig} className="h-[260px]">
+                  <PieChart>
+                    <ChartTooltip
+                      content={<ChartTooltipContent nameKey="name" labelKey="name" />}
+                    />
+                    <Pie
+                      data={actionTypeData}
+                      dataKey="total"
+                      nameKey="name"
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={4}
+                      stroke="var(--background)"
+                    />
+                    <ChartLegend
+                      content={<ChartLegendContent nameKey="name" />}
+                      verticalAlign="bottom"
+                    />
+                  </PieChart>
+                </ChartContainer>
+              </div>
+            ) : (
+              <div className="h-[260px] rounded-xl border border-dashed border-border/60 bg-muted/20" />
+            )}
           </CardContent>
         </Card>
 

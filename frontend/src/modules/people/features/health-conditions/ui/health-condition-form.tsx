@@ -11,17 +11,23 @@ import {
 type HealthConditionFormProps = {
   initialValues?: Partial<HealthConditionFormValues>;
   onSubmit: (values: HealthConditionFormValues) => void;
+  onValuesChange?: (values: HealthConditionFormValues) => void;
+  onFieldCommit?: (values: HealthConditionFormValues) => void;
   onCancel?: () => void;
   submitLabel?: string;
   showRemoveDocument?: boolean;
+  hideActions?: boolean;
 };
 
 export function HealthConditionForm({
   initialValues,
   onSubmit,
+  onValuesChange,
+  onFieldCommit,
   onCancel,
   submitLabel = "Salvar",
   showRemoveDocument = false,
+  hideActions = false,
 }: HealthConditionFormProps) {
   const removeDocumentField: FormField<HealthConditionFormValues> = {
     name: "removeDocument",
@@ -56,16 +62,23 @@ export function HealthConditionForm({
 
   return (
     <FormEngine
+      appearance="inline-detail"
       fields={buildFields()}
       steps={buildSteps()}
       initialValues={initialValues}
       onSubmit={onSubmit}
-      actions={{
-        submit: { label: submitLabel, variant: "primary" },
-        cancel: onCancel
-          ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
-          : undefined,
-      }}
+      onValuesChange={onValuesChange}
+      onFieldCommit={({ values }) => onFieldCommit?.(values)}
+      actions={
+        hideActions
+          ? undefined
+          : {
+              submit: { label: submitLabel, variant: "primary" },
+              cancel: onCancel
+                ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
+                : undefined,
+            }
+      }
     />
   );
 }

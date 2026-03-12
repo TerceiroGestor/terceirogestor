@@ -1,178 +1,128 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { SectionCard } from "@/components/section-card";
-import { SectionList, SectionListItem } from "@/components/section-list";
-import { SectionDialog } from "@/components/section-dialog";
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Trash2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { EducationForm, type EducationFormValues } from "./education-form";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useEducation } from "@/modules/people/features/education/data/use-education";
+import { buildPeopleEducationPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { EducationRecord } from "@/modules/people/shared/domain/types";
-import { formatDate, toDateInputValue } from "@/modules/people/shared/domain/utils";
-import { EDUCATION_TEXT } from "../config/education.constants";
+import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
 
-const buildFormValues = (record?: EducationRecord): EducationFormValues => ({
-  level: record?.level ?? "",
-  status: record?.status ?? "",
-  institution: record?.institution ?? "",
-  grade: record?.grade ?? "",
-  schoolYear: record?.schoolYear ?? "",
-  isCurrent: record?.isCurrent ?? true,
-  startDate: toDateInputValue(record?.startDate ?? null),
-  endDate: toDateInputValue(record?.endDate ?? null),
-  notes: record?.notes ?? "",
-});
+function truncate(value: string | null | undefined, size = 42) {
+  const text = (value ?? "").trim();
+  if (!text) return "-";
+  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
+}
 
-type EducationPanelProps = {
-  personId: string;
-};
+export function EducationPanel({ personId }: { personId: string }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const tenantSlug = getTenantSlugFromPath(pathname);
+  const { educations, isLoading, error, remove } = useEducation(personId);
 
-export function EducationPanel({ personId }: EducationPanelProps) {
-  const { educations, isLoading, error, create, update, remove } =
-    useEducation(personId);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<EducationRecord | null>(null);
+  const columns = React.useMemo<ColumnDef<EducationRecord, unknown>[]>(
+    () => [
+      {
+        accessorKey: "level",
+        header: "Nivel",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">{row.original.level}</span>
+        ),
+      },
+      {
+        accessorKey: "institution",
+        header: "Instituicao",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {truncate(row.original.institution)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {truncate(row.original.status, 24)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "grade",
+        header: "Serie",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {truncate(row.original.grade, 20)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "schoolYear",
+        header: "Ano",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {truncate(row.original.schoolYear, 12)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "notes",
+        header: "Notas",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">{truncate(row.original.notes)}</span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        size: 60,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={(event) => {
+                event.stopPropagation();
+                void remove(row.original.id);
+              }}
+            >
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [remove],
+  );
 
-  const initialValues = useMemo(() => buildFormValues(editing ?? undefined), [
-    editing,
-  ]);
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (!nextOpen) setEditing(null);
-  };
-
-  const handleSubmit = async (values: EducationFormValues) => {
-    if (!values.level.trim()) return;
-    const payload = {
-      level: values.level.trim(),
-      status: values.status?.trim() || null,
-      institution: values.institution?.trim() || null,
-      grade: values.grade?.trim() || null,
-      schoolYear: values.schoolYear?.trim() || null,
-      isCurrent: values.isCurrent,
-      startDate: values.startDate || null,
-      endDate: values.endDate || null,
-      notes: values.notes?.trim() || null,
-    };
-    if (editing) {
-      await update(editing.id, payload);
-    } else {
-      await create(payload);
-    }
-    setOpen(false);
-  };
+  const filterRow = React.useCallback((row: EducationRecord, query: string) => {
+    const values = [row.level, row.institution, row.status, row.grade, row.schoolYear, row.notes];
+    return values.some((value) => String(value ?? "").toLowerCase().includes(query));
+  }, []);
 
   return (
-    <SectionCard
-      title={EDUCATION_TEXT.cardTitle}
-      subtitle={EDUCATION_TEXT.cardSubtitle}
-      actions={
-        <SectionDialog
-          open={open}
-          onOpenChange={handleOpenChange}
-          title={editing ? EDUCATION_TEXT.dialog.editTitle : EDUCATION_TEXT.dialog.createTitle}
-          description={EDUCATION_TEXT.dialog.description}
-          trigger={
-            <Button variant="outline" size="sm" className="h-8 gap-2 text-xs">
-              <Plus className="size-3.5" />
-              {EDUCATION_TEXT.actions.new}
-            </Button>
-          }
-        >
-          <EducationForm
-            initialValues={initialValues}
-            submitLabel={
-              editing
-                ? EDUCATION_TEXT.form.submitEdit
-                : EDUCATION_TEXT.form.submitCreate
-            }
-            onSubmit={handleSubmit}
-            onCancel={() => handleOpenChange(false)}
-          />
-        </SectionDialog>
+    <DetailRelationTablePanel
+      data={educations}
+      columns={columns}
+      getRowId={(row) => row.id}
+      onRowClick={(row) =>
+        router.push(
+          withTenantPath(buildPeopleEducationPath(personId, row.id), tenantSlug),
+        )
       }
-    >
-      {error ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
-
-      {educations.length ? (
-        <SectionList>
-          {educations.map((record) => (
-            <SectionListItem
-              key={record.id}
-              title={
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>{record.level}</span>
-                  {record.grade ? (
-                    <Badge variant="outline" className="text-[10px]">
-                      {record.grade}
-                    </Badge>
-                  ) : null}
-                  {record.isCurrent ? (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Atual
-                    </Badge>
-                  ) : null}
-                </div>
-              }
-              subtitle={record.institution ? record.institution : undefined}
-              meta={
-                <>
-                  {record.status ? (
-                    <Badge variant="outline">{record.status}</Badge>
-                  ) : null}
-                  {record.schoolYear ? (
-                    <Badge variant="outline">{record.schoolYear}</Badge>
-                  ) : null}
-                  {record.startDate ? (
-                    <Badge variant="secondary">
-                      Início: {formatDate(record.startDate)}
-                    </Badge>
-                  ) : null}
-                  {record.endDate ? (
-                    <Badge variant="secondary">
-                      Fim: {formatDate(record.endDate)}
-                    </Badge>
-                  ) : null}
-                </>
-              }
-              actions={
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setEditing(record);
-                      setOpen(true);
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => remove(record.id)}
-                  >
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
-                </div>
-              }
-            />
-          ))}
-        </SectionList>
-      ) : (
-        <p className="text-xs text-muted-foreground">{EDUCATION_TEXT.emptyState}</p>
-      )}
-
-      {isLoading ? (
-        <p className="text-xs text-muted-foreground">Carregando...</p>
-      ) : null}
-    </SectionCard>
+      searchPlaceholder="Pesquisar escolaridade"
+      filterRow={filterRow}
+      addHref={withTenantPath(buildPeopleEducationPath(personId), tenantSlug)}
+      addLabel="Novo registro"
+      loading={isLoading}
+      error={error}
+      emptyMessage="Nenhum registro de escolaridade."
+      tableMinWidthClassName="min-w-[980px]"
+      tableInitialColumnPinning={{ right: ["actions"] }}
+    />
   );
 }

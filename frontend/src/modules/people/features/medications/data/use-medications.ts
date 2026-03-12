@@ -15,11 +15,13 @@ type UseMedicationsResult = {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  create: (payload: Omit<Medication, "id" | "personId">) => Promise<void>;
+  create: (
+    payload: Omit<Medication, "id" | "personId">,
+  ) => Promise<Medication | null>;
   update: (
     medicationId: string,
     payload: Partial<Omit<Medication, "id" | "personId">>,
-  ) => Promise<void>;
+  ) => Promise<Medication | null>;
   remove: (medicationId: string) => Promise<void>;
 };
 
@@ -58,11 +60,12 @@ export function useMedications(
 
   const create = React.useCallback(
     async (payload: Omit<Medication, "id" | "personId">) => {
-      if (!token) return;
-      await createPersonMedication(token, personId, payload);
-      await refresh();
+      if (!token) return null;
+      const created = await createPersonMedication(token, personId, payload);
+      setMedications((previous) => [created, ...previous]);
+      return created;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const update = React.useCallback(
@@ -70,11 +73,14 @@ export function useMedications(
       medicationId: string,
       payload: Partial<Omit<Medication, "id" | "personId">>,
     ) => {
-      if (!token) return;
-      await updatePersonMedication(token, personId, medicationId, payload);
-      await refresh();
+      if (!token) return null;
+      const updated = await updatePersonMedication(token, personId, medicationId, payload);
+      setMedications((previous) =>
+        previous.map((item) => (item.id === medicationId ? updated : item)),
+      );
+      return updated;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const remove = React.useCallback(

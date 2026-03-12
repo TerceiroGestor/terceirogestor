@@ -8,6 +8,7 @@ import type {
   Prisma,
   HouseholdTransferType,
   IncomeFrequency,
+  PersonFinancialEntryType,
 } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CepService } from '../../core/cep/cep.service';
@@ -24,6 +25,7 @@ import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
+import { CreatePersonFinancialEntryDto } from './dto/create-person-financial-entry.dto';
 import { CreatePersonHealthConditionDto } from './dto/create-person-health-condition.dto';
 import { CreatePersonIncomeDto } from './dto/create-person-income.dto';
 import { CreatePersonMedicationDto } from './dto/create-person-medication.dto';
@@ -39,6 +41,7 @@ import { UpsertHouseholdProfileDto } from './dto/upsert-household-profile.dto';
 import { UpdatePersonAssetDto } from './dto/update-person-asset.dto';
 import { UpdatePersonContactDto } from './dto/update-person-contact.dto';
 import { UpdatePersonExpenseDto } from './dto/update-person-expense.dto';
+import { UpdatePersonFinancialEntryDto } from './dto/update-person-financial-entry.dto';
 import { UpdatePersonHealthConditionDto } from './dto/update-person-health-condition.dto';
 import { UpdatePersonIncomeDto } from './dto/update-person-income.dto';
 import { UpdatePersonMedicationDto } from './dto/update-person-medication.dto';
@@ -104,6 +107,7 @@ type PersonRelationRecord = Prisma.PersonRelationGetPayload<{
 }>;
 type PersonIncomeRecord = Prisma.PersonIncomeGetPayload<{}>;
 type PersonExpenseRecord = Prisma.PersonExpenseGetPayload<{}>;
+type PersonFinancialEntryRecord = Prisma.PersonFinancialEntryGetPayload<{}>;
 type PersonBenefitRecord = Prisma.PersonBenefitGetPayload<{}>;
 type HouseholdProfileRecord = Prisma.HouseholdProfileGetPayload<{}>;
 type HouseholdAssetRecord = Prisma.HouseholdAssetGetPayload<{}>;
@@ -217,6 +221,27 @@ const mapExpense = (expense: PersonExpenseRecord) => ({
   notes: expense.notes,
   createdAt: expense.createdAt,
   updatedAt: expense.updatedAt,
+});
+
+const mapFinancialEntry = (entry: PersonFinancialEntryRecord) => ({
+  id: entry.id,
+  personId: entry.personId,
+  householdId: entry.householdId ?? null,
+  fromHouseholdId: entry.fromHouseholdId ?? null,
+  toHouseholdId: entry.toHouseholdId ?? null,
+  entryType: entry.entryType,
+  category: entry.category,
+  subcategory: entry.subcategory,
+  status: entry.status,
+  amount: entry.amount !== null ? Number(entry.amount) : null,
+  frequency: entry.frequency,
+  contractType: entry.contractType,
+  includeInHouseholdBudget: entry.includeInHouseholdBudget,
+  startDate: entry.startDate,
+  endDate: entry.endDate,
+  notes: entry.notes,
+  createdAt: entry.createdAt,
+  updatedAt: entry.updatedAt,
 });
 
 const mapBenefit = (benefit: PersonBenefitRecord) => ({
@@ -596,6 +621,15 @@ const resolveTransferType = (value?: string | null): HouseholdTransferType => {
   const values = Object.values(enumValues) as HouseholdTransferType[];
   const match = values.find((item) => item === normalized);
   return match ?? fallback;
+};
+
+const resolveFinancialEntryType = (
+  value?: string | null,
+): PersonFinancialEntryType => {
+  const normalized = (value ?? '').toString().trim().toUpperCase();
+  const allowed = ['INCOME', 'EXPENSE', 'TRANSFER', 'BENEFIT'] as const;
+  return (allowed.find((item) => item === normalized) ??
+    'INCOME') as PersonFinancialEntryType;
 };
 
 const buildCreateData = (
@@ -1086,6 +1120,145 @@ export class PeopleService {
       orderBy: { createdAt: 'desc' },
     });
     return incomes.map(mapIncome);
+  }
+
+  async listFinancialEntries(tenantId: string, personId: string) {
+    await this.findById(tenantId, personId);
+    const entries = await this.prisma.personFinancialEntry.findMany({
+      where: { tenantId, personId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return entries.map(mapFinancialEntry);
+  }
+
+  async createFinancialEntry(
+    tenantId: string,
+    personId: string,
+    dto: CreatePersonFinancialEntryDto,
+  ) {
+    await this.findById(tenantId, personId);
+
+    const householdId = await this.resolveHouseholdId(
+      tenantId,
+      personId,
+      dto.householdId,
+    );
+    const entry = await this.prisma.personFinancialEntry.create({
+      data: {
+        tenantId,
+        personId,
+        entryType: resolveFinancialEntryType(dto.entryType),
+        category: normalizeString(dto.category) ?? 'Registro financeiro',
+        subcategory: normalizeString(dto.subcategory),
+        status: normalizeString(dto.status),
+        amount:
+          dto.amount !== undefined && dto.amount !== null ? dto.amount : null,
+        frequency: resolveIncomeFrequency(dto.frequency),
+        contractType: normalizeString(dto.contractType),
+        householdId,
+        fromHouseholdId: normalizeString(dto.fromHouseholdId),
+        toHouseholdId: normalizeString(dto.toHouseholdId),
+        includeInHouseholdBudget: dto.includeInHouseholdBudget ?? true,
+        startDate: dto.startDate ? (parseDateInput(dto.startDate) ?? null) : null,
+        endDate: dto.endDate ? (parseDateInput(dto.endDate) ?? null) : null,
+        notes: normalizeString(dto.notes),
+      },
+    });
+
+    return mapFinancialEntry(entry);
+  }
+
+  async updateFinancialEntry(
+    tenantId: string,
+    personId: string,
+    entryId: string,
+    dto: UpdatePersonFinancialEntryDto,
+  ) {
+    const existing = await this.prisma.personFinancialEntry.findFirst({
+      where: { id: entryId, tenantId, personId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Registro financeiro nao encontrado.');
+    }
+
+    const householdId =
+      dto.householdId !== undefined
+        ? await this.resolveHouseholdId(tenantId, personId, dto.householdId)
+        : undefined;
+
+    const entry = await this.prisma.personFinancialEntry.update({
+      where: { id: entryId },
+      data: {
+        entryType:
+          dto.entryType !== undefined
+            ? resolveFinancialEntryType(dto.entryType)
+            : undefined,
+        category:
+          dto.category !== undefined
+            ? normalizeString(dto.category) ?? 'Registro financeiro'
+            : undefined,
+        subcategory:
+          dto.subcategory !== undefined
+            ? normalizeString(dto.subcategory)
+            : undefined,
+        status:
+          dto.status !== undefined ? normalizeString(dto.status) : undefined,
+        amount:
+          dto.amount !== undefined && dto.amount !== null
+            ? dto.amount
+            : dto.amount === null
+              ? null
+              : undefined,
+        frequency:
+          dto.frequency !== undefined
+            ? resolveIncomeFrequency(dto.frequency)
+            : undefined,
+        contractType:
+          dto.contractType !== undefined
+            ? normalizeString(dto.contractType)
+            : undefined,
+        householdId,
+        fromHouseholdId:
+          dto.fromHouseholdId !== undefined
+            ? normalizeString(dto.fromHouseholdId)
+            : undefined,
+        toHouseholdId:
+          dto.toHouseholdId !== undefined
+            ? normalizeString(dto.toHouseholdId)
+            : undefined,
+        includeInHouseholdBudget:
+          dto.includeInHouseholdBudget !== undefined
+            ? dto.includeInHouseholdBudget
+            : undefined,
+        startDate:
+          dto.startDate !== undefined
+            ? dto.startDate
+              ? (parseDateInput(dto.startDate) ?? null)
+              : null
+            : undefined,
+        endDate:
+          dto.endDate !== undefined
+            ? dto.endDate
+              ? (parseDateInput(dto.endDate) ?? null)
+              : null
+            : undefined,
+        notes:
+          dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+      },
+    });
+
+    return mapFinancialEntry(entry);
+  }
+
+  async removeFinancialEntry(tenantId: string, personId: string, entryId: string) {
+    const existing = await this.prisma.personFinancialEntry.findFirst({
+      where: { id: entryId, tenantId, personId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Registro financeiro nao encontrado.');
+    }
+    await this.prisma.personFinancialEntry.delete({ where: { id: entryId } });
+    return { deleted: true };
   }
 
   private async resolveHouseholdId(
@@ -2300,47 +2473,27 @@ export class PeopleService {
       new Set([...householdMemberIds, ...relatedIds]),
     );
 
-    const incomes = await this.prisma.personIncome.findMany({
+    const entries = await this.prisma.personFinancialEntry.findMany({
       where: {
         tenantId,
         personId: { in: personIds },
-        isHouseholdContribution: true,
+        includeInHouseholdBudget: true,
         ...(householdId
           ? {
               OR: [
                 { householdId },
                 { householdId: null, personId: { in: householdMemberIds } },
+                { fromHouseholdId: householdId },
+                { toHouseholdId: householdId },
               ],
             }
           : { householdId: null }),
       },
     });
-    const expenses = await this.prisma.personExpense.findMany({
-      where: {
-        tenantId,
-        personId: { in: personIds },
-        isHouseholdExpense: true,
-        ...(householdId
-          ? {
-              OR: [
-                { householdId },
-                { householdId: null, personId: { in: householdMemberIds } },
-              ],
-            }
-          : { householdId: null }),
-      },
-    });
-    const transfers = householdId
-      ? await this.prisma.householdTransfer.findMany({
-          where: {
-            tenantId,
-            OR: [
-              { fromHouseholdId: householdId },
-              { toHouseholdId: householdId },
-            ],
-          },
-        })
-      : [];
+    const incomes = entries.filter((entry) => entry.entryType === 'INCOME');
+    const expenses = entries.filter((entry) => entry.entryType === 'EXPENSE');
+    const benefits = entries.filter((entry) => entry.entryType === 'BENEFIT');
+    const transfers = entries.filter((entry) => entry.entryType === 'TRANSFER');
     const incomingTransfers = householdId
       ? transfers.filter((transfer) => transfer.toHouseholdId === householdId)
       : [];
@@ -2358,87 +2511,75 @@ export class PeopleService {
       );
     };
 
-    const regularIncomes = incomes.filter((income) => !isBenefitIncome(income.type));
-    const benefitIncomes = incomes.filter((income) => isBenefitIncome(income.type));
+    const regularIncomes = incomes.filter((income) => !isBenefitIncome(income.category));
+    const benefitIncomes = incomes.filter((income) => isBenefitIncome(income.category));
 
     const now = new Date();
-    const activeBenefitsWithAmount = await this.prisma.personBenefit.findMany({
-      where: {
-        tenantId,
-        personId: { in: personIds },
-        amount: { not: null },
-        AND: [
-          {
-            OR: [{ startDate: null }, { startDate: { lte: now } }],
-          },
-          {
-            OR: [{ endDate: null }, { endDate: { gte: now } }],
-          },
-        ],
-      },
-      select: { personId: true, amount: true },
+    const activeBenefitsWithAmount = benefits.filter((benefit) => {
+      if (benefit.amount === null) return false;
+      const startsOk = !benefit.startDate || benefit.startDate <= now;
+      const endsOk = !benefit.endDate || benefit.endDate >= now;
+      return startsOk && endsOk;
     });
-    const hasBenefitAmounts = activeBenefitsWithAmount.length > 0;
     const benefitsTotalFromBenefits = activeBenefitsWithAmount.reduce(
-      (sum, benefit) => sum + Number(benefit.amount),
+      (sum, benefit) => sum + Number(benefit.amount ?? 0),
       0,
     );
     const benefitsTotalFromIncomes = benefitIncomes.reduce(
-      (sum, income) => sum + Number(income.amount),
+      (sum, income) => sum + Number(income.amount ?? 0),
       0,
     );
-    const benefitsTotal = hasBenefitAmounts
-      ? benefitsTotalFromBenefits
-      : benefitsTotalFromIncomes;
+    const hasBenefitAmounts = activeBenefitsWithAmount.length > 0;
+    const benefitsTotal = hasBenefitAmounts ? benefitsTotalFromBenefits : benefitsTotalFromIncomes;
 
     const contributionMap = new Map<string, number>();
     regularIncomes.forEach((income) => {
       const current = contributionMap.get(income.personId) ?? 0;
-      contributionMap.set(income.personId, current + Number(income.amount));
+      contributionMap.set(income.personId, current + Number(income.amount ?? 0));
     });
     incomingTransfers.forEach((transfer) => {
       const current = contributionMap.get(transfer.personId) ?? 0;
-      contributionMap.set(transfer.personId, current + Number(transfer.amount));
+      contributionMap.set(transfer.personId, current + Number(transfer.amount ?? 0));
     });
     if (hasBenefitAmounts) {
       activeBenefitsWithAmount.forEach((benefit) => {
         const current = contributionMap.get(benefit.personId) ?? 0;
-        contributionMap.set(benefit.personId, current + Number(benefit.amount));
+        contributionMap.set(benefit.personId, current + Number(benefit.amount ?? 0));
       });
     } else {
       benefitIncomes.forEach((income) => {
         const current = contributionMap.get(income.personId) ?? 0;
-        contributionMap.set(income.personId, current + Number(income.amount));
+        contributionMap.set(income.personId, current + Number(income.amount ?? 0));
       });
     }
 
     const totalIncome =
-      regularIncomes.reduce((sum, income) => sum + Number(income.amount), 0) +
+      regularIncomes.reduce((sum, income) => sum + Number(income.amount ?? 0), 0) +
       benefitsTotal +
       incomingTransfers.reduce(
-        (sum, transfer) => sum + Number(transfer.amount),
+        (sum, transfer) => sum + Number(transfer.amount ?? 0),
         0,
       );
     const contributors = Array.from(contributionMap.keys());
 
     const pensionIncomeTotal = incomes.reduce((sum, income) => {
-      const category = normalizeCategory(income.type);
+      const category = normalizeCategory(income.category);
       if (category.includes('pensao')) {
-        return sum + Number(income.amount);
+        return sum + Number(income.amount ?? 0);
       }
       return sum;
     }, 0);
     const pensionTransferTotal = incomingTransfers.reduce((sum, transfer) => {
-      if (String(transfer.type).toUpperCase() === 'PENSION') {
-        return sum + Number(transfer.amount);
+      if (String(transfer.category).toUpperCase() === 'PENSION') {
+        return sum + Number(transfer.amount ?? 0);
       }
       return sum;
     }, 0);
     const pensionTotal = pensionIncomeTotal + pensionTransferTotal;
     const totalExpenses =
-      expenses.reduce((sum, expense) => sum + Number(expense.amount), 0) +
+      expenses.reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0) +
       outgoingTransfers.reduce(
-        (sum, transfer) => sum + Number(transfer.amount),
+        (sum, transfer) => sum + Number(transfer.amount ?? 0),
         0,
       );
 

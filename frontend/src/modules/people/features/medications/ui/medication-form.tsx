@@ -11,19 +11,25 @@ import {
 type MedicationFormProps = {
   initialValues?: Partial<MedicationFormValues>;
   onSubmit: (values: MedicationFormValues) => void;
+  onValuesChange?: (values: MedicationFormValues) => void;
+  onFieldCommit?: (values: MedicationFormValues) => void;
   onCancel?: () => void;
   submitLabel?: string;
   showRemoveDocument?: boolean;
   showRemovePermissionDocument?: boolean;
+  hideActions?: boolean;
 };
 
 export function MedicationForm({
   initialValues,
   onSubmit,
+  onValuesChange,
+  onFieldCommit,
   onCancel,
   submitLabel = "Salvar",
   showRemoveDocument = false,
   showRemovePermissionDocument = false,
+  hideActions = false,
 }: MedicationFormProps) {
   const removeDocumentField: FormField<MedicationFormValues> = {
     name: "removeDocument",
@@ -89,16 +95,23 @@ export function MedicationForm({
 
   return (
     <FormEngine
+      appearance="inline-detail"
       fields={buildFields()}
       steps={buildSteps()}
       initialValues={initialValues}
       onSubmit={onSubmit}
-      actions={{
-        submit: { label: submitLabel, variant: "primary" },
-        cancel: onCancel
-          ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
-          : undefined,
-      }}
+      onValuesChange={onValuesChange}
+      onFieldCommit={({ values }) => onFieldCommit?.(values)}
+      actions={
+        hideActions
+          ? undefined
+          : {
+              submit: { label: submitLabel, variant: "primary" },
+              cancel: onCancel
+                ? { label: "Cancelar", onClick: onCancel, variant: "ghost" }
+                : undefined,
+            }
+      }
     />
   );
 }

@@ -15,11 +15,13 @@ type UseHealthConditionsResult = {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  create: (payload: Omit<HealthCondition, "id" | "personId">) => Promise<void>;
+  create: (
+    payload: Omit<HealthCondition, "id" | "personId">,
+  ) => Promise<HealthCondition | null>;
   update: (
     conditionId: string,
     payload: Partial<Omit<HealthCondition, "id" | "personId">>,
-  ) => Promise<void>;
+  ) => Promise<HealthCondition | null>;
   remove: (conditionId: string) => Promise<void>;
 };
 
@@ -58,11 +60,12 @@ export function useHealthConditions(
 
   const create = React.useCallback(
     async (payload: Omit<HealthCondition, "id" | "personId">) => {
-      if (!token) return;
-      await createPersonHealthCondition(token, personId, payload);
-      await refresh();
+      if (!token) return null;
+      const created = await createPersonHealthCondition(token, personId, payload);
+      setConditions((previous) => [created, ...previous]);
+      return created;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const update = React.useCallback(
@@ -70,11 +73,14 @@ export function useHealthConditions(
       conditionId: string,
       payload: Partial<Omit<HealthCondition, "id" | "personId">>,
     ) => {
-      if (!token) return;
-      await updatePersonHealthCondition(token, personId, conditionId, payload);
-      await refresh();
+      if (!token) return null;
+      const updated = await updatePersonHealthCondition(token, personId, conditionId, payload);
+      setConditions((previous) =>
+        previous.map((item) => (item.id === conditionId ? updated : item)),
+      );
+      return updated;
     },
-    [token, personId, refresh],
+    [token, personId],
   );
 
   const remove = React.useCallback(
