@@ -8,7 +8,6 @@ cd "$ROOT_DIR"
 echo "== TerceiroGestor update =="
 
 echo "[1/6] git pull"
-git fetch --prune
 git pull --ff-only
 
 echo "[2/6] ensure mysql up"
@@ -20,8 +19,11 @@ docker compose build --pull backend frontend
 echo "[4/6] apply migrations (inside container)"
 docker compose run --rm --no-deps backend npm run db:migrate:deploy
 
-echo "[5/6] recreate containers"
+echo "[5/6] seed database (inside container)"
+docker compose run --rm --no-deps backend npm run db:seed
+
+echo "[6/6] recreate containers"
 docker compose up -d --force-recreate backend frontend
 
-echo "[6/6] status"
+echo "[7/7] status"
 docker compose ps

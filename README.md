@@ -54,10 +54,12 @@ npm run dev
 copy .env.compose.example .env
 ```
 Edite `.env` com:
+- `DATA_DIR` (padrao `./data`, ex: `/srv/dados/terceirogestor`)
 - `MYSQL_ROOT_PASSWORD`
 - `MYSQL_DATABASE`
 - `NEXT_PUBLIC_API_URL` (ex: `http://localhost:3001`)
 - `TZ`
+No Windows, use caminho com `/` (ex: `C:/dados/terceirogestor`) em `DATA_DIR`.
 
 2) Ajustar `.env` do backend e frontend (se necessario)
 - Backend: `backend/.env` (DATABASE_URL sera sobrescrita no container).
@@ -67,10 +69,10 @@ Edite `.env` com:
 ```bash
 docker compose up -d mysql backend frontend
 ```
-Observacao: os dados do MySQL ficam em `/srv/dados/terceirogestor/mysql` (bind mount).
+Observacao: os dados do MySQL ficam em `${DATA_DIR}/mysql` (bind mount).
 
 Backup automatico:
-- arquivos em `/srv/dados/terceirogestor/backups`
+- arquivos em `${DATA_DIR}/backups`
 - executa diariamente as 12:00 (meio-dia) no timezone do container
 - ajuste `BACKUP_KEEP_DAYS` e `TZ` em `.env`
 ```bash
