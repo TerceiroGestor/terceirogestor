@@ -1,8 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { PageBreadcrumb } from "./PageBreadcrumb";
 
@@ -51,6 +59,7 @@ export type DetailShellProps = {
   mainClassName?: string;
   sideClassName?: string;
   bottomClassName?: string;
+  contentScrollMode?: "page" | "split";
 
   children?: React.ReactNode;
   className?: string;
@@ -92,14 +101,35 @@ export function DetailShell({
   mainClassName,
   sideClassName,
   bottomClassName,
+  contentScrollMode = "page",
   children,
   className,
   labels,
 }: DetailShellProps) {
+  const isMobile = useIsMobile();
+  const hasSideSlot = Boolean(sideSlot);
+  const [sideOpen, setSideOpen] = React.useState(false);
+  const lastViewportModeRef = React.useRef<boolean | null>(null);
   const mergedLabels = React.useMemo(
     () => ({ ...DEFAULT_LABELS, ...(labels ?? {}) }),
     [labels],
   );
+
+  React.useEffect(() => {
+    if (!hasSideSlot) {
+      setSideOpen(false);
+      lastViewportModeRef.current = null;
+      return;
+    }
+
+    if (
+      lastViewportModeRef.current === null ||
+      lastViewportModeRef.current !== isMobile
+    ) {
+      setSideOpen(!isMobile);
+      lastViewportModeRef.current = isMobile;
+    }
+  }, [hasSideSlot, isMobile]);
 
   const statusText = saving
     ? mergedLabels.saving
@@ -107,11 +137,29 @@ export function DetailShell({
       ? mergedLabels.loading
       : mergedLabels.ready;
 
+  const sideToggleButton = hasSideSlot ? (
+    <Button
+      type="button"
+      size="icon"
+      variant="outline"
+      className="h-9 w-9"
+      onClick={() => setSideOpen((previous) => !previous)}
+      aria-label={sideOpen ? "Ocultar lateral" : "Mostrar lateral"}
+      title={sideOpen ? "Ocultar lateral" : "Mostrar lateral"}
+    >
+      {sideOpen ? (
+        <ChevronRight className="size-4" />
+      ) : (
+        <ChevronLeft className="size-4" />
+      )}
+    </Button>
+  ) : null;
+
   const headerBlock = (
-    <div className="sticky top-[var(--app-shell-sticky-offset,0px)] z-20 -mx-4 mb-4 border-b border-border/60 bg-background/95 px-4 pb-4 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+    <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-border/60 bg-background/95 px-4 pb-2 pt-0 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
             {headerTitleSlot ? (
               <div className="shrink-0">{headerTitleSlot}</div>
             ) : null}
@@ -147,13 +195,16 @@ export function DetailShell({
             </Button>
           </div>
 
-          {headerActionsSlot ? (
-            <div className="flex items-center gap-2">{headerActionsSlot}</div>
+          {sideToggleButton || headerActionsSlot ? (
+            <div className="flex items-center gap-2 pt-1">
+              {headerActionsSlot}
+              {sideToggleButton}
+            </div>
           ) : null}
         </div>
 
         {headerInfoSlot ? (
-          <div className={cn("mt-4 min-w-0", headerInfoClassName)}>
+          <div className={cn("mt-2 min-w-0", headerInfoClassName)}>
             {headerInfoSlot}
           </div>
         ) : null}
@@ -180,32 +231,69 @@ export function DetailShell({
         actionSlot={actionSlot}
       />
 
-      <div className={cn("w-full px-4 py-3", className)}>
+      <div
+        className={cn(
+          "w-full px-4 pb-3 pt-0 lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))] lg:overflow-hidden",
+          className,
+        )}
+      >
         {mainSlot || sideSlot || bottomSlot ? (
           <div
             className={cn(
-              "grid grid-cols-1 gap-6",
-              sideSlot ? "lg:grid-cols-[minmax(0,1fr)_minmax(420px,36vw)]" : null,
+              "grid grid-cols-1 gap-6 lg:h-full lg:items-start lg:overflow-hidden",
+              hasSideSlot && sideOpen && !isMobile
+                ? "lg:grid-cols-[minmax(0,1fr)_minmax(360px,30vw)]"
+                : null,
               bodyClassName,
             )}
           >
-            <div className={cn("min-w-0", mainClassName)}>
+            <div
+              className={cn(
+                "min-w-0 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:overflow-hidden",
+                mainClassName,
+              )}
+            >
               {headerBlock}
               {viewControlsBlock}
 
-              <div className="space-y-6">
-                {mainSlot}
+              <div
+                className={cn(
+                  "space-y-4 lg:min-h-0 lg:flex-1 lg:pr-2",
+                  contentScrollMode === "split"
+                    ? "lg:grid lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden"
+                    : "lg:overflow-y-auto",
+                )}
+              >
+                {mainSlot ? (
+                  <div
+                    className={cn(
+                      contentScrollMode === "split"
+                        ? "lg:max-h-[28vh] lg:overflow-y-auto"
+                        : null,
+                    )}
+                  >
+                    {mainSlot}
+                  </div>
+                ) : null}
                 {bottomSlot ? (
-                  <div className={cn("border-t border-border/50 pt-4", bottomClassName)}>
+                  <div
+                    className={cn(
+                      "border-t border-border/50 pt-4 lg:mt-4",
+                      contentScrollMode === "split"
+                        ? "lg:min-h-0 lg:h-full lg:overflow-hidden lg:bg-background"
+                        : null,
+                      bottomClassName,
+                    )}
+                  >
                     {bottomSlot}
                   </div>
                 ) : null}
               </div>
             </div>
-            {sideSlot ? (
+            {hasSideSlot && sideOpen && !isMobile ? (
               <div
                 className={cn(
-                  "min-w-0 lg:sticky lg:top-4 lg:flex lg:h-[calc(100vh-7.5rem)] lg:self-start lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:pl-8",
+                  "min-w-0 lg:flex lg:min-h-0 lg:h-full lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:pl-8",
                   sideClassName,
                 )}
               >
@@ -221,6 +309,24 @@ export function DetailShell({
           </>
         )}
       </div>
+      {hasSideSlot && isMobile ? (
+        <Sheet open={sideOpen} onOpenChange={setSideOpen}>
+          <SheetContent
+            side="right"
+            className="w-[min(88vw,24rem)] max-w-[24rem] p-0"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Painel lateral</SheetTitle>
+              <SheetDescription>
+                Exibe anotações, contexto, histórico e auditoria do registro.
+              </SheetDescription>
+            </SheetHeader>
+            <div className={cn("flex h-full min-h-0 flex-col p-4", sideClassName)}>
+              {sideSlot}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </>
   );
 }

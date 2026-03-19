@@ -20,7 +20,7 @@ export function buildPeopleDetailTabPath(
   personId: string,
   tab: Exclude<PeopleDetailTabValue, "atendimentos" | "resumo">,
 ) {
-  return tab === "familia" ? `/person/${personId}` : `/person/${personId}?tab=${tab}`;
+  return tab === "familia" ? `/people/${personId}` : `/people/${personId}?tab=${tab}`;
 }
 
 export function buildPeopleHealthConditionPath(
@@ -28,8 +28,8 @@ export function buildPeopleHealthConditionPath(
   conditionId?: string,
 ) {
   return conditionId
-    ? `/person/${personId}/health-conditions/${conditionId}`
-    : `/person/${personId}/health-conditions/new`;
+    ? `/people/${personId}/health-conditions/${conditionId}`
+    : `/people/${personId}/health-conditions/new`;
 }
 
 export function buildPeopleMedicationPath(
@@ -37,8 +37,8 @@ export function buildPeopleMedicationPath(
   medicationId?: string,
 ) {
   return medicationId
-    ? `/person/${personId}/medications/${medicationId}`
-    : `/person/${personId}/medications/new`;
+    ? `/people/${personId}/medications/${medicationId}`
+    : `/people/${personId}/medications/new`;
 }
 
 export function buildPeopleEducationPath(
@@ -46,8 +46,8 @@ export function buildPeopleEducationPath(
   educationId?: string,
 ) {
   return educationId
-    ? `/person/${personId}/education/${educationId}`
-    : `/person/${personId}/education/new`;
+    ? `/people/${personId}/education/${educationId}`
+    : `/people/${personId}/education/new`;
 }
 
 export function buildPeopleDetentionPath(
@@ -55,8 +55,8 @@ export function buildPeopleDetentionPath(
   detentionId?: string,
 ) {
   return detentionId
-    ? `/person/${personId}/detentions/${detentionId}`
-    : `/person/${personId}/detentions/new`;
+    ? `/people/${personId}/detentions/${detentionId}`
+    : `/people/${personId}/detentions/new`;
 }
 
 export function buildPeopleFamilyRelationPath(
@@ -64,8 +64,8 @@ export function buildPeopleFamilyRelationPath(
   relationId?: string,
 ) {
   return relationId
-    ? `/person/${personId}/family-relations/${relationId}`
-    : `/person/${personId}/family-relations/new`;
+    ? `/people/${personId}/family-relations/${relationId}`
+    : `/people/${personId}/family-relations/new`;
 }
 
 export function buildPeopleFinancialEntryPath(
@@ -73,6 +73,6 @@ export function buildPeopleFinancialEntryPath(
   entryId?: string,
 ) {
   return entryId
-    ? `/person/${personId}/financial/${entryId}`
-    : `/person/${personId}/financial/new`;
+    ? `/people/${personId}/financial/${entryId}`
+    : `/people/${personId}/financial/new`;
 }

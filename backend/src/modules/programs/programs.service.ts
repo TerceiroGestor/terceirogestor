@@ -10,6 +10,19 @@ import { UpdateProgramDto } from './dto/update-program.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const PROGRAM_TYPE_SEARCH_MAP: Array<{ value: ProgramType; tokens: string[] }> = [
+  { value: 'SCFV', tokens: ['scfv'] },
+  { value: 'PAIF', tokens: ['paif'] },
+  { value: 'PAEFI', tokens: ['paefi'] },
+  { value: 'CULTURAL', tokens: ['cultural', 'cultura'] },
+  { value: 'QUALIFICATION', tokens: ['qualification', 'qualificacao', 'qualificação'] },
+  { value: 'OTHER', tokens: ['other', 'outro'] },
+];
+const PROGRAM_STATUS_SEARCH_MAP: Array<{ value: ProgramStatus; tokens: string[] }> = [
+  { value: 'PLANNED', tokens: ['planned', 'planejado'] },
+  { value: 'ACTIVE', tokens: ['active', 'ativo'] },
+  { value: 'CLOSED', tokens: ['closed', 'encerrado'] },
+];
 
 function resolveRangeDates(params: { from?: string; to?: string }) {
   const from = parseDateInput(params.from);
@@ -28,6 +41,24 @@ function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | nul
   }
 }
 
+function resolveMatchingProgramTypes(query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+
+  return PROGRAM_TYPE_SEARCH_MAP.filter((entry) =>
+    entry.tokens.some((token) => token.includes(normalized) || normalized.includes(token)),
+  ).map((entry) => entry.value);
+}
+
+function resolveMatchingProgramStatuses(query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+
+  return PROGRAM_STATUS_SEARCH_MAP.filter((entry) =>
+    entry.tokens.some((token) => token.includes(normalized) || normalized.includes(token)),
+  ).map((entry) => entry.value);
+}
+
 @Injectable()
 export class ProgramsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -42,6 +73,8 @@ export class ProgramsService {
     });
 
     const q = normalizeString(query.q);
+    const matchingTypes = q ? resolveMatchingProgramTypes(q) : [];
+    const matchingStatuses = q ? resolveMatchingProgramStatuses(q) : [];
     const { from, to } = resolveRangeDates({ from: query.from, to: query.to });
 
     const where: Prisma.ProgramWhereInput = {
@@ -51,6 +84,9 @@ export class ProgramsService {
             OR: [
               { name: { contains: q } },
               { description: { contains: q } },
+              { internalNotes: { contains: q } },
+              ...matchingTypes.map((type) => ({ type })),
+              ...matchingStatuses.map((status) => ({ status })),
             ],
           }
         : {}),
@@ -97,6 +133,7 @@ export class ProgramsService {
         name,
         type: dto.type,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
         status: dto.status ?? 'PLANNED',
         startsAt,
         endsAt,
@@ -129,6 +166,9 @@ export class ProgramsService {
         ...(dto.type !== undefined ? { type: dto.type } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          : {}),
+        ...(dto.internalNotes !== undefined
+          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
           : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.startsAt !== undefined ? { startsAt } : {}),

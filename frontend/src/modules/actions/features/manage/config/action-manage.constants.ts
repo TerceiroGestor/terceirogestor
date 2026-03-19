@@ -18,6 +18,7 @@ export const ACTION_MANAGE_TEXT = {
   tabs: {
     plan: "Planejamento",
     participants: "Participantes",
+    team: "Equipe",
     executed: "Execução",
     conclusion: "Conclusão",
     quality: "Qualidade",
@@ -89,6 +90,14 @@ export const ACTION_MANAGE_TEXT = {
           "Abra a aba Participantes para registrar presença/ausência.",
           "Use buscas e filtros para encontrar pessoas rapidamente.",
           "Os registros alimentam o gráfico e o resumo no relatório.",
+        ],
+      },
+      {
+        title: "Equipe, apoio e voluntariado",
+        items: [
+          "Use a aba Equipe para registrar facilitadores, apoio, voluntarios e outros papeis.",
+          "Cada people pode ser vinculada com um papel proprio na acao.",
+          "Esses vinculos aparecem separados do controle de presença do publico.",
         ],
       },
       {

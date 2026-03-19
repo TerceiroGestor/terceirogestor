@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +12,6 @@ import type {
 } from "@/web-client/registry/types";
 import {
   ModuleEmptyState,
-  ModuleSectionHeader,
   MODULE_TABS_LIST_CLASS_NAME,
   MODULE_TAB_TRIGGER_CLASS_NAME,
 } from "@/web-client/ui/ModulePrimitives";
@@ -35,7 +35,7 @@ function DetailRelationSection<
     typeof relation.emptyLabel === "function"
       ? relation.emptyLabel(context)
       : relation.emptyLabel;
-  const searchable = relation.searchable ?? false;
+  const searchable = relation.searchable ?? true;
   const searchPlaceholder =
     typeof relation.searchPlaceholder === "function"
       ? relation.searchPlaceholder(context)
@@ -66,39 +66,51 @@ function DetailRelationSection<
       return haystack.includes(query);
     });
   }, [allRows, context, relation, searchText]);
+  const filteredCountLabel = rows.length.toLocaleString("pt-BR");
+  const columns = React.useMemo(
+    () =>
+      typeof relation.columns === "function"
+        ? relation.columns(context)
+        : relation.columns,
+    [context, relation],
+  );
 
   return (
-    <section className="border-t border-border/60 pt-4">
-      <ModuleSectionHeader
-        title={relation.label}
-        description={relation.description}
-        meta={!loading ? rows.length : undefined}
-        actionSlot={
-          action && !actionHidden ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={() => action.onClick(context)}
-              disabled={actionDisabled}
-            >
-              {action.icon}
-              {action.label}
-            </Button>
-          ) : null
-        }
-      />
-
-      <div className="space-y-3 pt-1">
-        {searchable ? (
-          <div className="max-w-md">
-            <Input
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder={searchPlaceholder ?? `Pesquisar em ${relation.label.toLowerCase()}`}
-              className="h-9 rounded-none border-x-0 border-t-0 border-border/70 px-0 text-sm shadow-none focus-visible:ring-0"
-            />
+    <section className="flex h-full min-h-0 flex-col border-t border-border/60 pt-4">
+      <div className="flex h-full min-h-0 flex-col space-y-3">
+        {searchable || (action && !actionHidden) ? (
+          <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 bg-background pb-3">
+            {searchable ? (
+              <div className="min-w-[220px] flex-1">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    placeholder={searchPlaceholder ?? "Pesquisar"}
+                    className="h-9 rounded-none border-x-0 border-t-0 border-border/70 pl-6 pr-12 text-sm shadow-none focus-visible:ring-0"
+                  />
+                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[11px] font-medium tabular-nums text-muted-foreground">
+                    {filteredCountLabel}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+            {action && !actionHidden ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-9 rounded-none border-b border-border/60 px-1"
+                onClick={() => action.onClick(context)}
+                disabled={actionDisabled}
+              >
+                {action.icon}
+                {action.label}
+              </Button>
+            ) : null}
           </div>
         ) : null}
         {loading ? (
@@ -108,22 +120,25 @@ function DetailRelationSection<
             compact
           />
         ) : rows.length ? (
-          <ListView<TRow>
-            data={rows}
-            columns={relation.columns}
-            renderCard={
-              relation.renderCard
-                ? (row) => relation.renderCard?.(row, context)
-                : undefined
-            }
-            groupByFields={relation.groupBy?.(context) ?? []}
-            getRowId={relation.getRowId}
-            onRowClick={
-              relation.onRowClick
-                ? (row) => relation.onRowClick?.(row, context)
-                : undefined
-            }
-          />
+          <div className="min-h-0 flex-1">
+            <ListView<TRow>
+              data={rows}
+              columns={columns}
+              className="h-full"
+              renderCard={
+                relation.renderCard
+                  ? (row) => relation.renderCard?.(row, context)
+                  : undefined
+              }
+              groupByFields={relation.groupBy?.(context) ?? []}
+              getRowId={relation.getRowId}
+              onRowClick={
+                relation.onRowClick
+                  ? (row) => relation.onRowClick?.(row, context)
+                  : undefined
+              }
+            />
+          </div>
         ) : (
           <ModuleEmptyState
             title="Sem registros"
@@ -188,8 +203,8 @@ export function DetailTabsRenderer<
   if (!defaultTab) return null;
 
   return (
-    <Tabs defaultValue={defaultTab}>
-      <TabsList className={MODULE_TABS_LIST_CLASS_NAME}>
+    <Tabs defaultValue={defaultTab} className="flex h-full min-h-0 flex-col">
+      <TabsList className={`${MODULE_TABS_LIST_CLASS_NAME} sticky top-0 z-10 bg-background`}>
         {visibleTabs.map((tab) => (
           <TabsTrigger
             key={tab.key}
@@ -209,23 +224,31 @@ export function DetailTabsRenderer<
       {visibleTabs.map((tab) => {
         const hasRelations = Boolean(tab.relations?.length);
         const content = tab.content?.(context) ?? null;
+        const hasVisibleContent = Boolean(content);
 
         return (
-          <TabsContent key={tab.key} value={tab.key} className="mt-4 space-y-4">
-            {content}
-            {hasRelations ? (
-              <DetailRelationsRenderer
-                relations={tab.relations ?? []}
-                context={context}
-              />
-            ) : null}
-            {!content && !hasRelations ? (
-              <ModuleEmptyState
-                title="Sem conteudo"
-                description={tab.emptyLabel ?? "Sem conteudo."}
-                compact
-              />
-            ) : null}
+          <TabsContent key={tab.key} value={tab.key} className="mt-4 min-h-0 flex-1 overflow-hidden">
+            <div className="flex h-full min-h-0 flex-col space-y-4">
+              {hasVisibleContent ? (
+                <div className="lg:min-h-0 lg:shrink-0 lg:overflow-y-auto">{content}</div>
+              ) : null}
+              {hasRelations ? (
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <DetailRelationsRenderer
+                    relations={tab.relations ?? []}
+                    context={context}
+                    className="h-full min-h-0"
+                  />
+                </div>
+              ) : null}
+              {!content && !hasRelations ? (
+                <ModuleEmptyState
+                  title="Sem conteudo"
+                  description={tab.emptyLabel ?? "Sem conteudo."}
+                  compact
+                />
+              ) : null}
+            </div>
           </TabsContent>
         );
       })}

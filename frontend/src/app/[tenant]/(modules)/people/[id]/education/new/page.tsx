@@ -1,0 +1,10 @@
+import { redirect } from "next/navigation";
+
+export default async function PeopleEducationNewRedirect({
+  params,
+}: {
+  params: Promise<{ tenant: string; id: string }>;
+}) {
+  const { tenant, id } = await params;
+  redirect(`/${tenant}/person/${id}/education/new`);
+}

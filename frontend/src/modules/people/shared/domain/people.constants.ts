@@ -32,7 +32,15 @@ export const STATUS_OPTIONS = [
   "Desligado",
 ] as const;
 
-export const PERSON_TYPE_OPTIONS = ["Atendido", "Familiar"] as const;
+export const PERSON_TYPE_OPTIONS = [
+  "Atendido",
+  "Familiar",
+  "Funcionario",
+  "Voluntario",
+  "Oficineiro",
+  "Parceiro",
+  "Doador",
+] as const;
 
 export const SEX_LABELS: Record<(typeof SEX_OPTIONS)[number], string> = {
   Masculino: "Masculino",

@@ -1,6 +1,5 @@
-import { ActionManageRouteClientPage } from "@/modules/actions";
+import { ActionDetailEngineClientPage } from "@/modules/actions";
 
 export default function ActionManagePage() {
-  return <ActionManageRouteClientPage />;
+  return <ActionDetailEngineClientPage />;
 }
-

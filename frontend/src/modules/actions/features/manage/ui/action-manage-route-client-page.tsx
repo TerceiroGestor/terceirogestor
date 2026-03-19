@@ -37,9 +37,11 @@ import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { uploadActionPhoto } from "@/features/uploads/api";
 import {
   getProjectAction,
+  listProjectActionPeopleParticipations,
   listProjectActionAttendances,
   updateProjectAction,
   type ApiProjectAction,
+  type ApiProjectActionPeopleParticipation,
   type ActionStatus,
   type ProjectActionAttendancesListItem,
   type ProjectActionInput,
@@ -47,6 +49,7 @@ import {
 import { ACTION_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import { ProjectActionAttendancesCard } from "@/modules/projects/features/detail/ui/project-action-attendances-card";
 import { ActionQualityCard } from "./action-quality-card";
+import { ActionPeopleParticipationsCard } from "./action-people-participations-card";
 import { ActionReportPreview } from "./action-report-preview";
 import { ACTION_MANAGE_TEXT } from "../config/action-manage.constants";
 
@@ -55,6 +58,7 @@ const MAX_PHOTOS = 5;
 type ActionManageTabValue =
   | "plan"
   | "participants"
+  | "team"
   | "executed"
   | "conclusion"
   | "quality"
@@ -152,6 +156,16 @@ function formatPeriod(start: string | null, end: string | null) {
   return startLabel ? `${startLabel} —` : `— ${endLabel}`;
 }
 
+function formatActionCycleLabel(cycle: ApiProjectAction["cycle"]) {
+  if (!cycle) return "";
+  const primary = cycle.segment?.name ?? cycle.catalogCycle?.name ?? cycle.name;
+  const secondaryParts = [
+    cycle.segment?.category ?? cycle.catalogCycle?.audienceType ?? null,
+    cycle.name && cycle.name !== primary ? cycle.name : null,
+  ].filter(Boolean);
+  return secondaryParts.length ? `${primary} â€¢ ${secondaryParts.join(" â€¢ ")}` : primary;
+}
+
 type PlanValues = {
   title: string;
   status: ActionStatus;
@@ -200,13 +214,19 @@ async function fetchAllAttendances(params: {
   return all;
 }
 
-export function ActionManageRouteClientPage() {
+export function ActionManageRouteClientPage({
+  embedded = false,
+  projectIdOverride,
+}: {
+  embedded?: boolean;
+  projectIdOverride?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const routeParams = useParams<{ id: string }>();
   const search = useSearchParams();
-  const projectId = search.get("projectId") ?? "";
+  const projectId = projectIdOverride ?? search.get("projectId") ?? "";
   const actionId = routeParams?.id ?? "";
 
   const { token } = useAuth();
@@ -226,6 +246,7 @@ export function ActionManageRouteClientPage() {
   const [saving, setSaving] = React.useState(false);
 
   const [reportRows, setReportRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
+  const [reportPeopleRows, setReportPeopleRows] = React.useState<ApiProjectActionPeopleParticipation[]>([]);
   const [reportLoading, setReportLoading] = React.useState(false);
   const [reportError, setReportError] = React.useState<string | null>(null);
 
@@ -266,6 +287,11 @@ export function ActionManageRouteClientPage() {
       {
         value: "participants",
         title: ACTION_MANAGE_TEXT.tabs.participants,
+        Icon: Users,
+      },
+      {
+        value: "team",
+        title: ACTION_MANAGE_TEXT.tabs.team,
         Icon: Users,
       },
       {
@@ -318,9 +344,15 @@ export function ActionManageRouteClientPage() {
     setReportError(null);
     try {
       const rows = await fetchAllAttendances({ token, projectId, actionId });
+      const peopleResponse = await listProjectActionPeopleParticipations(token, projectId, actionId, {
+        page: 1,
+        limit: 200,
+      });
       setReportRows(rows);
+      setReportPeopleRows(peopleResponse.data ?? []);
     } catch (err) {
       setReportRows([]);
+      setReportPeopleRows([]);
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
@@ -523,10 +555,12 @@ export function ActionManageRouteClientPage() {
 
   return (
     <div className="space-y-6">
-      <PageBreadcrumb
-        title={breadcrumbTitle}
-        items={[{ label: "Ações", href: "/actions" }, { label: breadcrumbTitle }]}
-      />
+      {!embedded ? (
+        <PageBreadcrumb
+          title={breadcrumbTitle}
+          items={[{ label: "Ações", href: "/actions" }, { label: breadcrumbTitle }]}
+        />
+      ) : null}
 
       <SectionCard
         title={breadcrumbTitle}
@@ -537,10 +571,12 @@ export function ActionManageRouteClientPage() {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2 print:hidden">
-            <Button type="button" variant="ghost" onClick={() => router.push(withTenantPath("/actions", tenantSlug))}>
-              <ArrowLeft className="mr-2 size-4" />
-              {ACTION_MANAGE_TEXT.back}
-            </Button>
+            {!embedded ? (
+              <Button type="button" variant="ghost" onClick={() => router.push(withTenantPath("/actions", tenantSlug))}>
+                <ArrowLeft className="mr-2 size-4" />
+                {ACTION_MANAGE_TEXT.back}
+              </Button>
+            ) : null}
             <Button type="button" variant="secondary" onClick={() => window.print()}>
               <Printer className="mr-2 size-4" />
               {ACTION_MANAGE_TEXT.print}
@@ -614,6 +650,15 @@ export function ActionManageRouteClientPage() {
                     canReadStructure={canReadStructure}
                     canReadPeople={canReadPeople}
                     canReadPeopleIdentity={canReadPeopleIdentity}
+                  />
+                </TabsContent>
+
+                <TabsContent value="team" className="mt-0 space-y-6">
+                  <ActionPeopleParticipationsCard
+                    token={token}
+                    projectId={projectId}
+                    actionId={action.id}
+                    canUpdate={canUpdate}
                   />
                 </TabsContent>
 
@@ -759,6 +804,7 @@ export function ActionManageRouteClientPage() {
                     <ActionReportPreview
                       action={action}
                       rows={reportRows}
+                      peopleParticipations={reportPeopleRows}
                       photoPaths={photoPaths}
                       canShowPeople={canReadPeople}
                     />
@@ -778,6 +824,7 @@ export function ActionManageRouteClientPage() {
               <ActionReportPreview
                 action={action}
                 rows={reportRows}
+                peopleParticipations={reportPeopleRows}
                 photoPaths={photoPaths}
                 canShowPeople={canReadPeople}
                 printMode

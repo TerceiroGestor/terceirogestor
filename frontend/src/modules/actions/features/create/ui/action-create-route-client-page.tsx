@@ -42,6 +42,15 @@ type ActionCreateValues = {
   planHtml: string;
 };
 
+function formatCycleOptionLabel(cycle: ApiProjectCycle) {
+  const primary = cycle.segment?.name ?? cycle.catalogCycle?.name ?? cycle.name;
+  const secondaryParts = [
+    cycle.segment?.category ?? cycle.catalogCycle?.audienceType ?? null,
+    cycle.name && cycle.name !== primary ? cycle.name : null,
+  ].filter(Boolean);
+  return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
+}
+
 export function ActionCreateRouteClientPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -157,7 +166,7 @@ export function ActionCreateRouteClientPage() {
 
     const cycleOptions = [
       { label: ACTION_CREATE_TEXT.form.cyclePlaceholder, value: NONE_VALUE },
-      ...cycles.map((c) => ({ label: c.name, value: c.id })),
+      ...cycles.map((c) => ({ label: formatCycleOptionLabel(c), value: c.id })),
     ];
 
     return [
@@ -208,7 +217,7 @@ export function ActionCreateRouteClientPage() {
         disabled: selectedType?.target !== "CYCLE",
         helperText:
           selectedType && selectedType.target !== "CYCLE"
-            ? "Disponível apenas para ações do tipo Ciclo."
+            ? "Disponível apenas para ações do tipo Segmento."
             : undefined,
       },
       {

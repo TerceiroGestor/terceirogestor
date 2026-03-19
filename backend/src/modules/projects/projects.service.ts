@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma';
+import type { Prisma, ProgramType, ProjectStatus } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
@@ -10,6 +10,59 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const PROJECT_STATUS_SEARCH_MAP: Record<string, ProjectStatus[]> = {
+  planned: ['PLANNED'],
+  planejado: ['PLANNED'],
+  planejados: ['PLANNED'],
+  active: ['ACTIVE'],
+  ativo: ['ACTIVE'],
+  ativos: ['ACTIVE'],
+  closed: ['CLOSED'],
+  encerrado: ['CLOSED'],
+  encerrados: ['CLOSED'],
+};
+const PROGRAM_TYPE_SEARCH_MAP: Record<string, ProgramType[]> = {
+  scfv: ['SCFV'],
+  paif: ['PAIF'],
+  paefi: ['PAEFI'],
+  cultural: ['CULTURAL'],
+  cultura: ['CULTURAL'],
+  qualification: ['QUALIFICATION'],
+  qualificacao: ['QUALIFICATION'],
+  other: ['OTHER'],
+  outro: ['OTHER'],
+  outros: ['OTHER'],
+};
+
+function resolveMatchingProjectStatuses(query: string): ProjectStatus[] {
+  const tokens = query
+    .split(/\s+/)
+    .map((token) => normalizeString(token))
+    .filter(Boolean);
+  const matches = new Set<ProjectStatus>();
+  for (const token of tokens) {
+    if (!token) continue;
+    for (const status of PROJECT_STATUS_SEARCH_MAP[token] ?? []) {
+      matches.add(status);
+    }
+  }
+  return Array.from(matches);
+}
+
+function resolveMatchingProgramTypes(query: string): ProgramType[] {
+  const tokens = query
+    .split(/\s+/)
+    .map((token) => normalizeString(token))
+    .filter(Boolean);
+  const matches = new Set<ProgramType>();
+  for (const token of tokens) {
+    if (!token) continue;
+    for (const type of PROGRAM_TYPE_SEARCH_MAP[token] ?? []) {
+      matches.add(type);
+    }
+  }
+  return Array.from(matches);
+}
 
 function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | null }) {
   const startsAt = params.startsAt ?? null;
@@ -42,6 +95,9 @@ export class ProjectsService {
     });
 
     const q = normalizeString(query.q);
+    const matchingStatuses = q ? resolveMatchingProjectStatuses(q) : [];
+    const matchingProgramTypes = q ? resolveMatchingProgramTypes(q) : [];
+    const searchedDate = query.q ? parseDateInput(query.q) : null;
     const { from, to } = resolveRangeDates({ from: query.from, to: query.to });
 
     const where: Prisma.ProjectWhereInput = {
@@ -53,7 +109,13 @@ export class ProjectsService {
             OR: [
               { name: { contains: q } },
               { description: { contains: q } },
+              { internalNotes: { contains: q } },
+              { status: { in: matchingStatuses } },
+              ...(searchedDate
+                ? [{ startsAt: { equals: searchedDate } }, { endsAt: { equals: searchedDate } }]
+                : []),
               { program: { name: { contains: q } } },
+              { program: { type: { in: matchingProgramTypes } } },
             ],
           }
         : {}),
@@ -114,6 +176,7 @@ export class ProjectsService {
         programId: dto.programId,
         name,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
         status: dto.status ?? 'PLANNED',
         startsAt,
         endsAt,
@@ -153,6 +216,13 @@ export class ProjectsService {
         ...(name !== undefined ? { name } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          : {}),
+        ...(dto.internalNotes !== undefined
+          ? {
+              internalNotes: dto.internalNotes?.trim()
+                ? dto.internalNotes.trim()
+                : null,
+            }
           : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.startsAt !== undefined ? { startsAt } : {}),

@@ -87,7 +87,7 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
             </Avatar>
             <Link
               href={withTenantPath(
-                `/person/${row.original.relation.relatedPerson.id}`,
+                `/people/${row.original.relation.relatedPerson.id}`,
                 tenantSlug,
               )}
               onClick={(event) => event.stopPropagation()}
@@ -215,6 +215,35 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
       emptyMessage="Nenhum vinculo familiar cadastrado."
       tableMinWidthClassName="min-w-[1180px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "familiar", label: "Familiar", type: "text" },
+        { name: "vinculo", label: "Vinculo", type: "text" },
+        { name: "convive", label: "Convive", type: "text" },
+        { name: "papel", label: "Papel", type: "text" },
+        { name: "indicadores", label: "Indicadores", type: "text" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        familiar: row.relation.relatedPerson.fullName,
+        vinculo: row.relation.type,
+        convive: row.relation.livesTogether ? "Mora junto" : "Separado",
+        papel: row.householdMember?.role ?? null,
+        indicadores: [
+          row.relation.isLegalGuardian ? "Responsavel legal" : null,
+          row.householdMember?.isHouseholdHead ? "Principal" : null,
+          row.householdMember?.isProvider ? "Provedor" : null,
+          row.householdMember?.isDependent ? "Dependente" : null,
+          contributionByPersonId.get(row.relation.relatedPersonId)
+            ? "Contribui renda"
+            : row.householdMember?.isIncomeContributor
+              ? "Contribui renda"
+              : null,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        notas: row.relation.notes ?? null,
+      })}
+      searchActionId="people.family-relations"
     />
   );
 }

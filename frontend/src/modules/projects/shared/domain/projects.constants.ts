@@ -1,6 +1,9 @@
 import type { SelectOption } from "@/components/FormEngine/types";
-import type { ProjectStatus } from "@/modules/projects/api";
-import type { EnrollmentStatus } from "@/modules/projects/api";
+import type {
+  EnrollmentStatus,
+  ProjectParticipationRole,
+  ProjectStatus,
+} from "@/modules/projects/api";
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   PLANNED: "Planejado",
@@ -19,4 +22,22 @@ export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
 
 export const ENROLLMENT_STATUS_OPTIONS: SelectOption[] = (
   Object.entries(ENROLLMENT_STATUS_LABELS) as Array<[EnrollmentStatus, string]>
+).map(([value, label]) => ({ value, label }));
+
+export const PROJECT_PARTICIPATION_ROLE_LABELS: Record<ProjectParticipationRole, string> = {
+  PUBLICO_ATENDIDO: "Publico atendido",
+  FAMILIAR: "Familiar",
+  VOLUNTARIO: "Voluntario",
+  EQUIPE_TECNICA: "Equipe tecnica",
+  FUNCIONARIO: "Funcionario",
+  OFICINEIRO: "Oficineiro",
+  PARCEIRO: "Parceiro",
+  DOADOR: "Doador",
+  PATROCINADOR: "Patrocinador",
+};
+
+export const PROJECT_PARTICIPATION_ROLE_OPTIONS: SelectOption[] = (
+  Object.entries(PROJECT_PARTICIPATION_ROLE_LABELS) as Array<
+    [ProjectParticipationRole, string]
+  >
 ).map(([value, label]) => ({ value, label }));

@@ -123,6 +123,23 @@ export function EducationPanel({ personId }: { personId: string }) {
       emptyMessage="Nenhum registro de escolaridade."
       tableMinWidthClassName="min-w-[980px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "nivel", label: "Nivel", type: "text" },
+        { name: "instituicao", label: "Instituicao", type: "text" },
+        { name: "status", label: "Status", type: "text" },
+        { name: "serie", label: "Serie", type: "text" },
+        { name: "ano", label: "Ano", type: "text" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        nivel: row.level,
+        instituicao: row.institution ?? null,
+        status: row.status ?? null,
+        serie: row.grade ?? null,
+        ano: row.schoolYear ?? null,
+        notas: row.notes ?? null,
+      })}
+      searchActionId="people.education"
     />
   );
 }

@@ -11,7 +11,7 @@ export type PersonFormData = {
   maritalStatus?: string | null;
   nationality?: string | null;
   status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
-  personType?: "Atendido" | "Familiar" | null;
+  personType?: string | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
@@ -31,7 +31,7 @@ export type Person = {
   email?: string | null;
   phone?: string | null;
   status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
-  personType?: "Atendido" | "Familiar" | null;
+  personType?: string | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
@@ -74,7 +74,7 @@ export type PeopleTableItem = {
   email?: string | null;
   phone?: string | null;
   status?: "Ativo" | "Inativo" | "Em espera" | "Em analise" | "Desligado" | null;
-  personType?: "Atendido" | "Familiar" | null;
+  personType?: string | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;

@@ -1,6 +1,10 @@
 "use client";
 
-import type { ActionStatus, AttendanceStatus } from "@/modules/actions/api";
+import type {
+  ActionPeopleParticipationRole,
+  ActionStatus,
+  AttendanceStatus,
+} from "@/modules/actions/api";
 
 export type ActionTarget = "PROJECT" | "GROUP" | "CYCLE";
 
@@ -31,7 +35,7 @@ export const ATTENDANCE_STATUS_OPTIONS = [
 export const ACTION_TARGET_LABELS: Record<ActionTarget, string> = {
   PROJECT: "Projeto",
   GROUP: "Grupo",
-  CYCLE: "Ciclo",
+  CYCLE: "Segmento",
 };
 
 export const ACTION_TARGET_OPTIONS = [
@@ -39,3 +43,27 @@ export const ACTION_TARGET_OPTIONS = [
   { label: ACTION_TARGET_LABELS.GROUP, value: "GROUP" },
   { label: ACTION_TARGET_LABELS.CYCLE, value: "CYCLE" },
 ] satisfies { label: string; value: ActionTarget }[];
+
+export const ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS: Record<
+  ActionPeopleParticipationRole,
+  string
+> = {
+  PARTICIPANTE: "Participante",
+  FACILITADOR: "Facilitador",
+  APOIO: "Apoio",
+  VOLUNTARIO: "Voluntario",
+  RESPONSAVEL_TECNICO: "Responsavel tecnico",
+  CONVIDADO: "Convidado",
+};
+
+export const ACTION_PEOPLE_PARTICIPATION_ROLE_OPTIONS = [
+  { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.PARTICIPANTE, value: "PARTICIPANTE" },
+  { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.FACILITADOR, value: "FACILITADOR" },
+  { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.APOIO, value: "APOIO" },
+  { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.VOLUNTARIO, value: "VOLUNTARIO" },
+  {
+    label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.RESPONSAVEL_TECNICO,
+    value: "RESPONSAVEL_TECNICO",
+  },
+  { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.CONVIDADO, value: "CONVIDADO" },
+] satisfies { label: string; value: ActionPeopleParticipationRole }[];

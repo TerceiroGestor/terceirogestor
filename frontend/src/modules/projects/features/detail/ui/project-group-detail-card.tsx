@@ -200,20 +200,20 @@ export function ProjectGroupDetailCard({
       if (!group) return;
       if (!canUpdateEnrollments) return;
       const confirmed = await confirm({
-        title: "Remover do grupo",
-        description: `Remover "${item.person.fullName}" do grupo "${group.name}"?`,
-        confirmLabel: "Remover",
+        title: "Encerrar vínculo com o grupo",
+        description: `Encerrar o vínculo de "${item.person.fullName}" com o grupo "${group.name}" preservando o histórico?`,
+        confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
       });
       if (!confirmed) return;
       try {
         await removeEnrollmentFromGroup(token, projectId, item.id, group.id);
-        toast({ title: "Participante removido do grupo" });
+        toast({ title: "Vínculo com o grupo encerrado" });
         loadMembers();
       } catch (err) {
         toast({
-          title: "Falha ao remover",
+          title: "Falha ao encerrar vínculo",
           description:
             err && typeof err === "object" && "message" in err
               ? String((err as { message?: string }).message)
@@ -402,7 +402,7 @@ export function ProjectGroupDetailCard({
         canUpdateEnrollments ? (
           <Button type="button" onClick={() => setLinkOpen(true)}>
             <Plus className="mr-2 size-4" />
-            Vincular Pessoas
+            Adicionar participantes
           </Button>
         ) : null
       }
@@ -429,7 +429,7 @@ export function ProjectGroupDetailCard({
             ? [
                 {
                   id: "remove",
-                  label: "Remover do grupo",
+                  label: "Encerrar vínculo",
                   destructive: true,
                   onSelect: (row: ApiProjectEnrollment) => handleRemove(row),
                 },
@@ -448,7 +448,7 @@ export function ProjectGroupDetailCard({
         open={linkOpen}
         onOpenChange={setLinkOpen}
         title={`Vincular pessoas • ${group.name}`}
-        description="Selecione participantes já vinculados ao projeto para adicionar neste grupo."
+        description="Selecione participantes já matriculados no projeto para adicionar neste grupo."
         contentClassName="max-w-[1100px]"
         headerSlot={
           <div className="flex items-center gap-3">
@@ -461,7 +461,7 @@ export function ProjectGroupDetailCard({
               disabled={saving || availableSelected.length === 0}
               onClick={handleLinkSelected}
             >
-              {saving ? "Vinculando..." : "Vincular selecionados"}
+              {saving ? "Adicionando..." : "Adicionar selecionados"}
             </Button>
           </div>
         }

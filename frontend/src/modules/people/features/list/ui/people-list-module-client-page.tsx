@@ -276,12 +276,12 @@ export function PeopleListModuleClientPage() {
   }, [loadRows]);
 
   const openCreate = React.useCallback(() => {
-    router.push(withTenantPath("/person/new", tenantSlug));
+    router.push(withTenantPath("/people/new", tenantSlug));
   }, [router, tenantSlug]);
 
   const openDetail = React.useCallback(
     (person: PeopleTableItem) => {
-      router.push(withTenantPath(`/person/${person.id}`, tenantSlug));
+      router.push(withTenantPath(`/people/${person.id}`, tenantSlug));
     },
     [router, tenantSlug],
   );

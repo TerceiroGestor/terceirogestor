@@ -1,11 +1,5 @@
-import { redirect } from "next/navigation";
-import { withTenantPath } from "@/lib/tenant-path";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
-export default async function PeopleDetailLegacyPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(withTenantPath(`/person/${id}`, tenant));
+export default function PeopleDetailRoutePage() {
+  return <ScreenHost actionId="people.detail" />;
 }

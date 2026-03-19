@@ -31,6 +31,25 @@ import {
   peopleListAction,
 } from "@/web-client/registry/actions/people";
 import {
+  peopleSegmentsCreateAction,
+  peopleSegmentsDetailAction,
+  peopleSegmentsListAction,
+} from "@/web-client/registry/actions/people-segments";
+import {
+  projectsCreateAction,
+  projectsDetailAction,
+  projectsListAction,
+} from "@/web-client/registry/actions/projects";
+import {
+  projectCyclesListAction,
+  projectGroupsListAction,
+} from "@/web-client/registry/actions/project-structure";
+import {
+  programsCreateAction,
+  programsDetailAction,
+  programsListAction,
+} from "@/web-client/registry/actions/programs";
+import {
   tasksCreateAction,
   tasksDetailAction,
   tasksListAction,
@@ -44,6 +63,22 @@ import {
   pantryStockSearchView,
 } from "@/web-client/registry/searchViews/pantry";
 import { peopleSearchView } from "@/web-client/registry/searchViews/people";
+import {
+  peopleSegmentsDetailSearchView,
+  peopleSegmentsSearchView,
+} from "@/web-client/registry/searchViews/people-segments";
+import {
+  projectsDetailSearchView,
+  projectsSearchView,
+} from "@/web-client/registry/searchViews/projects";
+import {
+  projectCyclesSearchView,
+  projectGroupsSearchView,
+} from "@/web-client/registry/searchViews/project-structure";
+import {
+  programsDetailSearchView,
+  programsSearchView,
+} from "@/web-client/registry/searchViews/programs";
 import { tasksSearchView } from "@/web-client/registry/searchViews/tasks";
 import {
   adminAuditSearchView,
@@ -84,6 +119,17 @@ const WINDOW_ACTIONS: WindowAction[] = [
   peopleListAction,
   peopleDetailAction,
   peopleCreateAction,
+  peopleSegmentsListAction,
+  peopleSegmentsDetailAction,
+  peopleSegmentsCreateAction,
+  projectsListAction,
+  projectsDetailAction,
+  projectsCreateAction,
+  projectGroupsListAction,
+  projectCyclesListAction,
+  programsListAction,
+  programsDetailAction,
+  programsCreateAction,
   tasksListAction,
   tasksDetailAction,
   tasksCreateAction,
@@ -100,6 +146,14 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   pantryHistorySearchView,
   pantryStockSearchView,
   peopleSearchView,
+  peopleSegmentsSearchView,
+  peopleSegmentsDetailSearchView,
+  projectsSearchView,
+  projectsDetailSearchView,
+  projectGroupsSearchView,
+  projectCyclesSearchView,
+  programsSearchView,
+  programsDetailSearchView,
   tasksSearchView,
 ];
 

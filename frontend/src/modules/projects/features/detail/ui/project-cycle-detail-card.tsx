@@ -199,19 +199,19 @@ export function ProjectCycleDetailCard({
       if (!cycle) return;
       if (!canUpdateEnrollments) return;
       const confirmed = await confirm({
-        title: "Remover do ciclo",
-        description: `Remover "${item.person.fullName}" do ciclo "${cycle.name}"?`,
-        confirmLabel: "Remover",
+        title: "Encerrar vínculo com o ciclo",
+        description: `Encerrar o vínculo de "${item.person.fullName}" com o ciclo "${cycle.name}" preservando o histórico?`,
+        confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
       });
       if (!confirmed) return;
       try {
         await setEnrollmentCycle(token, projectId, item.id, { cycleId: null });
-        toast({ title: "Ciclo removido" });
+        toast({ title: "Vínculo com o ciclo encerrado" });
         loadParticipants();
       } catch (err) {
         toast({
-          title: "Falha ao remover",
+          title: "Falha ao encerrar vínculo",
           description:
             err && typeof err === "object" && "message" in err
               ? String((err as { message?: string }).message)
@@ -430,7 +430,7 @@ export function ProjectCycleDetailCard({
         canUpdateEnrollments ? (
           <Button type="button" onClick={() => setLinkOpen(true)}>
             <Plus className="mr-2 size-4" />
-            Vincular Pessoas
+            Adicionar participantes
           </Button>
         ) : null
       }
@@ -457,7 +457,7 @@ export function ProjectCycleDetailCard({
             ? [
                 {
                   id: "remove",
-                  label: "Remover do ciclo",
+                  label: "Encerrar vínculo",
                   destructive: true,
                   onSelect: (row: ApiProjectEnrollment) => handleRemoveFromCycle(row),
                 },
@@ -476,7 +476,7 @@ export function ProjectCycleDetailCard({
         open={linkOpen}
         onOpenChange={setLinkOpen}
         title={`Vincular pessoas • ${cycle.name}`}
-        description="Selecione participantes já vinculados ao projeto para definir neste ciclo."
+        description="Selecione participantes já matriculados no projeto para adicionar neste ciclo."
         contentClassName="max-w-[1100px]"
         headerSlot={
           <div className="flex items-center gap-3">
@@ -489,7 +489,7 @@ export function ProjectCycleDetailCard({
               disabled={saving || availableSelected.length === 0}
               onClick={handleLinkSelected}
             >
-              {saving ? "Vinculando..." : "Vincular selecionados"}
+              {saving ? "Adicionando..." : "Adicionar selecionados"}
             </Button>
           </div>
         }

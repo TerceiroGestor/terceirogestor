@@ -10,2116 +10,1609 @@ if (!databaseUrl) {
 const adapter = createPrismaAdapter(databaseUrl);
 const prisma = new PrismaClient({ adapter });
 
-async function main() {
-  const tenantId = '2fad98c9-5d6c-4f76-8c46-00fb80d0509b';
-  const roleIds = {
-    admin: 'f7110198-db21-473d-b9b5-1e8b1b465e17',
-    gestor: '0f0b83a8-3b6c-4733-8f6d-197946361394',
-    atendimento: '8663ae22-3014-4996-a779-8b8d781bd8f6',
-    leitor: 'a170ecfa-cf86-41e7-8bdf-19fb87a42c43',
-  };
-  const userIds = {
-    admin: '15fc80ed-23c4-4874-8998-56e3d07cd4b7',
-    gestor: 'aeed4987-2bd2-42a7-b70e-d38b7e2395d1',
-    atendimento1: '12dada1f-0226-40e8-a38d-740b806a0671',
-    atendimento2: '3ec47fe5-dbe5-46e9-8b60-09156c2f1fff',
-    leitor: '02019099-853f-4b74-9a7d-1a92b4baca16',
-  };
-  const existingTenant = await prisma.tenant.findUnique({
-    where: { name: 'Instituicao Exemplo' },
+const ids = {
+  tenant: '11111111-1111-4111-8111-111111111111',
+  roles: {
+    admin: '11111111-1111-4111-8111-111111111201',
+    gestor: '11111111-1111-4111-8111-111111111202',
+    atendimento: '11111111-1111-4111-8111-111111111203',
+  },
+  users: {
+    admin: '11111111-1111-4111-8111-111111111301',
+    gestor: '11111111-1111-4111-8111-111111111302',
+    atendimento: '11111111-1111-4111-8111-111111111303',
+  },
+  programs: {
+    musica: '11111111-1111-4111-8111-111111111401',
+    familia: '11111111-1111-4111-8111-111111111402',
+  },
+  projects: {
+    musicaManha: '11111111-1111-4111-8111-111111111501',
+    apoioFamilias: '11111111-1111-4111-8111-111111111502',
+  },
+  segments: {
+    c1m: '11111111-1111-4111-8111-111111111601',
+    c2m: '11111111-1111-4111-8111-111111111602',
+    c3m: '11111111-1111-4111-8111-111111111603',
+    familiares: '11111111-1111-4111-8111-111111111604',
+    funcionarios: '11111111-1111-4111-8111-111111111605',
+    voluntarios: '11111111-1111-4111-8111-111111111606',
+    parceiros: '11111111-1111-4111-8111-111111111607',
+    c1t: '11111111-1111-4111-8111-111111111608',
+  },
+  peopleGroups: {
+    c1m: '11111111-1111-4111-8111-111111111611',
+    c2m: '11111111-1111-4111-8111-111111111612',
+    c3m: '11111111-1111-4111-8111-111111111613',
+    familiares: '11111111-1111-4111-8111-111111111614',
+    funcionarios: '11111111-1111-4111-8111-111111111615',
+    voluntarios: '11111111-1111-4111-8111-111111111616',
+    parceiros: '11111111-1111-4111-8111-111111111617',
+    c1t: '11111111-1111-4111-8111-111111111618',
+  },
+  projectCycles: {
+    musicaC1m: '11111111-1111-4111-8111-111111111701',
+    musicaC2m: '11111111-1111-4111-8111-111111111702',
+    musicaC3m: '11111111-1111-4111-8111-111111111703',
+    musicaFamilias: '11111111-1111-4111-8111-111111111704',
+    familiasBase: '11111111-1111-4111-8111-111111111705',
+  },
+  groups: {
+    musicaMeninos: '11111111-1111-4111-8111-111111111801',
+    coralPreparacao: '11111111-1111-4111-8111-111111111802',
+    familiasEscuta: '11111111-1111-4111-8111-111111111803',
+  },
+  actionTypes: {
+    oficina: '11111111-1111-4111-8111-111111111901',
+    encontro: '11111111-1111-4111-8111-111111111902',
+    atendimento: '11111111-1111-4111-8111-111111111903',
+  },
+  actions: {
+    acolhimento: '11111111-1111-4111-8111-111111112001',
+    ensaioMeninos: '11111111-1111-4111-8111-111111112002',
+    encontroC2m: '11111111-1111-4111-8111-111111112003',
+    rodaFamilias: '11111111-1111-4111-8111-111111112004',
+  },
+};
+
+const permissions = [
+  'audit.read',
+  'actions.read',
+  'actions.create',
+  'actions.update',
+  'actions.delete',
+  'actions.manage',
+  'programs.read',
+  'programs.create',
+  'programs.update',
+  'programs.delete',
+  'projects.read',
+  'projects.create',
+  'projects.update',
+  'projects.delete',
+  'project-structure.read',
+  'project-structure.create',
+  'project-structure.update',
+  'project-structure.delete',
+  'enrollments.read',
+  'enrollments.create',
+  'enrollments.update',
+  'enrollments.delete',
+  'people.read',
+  'people.create',
+  'people.update',
+  'people.delete',
+  'people.identity.read',
+  'people.sensitive.read',
+  'people.sensitive.update',
+  'users.read',
+  'users.create',
+  'users.update',
+  'users.delete',
+  'roles.manage',
+  'tenants.read',
+  'tenants.update',
+  'tasks.read',
+  'tasks.create',
+  'tasks.update',
+  'tasks.delete',
+  'pantry.read',
+  'pantry.create',
+  'pantry.update',
+  'pantry.delete',
+] as const;
+
+const people = [
+  {
+    id: '11111111-1111-4111-8111-111111113001',
+    fullName: 'Sabrina Melo',
+    socialName: 'Sabrina Melo',
+    birthDate: new Date('2017-03-11'),
+    email: 'sabrina.melo@seed.local',
+    phone: '+55 11 98888-1001',
+    document: '101.101.101-01',
+    rg: '10.101.101-1',
+    nis: '101.10101.01-1',
+    status: 'Ativo',
+    personType: 'Funcionario',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Parda',
+    maritalStatus: 'Solteira',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113002',
+    fullName: 'Ricardo Nunes',
+    socialName: 'Ricardo Nunes',
+    birthDate: new Date('2016-07-05'),
+    email: 'ricardo.nunes@seed.local',
+    phone: '+55 11 98888-1002',
+    document: '102.102.102-02',
+    rg: '10.202.202-2',
+    nis: '102.10202.02-2',
+    status: 'Ativo',
+    personType: 'Oficineiro',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Preta',
+    maritalStatus: 'Solteiro',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113003',
+    fullName: 'Renata Vieira',
+    socialName: 'Renata Vieira',
+    birthDate: new Date('2014-09-20'),
+    email: 'renata.vieira@seed.local',
+    phone: '+55 11 98888-1003',
+    document: '103.103.103-03',
+    rg: '10.303.303-3',
+    nis: '103.10303.03-3',
+    status: 'Ativo',
+    personType: 'Voluntario',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Branca',
+    maritalStatus: 'Solteira',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113004',
+    fullName: 'Pedro Gomes',
+    socialName: 'Pedro Gomes',
+    birthDate: new Date('2012-01-14'),
+    email: 'pedro.gomes@seed.local',
+    phone: '+55 11 98888-1004',
+    document: '104.104.104-04',
+    rg: '10.404.404-4',
+    nis: '104.10404.04-4',
+    status: 'Ativo',
+    personType: 'Voluntario',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Parda',
+    maritalStatus: 'Solteiro',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113005',
+    fullName: 'Lorena Castro',
+    socialName: 'Lorena Castro',
+    birthDate: new Date('2015-11-22'),
+    email: 'lorena.castro@seed.local',
+    phone: '+55 11 98888-1005',
+    document: '105.105.105-05',
+    rg: '10.505.505-5',
+    nis: '105.10505.05-5',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Parda',
+    maritalStatus: 'Solteira',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113006',
+    fullName: 'Joao Pedro Lima',
+    socialName: 'Joao Pedro',
+    birthDate: new Date('2018-05-09'),
+    email: 'joao.pedro@seed.local',
+    phone: '+55 11 98888-1006',
+    document: '106.106.106-06',
+    rg: '10.606.606-6',
+    nis: '106.10606.06-6',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Branca',
+    maritalStatus: 'Solteiro',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113007',
+    fullName: 'Marcia Melo',
+    socialName: 'Marcia Melo',
+    birthDate: new Date('1988-02-10'),
+    email: 'marcia.melo@seed.local',
+    phone: '+55 11 97777-2001',
+    document: '201.201.201-01',
+    rg: '20.101.101-1',
+    nis: '201.20101.01-1',
+    status: 'Ativo',
+    personType: 'Parceiro',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Parda',
+    maritalStatus: 'Casada',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113008',
+    fullName: 'Carlos Nunes',
+    socialName: 'Carlos Nunes',
+    birthDate: new Date('1985-08-18'),
+    email: 'carlos.nunes@seed.local',
+    phone: '+55 11 97777-2002',
+    document: '202.202.202-02',
+    rg: '20.202.202-2',
+    nis: '202.20202.02-2',
+    status: 'Ativo',
+    personType: 'Familiar',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Preta',
+    maritalStatus: 'Casado',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113009',
+    fullName: 'Silvana Rocha',
+    socialName: 'Sil Rocha',
+    birthDate: new Date('1990-12-01'),
+    email: 'silvana.rocha@seed.local',
+    phone: '+55 11 97777-2003',
+    document: '203.203.203-03',
+    rg: '20.303.303-3',
+    nis: '203.20303.03-3',
+    status: 'Ativo',
+    personType: 'Familiar',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Branca',
+    maritalStatus: 'Solteira',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113010',
+    fullName: 'Bianca Torres',
+    socialName: 'Bianca Torres',
+    birthDate: new Date('1994-01-04'),
+    email: 'bianca.torres@seed.local',
+    phone: '+55 11 96666-3001',
+    document: '301.301.301-01',
+    rg: '30.101.101-1',
+    nis: '301.30101.01-1',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Parda',
+    maritalStatus: 'Solteira',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113011',
+    fullName: 'Diego Sampaio',
+    socialName: 'Diego Sampaio',
+    birthDate: new Date('1987-04-16'),
+    email: 'diego.sampaio@seed.local',
+    phone: '+55 11 96666-3002',
+    document: '302.302.302-02',
+    rg: '30.202.202-2',
+    nis: '302.30202.02-2',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Parda',
+    maritalStatus: 'Casado',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113012',
+    fullName: 'Leila Prado',
+    socialName: 'Leila Prado',
+    birthDate: new Date('1981-06-29'),
+    email: 'leila.prado@seed.local',
+    phone: '+55 11 95555-4001',
+    document: '401.401.401-01',
+    rg: '40.101.101-1',
+    nis: '401.40101.01-1',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Feminino',
+    gender: 'Mulher',
+    raceColor: 'Branca',
+    maritalStatus: 'Casada',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar-female.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113013',
+    fullName: 'Mateus Prado',
+    socialName: 'Mateus Prado',
+    birthDate: new Date('1998-10-07'),
+    email: 'mateus.prado@seed.local',
+    phone: '+55 11 95555-4002',
+    document: '402.402.402-02',
+    rg: '40.202.202-2',
+    nis: '402.40202.02-2',
+    status: 'Ativo',
+    personType: 'Atendido',
+    sex: 'Masculino',
+    gender: 'Homem',
+    raceColor: 'Preta',
+    maritalStatus: 'Solteiro',
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111113014',
+    fullName: 'Instituto Parceiro Aurora',
+    socialName: 'Aurora',
+    birthDate: null,
+    email: 'contato@aurora.seed.local',
+    phone: '+55 11 94444-5001',
+    document: '50.501.501/0001-01',
+    rg: 'ISENTO',
+    nis: '000.00000.00-0',
+    status: 'Ativo',
+    personType: 'Familiar',
+    sex: null,
+    gender: null,
+    raceColor: null,
+    maritalStatus: null,
+    nationality: 'Brasileira',
+    avatarUrl: '/avatar.jpg',
+  },
+];
+
+async function createPermissionsAndRoles(tenantId: string) {
+  await prisma.permission.createMany({
+    data: permissions.map((key) => ({
+      key,
+      description: `Permissao ${key}`,
+    })),
+    skipDuplicates: true,
   });
 
-  if (existingTenant && existingTenant.id !== tenantId) {
-    await prisma.rolePermission.deleteMany({
-      where: { tenantId: existingTenant.id },
-    });
-    await prisma.userRole.deleteMany({
-      where: { tenantId: existingTenant.id },
-    });
-    await prisma.person.deleteMany({
-      where: { tenantId: existingTenant.id },
-    });
-    await prisma.role.deleteMany({
-      where: { tenantId: existingTenant.id },
-    });
-    await prisma.user.deleteMany({
-      where: { tenantId: existingTenant.id },
-    });
-    await prisma.tenant.delete({ where: { id: existingTenant.id } });
-  }
-
-  const tenant = await prisma.tenant.upsert({
-    where: { id: tenantId },
-    update: {
-      name: 'Instituicao Exemplo',
-      slug: 'instituicao-exemplo',
-      logoUrl: '/avatar-female.jpg',
-      cnpj: '12.345.678/0001-90',
-      startYear: 2010,
-      description: '<p>Instituicao voltada ao atendimento social e desenvolvimento familiar.</p>',
-    },
-    create: {
-      id: tenantId,
-      name: 'Instituicao Exemplo',
-      slug: 'instituicao-exemplo',
-      logoUrl: '/avatar-female.jpg',
-      cnpj: '12.345.678/0001-90',
-      startYear: 2010,
-      description: '<p>Instituicao voltada ao atendimento social e desenvolvimento familiar.</p>',
-    },
+  await prisma.role.createMany({
+    data: [
+      {
+        id: ids.roles.admin,
+        tenantId,
+        name: 'Administrador',
+        description: 'Acesso completo ao ambiente de teste.',
+      },
+      {
+        id: ids.roles.gestor,
+        tenantId,
+        name: 'Gestor',
+        description: 'Gestao operacional de people, projetos e acoes.',
+      },
+      {
+        id: ids.roles.atendimento,
+        tenantId,
+        name: 'Atendimento',
+        description: 'Atendimento e acompanhamento do publico.',
+      },
+    ],
   });
 
-  const permissions = [
-    { key: 'programs.read', description: 'Ler programas' },
-    { key: 'programs.create', description: 'Criar programas' },
-    { key: 'programs.update', description: 'Atualizar programas' },
-    { key: 'programs.delete', description: 'Excluir programas' },
-    { key: 'projects.read', description: 'Ler projetos' },
-    { key: 'projects.create', description: 'Criar projetos' },
-    { key: 'projects.update', description: 'Atualizar projetos' },
-    { key: 'projects.delete', description: 'Excluir projetos' },
-    { key: 'project-structure.read', description: 'Ler estrutura de projetos' },
-    { key: 'project-structure.create', description: 'Criar estrutura de projetos' },
-    { key: 'project-structure.update', description: 'Atualizar estrutura de projetos' },
-    { key: 'project-structure.delete', description: 'Excluir estrutura de projetos' },
-    { key: 'enrollments.read', description: 'Ler matrículas de projetos' },
-    { key: 'enrollments.create', description: 'Criar matrículas de projetos' },
-    { key: 'enrollments.update', description: 'Atualizar matrículas de projetos' },
-    { key: 'enrollments.delete', description: 'Excluir matrículas de projetos' },
-    { key: 'people.read', description: 'Ler pessoas' },
-    { key: 'people.create', description: 'Criar pessoas' },
-    { key: 'people.update', description: 'Atualizar pessoas' },
-    { key: 'people.delete', description: 'Excluir pessoas' },
-    {
-      key: 'people.sensitive.read',
-      description: 'Ler documentos sensíveis (LGPD)',
-    },
-    {
-      key: 'people.sensitive.update',
-      description: 'Atualizar documentos sensíveis (LGPD)',
-    },
-    { key: 'pantry.read', description: 'Ler despensa' },
-    { key: 'pantry.create', description: 'Criar despensa' },
-    { key: 'pantry.update', description: 'Atualizar despensa' },
-    { key: 'pantry.delete', description: 'Excluir despensa' },
-    { key: 'tasks.read', description: 'Ler tarefas' },
-    { key: 'tasks.create', description: 'Criar tarefas' },
-    { key: 'tasks.update', description: 'Atualizar tarefas' },
-    { key: 'tasks.delete', description: 'Excluir tarefas' },
-    { key: 'users.read', description: 'Ler usuarios' },
-    { key: 'users.create', description: 'Criar usuarios' },
-    { key: 'users.update', description: 'Atualizar usuarios' },
-    { key: 'users.delete', description: 'Excluir usuarios' },
-    { key: 'roles.manage', description: 'Gerenciar perfis e permissoes' },
-    { key: 'audit.read', description: 'Ler auditoria de dados' },
-    { key: 'tenants.read', description: 'Ler dados da instituicao' },
-    { key: 'tenants.update', description: 'Atualizar dados da instituicao' },
+  const storedPermissions = await prisma.permission.findMany({
+    where: { key: { in: [...permissions] } },
+  });
+  const permissionIdByKey = new Map(
+    storedPermissions.map((permission) => [permission.key, permission.id]),
+  );
+
+  const gestorPermissions = [
+    'audit.read',
+    'actions.read',
+    'actions.create',
+    'actions.update',
+    'actions.delete',
+    'actions.manage',
+    'programs.read',
+    'programs.create',
+    'programs.update',
+    'projects.read',
+    'projects.create',
+    'projects.update',
+    'project-structure.read',
+    'project-structure.create',
+    'project-structure.update',
+    'enrollments.read',
+    'enrollments.create',
+    'enrollments.update',
+    'people.read',
+    'people.create',
+    'people.update',
+    'people.identity.read',
+    'people.sensitive.read',
+    'users.read',
+    'tenants.read',
+    'tasks.read',
+    'tasks.create',
+    'tasks.update',
+    'pantry.read',
+  ] as const;
+
+  const atendimentoPermissions = [
+    'actions.read',
+    'actions.create',
+    'actions.update',
+    'actions.manage',
+    'projects.read',
+    'project-structure.read',
+    'project-structure.create',
+    'project-structure.update',
+    'enrollments.read',
+    'enrollments.create',
+    'enrollments.update',
+    'people.read',
+    'people.create',
+    'people.update',
+    'people.identity.read',
+    'people.sensitive.read',
+  ] as const;
+
+  const rolePermissions = [
+    ...permissions.map((key) => ({
+      tenantId,
+      roleId: ids.roles.admin,
+      permissionId: permissionIdByKey.get(key)!,
+    })),
+    ...gestorPermissions.map((key) => ({
+      tenantId,
+      roleId: ids.roles.gestor,
+      permissionId: permissionIdByKey.get(key)!,
+    })),
+    ...atendimentoPermissions.map((key) => ({
+      tenantId,
+      roleId: ids.roles.atendimento,
+      permissionId: permissionIdByKey.get(key)!,
+    })),
   ];
 
-  for (const permission of permissions) {
-    await prisma.permission.upsert({
-      where: { key: permission.key },
-      update: { description: permission.description },
-      create: permission,
-    });
-  }
+  await prisma.rolePermission.createMany({
+    data: rolePermissions,
+    skipDuplicates: true,
+  });
+}
 
-  const allPermissions = await prisma.permission.findMany();
-  const roleDefinitions = [
-    {
-      id: roleIds.admin,
-      name: 'Admin',
-      description: 'Administrador da instituicao',
-      permissionKeys: allPermissions.map((permission) => permission.key),
-    },
-    {
-      id: roleIds.gestor,
-      name: 'Gestor',
-      description: 'Gestao operacional',
-      permissionKeys: [
-        'programs.read',
-        'programs.create',
-        'programs.update',
-        'programs.delete',
-        'projects.read',
-        'projects.create',
-        'projects.update',
-        'projects.delete',
-        'project-structure.read',
-        'project-structure.create',
-        'project-structure.update',
-        'project-structure.delete',
-        'enrollments.read',
-        'enrollments.create',
-        'enrollments.update',
-        'enrollments.delete',
-        'tasks.read',
-        'tasks.create',
-        'tasks.update',
-        'tasks.delete',
-        'people.read',
-        'people.create',
-        'people.update',
-        'people.delete',
-        'tenants.read',
-      ],
-    },
-    {
-      id: roleIds.atendimento,
-      name: 'Atendimento',
-      description: 'Equipe de atendimento',
-      permissionKeys: [
-        'people.read',
-        'people.create',
-        'people.update',
-        'tasks.read',
-        'tasks.create',
-        'tasks.update',
-      ],
-    },
-    {
-      id: roleIds.leitor,
-      name: 'Leitor',
-      description: 'Acesso somente leitura',
-      permissionKeys: ['people.read', 'tasks.read'],
-    },
-  ];
-
-  for (const roleDefinition of roleDefinitions) {
-    const role = await prisma.role.upsert({
-      where: {
-        tenantId_name: {
-          tenantId: tenant.id,
-          name: roleDefinition.name,
-        },
-      },
-      update: {
-        description: roleDefinition.description,
-      },
-      create: {
-        id: roleDefinition.id,
-        tenantId: tenant.id,
-        name: roleDefinition.name,
-        description: roleDefinition.description,
-      },
-    });
-
-    for (const permissionKey of roleDefinition.permissionKeys) {
-      const permission = allPermissions.find((item) => item.key === permissionKey);
-      if (!permission) continue;
-      await prisma.rolePermission.upsert({
-        where: {
-          tenantId_roleId_permissionId: {
-            tenantId: tenant.id,
-            roleId: role.id,
-            permissionId: permission.id,
-          },
-        },
-        update: {},
-        create: {
-          tenantId: tenant.id,
-          roleId: role.id,
-          permissionId: permission.id,
-        },
-      });
-    }
-  }
-
+async function createUsers(tenantId: string) {
   const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
   const userPasswordHash = await bcrypt.hash('User@123', 10);
-  const users = [
-    {
-      id: userIds.admin,
-      name: 'Administrador',
-      email: 'admin@exemplo.com',
-      passwordHash: adminPasswordHash,
-      roleId: roleIds.admin,
-    },
-    {
-      id: userIds.gestor,
-      name: 'Gestor Operacional',
-      email: 'gestor@exemplo.com',
-      passwordHash: userPasswordHash,
-      roleId: roleIds.gestor,
-    },
-    {
-      id: userIds.atendimento1,
-      name: 'Atendimento Silva',
-      email: 'atendimento1@exemplo.com',
-      passwordHash: userPasswordHash,
-      roleId: roleIds.atendimento,
-    },
-    {
-      id: userIds.atendimento2,
-      name: 'Atendimento Souza',
-      email: 'atendimento2@exemplo.com',
-      passwordHash: userPasswordHash,
-      roleId: roleIds.atendimento,
-    },
-    {
-      id: userIds.leitor,
-      name: 'Leitor Junior',
-      email: 'leitor@exemplo.com',
-      passwordHash: userPasswordHash,
-      roleId: roleIds.leitor,
-    },
-  ];
 
-  for (const user of users) {
-    const savedUser = await prisma.user.upsert({
-      where: {
-        tenantId_email: {
-          tenantId: tenant.id,
-          email: user.email,
-        },
-      },
-      update: {
-        name: user.name,
-        passwordHash: user.passwordHash,
+  await prisma.user.createMany({
+    data: [
+      {
+        id: ids.users.admin,
+        tenantId,
+        name: 'Administrador',
+        email: 'admin@seed.local',
+        passwordHash: adminPasswordHash,
+        avatarUrl: '/avatar.jpg',
         isActive: true,
       },
-      create: {
-        id: user.id,
-        tenantId: tenant.id,
-        name: user.name,
-        email: user.email,
-        passwordHash: user.passwordHash,
+      {
+        id: ids.users.gestor,
+        tenantId,
+        name: 'Gestora de Projetos',
+        email: 'gestor@seed.local',
+        passwordHash: userPasswordHash,
+        avatarUrl: '/avatar-female.jpg',
         isActive: true,
       },
-    });
-
-    await prisma.userRole.upsert({
-      where: {
-        tenantId_userId_roleId: {
-          tenantId: tenant.id,
-          userId: savedUser.id,
-          roleId: user.roleId,
-        },
-      },
-      update: {},
-      create: {
-        tenantId: tenant.id,
-        userId: savedUser.id,
-        roleId: user.roleId,
-      },
-    });
-  }
-
-  type SeedPerson = {
-    id: string;
-    fullName: string;
-    socialName: string;
-    email: string;
-    phone: string;
-    document: string;
-    rg: string;
-    nis: string;
-    birthDate: Date;
-    sex: string;
-    gender: string;
-    raceColor: string;
-    maritalStatus: string;
-    nationality: string;
-    status: string;
-    personType?: string;
-    notes?: string;
-    profileSummary?: string;
-    avatarUrl?: string;
-    tags?: string[];
-    departureReason?: string;
-  };
-
-  const defaultAvatarUrl = '/avatar.jpg';
-  const people: SeedPerson[] = [
-    {
-      id: '675d3227-da20-4e40-ab70-4b2a1011d728',
-      fullName: 'Ana Pereira',
-      socialName: 'Ana Pereira',
-      email: 'ana.pereira@exemplo.com',
-      phone: '+55 11 98888-1212',
-      document: '111.222.333-44',
-      rg: '44.556.677-1',
-      nis: '123.45678.90-1',
-      birthDate: new Date('1994-03-12'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-        nationality: 'Brasileira',
-        status: 'Ativo',
-        personType: 'Atendido',
-        tags: ['Agendar reuniao com os pais'],
-      },
-    {
-      id: '5a6afec4-5165-4f20-b394-d95b4d603fdd',
-      fullName: 'Carlos Souza',
-      socialName: 'Carlos Souza',
-      email: 'carlos.souza@exemplo.com',
-      phone: '+55 21 97777-2233',
-      document: '222.333.444-55',
-      rg: '22.334.445-2',
-      nis: '321.65498.76-0',
-      birthDate: new Date('1988-11-08'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Casado',
-        nationality: 'Brasileira',
-        status: 'Ativo',
-        personType: 'Familiar',
-        tags: ['Analisar mudanca de ciclo'],
-      },
-    {
-      id: 'c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf',
-      fullName: 'Marina Lima',
-      socialName: 'Marina Lima',
-      email: 'marina.lima@exemplo.com',
-      phone: '+55 31 96666-8899',
-      document: '333.444.555-66',
-      rg: '33.445.556-3',
-      nis: '987.65432.10-9',
-      birthDate: new Date('1979-07-27'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Preta',
-      maritalStatus: 'Divorciada',
-      nationality: 'Brasileira',
-      status: 'Em espera',
-      tags: ['Entrevista de acompanhamento'],
-    },
-    {
-      id: 'c9fd7f0b-faf7-4cad-a38a-58b566e7e623',
-      fullName: 'Beatriz Almeida',
-      socialName: 'Bia Almeida',
-      email: 'beatriz.almeida@exemplo.com',
-      phone: '+55 11 97777-1212',
-      document: '444.555.666-77',
-      rg: '55.667.788-4',
-      nis: '456.98765.43-2',
-      birthDate: new Date('1992-08-20'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'cadb7788-7849-42f8-9be7-1d99ff793f00',
-      fullName: 'Lucas Martins',
-      socialName: 'Lucas Martins',
-      email: 'lucas.martins@exemplo.com',
-      phone: '+55 11 98888-3344',
-      document: '555.666.777-88',
-      rg: '66.778.899-5',
-      nis: '567.12345.67-8',
-      birthDate: new Date('1985-02-18'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '7b4c445f-7009-4b73-a97e-a9468f2c1777',
-      fullName: 'Fernanda Costa',
-      socialName: 'Fernanda Costa',
-      email: 'fernanda.costa@exemplo.com',
-      phone: '+55 11 95555-3344',
-      document: '666.777.888-99',
-      rg: '77.889.900-6',
-      nis: '678.54321.09-3',
-      birthDate: new Date('1990-05-05'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '829f8d60-e82c-42b3-a6dd-97b60e508ad6',
-      fullName: 'Diego Santos',
-      socialName: 'Diego Santos',
-      email: 'diego.santos@exemplo.com',
-      phone: '+55 21 94444-5566',
-      document: '777.888.999-00',
-      rg: '88.990.011-7',
-      nis: '789.65432.10-4',
-      birthDate: new Date('1987-11-30'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Preta',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '4ae2c2df-8220-4234-86ed-43da9cea9025',
-      fullName: 'Paula Ribeiro',
-      socialName: 'Paula Ribeiro',
-      email: 'paula.ribeiro@exemplo.com',
-      phone: '+55 31 97777-8899',
-      document: '888.999.000-11',
-      rg: '99.001.122-8',
-      nis: '890.76543.21-5',
-      birthDate: new Date('1991-09-14'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Parda',
-      maritalStatus: 'Divorciada',
-      nationality: 'Brasileira',
-      status: 'Em espera',
-    },
-    {
-      id: '76a90a40-2a7a-40c4-9b0f-9cee5a56d96a',
-      fullName: 'Rafael Oliveira',
-      socialName: 'Rafael Oliveira',
-      email: 'rafael.oliveira@exemplo.com',
-      phone: '+55 21 96666-1122',
-      document: '999.000.111-22',
-      rg: '10.112.233-9',
-      nis: '901.87654.32-6',
-      birthDate: new Date('1983-03-10'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Branca',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'ac006735-d04b-4259-8025-86cd3fd6030c',
-      fullName: 'Juliana Freitas',
-      socialName: 'Juliana Freitas',
-      email: 'juliana.freitas@exemplo.com',
-      phone: '+55 41 98888-2211',
-      document: '111.000.222-33',
-      rg: '11.223.344-0',
-      nis: '012.98765.43-7',
-      birthDate: new Date('1996-07-22'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'b10ebb06-5f02-4e2e-ba20-197e1596570f',
-      fullName: 'Gustavo Lima',
-      socialName: 'Gustavo Lima',
-      email: 'gustavo.lima@exemplo.com',
-      phone: '+55 41 97777-3344',
-      document: '222.111.333-44',
-      rg: '22.334.455-1',
-      nis: '123.09876.54-8',
-      birthDate: new Date('1989-12-12'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'cc184af4-e7cb-4235-9155-96accf0725e4',
-      fullName: 'Patricia Ramos',
-      socialName: 'Patricia Ramos',
-      email: 'patricia.ramos@exemplo.com',
-      phone: '+55 51 99999-5522',
-      document: '333.222.444-55',
-      rg: '33.445.566-2',
-      nis: '234.10987.65-9',
-      birthDate: new Date('1993-04-08'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '88006fc9-7db6-4e39-8e65-2c63ff0eb798',
-      fullName: 'Henrique Duarte',
-      socialName: 'Henrique Duarte',
-      email: 'henrique.duarte@exemplo.com',
-      phone: '+55 51 98888-6644',
-      document: '444.333.555-66',
-      rg: '44.556.677-3',
-      nis: '345.21098.76-0',
-      birthDate: new Date('1984-06-17'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Preta',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '583145fa-138e-47d0-a758-9732a9653172',
-      fullName: 'Camila Torres',
-      socialName: 'Camila Torres',
-      email: 'camila.torres@exemplo.com',
-      phone: '+55 61 97777-6655',
-      document: '555.444.666-77',
-      rg: '55.667.788-4',
-      nis: '456.32109.87-1',
-      birthDate: new Date('1997-01-30'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'bafaf3f1-1b66-4dfa-a78b-40e3d6799652',
-      fullName: 'Leonardo Lopes',
-      socialName: 'Leonardo Lopes',
-      email: 'leonardo.lopes@exemplo.com',
-      phone: '+55 61 98888-7788',
-      document: '666.555.777-88',
-      rg: '66.778.899-5',
-      nis: '567.43210.98-2',
-      birthDate: new Date('1982-10-05'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '39b8f1ad-d8aa-41b4-9757-ad33b35b2314',
-      fullName: 'Larissa Rocha',
-      socialName: 'Larissa Rocha',
-      email: 'larissa.rocha@exemplo.com',
-      phone: '+55 71 97777-8899',
-      document: '777.666.888-99',
-      rg: '77.889.900-6',
-      nis: '678.54321.09-3',
-      birthDate: new Date('1995-09-09'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Em espera',
-    },
-    {
-      id: 'd79704f6-378f-439f-b40d-9eea794fbd5b',
-      fullName: 'Ricardo Nunes',
-      socialName: 'Ricardo Nunes',
-      email: 'ricardo.nunes@exemplo.com',
-      phone: '+55 71 98888-9900',
-      document: '888.777.999-00',
-      rg: '88.990.011-7',
-      nis: '789.65432.10-4',
-      birthDate: new Date('1978-11-11'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Preta',
-      maritalStatus: 'Divorciado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: 'c466a73a-503c-45ba-8d97-4c09e9f6c66d',
-      fullName: 'Sabrina Melo',
-      socialName: 'Sabrina Melo',
-      email: 'sabrina.melo@exemplo.com',
-      phone: '+55 81 97777-1122',
-      document: '999.888.000-11',
-      rg: '99.001.122-8',
-      nis: '890.76543.21-5',
-      birthDate: new Date('1999-04-15'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '722bbc89-d6b9-4931-b741-9e010c9a38ff',
-      fullName: 'Felipe Araujo',
-      socialName: 'Felipe Araujo',
-      email: 'felipe.araujo@exemplo.com',
-      phone: '+55 81 98888-2233',
-      document: '101.111.222-33',
-      rg: '11.223.344-9',
-      nis: '901.87654.32-6',
-      birthDate: new Date('1986-05-28'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Casado',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '2e48d425-9f09-4cd1-bb32-4934ad5c07ee',
-      fullName: 'Renata Vieira',
-      socialName: 'Renata Vieira',
-      email: 'renata.vieira@exemplo.com',
-      phone: '+55 91 97777-4455',
-      document: '212.222.333-44',
-      rg: '22.334.455-0',
-      nis: '012.98765.43-7',
-      birthDate: new Date('1998-06-06'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Solteira',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '10f1e22d-1111-4a44-8c44-111111111111',
-      fullName: 'Daniel Cruz',
-      socialName: 'Daniel Cruz',
-      email: 'daniel.cruz@exemplo.com',
-      phone: '+55 11 96666-7788',
-      document: '313.333.444-55',
-      rg: '33.445.566-1',
-      nis: '123.45678.90-1',
-      birthDate: new Date('1991-02-02'),
-      sex: 'Masculino',
-      gender: 'Homem',
-      raceColor: 'Parda',
-      maritalStatus: 'Solteiro',
-      nationality: 'Brasileira',
-      status: 'Ativo',
-    },
-    {
-      id: '20f2e33d-2222-4b55-8d55-222222222222',
-      fullName: 'Isabela Castro',
-      socialName: 'Isabela Castro',
-      email: 'isabela.castro@exemplo.com',
-      phone: '+55 11 95555-6677',
-      document: '414.444.555-66',
-      rg: '44.556.677-2',
-      nis: '234.56789.01-2',
-      birthDate: new Date('1990-12-18'),
-      sex: 'Feminino',
-      gender: 'Mulher',
-      raceColor: 'Branca',
-      maritalStatus: 'Casada',
-      nationality: 'Brasileira',
-      status: 'Em espera',
-    },
-  ];
-
-  for (const person of people) {
-    await prisma.person.upsert({
-      where: {
-        id: person.id,
-      },
-      update: {
-        fullName: person.fullName,
-        socialName: person.socialName,
-        email: person.email,
-        phone: person.phone,
-        document: person.document,
-        rg: person.rg,
-        nis: person.nis,
-        birthDate: person.birthDate,
-        sex: person.sex,
-        gender: person.gender,
-        raceColor: person.raceColor,
-        maritalStatus: person.maritalStatus,
-        nationality: person.nationality,
-        status: person.status,
-        personType: person.personType ?? 'Atendido',
-        departureReason: person.departureReason,
-        notes: person.notes,
-        profileSummary: person.profileSummary,
-        avatarUrl: person.avatarUrl,
-        tags: person.tags ? JSON.stringify(person.tags) : null,
-      },
-      create: {
-        id: person.id,
-        tenantId: tenant.id,
-        fullName: person.fullName,
-        socialName: person.socialName,
-        email: person.email,
-        phone: person.phone,
-        document: person.document,
-        rg: person.rg,
-        nis: person.nis,
-        birthDate: person.birthDate,
-        sex: person.sex,
-        gender: person.gender,
-        raceColor: person.raceColor,
-        maritalStatus: person.maritalStatus,
-        nationality: person.nationality,
-        status: person.status,
-        personType: person.personType ?? 'Atendido',
-        departureReason: person.departureReason ?? null,
-        notes: person.notes ?? 'Cadastro inicial.',
-        profileSummary:
-          person.profileSummary ?? '<p>Cadastro base para testes.</p>',
-        avatarUrl: person.avatarUrl ?? defaultAvatarUrl,
-        tags: person.tags ? JSON.stringify(person.tags) : null,
-      },
-    });
-  }
-
-  const householdIds = {
-    ana: "11111111-1111-1111-1111-111111111110",
-    carlos: "22222222-2222-2222-2222-222222222220",
-    ricardo: "33333333-3333-3333-3333-333333333330",
-  };
-
-  const householdSeeds = [
-    {
-      id: householdIds.ana,
-      name: "Residencia Ana Pereira",
-    },
-    {
-      id: householdIds.carlos,
-      name: "Residencia Carlos Souza",
-    },
-    {
-      id: householdIds.ricardo,
-      name: "Residencia Ricardo Nunes",
-    },
-  ];
-
-  for (const household of householdSeeds) {
-    await prisma.household.upsert({
-      where: { id: household.id },
-      update: { name: household.name, tenantId: tenant.id },
-      create: {
-        id: household.id,
-        tenantId: tenant.id,
-        name: household.name,
-      },
-    });
-  }
-
-  const householdProfiles = [
-    {
-      id: "e2c8a7d6-1a7b-4fdd-9d8a-1df6b1c0a111",
-      householdId: householdIds.ana,
-      type: "Alvenaria",
-      condition: "Rebocada",
-      ownership: "Cedida",
-      areaM2: 75,
-      rooms: 3,
-      bathrooms: 1,
-      notes: "Residencia em bom estado.",
-    },
-    {
-      id: "4b5e1c3a-0c2f-4b66-9a7d-4f74a3b7c222",
-      householdId: householdIds.carlos,
-      type: "Madeira",
-      condition: "Parcial",
-      ownership: "Alugada",
-      areaM2: 58,
-      rooms: 2,
-      bathrooms: 1,
-      notes: "Moradia com manutencao pendente.",
-    },
-    {
-      id: "5c3f2d4a-1b2c-4c77-9f1d-5d21a7b8c333",
-      householdId: householdIds.ricardo,
-      type: "Alvenaria",
-      condition: "Reformada",
-      ownership: "Financiada",
-      areaM2: 92,
-      rooms: 3,
-      bathrooms: 2,
-      notes: "Residencia em boas condicoes.",
-    },
-  ];
-
-  for (const profile of householdProfiles) {
-    await prisma.householdProfile.upsert({
-      where: { householdId: profile.householdId },
-      update: {
-        type: profile.type,
-        condition: profile.condition,
-        ownership: profile.ownership,
-        areaM2: profile.areaM2,
-        rooms: profile.rooms,
-        bathrooms: profile.bathrooms,
-        notes: profile.notes,
-      },
-      create: {
-        id: profile.id,
-        tenantId: tenant.id,
-        householdId: profile.householdId,
-        type: profile.type,
-        condition: profile.condition,
-        ownership: profile.ownership,
-        areaM2: profile.areaM2,
-        rooms: profile.rooms,
-        bathrooms: profile.bathrooms,
-        notes: profile.notes,
-      },
-    });
-  }
-
-  const upsertHouseholdMember = async (data: {
-    householdId: string;
-    personId: string;
-    role?: string | null;
-    isLegalGuardian?: boolean;
-    isHouseholdHead?: boolean;
-    isIncomeContributor?: boolean;
-    isProvider?: boolean;
-    isDependent?: boolean;
-    notes?: string | null;
-  }) => {
-    await prisma.householdMember.upsert({
-      where: {
-        householdId_personId: {
-          householdId: data.householdId,
-          personId: data.personId,
-        },
-      },
-      update: {
-        role: data.role ?? null,
-        isLegalGuardian: data.isLegalGuardian ?? false,
-        isHouseholdHead: data.isHouseholdHead ?? false,
-        isIncomeContributor: data.isIncomeContributor ?? false,
-        isProvider: data.isProvider ?? false,
-        isDependent: data.isDependent ?? false,
-        notes: data.notes ?? null,
-      },
-      create: {
-        tenantId: tenant.id,
-        householdId: data.householdId,
-        personId: data.personId,
-        role: data.role ?? null,
-        isLegalGuardian: data.isLegalGuardian ?? false,
-        isHouseholdHead: data.isHouseholdHead ?? false,
-        isIncomeContributor: data.isIncomeContributor ?? false,
-        isProvider: data.isProvider ?? false,
-        isDependent: data.isDependent ?? false,
-        notes: data.notes ?? null,
-      },
-    });
-  };
-
-  const upsertRelation = async (data: {
-    personId: string;
-    relatedPersonId: string;
-    type: string;
-    livesTogether?: boolean;
-    isLegalGuardian?: boolean;
-    notes?: string | null;
-  }) => {
-    await prisma.personRelation.upsert({
-      where: {
-        tenantId_personId_relatedPersonId_type: {
-          tenantId: tenant.id,
-          personId: data.personId,
-          relatedPersonId: data.relatedPersonId,
-          type: data.type,
-        },
-      },
-      update: {
-        livesTogether: data.livesTogether ?? false,
-        isLegalGuardian: data.isLegalGuardian ?? false,
-        notes: data.notes ?? null,
-      },
-      create: {
-        tenantId: tenant.id,
-        personId: data.personId,
-        relatedPersonId: data.relatedPersonId,
-        type: data.type,
-        livesTogether: data.livesTogether ?? false,
-        isLegalGuardian: data.isLegalGuardian ?? false,
-        notes: data.notes ?? null,
-      },
-    });
-  };
-
-  await upsertHouseholdMember({
-    householdId: householdIds.ana,
-    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    role: "Dependente",
-    isDependent: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.ana,
-    personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-    role: "Responsavel",
-    isLegalGuardian: true,
-    isHouseholdHead: true,
-    isProvider: true,
-    isIncomeContributor: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.ana,
-    personId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
-    role: "Dependente",
-    isDependent: true,
-  });
-
-  await upsertRelation({
-    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    relatedPersonId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-    type: "Mae",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    relatedPersonId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
-    type: "Irmao(a)",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    relatedPersonId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    type: "Pai",
-    livesTogether: false,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    type: "Filho(a)",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "c9fd7f0b-faf7-4cad-a38a-58b566e7e623",
-    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    type: "Irmao(a)",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    relatedPersonId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-    type: "Filho(a)",
-    livesTogether: false,
-    isLegalGuardian: true,
-  });
-
-  await upsertHouseholdMember({
-    householdId: householdIds.ricardo,
-    personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    role: "Responsavel",
-    isLegalGuardian: true,
-    isHouseholdHead: true,
-    isProvider: true,
-    isIncomeContributor: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.ricardo,
-    personId: "39b8f1ad-d8aa-41b4-9757-ad33b35b2314",
-    role: "Conjuge",
-    isIncomeContributor: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.ricardo,
-    personId: "10f1e22d-1111-4a44-8c44-111111111111",
-    role: "Dependente",
-    isDependent: true,
-  });
-
-  await upsertRelation({
-    personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    relatedPersonId: "39b8f1ad-d8aa-41b4-9757-ad33b35b2314",
-    type: "Conjuge",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "39b8f1ad-d8aa-41b4-9757-ad33b35b2314",
-    relatedPersonId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    type: "Conjuge",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    relatedPersonId: "10f1e22d-1111-4a44-8c44-111111111111",
-    type: "Filho(a)",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "10f1e22d-1111-4a44-8c44-111111111111",
-    relatedPersonId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-    type: "Pai",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-
-  await upsertHouseholdMember({
-    householdId: householdIds.carlos,
-    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-    role: "Morador",
-    isHouseholdHead: true,
-    isProvider: true,
-    isIncomeContributor: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.carlos,
-    personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-    role: "Conjuge",
-    isLegalGuardian: true,
-    isIncomeContributor: true,
-  });
-  await upsertHouseholdMember({
-    householdId: householdIds.carlos,
-    personId: "583145fa-138e-47d0-a758-9732a9653172",
-    role: "Dependente",
-    isDependent: true,
-  });
-
-  await upsertRelation({
-    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-    relatedPersonId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-    type: "Conjuge",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-    relatedPersonId: "583145fa-138e-47d0-a758-9732a9653172",
-    type: "Filho(a)",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-    relatedPersonId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-    type: "Conjuge",
-    livesTogether: true,
-  });
-  await upsertRelation({
-    personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-    relatedPersonId: "583145fa-138e-47d0-a758-9732a9653172",
-    type: "Filho(a)",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "583145fa-138e-47d0-a758-9732a9653172",
-    relatedPersonId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-    type: "Mae",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-  await upsertRelation({
-    personId: "583145fa-138e-47d0-a758-9732a9653172",
-    relatedPersonId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-    type: "Pai",
-    livesTogether: true,
-    isLegalGuardian: true,
-  });
-
-  const incomeSeeds = [
-    {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3001",
-      householdId: householdIds.ana,
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      type: "Salario",
-      amount: 2500,
-      frequency: "MONTHLY",
-      contractType: "CLT",
-      isHouseholdContribution: true,
-      notes: "Renda principal da residencia.",
-    },
-    {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3003",
-      householdId: householdIds.ricardo,
-      personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-      type: "Salario",
-      amount: 4500,
-      frequency: "MONTHLY",
-      contractType: "PJ",
-      isHouseholdContribution: true,
-      notes: "Renda do responsavel.",
-    },
-    {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3004",
-      householdId: householdIds.ricardo,
-      personId: "39b8f1ad-d8aa-41b4-9757-ad33b35b2314",
-      type: "Salario",
-      amount: 1800,
-      frequency: "MONTHLY",
-      contractType: "CLT",
-      isHouseholdContribution: true,
-    },
-    {
-      id: "7f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3005",
-      householdId: householdIds.carlos,
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      type: "Salario",
-      amount: 3200,
-      frequency: "MONTHLY",
-      contractType: "CLT",
-      isHouseholdContribution: true,
-    },
-  ];
-
-  for (const income of incomeSeeds) {
-    await prisma.personIncome.upsert({
-      where: { id: income.id },
-      update: {
-        householdId: income.householdId,
-        type: income.type,
-        amount: income.amount,
-        frequency: income.frequency as any,
-        contractType: income.contractType ?? null,
-        isHouseholdContribution: income.isHouseholdContribution,
-        notes: income.notes ?? null,
-      },
-      create: {
-        id: income.id,
-        tenantId: tenant.id,
-        personId: income.personId,
-        householdId: income.householdId,
-        type: income.type,
-        amount: income.amount,
-        frequency: income.frequency as any,
-        contractType: income.contractType ?? null,
-        isHouseholdContribution: income.isHouseholdContribution,
-        notes: income.notes ?? null,
-      },
-    });
-  }
-
-  const benefitSeeds = [
-    {
-      id: "8f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a4001",
-      householdId: householdIds.ana,
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      type: "Bolsa Familia",
-      status: "Ativo",
-      amount: 400,
-      frequency: "MONTHLY",
-      startDate: new Date("2025-01-01"),
-      endDate: null as Date | null,
-      notes: "Beneficio mensal.",
-    },
-    {
-      id: "8f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a4002",
-      householdId: householdIds.carlos,
-      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-      type: "Auxilio",
-      status: "Ativo",
-      amount: 400,
-      frequency: "MONTHLY",
-      startDate: new Date("2025-02-01"),
-      endDate: null as Date | null,
-      notes: null as string | null,
-    },
-  ];
-
-  for (const benefit of benefitSeeds) {
-    await prisma.personBenefit.upsert({
-      where: { id: benefit.id },
-      update: {
-        householdId: benefit.householdId,
-        type: benefit.type,
-        status: benefit.status,
-        amount: benefit.amount as any,
-        frequency: benefit.frequency as any,
-        startDate: benefit.startDate,
-        endDate: benefit.endDate,
-        notes: benefit.notes,
-      },
-      create: {
-        id: benefit.id,
-        tenantId: tenant.id,
-        personId: benefit.personId,
-        householdId: benefit.householdId,
-        type: benefit.type,
-        status: benefit.status,
-        amount: benefit.amount as any,
-        frequency: benefit.frequency as any,
-        startDate: benefit.startDate,
-        endDate: benefit.endDate,
-        notes: benefit.notes,
-      },
-    });
-  }
-
-  const expenseSeeds = [
-    {
-      id: "6f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3101",
-      householdId: householdIds.ana,
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      type: "Aluguel",
-      amount: 900,
-      frequency: "MONTHLY",
-      isHouseholdExpense: true,
-      notes: "Aluguel da residencia.",
-    },
-    {
-      id: "6f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3102",
-      householdId: householdIds.ana,
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      type: "Alimentacao",
-      amount: 650,
-      frequency: "MONTHLY",
-      isHouseholdExpense: true,
-    },
-    {
-      id: "6f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3103",
-      householdId: householdIds.ricardo,
-      personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-      type: "Aluguel",
-      amount: 1200,
-      frequency: "MONTHLY",
-      isHouseholdExpense: true,
-    },
-    {
-      id: "6f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3104",
-      householdId: householdIds.carlos,
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      type: "Aluguel",
-      amount: 1100,
-      frequency: "MONTHLY",
-      isHouseholdExpense: true,
-    },
-    {
-      id: "6f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3105",
-      householdId: householdIds.carlos,
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      type: "Energia",
-      amount: 260,
-      frequency: "MONTHLY",
-      isHouseholdExpense: true,
-    },
-  ];
-
-  for (const expense of expenseSeeds) {
-    await prisma.personExpense.upsert({
-      where: { id: expense.id },
-      update: {
-        householdId: expense.householdId,
-        type: expense.type,
-        amount: expense.amount,
-        frequency: expense.frequency as any,
-        isHouseholdExpense: expense.isHouseholdExpense,
-        notes: expense.notes ?? null,
-      },
-      create: {
-        id: expense.id,
-        tenantId: tenant.id,
-        personId: expense.personId,
-        householdId: expense.householdId,
-        type: expense.type,
-        amount: expense.amount,
-        frequency: expense.frequency as any,
-        isHouseholdExpense: expense.isHouseholdExpense,
-        notes: expense.notes ?? null,
-      },
-    });
-  }
-
-  const transferSeeds = [
-    {
-      id: "9f2e9b7b-3f05-4e6c-9e6b-1d6b1c0a3201",
-      personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-      fromHouseholdId: householdIds.ricardo,
-      toHouseholdId: householdIds.ana,
-      type: "PENSION",
-      amount: 600,
-      frequency: "MONTHLY",
-      notes: "Pensao paga para a familia da Ana.",
-    },
-  ];
-
-  for (const transfer of transferSeeds) {
-    await prisma.householdTransfer.upsert({
-      where: { id: transfer.id },
-      update: {
-        fromHouseholdId: transfer.fromHouseholdId,
-        toHouseholdId: transfer.toHouseholdId,
-        type: transfer.type as any,
-        amount: transfer.amount,
-        frequency: transfer.frequency as any,
-        notes: transfer.notes ?? null,
-      },
-      create: {
-        id: transfer.id,
-        tenantId: tenant.id,
-        personId: transfer.personId,
-        fromHouseholdId: transfer.fromHouseholdId,
-        toHouseholdId: transfer.toHouseholdId,
-        type: transfer.type as any,
-        amount: transfer.amount,
-        frequency: transfer.frequency as any,
-        notes: transfer.notes ?? null,
-      },
-    });
-  }
-
-  const householdAssets = [
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4001",
-      householdId: householdIds.ana,
-      category: "Eletrodomesticos",
-      item: "Geladeira",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4002",
-      householdId: householdIds.ana,
-      category: "Moveis",
-      item: "Sofa",
-      quantity: 1,
-      condition: "Usado",
-    },
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4005",
-      householdId: householdIds.ana,
-      category: "Moveis",
-      item: "Mesa",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4003",
-      householdId: householdIds.carlos,
-      category: "Servicos",
-      item: "Internet",
-      quantity: 1,
-      condition: "Ativo",
-    },
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4004",
-      householdId: householdIds.carlos,
-      category: "Aparelhos",
-      item: "Televisao",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "8a2f1c7b-0a32-4a8d-9a1c-1d6b1c0a4006",
-      householdId: householdIds.ricardo,
-      category: "Eletrodomesticos",
-      item: "Maquina de lavar",
-      quantity: 1,
-      condition: "Bom",
-    },
-  ];
-
-  for (const asset of householdAssets) {
-    await prisma.householdAsset.upsert({
-      where: { id: asset.id },
-      update: {
-        category: asset.category,
-        item: asset.item,
-        quantity: asset.quantity,
-        condition: asset.condition ?? null,
-      },
-      create: {
-        id: asset.id,
-        tenantId: tenant.id,
-        householdId: asset.householdId,
-        category: asset.category,
-        item: asset.item,
-        quantity: asset.quantity,
-        condition: asset.condition ?? null,
-      },
-    });
-  }
-
-  const personAssets = [
-    {
-      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5001",
-      personId: "c9e5539e-242a-4ef2-b5b7-3e9bd4c2dacf",
-      category: "Pessoal",
-      item: "Celular",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5002",
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      category: "Veiculo",
-      item: "Moto",
-      quantity: 1,
-      condition: "Usado",
-    },
-    {
-      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5003",
-      personId: "4ae2c2df-8220-4234-86ed-43da9cea9025",
-      category: "Pessoal",
-      item: "Notebook",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5004",
-      personId: "d79704f6-378f-439f-b40d-9eea794fbd5b",
-      category: "Veiculo",
-      item: "Carro",
-      quantity: 1,
-      condition: "Bom",
-    },
-    {
-      id: "9b2f1c7b-0a32-4a8d-9a1c-1d6b1c0a5005",
-      personId: "39b8f1ad-d8aa-41b4-9757-ad33b35b2314",
-      category: "Pessoal",
-      item: "Celular",
-      quantity: 1,
-      condition: "Bom",
-    },
-  ];
-
-  for (const asset of personAssets) {
-    await prisma.personAsset.upsert({
-      where: { id: asset.id },
-      update: {
-        category: asset.category,
-        item: asset.item,
-        quantity: asset.quantity,
-        condition: asset.condition ?? null,
-      },
-      create: {
-        id: asset.id,
-        tenantId: tenant.id,
-        personId: asset.personId,
-        category: asset.category,
-        item: asset.item,
-        quantity: asset.quantity,
-        condition: asset.condition ?? null,
-      },
-    });
-  }
-
-  const healthConditions = [
-    {
-      id: "c820b9b1-3b58-4f1a-b0e0-4dfc0c5d9001",
-      personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-      type: "Deficiencia Auditiva",
-      description: "Perda de 70% da audicao.",
-      severity: "Moderada",
-      diagnosisDate: new Date("2012-06-10"),
-      documentUrl: "/uploads/health/parecer-medico-auditivo.pdf",
-      notes: "Acompanhamento com fonoaudiologia.",
-    },
-    {
-      id: "c820b9b1-3b58-4f1a-b0e0-4dfc0c5d9002",
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      type: "Deficiencia Visual",
-      description: "Perda parcial da visao.",
-      severity: "Leve",
-      diagnosisDate: new Date("2018-03-12"),
-      documentUrl: "/uploads/health/parecer-medico-visao.pdf",
-      notes: "Uso de oculos com atualizacao anual.",
-    },
-  ];
-
-  for (const condition of healthConditions) {
-    await prisma.personHealthCondition.upsert({
-      where: { id: condition.id },
-      update: {
-        type: condition.type,
-        description: condition.description ?? null,
-        severity: condition.severity ?? null,
-        diagnosisDate: condition.diagnosisDate ?? null,
-        documentUrl: condition.documentUrl ?? null,
-        notes: condition.notes ?? null,
-      },
-      create: {
-        id: condition.id,
-        tenantId: tenant.id,
-        personId: condition.personId,
-        type: condition.type,
-        description: condition.description ?? null,
-        severity: condition.severity ?? null,
-        diagnosisDate: condition.diagnosisDate ?? null,
-        documentUrl: condition.documentUrl ?? null,
-        notes: condition.notes ?? null,
-      },
-    });
-  }
-
-  type MedicationSeed = {
-    id: string;
-    personId: string;
-    reason?: string;
-    medication: string;
-    dosage?: string;
-    schedule?: string;
-    startDate?: Date;
-    endDate?: Date;
-    prescribingDoctor?: string;
-    permissionDocumentUrl?: string;
-    documentUrl?: string;
-    notes?: string;
-  };
-
-  const medications: MedicationSeed[] = [
-    {
-      id: "d920b9b1-3b58-4f1a-b0e0-4dfc0c5d9101",
-      personId: "675d3227-da20-4e40-ab70-4b2a1011d728",
-      reason: "TDAH",
-      medication: "Ritalina",
-      dosage: "10 mg",
-      schedule: "08h/08h",
-      startDate: new Date("2024-01-15"),
-      prescribingDoctor: "Dr. Gustavo Almeida",
-      permissionDocumentUrl: "/uploads/health/autorizacao-pais.pdf",
-      notes: "Uso somente em dias de atendimento.",
-    },
-    {
-      id: "d920b9b1-3b58-4f1a-b0e0-4dfc0c5d9102",
-      personId: "5a6afec4-5165-4f20-b394-d95b4d603fdd",
-      reason: "Hipertensao",
-      medication: "Losartana",
-      dosage: "50 mg",
-      schedule: "1 vez ao dia",
-      startDate: new Date("2022-05-20"),
-      prescribingDoctor: "Dra. Marcia Silveira",
-      documentUrl: "/uploads/health/receita-losartana.pdf",
-      notes: "Monitorar pressao semanalmente.",
-    },
-  ];
-
-  for (const medication of medications) {
-    await prisma.personMedication.upsert({
-      where: { id: medication.id },
-      update: {
-        reason: medication.reason ?? null,
-        medication: medication.medication,
-        dosage: medication.dosage ?? null,
-        schedule: medication.schedule ?? null,
-        startDate: medication.startDate ?? null,
-        endDate: medication.endDate ?? null,
-        prescribingDoctor: medication.prescribingDoctor ?? null,
-        permissionDocumentUrl: medication.permissionDocumentUrl ?? null,
-        documentUrl: medication.documentUrl ?? null,
-        notes: medication.notes ?? null,
-      },
-      create: {
-        id: medication.id,
-        tenantId: tenant.id,
-        personId: medication.personId,
-        reason: medication.reason ?? null,
-        medication: medication.medication,
-        dosage: medication.dosage ?? null,
-        schedule: medication.schedule ?? null,
-        startDate: medication.startDate ?? null,
-        endDate: medication.endDate ?? null,
-        prescribingDoctor: medication.prescribingDoctor ?? null,
-        permissionDocumentUrl: medication.permissionDocumentUrl ?? null,
-        documentUrl: medication.documentUrl ?? null,
-        notes: medication.notes ?? null,
-      },
-    });
-  }
-
-  // Pantry seed (realistic data for testing the pantry module)
-  await prisma.pantryExitAllocation.deleteMany({ where: { tenantId: tenant.id } });
-  await prisma.pantryExit.deleteMany({ where: { tenantId: tenant.id } });
-  await prisma.pantryEntry.deleteMany({ where: { tenantId: tenant.id } });
-  await prisma.pantryItem.deleteMany({ where: { tenantId: tenant.id } });
-  await prisma.pantryDonor.deleteMany({ where: { tenantId: tenant.id } });
-
-  const toNumber = (value: unknown) => {
-    if (value === null || value === undefined) return 0;
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') return Number(value);
-    if (typeof value === 'object' && value && 'toNumber' in value) {
-      const candidate = (value as { toNumber?: () => number }).toNumber;
-      if (typeof candidate === 'function') return candidate.call(value);
-    }
-    return Number(value as any);
-  };
-
-  const pantryItemIds = {
-    rice: '7c1d4b2e-7b46-4b19-9bcb-1c4e2f86b9d1',
-    beans: 'd8c47c1b-bf47-4c27-9d8a-8d9a0e3c7c11',
-    pasta: 'b9b50a7f-3cdb-4e9a-9c53-0f11993c7f41',
-    oil: '0dc2c6a6-9ae1-45e4-9d2d-76e6a116f2d2',
-    milk: 'c5a7a2cb-2c28-4c0a-9a4d-51b92fd2c09f',
-    sugar: 'f5d5bca4-8c91-4b1f-9e2b-7b7a4f1c8b12',
-    sardine: 'a1b1c2d3-e4f5-4a6b-8c7d-9e0f1a2b3c4d',
-    diapers: '4b3c2d1e-0f9e-8d7c-6b5a-4f3e2d1c0b9a',
-  } as const;
-
-  const pantryDonorIds = {
-    market: 'f93c42e6-1f66-4f51-9d33-3fcdcc1f4d2e',
-    church: 'a06c1a51-9c87-4cda-8d0e-3a7d9a42bb8d',
-    company: 'b1d4b6ac-7d7a-4a1f-8e0f-3d5f7b9c1a2e',
-    volunteer: 'c11d8a2e-5b6a-4f7c-8d9e-0a1b2c3d4e5f',
-  } as const;
-
-  await prisma.pantryItem.createMany({
-    data: [
       {
-        id: pantryItemIds.rice,
-        tenantId: tenant.id,
-        name: 'Arroz',
-        group: 'Alimentos',
-        unit: 'kg',
-        minStock: 25,
-      },
-      {
-        id: pantryItemIds.beans,
-        tenantId: tenant.id,
-        name: 'Feijao',
-        group: 'Alimentos',
-        unit: 'kg',
-        minStock: 20,
-      },
-      {
-        id: pantryItemIds.pasta,
-        tenantId: tenant.id,
-        name: 'Macarrao',
-        group: 'Alimentos',
-        unit: 'un',
-        minStock: 40,
-      },
-      {
-        id: pantryItemIds.oil,
-        tenantId: tenant.id,
-        name: 'Oleo de soja',
-        group: 'Alimentos',
-        unit: 'L',
-        minStock: 15,
-      },
-      {
-        id: pantryItemIds.milk,
-        tenantId: tenant.id,
-        name: 'Leite UHT',
-        group: 'Alimentos',
-        unit: 'L',
-        minStock: 30,
-      },
-      {
-        id: pantryItemIds.sugar,
-        tenantId: tenant.id,
-        name: 'Acucar',
-        group: 'Alimentos',
-        unit: 'kg',
-        minStock: 10,
-      },
-      {
-        id: pantryItemIds.sardine,
-        tenantId: tenant.id,
-        name: 'Sardinha em lata',
-        group: 'Alimentos',
-        unit: 'un',
-        minStock: 24,
-      },
-      {
-        id: pantryItemIds.diapers,
-        tenantId: tenant.id,
-        name: 'Fraldas (tam. M)',
-        group: 'Higiene',
-        unit: 'un',
-        minStock: 60,
+        id: ids.users.atendimento,
+        tenantId,
+        name: 'Equipe de Atendimento',
+        email: 'atendimento@seed.local',
+        passwordHash: userPasswordHash,
+        avatarUrl: '/avatar.jpg',
+        isActive: true,
       },
     ],
   });
 
-  await prisma.pantryDonor.createMany({
+  await prisma.userRole.createMany({
     data: [
       {
-        id: pantryDonorIds.market,
-        tenantId: tenant.id,
-        name: 'Supermercado Bom Preco',
-        type: 'COMPANY',
-        contact: 'contato@bompreco.com',
+        tenantId,
+        userId: ids.users.admin,
+        roleId: ids.roles.admin,
       },
       {
-        id: pantryDonorIds.church,
-        tenantId: tenant.id,
-        name: 'Igreja Sao Jose',
-        type: 'COMPANY',
-        contact: '(11) 99999-1111',
+        tenantId,
+        userId: ids.users.gestor,
+        roleId: ids.roles.gestor,
       },
       {
-        id: pantryDonorIds.company,
-        tenantId: tenant.id,
-        name: 'Doacao Empresa Parceira',
-        type: 'COMPANY',
-        contact: 'parcerias@empresa.com',
+        tenantId,
+        userId: ids.users.atendimento,
+        roleId: ids.roles.atendimento,
+      },
+    ],
+  });
+}
+
+async function main() {
+  await prisma.$transaction([
+    prisma.projectActionPeopleParticipation.deleteMany(),
+    prisma.projectActionAttendance.deleteMany(),
+    prisma.projectAction.deleteMany(),
+    prisma.actionType.deleteMany(),
+    prisma.projectEnrollmentGroupMembership.deleteMany(),
+    prisma.projectEnrollmentCycleParticipation.deleteMany(),
+    prisma.projectEnrollment.deleteMany(),
+    prisma.projectGroup.deleteMany(),
+    prisma.projectCycle.deleteMany(),
+    prisma.peopleSegmentMembership.deleteMany(),
+    prisma.peopleSegment.deleteMany(),
+    prisma.cycle.deleteMany(),
+    prisma.project.deleteMany(),
+    prisma.program.deleteMany(),
+    prisma.taskOrganizerComment.deleteMany(),
+    prisma.taskOrganizerTaskDependency.deleteMany(),
+    prisma.taskOrganizerSubtask.deleteMany(),
+    prisma.taskOrganizerChecklistItem.deleteMany(),
+    prisma.taskOrganizerTask.deleteMany(),
+    prisma.userMfaRecoveryCode.deleteMany(),
+    prisma.userTrustedDevice.deleteMany(),
+    prisma.userMfaChallenge.deleteMany(),
+    prisma.userMfaTotpSetup.deleteMany(),
+    prisma.passwordResetToken.deleteMany(),
+    prisma.userSession.deleteMany(),
+    prisma.personSensitiveAccessLog.deleteMany(),
+    prisma.auditLog.deleteMany(),
+    prisma.accessLog.deleteMany(),
+    prisma.userRole.deleteMany(),
+    prisma.rolePermission.deleteMany(),
+    prisma.role.deleteMany(),
+    prisma.user.deleteMany(),
+    prisma.permission.deleteMany(),
+    prisma.person.deleteMany(),
+    prisma.tenant.deleteMany(),
+  ]);
+
+  await prisma.tenant.create({
+    data: {
+      id: ids.tenant,
+      name: 'Instituicao Exemplo',
+      slug: 'instituicao-exemplo',
+      logoUrl: '/avatar-female.jpg',
+      cnpj: '12.345.678/0001-99',
+      startYear: 2008,
+      description:
+        '<p>Base de testes focada em people, segments, projects, groups e actions.</p>',
+      status: 'ACTIVE',
+    },
+  });
+
+  await createPermissionsAndRoles(ids.tenant);
+  await createUsers(ids.tenant);
+
+  await prisma.person.createMany({
+    data: people.map((person) => ({
+      ...person,
+      tenantId: ids.tenant,
+      notes: 'Pessoa criada pelo seed de homologacao.',
+      tags: person.personType,
+      profileSummary: `${person.fullName} participa dos cenarios de teste.`,
+    })),
+  });
+
+  await prisma.peopleSegment.createMany({
+    data: [
+      {
+        id: ids.segments.c1m,
+        tenantId: ids.tenant,
+        name: 'C1M',
+        category: 'Ciclo',
+        description: 'Ciclo 1 da manha para faixa etaria inicial.',
+        ageMin: 6,
+        ageMax: 8,
+        isActive: true,
       },
       {
-        id: pantryDonorIds.volunteer,
-        tenantId: tenant.id,
-        name: 'Voluntario Joao',
-        type: 'PERSON',
-        contact: '(11) 98888-2222',
+        id: ids.segments.c2m,
+        tenantId: ids.tenant,
+        name: 'C2M',
+        category: 'Ciclo',
+        description: 'Ciclo 2 da manha.',
+        ageMin: 9,
+        ageMax: 11,
+        isActive: true,
+      },
+      {
+        id: ids.segments.c3m,
+        tenantId: ids.tenant,
+        name: 'C3M',
+        category: 'Ciclo',
+        description: 'Ciclo 3 da manha.',
+        ageMin: 12,
+        ageMax: 14,
+        isActive: true,
+      },
+      {
+        id: ids.segments.familiares,
+        tenantId: ids.tenant,
+        name: 'Familiares',
+        category: 'Publico',
+        description: 'Familiares e responsaveis legais.',
+        isActive: true,
+      },
+      {
+        id: ids.segments.funcionarios,
+        tenantId: ids.tenant,
+        name: 'Funcionarios',
+        category: 'Equipe',
+        description: 'Equipe contratada da instituicao.',
+        isActive: true,
+      },
+      {
+        id: ids.segments.voluntarios,
+        tenantId: ids.tenant,
+        name: 'Voluntarios',
+        category: 'Equipe',
+        description: 'Voluntarios ativos.',
+        isActive: true,
+      },
+      {
+        id: ids.segments.parceiros,
+        tenantId: ids.tenant,
+        name: 'Parceiros',
+        category: 'Relacionamento',
+        description: 'Organizacoes apoiadoras e patrocinadoras.',
+        isActive: true,
+      },
+      {
+        id: ids.segments.c1t,
+        tenantId: ids.tenant,
+        name: 'C1T',
+        category: 'Ciclo',
+        description: 'Ciclo 1 da tarde.',
+        ageMin: 6,
+        ageMax: 8,
+        isActive: true,
       },
     ],
   });
 
-  const sectors = {
-    estoque: 'Estoque',
-    cozinha: 'Cozinha',
-    geladeira: 'Geladeira',
-  } as const;
-
-  const entryIds = {
-    rice1: 'e7f4c1a2-1a2b-4c3d-8e9f-0123456789ab',
-    rice2: 'e7f4c1a2-1a2b-4c3d-8e9f-0123456789ac',
-    beans1: 'b7f4c1a2-1a2b-4c3d-8e9f-1123456789ab',
-    beans2: 'b7f4c1a2-1a2b-4c3d-8e9f-1123456789ac',
-    pasta1: 'c7f4c1a2-1a2b-4c3d-8e9f-2123456789ab',
-    pasta2: 'c7f4c1a2-1a2b-4c3d-8e9f-2123456789ac',
-    oil1: 'd7f4c1a2-1a2b-4c3d-8e9f-3123456789ab',
-    oil2: 'd7f4c1a2-1a2b-4c3d-8e9f-3123456789ac',
-    milk1: 'a7f4c1a2-1a2b-4c3d-8e9f-4123456789ab',
-    milk2: 'a7f4c1a2-1a2b-4c3d-8e9f-4123456789ac',
-    sugar1: 'f7f4c1a2-1a2b-4c3d-8e9f-5123456789ab',
-    sardine1: '97f4c1a2-1a2b-4c3d-8e9f-6123456789ab',
-    diapers1: '87f4c1a2-1a2b-4c3d-8e9f-7123456789ab',
-  } as const;
-
-  await prisma.pantryEntry.createMany({
+  await prisma.peopleGroup.createMany({
     data: [
       {
-        id: entryIds.rice1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.rice,
-        donorId: pantryDonorIds.market,
-        sector: sectors.estoque,
-        quantity: 60,
-        unit: 'kg',
-        entryDate: new Date('2026-01-10T10:00:00.000Z'),
-        expiryDate: new Date('2027-01-10T00:00:00.000Z'),
-        notes: 'Compra mensal para compor cestas basicas.',
+        id: ids.peopleGroups.c1m,
+        tenantId: ids.tenant,
+        name: 'C1M',
+        groupType: 'CYCLE',
+        category: 'Ciclo',
+        description: 'Ciclo 1 da manha para faixa etaria inicial.',
+        ageMin: 6,
+        ageMax: 8,
+        isActive: true,
       },
       {
-        id: entryIds.rice2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.rice,
-        donorId: pantryDonorIds.company,
-        sector: sectors.estoque,
-        quantity: 20,
-        unit: 'kg',
-        entryDate: new Date('2026-02-05T10:00:00.000Z'),
-        expiryDate: new Date('2026-06-30T00:00:00.000Z'),
-        notes: 'Doacao extra com vencimento mais proximo.',
+        id: ids.peopleGroups.c2m,
+        tenantId: ids.tenant,
+        name: 'C2M',
+        groupType: 'CYCLE',
+        category: 'Ciclo',
+        description: 'Ciclo 2 da manha.',
+        ageMin: 9,
+        ageMax: 11,
+        isActive: true,
       },
       {
-        id: entryIds.beans1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.beans,
-        donorId: pantryDonorIds.market,
-        sector: sectors.estoque,
-        quantity: 40,
-        unit: 'kg',
-        entryDate: new Date('2026-01-12T10:00:00.000Z'),
-        expiryDate: new Date('2026-10-15T00:00:00.000Z'),
+        id: ids.peopleGroups.c3m,
+        tenantId: ids.tenant,
+        name: 'C3M',
+        groupType: 'CYCLE',
+        category: 'Ciclo',
+        description: 'Ciclo 3 da manha.',
+        ageMin: 12,
+        ageMax: 14,
+        isActive: true,
       },
       {
-        id: entryIds.beans2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.beans,
-        donorId: pantryDonorIds.church,
-        sector: sectors.estoque,
-        quantity: 15,
-        unit: 'kg',
-        entryDate: new Date('2026-02-03T10:00:00.000Z'),
-        expiryDate: new Date('2026-03-20T00:00:00.000Z'),
-        notes: 'Lote pequeno para consumo rapido.',
+        id: ids.peopleGroups.familiares,
+        tenantId: ids.tenant,
+        name: 'Familiares',
+        groupType: 'SEGMENT',
+        category: 'Publico',
+        description: 'Familiares e responsaveis legais.',
+        isActive: true,
       },
       {
-        id: entryIds.pasta1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.pasta,
-        donorId: pantryDonorIds.market,
-        sector: sectors.estoque,
-        quantity: 80,
-        unit: 'un',
-        entryDate: new Date('2026-01-20T10:00:00.000Z'),
-        expiryDate: new Date('2026-12-01T00:00:00.000Z'),
+        id: ids.peopleGroups.funcionarios,
+        tenantId: ids.tenant,
+        name: 'Funcionarios',
+        groupType: 'TEAM_POOL',
+        category: 'Equipe',
+        description: 'Equipe contratada da instituicao.',
+        isActive: true,
       },
       {
-        id: entryIds.pasta2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.pasta,
-        donorId: pantryDonorIds.volunteer,
-        sector: sectors.cozinha,
-        quantity: 24,
-        unit: 'un',
-        entryDate: new Date('2026-02-02T10:00:00.000Z'),
-        expiryDate: new Date('2026-04-01T00:00:00.000Z'),
-        notes: 'Separado para uso na cozinha.',
+        id: ids.peopleGroups.voluntarios,
+        tenantId: ids.tenant,
+        name: 'Voluntarios',
+        groupType: 'SEGMENT',
+        category: 'Equipe',
+        description: 'Voluntarios ativos.',
+        isActive: true,
       },
       {
-        id: entryIds.oil1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.oil,
-        donorId: pantryDonorIds.market,
-        sector: sectors.estoque,
-        quantity: 24,
-        unit: 'L',
-        entryDate: new Date('2026-01-18T10:00:00.000Z'),
-        expiryDate: new Date('2026-09-01T00:00:00.000Z'),
+        id: ids.peopleGroups.parceiros,
+        tenantId: ids.tenant,
+        name: 'Parceiros',
+        groupType: 'NETWORK',
+        category: 'Relacionamento',
+        description: 'Organizacoes apoiadoras e patrocinadoras.',
+        isActive: true,
       },
       {
-        id: entryIds.oil2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.oil,
-        donorId: pantryDonorIds.company,
-        sector: sectors.cozinha,
-        quantity: 6,
-        unit: 'L',
-        entryDate: new Date('2026-02-06T10:00:00.000Z'),
-        expiryDate: new Date('2026-06-15T00:00:00.000Z'),
-      },
-      {
-        id: entryIds.milk1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.milk,
-        donorId: pantryDonorIds.market,
-        sector: sectors.geladeira,
-        quantity: 18,
-        unit: 'L',
-        entryDate: new Date('2026-02-01T10:00:00.000Z'),
-        expiryDate: new Date('2026-02-10T00:00:00.000Z'),
-        notes: 'Lote vencido para validar alertas de vencimento.',
-      },
-      {
-        id: entryIds.milk2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.milk,
-        donorId: pantryDonorIds.church,
-        sector: sectors.geladeira,
-        quantity: 24,
-        unit: 'L',
-        entryDate: new Date('2026-02-12T10:00:00.000Z'),
-        expiryDate: new Date('2026-03-05T00:00:00.000Z'),
-      },
-      {
-        id: entryIds.sugar1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.sugar,
-        donorId: pantryDonorIds.volunteer,
-        sector: sectors.estoque,
-        quantity: 12,
-        unit: 'kg',
-        entryDate: new Date('2026-01-25T10:00:00.000Z'),
-        expiryDate: new Date('2026-08-01T00:00:00.000Z'),
-      },
-      {
-        id: entryIds.sardine1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.sardine,
-        donorId: pantryDonorIds.company,
-        sector: sectors.estoque,
-        quantity: 36,
-        unit: 'un',
-        entryDate: new Date('2026-01-28T10:00:00.000Z'),
-        expiryDate: new Date('2026-05-20T00:00:00.000Z'),
-      },
-      {
-        id: entryIds.diapers1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.diapers,
-        donorId: pantryDonorIds.company,
-        sector: sectors.estoque,
-        quantity: 120,
-        unit: 'un',
-        entryDate: new Date('2026-02-04T10:00:00.000Z'),
-        expiryDate: null,
-        notes: 'Produto sem validade.',
+        id: ids.peopleGroups.c1t,
+        tenantId: ids.tenant,
+        name: 'C1T',
+        groupType: 'CYCLE',
+        category: 'Ciclo',
+        description: 'Ciclo 1 da tarde.',
+        ageMin: 6,
+        ageMax: 8,
+        isActive: true,
       },
     ],
   });
 
-  const exitIds = {
-    basket1: '1b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-    basket2: '2b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-    kitchen1: '3b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-    event1: '4b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-    donation1: '5b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-    correction1: '6b1c2d3e-4f50-4a61-8c72-9d0e1f2a3b4c',
-  } as const;
+  const segmentMemberships = [
+    [ids.segments.c1m, people[0].id],
+    [ids.segments.c1m, people[1].id],
+    [ids.segments.c2m, people[2].id],
+    [ids.segments.c3m, people[3].id],
+    [ids.segments.c2m, people[4].id],
+    [ids.segments.c1m, people[5].id],
+    [ids.segments.familiares, people[6].id],
+    [ids.segments.familiares, people[7].id],
+    [ids.segments.familiares, people[8].id],
+    [ids.segments.funcionarios, people[9].id],
+    [ids.segments.funcionarios, people[10].id],
+    [ids.segments.voluntarios, people[11].id],
+    [ids.segments.voluntarios, people[12].id],
+    [ids.segments.parceiros, people[13].id],
+    [ids.segments.c1t, people[5].id],
+  ] as const;
 
-  await prisma.pantryExit.createMany({
+  await prisma.peopleSegmentMembership.createMany({
+    data: segmentMemberships.map(([segmentId, personId], index) => ({
+      id: `11111111-1111-4111-8111-111111114${String(index + 1).padStart(3, '0')}`,
+      tenantId: ids.tenant,
+      segmentId,
+      personId,
+      activeKey: `${segmentId}:${personId}`,
+      isActive: true,
+      startsAt: new Date('2026-02-01T08:00:00Z'),
+      internalNotes: 'Vinculo inicial criado pelo seed.',
+    })),
+  });
+
+  const peopleGroupParticipations = [
+    [ids.peopleGroups.c1m, people[0].id],
+    [ids.peopleGroups.c1m, people[1].id],
+    [ids.peopleGroups.c2m, people[2].id],
+    [ids.peopleGroups.c3m, people[3].id],
+    [ids.peopleGroups.c2m, people[4].id],
+    [ids.peopleGroups.c1m, people[5].id],
+    [ids.peopleGroups.familiares, people[6].id],
+    [ids.peopleGroups.familiares, people[7].id],
+    [ids.peopleGroups.familiares, people[8].id],
+    [ids.peopleGroups.funcionarios, people[9].id],
+    [ids.peopleGroups.funcionarios, people[10].id],
+    [ids.peopleGroups.voluntarios, people[11].id],
+    [ids.peopleGroups.voluntarios, people[12].id],
+    [ids.peopleGroups.parceiros, people[13].id],
+    [ids.peopleGroups.c1t, people[5].id],
+  ] as const;
+
+  await prisma.peopleGroupParticipation.createMany({
+    data: peopleGroupParticipations.map(([peopleGroupId, personId], index) => ({
+      id: `11111111-1111-4111-8111-111111117${String(index + 1).padStart(3, '0')}`,
+      tenantId: ids.tenant,
+      peopleGroupId,
+      personId,
+      activeKey: `${peopleGroupId}:${personId}`,
+      isActive: true,
+      startsAt: new Date('2026-02-01T08:00:00Z'),
+      internalNotes: 'Participacao global criada pelo seed.',
+    })),
+  });
+
+  await prisma.program.createMany({
     data: [
       {
-        id: exitIds.basket1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.rice,
-        sector: sectors.estoque,
-        quantity: 12,
-        unit: 'kg',
-        exitDate: new Date('2026-02-08T14:00:00.000Z'),
-        type: 'ATTENDED',
-        eventName: 'Cesta basica',
-        notes: 'Entrega para familia atendida.',
+        id: ids.programs.musica,
+        tenantId: ids.tenant,
+        name: 'Programa Musica e Convivencia',
+        type: 'SCFV',
+        description: 'Programa principal para oficinas de musica e convivio.',
+        internalNotes: 'Programa usado como base de homologacao.',
+        status: 'ACTIVE',
+        startsAt: new Date('2026-01-15T08:00:00Z'),
       },
       {
-        id: exitIds.basket2,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.beans,
-        sector: sectors.estoque,
-        quantity: 8,
-        unit: 'kg',
-        exitDate: new Date('2026-02-08T14:00:00.000Z'),
-        type: 'ATTENDED',
-        eventName: 'Cesta basica',
-      },
-      {
-        id: exitIds.kitchen1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.pasta,
-        sector: sectors.cozinha,
-        quantity: 10,
-        unit: 'un',
-        exitDate: new Date('2026-02-11T12:00:00.000Z'),
-        type: 'EVENT',
-        eventName: 'Almoco comunitario',
-      },
-      {
-        id: exitIds.event1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.sardine,
-        sector: sectors.estoque,
-        quantity: 12,
-        unit: 'un',
-        exitDate: new Date('2026-02-13T15:00:00.000Z'),
-        type: 'EVENT',
-        eventName: 'Mutirao',
-        notes: 'Distribuicao rapida durante evento.',
-      },
-      {
-        id: exitIds.donation1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.diapers,
-        sector: sectors.estoque,
-        quantity: 30,
-        unit: 'un',
-        exitDate: new Date('2026-02-14T10:00:00.000Z'),
-        type: 'DONATION',
-        eventName: 'Doacao externa',
-        notes: 'Doacao para outra instituicao parceira.',
-      },
-      {
-        id: exitIds.correction1,
-        tenantId: tenant.id,
-        itemId: pantryItemIds.oil,
-        sector: sectors.cozinha,
-        quantity: 1,
-        unit: 'L',
-        exitDate: new Date('2026-02-14T16:00:00.000Z'),
-        type: 'CORRECTION',
-        notes: 'Ajuste de inventario.',
+        id: ids.programs.familia,
+        tenantId: ids.tenant,
+        name: 'Programa Rede de Apoio Familiar',
+        type: 'PAIF',
+        description: 'Programa dedicado ao fortalecimento familiar.',
+        internalNotes: 'Programa de apoio sociofamiliar.',
+        status: 'ACTIVE',
+        startsAt: new Date('2026-01-20T08:00:00Z'),
       },
     ],
   });
 
-  const allocateExit = async (exit: {
-    id: string;
-    itemId: string;
-    sector: string;
-    quantity: number;
-  }) => {
-    const entries = await prisma.pantryEntry.findMany({
-      where: {
-        tenantId: tenant.id,
-        itemId: exit.itemId,
-        sector: exit.sector,
+  await prisma.project.createMany({
+    data: [
+      {
+        id: ids.projects.musicaManha,
+        tenantId: ids.tenant,
+        programId: ids.programs.musica,
+        name: 'Projeto Musica Manha',
+        description: 'Projeto voltado aos ciclos matutinos.',
+        internalNotes: 'Projeto principal do seed.',
+        status: 'ACTIVE',
+        startsAt: new Date('2026-02-01T08:00:00Z'),
+        endsAt: new Date('2026-12-01T08:00:00Z'),
       },
-      orderBy: [{ expiryDate: 'asc' }, { entryDate: 'asc' }],
-      select: { id: true, quantity: true },
-    });
-
-    if (!entries.length) {
-      throw new Error(`No entries found for exit allocation (${exit.id}).`);
-    }
-
-    const grouped = await prisma.pantryExitAllocation.groupBy({
-      by: ['entryId'],
-      where: {
-        tenantId: tenant.id,
-        entryId: { in: entries.map((entry) => entry.id) },
+      {
+        id: ids.projects.apoioFamilias,
+        tenantId: ids.tenant,
+        programId: ids.programs.familia,
+        name: 'Projeto Apoio as Familias',
+        description: 'Projeto para acompanhamento e fortalecimento das familias.',
+        internalNotes: 'Projeto secundario do seed.',
+        status: 'ACTIVE',
+        startsAt: new Date('2026-02-05T08:00:00Z'),
+        endsAt: new Date('2026-12-15T08:00:00Z'),
       },
-      _sum: { quantity: true },
-    });
-
-    const allocatedMap = new Map<string, number>();
-    grouped.forEach((row) => {
-      allocatedMap.set(row.entryId, toNumber(row._sum.quantity));
-    });
-
-    let remaining = exit.quantity;
-    const allocationRows: Array<{ entryId: string; quantity: number }> = [];
-
-    for (const entry of entries) {
-      if (remaining <= 0) break;
-      const available = toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
-      if (available <= 0) continue;
-      const qty = Math.min(available, remaining);
-      if (qty <= 0) continue;
-      allocationRows.push({ entryId: entry.id, quantity: qty });
-      remaining -= qty;
-    }
-
-    if (remaining > 0) {
-      throw new Error(`Insufficient stock to allocate exit ${exit.id} (missing: ${remaining}).`);
-    }
-
-    await prisma.pantryExitAllocation.createMany({
-      data: allocationRows.map((row) => ({
-        tenantId: tenant.id,
-        exitId: exit.id,
-        entryId: row.entryId,
-        quantity: row.quantity,
-      })),
-    });
-  };
-
-  await allocateExit({
-    id: exitIds.basket1,
-    itemId: pantryItemIds.rice,
-    sector: sectors.estoque,
-    quantity: 12,
-  });
-  await allocateExit({
-    id: exitIds.basket2,
-    itemId: pantryItemIds.beans,
-    sector: sectors.estoque,
-    quantity: 8,
-  });
-  await allocateExit({
-    id: exitIds.kitchen1,
-    itemId: pantryItemIds.pasta,
-    sector: sectors.cozinha,
-    quantity: 10,
-  });
-  await allocateExit({
-    id: exitIds.event1,
-    itemId: pantryItemIds.sardine,
-    sector: sectors.estoque,
-    quantity: 12,
-  });
-  await allocateExit({
-    id: exitIds.donation1,
-    itemId: pantryItemIds.diapers,
-    sector: sectors.estoque,
-    quantity: 30,
-  });
-  await allocateExit({
-    id: exitIds.correction1,
-    itemId: pantryItemIds.oil,
-    sector: sectors.cozinha,
-    quantity: 1,
+    ],
   });
 
+  await prisma.projectPeopleGroup.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111117901',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.c1m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117902',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.c2m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117903',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.c3m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117904',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.familiares,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117905',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.funcionarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117906',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.voluntarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117907',
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        peopleGroupId: ids.peopleGroups.parceiros,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117908',
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        peopleGroupId: ids.peopleGroups.familiares,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117909',
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        peopleGroupId: ids.peopleGroups.funcionarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111117910',
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        peopleGroupId: ids.peopleGroups.voluntarios,
+        participationKind: 'TEAM',
+      },
+    ],
+  });
+
+  await prisma.projectCycle.createMany({
+    data: [
+      {
+        id: ids.projectCycles.musicaC1m,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        segmentId: ids.segments.c1m,
+        name: 'C1M',
+        startsAt: new Date('2026-02-01T08:00:00Z'),
+      },
+      {
+        id: ids.projectCycles.musicaC2m,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        segmentId: ids.segments.c2m,
+        name: 'C2M',
+        startsAt: new Date('2026-02-01T08:00:00Z'),
+      },
+      {
+        id: ids.projectCycles.musicaC3m,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        segmentId: ids.segments.c3m,
+        name: 'C3M',
+        startsAt: new Date('2026-02-01T08:00:00Z'),
+      },
+      {
+        id: ids.projectCycles.musicaFamilias,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        segmentId: ids.segments.familiares,
+        name: 'Familiares',
+        startsAt: new Date('2026-02-01T08:00:00Z'),
+      },
+      {
+        id: ids.projectCycles.familiasBase,
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        segmentId: ids.segments.familiares,
+        name: 'Familiares',
+        startsAt: new Date('2026-02-05T08:00:00Z'),
+      },
+    ],
+  });
+
+  await prisma.projectGroup.createMany({
+    data: [
+      {
+        id: ids.groups.musicaMeninos,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        name: 'Grupo Meninos Percussao',
+        description: 'Agrupamento operacional para acoes especificas.',
+        internalNotes: 'Usado em ensaios e apresentacoes.',
+      },
+      {
+        id: ids.groups.coralPreparacao,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        name: 'Coral de Preparacao',
+        description: 'Grupo de preparacao vocal.',
+        internalNotes: 'Usado para triagem inicial.',
+      },
+      {
+        id: ids.groups.familiasEscuta,
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        name: 'Grupo de Escuta',
+        description: 'Grupo de acolhimento e escuta das familias.',
+        internalNotes: 'Grupo de apoio recorrente.',
+      },
+    ],
+  });
+
+  const enrollments = [
+    {
+      id: '11111111-1111-4111-8111-111111114001',
+      projectId: ids.projects.musicaManha,
+      personId: people[0].id,
+      role: 'PUBLICO_ATENDIDO',
+      cycleId: ids.projectCycles.musicaC1m,
+      groupIds: [ids.groups.coralPreparacao],
+      startsAt: new Date('2026-02-03T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114002',
+      projectId: ids.projects.musicaManha,
+      personId: people[1].id,
+      role: 'PUBLICO_ATENDIDO',
+      cycleId: ids.projectCycles.musicaC1m,
+      groupIds: [ids.groups.musicaMeninos],
+      startsAt: new Date('2026-02-03T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114003',
+      projectId: ids.projects.musicaManha,
+      personId: people[2].id,
+      role: 'PUBLICO_ATENDIDO',
+      cycleId: ids.projectCycles.musicaC2m,
+      groupIds: [ids.groups.coralPreparacao],
+      startsAt: new Date('2026-02-03T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114004',
+      projectId: ids.projects.musicaManha,
+      personId: people[3].id,
+      role: 'PUBLICO_ATENDIDO',
+      cycleId: ids.projectCycles.musicaC3m,
+      groupIds: [ids.groups.musicaMeninos],
+      startsAt: new Date('2026-02-03T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114005',
+      projectId: ids.projects.musicaManha,
+      personId: people[6].id,
+      role: 'FAMILIAR',
+      cycleId: ids.projectCycles.musicaFamilias,
+      groupIds: [],
+      startsAt: new Date('2026-02-10T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114006',
+      projectId: ids.projects.musicaManha,
+      personId: people[9].id,
+      role: 'EQUIPE_TECNICA',
+      cycleId: null,
+      groupIds: [],
+      startsAt: new Date('2026-02-01T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114007',
+      projectId: ids.projects.musicaManha,
+      personId: people[11].id,
+      role: 'VOLUNTARIO',
+      cycleId: null,
+      groupIds: [],
+      startsAt: new Date('2026-02-01T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114008',
+      projectId: ids.projects.musicaManha,
+      personId: people[13].id,
+      role: 'PARCEIRO',
+      cycleId: null,
+      groupIds: [],
+      startsAt: new Date('2026-02-01T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114009',
+      projectId: ids.projects.apoioFamilias,
+      personId: people[7].id,
+      role: 'FAMILIAR',
+      cycleId: ids.projectCycles.familiasBase,
+      groupIds: [ids.groups.familiasEscuta],
+      startsAt: new Date('2026-02-12T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114010',
+      projectId: ids.projects.apoioFamilias,
+      personId: people[8].id,
+      role: 'FAMILIAR',
+      cycleId: ids.projectCycles.familiasBase,
+      groupIds: [ids.groups.familiasEscuta],
+      startsAt: new Date('2026-02-12T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114011',
+      projectId: ids.projects.apoioFamilias,
+      personId: people[10].id,
+      role: 'EQUIPE_TECNICA',
+      cycleId: null,
+      groupIds: [],
+      startsAt: new Date('2026-02-05T08:00:00Z'),
+    },
+    {
+      id: '11111111-1111-4111-8111-111111114012',
+      projectId: ids.projects.apoioFamilias,
+      personId: people[12].id,
+      role: 'VOLUNTARIO',
+      cycleId: null,
+      groupIds: [],
+      startsAt: new Date('2026-02-05T08:00:00Z'),
+    },
+  ] as const;
+
+  await prisma.projectEnrollment.createMany({
+    data: enrollments.map((enrollment) => ({
+      id: enrollment.id,
+      tenantId: ids.tenant,
+      projectId: enrollment.projectId,
+      personId: enrollment.personId,
+      status: 'ACTIVE',
+      participationKind:
+        enrollment.role === 'PUBLICO_ATENDIDO' || enrollment.role === 'FAMILIAR'
+          ? 'PARTICIPANT'
+          : 'TEAM',
+      role: enrollment.role,
+      startsAt: enrollment.startsAt,
+    })),
+  });
+
+  const cycleParticipations = enrollments
+    .filter((enrollment) => enrollment.cycleId)
+    .map((enrollment, index) => ({
+      id: `11111111-1111-4111-8111-111111115${String(index + 1).padStart(3, '0')}`,
+      tenantId: ids.tenant,
+      enrollmentId: enrollment.id,
+      cycleId: enrollment.cycleId!,
+      activeKey: enrollment.id,
+      isActive: true,
+      startsAt: enrollment.startsAt,
+    }));
+
+  await prisma.projectEnrollmentCycleParticipation.createMany({
+    data: cycleParticipations,
+  });
+
+  const groupMemberships = enrollments.flatMap((enrollment, enrollmentIndex) =>
+    enrollment.groupIds.map((groupId, groupIndex) => ({
+      id: `11111111-1111-4111-8111-111111116${String(enrollmentIndex + 1).padStart(2, '0')}${groupIndex + 1}`,
+      tenantId: ids.tenant,
+      enrollmentId: enrollment.id,
+      groupId,
+      activeKey: `${enrollment.id}:${groupId}`,
+      isActive: true,
+      startsAt: enrollment.startsAt,
+    })),
+  );
+
+  await prisma.projectEnrollmentGroupMembership.createMany({
+    data: groupMemberships,
+  });
+
+  await prisma.actionType.createMany({
+    data: [
+      {
+        id: ids.actionTypes.oficina,
+        tenantId: ids.tenant,
+        name: 'Oficina',
+        description: 'Acoes praticas do projeto.',
+        target: 'PROJECT',
+        isActive: true,
+      },
+      {
+        id: ids.actionTypes.encontro,
+        tenantId: ids.tenant,
+        name: 'Encontro de Segmento',
+        description: 'Acoes focadas em um segmento do projeto.',
+        target: 'CYCLE',
+        isActive: true,
+      },
+      {
+        id: ids.actionTypes.atendimento,
+        tenantId: ids.tenant,
+        name: 'Atividade de Grupo',
+        description: 'Atividades de grupos operacionais.',
+        target: 'GROUP',
+        isActive: true,
+      },
+    ],
+  });
+
+  await prisma.projectAction.createMany({
+    data: [
+      {
+        id: ids.actions.acolhimento,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        createdByUserId: ids.users.gestor,
+        actionTypeId: ids.actionTypes.oficina,
+        title: 'Acolhimento de abertura',
+        description: 'Recepcao inicial de participantes e equipe.',
+        planHtml: '<p>Recepcao, alinhamento e apresentacao da proposta.</p>',
+        executedHtml: '<p>Acolhimento realizado com roda inicial.</p>',
+        conclusionHtml: '<p>Boa adesao do publico e da equipe.</p>',
+        completionPercent: 100,
+        status: 'EXECUTED',
+        plannedStartAt: new Date('2026-02-06T12:00:00Z'),
+        plannedEndAt: new Date('2026-02-06T14:00:00Z'),
+        executedStartAt: new Date('2026-02-06T12:10:00Z'),
+        executedEndAt: new Date('2026-02-06T13:50:00Z'),
+      },
+      {
+        id: ids.actions.ensaioMeninos,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        createdByUserId: ids.users.gestor,
+        groupId: ids.groups.musicaMeninos,
+        actionTypeId: ids.actionTypes.atendimento,
+        title: 'Ensaio dos meninos da percussao',
+        description: 'Atividade direcionada ao grupo operacional.',
+        planHtml: '<p>Ensaiar repertorio da apresentacao do mes.</p>',
+        completionPercent: 0,
+        status: 'PLANNED',
+        plannedStartAt: new Date('2026-03-18T13:00:00Z'),
+        plannedEndAt: new Date('2026-03-18T15:00:00Z'),
+      },
+      {
+        id: ids.actions.encontroC2m,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        createdByUserId: ids.users.gestor,
+        cycleId: ids.projectCycles.musicaC2m,
+        actionTypeId: ids.actionTypes.encontro,
+        title: 'Encontro do segmento C2M',
+        description: 'Encontro especifico para o segmento C2M.',
+        planHtml: '<p>Trabalhar integracao e ritmo corporal.</p>',
+        completionPercent: 0,
+        status: 'PLANNED',
+        plannedStartAt: new Date('2026-03-22T12:30:00Z'),
+        plannedEndAt: new Date('2026-03-22T14:00:00Z'),
+      },
+      {
+        id: ids.actions.rodaFamilias,
+        tenantId: ids.tenant,
+        projectId: ids.projects.apoioFamilias,
+        createdByUserId: ids.users.admin,
+        cycleId: ids.projectCycles.familiasBase,
+        actionTypeId: ids.actionTypes.encontro,
+        title: 'Roda de conversa com familias',
+        description: 'Encontro de escuta e fortalecimento de vinculos.',
+        planHtml: '<p>Escuta ativa e orientacoes socioassistenciais.</p>',
+        executedHtml: '<p>Participacao consistente das familias presentes.</p>',
+        conclusionHtml: '<p>Encaminhamentos definidos para o proximo mes.</p>',
+        completionPercent: 100,
+        status: 'EXECUTED',
+        plannedStartAt: new Date('2026-02-20T17:00:00Z'),
+        plannedEndAt: new Date('2026-02-20T19:00:00Z'),
+        executedStartAt: new Date('2026-02-20T17:10:00Z'),
+        executedEndAt: new Date('2026-02-20T18:55:00Z'),
+      },
+    ],
+  });
+
+  await prisma.actionPeopleGroup.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111119101',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.c1m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119102',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.c2m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119103',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.c3m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119104',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.funcionarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119105',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.voluntarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119106',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        peopleGroupId: ids.peopleGroups.parceiros,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119107',
+        tenantId: ids.tenant,
+        actionId: ids.actions.encontroC2m,
+        peopleGroupId: ids.peopleGroups.c2m,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119108',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        peopleGroupId: ids.peopleGroups.familiares,
+        participationKind: 'PARTICIPANT',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119109',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        peopleGroupId: ids.peopleGroups.funcionarios,
+        participationKind: 'TEAM',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111119110',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        peopleGroupId: ids.peopleGroups.voluntarios,
+        participationKind: 'TEAM',
+      },
+    ],
+  });
+
+  const participationByEnrollmentId = new Map(
+    cycleParticipations.map((participation) => [
+      participation.enrollmentId,
+      participation.id,
+    ]),
+  );
+
+  await prisma.projectActionAttendance.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111115001',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        enrollmentId: '11111111-1111-4111-8111-111111114001',
+        status: 'PRESENT',
+        qualityScore: 5,
+        qualityNotes: 'Chegou engajada e participou de toda a roda.',
+        isHighlight: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111115002',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        enrollmentId: '11111111-1111-4111-8111-111111114002',
+        status: 'PRESENT',
+        qualityScore: 4,
+        qualityNotes: 'Participacao positiva no acolhimento.',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111115003',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        enrollmentId: '11111111-1111-4111-8111-111111114003',
+        status: 'ABSENT',
+        notes: 'Faltou por consulta medica.',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111115004',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        enrollmentId: '11111111-1111-4111-8111-111111114009',
+        cycleParticipationId: participationByEnrollmentId.get(
+          '11111111-1111-4111-8111-111111114009',
+        ),
+        status: 'PRESENT',
+        qualityScore: 5,
+        qualityNotes: 'Contribuiu com relatos relevantes.',
+        isHighlight: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111115005',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        enrollmentId: '11111111-1111-4111-8111-111111114010',
+        cycleParticipationId: participationByEnrollmentId.get(
+          '11111111-1111-4111-8111-111111114010',
+        ),
+        status: 'EXCUSED',
+        notes: 'Ausencia justificada por trabalho.',
+      },
+      {
+        id: '11111111-1111-4111-8111-111111115006',
+        tenantId: ids.tenant,
+        actionId: ids.actions.encontroC2m,
+        enrollmentId: '11111111-1111-4111-8111-111111114003',
+        cycleParticipationId: participationByEnrollmentId.get(
+          '11111111-1111-4111-8111-111111114003',
+        ),
+        status: 'PRESENT',
+        qualityScore: 5,
+        qualityNotes: 'Participacao ativa no encontro do segmento.',
+      },
+    ],
+  });
+
+  await prisma.projectActionPeopleParticipation.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111116001',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        personId: people[9].id,
+        enrollmentId: '11111111-1111-4111-8111-111111114006',
+        participationKind: 'TEAM',
+        role: 'RESPONSAVEL_TECNICO',
+        activeKey: `${ids.actions.acolhimento}:${people[9].id}:RESPONSAVEL_TECNICO`,
+        isActive: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111116002',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        personId: people[11].id,
+        enrollmentId: '11111111-1111-4111-8111-111111114007',
+        participationKind: 'TEAM',
+        role: 'VOLUNTARIO',
+        activeKey: `${ids.actions.acolhimento}:${people[11].id}:VOLUNTARIO`,
+        isActive: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111116003',
+        tenantId: ids.tenant,
+        actionId: ids.actions.acolhimento,
+        personId: people[13].id,
+        enrollmentId: '11111111-1111-4111-8111-111111114008',
+        participationKind: 'TEAM',
+        role: 'APOIO',
+        activeKey: `${ids.actions.acolhimento}:${people[13].id}:APOIO`,
+        isActive: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111116004',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        personId: people[10].id,
+        enrollmentId: '11111111-1111-4111-8111-111111114011',
+        participationKind: 'TEAM',
+        role: 'FACILITADOR',
+        activeKey: `${ids.actions.rodaFamilias}:${people[10].id}:FACILITADOR`,
+        isActive: true,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111116005',
+        tenantId: ids.tenant,
+        actionId: ids.actions.rodaFamilias,
+        personId: people[12].id,
+        enrollmentId: '11111111-1111-4111-8111-111111114012',
+        participationKind: 'TEAM',
+        role: 'APOIO',
+        activeKey: `${ids.actions.rodaFamilias}:${people[12].id}:APOIO`,
+        isActive: true,
+      },
+    ],
+  });
+
+  await prisma.auditLog.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111118001',
+        tenantId: ids.tenant,
+        userId: ids.users.gestor,
+        entity: 'PeopleSegment',
+        entityId: ids.segments.c1m,
+        action: 'CREATE',
+        after: { name: 'C1M', category: 'Ciclo' },
+        createdAt: new Date('2026-02-01T08:05:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118002',
+        tenantId: ids.tenant,
+        userId: ids.users.gestor,
+        entity: 'PeopleSegmentMembership',
+        entityId: '11111111-1111-4111-8111-111111114001',
+        action: 'CREATE',
+        after: { segment: 'C1M', person: people[0].fullName },
+        createdAt: new Date('2026-02-01T08:10:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118003',
+        tenantId: ids.tenant,
+        userId: ids.users.admin,
+        entity: 'Project',
+        entityId: ids.projects.musicaManha,
+        action: 'CREATE',
+        after: { name: 'Projeto Musica Manha' },
+        createdAt: new Date('2026-02-01T08:15:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118004',
+        tenantId: ids.tenant,
+        userId: ids.users.gestor,
+        entity: 'ProjectCycle',
+        entityId: ids.projectCycles.musicaC1m,
+        action: 'CREATE',
+        after: { project: 'Projeto Musica Manha', segment: 'C1M' },
+        createdAt: new Date('2026-02-01T08:20:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118005',
+        tenantId: ids.tenant,
+        userId: ids.users.gestor,
+        entity: 'ProjectGroup',
+        entityId: ids.groups.musicaMeninos,
+        action: 'CREATE',
+        after: { name: 'Grupo Meninos Percussao' },
+        createdAt: new Date('2026-02-01T08:25:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118006',
+        tenantId: ids.tenant,
+        userId: ids.users.admin,
+        entity: 'ProjectEnrollment',
+        entityId: '11111111-1111-4111-8111-111111114006',
+        action: 'UPDATE',
+        before: { role: 'PUBLICO_ATENDIDO' },
+        after: { role: 'EQUIPE_TECNICA' },
+        createdAt: new Date('2026-02-05T10:00:00Z'),
+      },
+      {
+        id: '11111111-1111-4111-8111-111111118007',
+        tenantId: ids.tenant,
+        userId: ids.users.gestor,
+        entity: 'ProjectAction',
+        entityId: ids.actions.rodaFamilias,
+        action: 'CREATE',
+        after: { title: 'Roda de conversa com familias' },
+        createdAt: new Date('2026-02-20T16:40:00Z'),
+      },
+    ],
+  });
+
+  console.log('Seed executado com sucesso.');
+  console.log(`Tenant: instituicao-exemplo (${ids.tenant})`);
+  console.log('Usuarios:');
+  console.log('  admin@seed.local / Admin@123');
+  console.log('  gestor@seed.local / User@123');
+  console.log('  atendimento@seed.local / User@123');
+  console.log('Projetos seed: Projeto Musica Manha, Projeto Apoio as Familias');
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
+  .catch((error) => {
+    console.error('Erro ao executar o seed:', error);
+    process.exitCode = 1;
   })
-  .catch(async (error) => {
-    console.error(error);
+  .finally(async () => {
     await prisma.$disconnect();
-    process.exit(1);
   });
-
-
-
-

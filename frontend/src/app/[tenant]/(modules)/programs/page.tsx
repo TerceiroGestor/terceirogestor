@@ -1,6 +1,5 @@
-import { ProgramsClientPage } from "@/modules/programs";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function ProgramsPage() {
-  return <ProgramsClientPage />;
+  return <ScreenHost actionId="programs.list" />;
 }
-

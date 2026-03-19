@@ -1,6 +1,5 @@
-import { ProjectsClientPage } from "@/modules/projects";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function ProjectsPage() {
-  return <ProjectsClientPage />;
+  return <ScreenHost actionId="projects.list" />;
 }
-

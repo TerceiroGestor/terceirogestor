@@ -15,7 +15,7 @@ export type ApiPerson = {
   rg: string | null;
   nis: string | null;
   status: string | null;
-  personType: "Atendido" | "Familiar" | null;
+  personType: string | null;
   departureReason: string | null;
   notes: string | null;
   tags: string[] | null;
@@ -53,7 +53,7 @@ export type PersonInput = {
   rg?: string | null;
   nis?: string | null;
   status?: string | null;
-  personType?: "Atendido" | "Familiar" | null;
+  personType?: string | null;
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;

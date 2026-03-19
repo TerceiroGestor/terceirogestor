@@ -30,7 +30,7 @@ export function DetailSideTabs({
 
   return (
     <Tabs defaultValue={resolvedDefaultValue} className="flex h-full min-h-0 flex-col">
-      <TabsList className={MODULE_TABS_LIST_CLASS_NAME}>
+      <TabsList className={`${MODULE_TABS_LIST_CLASS_NAME} sticky top-0 z-10 bg-background`}>
         {visibleTabs.map((tab) => (
           <TabsTrigger
             key={tab.value}
@@ -48,8 +48,8 @@ export function DetailSideTabs({
       </TabsList>
 
       {visibleTabs.map((tab) => (
-        <TabsContent key={tab.value} value={tab.value} className="mt-4 min-h-0 flex-1">
-          <div className="h-full min-h-0">{tab.content}</div>
+        <TabsContent key={tab.value} value={tab.value} className="mt-4 min-h-0 flex-1 overflow-hidden">
+          <div className="h-full min-h-0 overflow-y-auto">{tab.content}</div>
         </TabsContent>
       ))}
     </Tabs>

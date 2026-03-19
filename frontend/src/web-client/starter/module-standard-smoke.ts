@@ -1,6 +1,10 @@
 "use client";
 
 import {
+  actionsDetailModuleDefinition,
+  actionsListModuleDefinition,
+} from "@/modules/actions/config/actions-module-contract";
+import {
   pantryDonorDetailModuleDefinition,
   pantryDonorsModuleDefinition,
   pantryEntryDetailModuleDefinition,
@@ -14,12 +18,26 @@ import {
   peopleListModuleDefinition,
 } from "@/modules/people/config/people-module-contract";
 import {
+  peopleSegmentsDetailModuleDefinition,
+  peopleSegmentsListModuleDefinition,
+} from "@/modules/people-segments/config/people-segments-module-contract";
+import {
+  programsDetailModuleDefinition,
+  programsListModuleDefinition,
+} from "@/modules/programs/config/programs-module-contract";
+import {
+  projectsDetailModuleDefinition,
+  projectsListModuleDefinition,
+} from "@/modules/projects/config/projects-module-contract";
+import {
   tasksDetailModuleDefinition,
   tasksListModuleDefinition,
 } from "@/modules/tasks/config/tasks-module-contract";
 import type { RecordModuleDefinition } from "@/web-client/registry/types";
 import { validateRecordModuleDefinition } from "@/web-client/registry/types";
 
+// These definitions intentionally span heterogeneous query/context types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>> = [
   pantryStockModuleDefinition,
   pantryHistoryModuleDefinition,
@@ -30,6 +48,14 @@ const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>>
   pantryExitDetailModuleDefinition,
   peopleListModuleDefinition,
   peopleDetailModuleDefinition,
+  peopleSegmentsListModuleDefinition,
+  peopleSegmentsDetailModuleDefinition,
+  programsListModuleDefinition,
+  programsDetailModuleDefinition,
+  projectsListModuleDefinition,
+  projectsDetailModuleDefinition,
+  actionsListModuleDefinition,
+  actionsDetailModuleDefinition,
   tasksListModuleDefinition,
   tasksDetailModuleDefinition,
 ];

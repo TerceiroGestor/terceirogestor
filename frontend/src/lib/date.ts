@@ -30,6 +30,10 @@ function toDateOnlyIso(value: string | Date | null | undefined) {
   return iso;
 }
 
+export function toDateInputValue(value: string | Date | null | undefined) {
+  return toDateOnlyIso(value) ?? "";
+}
+
 export function formatDateOnlyPtBR(value: string | Date | null | undefined) {
   const iso = toDateOnlyIso(value);
   if (!iso) return "—";

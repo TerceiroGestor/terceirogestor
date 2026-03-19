@@ -143,6 +143,23 @@ export function MedicationsPanel({ personId }: { personId: string }) {
       emptyMessage="Nenhuma medicacao cadastrada."
       tableMinWidthClassName="min-w-[1140px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "medicacao", label: "Medicacao", type: "text" },
+        { name: "motivo", label: "Motivo", type: "text" },
+        { name: "dosagem", label: "Dosagem", type: "text" },
+        { name: "frequencia", label: "Frequencia", type: "text" },
+        { name: "inicio", label: "Inicio", type: "date" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        medicacao: row.medication,
+        motivo: row.reason ?? null,
+        dosagem: row.dosage ?? null,
+        frequencia: row.schedule ?? null,
+        inicio: row.startDate ?? null,
+        notas: row.notes ?? null,
+      })}
+      searchActionId="people.medications"
     />
   );
 }

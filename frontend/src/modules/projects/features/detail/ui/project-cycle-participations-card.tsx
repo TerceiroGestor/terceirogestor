@@ -167,11 +167,11 @@ export function ProjectCycleParticipationsCard({
           await setEnrollmentCycle(token, projectId, row.id, { cycleId });
           updated += 1;
         });
-        toast({
-          title: "Ciclo atualizado",
-          description:
-            cycleId === null
-              ? `Removidos: ${updated}`
+      toast({
+        title: "Ciclo atualizado",
+        description:
+          cycleId === null
+              ? `Vínculos encerrados: ${updated}`
               : `Definidos: ${updated}`,
         });
         setSelectedRows([]);
@@ -265,7 +265,7 @@ export function ProjectCycleParticipationsCard({
   return (
     <SectionCard
       title="Participantes no ciclo"
-      subtitle="Defina o ciclo atual para participantes já vinculados ao projeto. As trocas geram histórico."
+      subtitle="Defina ou encerre o ciclo atual de participantes já matriculados no projeto. As trocas preservam histórico."
       actions={
         canUpdateEnrollments ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -283,9 +283,9 @@ export function ProjectCycleParticipationsCard({
               variant="secondary"
               disabled={!canManage || selectedRows.length === 0}
               onClick={() => handleBulkSetCycle(null)}
-              title="Remove o ciclo atual (encerra participação ativa)."
+              title="Encerra o vínculo ativo com o ciclo atual."
             >
-              Remover ciclo
+              Encerrar vínculo com ciclo
             </Button>
             <span className="text-xs text-muted-foreground">
               Selecionados: <strong>{selectedRows.length}</strong>

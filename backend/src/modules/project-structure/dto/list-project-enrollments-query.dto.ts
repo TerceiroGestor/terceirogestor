@@ -16,6 +16,10 @@ export class ListProjectEnrollmentsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
+  groupHistoryId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
   cycleId?: string;
 
   @IsOptional()
@@ -25,6 +29,10 @@ export class ListProjectEnrollmentsQueryDto {
   @IsOptional()
   @IsUUID('4')
   excludeCycleId?: string;
+
+  @IsOptional()
+  @IsString()
+  filters?: string;
 
   @IsOptional()
   @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))

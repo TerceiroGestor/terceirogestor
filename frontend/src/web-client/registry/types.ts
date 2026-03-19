@@ -470,7 +470,9 @@ export type DetailRelationConfig<
   visible?: (context: TContext) => boolean;
   loading?: (context: TContext) => boolean;
   rows: (context: TContext) => TRow[];
-  columns: ColumnDef<TRow, unknown>[];
+  columns:
+    | ColumnDef<TRow, unknown>[]
+    | ((context: TContext) => ColumnDef<TRow, unknown>[]);
   getRowId?: (row: TRow, index: number) => string;
   onRowClick?: (row: TRow, context: TContext) => void;
   renderCard?: (row: TRow, context: TContext) => React.ReactNode;

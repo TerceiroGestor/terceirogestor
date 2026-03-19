@@ -13,7 +13,7 @@ export const tasksManifest: ModuleManifest = {
       href: "/tasks",
       icon: ListTodo,
       permissions: ["tasks.read"],
-      order: 20,
+      order: 99,
     },
   ],
 };

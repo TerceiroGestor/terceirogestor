@@ -1,8 +1,17 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateProjectCycleDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  segmentId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  catalogCycleId?: string;
 
   @IsOptional()
   @IsDateString()
@@ -11,5 +20,9 @@ export class CreateProjectCycleDto {
   @IsOptional()
   @IsDateString()
   endsAt?: string;
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
 }
 

@@ -442,7 +442,7 @@ export function PeopleDetailEngineClientPage() {
         headerActionsSlot={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href={withTenantPath(`/person/${person.id}/tree`, tenantSlug)}>
+              <Link href={withTenantPath(`/people/${person.id}/tree`, tenantSlug)}>
                 Arvore genealogica
               </Link>
             </Button>

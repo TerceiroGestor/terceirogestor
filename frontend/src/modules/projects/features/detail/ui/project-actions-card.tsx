@@ -189,7 +189,7 @@ export function ProjectActionsCard({
 
   const cycleOptions = React.useMemo(
     () => [
-      { label: "Sem ciclo", value: NONE_VALUE },
+      { label: "Sem segmento", value: NONE_VALUE },
       ...cycles.map((cycle) => ({ label: cycle.name, value: cycle.id })),
     ],
     [cycles],

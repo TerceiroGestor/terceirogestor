@@ -53,8 +53,8 @@ export type PeopleDetailQueryState = {
 };
 
 export const PEOPLE_ROUTES = {
-  list: "/person",
-  detail: "/person",
+  list: "/people",
+  detail: "/people",
 } as const;
 
 const PEOPLE_PERMISSIONS = {

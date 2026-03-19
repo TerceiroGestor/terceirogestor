@@ -16,6 +16,9 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { PeopleModule } from './modules/people/people.module';
 import { PantryModule } from './modules/pantry/pantry.module';
 import { ProgramsModule } from './modules/programs/programs.module';
+import { CyclesModule } from './modules/cycles/cycles.module';
+import { PeopleSegmentsModule } from './modules/people-segments/people-segments.module';
+import { PeopleGroupsModule } from './modules/people-groups/people-groups.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ProjectStructureModule } from './modules/project-structure/project-structure.module';
 import { RegistrationModule } from './modules/registration/registration.module';
@@ -51,6 +54,9 @@ import { TasksModule } from './modules/tasks/tasks.module';
     PeopleModule,
     PantryModule,
     ProgramsModule,
+    CyclesModule,
+    PeopleSegmentsModule,
+    PeopleGroupsModule,
     ProjectsModule,
     ProjectStructureModule,
     ActionsModule,

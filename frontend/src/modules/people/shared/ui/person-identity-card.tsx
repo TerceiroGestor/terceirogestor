@@ -104,7 +104,7 @@ export function PersonIdentityCard({
           </div>
           {personId && showDetailsLink ? (
             <Link
-              href={withTenantPath(`/person/${personId}`, tenantSlug)}
+              href={withTenantPath(`/people/${personId}`, tenantSlug)}
               className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground transition hover:text-foreground"
             >
               Ver detalhes
@@ -412,6 +412,12 @@ export function PersonIdentityAvatarTrigger({
     <button
       type="button"
       disabled={!canOpenDialog}
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+      }}
       className={[
         "group relative rounded-full outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         canOpenDialog ? "hover:opacity-90" : "cursor-default opacity-90",
@@ -419,6 +425,7 @@ export function PersonIdentityAvatarTrigger({
       ]
         .filter(Boolean)
         .join(" ")}
+      data-row-click-ignore="true"
       aria-label={
         canOpenDialog
           ? "Ver identificacao da pessoa"

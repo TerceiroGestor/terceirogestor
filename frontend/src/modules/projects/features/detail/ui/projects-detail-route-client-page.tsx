@@ -49,7 +49,11 @@ function resolveStatusBadge(status: ApiProject["status"]) {
   }
 }
 
-export function ProjectsDetailRouteClientPage() {
+export function ProjectsDetailRouteClientPage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const params = useParams();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
@@ -132,65 +136,56 @@ export function ProjectsDetailRouteClientPage() {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-6 px-4 py-4">
-      <PageBreadcrumb
-        title={`Projeto • ${project.name}`}
-        items={[
-          { label: "Projetos", href: withTenantPath("/projects", tenantSlug) },
-          {
-            label: project.name,
-            href: withTenantPath(`/projects/${project.id}`, tenantSlug),
-          },
-        ]}
-        actionSlot={
-          canReadStructure ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="secondary">
-                  Gerenciar <ChevronDown className="ml-2 size-4 opacity-70" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={withTenantPath(
-                      `/projects/${project.id}/groups`,
-                      tenantSlug,
-                    )}
-                  >
-                    Grupos
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={withTenantPath(
-                      `/projects/${project.id}/cycles`,
-                      tenantSlug,
-                    )}
-                  >
-                    Ciclos
-                  </Link>
-                </DropdownMenuItem>
-                {canReadActions ? (
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={withTenantPath(
-                        `/projects/${project.id}/actions`,
-                        tenantSlug,
-                      )}
-                    >
-                      Ações
-                    </Link>
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null
-        }
-      />
+  const manageMenu = canReadStructure ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary">
+          Gerenciar <ChevronDown className="ml-2 size-4 opacity-70" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link href={withTenantPath(`/projects/${project.id}/groups`, tenantSlug)}>
+            Grupos
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={withTenantPath(`/projects/${project.id}/cycles`, tenantSlug)}>
+            Ciclos
+          </Link>
+        </DropdownMenuItem>
+        {canReadActions ? (
+          <DropdownMenuItem asChild>
+            <Link href={withTenantPath(`/projects/${project.id}/actions`, tenantSlug)}>
+              Ações
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
 
-      <SectionCard title="Projeto" subtitle="Informações principais do projeto.">
+  return (
+    <div className={`flex flex-col gap-6 ${embedded ? "" : "px-4 py-4"}`}>
+      {!embedded ? (
+        <PageBreadcrumb
+          title={`Projeto • ${project.name}`}
+          items={[
+            { label: "Projetos", href: withTenantPath("/projects", tenantSlug) },
+            {
+              label: project.name,
+              href: withTenantPath(`/projects/${project.id}`, tenantSlug),
+            },
+          ]}
+          actionSlot={manageMenu}
+        />
+      ) : null}
+
+      <SectionCard
+        title="Projeto"
+        subtitle="Informações principais do projeto."
+        actions={embedded ? manageMenu : undefined}
+      >
         <SectionList>
           <SectionListItem
             title={

@@ -16,6 +16,7 @@ export type ApiProject = {
   programId: string;
   name: string;
   description: string | null;
+  internalNotes: string | null;
   status: ProjectStatus;
   startsAt: string | null;
   endsAt: string | null;
@@ -33,8 +34,8 @@ export type ProjectInput = {
   programId: string;
   name: string;
   description?: string | null;
+  internalNotes?: string | null;
   status?: ProjectStatus;
   startsAt?: string | null;
   endsAt?: string | null;
 };
-

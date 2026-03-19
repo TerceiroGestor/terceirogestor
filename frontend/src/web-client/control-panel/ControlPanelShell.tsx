@@ -44,6 +44,23 @@ export function ControlPanelShell() {
       )
     ) : null);
 
+  const hasContent = Boolean(
+    createButtonNode ||
+      actionSlot ||
+      controlPanel.leftSlot ||
+      controlPanel.searchSlot ||
+      controlPanel.filterSlot ||
+      controlPanel.groupBySlot ||
+      controlPanel.favoritesSlot ||
+      controlPanel.viewSwitcherSlot ||
+      controlPanel.rightSlot ||
+      controlPanel.viewControlsSlot,
+  );
+
+  if (!hasContent) {
+    return null;
+  }
+
   return (
     <div className="border-b border-border/60 bg-background/90 px-4 backdrop-blur">
       <div className="grid grid-cols-1 gap-3 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:py-2.5">

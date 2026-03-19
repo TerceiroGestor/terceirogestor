@@ -6,13 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
-import type { ApiProjectAction, ProjectActionAttendancesListItem } from "@/modules/actions/api";
+import type {
+  ApiProjectAction,
+  ApiProjectActionPeopleParticipation,
+  ProjectActionAttendancesListItem,
+} from "@/modules/actions/api";
+import { ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import { ACTION_REPORT_TEXT } from "../config/action-report.constants";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ActionReportPreviewProps = {
   action: ApiProjectAction;
   rows: ProjectActionAttendancesListItem[];
+  peopleParticipations: ApiProjectActionPeopleParticipation[];
   photoPaths: string[];
   canShowPeople: boolean;
   printMode?: boolean;
@@ -29,6 +35,7 @@ function formatPeriod(start: string | null, end: string | null) {
 export function ActionReportPreview({
   action,
   rows,
+  peopleParticipations,
   photoPaths,
   canShowPeople,
   printMode = false,
@@ -105,6 +112,17 @@ export function ActionReportPreview({
       </div>
     );
   };
+
+  const participationsByRole = React.useMemo(() => {
+    return peopleParticipations.reduce<Record<string, ApiProjectActionPeopleParticipation[]>>(
+      (accumulator, row) => {
+        const key = row.role;
+        accumulator[key] = [...(accumulator[key] ?? []), row];
+        return accumulator;
+      },
+      {},
+    );
+  }, [peopleParticipations]);
 
   return (
     <div className={printMode ? "space-y-6" : "space-y-5"}>
@@ -243,6 +261,42 @@ export function ActionReportPreview({
         {renderRichCard({ title: ACTION_REPORT_TEXT.titles.executedHtml, html: action.executedHtml })}
         {renderRichCard({ title: ACTION_REPORT_TEXT.titles.conclusionHtml, html: action.conclusionHtml })}
       </div>
+
+      {peopleParticipations.length ? (
+        <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
+          <div className="mb-3 text-sm font-semibold">Equipe e apoio</div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Object.entries(participationsByRole).map(([role, items]) => (
+              <div key={role} className="rounded-md border border-border/60 bg-background px-3 py-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  {ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[
+                    role as keyof typeof ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS
+                  ] ?? role}
+                </div>
+                <div className="space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 text-sm">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={resolveMediaUrl(item.person.avatarUrl)} alt={item.person.fullName} />
+                        <AvatarFallback>
+                          {(item.person.fullName ?? "—")
+                            .split(" ")
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((part) => part[0])
+                            .join("")
+                            .toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{item.person.fullName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {photoPaths.length ? (
         <div>

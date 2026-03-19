@@ -207,7 +207,7 @@ export function ProjectActionManageDialog({
                       Tipo: <strong>{action.actionType?.name ?? "—"}</strong>
                     </span>
                     <span>
-                      Ciclo: <strong>{action.cycle?.name ?? "—"}</strong>
+                      Segmento: <strong>{action.cycle?.name ?? "—"}</strong>
                     </span>
                     <span>
                       Planejamento:{" "}
@@ -241,4 +241,3 @@ export function ProjectActionManageDialog({
     </SectionDialog>
   );
 }
-

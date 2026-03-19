@@ -110,6 +110,21 @@ export function DetentionsPanel({ personId }: { personId: string }) {
       emptyMessage="Nenhum registro de reclusao."
       tableMinWidthClassName="min-w-[920px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "status", label: "Status", type: "text" },
+        { name: "unidade", label: "Unidade", type: "text" },
+        { name: "tipo", label: "Tipo", type: "text" },
+        { name: "inicio", label: "Inicio", type: "date" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        status: row.status,
+        unidade: row.unit ?? null,
+        tipo: row.type ?? null,
+        inicio: row.startDate ?? null,
+        notas: row.notes ?? null,
+      })}
+      searchActionId="people.detentions"
     />
   );
 }

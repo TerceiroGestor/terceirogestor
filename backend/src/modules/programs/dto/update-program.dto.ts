@@ -15,6 +15,10 @@ export class UpdateProgramDto {
   description?: string;
 
   @IsOptional()
+  @IsString()
+  internalNotes?: string;
+
+  @IsOptional()
   @IsEnum(ProgramStatus)
   status?: ProgramStatus;
 

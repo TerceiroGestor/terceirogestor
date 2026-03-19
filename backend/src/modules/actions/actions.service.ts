@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  ActionPeopleParticipationRole,
   ActionStatus,
   ActionTarget,
   AttendanceStatus,
+  ParticipationKind,
   Prisma,
 } from '../../generated/prisma';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
@@ -15,10 +17,17 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { buildPeopleWhere, parseAdvancedFilters } from '../people/people.filters';
 import { CreateActionTypeDto } from './dto/create-action-type.dto';
+import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
+import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
+import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action-people-participation.dto';
+import { ListEligibleProjectActionPeopleQueryDto } from './dto/list-eligible-project-action-people-query.dto';
 import { ListActionTypesQueryDto } from './dto/list-action-types-query.dto';
+import { ListActionPeopleGroupsQueryDto } from './dto/list-action-people-groups-query.dto';
 import { ListProjectActionAttendancesQueryDto } from './dto/list-project-action-attendances-query.dto';
+import { ListProjectActionPeopleParticipationsQueryDto } from './dto/list-project-action-people-participations-query.dto';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
 import { UpdateActionTypeDto } from './dto/update-action-type.dto';
 import { UpdateProjectActionDto } from './dto/update-project-action.dto';
@@ -143,7 +152,20 @@ export class ActionsService {
         actionType: { select: { id: true, name: true, target: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
         group: { select: { id: true, name: true } },
-        cycle: { select: { id: true, name: true } },
+        cycle: {
+          select: {
+            id: true,
+            name: true,
+            segmentId: true,
+            segment: {
+              select: { id: true, name: true, category: true },
+            },
+            catalogCycleId: true,
+            catalogCycle: {
+              select: { id: true, name: true, audienceType: true },
+            },
+          },
+        },
       },
     });
     if (!action) throw new NotFoundException('Acao nao encontrada');
@@ -252,6 +274,10 @@ export class ActionsService {
               { actionType: { name: { contains: q } } },
               { group: { name: { contains: q } } },
               { cycle: { name: { contains: q } } },
+              { cycle: { segment: { name: { contains: q } } } },
+              { cycle: { segment: { category: { contains: q } } } },
+              { cycle: { catalogCycle: { name: { contains: q } } } },
+              { cycle: { catalogCycle: { audienceType: { contains: q } } } },
             ],
           }
         : {}),
@@ -264,7 +290,20 @@ export class ActionsService {
           actionType: { select: { id: true, name: true, target: true } },
           createdByUser: { select: { id: true, name: true, email: true } },
           group: { select: { id: true, name: true } },
-          cycle: { select: { id: true, name: true } },
+          cycle: {
+            select: {
+              id: true,
+              name: true,
+              segmentId: true,
+              segment: {
+                select: { id: true, name: true, category: true },
+              },
+              catalogCycleId: true,
+              catalogCycle: {
+                select: { id: true, name: true, audienceType: true },
+              },
+            },
+          },
         },
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
         skip,
@@ -350,7 +389,20 @@ export class ActionsService {
         actionType: { select: { id: true, name: true, target: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
         group: { select: { id: true, name: true } },
-        cycle: { select: { id: true, name: true } },
+        cycle: {
+          select: {
+            id: true,
+            name: true,
+            segmentId: true,
+            segment: {
+              select: { id: true, name: true, category: true },
+            },
+            catalogCycleId: true,
+            catalogCycle: {
+              select: { id: true, name: true, audienceType: true },
+            },
+          },
+        },
       },
     });
   }
@@ -460,7 +512,20 @@ export class ActionsService {
         actionType: { select: { id: true, name: true, target: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
         group: { select: { id: true, name: true } },
-        cycle: { select: { id: true, name: true } },
+        cycle: {
+          select: {
+            id: true,
+            name: true,
+            segmentId: true,
+            segment: {
+              select: { id: true, name: true, category: true },
+            },
+            catalogCycleId: true,
+            catalogCycle: {
+              select: { id: true, name: true, audienceType: true },
+            },
+          },
+        },
       },
     });
   }
@@ -472,8 +537,457 @@ export class ActionsService {
     await this.prisma.projectActionAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
+    await this.prisma.projectActionPeopleParticipation.deleteMany({
+      where: { tenantId: user.tenantId, actionId: existing.id },
+    });
 
     await this.prisma.projectAction.delete({ where: { id: existing.id } });
+    return { ok: true as const };
+  }
+
+  async listActionPeopleGroups(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    query: ListActionPeopleGroupsQueryDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    return this.prisma.actionPeopleGroup.findMany({
+      where: {
+        tenantId: user.tenantId,
+        actionId,
+        ...(query.participationKind ? { participationKind: query.participationKind } : {}),
+      },
+      include: {
+        peopleGroup: true,
+      },
+      orderBy: [{ participationKind: 'asc' }, { peopleGroup: { name: 'asc' } }],
+    });
+  }
+
+  async createActionPeopleGroup(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: CreateActionPeopleGroupDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const peopleGroup = await this.prisma.peopleGroup.findFirst({
+      where: { id: dto.peopleGroupId, tenantId: user.tenantId },
+      select: { id: true },
+    });
+    if (!peopleGroup) throw new BadRequestException('Grupo de pessoas invalido');
+
+    return this.prisma.actionPeopleGroup.create({
+      data: {
+        tenantId: user.tenantId,
+        actionId,
+        peopleGroupId: dto.peopleGroupId,
+        participationKind: dto.participationKind,
+      },
+      include: { peopleGroup: true },
+    });
+  }
+
+  async deleteActionPeopleGroup(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    actionPeopleGroupId: string,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const existing = await this.prisma.actionPeopleGroup.findFirst({
+      where: {
+        id: actionPeopleGroupId,
+        tenantId: user.tenantId,
+        actionId,
+      },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
+
+    await this.prisma.actionPeopleGroup.delete({ where: { id: existing.id } });
+    return { ok: true as const };
+  }
+
+  async listProjectActionPeopleParticipations(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    query: ListProjectActionPeopleParticipationsQueryDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const { page, limit, skip, take } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: false,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const q = normalizeString(query.q);
+    const where: Prisma.ProjectActionPeopleParticipationWhereInput = {
+      tenantId: user.tenantId,
+      actionId,
+      isActive: true,
+      deletedAt: null,
+      ...(query.role ? { role: query.role as ActionPeopleParticipationRole } : {}),
+      ...(q
+        ? {
+            OR: [
+              { person: { fullName: { contains: q } } },
+              { person: { socialName: { contains: q } } },
+              { enrollment: { person: { status: { contains: q } } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.projectActionPeopleParticipation.findMany({
+        where,
+        include: {
+          person: {
+            select: {
+              id: true,
+              fullName: true,
+              socialName: true,
+              birthDate: true,
+              status: true,
+              avatarUrl: true,
+              sex: true,
+              gender: true,
+              raceColor: true,
+              _count: { select: { healthConditions: true, medications: true } },
+            },
+          },
+          enrollment: {
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  avatarUrl: true,
+                  birthDate: true,
+                  status: true,
+                  sex: true,
+                  gender: true,
+                  raceColor: true,
+                  _count: { select: { healthConditions: true, medications: true } },
+                },
+              },
+              groupMemberships: {
+                where: { isActive: true, deletedAt: null },
+                include: { group: { select: { id: true, name: true } } },
+              },
+              cycleParticipations: {
+                where: { isActive: true, deletedAt: null },
+                include: { cycle: { select: { id: true, name: true } } },
+              },
+            },
+          },
+        },
+        orderBy: [{ role: 'asc' }, { person: { fullName: 'asc' } }],
+        skip,
+        take,
+      }),
+      this.prisma.projectActionPeopleParticipation.count({ where }),
+    ]);
+
+    return {
+      data: data.map((row) => ({
+        ...row,
+        person: {
+          ...row.person,
+          hasHealthCondition: (row.person._count.healthConditions ?? 0) > 0,
+          hasMedication: (row.person._count.medications ?? 0) > 0,
+          _count: undefined,
+        },
+        enrollment: row.enrollment ? this.serializeEnrollment(row.enrollment as any) : null,
+      })),
+      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+    };
+  }
+
+  async listEligibleProjectActionPeople(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    query: ListEligibleProjectActionPeopleQueryDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const { page, limit, skip, take } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: false,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const q = normalizeString(query.q);
+    const filters = parseAdvancedFilters(query.filters);
+    const participationKind: ParticipationKind = query.participationKind ?? 'TEAM';
+    const actionPeopleGroups = await this.prisma.actionPeopleGroup.findMany({
+      where: {
+        tenantId: user.tenantId,
+        actionId,
+        participationKind,
+      },
+      select: { peopleGroupId: true },
+      distinct: ['peopleGroupId'],
+    });
+    const actionPeopleGroupIds = actionPeopleGroups.map((row) => row.peopleGroupId);
+    const personBaseWhere = buildPeopleWhere({
+      tenantId: user.tenantId,
+      query: q ?? undefined,
+      filters,
+    });
+    const peopleGroupScope: Prisma.PersonWhereInput | null = actionPeopleGroupIds.length
+      ? {
+          peopleGroupParticipations: {
+            some: {
+              tenantId: user.tenantId,
+              peopleGroupId: { in: actionPeopleGroupIds },
+              isActive: true,
+              deletedAt: null,
+            },
+          },
+        }
+      : null;
+    const where: Prisma.ProjectEnrollmentWhereInput = {
+      tenantId: user.tenantId,
+      projectId,
+      participationKind,
+      status: 'ACTIVE',
+      deletedAt: null,
+      actionPeopleParticipations: {
+        none: {
+          tenantId: user.tenantId,
+          actionId,
+          isActive: true,
+          deletedAt: null,
+        },
+      },
+      person:
+        peopleGroupScope !== null
+          ? { AND: [personBaseWhere, peopleGroupScope] }
+          : personBaseWhere,
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.projectEnrollment.findMany({
+        where,
+        include: {
+          person: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+              birthDate: true,
+              status: true,
+              sex: true,
+              gender: true,
+              raceColor: true,
+              _count: { select: { healthConditions: true, medications: true } },
+            },
+          },
+          groupMemberships: {
+            where: { isActive: true, deletedAt: null },
+            include: { group: { select: { id: true, name: true } } },
+          },
+          cycleParticipations: {
+            where: { isActive: true, deletedAt: null },
+            include: { cycle: { select: { id: true, name: true } } },
+          },
+        },
+        orderBy: [{ person: { fullName: 'asc' } }],
+        skip,
+        take,
+      }),
+      this.prisma.projectEnrollment.count({ where }),
+    ]);
+
+    return {
+      data: data.map((enrollment) => this.serializeEnrollment(enrollment as any)),
+      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+    };
+  }
+
+  async createProjectActionPeopleParticipation(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: CreateProjectActionPeopleParticipationDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const person = await this.prisma.person.findFirst({
+      where: { id: dto.personId, tenantId: user.tenantId },
+      select: { id: true },
+    });
+    if (!person) throw new BadRequestException('Pessoa invalida');
+
+    let enrollmentId: string | null = null;
+    if (dto.enrollmentId) {
+      const enrollment = await this.prisma.projectEnrollment.findFirst({
+        where: {
+          id: dto.enrollmentId,
+          tenantId: user.tenantId,
+          projectId,
+          personId: dto.personId,
+          participationKind: dto.participationKind ?? 'TEAM',
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!enrollment) {
+        throw new BadRequestException('Participacao no projeto invalida');
+      }
+      enrollmentId = enrollment.id;
+    } else {
+      const activeEnrollment = await this.prisma.projectEnrollment.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          projectId,
+          personId: dto.personId,
+          participationKind: dto.participationKind ?? 'TEAM',
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      enrollmentId = activeEnrollment?.id ?? null;
+    }
+
+    const role: ActionPeopleParticipationRole = dto.role ?? 'PARTICIPANTE';
+    const activeKey = `${actionId}:${dto.personId}:${role}`;
+    const startsAt = parseDateInput(dto.startsAt) ?? new Date();
+
+    const existing = await this.prisma.projectActionPeopleParticipation.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        actionId,
+        personId: dto.personId,
+        role,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException('Pessoa ja esta vinculada a esta acao com esse papel.');
+    }
+
+    return this.prisma.projectActionPeopleParticipation.create({
+      data: {
+        tenantId: user.tenantId,
+        actionId,
+        personId: dto.personId,
+        enrollmentId,
+        participationKind: dto.participationKind ?? 'TEAM',
+        role,
+        activeKey,
+        isActive: true,
+        startsAt,
+        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+      },
+      include: {
+        person: {
+          select: {
+            id: true,
+            fullName: true,
+            socialName: true,
+            birthDate: true,
+            status: true,
+            avatarUrl: true,
+            sex: true,
+            gender: true,
+            raceColor: true,
+            _count: { select: { healthConditions: true, medications: true } },
+          },
+        },
+        enrollment: {
+          include: {
+            person: {
+              select: {
+                id: true,
+                fullName: true,
+                avatarUrl: true,
+                birthDate: true,
+                status: true,
+                sex: true,
+                gender: true,
+                raceColor: true,
+                _count: { select: { healthConditions: true, medications: true } },
+              },
+            },
+            groupMemberships: {
+              where: { isActive: true, deletedAt: null },
+              include: { group: { select: { id: true, name: true } } },
+            },
+            cycleParticipations: {
+              where: { isActive: true, deletedAt: null },
+              include: { cycle: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+    }).then((row) => ({
+      ...row,
+      person: {
+        ...row.person,
+        hasHealthCondition: (row.person._count.healthConditions ?? 0) > 0,
+        hasMedication: (row.person._count.medications ?? 0) > 0,
+        _count: undefined,
+      },
+      enrollment: row.enrollment ? this.serializeEnrollment(row.enrollment as any) : null,
+    }));
+  }
+
+  async endProjectActionPeopleParticipation(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    participationId: string,
+    dto: EndProjectActionPeopleParticipationDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const existing = await this.prisma.projectActionPeopleParticipation.findFirst({
+      where: { id: participationId, tenantId: user.tenantId, actionId },
+      select: { id: true, internalNotes: true, deletedAt: true },
+    });
+    if (!existing) throw new NotFoundException('Participacao da acao nao encontrada');
+    if (existing.deletedAt) return { ok: true as const };
+
+    const endsAt = parseDateInput(dto.endsAt, { endOfDay: true }) ?? new Date();
+    const noteSuffix = dto.internalNotes?.trim() ? dto.internalNotes.trim() : null;
+
+    await this.prisma.projectActionPeopleParticipation.update({
+      where: { id: existing.id },
+      data: {
+        activeKey: null,
+        isActive: false,
+        endsAt,
+        deletedAt: new Date(),
+        internalNotes: noteSuffix
+          ? [existing.internalNotes?.trim(), noteSuffix].filter(Boolean).join('\n\n')
+          : existing.internalNotes,
+      },
+    });
+
     return { ok: true as const };
   }
 

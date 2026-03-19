@@ -267,13 +267,13 @@ export function ProjectGroupMembershipsCard({
       });
       toast({
         title: "Grupo atualizado",
-        description: `Removidos: ${updated}`,
+        description: `Vínculos encerrados: ${updated}`,
       });
       setSelectedRows([]);
       await loadEnrollments();
     } catch (err) {
       toast({
-        title: "Falha ao remover",
+        title: "Falha ao encerrar vínculo",
         description:
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
@@ -389,7 +389,7 @@ export function ProjectGroupMembershipsCard({
   return (
     <SectionCard
       title="Participantes no grupo"
-      subtitle="Selecione um grupo e adicione/remova participantes já vinculados ao projeto."
+      subtitle="Selecione um grupo e adicione ou encerre vínculos de participantes já matriculados no projeto."
       actions={
         canUpdateEnrollments ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -407,7 +407,7 @@ export function ProjectGroupMembershipsCard({
               disabled={!canManageMemberships || selectedRows.length === 0}
               onClick={handleBulkRemove}
             >
-              Remover selecionados
+              Encerrar vínculos selecionados
             </Button>
             <span className="text-xs text-muted-foreground">
               Selecionados: <strong>{selectedRows.length}</strong>

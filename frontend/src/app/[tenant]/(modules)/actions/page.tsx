@@ -1,6 +1,5 @@
-import { ActionsClientPage } from "@/modules/actions";
+import { ActionsListModuleClientPage } from "@/modules/actions";
 
 export default function ActionsPage() {
-  return <ActionsClientPage />;
+  return <ActionsListModuleClientPage />;
 }
-

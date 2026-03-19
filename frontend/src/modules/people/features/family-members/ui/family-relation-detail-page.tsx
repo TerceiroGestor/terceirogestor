@@ -161,7 +161,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
 
   const relatedPerson = current?.relatedPerson ?? null;
   const relatedPersonHref = relatedPerson
-    ? withTenantPath(`/person/${relatedPerson.id}`, tenantSlug)
+    ? withTenantPath(`/people/${relatedPerson.id}`, tenantSlug)
     : null;
   const headerTitleSlot = relatedPerson ? (
     <Avatar className="size-12 border border-border/60">

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ApiProjectEnrollment } from "@/modules/projects/api";
+
 export type ApiActionType = {
   id: string;
   tenantId: string;
@@ -38,7 +40,24 @@ export type ApiProjectAction = {
   actionType?: { id: string; name: string; target?: "PROJECT" | "GROUP" | "CYCLE" };
   createdByUser?: { id: string; name: string | null; email: string };
   group?: { id: string; name: string } | null;
-  cycle?: { id: string; name: string } | null;
+  cycle?:
+    | {
+        id: string;
+        name: string;
+        segmentId?: string | null;
+        segment?: {
+          id: string;
+          name: string;
+          category?: string | null;
+        } | null;
+        catalogCycleId?: string | null;
+        catalogCycle?: {
+          id: string;
+          name: string;
+          audienceType?: string | null;
+        } | null;
+      }
+    | null;
 };
 
 export type PaginationMeta = {
@@ -72,6 +91,13 @@ export type ProjectActionInput = {
 };
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
+export type ActionPeopleParticipationRole =
+  | "PARTICIPANTE"
+  | "FACILITADOR"
+  | "APOIO"
+  | "VOLUNTARIO"
+  | "RESPONSAVEL_TECNICO"
+  | "CONVIDADO";
 
 export type ApiProjectActionAttendance = {
   id: string;
@@ -94,4 +120,53 @@ export type ProjectActionAttendancesListResponse = {
   action: { id: string; title: string; cycleId: string | null; groupId?: string | null };
   data: ProjectActionAttendancesListItem[];
   pagination: PaginationMeta;
+};
+
+export type ApiProjectActionPeopleParticipation = {
+  id: string;
+  tenantId: string;
+  actionId: string;
+  personId: string;
+  enrollmentId: string | null;
+  role: ActionPeopleParticipationRole;
+  activeKey: string | null;
+  isActive: boolean;
+  startsAt: string;
+  endsAt: string | null;
+  deletedAt: string | null;
+  internalNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  person: {
+    id: string;
+    fullName: string;
+    socialName?: string | null;
+    birthDate: string | null;
+    status: string | null;
+    avatarUrl: string | null;
+    sex?: string | null;
+    gender?: string | null;
+    raceColor?: string | null;
+    hasHealthCondition?: boolean | null;
+    hasMedication?: boolean | null;
+  };
+  enrollment: ApiProjectEnrollment | null;
+};
+
+export type ProjectActionPeopleParticipationsListResponse = {
+  data: ApiProjectActionPeopleParticipation[];
+  pagination: PaginationMeta;
+};
+
+export type ActionPeopleParticipationInput = {
+  personId: string;
+  enrollmentId?: string | null;
+  role?: ActionPeopleParticipationRole;
+  startsAt?: string | null;
+  internalNotes?: string | null;
+};
+
+export type EndActionPeopleParticipationInput = {
+  endsAt?: string | null;
+  internalNotes?: string | null;
 };

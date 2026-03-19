@@ -7,5 +7,9 @@ export class CreateProjectGroupDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
 }
 

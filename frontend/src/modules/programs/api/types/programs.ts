@@ -16,6 +16,7 @@ export type ApiProgram = {
   name: string;
   type: ProgramType;
   description: string | null;
+  internalNotes: string | null;
   status: ProgramStatus;
   startsAt: string | null;
   endsAt: string | null;
@@ -32,8 +33,8 @@ export type ProgramInput = {
   name: string;
   type: ProgramType;
   description?: string | null;
+  internalNotes?: string | null;
   status?: ProgramStatus;
   startsAt?: string | null;
   endsAt?: string | null;
 };
-

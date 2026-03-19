@@ -183,6 +183,32 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
       emptyMessage="Nenhum registro financeiro cadastrado."
       tableMinWidthClassName="min-w-[1180px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "tipo", label: "Tipo", type: "text" },
+        { name: "categoria", label: "Categoria", type: "text" },
+        { name: "subcategoria", label: "Subcategoria", type: "text" },
+        { name: "valor", label: "Valor", type: "number" },
+        { name: "frequencia", label: "Frequencia", type: "text" },
+        { name: "fluxo", label: "Familia / Fluxo", type: "text" },
+        { name: "status", label: "Status", type: "text" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        tipo: ENTRY_TYPE_LABELS[row.entryType],
+        categoria: row.category ?? null,
+        subcategoria: row.subcategory ?? null,
+        valor: row.amount ?? null,
+        frequencia: row.frequency ?? null,
+        fluxo:
+          row.entryType === "TRANSFER"
+            ? `${householdLabelById.get(row.fromHouseholdId ?? "") ?? "-"} -> ${
+                householdLabelById.get(row.toHouseholdId ?? "") ?? "-"
+              }`
+            : householdLabelById.get(row.householdId ?? "") ?? "-",
+        status: row.status ?? null,
+        notas: row.notes ?? null,
+      })}
+      searchActionId="people.financial-relations"
     />
   );
 }

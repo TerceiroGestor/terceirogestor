@@ -83,7 +83,7 @@ export function PeopleRelationDetailShell({
     <DetailShell
       breadcrumbTitle={title}
       breadcrumbItems={[
-        { label: "Pessoas", href: "/person" },
+        { label: "Pessoas", href: "/people" },
         { label: personName, href: buildPeopleDetailTabPath(personId, tab) },
         { label: title },
       ]}
@@ -99,14 +99,14 @@ export function PeopleRelationDetailShell({
           tabs={[
             {
               value: "activity",
-              label: "Atividade",
+              label: "Auditoria",
               content: (
                 <DetailAuditFeed
                   mode={mode}
                   auditState={detailAudit}
                   auditVisibleCount={auditVisibleCount}
                   onAuditVisibleCountChange={setAuditVisibleCount}
-                  emptyLabel="Sem atividade registrada."
+                  emptyLabel="Sem auditoria registrada."
                 />
               ),
             },

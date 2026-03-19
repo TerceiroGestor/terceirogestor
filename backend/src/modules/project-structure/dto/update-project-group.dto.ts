@@ -8,5 +8,9 @@ export class UpdateProjectGroupDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
 }
 

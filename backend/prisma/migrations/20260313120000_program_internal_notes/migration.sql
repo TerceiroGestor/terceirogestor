@@ -1,0 +1,2 @@
+ALTER TABLE `Program`
+ADD COLUMN `internalNotes` LONGTEXT NULL;

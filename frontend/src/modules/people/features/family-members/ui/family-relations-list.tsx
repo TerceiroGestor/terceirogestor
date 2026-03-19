@@ -176,7 +176,7 @@ const FamilyRow = ({
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <Link
-              href={withTenantPath(`/person/${person.id}`, tenantSlug)}
+              href={withTenantPath(`/people/${person.id}`, tenantSlug)}
               className="hover:text-foreground/80"
             >
               {displayNames.primary}

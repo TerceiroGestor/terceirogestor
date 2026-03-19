@@ -15,6 +15,10 @@ export class UpdateProjectDto {
   description?: string;
 
   @IsOptional()
+  @IsString()
+  internalNotes?: string;
+
+  @IsOptional()
   @IsEnum(ProjectStatus)
   status?: ProjectStatus;
 

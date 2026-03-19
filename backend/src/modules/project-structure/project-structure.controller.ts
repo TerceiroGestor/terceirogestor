@@ -18,8 +18,11 @@ import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateProjectCycleDto } from './dto/create-project-cycle.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
 import { CreateProjectGroupDto } from './dto/create-project-group.dto';
+import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
 import { AddEnrollmentGroupDto } from './dto/add-enrollment-group.dto';
+import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
+import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
 import { SetEnrollmentCycleDto } from './dto/set-enrollment-cycle.dto';
 import { UpdateProjectCycleDto } from './dto/update-project-cycle.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
@@ -38,6 +41,37 @@ export class ProjectStructureController {
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
   ) {
     return this.service.listGroups(user.tenantId, projectId);
+  }
+
+  @Get(':projectId/people-groups')
+  @Permissions('project-structure.read')
+  async listPeopleGroups(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Query() query: ListProjectPeopleGroupsQueryDto,
+  ) {
+    return this.service.listPeopleGroups(user.tenantId, projectId, query);
+  }
+
+  @Post(':projectId/people-groups')
+  @Permissions('project-structure.create')
+  async createPeopleGroup(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Body() dto: CreateProjectPeopleGroupDto,
+  ) {
+    return this.service.createPeopleGroup(user.tenantId, projectId, dto);
+  }
+
+  @Delete(':projectId/people-groups/:projectPeopleGroupId')
+  @Permissions('project-structure.delete')
+  async deletePeopleGroup(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('projectPeopleGroupId', new ParseUUIDPipe({ version: '4' }))
+    projectPeopleGroupId: string,
+  ) {
+    return this.service.deletePeopleGroup(user.tenantId, projectId, projectPeopleGroupId);
   }
 
   @Post(':projectId/groups')
@@ -119,6 +153,16 @@ export class ProjectStructureController {
     @Query() query: ListProjectEnrollmentsQueryDto,
   ) {
     return this.service.listEnrollments(user.tenantId, projectId, query);
+  }
+
+  @Get(':projectId/eligible-people')
+  @Permissions('enrollments.read')
+  async listEligiblePeople(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Query() query: ListEligibleProjectPeopleQueryDto,
+  ) {
+    return this.service.listEligiblePeople(user.tenantId, projectId, query);
   }
 
   @Post(':projectId/enrollments')

@@ -13,6 +13,10 @@ export class CreateProgramDto {
   description?: string;
 
   @IsOptional()
+  @IsString()
+  internalNotes?: string;
+
+  @IsOptional()
   @IsEnum(ProgramStatus)
   status?: ProgramStatus;
 

@@ -18,6 +18,10 @@ export async function listPrograms(
   return apiRequest<ProgramsListResponse>(`/programs${query}`, {}, token);
 }
 
+export async function getProgram(token: string, id: string) {
+  return apiRequest<ApiProgram>(`/programs/${id}`, {}, token);
+}
+
 export async function createProgram(token: string, payload: ProgramInput) {
   return apiRequest<ApiProgram>(
     "/programs",
@@ -45,4 +49,3 @@ export async function deleteProgram(token: string, id: string) {
     token,
   );
 }
-

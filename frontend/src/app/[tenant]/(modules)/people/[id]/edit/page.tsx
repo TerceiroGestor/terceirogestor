@@ -7,5 +7,5 @@ export default async function PeopleEditLegacyPage({
   params: Promise<{ tenant: string; id: string }>;
 }) {
   const { tenant, id } = await params;
-  redirect(withTenantPath(`/person/${id}`, tenant));
+  redirect(withTenantPath(`/people/${id}`, tenant));
 }

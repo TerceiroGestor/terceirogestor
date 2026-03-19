@@ -29,6 +29,8 @@ import { BulkEnrollmentDialog } from "@/modules/projects/features/detail/ui/bulk
 import {
   ENROLLMENT_STATUS_LABELS,
   ENROLLMENT_STATUS_OPTIONS,
+  PROJECT_PARTICIPATION_ROLE_LABELS,
+  PROJECT_PARTICIPATION_ROLE_OPTIONS,
 } from "@/modules/projects/shared/domain/projects.constants";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import {
@@ -44,6 +46,7 @@ import { getTenantSlugFromPath } from "@/lib/tenant-path";
 
 type EnrollmentFormValues = {
   status: EnrollmentStatus;
+  role: import("@/modules/projects/api").ProjectParticipationRole;
   startsAt: string;
   endsAt: string;
 };
@@ -80,6 +83,13 @@ const ENROLLMENT_FIELDS: FormField<EnrollmentFormValues>[] = [
     label: "Status",
     type: "select",
     options: ENROLLMENT_STATUS_OPTIONS,
+    required: true,
+  },
+  {
+    name: "role",
+    label: "Papel",
+    type: "select",
+    options: PROJECT_PARTICIPATION_ROLE_OPTIONS,
     required: true,
   },
   { name: "startsAt", label: "Início", type: "date" },
@@ -225,6 +235,16 @@ export function ProjectEnrollmentsCard({
 
       const structure: ColumnDef<ApiProjectEnrollment>[] = [
         {
+          id: "role",
+          header: "Papel",
+          accessorFn: (item) => item.role,
+          cell: ({ row }) => (
+            <span className="text-xs">
+              {PROJECT_PARTICIPATION_ROLE_LABELS[row.original.role] ?? row.original.role}
+            </span>
+          ),
+        },
+        {
           id: "groups",
           header: "Grupos",
           accessorFn: (item) =>
@@ -243,12 +263,13 @@ export function ProjectEnrollmentsCard({
           },
         },
         {
-          id: "cycle",
-          header: "Ciclo",
-          accessorFn: (item) => item.cycle?.name ?? null,
-          cell: ({ row }) => (
-            <span className="text-xs">{row.original.cycle?.name ?? "Sem ciclo"}</span>
-          ),
+          id: "peopleGroups",
+          header: "Grupo de Pessoas",
+          accessorFn: (item) => item.peopleGroups?.map((peopleGroup) => peopleGroup.name) ?? [],
+          cell: ({ row }) => {
+            const label = row.original.peopleGroups?.map((peopleGroup) => peopleGroup.name).join(", ") ?? "";
+            return <span className="text-xs">{label || "Sem grupo de pessoas"}</span>;
+          },
         },
       ];
 
@@ -322,12 +343,14 @@ export function ProjectEnrollmentsCard({
     if (!editing) {
       return {
         status: "ACTIVE",
+        role: "PUBLICO_ATENDIDO",
         startsAt: "",
         endsAt: "",
       };
     }
     return {
       status: editing.status,
+      role: editing.role,
       startsAt: editing.startsAt ? editing.startsAt.slice(0, 10) : "",
       endsAt: editing.endsAt ? editing.endsAt.slice(0, 10) : "",
     };
@@ -345,6 +368,7 @@ export function ProjectEnrollmentsCard({
 
   const normalizeValues = (values: EnrollmentFormValues) => ({
     status: values.status,
+    role: values.role,
     startsAt: values.startsAt.trim() ? values.startsAt.trim() : null,
     endsAt: values.endsAt.trim() ? values.endsAt.trim() : null,
   });
@@ -376,20 +400,20 @@ export function ProjectEnrollmentsCard({
     async (item: ApiProjectEnrollment) => {
       if (!canDelete) return;
       const confirmed = await confirm({
-        title: "Remover participante",
-        description: `Remover "${item.person.fullName}" deste projeto?`,
-        confirmLabel: "Remover",
+        title: "Encerrar matricula",
+        description: `Encerrar a matricula de "${item.person.fullName}" neste projeto preservando o historico?`,
+        confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
       });
       if (!confirmed) return;
       try {
         await deleteProjectEnrollment(token, projectId, item.id);
-        toast({ title: "Participante removido" });
+        toast({ title: "Matricula encerrada" });
         loadEnrollments();
       } catch (err) {
         toast({
-          title: "Falha ao remover",
+          title: "Falha ao encerrar",
           description:
             err && typeof err === "object" && "message" in err
               ? String((err as { message?: string }).message)
@@ -466,9 +490,9 @@ export function ProjectEnrollmentsCard({
     if (selectedRows.length === 0) return;
 
     const confirmed = await confirm({
-      title: "Remover matrículas",
-      description: `Remover ${selectedRows.length} matrículas selecionadas?`,
-      confirmLabel: "Remover",
+      title: "Encerrar matrículas",
+      description: `Encerrar ${selectedRows.length} matrículas selecionadas preservando o histórico?`,
+      confirmLabel: "Encerrar",
       cancelLabel: "Cancelar",
       confirmVariant: "destructive",
     });
@@ -496,7 +520,7 @@ export function ProjectEnrollmentsCard({
 
       toast({
         title: "Ação em massa concluída",
-        description: `Removidas: ${removed} • Erros: ${failed}`,
+        description: `Encerradas: ${removed} • Erros: ${failed}`,
         variant: failed > 0 ? "destructive" : "default",
       });
 
@@ -577,7 +601,7 @@ export function ProjectEnrollmentsCard({
               title="Selecionar várias pessoas e vincular de uma vez."
             >
               <Plus className="mr-2 size-4" />
-              Vincular Pessoas
+              Adicionar participantes
             </Button>
           </div>
         ) : null
@@ -651,7 +675,7 @@ export function ProjectEnrollmentsCard({
                         onSelect={handleBulkDelete}
                         className="text-destructive focus:text-destructive"
                       >
-                        Remover selecionados
+                        Encerrar selecionados
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -684,7 +708,7 @@ export function ProjectEnrollmentsCard({
             ? [
                 {
                   id: "delete",
-                  label: "Remover",
+                  label: "Encerrar",
                   destructive: true,
                   onSelect: (row: ApiProjectEnrollment) => handleDelete(row),
                 },
@@ -749,3 +773,7 @@ export function ProjectEnrollmentsCard({
     </SectionCard>
   );
 }
+
+
+
+

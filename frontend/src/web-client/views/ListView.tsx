@@ -35,6 +35,15 @@ import {
   ModuleSurface,
 } from "@/web-client/ui/ModulePrimitives";
 
+function shouldIgnoreRowClick(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest(
+      '[data-row-click-ignore="true"],button,a,input,textarea,select,[role="button"],[role="dialog"]',
+    ),
+  );
+}
+
 type GroupNode<TData> = {
   key: string;
   field: string;
@@ -395,7 +404,7 @@ export function ListView<TData>({
   const visibleColumnsCount = table.getVisibleLeafColumns().length;
 
   return (
-    <ModuleSurface className={className}>
+    <ModuleSurface className={cn("flex h-full min-h-0 flex-col", className)}>
       {enableRowSelection && bulkActions && selectedRows.length ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
           <div className="text-muted-foreground">
@@ -470,7 +479,7 @@ export function ListView<TData>({
         </div>
       ) : null}
 
-      <div className={cn(renderCard ? "hidden md:block" : undefined)}>
+      <div className={cn("min-h-0 flex-1 overflow-auto", renderCard ? "hidden md:block" : undefined)}>
         <UiTable className="[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:border-b [&_thead_th]:border-border/50 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]">
           <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -558,7 +567,10 @@ export function ListView<TData>({
                               key={row.id}
                               data-state={row.getIsSelected() ? "selected" : undefined}
                               className={cn(onRowClick ? "cursor-pointer" : undefined)}
-                              onClick={() => onRowClick?.(row.original)}
+                              onClick={(event) => {
+                                if (shouldIgnoreRowClick(event.target)) return;
+                                onRowClick?.(row.original);
+                              }}
                             >
                               {row.getVisibleCells().map((cell) => {
                                 const pinnedStyles = getPinnedStyles(cell.column, table);
@@ -584,7 +596,10 @@ export function ListView<TData>({
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   className={cn(onRowClick ? "cursor-pointer" : undefined)}
-                  onClick={() => onRowClick?.(row.original)}
+                  onClick={(event) => {
+                    if (shouldIgnoreRowClick(event.target)) return;
+                    onRowClick?.(row.original);
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => {
                     const pinnedStyles = getPinnedStyles(cell.column, table);

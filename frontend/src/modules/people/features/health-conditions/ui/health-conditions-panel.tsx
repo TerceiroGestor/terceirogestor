@@ -136,6 +136,21 @@ export function HealthConditionsPanel({ personId }: { personId: string }) {
       emptyMessage="Nenhuma condicao cadastrada."
       tableMinWidthClassName="min-w-[1080px]"
       tableInitialColumnPinning={{ right: ["actions"] }}
+      filterFields={[
+        { name: "condicao", label: "Condicao", type: "text" },
+        { name: "descricao", label: "Descricao", type: "text" },
+        { name: "gravidade", label: "Gravidade", type: "text" },
+        { name: "diagnostico", label: "Diagnostico", type: "date" },
+        { name: "notas", label: "Notas", type: "text" },
+      ]}
+      buildSearchRecord={(row) => ({
+        condicao: row.type,
+        descricao: row.description ?? null,
+        gravidade: row.severity ?? null,
+        diagnostico: row.diagnosisDate ?? null,
+        notas: row.notes ?? null,
+      })}
+      searchActionId="people.health-conditions"
     />
   );
 }

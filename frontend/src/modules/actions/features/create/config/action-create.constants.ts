@@ -15,7 +15,7 @@ export const ACTION_CREATE_TEXT = {
     typeRequired: "Selecione um tipo",
     titleRequired: "Informe um título",
     groupRequired: "Selecione um grupo",
-    cycleRequired: "Selecione um ciclo",
+    cycleRequired: "Selecione um grupo de pessoas",
   },
   toasts: {
     created: "Ação criada",
@@ -31,8 +31,8 @@ export const ACTION_CREATE_TEXT = {
     statusLabel: "Status",
     groupLabel: "Grupo",
     groupPlaceholder: "Selecione um grupo",
-    cycleLabel: "Ciclo",
-    cyclePlaceholder: "Selecione um ciclo",
+    cycleLabel: "Grupo de Pessoas",
+    cyclePlaceholder: "Selecione um grupo de pessoas",
     plannedStartLabel: "Início planejado",
     plannedEndLabel: "Término planejado",
     planLabel: "Planejamento",
@@ -48,7 +48,7 @@ export const ACTION_CREATE_TEXT = {
     },
     {
       title: "Escopo",
-      description: "Grupo e/ou Ciclo (quando aplicável).",
+      description: "Grupo e/ou Segmento (quando aplicável).",
       fields: ["groupId", "cycleId"],
     },
     {
@@ -70,8 +70,8 @@ export const ACTION_CREATE_TEXT = {
       {
         title: "Tipo e escopo",
         items: [
-          "Escolha o Tipo: ele define se a ação é do Projeto, de um Grupo ou de um Ciclo.",
-          "Se o tipo for Grupo, selecione o Grupo. Se for Ciclo, selecione o Ciclo.",
+          "Escolha o Tipo: ele define se a ação é do Projeto, de um Grupo ou de um Segmento.",
+          "Se o tipo for Grupo, selecione o Grupo. Se for Segmento, selecione o Segmento.",
         ],
       },
       {

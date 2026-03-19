@@ -38,6 +38,31 @@ enum EnrollmentStatus {
   ENDED
 }
 
+enum ProjectParticipationRole {
+  PUBLICO_ATENDIDO
+  FAMILIAR
+  VOLUNTARIO
+  EQUIPE_TECNICA
+  FUNCIONARIO
+  OFICINEIRO
+  PARCEIRO
+  DOADOR
+  PATROCINADOR
+}
+
+enum ParticipationKind {
+  PARTICIPANT
+  TEAM
+}
+
+enum PeopleGroupType {
+  CYCLE
+  SEGMENT
+  TEAM_POOL
+  NETWORK
+  OTHER
+}
+
 enum ActionStatus {
   PLANNED
   EXECUTED
@@ -54,6 +79,15 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   EXCUSED
+}
+
+enum ActionPeopleParticipationRole {
+  PARTICIPANTE
+  FACILITADOR
+  APOIO
+  VOLUNTARIO
+  RESPONSAVEL_TECNICO
+  CONVIDADO
 }
 
 enum IncomeFrequency {
@@ -165,6 +199,10 @@ model Tenant {
   trustedDevices                       UserTrustedDevice[]
   mfaRecoveryCodes                     UserMfaRecoveryCode[]
   people                               Person[]
+  peopleGroups                         PeopleGroup[]
+  peopleGroupParticipations            PeopleGroupParticipation[]
+  peopleSegments                       PeopleSegment[]
+  peopleSegmentMemberships             PeopleSegmentMembership[]
   personContacts                       PersonContact[]
   personSensitiveDocuments             PersonSensitiveDocument[]
   personSensitiveAccessLogs            PersonSensitiveAccessLog[]
@@ -201,15 +239,19 @@ model Tenant {
   taskOrganizerComments                TaskOrganizerComment[]
   taskOrganizerTaskDependencies        TaskOrganizerTaskDependency[]
   programs                             Program[]
+  cycles                               Cycle[]
   projects                             Project[]
   projectGroups                        ProjectGroup[]
   projectCycles                        ProjectCycle[]
+  projectPeopleGroups                  ProjectPeopleGroup[]
   projectEnrollments                   ProjectEnrollment[]
   projectEnrollmentGroupMemberships    ProjectEnrollmentGroupMembership[]
   projectEnrollmentCycleParticipations ProjectEnrollmentCycleParticipation[]
   actionTypes                          ActionType[]
   projectActions                       ProjectAction[]
+  actionPeopleGroups                   ActionPeopleGroup[]
   projectActionAttendances             ProjectActionAttendance[]
+  projectActionPeopleParticipations    ProjectActionPeopleParticipation[]
 
   @@index([status])
 }
@@ -351,6 +393,9 @@ model Person {
   sensitiveDocument   PersonSensitiveDocument?
   sensitiveAccessLogs PersonSensitiveAccessLog[]
   projectEnrollments  ProjectEnrollment[]
+  peopleGroupParticipations PeopleGroupParticipation[]
+  peopleSegmentMemberships PeopleSegmentMembership[]
+  actionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
   @@index([fullName])
@@ -877,6 +922,7 @@ model Program {
   name        String
   type        ProgramType
   description String?       @db.Text
+  internalNotes String?     @db.Text
   status      ProgramStatus @default(PLANNED)
   startsAt    DateTime?
   endsAt      DateTime?
@@ -897,6 +943,7 @@ model Project {
   programId   String        @db.Char(36)
   name        String
   description String?       @db.Text
+  internalNotes String?     @db.Text
   status      ProjectStatus @default(PLANNED)
   startsAt    DateTime?
   endsAt      DateTime?
@@ -907,6 +954,7 @@ model Project {
   program     Program             @relation(fields: [programId], references: [id])
   groups      ProjectGroup[]
   cycles      ProjectCycle[]
+  peopleGroups ProjectPeopleGroup[]
   enrollments ProjectEnrollment[]
   actions     ProjectAction[]
 
@@ -916,12 +964,138 @@ model Project {
   @@index([status])
 }
 
+model Cycle {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  name          String
+  description   String?  @db.Text
+  audienceType  String?
+  ageMin        Int?
+  ageMax        Int?
+  isActive      Boolean  @default(true)
+  internalNotes String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  projectCycles ProjectCycle[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([name])
+  @@index([isActive])
+}
+
+model PeopleGroup {
+  id            String          @id @default(uuid()) @db.Char(36)
+  tenantId      String          @db.Char(36)
+  name          String
+  groupType     PeopleGroupType @default(SEGMENT)
+  category      String?
+  description   String?         @db.Text
+  ageMin        Int?
+  ageMax        Int?
+  isActive      Boolean         @default(true)
+  internalNotes String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tenant               Tenant                     @relation(fields: [tenantId], references: [id])
+  participations       PeopleGroupParticipation[]
+  projectPeopleGroups  ProjectPeopleGroup[]
+  actionPeopleGroups   ActionPeopleGroup[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([name])
+  @@index([groupType])
+  @@index([category])
+  @@index([isActive])
+}
+
+model PeopleGroupParticipation {
+  id             String    @id @default(uuid()) @db.Char(36)
+  tenantId       String    @db.Char(36)
+  peopleGroupId  String    @db.Char(36)
+  personId       String    @db.Char(36)
+  activeKey      String?   @db.VarChar(80)
+  isActive       Boolean   @default(true)
+  startsAt       DateTime  @default(now())
+  endsAt         DateTime?
+  deletedAt      DateTime?
+  internalNotes  String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
+  person      Person      @relation(fields: [personId], references: [id])
+
+  @@unique([tenantId, activeKey])
+  @@index([tenantId])
+  @@index([peopleGroupId])
+  @@index([personId])
+  @@index([activeKey])
+  @@index([isActive])
+}
+
+model PeopleSegment {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  name          String
+  category      String?
+  description   String?  @db.Text
+  ageMin        Int?
+  ageMax        Int?
+  isActive      Boolean  @default(true)
+  internalNotes String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant       Tenant                   @relation(fields: [tenantId], references: [id])
+  memberships  PeopleSegmentMembership[]
+  projectCycles ProjectCycle[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+}
+
+model PeopleSegmentMembership {
+  id             String    @id @default(uuid()) @db.Char(36)
+  tenantId       String    @db.Char(36)
+  segmentId      String    @db.Char(36)
+  personId       String    @db.Char(36)
+  activeKey      String?   @db.VarChar(80)
+  isActive       Boolean   @default(true)
+  startsAt       DateTime  @default(now())
+  endsAt         DateTime?
+  deletedAt      DateTime?
+  internalNotes  String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  segment  PeopleSegment @relation(fields: [segmentId], references: [id])
+  person   Person        @relation(fields: [personId], references: [id])
+
+  @@unique([tenantId, activeKey])
+  @@index([tenantId])
+  @@index([segmentId])
+  @@index([personId])
+  @@index([activeKey])
+  @@index([isActive])
+}
+
 model ProjectGroup {
   id          String   @id @default(uuid()) @db.Char(36)
   tenantId    String   @db.Char(36)
   projectId   String   @db.Char(36)
   name        String
   description String?  @db.Text
+  internalNotes String? @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -936,24 +1110,51 @@ model ProjectGroup {
   @@index([name])
 }
 
+model ProjectPeopleGroup {
+  id                String            @id @default(uuid()) @db.Char(36)
+  tenantId          String            @db.Char(36)
+  projectId         String            @db.Char(36)
+  peopleGroupId     String            @db.Char(36)
+  participationKind ParticipationKind @default(PARTICIPANT)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  project     Project     @relation(fields: [projectId], references: [id])
+  peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
+
+  @@unique([tenantId, projectId, peopleGroupId, participationKind])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([peopleGroupId])
+  @@index([participationKind])
+}
+
 model ProjectCycle {
   id        String    @id @default(uuid()) @db.Char(36)
   tenantId  String    @db.Char(36)
   projectId String    @db.Char(36)
+  catalogCycleId String? @db.Char(36)
+  segmentId String? @db.Char(36)
   name      String
   startsAt  DateTime?
   endsAt    DateTime?
+  internalNotes String? @db.Text
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   tenant         Tenant                                @relation(fields: [tenantId], references: [id])
   project        Project                               @relation(fields: [projectId], references: [id])
+  catalogCycle   Cycle?                                @relation(fields: [catalogCycleId], references: [id])
+  segment        PeopleSegment?                        @relation(fields: [segmentId], references: [id])
   participations ProjectEnrollmentCycleParticipation[]
   actions        ProjectAction[]
 
   @@unique([tenantId, projectId, name])
   @@index([tenantId])
   @@index([projectId])
+  @@index([catalogCycleId])
+  @@index([segmentId])
   @@index([name])
 }
 
@@ -963,8 +1164,11 @@ model ProjectEnrollment {
   projectId String           @db.Char(36)
   personId  String           @db.Char(36)
   status    EnrollmentStatus @default(ACTIVE)
+  participationKind ParticipationKind @default(PARTICIPANT)
+  role      ProjectParticipationRole @default(PUBLICO_ATENDIDO)
   startsAt  DateTime?
   endsAt    DateTime?
+  deletedAt DateTime?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -974,10 +1178,12 @@ model ProjectEnrollment {
   groupMemberships    ProjectEnrollmentGroupMembership[]
   cycleParticipations ProjectEnrollmentCycleParticipation[]
   actionAttendances   ProjectActionAttendance[]
+  actionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
   @@index([projectId])
   @@index([personId])
+  @@index([participationKind])
   @@index([status])
 }
 
@@ -990,6 +1196,7 @@ model ProjectEnrollmentGroupMembership {
   isActive     Boolean   @default(true)
   startsAt     DateTime  @default(now())
   endsAt       DateTime?
+  deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1014,6 +1221,7 @@ model ProjectEnrollmentCycleParticipation {
   isActive     Boolean   @default(true)
   startsAt     DateTime  @default(now())
   endsAt       DateTime?
+  deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1079,6 +1287,8 @@ model ProjectAction {
   cycle         ProjectCycle?             @relation(fields: [cycleId], references: [id])
   actionType    ActionType                @relation(fields: [actionTypeId], references: [id])
   attendances   ProjectActionAttendance[]
+  peopleGroups  ActionPeopleGroup[]
+  peopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -1088,6 +1298,26 @@ model ProjectAction {
   @@index([actionTypeId])
   @@index([status])
   @@index([plannedStartAt])
+}
+
+model ActionPeopleGroup {
+  id                String            @id @default(uuid()) @db.Char(36)
+  tenantId          String            @db.Char(36)
+  actionId          String            @db.Char(36)
+  peopleGroupId     String            @db.Char(36)
+  participationKind ParticipationKind @default(PARTICIPANT)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  action      ProjectAction @relation(fields: [actionId], references: [id])
+  peopleGroup PeopleGroup   @relation(fields: [peopleGroupId], references: [id])
+
+  @@unique([tenantId, actionId, peopleGroupId, participationKind])
+  @@index([tenantId])
+  @@index([actionId])
+  @@index([peopleGroupId])
+  @@index([participationKind])
 }
 
 model ProjectActionAttendance {
@@ -1115,6 +1345,39 @@ model ProjectActionAttendance {
   @@index([enrollmentId])
   @@index([cycleParticipationId])
   @@index([status])
+}
+
+model ProjectActionPeopleParticipation {
+  id           String                        @id @default(uuid()) @db.Char(36)
+  tenantId     String                        @db.Char(36)
+  actionId     String                        @db.Char(36)
+  personId     String                        @db.Char(36)
+  enrollmentId String?                       @db.Char(36)
+  participationKind ParticipationKind       @default(TEAM)
+  role         ActionPeopleParticipationRole @default(PARTICIPANTE)
+  activeKey    String?                       @db.VarChar(120)
+  isActive     Boolean                       @default(true)
+  startsAt     DateTime                      @default(now())
+  endsAt       DateTime?
+  deletedAt    DateTime?
+  internalNotes String?                      @db.Text
+  createdAt    DateTime                      @default(now())
+  updatedAt    DateTime                      @updatedAt
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  action     ProjectAction      @relation(fields: [actionId], references: [id])
+  person     Person             @relation(fields: [personId], references: [id])
+  enrollment ProjectEnrollment? @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([tenantId, activeKey])
+  @@index([tenantId])
+  @@index([actionId])
+  @@index([personId])
+  @@index([enrollmentId])
+  @@index([participationKind])
+  @@index([role])
+  @@index([activeKey])
+  @@index([isActive])
 }
 
 model PantryItem {

@@ -523,7 +523,7 @@ function PeopleDetailSide({
           },
           {
             value: "activity",
-            label: "Atividade",
+            label: "Auditoria",
             badge: canAudit && auditCount ? auditCount : undefined,
             content: canAudit ? (
               <DetailAuditFeed
@@ -570,14 +570,16 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
   header: {
     title: ({ person }) => resolvePersonDisplayNames(person.fullName, person.socialName).primary,
     leadingSlot: ({ person, readOnly, avatarUploading, onAvatarFileSelect }) => (
-      <DetailIdentityMediaField
-        variant="header"
-        name={resolvePersonDisplayNames(person.fullName, person.socialName).primary}
-        value={person.avatarUrl ?? null}
-        readOnly={readOnly}
-        busy={avatarUploading}
-        onFileSelect={onAvatarFileSelect}
-      />
+      <div className="mt-2">
+        <DetailIdentityMediaField
+          variant="header"
+          name={resolvePersonDisplayNames(person.fullName, person.socialName).primary}
+          value={person.avatarUrl ?? null}
+          readOnly={readOnly}
+          busy={avatarUploading}
+          onFileSelect={onAvatarFileSelect}
+        />
+      </div>
     ),
     slot: ({ person }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
