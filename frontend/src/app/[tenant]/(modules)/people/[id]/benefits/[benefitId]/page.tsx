@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { BenefitDetailPage } from "@/modules/people/features/benefits/ui/benefit-detail-page";
 
-export default async function PeopleBenefitDetailCompatibilityPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string; benefitId: string }>;
-}) {
-  const { tenant, id, benefitId } = await params;
-  redirect(`/${tenant}/person/${id}/benefits/${benefitId}`);
+export default function PeopleBenefitDetailRoutePage() {
+  return <BenefitDetailPage mode="edit" />;
 }

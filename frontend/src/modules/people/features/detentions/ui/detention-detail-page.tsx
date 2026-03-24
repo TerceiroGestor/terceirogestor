@@ -139,9 +139,23 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
     [commitDraft],
   );
 
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      commitDraft(nextDraft);
+    },
+    [commitDraft, draft],
+  );
+
   return (
     <PeopleRelationDetailShell
       personId={personId}
+      recordType="detention"
       tab="reclusao"
       title={mode === "create" ? "Novo registro de reclusao" : current?.status ?? "Reclusao"}
       subtitle="Gerencie os detalhes completos do registro de reclusao."
@@ -150,6 +164,8 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
       relationId={relationIdRef.current}
       auditConfig={DETENTION_AUDIT_CONFIG}
       notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (

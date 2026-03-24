@@ -3,13 +3,6 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +35,39 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function resolveMentionQuery(text: string, caretIndex: number) {
+  const beforeCaret = text.slice(0, caretIndex);
+  const match = beforeCaret.match(/(^|\s)@([^\s@]*)$/);
+  if (!match) {
+    return null;
+  }
+
+  const query = match[2] ?? "";
+  const start = beforeCaret.length - query.length - 1;
+  if (start < 0) {
+    return null;
+  }
+
+  return { query, start, end: caretIndex };
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function resolveMentionIdsInText(
+  text: string,
+  users: CommentUser[],
+  candidateIds: string[],
+) {
+  return Array.from(new Set(candidateIds.filter(Boolean))).filter((mentionId) => {
+    const user = users.find((entry) => entry.id === mentionId);
+    if (!user?.name?.trim()) return false;
+    const pattern = new RegExp(`(^|\\s)@${escapeRegExp(user.name)}(?=\\s|$)`, "i");
+    return pattern.test(text);
+  });
+}
+
 export function DetailCommentsPanel({
   comments,
   value,
@@ -67,9 +93,12 @@ export function DetailCommentsPanel({
   readOnly?: boolean;
   emptyLabel?: string;
 }) {
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const [caretIndex, setCaretIndex] = React.useState(value.length);
+  const [mentionIndex, setMentionIndex] = React.useState(0);
   const selectedMentionIds = React.useMemo(
-    () => Array.from(new Set(mentionUserIds.filter(Boolean))),
-    [mentionUserIds],
+    () => resolveMentionIdsInText(value, users, mentionUserIds),
+    [mentionUserIds, users, value],
   );
 
   const selectedMentionUsers = React.useMemo(
@@ -82,47 +111,156 @@ export function DetailCommentsPanel({
     [selectedMentionIds, users],
   );
 
+  const activeMention = React.useMemo(() => {
+    return resolveMentionQuery(value, caretIndex);
+  }, [caretIndex, value]);
+
+  const mentionSuggestions = React.useMemo(() => {
+    if (!activeMention) return [];
+    const normalizedQuery = activeMention.query.trim().toLocaleLowerCase();
+    return availableMentionUsers
+      .filter((user) => {
+        if (!normalizedQuery) return true;
+        const haystack = `${user.name} ${user.email ?? ""}`.toLocaleLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+      .slice(0, 8);
+  }, [activeMention, availableMentionUsers]);
+
+  React.useEffect(() => {
+    setMentionIndex(0);
+  }, [activeMention?.query]);
+
+  const applyMention = React.useCallback(
+    (user: CommentUser) => {
+      const textarea = textareaRef.current;
+      const caretIndex = textarea?.selectionStart ?? value.length;
+      const mention = resolveMentionQuery(value, caretIndex);
+      if (!mention) return;
+
+      const nextValue = `${value.slice(0, mention.start)}@${user.name} ${value.slice(mention.end)}`;
+      const nextMentionIds = selectedMentionIds.includes(user.id)
+        ? selectedMentionIds
+        : [...selectedMentionIds, user.id];
+
+      onValueChange(nextValue);
+      onMentionUserIdsChange(nextMentionIds);
+
+      const nextCaretIndex = mention.start + user.name.length + 2;
+      setCaretIndex(nextCaretIndex);
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(nextCaretIndex, nextCaretIndex);
+      });
+    },
+    [onMentionUserIdsChange, onValueChange, selectedMentionIds, value],
+  );
+
+  const handleTextareaKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!mentionSuggestions.length) {
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setMentionIndex((previous) =>
+          previous + 1 >= mentionSuggestions.length ? 0 : previous + 1,
+        );
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setMentionIndex((previous) =>
+          previous - 1 < 0 ? mentionSuggestions.length - 1 : previous - 1,
+        );
+        return;
+      }
+
+      if (event.key === "Enter" && !event.shiftKey) {
+        const activeUser = mentionSuggestions[mentionIndex];
+        if (activeUser) {
+          event.preventDefault();
+          applyMention(activeUser);
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMentionIndex(0);
+      }
+    },
+    [applyMention, mentionIndex, mentionSuggestions],
+  );
+
   return (
     <div className="space-y-5">
       <div className="space-y-3 border-b border-border/50 pb-4">
         <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           Discussao interna
         </div>
-        <Textarea
-          value={value}
-          onChange={(event) => onValueChange(event.target.value)}
-          placeholder="Escreva um comentario para o time."
-          className="min-h-[120px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-2 shadow-none focus-visible:border-primary focus-visible:ring-0"
-          readOnly={readOnly}
-        />
+        <div className="relative">
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              const nextMentionIds = resolveMentionIdsInText(
+                nextValue,
+                users,
+                selectedMentionIds,
+              );
+              onValueChange(nextValue);
+              onMentionUserIdsChange(nextMentionIds);
+              setCaretIndex(event.target.selectionStart ?? nextValue.length);
+            }}
+            onKeyDown={handleTextareaKeyDown}
+            onClick={(event) => setCaretIndex(event.currentTarget.selectionStart ?? value.length)}
+            onKeyUp={(event) => setCaretIndex(event.currentTarget.selectionStart ?? value.length)}
+            onSelect={(event) => setCaretIndex(event.currentTarget.selectionStart ?? value.length)}
+            placeholder="Escreva um comentario para o time. Use @ para mencionar pessoas."
+            className="min-h-[120px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-2 shadow-none focus-visible:border-primary focus-visible:ring-0"
+            readOnly={readOnly}
+          />
+
+          {!readOnly && activeMention && mentionSuggestions.length ? (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-md border border-border bg-background shadow-sm">
+              <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                Mencionar pessoas
+              </div>
+              <div className="max-h-56 overflow-y-auto py-1">
+                {mentionSuggestions.map((user, index) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                      index === mentionIndex
+                        ? "bg-primary/10 text-foreground"
+                        : "text-foreground hover:bg-muted/60",
+                    )}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      applyMention(user);
+                    }}
+                  >
+                    <span className="truncate font-medium">{user.name}</span>
+                    {user.email ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {!readOnly ? (
           <div className="space-y-3">
-            <Select
-              value="__none__"
-              onValueChange={(next) => {
-                if (next === "__none__") return;
-                onMentionUserIdsChange([...selectedMentionIds, next]);
-              }}
-            >
-              <SelectTrigger className="h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0">
-                <SelectValue placeholder="Mencionar pessoas" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMentionUsers.length ? (
-                  availableMentionUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="__none__" disabled>
-                    Sem mais pessoas para mencionar
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-
             {selectedMentionUsers.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {selectedMentionUsers.map((user) => (

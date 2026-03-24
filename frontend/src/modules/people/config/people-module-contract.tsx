@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { BarChart3, CalendarDays, Clock3, LayoutGrid } from "lucide-react";
@@ -62,7 +62,7 @@ const PEOPLE_PERMISSIONS = {
   canCreate: "people.create",
   canEdit: "people.update",
   canDelete: "people.delete",
-  canAudit: "audit.read",
+  canAudit: "people.read",
   canShare: "people.read",
   canExport: "people.read",
 } as const;
@@ -77,7 +77,7 @@ const PEOPLE_LIST_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Novo cadastro",
+    label: "Novo",
     permissionKey: "canCreate",
     scope: "list",
   },
@@ -165,7 +165,7 @@ export const peopleListModuleDefinition = defineRecordModule<PeopleListQueryStat
     entity: { singular: "Pessoa", plural: "Pessoas" },
     list: {
       searchPlaceholder: "Pesquisar pessoas",
-      createActionLabel: "Novo cadastro",
+      createActionLabel: "Novo",
       totalLabel: "Total",
       emptyStateLabel: "Nenhuma pessoa encontrada.",
     },
@@ -174,7 +174,7 @@ export const peopleListModuleDefinition = defineRecordModule<PeopleListQueryStat
       fullName: { required: true, minLength: 2 },
     },
     displayFallbacks: {
-      emptyText: "—",
+      emptyText: "-",
       emptyDate: "Sem data",
       emptyNumber: "0",
       emptyRelation: "Sem vinculo",
@@ -300,7 +300,13 @@ export const peopleDetailModuleDefinition = defineRecordModule<
   featureFlags: createStandardFeatureFlags({
     list: false,
     detail: true,
+    comments: true,
+    notes: true,
+    tags: true,
+    attachments: true,
     audit: true,
+    history: true,
+    context: true,
   }),
   actionKey: "people.detail.screen",
   favoriteKey: "people.detail.favorites",
@@ -314,6 +320,7 @@ export const peopleDetailModuleDefinition = defineRecordModule<
   domainAdapter: {
     entity: { singular: "Pessoa", plural: "Pessoas" },
     detail: {
+      createTitle: "Novo",
       fallbackTitle: "Pessoa",
     },
     fields: PEOPLE_FIELDS,
@@ -321,7 +328,7 @@ export const peopleDetailModuleDefinition = defineRecordModule<
       fullName: { required: true, minLength: 2 },
     },
     displayFallbacks: {
-      emptyText: "—",
+      emptyText: "-",
       emptyDate: "Sem data",
       emptyNumber: "0",
       emptyRelation: "Sem vinculo",
@@ -337,3 +344,4 @@ export const peopleDetailModuleDefinition = defineRecordModule<
 export type PeopleModuleDefinition =
   | RecordModuleDefinition<PeopleListQueryState>
   | RecordModuleDefinition<PeopleDetailQueryState, PeopleDetailLayoutContext>;
+

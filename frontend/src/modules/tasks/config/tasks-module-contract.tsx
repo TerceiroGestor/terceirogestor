@@ -87,7 +87,7 @@ const TASKS_ACTIONS_LIST: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Nova tarefa",
+    label: "Novo",
     permissionKey: "canCreate",
     scope: "list",
   },
@@ -104,12 +104,6 @@ const TASKS_ACTIONS_DETAIL: RecordModuleActionMap = {
     key: "view",
     label: "Visualizar tarefa",
     permissionKey: "canRead",
-    scope: "detail",
-  },
-  create: {
-    key: "create",
-    label: "Nova tarefa",
-    permissionKey: "canCreate",
     scope: "detail",
   },
   edit: {
@@ -178,7 +172,7 @@ export const tasksListModuleDefinition = defineRecordModule<TasksListQueryState>
     entity: { singular: "Tarefa", plural: "Tarefas" },
     list: {
       searchPlaceholder: "Pesquisar tarefas",
-      createActionLabel: "Nova tarefa",
+      createActionLabel: "Novo",
       totalLabel: "Total",
       emptyStateLabel: "Nenhuma tarefa encontrada.",
     },
@@ -329,8 +323,13 @@ export const tasksDetailModuleDefinition = defineRecordModule<
   featureFlags: createStandardFeatureFlags({
     list: false,
     detail: true,
+    comments: true,
     notes: true,
+    tags: true,
+    attachments: true,
     audit: true,
+    history: true,
+    context: true,
   }),
   actionKey: "tasks.detail.screen",
   favoriteKey: "tasks.detail.favorites",
@@ -344,7 +343,7 @@ export const tasksDetailModuleDefinition = defineRecordModule<
   domainAdapter: {
     entity: { singular: "Tarefa", plural: "Tarefas" },
     detail: {
-      createTitle: "Nova tarefa",
+      createTitle: "Novo",
       fallbackTitle: "Tarefa",
     },
     fields: TASK_FIELD_MAP,

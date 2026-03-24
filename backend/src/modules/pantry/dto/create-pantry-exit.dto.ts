@@ -1,5 +1,5 @@
+import { Transform, Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
-import { Type } from 'class-transformer';
 import { PantryExitType } from '../../../generated/prisma';
 
 export class CreatePantryExitDto {
@@ -36,4 +36,12 @@ export class CreatePantryExitDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : []))
+  tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
 }

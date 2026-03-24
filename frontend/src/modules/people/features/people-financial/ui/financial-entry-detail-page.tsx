@@ -206,9 +206,23 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
     replaceSavedDraft(nextDraft);
   }, [current, mode, replaceSavedDraft]);
 
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      commitDraft(nextDraft);
+    },
+    [commitDraft, draft],
+  );
+
   return (
     <PeopleRelationDetailShell
       personId={personId}
+      recordType="financial-entry"
       tab="financeiro"
       title={mode === "create" ? "Novo registro financeiro" : current?.category ?? "Financeiro"}
       subtitle="Gerencie um unico registro financeiro com tipificacao socioeconomica."
@@ -217,6 +231,8 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
       relationId={relationIdRef.current}
       auditConfig={AUDIT_CONFIG}
       notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (

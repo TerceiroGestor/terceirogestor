@@ -1,5 +1,5 @@
-import { ProjectGroupStandaloneDetailPage } from "@/modules/projects/features/detail/ui/project-group-standalone-detail-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function GroupDetailPage() {
-  return <ProjectGroupStandaloneDetailPage />;
+  return <ScreenHost actionId="project-groups.detail" />;
 }

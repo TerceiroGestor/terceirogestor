@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -48,15 +48,36 @@ import {
   PANTRY_EXIT_TYPE_OPTIONS,
   PANTRY_ITEM_UNIT,
 } from "@/modules/pantry/shared/domain/pantry.constants";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import type {
+  DetailCommentDraft,
+  DetailCommentUser,
+  DetailHistoryItem,
+  DetailLayoutConfig,
+} from "@/web-client/registry/types";
 
-export type PantryItemDetailLayoutContext = DetailShellAuditContext & {
+type PantryMetadataContext = {
+  mentionableUsers: DetailCommentUser[];
+  commentDraft: DetailCommentDraft;
+  onCommentDraftChange: React.Dispatch<React.SetStateAction<DetailCommentDraft>>;
+  onSubmitComment: () => void;
+  onDeleteComment?: (commentId: string) => void;
+  commentSubmitting: boolean;
+  tags: string[];
+  onTagsChange: (next: string[]) => void;
+  onTagsCommit?: (next: string[]) => void;
+  internalNotes: string | null;
+  onInternalNotesChange: (next: string | null) => void;
+  onInternalNotesBlur: () => void;
+  onUploadAttachment?: () => void;
+  onDeleteAttachment?: (attachmentId: string) => void;
+  attachmentUploading?: boolean;
+  historyItems: DetailHistoryItem[];
+};
+
+export type PantryItemDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
   mode: PantryItemDetailMode;
   readOnly: boolean;
   draft: ItemDraft;
@@ -82,8 +103,6 @@ export type PantryItemDetailLayoutContext = DetailShellAuditContext & {
   onOpenExit: (exitId: string) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
-  onNotesChange: (next: string | null) => void;
-  onNotesBlur: () => void;
 };
 
 export type PantryDonorDraft = {
@@ -93,7 +112,7 @@ export type PantryDonorDraft = {
   avatarUrl: string | File | null;
 };
 
-export type PantryDonorDetailLayoutContext = DetailShellAuditContext & {
+export type PantryDonorDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
   mode: "create" | "edit";
   readOnly: boolean;
   avatarUploading: boolean;
@@ -140,7 +159,7 @@ export type PantryEntryDraft = {
   notes: string;
 };
 
-export type PantryEntryDetailLayoutContext = DetailShellAuditContext & {
+export type PantryEntryDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
   mode: "create" | "edit";
   readOnly: boolean;
   saving: boolean;
@@ -179,7 +198,7 @@ export type PantryExitDraft = {
   notes: string;
 };
 
-export type PantryExitDetailLayoutContext = DetailShellAuditContext & {
+export type PantryExitDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
   mode: "create" | "edit";
   readOnly: boolean;
   saving: boolean;
@@ -241,7 +260,7 @@ function resolveDonorTypeAuditValue(value: unknown) {
   const donorType = typeof value === "string" ? value : "";
   return donorType && donorType in PANTRY_DONOR_TYPE_LABELS
     ? PANTRY_DONOR_TYPE_LABELS[donorType as keyof typeof PANTRY_DONOR_TYPE_LABELS]
-    : donorType || "—";
+    : donorType || "â€”";
 }
 
 function resolveAvatarAuditValue(value: unknown) {
@@ -249,7 +268,7 @@ function resolveAvatarAuditValue(value: unknown) {
 }
 
 function formatOptionalDate(value: string | null | undefined) {
-  return value ? formatDateOnlyPtBR(value) : "—";
+  return value ? formatDateOnlyPtBR(value) : "â€”";
 }
 
 function resolveMovementKindLabel(kind: ApiPantryHistoryMovement["kind"]) {
@@ -318,7 +337,7 @@ const pantryItemEntryRelationColumns: ColumnDef<ApiPantryEntry>[] = [
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "—"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
     ),
   },
 ];
@@ -350,7 +369,7 @@ const pantryItemExitRelationColumns: ColumnDef<ApiPantryExit>[] = [
     id: "eventName",
     header: "Evento",
     accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "—"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "â€”"}</div>,
   },
   {
     id: "allocations",
@@ -386,7 +405,7 @@ const pantryItemExitRelationColumns: ColumnDef<ApiPantryExit>[] = [
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "—"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
     ),
   },
 ];
@@ -447,7 +466,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     accessorKey: "donorName",
     cell: ({ row }) => (
       <div className="truncate text-sm">
-        {row.original.kind === "ENTRY" ? row.original.donorName ?? "—" : "—"}
+        {row.original.kind === "ENTRY" ? row.original.donorName ?? "â€”" : "â€”"}
       </div>
     ),
   },
@@ -459,7 +478,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
       <div className="truncate text-sm">
         {row.original.kind === "EXIT" && row.original.type
           ? resolveExitTypeLabel(row.original.type)
-          : "—"}
+          : "â€”"}
       </div>
     ),
   },
@@ -469,7 +488,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     accessorKey: "eventName",
     cell: ({ row }) => (
       <div className="truncate text-sm">
-        {row.original.kind === "EXIT" ? row.original.eventName ?? "—" : "—"}
+        {row.original.kind === "EXIT" ? row.original.eventName ?? "â€”" : "â€”"}
       </div>
     ),
   },
@@ -484,7 +503,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "—"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
     ),
   },
 ];
@@ -580,13 +599,13 @@ const pantryAllocatedExitColumns: ColumnDef<PantryAllocatedExitRow>[] = [
     id: "eventName",
     header: "Evento",
     accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "—"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "â€”"}</div>,
   },
   {
     id: "notes",
     header: "Notas",
     accessorKey: "notes",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "—"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>,
   },
 ];
 
@@ -649,7 +668,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               <div className="font-medium text-foreground">
                 {item.nextExpiryDate
                   ? formatDateOnlyPtBR(item.nextExpiryDate)
-                  : "—"}
+                  : "â€”"}
               </div>
               {item.daysToExpire !== null ? (
                 <div className="font-mono tabular-nums text-muted-foreground">
@@ -663,7 +682,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               <div className="font-medium text-foreground">
                 {item.lastMovementDate
                   ? formatDateOnlyPtBR(item.lastMovementDate)
-                  : "—"}
+                  : "â€”"}
               </div>
             </div>
           </div>
@@ -792,40 +811,87 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
-    draft,
-    onNotesChange,
-    onNotesBlur,
+    mentionableUsers,
+    commentDraft,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    commentSubmitting,
+    tags,
+    onTagsChange,
+    onTagsCommit,
+    internalNotes,
+    onInternalNotesChange,
+    onInternalNotesBlur,
+    onUploadAttachment,
+    onDeleteAttachment,
+    item,
+    historyItems,
   }) => {
-    const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
-
     return (
-      <DetailSideTabs
-        tabs={[
-          {
-            value: "activity",
-            label: "Atividade",
-            badge: auditCount || undefined,
-            content: (
-              <DetailAuditFeed
-                mode={mode}
-                auditState={detailAudit}
-                auditVisibleCount={auditVisibleCount}
-                onAuditVisibleCountChange={onAuditVisibleCountChange}
-              />
-            ),
-          },
-          {
-            value: "notes",
-            label: "Notas internas",
-            content: (
-              <DetailNotesPanel
-                value={draft.notes}
-                onChange={onNotesChange}
-                onBlur={onNotesBlur}
-                readOnly={readOnly}
-              />
-            ),
-          },
+      <StandardDetailMetadataSide
+        mode={mode}
+        readOnly={readOnly}
+        detailAudit={detailAudit}
+        auditVisibleCount={auditVisibleCount}
+        onAuditVisibleCountChange={onAuditVisibleCountChange}
+        canAudit
+        comments={{
+          items: item?.comments ?? [],
+          draft: commentDraft,
+          users: mentionableUsers,
+          onDraftChange: onCommentDraftChange,
+          onSubmit: onSubmitComment,
+          onDelete: mode === "edit" ? onDeleteComment : undefined,
+          submitting: commentSubmitting,
+          readOnly: readOnly || mode !== "edit",
+          emptyLabel:
+            mode === "create"
+              ? "Salve o alimento para habilitar comentarios."
+              : "Nenhum comentario registrado para este alimento.",
+        }}
+        notes={{
+          value: internalNotes,
+          onChange: onInternalNotesChange,
+          onBlur: onInternalNotesBlur,
+          readOnly,
+        }}
+        tags={{
+          value: tags,
+          onChange: onTagsChange,
+          onCommit: onTagsCommit,
+          readOnly,
+        }}
+        attachments={{
+          items:
+            item?.attachments?.map((attachment) => ({
+              id: attachment.id,
+              label: attachment.label,
+              href: resolveMediaUrl(attachment.filePath),
+              mimeType: attachment.mimeType ?? null,
+              sizeLabel: attachment.sizeLabel ?? null,
+              createdAt: attachment.createdAt,
+            })) ?? [],
+          onUpload: onUploadAttachment,
+          onDelete: mode === "edit" ? onDeleteAttachment : undefined,
+          readOnly: readOnly || mode !== "edit",
+          emptyLabel:
+            mode === "create"
+              ? "Salve o alimento para habilitar anexos."
+              : "Nenhum anexo registrado para este alimento.",
+        }}
+        history={{
+          items: historyItems,
+          emptyLabel:
+            mode === "create"
+              ? "Salve o alimento para habilitar historico."
+              : "Nenhum historico registrado para este alimento.",
+        }}
+        contextItems={[
+          { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
+          { key: "group", label: "Grupo", value: item?.group ?? "Sem grupo" },
+          { key: "sector", label: "Setor padrao", value: item?.defaultSector ?? PANTRY_DEFAULT_SECTOR },
+          { key: "status", label: "Status", value: item?.validityStatus ?? "Sem status" },
         ]}
       />
     );
@@ -868,7 +934,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
             formatAuditReferenceLabel(
               context.exitLabelById[typeof value === "string" ? value.trim() : ""],
               value,
-              "Saida",
+              "Sa?da",
             ),
         },
         joinKey: "itemId",
@@ -879,7 +945,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         key: "exits",
         entity: "PantryExit",
         model: "pantry.exits",
-        label: "Saida",
+        label: "Sa?da",
         fieldLabels: PANTRY_EXIT_AUDIT_FIELD_LABELS,
         valueFormatters: {
           sector: (value) =>
@@ -1047,15 +1113,67 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
   ],
   side: ({
     mode,
+    readOnly,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    commentSubmitting,
+    tags,
+    onTagsChange,
+    onTagsCommit,
+    internalNotes,
+    onInternalNotesChange,
+    onInternalNotesBlur,
+    onUploadAttachment,
+    onDeleteAttachment,
+    donor,
+    historyItems,
   }) => (
-    <DetailAuditFeed
+    <StandardDetailMetadataSide
       mode={mode}
-      auditState={detailAudit}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit
+      comments={{
+        items: donor?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve o doador para habilitar comentarios." : "Nenhum comentario registrado para este doador.",
+      }}
+      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
+      attachments={{
+        items:
+          donor?.attachments?.map((attachment) => ({
+            id: attachment.id,
+            label: attachment.label,
+            href: resolveMediaUrl(attachment.filePath),
+            mimeType: attachment.mimeType ?? null,
+            sizeLabel: attachment.sizeLabel ?? null,
+            createdAt: attachment.createdAt,
+          })) ?? [],
+        onUpload: onUploadAttachment,
+        onDelete: mode === "edit" ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve o doador para habilitar anexos." : "Nenhum anexo registrado para este doador.",
+      }}
+      history={{ items: historyItems }}
+      contextItems={[
+        { key: "type", label: "Tipo", value: donor ? resolveDonorTypeAuditValue(donor.type) : "Sem tipo" },
+        { key: "contact", label: "Contato", value: donor?.contact ?? "Sem contato" },
+      ]}
     />
   ),
   auditSources: {
@@ -1092,7 +1210,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
               ? formatAuditDate(value)
               : "Sem validade",
           reversalOfExitId: (value) =>
-            formatAuditReferenceLabel(undefined, value, "Saida"),
+            formatAuditReferenceLabel(undefined, value, "Sa?da"),
         },
         joinKey: "donorId",
         idField: "id",
@@ -1148,137 +1266,170 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
     onOpenCreateDonor,
   }) => (
     <div className={PANTRY_DETAIL_SECTION_CLASS}>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_1fr] md:items-end">
-        <Input
-          value={String(draft.quantity)}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
-          }
-          onBlur={() => onCommitField("quantity")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          inputMode="numeric"
-          placeholder="Qtd."
-          readOnly={saving || readOnly}
-        />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[120px_1fr_1fr] md:items-end">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Quantidade
+          </div>
+          <Input
+            value={String(draft.quantity)}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
+            }
+            onBlur={() => onCommitField("quantity")}
+            className={PANTRY_DETAIL_INPUT_CLASS}
+            inputMode="numeric"
+            placeholder="Qtd."
+            readOnly={saving || readOnly}
+          />
+        </div>
 
-        <Select
-          value={draft.unit}
-          onValueChange={(value) => {
-            setDraft((prev) => ({ ...prev, unit: value }));
-            onPatch({ unit: value });
-          }}
-          disabled={saving || readOnly}
-        >
-          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-            <SelectValue placeholder="Unidade" />
-          </SelectTrigger>
-          <SelectContent>
-            {PANTRY_ITEM_UNIT.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-2">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Unidade
+          </div>
           <Select
-            value={draft.sector}
+            value={draft.unit}
             onValueChange={(value) => {
-              setDraft((prev) => ({ ...prev, sector: value }));
-              onPatch({ sector: value });
+              setDraft((prev) => ({ ...prev, unit: value }));
+              onPatch({ unit: value });
             }}
             disabled={saving || readOnly}
           >
             <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
+              <SelectValue placeholder="Unidade" />
             </SelectTrigger>
             <SelectContent>
-              {sectorOptions.map((sector) => (
-                <SelectItem key={sector} value={sector}>
-                  {sector}
+              {PANTRY_ITEM_UNIT.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </div>
 
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0"
-            title="Novo setor"
-            aria-label="Novo setor"
-            onClick={onOpenNewSector}
-            disabled={saving || readOnly}
-          >
-            <Plus className="size-4" />
-          </Button>
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Setor
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={draft.sector}
+              onValueChange={(value) => {
+                setDraft((prev) => ({ ...prev, sector: value }));
+                onPatch({ sector: value });
+              }}
+              disabled={saving || readOnly}
+            >
+              <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+                <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
+              </SelectTrigger>
+              <SelectContent>
+                {sectorOptions.map((sector) => (
+                  <SelectItem key={sector} value={sector}>
+                    {sector}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0"
+              title="Novo setor"
+              aria-label="Novo setor"
+              onClick={onOpenNewSector}
+              disabled={saving || readOnly}
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_1fr] md:items-end">
-        <Select
-          value={draft.donorId ?? PANTRY_ENTRY_DONOR_NONE_VALUE}
-          onValueChange={(value) => {
-            const next = value === PANTRY_ENTRY_DONOR_NONE_VALUE ? null : value;
-            setDraft((prev) => ({ ...prev, donorId: next }));
-            onPatch({ donorId: next });
-          }}
-          disabled={saving || readOnly}
-        >
-          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-            <SelectValue placeholder={donorsLoading ? "Carregando..." : "Doador"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={PANTRY_ENTRY_DONOR_NONE_VALUE}>Sem doador</SelectItem>
-            {donors.map((donor) => (
-              <SelectItem key={donor.id} value={donor.id}>
-                {donor.name}
-              </SelectItem>
-            ))}
-            <div className="px-2 py-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-8 w-full"
-                onClick={onOpenCreateDonor}
-                disabled={saving || readOnly}
-              >
-                <Plus className="mr-1 size-4" />
-                Novo doador
-              </Button>
-            </div>
-          </SelectContent>
-        </Select>
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr] md:items-end">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Doador
+          </div>
+          <Select
+            value={draft.donorId ?? PANTRY_ENTRY_DONOR_NONE_VALUE}
+            onValueChange={(value) => {
+              const next = value === PANTRY_ENTRY_DONOR_NONE_VALUE ? null : value;
+              setDraft((prev) => ({ ...prev, donorId: next }));
+              onPatch({ donorId: next });
+            }}
+            disabled={saving || readOnly}
+          >
+            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+              <SelectValue placeholder={donorsLoading ? "Carregando..." : "Doador"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={PANTRY_ENTRY_DONOR_NONE_VALUE}>Sem doador</SelectItem>
+              {donors.map((donor) => (
+                <SelectItem key={donor.id} value={donor.id}>
+                  {donor.name}
+                </SelectItem>
+              ))}
+              <div className="px-2 py-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 w-full"
+                  onClick={onOpenCreateDonor}
+                  disabled={saving || readOnly}
+                >
+                  <Plus className="mr-1 size-4" />
+                  Novo doador
+                </Button>
+              </div>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Input
-          type="date"
-          value={draft.entryDate}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, entryDate: event.target.value }))
-          }
-          onBlur={() => onCommitField("entryDate")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          readOnly={saving || readOnly}
-          title="Data da entrada"
-        />
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Data da entrada
+          </div>
+          <Input
+            type="date"
+            value={draft.entryDate}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, entryDate: event.target.value }))
+            }
+            onBlur={() => onCommitField("entryDate")}
+            className={PANTRY_DETAIL_INPUT_CLASS}
+            readOnly={saving || readOnly}
+            title="Data da entrada"
+          />
+        </div>
 
-        <Input
-          type="date"
-          value={draft.expiryDate}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, expiryDate: event.target.value }))
-          }
-          onBlur={() => onCommitField("expiryDate")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          readOnly={saving || readOnly}
-          title="Validade"
-        />
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Validade
+          </div>
+          <Input
+            type="date"
+            value={draft.expiryDate}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, expiryDate: event.target.value }))
+            }
+            onBlur={() => onCommitField("expiryDate")}
+            className={PANTRY_DETAIL_INPUT_CLASS}
+            readOnly={saving || readOnly}
+            title="Validade"
+          />
+        </div>
       </div>
 
       <div className="mt-3">
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Notas
+        </div>
         <Input
           value={draft.notes}
           onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
@@ -1301,7 +1452,7 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
       getRowId: (row) => row.exitId,
       onRowClick: (row, context) => context.onOpenExit(row.exitId),
       action: {
-        label: "Nova saÃ­da",
+        label: "Nova saída",
         icon: <Plus className="mr-1 size-4" />,
         onClick: (context) => context.onOpenCreateExit(),
         disabled: (context) =>
@@ -1316,15 +1467,68 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
   ],
   side: ({
     mode,
+    readOnly,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    commentSubmitting,
+    tags,
+    onTagsChange,
+    onTagsCommit,
+    internalNotes,
+    onInternalNotesChange,
+    onInternalNotesBlur,
+    onUploadAttachment,
+    onDeleteAttachment,
+    entry,
+    historyItems,
   }) => (
-    <DetailAuditFeed
+    <StandardDetailMetadataSide
       mode={mode}
-      auditState={detailAudit}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit
+      comments={{
+        items: entry?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve a entrada para habilitar comentarios." : "Nenhum comentario registrado para esta entrada.",
+      }}
+      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
+      attachments={{
+        items:
+          entry?.attachments?.map((attachment) => ({
+            id: attachment.id,
+            label: attachment.label,
+            href: resolveMediaUrl(attachment.filePath),
+            mimeType: attachment.mimeType ?? null,
+            sizeLabel: attachment.sizeLabel ?? null,
+            createdAt: attachment.createdAt,
+          })) ?? [],
+        onUpload: onUploadAttachment,
+        onDelete: mode === "edit" ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve a entrada para habilitar anexos." : "Nenhum anexo registrado para esta entrada.",
+      }}
+      history={{ items: historyItems }}
+      contextItems={[
+        { key: "item", label: "Alimento", value: entry?.item?.name ?? "Sem alimento" },
+        { key: "sector", label: "Setor", value: entry?.sector ?? PANTRY_DEFAULT_SECTOR },
+        { key: "status", label: "Status", value: entry?.isClosed ? "Fechada" : "Aberta" },
+      ]}
     />
   ),
   auditSources: {
@@ -1429,79 +1633,12 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
     onCommitField,
     onPatch,
     onOpenNewSector,
-  }) => (
-    <div className={PANTRY_DETAIL_SECTION_CLASS}>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_1fr] md:items-end">
-        <Input
-          value={String(draft.quantity)}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
-          }
-          onBlur={() => onCommitField("quantity")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          inputMode="numeric"
-          placeholder="Qtd."
-          readOnly={saving || readOnly}
-        />
-
-        <Select
-          value={draft.unit}
-          onValueChange={(value) => {
-            setDraft((prev) => ({ ...prev, unit: value }));
-            onPatch({ unit: value });
-          }}
-          disabled={saving || readOnly}
-        >
-          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-            <SelectValue placeholder="Unidade" />
-          </SelectTrigger>
-          <SelectContent>
-            {PANTRY_ITEM_UNIT.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-2">
-          <Select
-            value={draft.sector}
-            onValueChange={(value) => {
-              setDraft((prev) => ({ ...prev, sector: value }));
-              onPatch({ sector: value });
-            }}
-            disabled={saving || readOnly || Boolean(selectedEntry)}
-          >
-            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
-            </SelectTrigger>
-            <SelectContent>
-              {sectorOptions.map((sector) => (
-                <SelectItem key={sector} value={sector}>
-                  {sector}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 shrink-0"
-            title="Novo setor"
-            aria-label="Novo setor"
-            onClick={onOpenNewSector}
-            disabled={saving || readOnly || Boolean(selectedEntry)}
-          >
-            <Plus className="size-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_180px_180px] md:items-end">
-        <div>
+  }) => (    <div className={PANTRY_DETAIL_SECTION_CLASS}>
+      <div className="mt-3">
+        <div className="max-w-4xl">
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Entrada de origem
+          </div>
           <Select
             value={draft.entryId || PANTRY_EXIT_ENTRY_AUTO_VALUE}
             onValueChange={(value) => {
@@ -1518,7 +1655,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
             disabled={saving || readOnly || entryLocked}
           >
             <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder={entriesLoading ? "Carregando..." : "Validade (lote)"} />
+              <SelectValue placeholder={entriesLoading ? "Carregando..." : "Entrada de origem"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={PANTRY_EXIT_ENTRY_AUTO_VALUE}>Automático</SelectItem>
@@ -1527,30 +1664,30 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
                   typeof entry.remaining === "number"
                     ? entry.remaining
                     : entry.quantity - (entry.allocatedTotal ?? 0);
-                const expiry = entry.expiryDate ? formatDateOnlyPtBR(entry.expiryDate) : "—";
+                const expiry = entry.expiryDate ? formatDateOnlyPtBR(entry.expiryDate) : "Sem validade";
                 return (
                   <SelectItem key={entry.id} value={entry.id}>
-                    {`Validade ${expiry} • ${entry.sector || PANTRY_DEFAULT_SECTOR} • ${Number(remaining).toLocaleString("pt-BR")} ${entry.unit}`}
+                    {`Entrada ${formatDateOnlyPtBR(entry.entryDate)} - ${expiry} - ${entry.sector || PANTRY_DEFAULT_SECTOR} - ${Number(remaining).toLocaleString("pt-BR")} ${entry.unit}`}
                   </SelectItem>
                 );
               })}
             </SelectContent>
           </Select>
 
-          <div className="mt-1 text-[11px] text-muted-foreground">
+          <div className="mt-2 text-[11px] text-muted-foreground">
             {selectedEntry ? (
               <>
-                Saindo do lote com validade{" "}
+                Saindo a partir da entrada{" "}
                 <span className="font-medium text-foreground">
-                  {selectedEntry.expiryDate
-                    ? formatDateOnlyPtBR(selectedEntry.expiryDate)
+                  {selectedEntry.entryDate
+                    ? formatDateOnlyPtBR(selectedEntry.entryDate)
                     : "—"}
                 </span>
-                {" • "}
+                {" - "}
                 <span className="font-medium text-foreground">
                   {selectedEntry.sector || PANTRY_DEFAULT_SECTOR}
                 </span>
-                {" • restante "}
+                {" - saldo "}
                 <span className="font-mono font-medium text-foreground">
                   {Number(
                     typeof selectedEntry.remaining === "number"
@@ -1561,61 +1698,165 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
                 </span>
               </>
             ) : (
-              "Automático: usa a validade mais próxima disponível."
+              "Automático: usa a entrada com validade mais próxima disponível."
             )}
           </div>
         </div>
-
-        <Input
-          type="date"
-          value={draft.exitDate}
-          onChange={(event) =>
-            setDraft((prev) => ({ ...prev, exitDate: event.target.value }))
-          }
-          onBlur={() => onCommitField("exitDate")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          readOnly={saving || readOnly}
-          title="Data da saída"
-        />
-
-        <Select
-          value={draft.type}
-          onValueChange={(value) => {
-            const nextType = value as PantryExitDraft["type"];
-            setDraft((prev) => ({ ...prev, type: nextType }));
-            onPatch({ type: nextType });
-          }}
-          disabled={saving || readOnly}
-        >
-          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            {PANTRY_EXIT_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {resolveExitTypeLabel(option)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      {draft.type === "EVENT" ? (
-        <div className="mt-3">
+      <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_1fr] md:items-end">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Quantidade
+          </div>
           <Input
-            value={draft.eventName}
+            value={String(draft.quantity)}
             onChange={(event) =>
-              setDraft((prev) => ({ ...prev, eventName: event.target.value }))
+              setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
             }
-            onBlur={() => onCommitField("eventName")}
+            onBlur={() => onCommitField("quantity")}
             className={PANTRY_DETAIL_INPUT_CLASS}
-            placeholder="Nome do evento"
+            inputMode="numeric"
+            placeholder="Qtd."
             readOnly={saving || readOnly}
           />
         </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Unidade
+          </div>
+          <Select
+            value={draft.unit}
+            onValueChange={(value) => {
+              setDraft((prev) => ({ ...prev, unit: value }));
+              onPatch({ unit: value });
+            }}
+            disabled={saving || readOnly}
+          >
+            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+              <SelectValue placeholder="Unidade" />
+            </SelectTrigger>
+            <SelectContent>
+              {PANTRY_ITEM_UNIT.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Setor
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={draft.sector}
+              onValueChange={(value) => {
+                setDraft((prev) => ({ ...prev, sector: value }));
+                onPatch({ sector: value });
+              }}
+              disabled={saving || readOnly || Boolean(selectedEntry)}
+            >
+              <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+                <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
+              </SelectTrigger>
+              <SelectContent>
+                {sectorOptions.map((sector) => (
+                  <SelectItem key={sector} value={sector}>
+                    {sector}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 shrink-0"
+              title="Novo setor"
+              aria-label="Novo setor"
+              onClick={onOpenNewSector}
+              disabled={saving || readOnly || Boolean(selectedEntry)}
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-end">
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Data da saída
+          </div>
+          <Input
+            type="date"
+            value={draft.exitDate}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, exitDate: event.target.value }))
+            }
+            onBlur={() => onCommitField("exitDate")}
+            className={PANTRY_DETAIL_INPUT_CLASS}
+            readOnly={saving || readOnly}
+            title="Data da saída"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Tipo de saída
+          </div>
+          <Select
+            value={draft.type}
+            onValueChange={(value) => {
+              const nextType = value as PantryExitDraft["type"];
+              setDraft((prev) => ({ ...prev, type: nextType }));
+              onPatch({ type: nextType });
+            }}
+            disabled={saving || readOnly}
+          >
+            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+              <SelectValue placeholder="Tipo de saída" />
+            </SelectTrigger>
+            <SelectContent>
+              {PANTRY_EXIT_TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {resolveExitTypeLabel(option)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {draft.type === "EVENT" ? (
+        <div className="mt-4">
+          <div className="max-w-xl">
+            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              Nome do evento
+            </div>
+            <Input
+              value={draft.eventName}
+              onChange={(event) =>
+                setDraft((prev) => ({ ...prev, eventName: event.target.value }))
+              }
+              onBlur={() => onCommitField("eventName")}
+              className={PANTRY_DETAIL_INPUT_CLASS}
+              placeholder="Nome do evento"
+              readOnly={saving || readOnly}
+            />
+          </div>
+        </div>
       ) : null}
 
-      <div className="mt-3">
+      <div className="mt-4">
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Notas
+        </div>
         <Input
           value={draft.notes}
           onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
@@ -1625,8 +1866,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
           readOnly={saving || readOnly}
         />
       </div>
-    </div>
-  ),
+    </div>  ),
   bottomRelations: [
     {
       key: "exit.allocations",
@@ -1653,15 +1893,68 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
   ],
   side: ({
     mode,
+    readOnly,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    commentSubmitting,
+    tags,
+    onTagsChange,
+    onTagsCommit,
+    internalNotes,
+    onInternalNotesChange,
+    onInternalNotesBlur,
+    onUploadAttachment,
+    onDeleteAttachment,
+    exit,
+    historyItems,
   }) => (
-    <DetailAuditFeed
+    <StandardDetailMetadataSide
       mode={mode}
-      auditState={detailAudit}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit
+      comments={{
+        items: exit?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve a saida para habilitar comentarios." : "Nenhum comentario registrado para esta saida.",
+      }}
+      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
+      attachments={{
+        items:
+          exit?.attachments?.map((attachment) => ({
+            id: attachment.id,
+            label: attachment.label,
+            href: resolveMediaUrl(attachment.filePath),
+            mimeType: attachment.mimeType ?? null,
+            sizeLabel: attachment.sizeLabel ?? null,
+            createdAt: attachment.createdAt,
+          })) ?? [],
+        onUpload: onUploadAttachment,
+        onDelete: mode === "edit" ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel: mode === "create" ? "Salve a saida para habilitar anexos." : "Nenhum anexo registrado para esta saida.",
+      }}
+      history={{ items: historyItems }}
+      contextItems={[
+        { key: "item", label: "Alimento", value: exit?.item?.name ?? "Sem alimento" },
+        { key: "sector", label: "Setor", value: exit?.sector ?? PANTRY_DEFAULT_SECTOR },
+        { key: "type", label: "Tipo", value: exit ? resolveExitTypeLabel(exit.type) : "Sem tipo" },
+      ]}
     />
   ),
   auditSources: {
@@ -1722,3 +2015,4 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
     pagination: { limit: 120 },
   },
 };
+

@@ -37,7 +37,7 @@ export const tasksDetailAction = createModuleWindowAction({
 export const tasksCreateAction = createModuleWindowAction({
   id: TASKS_ACTION_IDS.create,
   moduleDefinition: tasksDetailModuleDefinition,
-  moduleActionKey: "create",
+  modulePermissionKey: "canCreate",
   titleVariant: "create",
   breadcrumbs: [{ label: "Tarefas", href: TASKS_ROUTES.list }],
   hideBreadcrumb: true,

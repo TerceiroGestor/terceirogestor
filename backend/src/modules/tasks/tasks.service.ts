@@ -13,6 +13,7 @@ import {
 } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreateTaskChecklistItemDto } from './dto/create-task-checklist-item.dto';
+import { CreateTaskAttachmentDto } from './dto/create-task-attachment.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { CreateTaskDependencyDto } from './dto/create-task-dependency.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -160,6 +161,19 @@ const TASK_DETAIL_WITH_RELATIONS = {
     orderBy: { createdAt: 'desc' },
     include: {
       authorUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: { createdAt: 'desc' },
+    include: {
+      uploadedByUser: {
         select: {
           id: true,
           name: true,
@@ -332,6 +346,7 @@ const mapTaskListRecord = (task: TaskListEntity) => {
     checklist: [],
     subtasks: task.subtasks?.map(mapSubtask) ?? [],
     comments: [],
+    attachments: [],
     dependencies:
       task.blockedByDependencies?.map((entry) => ({
         id: entry.id,
@@ -393,6 +408,27 @@ const mapTaskRecord = (task: TaskEntity | TaskDetailEntity) => {
         },
         createdAt: toIsoString(comment.createdAt),
         updatedAt: toIsoString(comment.updatedAt),
+      })) ?? [],
+    attachments:
+      detailTask.attachments?.map((attachment) => ({
+        id: attachment.id,
+        label: attachment.label,
+        filePath: attachment.filePath,
+        mimeType: attachment.mimeType ?? null,
+        fileSizeBytes: attachment.fileSizeBytes ?? null,
+        uploadedBy: attachment.uploadedByUser
+          ? {
+              id: attachment.uploadedByUser.id ?? null,
+              name:
+                attachment.uploadedByUser.name?.trim() ||
+                attachment.uploadedByUser.email ||
+                'Equipe interna',
+              email: attachment.uploadedByUser.email ?? null,
+              avatarUrl: attachment.uploadedByUser.avatarUrl ?? null,
+            }
+          : null,
+        createdAt: toIsoString(attachment.createdAt),
+        updatedAt: toIsoString(attachment.updatedAt),
       })) ?? [],
     dependencies:
       detailTask.blockedByDependencies?.map((entry) => ({
@@ -897,6 +933,50 @@ export class TasksService {
     return this.getTask(tenantId, taskId);
   }
 
+  async addAttachment(
+    tenantId: string,
+    actorUserId: string,
+    taskId: string,
+    dto: CreateTaskAttachmentDto,
+  ) {
+    await this.findTaskEntity(tenantId, taskId);
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/tasks/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.taskOrganizerAttachment.create({
+      data: {
+        tenantId,
+        taskId,
+        uploadedByUserId: actorUserId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.getTask(tenantId, taskId);
+  }
+
+  async deleteAttachment(tenantId: string, taskId: string, attachmentId: string) {
+    await this.findTaskEntity(tenantId, taskId);
+    const attachment = await this.findAttachment(tenantId, taskId, attachmentId);
+
+    await this.prisma.taskOrganizerAttachment.delete({
+      where: { id: attachment.id },
+    });
+
+    return this.getTask(tenantId, taskId);
+  }
+
   async addDependency(
     tenantId: string,
     taskId: string,
@@ -955,6 +1035,7 @@ export class TasksService {
     const checklistIds = task.checklistItems.map((item) => item.id);
     const subtaskIds = task.subtasks.map((item) => item.id);
     const commentIds = task.comments.map((item) => item.id);
+    const attachmentIds = task.attachments.map((item) => item.id);
     const dependencyIds = [
       ...task.blockedByDependencies.map((item) => item.id),
       ...task.dependentTaskLinks.map((item) => item.id),
@@ -988,6 +1069,14 @@ export class TasksService {
               {
                 entity: 'TaskOrganizerComment',
                 entityId: { in: commentIds },
+              } satisfies Prisma.AuditLogWhereInput,
+            ]
+          : []),
+        ...(attachmentIds.length
+          ? [
+              {
+                entity: 'TaskOrganizerAttachment',
+                entityId: { in: attachmentIds },
               } satisfies Prisma.AuditLogWhereInput,
             ]
           : []),
@@ -1075,6 +1164,18 @@ export class TasksService {
     }
 
     return comment;
+  }
+
+  private async findAttachment(tenantId: string, taskId: string, attachmentId: string) {
+    const attachment = await this.prisma.taskOrganizerAttachment.findFirst({
+      where: { id: attachmentId, taskId, tenantId },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Anexo nao encontrado.');
+    }
+
+    return attachment;
   }
 
   private async findDependency(tenantId: string, taskId: string, dependencyId: string) {

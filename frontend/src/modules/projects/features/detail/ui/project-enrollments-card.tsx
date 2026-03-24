@@ -41,8 +41,8 @@ import {
   resolveLabel,
 } from "@/modules/people/shared/domain/utils";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
-import { usePathname } from "next/navigation";
-import { getTenantSlugFromPath } from "@/lib/tenant-path";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 
 type EnrollmentFormValues = {
   status: EnrollmentStatus;
@@ -115,7 +115,9 @@ export function ProjectEnrollmentsCard({
   canDelete,
   canReadPeople,
 }: ProjectEnrollmentsCardProps) {
+  const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { confirm } = useConfirm();
   const { toast } = useToast();
@@ -143,6 +145,7 @@ export function ProjectEnrollmentsCard({
     [],
   );
   const [bulkActionLoading, setBulkActionLoading] = React.useState(false);
+  const requestedEnrollmentId = searchParams.get("enrollmentId");
 
   const fields = React.useMemo(() => ENROLLMENT_FIELDS, []);
 
@@ -339,6 +342,21 @@ export function ProjectEnrollmentsCard({
     loadEnrollments();
   }, [loadEnrollments]);
 
+  React.useEffect(() => {
+    if (!requestedEnrollmentId || !canUpdate || loading || dialogOpen) {
+      return;
+    }
+
+    const target = rows.find((row) => row.id === requestedEnrollmentId);
+    if (!target) {
+      return;
+    }
+
+    setEditing(target);
+    setFormError(null);
+    setDialogOpen(true);
+  }, [canUpdate, dialogOpen, loading, requestedEnrollmentId, rows]);
+
   const initialValues = React.useMemo<Partial<EnrollmentFormValues>>(() => {
     if (!editing) {
       return {
@@ -359,11 +377,17 @@ export function ProjectEnrollmentsCard({
   const openEdit = React.useCallback(
     (item: ApiProjectEnrollment) => {
       if (!canUpdate) return;
+      router.replace(
+        withTenantPath(
+          `/projects/${projectId}/enrollments?enrollmentId=${encodeURIComponent(item.id)}`,
+          tenantSlug,
+        ),
+      );
       setEditing(item);
       setFormError(null);
       setDialogOpen(true);
     },
-    [canUpdate],
+    [canUpdate, projectId, router, tenantSlug],
   );
 
   const normalizeValues = (values: EnrollmentFormValues) => ({
@@ -739,6 +763,7 @@ export function ProjectEnrollmentsCard({
         onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) {
+            router.replace(withTenantPath(`/projects/${projectId}/enrollments`, tenantSlug));
             setEditing(null);
           }
         }}

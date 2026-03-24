@@ -149,45 +149,46 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.title}</div>
           <div className="text-xs text-muted-foreground">
-            {row.original.actionType?.name ?? "Sem tipo"}
+            {row.original.actionType?.name ?? row.original.group?.name ?? resolveCyclePrimaryLabel(row.original.cycle) ?? "Sem tipo"}
           </div>
         </div>
+      ),
+    },
+    {
+      accessorKey: "tags",
+      header: "Tags",
+      cell: ({ row }) => {
+        const tags = row.original.tags ?? [];
+        if (!tags.length) return <span className="text-muted-foreground">-</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 3).map((tag) => (
+              <Badge key={`${row.original.id}:${tag}`} variant="outline" className="rounded-full px-2 text-[10px]">
+                {tag}
+              </Badge>
+            ))}
+            {tags.length > 3 ? (
+              <Badge variant="outline" className="rounded-full px-2 text-[10px]">
+                +{tags.length - 3}
+              </Badge>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Cadastro",
+      cell: ({ row }) => (
+        <span className="text-foreground">
+          {row.original.createdAt ? formatDateOnlyPtBR(row.original.createdAt.slice(0, 10)) : "-"}
+        </span>
       ),
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => resolveStatusBadge(row.original.status),
-    },
-    {
-      accessorKey: "group.name",
-      header: "Escopo",
-      cell: ({ row }) => {
-        if (row.original.group?.name) {
-          return <span className="text-foreground">{row.original.group.name}</span>;
-        }
-        if (row.original.cycle) {
-          return (
-            <div className="space-y-0.5">
-              <span className="text-foreground">{resolveCyclePrimaryLabel(row.original.cycle)}</span>
-              <div className="text-xs text-muted-foreground">
-                {resolveCycleSecondaryLabel(row.original.cycle) || "Segmento do projeto"}
-              </div>
-            </div>
-          );
-        }
-        return <span className="text-foreground">Projeto</span>;
-      },
-    },
-    {
-      accessorKey: "plannedStartAt",
-      header: "Periodo",
-      cell: ({ row }) => (
-        <span className="text-foreground">
-          {row.original.plannedStartAt ? formatDateOnlyPtBR(row.original.plannedStartAt) : "-"} ate{" "}
-          {row.original.plannedEndAt ? formatDateOnlyPtBR(row.original.plannedEndAt) : "-"}
-        </span>
-      ),
     },
   ];
 }

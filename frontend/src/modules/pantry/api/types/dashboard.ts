@@ -6,6 +6,7 @@ export type PantryDashboardResponse = {
     itemId: string;
     name: string;
     group: string | null;
+    tags: string[];
     unit: string;
     sector: string;
     sectorStock: number;
@@ -15,6 +16,8 @@ export type PantryDashboardResponse = {
     nextExpiryDate: string | null;
     validityStatus: PantryValidityStatus;
     daysToExpire: number | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
   recentEntries: Array<{
     id: string;
@@ -56,4 +59,3 @@ export type PantryDashboardResponse = {
     daysToExpire: number | null;
   }>;
 };
-

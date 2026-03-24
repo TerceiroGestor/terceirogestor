@@ -1,19 +1,7 @@
 "use client";
 
-import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
-import { PeopleCreateClient } from "@/modules/people/shared/ui/people-create-client";
+import { PeopleDetailEngineClientPage } from "@/modules/people/features/detail/ui/people-detail-engine-client-page";
 
 export function PeopleCreatePage() {
-  return (
-    <div className="space-y-6 px-4 py-4">
-      <PageBreadcrumb
-        title="Novo cadastro"
-        items={[
-          { label: "Pessoas", href: "/people" },
-          { label: "Novo cadastro" },
-        ]}
-      />
-      <PeopleCreateClient />
-    </div>
-  );
+  return <PeopleDetailEngineClientPage mode="create" />;
 }

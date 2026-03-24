@@ -1,5 +1,5 @@
-import { PantryExitNewEngineClientPage } from "@/modules/pantry/features/exits/ui/pantry-exit-detail-engine-client-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryExitsNewPage() {
-  return <PantryExitNewEngineClientPage />;
+  return <ScreenHost actionId="pantry.exits.new" />;
 }

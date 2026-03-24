@@ -3,8 +3,10 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { resolveMediaUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
+  TASK_ATTACHMENT_AUDIT_FIELD_LABELS,
   TASK_AUDIT_FIELD_LABELS,
   TASK_CHECKLIST_AUDIT_FIELD_LABELS,
   TASK_COMMENT_AUDIT_FIELD_LABELS,
@@ -15,6 +17,7 @@ import {
 } from "@/modules/tasks/shared/domain/tasks.constants";
 import type {
   TaskAssignableUser,
+  TaskAttachment,
   TaskChecklistItem,
   TaskComment,
   TaskCommentMutationInput,
@@ -24,14 +27,9 @@ import type {
   TaskSubtask,
 } from "@/modules/tasks/shared/domain/types";
 import { TaskDetailForm } from "@/modules/tasks/shared/ui/task-detail-form";
-import { DetailCommentsPanel } from "@/web-client/detail/DetailCommentsPanel";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { DetailTagsField } from "@/web-client/detail/DetailTagsField";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import type { DetailCommentUser, DetailLayoutConfig } from "@/web-client/registry/types";
 
 const AUTO_SAVE_EDITING = {
   saveMode: "auto",
@@ -39,6 +37,22 @@ const AUTO_SAVE_EDITING = {
     trigger: "field-commit",
   },
 } as const;
+
+function formatHistoryDate(value: string | null | undefined) {
+  if (!value) return null;
+  return value.slice(0, 16).replace("T", ", ");
+}
+
+function formatFileSize(bytes: number | null | undefined) {
+  if (!bytes || bytes <= 0) return null;
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${bytes} B`;
+}
 
 function checklistColumns(): ColumnDef<TaskChecklistItem, unknown>[] {
   return [
@@ -155,85 +169,11 @@ function dependencyColumns(): ColumnDef<TaskDependency, unknown>[] {
   ];
 }
 
-function DetailSummary({
-  task,
-  draft,
-  canEdit,
-  onDraftChange,
-  onCommitField,
-}: {
-  task: TaskRecord;
-  draft: TaskMutationInput;
-  canEdit: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<TaskMutationInput>>;
-  onCommitField: <K extends keyof TaskMutationInput>(
-    field: K,
-    nextValue?: TaskMutationInput[K],
-  ) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2 border-b border-border/50 pb-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Contexto
-        </div>
-        <div className="grid gap-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Responsavel</span>
-            <span className="text-foreground">{task.owner ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Time</span>
-            <span className="text-foreground">{task.team ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Prazo</span>
-            <Badge
-              className={cn(
-                "rounded-full px-2 text-[10px]",
-                TASK_DUE_STATE_BADGE_CLASSNAMES[task.dueState],
-              )}
-            >
-              {task.dueState}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Marco</span>
-            <span className="text-foreground">{task.isMilestone ? "Sim" : "Nao"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Checklist</span>
-            <span className="text-foreground">{task.checklist.length}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Subtarefas</span>
-            <span className="text-foreground">{task.subtasks.length}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Comentarios</span>
-            <span className="text-foreground">{task.comments.length}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <DetailTagsField
-          value={draft.tags}
-          onChange={(nextTags) =>
-            onDraftChange((previous) => ({ ...previous, tags: nextTags }))
-          }
-          onCommit={(nextTags) => onCommitField("tags", nextTags)}
-          readOnly={!canEdit}
-        />
-      </div>
-    </div>
-  );
-}
-
 export type TasksDetailLayoutContext = DetailShellAuditContext & {
   task: TaskRecord;
   draft: TaskMutationInput;
   assignableUsers: TaskAssignableUser[];
+  mentionableUsers: DetailCommentUser[];
   assignableUsersLoading: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<TaskMutationInput>>;
   onCommitField: <K extends keyof TaskMutationInput>(
@@ -254,6 +194,9 @@ export type TasksDetailLayoutContext = DetailShellAuditContext & {
   onSubmitComment: () => void;
   onDeleteComment: (comment: TaskComment) => void;
   commentSubmitting: boolean;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachment: TaskAttachment) => void;
+  attachmentUploading: boolean;
   onOpenDependencyCreate: () => void;
   onRemoveDependency: (dependency: TaskDependency) => void;
   auditVisibleCount: number;
@@ -266,6 +209,7 @@ function TaskDetailSide({
   task,
   draft,
   assignableUsers,
+  mentionableUsers,
   detailAudit,
   canAudit,
   canEdit,
@@ -278,12 +222,16 @@ function TaskDetailSide({
   onSubmitComment,
   onDeleteComment,
   commentSubmitting,
+  onUploadAttachment,
+  onDeleteAttachment,
+  attachmentUploading,
   onDraftChange,
   onCommitField,
 }: {
   task: TaskRecord;
   draft: TaskMutationInput;
   assignableUsers: TaskAssignableUser[];
+  mentionableUsers: DetailCommentUser[];
   detailAudit?: DetailShellAuditContext["detailAudit"];
   canAudit: boolean;
   canEdit: boolean;
@@ -296,93 +244,194 @@ function TaskDetailSide({
   onSubmitComment: () => void;
   onDeleteComment: (comment: TaskComment) => void;
   commentSubmitting: boolean;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachment: TaskAttachment) => void;
+  attachmentUploading: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<TaskMutationInput>>;
   onCommitField: <K extends keyof TaskMutationInput>(
     field: K,
     nextValue?: TaskMutationInput[K],
   ) => void;
 }) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
+  const historyItems = React.useMemo(
+    () =>
+      [
+        {
+          id: `task:created:${task.id}`,
+          title: "Tarefa criada",
+          description: task.summary?.trim() || "Registro principal criado.",
+          meta: task.status,
+          createdAt: task.createdAt,
+        },
+        ...(task.updatedAt !== task.createdAt
+          ? [
+              {
+                id: `task:updated:${task.id}`,
+                title: "Tarefa atualizada",
+                description: "Os dados principais da tarefa foram alterados.",
+                meta: task.updatedAt.slice(0, 10),
+                createdAt: task.updatedAt,
+              },
+            ]
+          : []),
+        ...task.comments.map((comment) => ({
+          id: `comment:${comment.id}`,
+          title: `Comentario de ${comment.author.name}`,
+          description: comment.body,
+          meta: "Comentario",
+          createdAt: comment.createdAt,
+        })),
+        ...task.checklist.map((item) => ({
+          id: `checklist:${item.id}`,
+          title: item.done ? "Checklist concluido" : "Checklist atualizado",
+          description: item.label,
+          meta: item.owner ?? "Checklist",
+          createdAt: item.updatedAt ?? item.createdAt,
+        })),
+        ...task.subtasks.map((item) => ({
+          id: `subtask:${item.id}`,
+          title: "Subtarefa atualizada",
+          description: item.title,
+          meta: item.status,
+          createdAt: item.updatedAt ?? item.createdAt,
+        })),
+        ...task.attachments.map((item) => ({
+          id: `attachment:${item.id}`,
+          title: "Anexo registrado",
+          description: item.label,
+          meta: item.uploadedBy?.name ?? "Anexo",
+          createdAt: item.createdAt,
+        })),
+        ...task.dependencies.map((item) => ({
+          id: `dependency:${item.id}`,
+          title: "Dependencia vinculada",
+          description: item.title,
+          meta: "Bloqueada por",
+          createdAt: null,
+        })),
+        ...task.dependents.map((item) => ({
+          id: `dependent:${item.id}`,
+          title: "Dependente vinculado",
+          description: item.title,
+          meta: "Esta tarefa desbloqueia",
+          createdAt: null,
+        })),
+      ]
+        .sort((left, right) => {
+          const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+          const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+          return rightTime - leftTime;
+        })
+        .map((item) => ({
+          ...item,
+          meta: item.meta ? `${item.meta}${item.createdAt ? ` • ${formatHistoryDate(item.createdAt)}` : ""}` : formatHistoryDate(item.createdAt),
+        })),
+    [task],
+  );
+
+  const normalizedHistoryItems = React.useMemo(
+    () =>
+      historyItems.map((item) => ({
+        ...item,
+        meta: item.meta
+          ? item.meta.replaceAll("â€¢", "|").replaceAll("•", "|")
+          : item.meta,
+      })),
+    [historyItems],
+  );
 
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Atividade",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode="edit"
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "comments",
-          label: "Comentarios",
-          badge: task.comments.length || undefined,
-          content: (
-            <DetailCommentsPanel
-              comments={task.comments}
-              value={commentDraft.body}
-              mentionUserIds={commentDraft.mentionUserIds}
-              users={assignableUsers}
-              onValueChange={(next) =>
-                onCommentDraftChange((previous) => ({ ...previous, body: next }))
+    <StandardDetailMetadataSide
+      mode="edit"
+      readOnly={!canEdit}
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      comments={{
+        items: task.comments,
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: canEdit
+          ? (commentId) => {
+              const comment = task.comments.find((entry) => entry.id === commentId);
+              if (comment) {
+                onDeleteComment(comment);
               }
-              onMentionUserIdsChange={(next) =>
-                onCommentDraftChange((previous) => ({
-                  ...previous,
-                  mentionUserIds: next,
-                }))
+            }
+          : undefined,
+        submitting: commentSubmitting,
+        readOnly: !canEdit,
+      }}
+      notes={{
+        value: draft.internalNotes,
+        onChange: onNotesChange,
+        onBlur: onNotesBlur,
+        readOnly: !canEdit,
+      }}
+      tags={{
+        value: draft.tags,
+        onChange: (nextTags) =>
+          onDraftChange((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (nextTags) => onCommitField("tags", nextTags),
+        readOnly: !canEdit,
+      }}
+      attachments={{
+        items: task.attachments.map((item) => ({
+          id: item.id,
+          label: item.label,
+          href: resolveMediaUrl(item.filePath),
+          description: item.uploadedBy?.name
+            ? `Enviado por ${item.uploadedBy.name}`
+            : "Anexo da tarefa",
+          mimeType: item.mimeType ?? null,
+          sizeLabel: formatFileSize(item.fileSizeBytes),
+          statusLabel: item.createdAt ? formatHistoryDate(item.createdAt) : null,
+        })),
+        onUpload: onUploadAttachment,
+        onDelete: canEdit
+          ? (attachmentId) => {
+              const attachment = task.attachments.find((entry) => entry.id === attachmentId);
+              if (attachment) {
+                onDeleteAttachment(attachment);
               }
-              onSubmit={onSubmitComment}
-              onDeleteComment={
-                canEdit
-                  ? (commentId) => {
-                      const comment = task.comments.find((entry) => entry.id === commentId);
-                      if (comment) {
-                        onDeleteComment(comment);
-                      }
-                    }
-                  : undefined
-              }
-              submitting={commentSubmitting}
-              readOnly={!canEdit}
-            />
-          ),
-        },
+            }
+          : undefined,
+        readOnly: !canEdit,
+        emptyLabel: attachmentUploading
+          ? "Enviando anexo..."
+          : "Nenhum anexo cadastrado para esta tarefa.",
+      }}
+      history={{
+        items: normalizedHistoryItems,
+        emptyLabel: "Nenhum historico disponivel para esta tarefa.",
+      }}
+      contextItems={[
+        { key: "owner", label: "Responsavel", value: task.owner ?? "-" },
+        { key: "team", label: "Time", value: task.team ?? "-" },
         {
-          value: "notes",
-          label: "Notas internas",
-          content: (
-            <DetailNotesPanel
-              value={draft.internalNotes}
-              onChange={onNotesChange}
-              onBlur={onNotesBlur}
-            />
+          key: "dueState",
+          label: "Prazo",
+          value: (
+            <Badge
+              className={cn(
+                "rounded-full px-2 text-[10px]",
+                TASK_DUE_STATE_BADGE_CLASSNAMES[task.dueState],
+              )}
+            >
+              {task.dueState}
+            </Badge>
           ),
         },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <DetailSummary
-              task={task}
-              draft={draft}
-              canEdit={canEdit}
-              onDraftChange={onDraftChange}
-              onCommitField={onCommitField}
-            />
-          ),
-        },
+        { key: "milestone", label: "Marco", value: task.isMilestone ? "Sim" : "Nao" },
+        { key: "checklist", label: "Checklist", value: task.checklist.length },
+        { key: "subtasks", label: "Subtarefas", value: task.subtasks.length },
+        { key: "comments", label: "Comentarios", value: task.comments.length },
+        { key: "attachments", label: "Anexos", value: task.attachments.length },
       ]}
-      defaultValue="activity"
+      defaultTab="activity"
     />
   );
 }
@@ -452,6 +501,7 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
     task,
     draft,
     assignableUsers,
+    mentionableUsers,
     detailAudit,
     canAudit,
     canEdit,
@@ -464,6 +514,9 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
     onSubmitComment,
     onDeleteComment,
     commentSubmitting,
+    onUploadAttachment,
+    onDeleteAttachment,
+    attachmentUploading,
     onDraftChange,
     onCommitField,
   }) => (
@@ -471,6 +524,7 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
       task={task}
       draft={draft}
       assignableUsers={assignableUsers}
+      mentionableUsers={mentionableUsers}
       detailAudit={detailAudit}
       canAudit={canAudit}
       canEdit={canEdit}
@@ -483,6 +537,9 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
       onSubmitComment={onSubmitComment}
       onDeleteComment={onDeleteComment}
       commentSubmitting={commentSubmitting}
+      onUploadAttachment={onUploadAttachment}
+      onDeleteAttachment={onDeleteAttachment}
+      attachmentUploading={attachmentUploading}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
     />
@@ -621,12 +678,24 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
               ? value
                   .map((entry) =>
                     context.assignableUsers.find((user) => user.id === String(entry))?.name ??
+                    context.mentionableUsers.find((user) => user.id === String(entry))?.name ??
                     String(entry),
                   )
                   .join(", ")
               : "-",
         },
         resolveEntityIds: ({ task }) => task.comments.map((item) => item.id),
+      },
+      {
+        key: "attachment",
+        entity: "TaskOrganizerAttachment",
+        model: "tasks.audit",
+        label: "Anexo",
+        fieldLabels: TASK_ATTACHMENT_AUDIT_FIELD_LABELS,
+        valueFormatters: {
+          fileSizeBytes: (value) => formatFileSize(Number(value ?? 0)) ?? "-",
+        },
+        resolveEntityIds: ({ task }) => task.attachments.map((item) => item.id),
       },
       {
         key: "dependency",

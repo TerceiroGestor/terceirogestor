@@ -51,7 +51,11 @@ function formatCycleOptionLabel(cycle: ApiProjectCycle) {
   return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
 }
 
-export function ActionCreateRouteClientPage() {
+export function ActionCreateRouteClientPage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
@@ -365,15 +369,50 @@ export function ActionCreateRouteClientPage() {
 
   if (!canCreate) {
     return (
-      <SectionCard
-        title={ACTION_CREATE_TEXT.noAccessTitle}
-        subtitle={ACTION_CREATE_TEXT.noAccessSubtitle}
-      >
-        <p className="text-xs text-muted-foreground">
-          {ACTION_CREATE_TEXT.requestAccessHint}
-        </p>
-      </SectionCard>
+      <>
+        {embedded ? null : (
+          <SectionCard
+            title={ACTION_CREATE_TEXT.noAccessTitle}
+            subtitle={ACTION_CREATE_TEXT.noAccessSubtitle}
+          >
+            <p className="text-xs text-muted-foreground">
+              {ACTION_CREATE_TEXT.requestAccessHint}
+            </p>
+          </SectionCard>
+        )}
+        {embedded ? (
+          <div className="text-sm text-muted-foreground">
+            {ACTION_CREATE_TEXT.noAccessSubtitle}
+          </div>
+        ) : null}
+      </>
     );
+  }
+
+  const formContent = (
+    <FormEngine<ActionCreateValues>
+      fields={fields}
+      steps={ACTION_CREATE_TEXT.steps}
+      initialValues={initialValues}
+      onValuesChange={setDraft}
+      onSubmit={handleSubmit}
+      disabled={saving}
+      actions={{
+        submit: {
+          label: saving ? "Salvando..." : ACTION_CREATE_TEXT.form.submitLabel,
+          variant: "primary",
+        },
+        cancel: {
+          label: ACTION_CREATE_TEXT.form.cancelLabel,
+          variant: "ghost",
+          onClick: () => router.push(withTenantPath("/actions", tenantSlug)),
+        },
+      }}
+    />
+  );
+
+  if (embedded) {
+    return formContent;
   }
 
   return (
@@ -384,25 +423,7 @@ export function ActionCreateRouteClientPage() {
       />
 
       <SectionCard title={ACTION_CREATE_TEXT.pageTitle} subtitle={ACTION_CREATE_TEXT.pageSubtitle}>
-        <FormEngine<ActionCreateValues>
-          fields={fields}
-          steps={ACTION_CREATE_TEXT.steps}
-          initialValues={initialValues}
-          onValuesChange={setDraft}
-          onSubmit={handleSubmit}
-          disabled={saving}
-          actions={{
-            submit: {
-              label: saving ? "Salvando..." : ACTION_CREATE_TEXT.form.submitLabel,
-              variant: "primary",
-            },
-            cancel: {
-              label: ACTION_CREATE_TEXT.form.cancelLabel,
-              variant: "ghost",
-              onClick: () => router.push(withTenantPath("/actions", tenantSlug)),
-            },
-          }}
-        />
+        {formContent}
       </SectionCard>
 
     </div>

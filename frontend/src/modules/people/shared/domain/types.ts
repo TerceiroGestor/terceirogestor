@@ -37,10 +37,63 @@ export type Person = {
   tags?: string[] | null;
   profileSummary?: string | null;
   avatarUrl?: string | null;
+  comments?: PersonComment[];
+  attachments?: PersonAttachment[];
   hasHealthCondition?: boolean | null;
   hasMedication?: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+};
+
+export type PersonComment = {
+  id: string;
+  body: string;
+  mentionUserIds: string[];
+  author: {
+    id: string | null;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersonMentionableUser = {
+  id: string;
+  name: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type PersonAttachment = {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
+  uploadedBy?: {
+    id: string;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PeopleRecordType =
+  | "education"
+  | "health-condition"
+  | "medication"
+  | "detention"
+  | "financial-entry"
+  | "family-relation";
+
+export type PeopleRecordMetadata = {
+  comments: PersonComment[];
+  attachments: PersonAttachment[];
+  tags: string[];
 };
 
 export type PersonContactType = "EMAIL" | "PHONE";

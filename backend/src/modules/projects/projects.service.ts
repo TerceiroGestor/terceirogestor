@@ -4,6 +4,8 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { CreateProjectAttachmentDto } from './dto/create-project-attachment.dto';
+import { CreateProjectCommentDto } from './dto/create-project-comment.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ListProjectsQueryDto } from './dto/list-projects-query.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -33,6 +35,149 @@ const PROGRAM_TYPE_SEARCH_MAP: Record<string, ProgramType[]> = {
   outro: ['OTHER'],
   outros: ['OTHER'],
 };
+
+function normalizeTags(tags?: string[] | null) {
+  if (!tags) return null;
+  const cleaned = Array.from(
+    new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
+  );
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+}
+
+function parseTags(value: string | null | undefined) {
+  if (!value) return [] as string[];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((tag) => String(tag ?? '').trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseMentionUserIds(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)),
+  );
+}
+
+const mapCommentAuthor = (
+  user:
+    | {
+        id: string;
+        name: string | null;
+        email: string | null;
+        avatarUrl: string | null;
+      }
+    | null
+    | undefined,
+) => ({
+  id: user?.id ?? null,
+  name: user?.name?.trim() || user?.email || 'Equipe interna',
+  email: user?.email ?? null,
+  avatarUrl: user?.avatarUrl ?? null,
+});
+
+const mapProjectCommentItem = (
+  comment: {
+    id: string;
+    body: string;
+    mentionUserIds: Prisma.JsonValue | null;
+    createdAt: Date;
+    updatedAt: Date;
+    authorUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    } | null;
+  },
+) => ({
+  id: comment.id,
+  body: comment.body,
+  mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+  author: mapCommentAuthor(comment.authorUser),
+  createdAt: comment.createdAt,
+  updatedAt: comment.updatedAt,
+});
+
+const mapProjectAttachmentItem = (
+  attachment: {
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType: string | null;
+    fileSizeBytes: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+    uploadedByUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    } | null;
+  },
+) => ({
+  id: attachment.id,
+  label: attachment.label,
+  filePath: attachment.filePath,
+  mimeType: attachment.mimeType ?? null,
+  fileSizeBytes: attachment.fileSizeBytes ?? null,
+  uploadedBy: attachment.uploadedByUser
+    ? {
+        id: attachment.uploadedByUser.id,
+        name:
+          attachment.uploadedByUser.name?.trim() ||
+          attachment.uploadedByUser.email ||
+          'Equipe interna',
+        email: attachment.uploadedByUser.email ?? null,
+        avatarUrl: attachment.uploadedByUser.avatarUrl ?? null,
+      }
+    : null,
+  createdAt: attachment.createdAt,
+  updatedAt: attachment.updatedAt,
+});
+
+function serializeProject(project: {
+  tags: string | null;
+  comments?: Array<{
+    id: string;
+    body: string;
+    mentionUserIds: Prisma.JsonValue | null;
+    createdAt: Date;
+    updatedAt: Date;
+    authorUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    } | null;
+  }>;
+  attachments?: Array<{
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType: string | null;
+    fileSizeBytes: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+    uploadedByUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    } | null;
+  }>;
+}) {
+  return {
+    ...project,
+    tags: parseTags(project.tags),
+    comments: project.comments?.map(mapProjectCommentItem) ?? [],
+    attachments: project.attachments?.map(mapProjectAttachmentItem) ?? [],
+  };
+}
 
 function resolveMatchingProjectStatuses(query: string): ProjectStatus[] {
   const tokens = query
@@ -109,6 +254,7 @@ export class ProjectsService {
             OR: [
               { name: { contains: q } },
               { description: { contains: q } },
+              { tags: { contains: q } },
               { internalNotes: { contains: q } },
               { status: { in: matchingStatuses } },
               ...(searchedDate
@@ -136,19 +282,48 @@ export class ProjectsService {
     ]);
 
     return {
-      data,
+      data: data.map((project) => serializeProject(project)),
       pagination: buildPaginationMeta({ page, limit, total, isAll }),
     };
   }
 
   async getProject(tenantId: string, id: string) {
+    return this.findById(tenantId, id);
+  }
+
+  private async findById(tenantId: string, id: string) {
     const project = await this.prisma.project.findFirst({
       where: { id, tenantId },
       include: {
         program: { select: { id: true, name: true, type: true, status: true } },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedByUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
       },
     });
     if (!project) throw new NotFoundException('Projeto não encontrado');
+    return serializeProject(project);
+  }
+
+  private async findProjectEntity(tenantId: string, id: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
+    if (!project) throw new NotFoundException('Projeto nÃ£o encontrado');
     return project;
   }
 
@@ -170,12 +345,13 @@ export class ProjectsService {
     const endsAt = parseDateInput(dto.endsAt);
     ensureValidPeriod({ startsAt, endsAt });
 
-    return this.prisma.project.create({
+    const created = await this.prisma.project.create({
       data: {
         tenantId,
         programId: dto.programId,
         name,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        tags: normalizeTags(dto.tags),
         internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
         status: dto.status ?? 'PLANNED',
         startsAt,
@@ -185,6 +361,8 @@ export class ProjectsService {
         program: { select: { id: true, name: true, type: true, status: true } },
       },
     });
+
+    return this.findById(tenantId, created.id);
   }
 
   async updateProject(tenantId: string, id: string, dto: UpdateProjectDto) {
@@ -209,7 +387,7 @@ export class ProjectsService {
       dto.endsAt !== undefined ? parseDateInput(dto.endsAt) : existing.endsAt;
     ensureValidPeriod({ startsAt, endsAt });
 
-    return this.prisma.project.update({
+    const updated = await this.prisma.project.update({
       where: { id: existing.id },
       data: {
         ...(dto.programId !== undefined ? { programId: dto.programId } : {}),
@@ -217,6 +395,7 @@ export class ProjectsService {
         ...(dto.description !== undefined
           ? { description: dto.description?.trim() ? dto.description.trim() : null }
           : {}),
+        ...(dto.tags !== undefined ? { tags: normalizeTags(dto.tags) } : {}),
         ...(dto.internalNotes !== undefined
           ? {
               internalNotes: dto.internalNotes?.trim()
@@ -232,6 +411,8 @@ export class ProjectsService {
         program: { select: { id: true, name: true, type: true, status: true } },
       },
     });
+
+    return this.findById(tenantId, updated.id);
   }
 
   async deleteProject(tenantId: string, id: string) {
@@ -262,5 +443,120 @@ export class ProjectsService {
 
     await this.prisma.project.delete({ where: { id: existing.id } });
     return { ok: true as const };
+  }
+
+  async addComment(
+    tenantId: string,
+    actorUserId: string,
+    projectId: string,
+    dto: CreateProjectCommentDto,
+  ) {
+    await this.findProjectEntity(tenantId, projectId);
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Informe um comentario.');
+    }
+
+    const mentionUserIds = await this.resolveMentionUserIds(tenantId, dto.mentionUserIds);
+
+    await this.prisma.projectComment.create({
+      data: {
+        tenantId,
+        projectId,
+        authorUserId: actorUserId,
+        body,
+        mentionUserIds,
+      },
+    });
+
+    return this.findById(tenantId, projectId);
+  }
+
+  async deleteComment(tenantId: string, projectId: string, commentId: string) {
+    await this.findProjectEntity(tenantId, projectId);
+    const comment = await this.prisma.projectComment.findFirst({
+      where: { id: commentId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comentario nao encontrado');
+    }
+
+    await this.prisma.projectComment.delete({ where: { id: comment.id } });
+    return this.findById(tenantId, projectId);
+  }
+
+  async addAttachment(
+    tenantId: string,
+    actorUserId: string,
+    projectId: string,
+    dto: CreateProjectAttachmentDto,
+  ) {
+    await this.findProjectEntity(tenantId, projectId);
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/projects/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.projectAttachment.create({
+      data: {
+        tenantId,
+        projectId,
+        uploadedByUserId: actorUserId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.findById(tenantId, projectId);
+  }
+
+  async deleteAttachment(
+    tenantId: string,
+    projectId: string,
+    attachmentId: string,
+  ) {
+    await this.findProjectEntity(tenantId, projectId);
+    const attachment = await this.prisma.projectAttachment.findFirst({
+      where: { id: attachmentId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!attachment) {
+      throw new NotFoundException('Anexo nao encontrado');
+    }
+
+    await this.prisma.projectAttachment.delete({ where: { id: attachment.id } });
+    return this.findById(tenantId, projectId);
+  }
+
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[] | null,
+  ) {
+    const normalized = Array.from(
+      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+    );
+
+    if (!normalized.length) {
+      return [];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        id: { in: normalized },
+      },
+      select: { id: true },
+    });
+
+    return users.map((user) => user.id);
   }
 }

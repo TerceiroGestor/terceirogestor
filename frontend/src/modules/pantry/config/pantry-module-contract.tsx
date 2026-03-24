@@ -172,7 +172,7 @@ const PANTRY_DONOR_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Novo doador",
+    label: "Novo",
     permissionKey: "canCreate",
     scope: "list",
   },
@@ -206,9 +206,9 @@ const PANTRY_ITEM_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Novo alimento",
+    label: "Novo",
     permissionKey: "canCreate",
-    scope: "detail",
+    scope: "list",
   },
   edit: {
     key: "edit",
@@ -253,9 +253,9 @@ const PANTRY_DONOR_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Novo doador",
+    label: "Novo",
     permissionKey: "canCreate",
-    scope: "detail",
+    scope: "list",
   },
   edit: {
     key: "edit",
@@ -293,9 +293,9 @@ const PANTRY_ENTRY_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Nova entrada",
+    label: "Novo",
     permissionKey: "canCreate",
-    scope: "detail",
+    scope: "list",
   },
   edit: {
     key: "edit",
@@ -340,9 +340,9 @@ const PANTRY_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Nova saida",
+    label: "Novo",
     permissionKey: "canCreate",
-    scope: "detail",
+    scope: "list",
   },
   edit: {
     key: "edit",
@@ -426,7 +426,7 @@ const PANTRY_DONOR_DOMAIN_ADAPTER: RecordDomainAdapter = {
   entity: { singular: "Doador", plural: "Doadores" },
   list: {
     searchPlaceholder: "Pesquisar doadores por nome, tipo ou contato",
-    createActionLabel: "Novo doador",
+    createActionLabel: "Novo",
     totalLabel: "Total",
     emptyStateLabel: "Nenhum resultado.",
   },
@@ -1040,6 +1040,11 @@ const DETAIL_FEATURE_FLAGS = {
   list: false,
   detail: true,
   notes: true,
+  comments: true,
+  tags: true,
+  attachments: true,
+  history: true,
+  context: true,
   audit: true,
   grouped: false,
   timeline: false,
@@ -1164,7 +1169,6 @@ export const pantryDonorDetailModuleDefinition = defineRecordModule<
   basePath: PANTRY_ROUTES.donors,
   featureFlags: {
     ...DETAIL_FEATURE_FLAGS,
-    notes: false,
   },
   actionKey: PANTRY_SCREEN_STATE_KEYS.donorsDetail,
   favoriteKey: PANTRY_ACTION_IDS.donorsDetail,
@@ -1201,7 +1205,6 @@ export const pantryEntryDetailModuleDefinition = defineRecordModule<
   basePath: PANTRY_ROUTES.entries,
   featureFlags: {
     ...DETAIL_FEATURE_FLAGS,
-    notes: false,
   },
   actionKey: PANTRY_SCREEN_STATE_KEYS.entriesDetail,
   favoriteKey: PANTRY_ACTION_IDS.entriesDetail,
@@ -1238,7 +1241,6 @@ export const pantryExitDetailModuleDefinition = defineRecordModule<
   basePath: PANTRY_ROUTES.exits,
   featureFlags: {
     ...DETAIL_FEATURE_FLAGS,
-    notes: false,
   },
   actionKey: PANTRY_SCREEN_STATE_KEYS.exitsDetail,
   favoriteKey: PANTRY_ACTION_IDS.exitsDetail,

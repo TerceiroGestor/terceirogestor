@@ -117,7 +117,7 @@ export function buildPantryExitAuditLabel(exit: ApiPantryExit) {
     parts.push(eventName);
   }
 
-  return `Saida ${parts.join(" | ")}`;
+  return `Saída ${parts.join(" | ")}`;
 }
 
 function isDateOnlyValue(value: string) {
@@ -145,7 +145,7 @@ export function formatAuditValue(
     return trimmed;
   }
   if (typeof value === "number") return formatAuditNumber(value);
-  if (typeof value === "boolean") return value ? "Sim" : "Nao";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
   if (Array.isArray(value)) {
     return value.length ? value.map((item) => formatAuditValue(item)).join(", ") : "—";
   }
@@ -177,118 +177,4 @@ export function initialsFromLabel(label: string) {
   const a = parts[0]?.[0] ?? "?";
   const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
   return `${a}${b}`.toUpperCase();
-}
-
-const AVATAR_PALETTE = [
-  { bg: "bg-sky-500/15", text: "text-sky-700 dark:text-sky-200" },
-  { bg: "bg-violet-500/15", text: "text-violet-700 dark:text-violet-200" },
-  { bg: "bg-emerald-500/15", text: "text-emerald-700 dark:text-emerald-200" },
-  { bg: "bg-amber-500/15", text: "text-amber-800 dark:text-amber-200" },
-  { bg: "bg-rose-500/15", text: "text-rose-700 dark:text-rose-200" },
-  { bg: "bg-teal-500/15", text: "text-teal-700 dark:text-teal-200" },
-] as const;
-
-export function pickAvatarPalette(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  const idx = Math.abs(hash) % AVATAR_PALETTE.length;
-  return AVATAR_PALETTE[idx]!;
-}
-
-function isMeaningfulAuditFormatterValue(formatted: string, value: unknown) {
-  if (!formatted) {
-    return false;
-  }
-
-  if (value === null || value === undefined) {
-    return true;
-  }
-
-  return formatted !== "—" && formatted !== "â€”" && formatted !== "-";
-}
-
-function normalizeAuditNumberString(value: string) {
-  if (!/^-?\d+([.,]\d+)?$/.test(value)) {
-    return null;
-  }
-
-  const normalized =
-    value.includes(",") && !value.includes(".")
-      ? value.replace(",", ".")
-      : value;
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed.toLocaleString("pt-BR") : null;
-}
-
-function formatAuditValueStable(
-  value: unknown,
-  formatter?: ((value: unknown) => string) | undefined,
-): string {
-  if (formatter) {
-    const formatted = String(formatter(value) ?? "").trim();
-    if (isMeaningfulAuditFormatterValue(formatted, value)) {
-      return formatted;
-    }
-  }
-
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return "—";
-    }
-    if (isDateOnlyValue(trimmed)) {
-      return formatDateOnlyPtBR(trimmed);
-    }
-    if (isDateTimeValue(trimmed)) {
-      return formatDateTimePtBR(trimmed);
-    }
-
-    const numericLabel = normalizeAuditNumberString(trimmed);
-    if (numericLabel) {
-      return numericLabel;
-    }
-
-    return trimmed;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value.toLocaleString("pt-BR") : "—";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Sim" : "Nao";
-  }
-
-  if (Array.isArray(value)) {
-    return value.length
-      ? value.map((item) => formatAuditValueStable(item)).join(", ")
-      : "—";
-  }
-
-  return JSON.stringify(value);
-}
-
-export function diffAuditFieldsStable(log: DetailAuditFeedItem) {
-  const before = isRecord(log.before) ? log.before : {};
-  const after = isRecord(log.after) ? log.after : {};
-  const fieldLabels = log.fieldLabels ?? PANTRY_AUDIT_FIELD_LABELS;
-  const keys = Object.keys({ ...before, ...after }).filter((key) => key in fieldLabels);
-
-  return keys
-    .map((key) => ({
-      key,
-      label: fieldLabels[key] ?? key,
-      before: before[key],
-      after: after[key],
-      beforeLabel: formatAuditValueStable(before[key], log.valueFormatters?.[key]),
-      afterLabel: formatAuditValueStable(after[key], log.valueFormatters?.[key]),
-    }))
-    .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
 }

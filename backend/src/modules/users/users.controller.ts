@@ -64,6 +64,21 @@ export class UsersController {
     });
   }
 
+  @Get('mentionable')
+  @UseGuards(JwtAuthGuard)
+  async listMentionableUsers(
+    @CurrentUser() user: JwtUser,
+    @Query('permission') permission?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.listMentionableUsers(
+      user.tenantId,
+      user.userId,
+      permission ?? '',
+      search,
+    );
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('users.read')

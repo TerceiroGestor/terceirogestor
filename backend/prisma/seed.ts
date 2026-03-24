@@ -120,6 +120,10 @@ const permissions = [
   'pantry.create',
   'pantry.update',
   'pantry.delete',
+  'deposit.read',
+  'deposit.create',
+  'deposit.update',
+  'deposit.delete',
 ] as const;
 
 const people = [
@@ -460,6 +464,7 @@ async function createPermissionsAndRoles(tenantId: string) {
     'tasks.create',
     'tasks.update',
     'pantry.read',
+    'deposit.read',
   ] as const;
 
   const atendimentoPermissions = [

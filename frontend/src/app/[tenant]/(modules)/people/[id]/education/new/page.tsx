@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { EducationDetailPage } from "@/modules/people/features/education/ui/education-detail-page";
 
-export default async function PeopleEducationNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/education/new`);
+export default function PeopleEducationCreateRoutePage() {
+  return <EducationDetailPage mode="create" />;
 }

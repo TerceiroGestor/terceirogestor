@@ -5,11 +5,17 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useToast } from "@/components/ui/use-toast";
 import { useConfirm } from "@/components/confirm/use-confirm";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { uploadProjectAttachment } from "@/features/uploads/api";
 import { toDateInputValue } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
+  addProjectAttachment,
+  addProjectComment,
   createProjectPeopleGroup,
+  deleteProjectAttachment,
+  deleteProjectComment,
   deleteProjectEnrollment,
   listProjectEnrollments,
   listProjectGroups,
@@ -33,6 +39,10 @@ import {
 import { listProjectActions, type ApiProjectAction } from "@/modules/actions/api";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import {
+  resumeDetailAutoSave,
+  suspendDetailAutoSave,
+} from "@/web-client/detail/detail-media-autosave-guard";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import {
   canUseModuleAction,
@@ -48,9 +58,15 @@ function buildDraft(project?: ApiProject | null, defaults?: { programId?: string
     startsAt: toDateInputValue(project?.startsAt),
     endsAt: toDateInputValue(project?.endsAt),
     description: project?.description ?? "",
+    tags: project?.tags ?? [],
     internalNotes: project?.internalNotes ?? null,
   };
 }
+
+const EMPTY_COMMENT_DRAFT = {
+  body: "",
+  mentionUserIds: [] as string[],
+};
 
 function normalizeDraft(draft: ProjectDetailDraft): ProjectDetailDraft {
   return {
@@ -60,6 +76,7 @@ function normalizeDraft(draft: ProjectDetailDraft): ProjectDetailDraft {
     startsAt: draft.startsAt || "",
     endsAt: draft.endsAt || "",
     description: draft.description.trim(),
+    tags: Array.from(new Set((draft.tags ?? []).map((tag) => tag.trim()).filter(Boolean))),
     internalNotes: draft.internalNotes?.trim() ? draft.internalNotes.trim() : null,
   };
 }
@@ -85,6 +102,7 @@ export function ProjectsDetailEngineClientPage() {
   const canCreate = canUseModuleAction(projectsDetailModuleDefinition, "create", permissions);
   const canEdit = canUseModuleAction(projectsDetailModuleDefinition, "edit", permissions);
   const canAudit = canUseModuleAction(projectsDetailModuleDefinition, "audit", permissions);
+  const { users: mentionableUsers } = useMentionableUsers("projects.read");
   const canManageStructure = permissions.includes("project-structure.update") || permissions.includes("project-structure.create");
   const canManageActions = permissions.includes("actions.create") || permissions.includes("actions.update");
   const canManageEnrollments =
@@ -106,7 +124,11 @@ export function ProjectsDetailEngineClientPage() {
   const [loading, setLoading] = React.useState(isEdit);
   const [relationsLoading, setRelationsLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
+  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
   const [participantPickerOpen, setParticipantPickerOpen] = React.useState(false);
   const [cyclePickerOpen, setCyclePickerOpen] = React.useState(false);
 
@@ -152,6 +174,7 @@ export function ProjectsDetailEngineClientPage() {
           startsAt: normalized.startsAt || null,
           endsAt: normalized.endsAt || null,
           description: normalized.description || null,
+          tags: normalized.tags ?? [],
           internalNotes: normalized.internalNotes,
         },
       );
@@ -182,6 +205,7 @@ export function ProjectsDetailEngineClientPage() {
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
+    setCommentDraft(EMPTY_COMMENT_DRAFT);
   }, [id, mode]);
 
   React.useEffect(() => {
@@ -243,6 +267,7 @@ export function ProjectsDetailEngineClientPage() {
         startsAt: normalized.startsAt || null,
         endsAt: normalized.endsAt || null,
         description: normalized.description || null,
+        tags: normalized.tags ?? [],
         internalNotes: normalized.internalNotes,
       });
       toast({ variant: "success", title: "Projeto criado" });
@@ -257,6 +282,111 @@ export function ProjectsDetailEngineClientPage() {
       setBusy(false);
     }
   }, [canCreate, dataProvider, draft, router, tenantSlug, toast]);
+
+  const handleSubmitComment = React.useCallback(async () => {
+    if (!token || !id || !commentDraft.body.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const updated = await addProjectComment(token, id, commentDraft);
+      const nextDraft = buildDraft(updated);
+      setProject(updated);
+      setDraft(nextDraft);
+      replaceSavedDraft(nextDraft);
+      setCommentDraft(EMPTY_COMMENT_DRAFT);
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao comentar no projeto.";
+      toast({ variant: "destructive", title: "Falha ao comentar", description: message });
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }, [commentDraft, id, replaceSavedDraft, toast, token]);
+
+  const handleDeleteComment = React.useCallback(
+    async (commentId: string) => {
+      if (!token || !id) return;
+      if (!window.confirm("Excluir este comentario?")) return;
+      setCommentSubmitting(true);
+      try {
+        const updated = await deleteProjectComment(token, id, commentId);
+        const nextDraft = buildDraft(updated);
+        setProject(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao excluir comentario.";
+        toast({ variant: "destructive", title: "Falha ao excluir", description: message });
+      } finally {
+        setCommentSubmitting(false);
+      }
+    },
+    [id, replaceSavedDraft, toast, token],
+  );
+
+  const handleSelectAttachment = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !token || !id) {
+        resumeDetailAutoSave();
+        return;
+      }
+
+      setAttachmentUploading(true);
+      try {
+        const uploaded = await uploadProjectAttachment(token, file);
+        const updated = await addProjectAttachment(token, id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        const nextDraft = buildDraft(updated);
+        setProject(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao enviar anexo.";
+        toast({ variant: "destructive", title: "Falha ao enviar", description: message });
+      } finally {
+        setAttachmentUploading(false);
+        resumeDetailAutoSave();
+      }
+    },
+    [id, replaceSavedDraft, toast, token],
+  );
+
+  const handleDeleteAttachment = React.useCallback(
+    async (attachmentId: string) => {
+      if (!token || !id) return;
+      if (!window.confirm("Excluir este anexo?")) return;
+      setAttachmentUploading(true);
+      try {
+        const updated = await deleteProjectAttachment(token, id, attachmentId);
+        const nextDraft = buildDraft(updated);
+        setProject(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao excluir anexo.";
+        toast({ variant: "destructive", title: "Falha ao excluir", description: message });
+      } finally {
+        setAttachmentUploading(false);
+      }
+    },
+    [id, replaceSavedDraft, toast, token],
+  );
 
   const selectedProgram = React.useMemo(() => {
     const currentProgramId = draft.programId || project?.programId || "";
@@ -352,14 +482,27 @@ export function ProjectsDetailEngineClientPage() {
       enrollmentRows,
       actionRows,
       relationsLoading,
+      mentionableUsers,
+      commentDraft,
+      commentSubmitting,
+      attachmentUploading,
       onCommitField: (field, nextValue) => void commitField(field, nextValue),
+      onCommentDraftChange: setCommentDraft,
+      onSubmitComment: handleSubmitComment,
+      onDeleteComment: handleDeleteComment,
+      onUploadAttachment: () => {
+        if (!canEdit || mode !== "edit") return;
+        suspendDetailAutoSave();
+        attachmentInputRef.current?.click();
+      },
+      onDeleteAttachment: handleDeleteAttachment,
       onNotesChange: (next) =>
         setDraft((previous) => ({ ...previous, internalNotes: next })),
       onNotesBlur: () => void commitField("internalNotes"),
       onOpenGroup: (groupId) =>
         router.push(
           withTenantPath(
-            `/group/${encodeURIComponent(groupId)}?returnTo=${encodeURIComponent(pathname)}`,
+            `/projects/${id}/groups?groupId=${encodeURIComponent(groupId)}&returnTo=${encodeURIComponent(pathname)}`,
             tenantSlug,
           ),
         ),
@@ -367,6 +510,13 @@ export function ProjectsDetailEngineClientPage() {
         router.push(
           withTenantPath(
             `/group/new?projectId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
+            tenantSlug,
+          ),
+        ),
+      onOpenPeopleGroup: (peopleGroupId) =>
+        router.push(
+          withTenantPath(
+            `/people-groups/${encodeURIComponent(peopleGroupId)}?returnTo=${encodeURIComponent(pathname)}`,
             tenantSlug,
           ),
         ),
@@ -378,9 +528,12 @@ export function ProjectsDetailEngineClientPage() {
           ),
         ),
       onCreateCycle: handleCreateCycle,
-      onOpenEnrollment: (personId) =>
+      onOpenEnrollment: (enrollmentId) =>
         router.push(
-          withTenantPath(`/people/${personId}?returnTo=${encodeURIComponent(pathname)}`, tenantSlug),
+          withTenantPath(
+            `/projects/${id}/enrollments?enrollmentId=${encodeURIComponent(enrollmentId)}&returnTo=${encodeURIComponent(pathname)}`,
+            tenantSlug,
+          ),
         ),
       onCreateEnrollment: handleCreateEnrollment,
       onEndEnrollment: handleEndEnrollment,
@@ -403,6 +556,7 @@ export function ProjectsDetailEngineClientPage() {
     }),
     [
       actionRows,
+      attachmentUploading,
       auditVisibleCount,
       canAudit,
       canCreate,
@@ -411,6 +565,8 @@ export function ProjectsDetailEngineClientPage() {
       canDeleteEnrollments,
       canManageEnrollments,
       canManageStructure,
+      commentDraft,
+      commentSubmitting,
       commitField,
       draft,
       enrollmentRows,
@@ -421,9 +577,13 @@ export function ProjectsDetailEngineClientPage() {
       programOptions,
       project,
       relationsLoading,
+      handleDeleteAttachment,
+      handleDeleteComment,
       handleCreateEnrollment,
       handleCreateCycle,
       handleEndEnrollment,
+      handleSubmitComment,
+      mentionableUsers,
       router,
       selectedProgram,
       tenantSlug,
@@ -439,6 +599,12 @@ export function ProjectsDetailEngineClientPage() {
 
   return (
     <>
+      <input
+        ref={attachmentInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleSelectAttachment}
+      />
       <DetailShellEngine<ProjectsDetailLayoutContext>
         moduleDefinition={projectsDetailModuleDefinition}
         context={context}
@@ -446,7 +612,7 @@ export function ProjectsDetailEngineClientPage() {
         auditEnabled={canAudit}
         mode={mode}
         headerTitle={headerTitle}
-        saving={saving}
+        saving={saving || commentSubmitting || attachmentUploading}
         loading={loading}
         readOnly={context.readOnly}
         onSave={mode === "create" ? handleCreate : undefined}

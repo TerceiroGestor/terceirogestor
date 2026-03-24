@@ -17,6 +17,7 @@ import { type JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateTaskChecklistItemDto } from './dto/create-task-checklist-item.dto';
+import { CreateTaskAttachmentDto } from './dto/create-task-attachment.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { CreateTaskDependencyDto } from './dto/create-task-dependency.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -211,6 +212,27 @@ export class TasksController {
     @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
   ) {
     return this.tasksService.deleteComment(this.getTenantId(user), id, commentId);
+  }
+
+  @Post(':id/attachments')
+  @Permissions('tasks.update')
+  async addAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreateTaskAttachmentDto,
+  ) {
+    const authUser = this.assertUser(user);
+    return this.tasksService.addAttachment(authUser.tenantId, authUser.userId, id, dto);
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @Permissions('tasks.update')
+  async deleteAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.tasksService.deleteAttachment(this.getTenantId(user), id, attachmentId);
   }
 
   @Post(':id/dependencies')

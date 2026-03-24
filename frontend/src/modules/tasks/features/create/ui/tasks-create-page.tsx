@@ -3,6 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
@@ -65,6 +66,7 @@ function buildDraftTask(draft: TaskMutationInput): TaskRecord {
     checklist: [],
     subtasks: [],
     comments: [],
+    attachments: [],
     dependencies: [],
     dependents: [],
     createdAt: new Date().toISOString(),
@@ -84,6 +86,7 @@ export function TasksCreatePage() {
     "create",
     permissions,
   );
+  const { users: mentionableUsers } = useMentionableUsers("tasks.read");
 
   const [draft, setDraft] = React.useState<TaskMutationInput>(EMPTY_TASK_FORM);
   const [assignableUsers, setAssignableUsers] = React.useState<TaskAssignableUser[]>([]);
@@ -188,6 +191,7 @@ export function TasksCreatePage() {
       task: buildDraftTask(draft),
       draft,
       assignableUsers,
+      mentionableUsers,
       assignableUsersLoading,
       onDraftChange: setDraft,
       onCommitField: () => {},
@@ -206,6 +210,9 @@ export function TasksCreatePage() {
       onSubmitComment: () => {},
       onDeleteComment: () => {},
       commentSubmitting: false,
+      onUploadAttachment: () => {},
+      onDeleteAttachment: () => {},
+      attachmentUploading: false,
       onOpenDependencyCreate: () => {},
       onRemoveDependency: () => {},
       auditVisibleCount,
@@ -213,7 +220,7 @@ export function TasksCreatePage() {
       canAudit: false,
       canEdit: true,
     }),
-    [assignableUsers, assignableUsersLoading, auditVisibleCount, draft],
+    [assignableUsers, assignableUsersLoading, auditVisibleCount, draft, mentionableUsers],
   );
 
   return (

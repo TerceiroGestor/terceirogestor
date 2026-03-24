@@ -5,8 +5,12 @@ import {
   isBirthdayInCurrentMonth,
   isBirthdayToday,
 } from "@/modules/people/shared/domain/utils";
-import type { ApiPerson } from "@/modules/people/api";
-import type { PeopleTableItem, Person } from "@/modules/people/shared/domain/types";
+import type { ApiPeopleRecordMetadata, ApiPerson } from "@/modules/people/api";
+import type {
+  PeopleRecordMetadata,
+  PeopleTableItem,
+  Person,
+} from "@/modules/people/shared/domain/types";
 
 export function mapApiPersonToPerson(person: ApiPerson): Person {
   return {
@@ -26,6 +30,8 @@ export function mapApiPersonToPerson(person: ApiPerson): Person {
     departureReason: person.departureReason ?? null,
     notes: person.notes ?? null,
     tags: person.tags ?? [],
+    comments: person.comments ?? [],
+    attachments: person.attachments ?? [],
     hasHealthCondition: person.hasHealthCondition ?? false,
     hasMedication: person.hasMedication ?? false,
     profileSummary: person.profileSummary ?? null,
@@ -62,5 +68,15 @@ export function mapApiPersonToTableItem(person: ApiPerson): PeopleTableItem {
     avatarUrl: person.avatarUrl ?? null,
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
+  };
+}
+
+export function mapApiPeopleRecordMetadata(
+  metadata: ApiPeopleRecordMetadata,
+): PeopleRecordMetadata {
+  return {
+    comments: metadata.comments ?? [],
+    attachments: metadata.attachments ?? [],
+    tags: metadata.tags ?? [],
   };
 }

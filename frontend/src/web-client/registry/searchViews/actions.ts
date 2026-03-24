@@ -10,13 +10,35 @@ export const actionsSearchView: SearchViewDefinition = {
   features: {
     favorites: true,
     presets: false,
-    advancedFilters: false,
+    advancedFilters: true,
     groupBy: true,
     clearAll: true,
   },
-  fields: [],
+  fields: [
+    {
+      name: "status",
+      label: "Status",
+      type: "select",
+      operators: ["="],
+      options: ACTION_STATUS_OPTIONS,
+    },
+    {
+      name: "tags",
+      label: "Tags",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "createdAt",
+      label: "Cadastro",
+      type: "date",
+      operators: ["=", ">=", "<="],
+    },
+  ],
   groupBy: [
     { field: "status", label: "Status" },
+    { field: "tags", label: "Tags" },
+    { field: "createdAt", label: "Cadastro" },
     { field: "actionType.name", label: "Tipo" },
     { field: "group.name", label: "Grupo" },
     { field: "cycle.name", label: "Ciclo" },

@@ -1,5 +1,5 @@
+import { Transform, Type } from 'class-transformer';
 import { IsDateString, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class UpdatePantryEntryDto {
   @IsOptional()
@@ -34,4 +34,12 @@ export class UpdatePantryEntryDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value : []))
+  tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
 }

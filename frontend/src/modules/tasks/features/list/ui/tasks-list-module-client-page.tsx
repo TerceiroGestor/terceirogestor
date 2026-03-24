@@ -37,7 +37,11 @@ import {
   updateTaskRecordRemote,
   updateTaskSubtaskRemote,
 } from "@/web-client/data-provider/rest/tasks";
-import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import {
+  collectAndConditions,
+  domainFromConditions,
+  removeConditionAtIndex,
+} from "@/web-client/domain/conditions";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
@@ -106,6 +110,7 @@ const GRAPH_CHART_LABELS = {
   line: "Linha",
   pie: "Pizza",
 } as const;
+const TAG_FILTER_FIELD = "tags";
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -310,6 +315,30 @@ export function TasksListModuleClientPage() {
         cell: ({ row }) => row.original.owner ?? "-",
       },
       {
+        accessorKey: "tags",
+        header: "Tags",
+        cell: ({ row }) =>
+          row.original.tags.length ? (
+            <div className="flex flex-wrap gap-1">
+              {row.original.tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+              {row.original.tags.length > 3 ? (
+                <span className="text-[11px] text-muted-foreground">
+                  +{row.original.tags.length - 3}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
         accessorKey: "dueDate",
         header: "Entrega",
         cell: ({ row }) => row.original.dueDate ?? "-",
@@ -503,21 +532,57 @@ export function TasksListModuleClientPage() {
     const teams = Array.from(
       new Set(rows.map((row) => row.team?.trim()).filter(Boolean)),
     ) as string[];
-    const tags = Array.from(
+    const nextTags = Array.from(
       new Set(rows.flatMap((row) => row.tags.map((tag) => tag.trim()).filter(Boolean))),
     );
 
     owners.sort((left, right) => left.localeCompare(right));
     teams.sort((left, right) => left.localeCompare(right));
-    tags.sort((left, right) => left.localeCompare(right));
+    nextTags.sort((left, right) => left.localeCompare(right));
 
     return (fieldName: string) => {
       if (fieldName === "owner") return owners;
       if (fieldName === "team") return teams;
-      if (fieldName === "tags") return tags;
+      if (fieldName === "tags") return nextTags;
       return [];
     };
   }, [rows]);
+
+  const tagOptions = React.useMemo(() => valueSuggestions("tags"), [valueSuggestions]);
+  const selectedTag = React.useMemo(() => {
+    const conditions = collectAndConditions(state.domain);
+    const tagCondition = conditions?.find(
+      (condition) =>
+        condition.field === TAG_FILTER_FIELD &&
+        (condition.operator === "contains" || condition.operator === "="),
+    );
+    return typeof tagCondition?.value === "string" ? tagCondition.value : "__all__";
+  }, [state.domain]);
+
+  const handleTagFilterChange = React.useCallback(
+    (value: string) => {
+      setState((previous) => {
+        const conditions = collectAndConditions(previous.domain) ?? [];
+        const nextConditions = conditions.filter((condition) => condition.field !== TAG_FILTER_FIELD);
+
+        if (value !== "__all__") {
+          nextConditions.push({
+            type: "condition",
+            field: TAG_FILTER_FIELD,
+            operator: "contains",
+            value,
+          });
+        }
+
+        return {
+          ...previous,
+          domain: domainFromConditions("and", nextConditions),
+          pageIndex: 0,
+        };
+      });
+    },
+    [setState],
+  );
 
   const graphModel = React.useMemo(
     () =>
@@ -935,6 +1000,24 @@ export function TasksListModuleClientPage() {
       totalCount={totalCount}
       onCreate={openCreate}
       canCreate={canCreate}
+      rightSlot={
+        <Select value={selectedTag} onValueChange={handleTagFilterChange}>
+          <SelectTrigger className="h-8 min-w-[10rem] rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0">
+            <SelectValue placeholder="Tag" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Tag</SelectItem>
+            {selectedTag !== "__all__" && !tagOptions.includes(selectedTag) ? (
+              <SelectItem value={selectedTag}>{selectedTag}</SelectItem>
+            ) : null}
+            {tagOptions.map((tag) => (
+              <SelectItem key={tag} value={tag}>
+                {tag}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
       analysisSlot={analysisSlot}
       hasActiveAnalysis={hasActiveAnalysis}
       onResetAnalysis={() =>

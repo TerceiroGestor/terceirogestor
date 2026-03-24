@@ -15,6 +15,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PeopleModule } from './modules/people/people.module';
 import { PantryModule } from './modules/pantry/pantry.module';
+import { DepositModule } from './modules/deposit/deposit.module';
 import { ProgramsModule } from './modules/programs/programs.module';
 import { CyclesModule } from './modules/cycles/cycles.module';
 import { PeopleSegmentsModule } from './modules/people-segments/people-segments.module';
@@ -53,6 +54,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
     TenantsModule,
     PeopleModule,
     PantryModule,
+    DepositModule,
     ProgramsModule,
     CyclesModule,
     PeopleSegmentsModule,

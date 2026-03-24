@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
-export default async function CyclesPage({
-  params,
-}: {
-  params: Promise<{ tenant: string }>;
-}) {
-  const { tenant } = await params;
-  redirect(`/${tenant}/people-groups`);
+export default function CyclesPage() {
+  return <ScreenHost actionId="cycles.list" />;
 }

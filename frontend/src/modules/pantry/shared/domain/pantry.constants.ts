@@ -91,15 +91,15 @@ export const PANTRY_ENTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   entryDate: "Data da entrada",
   expiryDate: "Validade",
   notes: "Notas",
-  reversalOfExitId: "Estorno de saida",
+  reversalOfExitId: "Estorno de saída",
 };
 
 export const PANTRY_EXIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   sector: "Setor",
   quantity: "Quantidade",
   unit: "Unidade",
-  exitDate: "Data da saida",
-  type: "Tipo de saida",
+  exitDate: "Data da saída",
+  type: "Tipo de saída",
   eventName: "Evento",
   notes: "Notas",
   reversalOfEntryId: "Estorno de entrada",

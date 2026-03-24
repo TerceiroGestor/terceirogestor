@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { HealthConditionDetailPage } from "@/modules/people/features/health-conditions/ui/health-condition-detail-page";
 
-export default async function PeopleHealthConditionNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/health-conditions/new`);
+export default function PeopleHealthConditionCreateRoutePage() {
+  return <HealthConditionDetailPage mode="create" />;
 }

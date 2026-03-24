@@ -38,7 +38,7 @@ export const peopleDetailAction = createModuleWindowAction({
 export const peopleCreateAction = createModuleWindowAction({
   id: PEOPLE_ACTION_IDS.create,
   moduleDefinition: peopleDetailModuleDefinition,
-  moduleActionKey: "create",
+  modulePermissionKey: "canCreate",
   titleVariant: "create",
   breadcrumbs: [{ label: "Pessoas", href: PEOPLE_ROUTES.list }],
   hideBreadcrumb: true,

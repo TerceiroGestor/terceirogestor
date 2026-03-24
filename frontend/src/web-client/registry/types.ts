@@ -300,6 +300,10 @@ export type RecordQueryAdapters = {
   listDataProvider: RecordQueryAdapter;
   detailDataProvider?: RecordQueryAdapter;
   notesDataProvider?: RecordQueryAdapter;
+  commentsDataProvider?: RecordQueryAdapter;
+  tagsDataProvider?: RecordQueryAdapter;
+  attachmentsDataProvider?: RecordQueryAdapter;
+  historyDataProvider?: RecordQueryAdapter;
   auditDataProvider?: RecordQueryAdapter;
 };
 
@@ -310,6 +314,12 @@ export type ModuleFeatureFlagMap = Partial<
     | "list"
     | "detail"
     | "notes"
+    | "comments"
+    | "tags"
+    | "attachments"
+    | "media"
+    | "history"
+    | "context"
     | "audit"
     | "grouped"
     | "timeline"
@@ -323,6 +333,131 @@ export type ModuleFeatureFlagMap = Partial<
   >
 > &
   Record<string, boolean | undefined>;
+
+export type DetailCommentUser = {
+  id: string;
+  name: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+};
+
+export type DetailCommentItem = {
+  id: string;
+  body: string;
+  mentionUserIds: string[];
+  author: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  };
+  createdAt: string;
+  updatedAt?: string;
+};
+
+export type DetailCommentDraft = {
+  body: string;
+  mentionUserIds: string[];
+};
+
+export type DetailContextItem = {
+  key: string;
+  label: string;
+  value: React.ReactNode;
+  tone?: "default" | "muted" | "positive" | "warning" | "danger";
+};
+
+export type DetailSummaryMetric = {
+  key: string;
+  label: string;
+  value: React.ReactNode;
+  helperText?: React.ReactNode;
+};
+
+export type DetailHistoryItem = {
+  id: string;
+  title: string;
+  description?: React.ReactNode;
+  meta?: React.ReactNode;
+  createdAt?: string | null;
+  tone?: "default" | "muted" | "positive" | "warning" | "danger";
+};
+
+export type DetailAttachmentItem = {
+  id: string;
+  label: string;
+  description?: React.ReactNode;
+  href?: string | null;
+  createdAt?: string | null;
+  mimeType?: string | null;
+  sizeLabel?: string | null;
+  statusLabel?: string | null;
+};
+
+export type DetailMetadataPermissions = Partial<{
+  canViewOwnAudit: boolean;
+  canViewAllAudit: boolean;
+  canReadNotes: boolean;
+  canWriteNotes: boolean;
+  canReadComments: boolean;
+  canWriteComments: boolean;
+  canReadTags: boolean;
+  canWriteTags: boolean;
+  canReadAttachments: boolean;
+  canWriteAttachments: boolean;
+  canReadHistory: boolean;
+}>;
+
+export type StandardDetailMetadataConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = Partial<{
+  defaultTab:
+    | "activity"
+    | "comments"
+    | "notes"
+    | "tags"
+    | "attachments"
+    | "history"
+    | "context";
+  permissions: (context: TContext) => DetailMetadataPermissions;
+  contextItems: (context: TContext) => DetailContextItem[];
+  summaryMetrics: (context: TContext) => DetailSummaryMetric[];
+  comments: {
+    users: (context: TContext) => DetailCommentUser[];
+    items: (context: TContext) => DetailCommentItem[];
+    draft: (context: TContext) => DetailCommentDraft;
+    onDraftChange: (
+      context: TContext,
+      updater: DetailCommentDraft | ((previous: DetailCommentDraft) => DetailCommentDraft),
+    ) => void;
+    onSubmit: (context: TContext) => void;
+    onDelete?: (commentId: string, context: TContext) => void;
+    submitting?: (context: TContext) => boolean;
+    emptyLabel?: string | ((context: TContext) => string);
+  };
+  notes: {
+    value: (context: TContext) => string | null | undefined;
+    onChange: (next: string | null, context: TContext) => void;
+    onBlur: (context: TContext) => void;
+    placeholder?: string;
+  };
+  tags: {
+    value: (context: TContext) => string[];
+    onChange: (next: string[], context: TContext) => void;
+    onCommit?: (next: string[], context: TContext) => void;
+    emptyLabel?: string;
+  };
+  attachments: {
+    items: (context: TContext) => DetailAttachmentItem[];
+    onOpen?: (attachmentId: string, context: TContext) => void;
+    onUpload?: (context: TContext) => void;
+    emptyLabel?: string | ((context: TContext) => string);
+  };
+  history: {
+    items: (context: TContext) => DetailHistoryItem[];
+    emptyLabel?: string | ((context: TContext) => string);
+  };
+}>;
 
 export type AuditSourceConfig<
   TContext extends Record<string, unknown> = Record<string, unknown>,
@@ -516,6 +651,7 @@ export type DetailLayoutConfig<
   sideSlot?: (context: TContext) => React.ReactNode;
   viewControls?: (context: TContext) => React.ReactNode;
   auditSources?: AuditFeedConfig<TContext>;
+  metadata?: StandardDetailMetadataConfig<TContext>;
 };
 
 export type RecordModuleDefinition<

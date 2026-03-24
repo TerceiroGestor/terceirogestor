@@ -9,6 +9,8 @@ export type ApiPantryItem = {
   unit: string;
   minStock: number;
   notes: string | null;
+  tags: string[];
+  internalNotes: string | null;
   stock: number;
   entriesTotal: number;
   exitsTotal: number;
@@ -21,6 +23,28 @@ export type ApiPantryItem = {
   isBelowMin: boolean;
   createdAt: string;
   updatedAt: string;
+  comments: Array<{
+    id: string;
+    body: string;
+    mentionUserIds: string[];
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string | null;
+      name: string;
+      email?: string | null;
+      avatarUrl?: string | null;
+    };
+  }>;
+  attachments: Array<{
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType?: string | null;
+    fileSizeBytes?: number | null;
+    sizeLabel?: string | null;
+    createdAt: string;
+  }>;
 };
 
 export type PantryItemsListResponse = {
@@ -35,6 +59,8 @@ export type PantryItemInput = {
   unit: string;
   minStock: number;
   notes?: string | null;
+  tags?: string[];
+  internalNotes?: string | null;
 };
 
 export type ApiPantrySectorBalance = {

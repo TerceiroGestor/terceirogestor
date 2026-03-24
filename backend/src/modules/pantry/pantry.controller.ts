@@ -16,9 +16,17 @@ import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreatePantryDonorDto } from './dto/create-pantry-donor.dto';
+import { CreatePantryDonorAttachmentDto } from './dto/create-pantry-donor-attachment.dto';
+import { CreatePantryDonorCommentDto } from './dto/create-pantry-donor-comment.dto';
 import { CreatePantryEntryDto } from './dto/create-pantry-entry.dto';
+import { CreatePantryEntryAttachmentDto } from './dto/create-pantry-entry-attachment.dto';
+import { CreatePantryEntryCommentDto } from './dto/create-pantry-entry-comment.dto';
 import { CreatePantryExitDto } from './dto/create-pantry-exit.dto';
+import { CreatePantryExitAttachmentDto } from './dto/create-pantry-exit-attachment.dto';
+import { CreatePantryExitCommentDto } from './dto/create-pantry-exit-comment.dto';
 import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
+import { CreatePantryItemAttachmentDto } from './dto/create-pantry-item-attachment.dto';
+import { CreatePantryItemCommentDto } from './dto/create-pantry-item-comment.dto';
 import { CreatePantrySectorDto } from './dto/create-pantry-sector.dto';
 import { ListPantryDonorsQueryDto } from './dto/list-pantry-donors-query.dto';
 import { ListPantryEntriesQueryDto } from './dto/list-pantry-entries-query.dto';
@@ -185,6 +193,46 @@ export class PantryController {
     return this.pantryService.createItem(user.tenantId, dto);
   }
 
+  @Post('items/:id/comments')
+  @Permissions('pantry.read')
+  async createItemComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryItemCommentDto,
+  ) {
+    return this.pantryService.addItemComment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('items/:id/comments/:commentId')
+  @Permissions('pantry.read')
+  async deleteItemComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.pantryService.deleteItemComment(user.tenantId, id, commentId);
+  }
+
+  @Post('items/:id/attachments')
+  @Permissions('pantry.read')
+  async createItemAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryItemAttachmentDto,
+  ) {
+    return this.pantryService.addItemAttachment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('items/:id/attachments/:attachmentId')
+  @Permissions('pantry.read')
+  async deleteItemAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.pantryService.deleteItemAttachment(user.tenantId, id, attachmentId);
+  }
+
   @Patch('items/:id')
   @Permissions('pantry.update')
   async updateItem(
@@ -225,6 +273,46 @@ export class PantryController {
     @Body() dto: CreatePantryDonorDto,
   ) {
     return this.pantryService.createDonor(user.tenantId, dto);
+  }
+
+  @Post('donors/:id/comments')
+  @Permissions('pantry.read')
+  async createDonorComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryDonorCommentDto,
+  ) {
+    return this.pantryService.addDonorComment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('donors/:id/comments/:commentId')
+  @Permissions('pantry.read')
+  async deleteDonorComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.pantryService.deleteDonorComment(user.tenantId, id, commentId);
+  }
+
+  @Post('donors/:id/attachments')
+  @Permissions('pantry.read')
+  async createDonorAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryDonorAttachmentDto,
+  ) {
+    return this.pantryService.addDonorAttachment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('donors/:id/attachments/:attachmentId')
+  @Permissions('pantry.read')
+  async deleteDonorAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.pantryService.deleteDonorAttachment(user.tenantId, id, attachmentId);
   }
 
   @Get('donors/:id')
@@ -318,6 +406,46 @@ export class PantryController {
     return this.pantryService.createEntry(user.tenantId, dto);
   }
 
+  @Post('entries/:id/comments')
+  @Permissions('pantry.read')
+  async createEntryComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryEntryCommentDto,
+  ) {
+    return this.pantryService.addEntryComment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('entries/:id/comments/:commentId')
+  @Permissions('pantry.read')
+  async deleteEntryComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.pantryService.deleteEntryComment(user.tenantId, id, commentId);
+  }
+
+  @Post('entries/:id/attachments')
+  @Permissions('pantry.read')
+  async createEntryAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryEntryAttachmentDto,
+  ) {
+    return this.pantryService.addEntryAttachment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('entries/:id/attachments/:attachmentId')
+  @Permissions('pantry.read')
+  async deleteEntryAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.pantryService.deleteEntryAttachment(user.tenantId, id, attachmentId);
+  }
+
   @Patch('entries/:id')
   @Permissions('pantry.update')
   async updateEntry(
@@ -384,6 +512,46 @@ export class PantryController {
     @Body() dto: CreatePantryExitDto,
   ) {
     return this.pantryService.createExit(user.tenantId, dto);
+  }
+
+  @Post('exits/:id/comments')
+  @Permissions('pantry.read')
+  async createExitComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryExitCommentDto,
+  ) {
+    return this.pantryService.addExitComment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('exits/:id/comments/:commentId')
+  @Permissions('pantry.read')
+  async deleteExitComment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.pantryService.deleteExitComment(user.tenantId, id, commentId);
+  }
+
+  @Post('exits/:id/attachments')
+  @Permissions('pantry.read')
+  async createExitAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePantryExitAttachmentDto,
+  ) {
+    return this.pantryService.addExitAttachment(user.tenantId, id, dto, user.userId);
+  }
+
+  @Delete('exits/:id/attachments/:attachmentId')
+  @Permissions('pantry.read')
+  async deleteExitAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.pantryService.deleteExitAttachment(user.tenantId, id, attachmentId);
   }
 
   @Patch('exits/:id')

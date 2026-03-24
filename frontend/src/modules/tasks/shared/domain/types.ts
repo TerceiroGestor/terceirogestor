@@ -64,6 +64,22 @@ export type TaskDependency = {
   dueDate?: string | null;
 };
 
+export type TaskAttachment = {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
+  uploadedBy?: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TaskRecord = {
   id: string;
   title: string;
@@ -88,6 +104,7 @@ export type TaskRecord = {
   checklist: TaskChecklistItem[];
   subtasks: TaskSubtask[];
   comments: TaskComment[];
+  attachments: TaskAttachment[];
   dependencies: TaskDependency[];
   dependents: TaskDependency[];
   createdAt: string;
@@ -144,4 +161,11 @@ export type TaskSubtaskMutationInput = {
 export type TaskCommentMutationInput = {
   body: string;
   mentionUserIds: string[];
+};
+
+export type TaskAttachmentMutationInput = {
+  label: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
 };

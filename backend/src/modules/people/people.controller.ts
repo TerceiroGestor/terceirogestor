@@ -19,6 +19,10 @@ import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
+import { CreatePersonAttachmentDto } from './dto/create-person-attachment.dto';
+import { CreatePersonCommentDto } from './dto/create-person-comment.dto';
+import { CreatePersonRecordAttachmentDto } from './dto/create-person-record-attachment.dto';
+import { CreatePersonRecordCommentDto } from './dto/create-person-record-comment.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
 import { CreatePersonFinancialEntryDto } from './dto/create-person-financial-entry.dto';
@@ -48,6 +52,7 @@ import { UpdatePersonEducationDto } from './dto/update-person-education.dto';
 import { UpdatePersonBenefitDto } from './dto/update-person-benefit.dto';
 import { UpdatePersonDetentionDto } from './dto/update-person-detention.dto';
 import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
+import { SetPersonRecordTagsDto } from './dto/set-person-record-tags.dto';
 import { PeopleService } from './people.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -94,6 +99,158 @@ export class PeopleController {
   ) {
     const tenantId = this.getTenantId(user);
     return this.peopleService.update(tenantId, id, dto);
+  }
+
+  @Post(':id/comments')
+  @Permissions('people.update')
+  async addComment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonCommentDto,
+  ) {
+    const authUser = this.assertUser(user);
+    return this.peopleService.addComment(authUser.tenantId, authUser.userId, id, dto);
+  }
+
+  @Delete(':id/comments/:commentId')
+  @Permissions('people.update')
+  async deleteComment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.peopleService.deleteComment(this.getTenantId(user), id, commentId);
+  }
+
+  @Post(':id/attachments')
+  @Permissions('people.update')
+  async addAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePersonAttachmentDto,
+  ) {
+    const authUser = this.assertUser(user);
+    return this.peopleService.addAttachment(authUser.tenantId, authUser.userId, id, dto);
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @Permissions('people.update')
+  async deleteAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.peopleService.deleteAttachment(this.getTenantId(user), id, attachmentId);
+  }
+
+  @Get(':id/records/:recordType/:recordId/metadata')
+  @Permissions('people.read')
+  async getRecordMetadata(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+  ) {
+    return this.peopleService.getRecordMetadata(
+      this.getTenantId(user),
+      id,
+      recordType,
+      recordId,
+    );
+  }
+
+  @Post(':id/records/:recordType/:recordId/comments')
+  @Permissions('people.update')
+  async addRecordComment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+    @Body() dto: CreatePersonRecordCommentDto,
+  ) {
+    const authUser = this.assertUser(user);
+    return this.peopleService.addRecordComment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      recordType,
+      recordId,
+      dto,
+    );
+  }
+
+  @Delete(':id/records/:recordType/:recordId/comments/:commentId')
+  @Permissions('people.update')
+  async deleteRecordComment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.peopleService.deleteRecordComment(
+      this.getTenantId(user),
+      id,
+      recordType,
+      recordId,
+      commentId,
+    );
+  }
+
+  @Post(':id/records/:recordType/:recordId/attachments')
+  @Permissions('people.update')
+  async addRecordAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+    @Body() dto: CreatePersonRecordAttachmentDto,
+  ) {
+    const authUser = this.assertUser(user);
+    return this.peopleService.addRecordAttachment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      recordType,
+      recordId,
+      dto,
+    );
+  }
+
+  @Delete(':id/records/:recordType/:recordId/attachments/:attachmentId')
+  @Permissions('people.update')
+  async deleteRecordAttachment(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.peopleService.deleteRecordAttachment(
+      this.getTenantId(user),
+      id,
+      recordType,
+      recordId,
+      attachmentId,
+    );
+  }
+
+  @Put(':id/records/:recordType/:recordId/tags')
+  @Permissions('people.update')
+  async setRecordTags(
+    @CurrentUser() user: JwtUser | undefined,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('recordType') recordType: string,
+    @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
+    @Body() dto: SetPersonRecordTagsDto,
+  ) {
+    return this.peopleService.setRecordTags(
+      this.getTenantId(user),
+      id,
+      recordType,
+      recordId,
+      dto.tags ?? [],
+    );
   }
 
   @Get(':id/sensitive-documents')
@@ -813,6 +970,14 @@ export class PeopleController {
     }
 
     return user.tenantId;
+  }
+
+  private assertUser(user?: JwtUser) {
+    if (!user?.tenantId || !user.userId) {
+      throw new UnauthorizedException('Token invalid');
+    }
+
+    return user;
   }
 }
 

@@ -1,22 +1,40 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { uploadAvatar } from "@/features/uploads/api";
+import { uploadAvatar, uploadPeopleAttachment } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import type { ApiPerson } from "@/modules/people/api";
+import { getPersonDetentions } from "@/modules/people/api/detentions";
+import { getPersonEducations } from "@/modules/people/api/education";
+import { getPersonFinancialEntries } from "@/modules/people/api/financial";
+import { getPersonHealthConditions } from "@/modules/people/api/health-conditions";
+import { getPersonMedications } from "@/modules/people/api/medications";
+import {
+  addPersonAttachment,
+  addPersonComment,
+  createPerson,
+  deletePersonAttachment,
+  deletePersonComment,
+  type ApiPerson,
+} from "@/modules/people/api";
+import { getPersonRelations } from "@/modules/people/api/relations";
 import {
   peopleDetailModuleDefinition,
   PEOPLE_ROUTES,
 } from "@/modules/people/config/people-module-contract";
 import type { PeopleDetailLayoutContext } from "@/modules/people/config/people-detail-layout-contract";
 import { mapApiPersonToPerson } from "@/modules/people/shared/domain/people-module.helpers";
-import type { Person, PersonFormData } from "@/modules/people/shared/domain/types";
+import type {
+  Person,
+  PersonAttachment,
+  PersonComment,
+  PersonFormData,
+} from "@/modules/people/shared/domain/types";
 import {
   resolvePersonDisplayNames,
   toDateInputValue,
@@ -27,12 +45,31 @@ import {
 } from "@/modules/people/shared/domain/people-relation-routes";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import {
+  resumeDetailAutoSave,
+  suspendDetailAutoSave,
+} from "@/web-client/detail/detail-media-autosave-guard";
+import { useRelatedAuditEntityIds } from "@/web-client/detail/useRelatedAuditEntityIds";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import {
   canUseModuleAction,
   getModuleDetailEditingConfig,
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
+
+const EMPTY_COMMENT_DRAFT = {
+  body: "",
+  mentionUserIds: [] as string[],
+};
+
+const EMPTY_RELATED_AUDIT_ENTITY_IDS = {
+  financialEntryIds: [] as string[],
+  healthConditionIds: [] as string[],
+  medicationIds: [] as string[],
+  educationIds: [] as string[],
+  detentionIds: [] as string[],
+  relationIds: [] as string[],
+};
 
 function buildPersonDraft(person: Person): PersonFormData {
   return {
@@ -53,6 +90,59 @@ function buildPersonDraft(person: Person): PersonFormData {
     tags: person.tags ?? [],
     profileSummary: person.profileSummary ?? "",
     avatarUrl: person.avatarUrl ?? null,
+  };
+}
+
+function buildEmptyPersonDraft(): PersonFormData {
+  return {
+    fullName: "",
+    socialName: "",
+    email: "",
+    phone: "",
+    birthDate: null,
+    sex: null,
+    personType: null,
+    gender: null,
+    raceColor: null,
+    maritalStatus: null,
+    nationality: "",
+    status: "Ativo",
+    departureReason: "",
+    notes: "",
+    tags: [],
+    profileSummary: "",
+    avatarUrl: null,
+  };
+}
+
+function buildDraftPerson(draft: PersonFormData): Person {
+  const normalized = normalizePersonDraft(draft);
+  return {
+    id: "new",
+    fullName: normalized.fullName || "Nova pessoa",
+    socialName: normalized.socialName ?? null,
+    email: normalized.email ?? null,
+    phone: normalized.phone ?? null,
+    birthDate: normalized.birthDate ?? null,
+    sex: normalized.sex ?? null,
+    gender: normalized.gender ?? null,
+    raceColor: normalized.raceColor ?? null,
+    maritalStatus: normalized.maritalStatus ?? null,
+    nationality: normalized.nationality ?? null,
+    status: normalized.status ?? null,
+    personType: normalized.personType ?? null,
+    departureReason: normalized.departureReason ?? null,
+    notes: normalized.notes ?? null,
+    tags: normalized.tags ?? [],
+    profileSummary: normalized.profileSummary ?? null,
+    avatarUrl:
+      typeof normalized.avatarUrl === "string" ? normalized.avatarUrl : null,
+    comments: [],
+    attachments: [],
+    hasHealthCondition: false,
+    hasMedication: false,
+    createdAt: null,
+    updatedAt: null,
   };
 }
 
@@ -84,14 +174,23 @@ function normalizePersonDraft(draft: PersonFormData): PersonFormData {
   };
 }
 
-export function PeopleDetailEngineClientPage() {
+export function PeopleDetailEngineClientPage({
+  mode: modeProp,
+}: {
+  mode?: "create" | "edit";
+} = {}) {
   const params = useParams<{ id?: string }>();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
+  const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tenantSlug = getTenantSlugFromPath(pathname);
+  const routeMode =
+    params?.id === "new" || pathname.endsWith("/people/new") ? "create" : "edit";
+  const mode = modeProp ?? routeMode;
+  const isEdit = mode === "edit";
 
   const canRead = hasModulePermission(
     peopleDetailModuleDefinition,
@@ -103,22 +202,33 @@ export function PeopleDetailEngineClientPage() {
     "edit",
     permissions,
   );
+  const canCreate = canUseModuleAction(
+    peopleDetailModuleDefinition,
+    "create",
+    permissions,
+  );
   const canAudit = canUseModuleAction(
     peopleDetailModuleDefinition,
     "audit",
     permissions,
   );
+  const { users: mentionableUsers } = useMentionableUsers("people.read");
 
   const id = params?.id ? String(params.id) : "";
-  const enabled = Boolean(token && canRead && id);
+  const canAccessPage = mode === "create" ? canCreate : canRead;
+  const enabled = Boolean(token && canRead && id && isEdit);
   const dataProvider = React.useMemo(
     () => createRestDataProvider({ token }),
     [token],
   );
 
-  const [person, setPerson] = React.useState<Person | null>(null);
-  const [draft, setDraft] = React.useState<PersonFormData | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [person, setPerson] = React.useState<Person | null>(
+    isEdit ? null : buildDraftPerson(buildEmptyPersonDraft()),
+  );
+  const [draft, setDraft] = React.useState<PersonFormData | null>(
+    isEdit ? null : buildEmptyPersonDraft(),
+  );
+  const [loading, setLoading] = React.useState(isEdit);
   const [saving, setSaving] = React.useState(false);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -130,7 +240,11 @@ export function PeopleDetailEngineClientPage() {
   }, [searchParams]);
   const [tabValue, setTabValue] = React.useState<PeopleDetailTabValue>(initialTab);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
+  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const draftStateRef = React.useRef<PersonFormData | null>(null);
+  const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     draftStateRef.current = draft;
@@ -138,11 +252,22 @@ export function PeopleDetailEngineClientPage() {
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
-  }, [id]);
+    setCommentDraft(EMPTY_COMMENT_DRAFT);
+  }, [id, mode]);
 
   React.useEffect(() => {
     setTabValue(initialTab);
   }, [initialTab]);
+
+  React.useEffect(() => {
+    if (isEdit) return;
+    const nextDraft = buildEmptyPersonDraft();
+    setDraft(nextDraft);
+    setPerson(buildDraftPerson(nextDraft));
+    draftStateRef.current = nextDraft;
+    setLoading(false);
+    setError(null);
+  }, [isEdit]);
 
   const handleTabChange = React.useCallback(
     (nextValue: PeopleDetailTabValue) => {
@@ -227,7 +352,7 @@ export function PeopleDetailEngineClientPage() {
 
   const autoSave = useDetailAutoSaveController<PersonFormData>({
     draft,
-    enabled: Boolean(person) && canUpdate && Boolean(token),
+    enabled: isEdit && Boolean(person) && canUpdate && Boolean(token),
     config: getModuleDetailEditingConfig(peopleDetailModuleDefinition),
     normalizeDraft: normalizePersonDraft,
     onSave: persistDraft,
@@ -273,8 +398,46 @@ export function PeopleDetailEngineClientPage() {
   }, [dataProvider, enabled, id, replaceSavedDraft]);
 
   React.useEffect(() => {
+    if (!isEdit) return;
     void loadPerson();
-  }, [loadPerson]);
+  }, [isEdit, loadPerson]);
+
+  const loadRelatedAuditEntityIds = React.useCallback(async () => {
+    if (!token || !person?.id) {
+      return EMPTY_RELATED_AUDIT_ENTITY_IDS;
+    }
+
+    const [
+      financialEntries,
+      healthConditions,
+      medications,
+      educations,
+      detentions,
+      relations,
+    ] = await Promise.all([
+      getPersonFinancialEntries(token, person.id),
+      getPersonHealthConditions(token, person.id),
+      getPersonMedications(token, person.id),
+      getPersonEducations(token, person.id),
+      getPersonDetentions(token, person.id),
+      getPersonRelations(token, person.id),
+    ]);
+
+    return {
+      financialEntryIds: financialEntries.map((item) => item.id),
+      healthConditionIds: healthConditions.map((item) => item.id),
+      medicationIds: medications.map((item) => item.id),
+      educationIds: educations.map((item) => item.id),
+      detentionIds: detentions.map((item) => item.id),
+      relationIds: relations.relations.map((item) => item.id),
+    };
+  }, [person?.id, token]);
+
+  const relatedAuditEntityIds = useRelatedAuditEntityIds({
+    enabled: Boolean(token && isEdit && person?.id),
+    emptyValue: EMPTY_RELATED_AUDIT_ENTITY_IDS,
+    load: loadRelatedAuditEntityIds,
+  });
 
   const backToList = React.useCallback(() => {
     router.push(withTenantPath(PEOPLE_ROUTES.list, tenantSlug));
@@ -282,18 +445,34 @@ export function PeopleDetailEngineClientPage() {
 
   const handleAvatarUpdate = React.useCallback(
     async (file: File) => {
-      if (!draftStateRef.current || !canUpdate) return;
+      if (!draftStateRef.current) return;
       setAvatarUploading(true);
       const nextDraft = { ...draftStateRef.current, avatarUrl: file };
       setDraft(nextDraft);
       draftStateRef.current = nextDraft;
       try {
-        await Promise.resolve(commitDraft(nextDraft));
+        if (isEdit && canUpdate) {
+          await Promise.resolve(commitDraft(nextDraft));
+        } else {
+          setPerson(buildDraftPerson(nextDraft));
+        }
       } finally {
         setAvatarUploading(false);
       }
     },
-    [canUpdate, commitDraft],
+    [canUpdate, commitDraft, isEdit],
+  );
+
+  const refreshFromPerson = React.useCallback(
+    (updated: ApiPerson, replaceSavedDraft: (nextDraft: PersonFormData | null) => void) => {
+      const nextPerson = mapApiPersonToPerson(updated);
+      const nextDraft = buildPersonDraft(nextPerson);
+      setPerson(nextPerson);
+      setDraft(nextDraft);
+      replaceSavedDraft(nextDraft);
+      draftStateRef.current = nextDraft;
+    },
+    [],
   );
 
   const tagSuggestions = React.useMemo(
@@ -318,10 +497,13 @@ export function PeopleDetailEngineClientPage() {
         typeof next === "function"
           ? (next as (prev: PersonFormData) => PersonFormData)(previous)
           : next;
+      if (!isEdit) {
+        setPerson(buildDraftPerson(resolved));
+      }
       draftStateRef.current = resolved;
       return resolved;
     });
-  }, []);
+  }, [isEdit]);
 
   const handleCommitField = React.useCallback<
     <K extends keyof PersonFormData>(
@@ -352,17 +534,187 @@ export function PeopleDetailEngineClientPage() {
     [commitDraft],
   );
 
+  const handleCreate = React.useCallback(async () => {
+    if (!token || !canCreate || !draft) return;
+    const normalized = normalizePersonDraft(draft);
+    if (!normalized.fullName) {
+      toast({
+        variant: "destructive",
+        title: "Dados invalidos",
+        description: "Informe o nome da pessoa.",
+      });
+      return;
+    }
+    if (normalized.status === "Desligado" && !normalized.departureReason?.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Dados invalidos",
+        description: "Informe o motivo do desligamento.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      let avatarUrl: string | null;
+      if (normalized.avatarUrl instanceof File) {
+        avatarUrl = (await uploadAvatar(token, normalized.avatarUrl)).path;
+      } else if (typeof normalized.avatarUrl === "string") {
+        avatarUrl = normalized.avatarUrl ? stripApiUrl(normalized.avatarUrl) : null;
+      } else {
+        avatarUrl = null;
+      }
+
+      const created = await createPerson(token, {
+        fullName: normalized.fullName,
+        socialName: normalized.socialName,
+        email: normalized.email,
+        phone: normalized.phone,
+        birthDate: normalized.birthDate,
+        sex: normalized.sex,
+        personType: normalized.personType,
+        gender: normalized.gender,
+        raceColor: normalized.raceColor,
+        maritalStatus: normalized.maritalStatus,
+        nationality: normalized.nationality,
+        status: normalized.status,
+        departureReason: normalized.departureReason,
+        notes: normalized.notes,
+        tags: normalized.tags ?? [],
+        profileSummary: normalized.profileSummary || null,
+        avatarUrl,
+      });
+      toast({ variant: "success", title: "Pessoa criada" });
+      router.replace(withTenantPath(`${PEOPLE_ROUTES.detail}/${created.id}`, tenantSlug));
+    } catch (nextError) {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao criar pessoa.";
+      setError(message);
+      toast({ variant: "destructive", title: "Falha ao criar", description: message });
+    } finally {
+      setSaving(false);
+    }
+  }, [canCreate, draft, router, tenantSlug, toast, token]);
+
+  const handleSubmitComment = React.useCallback(async () => {
+    if (!token || !person || !commentDraft.body.trim()) return;
+    setCommentSubmitting(true);
+    setError(null);
+    try {
+      const updated = await addPersonComment(token, person.id, commentDraft);
+      refreshFromPerson(updated, replaceSavedDraft);
+      setCommentDraft(EMPTY_COMMENT_DRAFT);
+    } catch (nextError) {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao comentar na pessoa.";
+      setError(message);
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }, [commentDraft, person, refreshFromPerson, replaceSavedDraft, token]);
+
+  const handleDeleteComment = React.useCallback(
+    async (comment: PersonComment) => {
+      if (!token || !person) return;
+      if (!window.confirm("Excluir este comentario?")) return;
+      setCommentSubmitting(true);
+      setError(null);
+      try {
+        const updated = await deletePersonComment(token, person.id, comment.id);
+        refreshFromPerson(updated, replaceSavedDraft);
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao excluir comentario.";
+        setError(message);
+      } finally {
+        setCommentSubmitting(false);
+      }
+    },
+    [person, refreshFromPerson, replaceSavedDraft, token],
+  );
+
+  const handleSelectAttachment = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !token || !person) {
+        resumeDetailAutoSave();
+        return;
+      }
+
+      setAttachmentUploading(true);
+      setError(null);
+      try {
+        const uploaded = await uploadPeopleAttachment(token, file);
+        const updated = await addPersonAttachment(token, person.id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        refreshFromPerson(updated, replaceSavedDraft);
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao enviar anexo.";
+        setError(message);
+      } finally {
+        setAttachmentUploading(false);
+        resumeDetailAutoSave();
+      }
+    },
+    [person, refreshFromPerson, replaceSavedDraft, token],
+  );
+
+  const handleDeleteAttachment = React.useCallback(
+    async (attachment: PersonAttachment) => {
+      if (!token || !person) return;
+      if (!window.confirm(`Excluir o anexo "${attachment.label}"?`)) return;
+      setAttachmentUploading(true);
+      setError(null);
+      try {
+        const updated = await deletePersonAttachment(token, person.id, attachment.id);
+        refreshFromPerson(updated, replaceSavedDraft);
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao excluir anexo.";
+        setError(message);
+      } finally {
+        setAttachmentUploading(false);
+      }
+    },
+    [person, refreshFromPerson, replaceSavedDraft, token],
+  );
+
   const context = React.useMemo<PeopleDetailLayoutContext | null>(
     () =>
       person && draft
         ? {
+            mode,
             person,
             draft,
-            readOnly: !canUpdate,
+            readOnly: mode === "create" ? !canCreate : !canUpdate,
             avatarUploading,
-            canAudit,
+            canAudit: mode === "edit" && canAudit,
+            mentionableUsers,
+            relatedAuditEntityIds,
             tagSuggestions,
-            onAvatarFileSelect: canUpdate ? (file) => handleAvatarUpdate(file) : undefined,
+            onAvatarFileSelect:
+              mode === "create"
+                ? (file) => handleAvatarUpdate(file)
+                : canUpdate
+                  ? (file) => handleAvatarUpdate(file)
+                  : undefined,
             onDraftChange: handleDraftChange,
             onCommitField: handleCommitField,
             onCommitDraft: handleCommitDraft,
@@ -370,14 +722,30 @@ export function PeopleDetailEngineClientPage() {
             onTabChange: handleTabChange,
             auditVisibleCount,
             onAuditVisibleCountChange: setAuditVisibleCount,
+            commentDraft,
+            commentSubmitting,
+            attachmentUploading,
+            onCommentDraftChange: setCommentDraft,
+            onSubmitComment: handleSubmitComment,
+            onDeleteComment: handleDeleteComment,
+            onUploadAttachment: () => {
+              if (!canUpdate || mode !== "edit") return;
+              suspendDetailAutoSave();
+              attachmentInputRef.current?.click();
+            },
+            onDeleteAttachment: handleDeleteAttachment,
           }
         : null,
     [
       person,
       draft,
+      mode,
+      canCreate,
       canUpdate,
       avatarUploading,
       canAudit,
+      mentionableUsers,
+      relatedAuditEntityIds,
       tagSuggestions,
       handleAvatarUpdate,
       handleDraftChange,
@@ -386,10 +754,16 @@ export function PeopleDetailEngineClientPage() {
       tabValue,
       auditVisibleCount,
       handleTabChange,
+      commentDraft,
+      commentSubmitting,
+      attachmentUploading,
+      handleSubmitComment,
+      handleDeleteComment,
+      handleDeleteAttachment,
     ],
   );
 
-  if (!canRead) {
+  if (!canAccessPage) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
         Voce nao tem permissao para acessar esta area.
@@ -419,6 +793,12 @@ export function PeopleDetailEngineClientPage() {
 
   return (
     <>
+      <input
+        ref={attachmentInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleSelectAttachment}
+      />
       {error ? (
         <div className="px-4 pt-4 text-sm text-destructive">{error}</div>
       ) : null}
@@ -427,27 +807,20 @@ export function PeopleDetailEngineClientPage() {
         moduleDefinition={peopleDetailModuleDefinition}
         context={context}
         dataProvider={dataProvider}
-        auditEnabled={canAudit}
-        mode="edit"
+        auditEnabled={mode === "edit" && canAudit}
+        mode={mode}
         headerTitle={displayNames.primary}
-        saving={saving || avatarUploading}
+        saving={saving || avatarUploading || attachmentUploading || commentSubmitting}
         loading={loading}
-        readOnly={!canUpdate}
+        readOnly={context.readOnly}
+        onSave={mode === "create" ? handleCreate : undefined}
         onClose={backToList}
         breadcrumbTitle={displayNames.primary}
         breadcrumbItems={[
           { label: "Pessoas", href: PEOPLE_ROUTES.list },
-          { label: displayNames.primary },
+          ...(mode === "edit" ? [{ label: displayNames.primary }] : []),
         ]}
-        headerActionsSlot={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={withTenantPath(`/people/${person.id}/tree`, tenantSlug)}>
-                Arvore genealogica
-              </Link>
-            </Button>
-          </div>
-        }
+        headerActionsSlot={null}
       />
     </>
   );

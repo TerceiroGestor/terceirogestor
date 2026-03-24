@@ -1,5 +1,5 @@
-import { ProjectEnrollmentsManageRouteClientPage } from "@/modules/projects";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function ProjectEnrollmentsManagePage() {
-  return <ProjectEnrollmentsManageRouteClientPage />;
+  return <ScreenHost actionId="projects.enrollments.manage" />;
 }

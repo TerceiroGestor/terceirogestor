@@ -1,5 +1,11 @@
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiProgram, ProgramInput, ProgramsListResponse } from "./types";
+import type {
+  ApiProgram,
+  ProgramAttachmentInput,
+  ProgramCommentInput,
+  ProgramInput,
+  ProgramsListResponse,
+} from "./types";
 
 export async function listPrograms(
   token: string,
@@ -45,6 +51,54 @@ export async function updateProgram(
 export async function deleteProgram(token: string, id: string) {
   return apiRequest<{ ok: true }>(
     `/programs/${id}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProgramComment(
+  token: string,
+  id: string,
+  payload: ProgramCommentInput,
+) {
+  return apiRequest<ApiProgram>(
+    `/programs/${id}/comments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProgramComment(
+  token: string,
+  id: string,
+  commentId: string,
+) {
+  return apiRequest<ApiProgram>(
+    `/programs/${id}/comments/${commentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProgramAttachment(
+  token: string,
+  id: string,
+  payload: ProgramAttachmentInput,
+) {
+  return apiRequest<ApiProgram>(
+    `/programs/${id}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProgramAttachment(
+  token: string,
+  id: string,
+  attachmentId: string,
+) {
+  return apiRequest<ApiProgram>(
+    `/programs/${id}/attachments/${attachmentId}`,
     { method: "DELETE" },
     token,
   );

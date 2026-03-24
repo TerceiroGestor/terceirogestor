@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { TagInput } from "@/components/ui/tag-input";
 import {
   Select,
   SelectContent,
@@ -11,16 +12,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveMediaUrl } from "@/lib/api";
 import type { ApiCycle, CycleAudienceType } from "@/modules/cycles/api";
 import {
   CYCLE_AUDIENCE_LABELS,
   CYCLE_AUDIENCE_OPTIONS,
   CYCLE_STATUS_OPTIONS,
 } from "@/modules/cycles/shared/domain/cycles.constants";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  buildGroupedAuditFeed,
+  resolveAuditActionLabel,
+  resolveAuditChangedFieldsSummary,
+} from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
@@ -45,7 +49,24 @@ const CYCLE_AUDIT_FIELD_LABELS = {
   ageMin: "Idade minima",
   ageMax: "Idade maxima",
   isActive: "Status",
+  tags: "Tags",
   internalNotes: "Notas internas",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const CYCLE_COMMENT_AUDIT_FIELD_LABELS = {
+  body: "Comentario",
+  mentionUserIds: "Mencoes",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const CYCLE_ATTACHMENT_AUDIT_FIELD_LABELS = {
+  label: "Anexo",
+  filePath: "Arquivo",
+  mimeType: "Tipo",
+  fileSizeBytes: "Tamanho",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -70,6 +91,35 @@ function resolveStatusBadge(isActive: boolean) {
   return isActive ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>;
 }
 
+function buildCycleHistoryItems(logs: NonNullable<CyclesDetailLayoutContext["detailAudit"]>["logs"]) {
+  return buildGroupedAuditFeed(logs).map((group) => {
+    const primarySource = group.sourceLabels[0] ?? "Registro";
+    const actorName =
+      group.logs[0]?.user?.name?.trim() ||
+      group.logs[0]?.user?.email?.trim() ||
+      "Sistema";
+    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
+    const changedLabel = changedFields.labels.length
+      ? changedFields.hiddenCount > 0
+        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
+        : changedFields.labels.join(", ")
+      : null;
+
+    return {
+      id: group.id,
+      title:
+        group.action === "CREATE"
+          ? `${primarySource} criado`
+          : group.action === "DELETE"
+            ? `${primarySource} removido`
+            : `${primarySource} atualizado`,
+      description: changedLabel ? `${primarySource}: ${changedLabel}` : group.sourceLabels.join(", "),
+      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
+      createdAt: group.createdAt,
+    };
+  });
+}
+
 export type CycleDetailDraft = {
   name: string;
   description: string;
@@ -77,6 +127,7 @@ export type CycleDetailDraft = {
   ageMin: string;
   ageMax: string;
   isActive: boolean;
+  tags: string[];
   internalNotes: string | null;
 };
 
@@ -88,10 +139,32 @@ export type CyclesDetailLayoutContext = DetailShellAuditContext & {
   cycle: ApiCycle | null;
   draft: CycleDetailDraft;
   setDraft: React.Dispatch<React.SetStateAction<CycleDetailDraft>>;
+  mentionableUsers: Array<{
+    id: string;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  }>;
+  commentDraft: {
+    body: string;
+    mentionUserIds: string[];
+  };
+  commentSubmitting: boolean;
+  attachmentUploading: boolean;
   onCommitField: <K extends keyof CycleDetailDraft>(
     field: K,
     nextValue?: CycleDetailDraft[K],
   ) => void;
+  onCommentDraftChange: React.Dispatch<
+    React.SetStateAction<{
+      body: string;
+      mentionUserIds: string[];
+    }>
+  >;
+  onSubmitComment: () => void;
+  onDeleteComment: (commentId: string) => void;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachmentId: string) => void;
   onNotesChange: (next: string | null) => void;
   onNotesBlur: () => void;
   auditVisibleCount: number;
@@ -214,89 +287,19 @@ function CyclesDetailMain({
           readOnly={readOnly}
         />
       </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Tags</div>
+        <TagInput
+          value={draft.tags}
+          onChange={(tags) => {
+            setDraft((previous) => ({ ...previous, tags }));
+            onCommitField("tags", tags);
+          }}
+          disabled={readOnly}
+        />
+      </div>
     </div>
-  );
-}
-
-function CyclesDetailSide({
-  mode,
-  canAudit,
-  readOnly,
-  draft,
-  detailAudit,
-  auditVisibleCount,
-  onAuditVisibleCountChange,
-  onNotesChange,
-  onNotesBlur,
-}: Pick<
-  CyclesDetailLayoutContext,
-  | "mode"
-  | "canAudit"
-  | "readOnly"
-  | "draft"
-  | "detailAudit"
-  | "auditVisibleCount"
-  | "onAuditVisibleCountChange"
-  | "onNotesChange"
-  | "onNotesBlur"
->) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
-
-  return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Auditoria",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode={mode}
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "notes",
-          label: "Anotacoes",
-          content: (
-            <DetailNotesPanel
-              value={draft.internalNotes}
-              onChange={onNotesChange}
-              onBlur={onNotesBlur}
-              readOnly={readOnly}
-            />
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Publico</span>
-                <span className="text-foreground">{formatAudienceType(draft.audienceType)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Status</span>
-                <span className="text-foreground">{formatStatus(draft.isActive)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Faixa etaria</span>
-                <span className="text-right text-foreground">
-                  {formatAgeRange(draft.ageMin, draft.ageMax)}
-                </span>
-              </div>
-            </div>
-          ),
-        },
-      ]}
-      defaultValue="activity"
-    />
   );
 }
 
@@ -318,9 +321,11 @@ export const cyclesDetailLayout: DetailLayoutConfig<CyclesDetailLayoutContext> =
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Faixa etaria</div>
-            <div className="font-medium text-foreground">
-              {formatAgeRange(draft.ageMin, draft.ageMax)}
-            </div>
+            <div className="font-medium text-foreground">{formatAgeRange(draft.ageMin, draft.ageMax)}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Tags</div>
+            <div className="font-medium text-foreground">{draft.tags.length}</div>
           </div>
         </div>
       </div>
@@ -338,23 +343,105 @@ export const cyclesDetailLayout: DetailLayoutConfig<CyclesDetailLayoutContext> =
     mode,
     canAudit,
     readOnly,
+    cycle,
     draft,
+    setDraft,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    commentSubmitting,
+    attachmentUploading,
+    onCommitField,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    onUploadAttachment,
+    onDeleteAttachment,
     onNotesChange,
     onNotesBlur,
   }) => (
-    <CyclesDetailSide
+    <StandardDetailMetadataSide
       mode={mode}
-      canAudit={canAudit}
       readOnly={readOnly}
-      draft={draft}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
-      onNotesChange={onNotesChange}
-      onNotesBlur={onNotesBlur}
+      canAudit={canAudit}
+      comments={{
+        items: cycle?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o ciclo para habilitar comentarios."
+            : "Nenhum comentario registrado para este ciclo.",
+      }}
+      notes={{
+        value: draft.internalNotes,
+        onChange: onNotesChange,
+        onBlur: onNotesBlur,
+        readOnly,
+      }}
+      tags={{
+        value: draft.tags,
+        onChange: (nextTags) =>
+          setDraft((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (next) => onCommitField("tags", next),
+        readOnly,
+        emptyLabel: mode === "create" ? "Adicione tags ao ciclo." : "Nenhuma tag registrada.",
+      }}
+      attachments={{
+        items: (cycle?.attachments ?? []).map((attachment) => ({
+          id: attachment.id,
+          label: attachment.label,
+          href: resolveMediaUrl(attachment.filePath),
+          description: attachment.uploadedBy?.name
+            ? `Enviado por ${attachment.uploadedBy.name}`
+            : "Anexo do ciclo",
+          mimeType: attachment.mimeType ?? null,
+          sizeLabel:
+            typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
+              ? attachment.fileSizeBytes >= 1024 * 1024
+                ? `${(attachment.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+                : attachment.fileSizeBytes >= 1024
+                  ? `${Math.round(attachment.fileSizeBytes / 1024)} KB`
+                  : `${attachment.fileSizeBytes} B`
+              : null,
+          statusLabel: attachment.createdAt
+            ? attachment.createdAt.slice(0, 16).replace("T", ", ")
+            : null,
+        })),
+        onUpload: mode === "edit" && !readOnly ? onUploadAttachment : undefined,
+        onDelete: mode === "edit" && !readOnly ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o ciclo para habilitar anexos."
+            : attachmentUploading
+              ? "Enviando anexo..."
+              : "Nenhum anexo registrado para este ciclo.",
+      }}
+      history={{
+        items: buildCycleHistoryItems(detailAudit?.logs ?? []),
+        emptyLabel:
+          mode === "create"
+            ? "O historico aparece apos salvar o ciclo."
+            : "Nenhum historico disponivel para este ciclo.",
+      }}
+      contextItems={[
+        { key: "audience", label: "Publico", value: formatAudienceType(draft.audienceType) },
+        { key: "status", label: "Status", value: formatStatus(draft.isActive) },
+        { key: "ageRange", label: "Faixa etaria", value: formatAgeRange(draft.ageMin, draft.ageMax) },
+        { key: "tags", label: "Tags", value: draft.tags.length },
+      ]}
+      defaultTab="activity"
     />
   ),
   auditSources: {
@@ -371,6 +458,25 @@ export const cyclesDetailLayout: DetailLayoutConfig<CyclesDetailLayoutContext> =
       },
       resolveEntityId: ({ cycle }) => cycle?.id,
     },
+    relatedEntities: [
+      {
+        key: "cycleComment",
+        entity: "CycleComment",
+        model: "audit.logs",
+        label: "Comentario",
+        fieldLabels: CYCLE_COMMENT_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ cycle }) => (cycle?.comments ?? []).map((comment) => comment.id),
+      },
+      {
+        key: "cycleAttachment",
+        entity: "CycleAttachment",
+        model: "audit.logs",
+        label: "Anexo",
+        fieldLabels: CYCLE_ATTACHMENT_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ cycle }) =>
+          (cycle?.attachments ?? []).map((attachment) => attachment.id),
+      },
+    ],
     sort: [{ field: "createdAt", direction: "desc" }],
     pagination: { limit: 120 },
   },

@@ -1,5 +1,5 @@
-import { PantryEntryNewEngineClientPage } from "@/modules/pantry/features/entries/ui/pantry-entry-detail-engine-client-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function PantryEntriesNewPage() {
-  return <PantryEntryNewEngineClientPage />;
+  return <ScreenHost actionId="pantry.entries.new" />;
 }

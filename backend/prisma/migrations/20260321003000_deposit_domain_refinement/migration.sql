@@ -1,0 +1,18 @@
+UPDATE `DepositExit`
+SET `type` = CASE `type`
+  WHEN 'ATTENDED' THEN 'FINAL_REMOVAL'
+  WHEN 'DONATION' THEN 'FINAL_REMOVAL'
+  WHEN 'EVENT' THEN 'TRANSFER'
+  WHEN 'PARTY' THEN 'LOAN'
+  WHEN 'CORRECTION' THEN 'ADJUSTMENT'
+  ELSE `type`
+END;
+
+ALTER TABLE `DepositExit`
+  CHANGE COLUMN `eventName` `destinationName` VARCHAR(191) NULL,
+  ADD COLUMN `destinationType` VARCHAR(191) NULL AFTER `destinationName`,
+  ADD COLUMN `expectedReturnAt` DATETIME(3) NULL AFTER `destinationType`,
+  ADD COLUMN `returnedAt` DATETIME(3) NULL AFTER `expectedReturnAt`,
+  ADD COLUMN `returnedQuantity` DECIMAL(10, 2) NULL AFTER `returnedAt`,
+  ADD COLUMN `returnNotes` TEXT NULL AFTER `returnedQuantity`,
+  MODIFY COLUMN `type` ENUM('LOAN', 'FINAL_REMOVAL', 'TRANSFER', 'ADJUSTMENT', 'LOSS') NOT NULL DEFAULT 'FINAL_REMOVAL';

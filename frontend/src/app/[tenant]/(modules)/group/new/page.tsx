@@ -1,10 +1,5 @@
-import { ProjectGroupsCreateStandalonePage } from "@/modules/projects/features/detail/ui/project-groups-create-standalone-page";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
-export default async function GroupNewPage({
-  params,
-}: {
-  params: Promise<{ tenant: string }>;
-}) {
-  const { tenant } = await params;
-  return <ProjectGroupsCreateStandalonePage tenantSlug={tenant} />;
+export default function GroupNewPage() {
+  return <ScreenHost actionId="project-groups.create" />;
 }

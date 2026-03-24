@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FinancialIncomeDetailPage } from "@/modules/people/features/people-financial/ui/financial-income-detail-page";
 
-export default async function PeopleFinancialIncomeDetailRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string; incomeId: string }>;
-}) {
-  const { tenant, id, incomeId } = await params;
-  redirect(`/${tenant}/person/${id}/financial/incomes/${incomeId}`);
+export default function PeopleFinancialIncomeDetailRoutePage() {
+  return <FinancialIncomeDetailPage mode="edit" />;
 }

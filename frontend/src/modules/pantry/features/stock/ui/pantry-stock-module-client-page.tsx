@@ -490,6 +490,17 @@ export function PantryStockModuleClientPage() {
         ),
       },
       {
+        accessorKey: "tags",
+        header: "Tags",
+        cell: ({ row }) => (
+          <div className="min-w-0 truncate text-sm text-muted-foreground">
+            {(row.original.tags ?? []).length
+              ? row.original.tags.slice(0, 3).join(", ")
+              : "—"}
+          </div>
+        ),
+      },
+      {
         accessorKey: "group",
         header: "Grupo",
         cell: ({ row }) => (
@@ -559,10 +570,15 @@ export function PantryStockModuleClientPage() {
       },
       {
         accessorKey: "validityStatus",
-        header: "Validade",
+        header: "Status",
         cell: ({ row }) => (
           <div className="min-w-0 truncate">{row.original.validityStatus}</div>
         ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Cadastro",
+        cell: ({ row }) => formatDateOnlyPtBR(row.original.createdAt),
       },
     ],
     [],
@@ -967,28 +983,30 @@ export function PantryStockModuleClientPage() {
         }))
       }
       primaryActionSlot={
-        canCreate ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" size="sm" className="h-8 gap-2">
-                <Plus className="size-4" />
-                {createLabel}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onSelect={openCreate}>
-                {createItemLabel}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() =>
-                  router.push(withTenantPath(PANTRY_ROUTES.donorsNew, tenantSlug))
-                }
-              >
-                {createDonorLabel}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          {canCreate ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="sm" className="h-8 gap-2">
+                  <Plus className="size-4" />
+                  {createLabel}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={openCreate}>
+                  {createItemLabel}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    router.push(withTenantPath(PANTRY_ROUTES.donorsNew, tenantSlug))
+                  }
+                >
+                  {createDonorLabel}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       }
     >
       {error ? (

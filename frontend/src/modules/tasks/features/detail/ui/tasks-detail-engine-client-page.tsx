@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { uploadTaskAttachment } from "@/features/uploads/api";
 import { cn } from "@/lib/utils";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
@@ -16,6 +17,7 @@ import {
 import type { TasksDetailLayoutContext } from "@/modules/tasks/config/tasks-detail-layout-contract";
 import type {
   TaskAssignableUser,
+  TaskAttachment,
   TaskChecklistItem,
   TaskChecklistItemMutationInput,
   TaskComment,
@@ -32,10 +34,12 @@ import {
 } from "@/modules/tasks/shared/ui/task-related-item-forms";
 import {
   addTaskChecklistItemRemote,
+  addTaskAttachmentRemote,
   addTaskCommentRemote,
   addTaskDependencyRemote,
   addTaskSubtaskRemote,
   deleteTaskChecklistItemRemote,
+  deleteTaskAttachmentRemote,
   deleteTaskCommentRemote,
   deleteTaskDependencyRemote,
   deleteTaskSubtaskRemote,
@@ -48,6 +52,10 @@ import {
 } from "@/web-client/data-provider/rest/tasks";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailRelationItemDialog } from "@/web-client/detail/DetailRelationItemDialog";
+import {
+  resumeDetailAutoSave,
+  suspendDetailAutoSave,
+} from "@/web-client/detail/detail-media-autosave-guard";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { normalizeTags } from "@/web-client/detail/tag-utils";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
@@ -154,6 +162,7 @@ export function TasksDetailEngineClientPage() {
   const canUpdate = canUseModuleAction(tasksDetailModuleDefinition, "edit", permissions);
   const canDelete = canUseModuleAction(tasksDetailModuleDefinition, "delete", permissions);
   const canAudit = canUseModuleAction(tasksDetailModuleDefinition, "audit", permissions);
+  const { users: mentionableUsers } = useMentionableUsers("tasks.read");
 
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
@@ -169,6 +178,8 @@ export function TasksDetailEngineClientPage() {
   const [commentDraft, setCommentDraft] =
     React.useState<TaskCommentMutationInput>(EMPTY_COMMENT_DRAFT);
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
+  const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [editingChecklistItem, setEditingChecklistItem] = React.useState<TaskChecklistItem | null>(null);
   const [checklistDraft, setChecklistDraft] = React.useState<TaskChecklistItemMutationInput | null>(null);
@@ -600,6 +611,63 @@ export function TasksDetailEngineClientPage() {
     [refreshFromTask, replaceSavedDraft, task, token],
   );
 
+  const handleSelectAttachment = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !token || !task) {
+        resumeDetailAutoSave();
+        return;
+      }
+
+      setAttachmentUploading(true);
+      setError(null);
+      try {
+        const uploaded = await uploadTaskAttachment(token, file);
+        const updated = await addTaskAttachmentRemote(token, task.id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        refreshFromTask(updated, replaceSavedDraft);
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao enviar anexo.";
+        setError(message);
+      } finally {
+        setAttachmentUploading(false);
+        resumeDetailAutoSave();
+      }
+    },
+    [refreshFromTask, replaceSavedDraft, task, token],
+  );
+
+  const handleDeleteAttachment = React.useCallback(
+    async (attachment: TaskAttachment) => {
+      if (!token || !task) return;
+      if (!window.confirm(`Excluir o anexo "${attachment.label}"?`)) return;
+
+      setAttachmentUploading(true);
+      setError(null);
+      try {
+        const updated = await deleteTaskAttachmentRemote(token, task.id, attachment.id);
+        refreshFromTask(updated, replaceSavedDraft);
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao excluir anexo.";
+        setError(message);
+      } finally {
+        setAttachmentUploading(false);
+      }
+    },
+    [refreshFromTask, replaceSavedDraft, task, token],
+  );
+
   const handleSaveDependency = React.useCallback(async () => {
     if (!token || !task || !selectedDependencyTaskId) return;
     setDependencyBusy(true);
@@ -650,6 +718,7 @@ export function TasksDetailEngineClientPage() {
             task,
             draft,
             assignableUsers,
+            mentionableUsers,
             assignableUsersLoading,
             onDraftChange: setDraftValue,
             onCommitField: commitField,
@@ -678,6 +747,18 @@ export function TasksDetailEngineClientPage() {
               void handleDeleteComment(comment);
             },
             commentSubmitting,
+            onUploadAttachment: () => {
+              if (canUpdate) {
+                suspendDetailAutoSave();
+                attachmentInputRef.current?.click();
+              }
+            },
+            onDeleteAttachment: (attachment) => {
+              if (canUpdate) {
+                void handleDeleteAttachment(attachment);
+              }
+            },
+            attachmentUploading,
             onOpenDependencyCreate: () => {
               if (canUpdate) {
                 setDependencyDialogOpen(true);
@@ -697,6 +778,7 @@ export function TasksDetailEngineClientPage() {
     [
       assignableUsers,
       assignableUsersLoading,
+      attachmentUploading,
       auditVisibleCount,
       canAudit,
       canUpdate,
@@ -706,6 +788,7 @@ export function TasksDetailEngineClientPage() {
       commitField,
       draft,
       handleDeleteComment,
+      handleDeleteAttachment,
       handleNotesBlur,
       handleRemoveDependency,
       handleSubmitComment,
@@ -742,6 +825,16 @@ export function TasksDetailEngineClientPage() {
     <>
       {error ? <div className="px-4 pt-4 text-sm text-destructive">{error}</div> : null}
 
+      <input
+        ref={attachmentInputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+        className="hidden"
+        onChange={(event) => {
+          void handleSelectAttachment(event);
+        }}
+      />
+
       <DetailShellEngine<TasksDetailLayoutContext>
         moduleDefinition={tasksDetailModuleDefinition}
         context={context}
@@ -760,11 +853,6 @@ export function TasksDetailEngineClientPage() {
         ]}
         headerActionsSlot={
           <div className="flex flex-wrap items-center gap-2">
-            {canCreate ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={withTenantPath("/tasks/new", tenantSlug)}>Nova tarefa</Link>
-              </Button>
-            ) : null}
             {canDelete ? (
               <Button
                 variant="ghost"

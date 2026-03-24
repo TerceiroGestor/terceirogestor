@@ -18,9 +18,33 @@ export type ApiPantryExit = {
   type: "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
   eventName: string | null;
   notes: string | null;
+  tags: string[];
+  internalNotes: string | null;
   createdAt: string;
   updatedAt: string;
   item: { id: string; name: string; unit: string };
+  comments: Array<{
+    id: string;
+    body: string;
+    mentionUserIds: string[];
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string | null;
+      name: string;
+      email?: string | null;
+      avatarUrl?: string | null;
+    };
+  }>;
+  attachments: Array<{
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType?: string | null;
+    fileSizeBytes?: number | null;
+    sizeLabel?: string | null;
+    createdAt: string;
+  }>;
 };
 
 export type PantryExitsListResponse = {
@@ -38,5 +62,6 @@ export type PantryExitInput = {
   type?: "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
   eventName?: string | null;
   notes?: string | null;
+  tags?: string[];
+  internalNotes?: string | null;
 };
-

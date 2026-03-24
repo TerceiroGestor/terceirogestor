@@ -9,11 +9,16 @@ import {
 } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { uploadAvatar } from "@/features/uploads/api";
+import { uploadAvatar, uploadPantryAttachment } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
+  addPantryDonorAttachment,
+  addPantryDonorComment,
+  deletePantryDonorAttachment,
+  deletePantryDonorComment,
   listPantryEntries,
   type ApiPantryDonor,
   type ApiPantryEntry,
@@ -24,9 +29,9 @@ import {
 } from "@/modules/pantry/config/pantry-detail-layout-contract";
 import { pantryDonorDetailModuleDefinition } from "@/modules/pantry/config/pantry-module-contract";
 import { PANTRY_ROUTES } from "@/modules/pantry/shared/domain/pantry.constants";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import { resumeDetailAutoSave, suspendDetailAutoSave } from "@/web-client/detail/detail-media-autosave-guard";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import {
   canUseModuleAction,
@@ -82,6 +87,7 @@ export function PantryDonorDetailEngineClientPage({
   const params = useParams<{ id?: string }>();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
+  const { users: mentionableUsers } = useMentionableUsers("pantry.read");
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -121,6 +127,11 @@ export function PantryDonorDetailEngineClientPage({
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const [commentDraft, setCommentDraft] = React.useState({ body: "", mentionUserIds: [] as string[] });
+  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
+  const [tags, setTags] = React.useState<string[]>([]);
+  const [internalNotes, setInternalNotes] = React.useState<string | null>(null);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entries, setEntries] = React.useState<ApiPantryEntry[]>([]);
   const [donors, setDonors] = React.useState<ApiPantryDonor[]>([]);
@@ -204,6 +215,8 @@ export function PantryDonorDetailEngineClientPage({
       const nextDraft = draftFromDonor(loaded);
       setDonor(loaded);
       setDraft(nextDraft);
+      setTags(loaded.tags ?? []);
+      setInternalNotes(loaded.internalNotes ?? null);
       replaceSavedDraft(nextDraft);
     } catch (error) {
       const message =
@@ -302,6 +315,8 @@ export function PantryDonorDetailEngineClientPage({
         {
           ...normalized,
           avatarUrl,
+          tags,
+          internalNotes,
         },
       );
 
@@ -330,7 +345,18 @@ export function PantryDonorDetailEngineClientPage({
     } finally {
       setBusy(false);
     }
-  }, [canCreate, dataProvider, draft, enabled, returnTo, router, tenantSlug, toast, token]);
+  }, [canCreate, dataProvider, draft, enabled, internalNotes, returnTo, router, tags, tenantSlug, toast, token]);
+
+  const persistMetadata = React.useCallback(
+    async (patch: { tags?: string[]; internalNotes?: string | null }) => {
+      if (mode !== "edit" || !id) return;
+      const updated = await dataProvider.update<ApiPantryDonor>("pantry.donors", id, patch);
+      setDonor(updated);
+      setTags(updated.tags ?? []);
+      setInternalNotes(updated.internalNotes ?? null);
+    },
+    [dataProvider, id, mode],
+  );
 
   const openEntryDetail = React.useCallback(
     (entryId: string) => {
@@ -355,6 +381,103 @@ export function PantryDonorDetailEngineClientPage({
 
     return next;
   }, [donor, donors]);
+
+  const submitComment = React.useCallback(async () => {
+    if (!token || mode !== "edit" || !id || !commentDraft.body.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const updated = await addPantryDonorComment(token, id, {
+        body: commentDraft.body.trim(),
+        mentionUserIds: commentDraft.mentionUserIds,
+      });
+      setDonor(updated);
+      setTags(updated.tags ?? []);
+      setInternalNotes(updated.internalNotes ?? null);
+      setCommentDraft({ body: "", mentionUserIds: [] });
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }, [commentDraft.body, commentDraft.mentionUserIds, id, mode, token]);
+
+  const deleteComment = React.useCallback(
+    async (commentId: string) => {
+      if (!token || mode !== "edit" || !id) return;
+      const updated = await deletePantryDonorComment(token, id, commentId);
+      setDonor(updated);
+    },
+    [id, mode, token],
+  );
+
+  const uploadAttachment = React.useCallback(async () => {
+    if (!token || mode !== "edit" || !id) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      resumeDetailAutoSave();
+      if (!file) return;
+      setAttachmentUploading(true);
+      try {
+        const uploaded = await uploadPantryAttachment(token, file);
+        const updated = await addPantryDonorAttachment(token, id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        setDonor(updated);
+      } finally {
+        setAttachmentUploading(false);
+      }
+    };
+    input.oncancel = () => resumeDetailAutoSave();
+    suspendDetailAutoSave();
+    input.click();
+  }, [id, mode, token]);
+
+  const deleteAttachment = React.useCallback(
+    async (attachmentId: string) => {
+      if (!token || mode !== "edit" || !id) return;
+      const updated = await deletePantryDonorAttachment(token, id, attachmentId);
+      setDonor(updated);
+    },
+    [id, mode, token],
+  );
+
+  const historyItems = React.useMemo<PantryDonorDetailLayoutContext["historyItems"]>(
+    () => {
+      const items: PantryDonorDetailLayoutContext["historyItems"] = [];
+      if (donor) {
+        items.push({
+          id: `${donor.id}:created`,
+          title: "Doador criado",
+          description: donor.name,
+          meta: "Criado",
+          createdAt: donor.createdAt,
+        });
+      }
+      items.push(
+        ...(donor?.comments ?? []).map((comment) => ({
+          id: `comment:${comment.id}`,
+          title: "Comentario registrado",
+          description: comment.body,
+          meta: `Por ${comment.author.name}`,
+          createdAt: comment.createdAt,
+        })),
+      );
+      items.push(
+        ...(donor?.attachments ?? []).map((attachment) => ({
+          id: `attachment:${attachment.id}`,
+          title: "Anexo adicionado",
+          description: attachment.label,
+          meta: attachment.sizeLabel ?? attachment.mimeType ?? "Anexo",
+          createdAt: attachment.createdAt,
+        })),
+      );
+      return items;
+    },
+    [donor],
+  );
 
   const commitAvatar = React.useCallback(
     async (file: File | null) => {
@@ -425,20 +548,48 @@ export function PantryDonorDetailEngineClientPage({
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
       onOpenEntry: openEntryDetail,
+      mentionableUsers,
+      commentDraft,
+      onCommentDraftChange: setCommentDraft,
+      onSubmitComment: () => void submitComment(),
+      onDeleteComment: (commentId) => void deleteComment(commentId),
+      commentSubmitting,
+      tags,
+      onTagsChange: setTags,
+      onTagsCommit: (next) => void persistMetadata({ tags: next, internalNotes }),
+      internalNotes,
+      onInternalNotesChange: setInternalNotes,
+      onInternalNotesBlur: () => void persistMetadata({ tags, internalNotes }),
+      onUploadAttachment: () => void uploadAttachment(),
+      onDeleteAttachment: (attachmentId) => void deleteAttachment(attachmentId),
+      attachmentUploading,
+      historyItems,
     }),
     [
+      attachmentUploading,
       auditVisibleCount,
+      commentDraft,
+      commentSubmitting,
       commitField,
       commitAvatar,
+      deleteAttachment,
+      deleteComment,
       donor,
       donorNameById,
       draft,
       entries,
       entriesLoading,
+      historyItems,
+      internalNotes,
+      mentionableUsers,
       mode,
       openEntryDetail,
+      persistMetadata,
       readOnly,
       setDraft,
+      submitComment,
+      tags,
+      uploadAttachment,
     ],
   );
 
@@ -464,7 +615,6 @@ export function PantryDonorDetailEngineClientPage({
         { label: "Doadores", href: PANTRY_ROUTES.donors },
         ...(mode === "edit" ? [{ label: headerTitle }] : []),
       ]}
-      actionSlot={<PantryHeaderNav />}
     />
   );
 }

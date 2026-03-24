@@ -62,12 +62,11 @@ export function AppShell({ children }: AppShellProps) {
     AUTH_ROUTES.some((route) => pathname?.startsWith(route)) ||
     PUBLIC_ROUTES.some((route) => pathname?.startsWith(route)) ||
     (pathname ? isTenantAuthRoute(pathname) : false);
-
-  if (!pathname || isAuthRoute || pathname === "/") {
-    return <>{children}</>;
-  }
+  const shouldRenderBareLayout = !pathname || isAuthRoute || pathname === "/";
 
   React.useEffect(() => {
+    if (shouldRenderBareLayout) return;
+
     const element = stickyHeaderRef.current;
     if (!element) return;
 
@@ -87,7 +86,11 @@ export function AppShell({ children }: AppShellProps) {
       window.removeEventListener("resize", syncOffset);
       root.style.removeProperty("--app-shell-sticky-offset");
     };
-  }, []);
+  }, [shouldRenderBareLayout]);
+
+  if (shouldRenderBareLayout) {
+    return <>{children}</>;
+  }
 
   return (
     <>

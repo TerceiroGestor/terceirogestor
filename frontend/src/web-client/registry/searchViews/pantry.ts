@@ -152,6 +152,12 @@ export const pantryDonorsSearchView: SearchViewDefinition = {
       operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
     },
     {
+      name: "tags",
+      label: "Tags",
+      type: "text",
+      operators: ["ilike", "contains", "="],
+    },
+    {
       name: "createdAt",
       label: "Criado em",
       type: "date",
@@ -164,7 +170,11 @@ export const pantryDonorsSearchView: SearchViewDefinition = {
       operators: ["between", ">=", "<="],
     },
   ],
-  groupBy: [{ field: "type", label: "Tipo" }],
+  groupBy: [
+    { field: "type", label: "Tipo" },
+    { field: "tags", label: "Tags" },
+    { field: "createdAt", label: "Cadastro" },
+  ],
 };
 
 export const pantryEntriesSearchView: SearchViewDefinition = {
@@ -276,6 +286,11 @@ export const pantryStockSearchView: SearchViewDefinition = {
       type: "text",
     },
     {
+      name: "tags",
+      label: "Tags",
+      type: "text",
+    },
+    {
       name: "itemId",
       label: "Item (ID)",
       type: "uuid",
@@ -303,9 +318,15 @@ export const pantryStockSearchView: SearchViewDefinition = {
       label: "Próx. validade",
       type: "date",
     },
+    {
+      name: "createdAt",
+      label: "Cadastro",
+      type: "date",
+    },
   ],
   groupBy: [
     { field: "name", label: "Alimento" },
+    { field: "tags", label: "Tags" },
     { field: "sector", label: "Setor" },
     { field: "group", label: "Grupo" },
     { field: "sectorStock", label: "Saldo (setor)" },

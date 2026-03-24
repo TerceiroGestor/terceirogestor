@@ -37,6 +37,14 @@ export type GroupedAuditDaySection = {
   items: GroupedAuditFeedItem[];
 };
 
+export type AuditHistoryItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  meta?: string | null;
+  createdAt: string;
+};
+
 export type AuditChangedFieldsSummary = {
   labels: string[];
   hiddenCount: number;
@@ -412,6 +420,18 @@ export function resolveGroupedAuditHeadline(group: GroupedAuditFeedItem) {
   }
 
   return `${group.sourceLabels[0] ?? "Registro"} atualizado`;
+}
+
+export function buildAuditHistoryItems(
+  logs: DetailAuditFeedItem[],
+): AuditHistoryItem[] {
+  return buildGroupedAuditFeed(logs).map((group) => ({
+    id: group.id,
+    title: resolveGroupedAuditHeadline(group),
+    description: group.sourceLabels.join(", "),
+    meta: resolveAuditActionLabel(group.action),
+    createdAt: group.createdAt,
+  }));
 }
 
 export function isAuditRichTextValue(value: unknown) {

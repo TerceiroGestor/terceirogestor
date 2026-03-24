@@ -3,6 +3,8 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
   ApiProjectAction,
+  ProjectActionAttachmentInput,
+  ProjectActionCommentInput,
   ProjectActionInput,
   ProjectActionsListResponse,
 } from "./types";
@@ -73,6 +75,58 @@ export async function deleteProjectAction(
 ) {
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/actions/${actionId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProjectActionComment(
+  token: string,
+  projectId: string,
+  actionId: string,
+  payload: ProjectActionCommentInput,
+) {
+  return apiRequest<ApiProjectAction>(
+    `/projects/${projectId}/actions/${actionId}/comments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectActionComment(
+  token: string,
+  projectId: string,
+  actionId: string,
+  commentId: string,
+) {
+  return apiRequest<ApiProjectAction>(
+    `/projects/${projectId}/actions/${actionId}/comments/${commentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProjectActionAttachment(
+  token: string,
+  projectId: string,
+  actionId: string,
+  payload: ProjectActionAttachmentInput,
+) {
+  return apiRequest<ApiProjectAction>(
+    `/projects/${projectId}/actions/${actionId}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectActionAttachment(
+  token: string,
+  projectId: string,
+  actionId: string,
+  attachmentId: string,
+) {
+  return apiRequest<ApiProjectAction>(
+    `/projects/${projectId}/actions/${actionId}/attachments/${attachmentId}`,
     { method: "DELETE" },
     token,
   );

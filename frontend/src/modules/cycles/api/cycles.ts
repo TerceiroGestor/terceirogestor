@@ -1,5 +1,11 @@
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiCycle, CycleInput, CyclesListResponse } from "./types";
+import type {
+  ApiCycle,
+  CycleAttachmentInput,
+  CycleCommentInput,
+  CycleInput,
+  CyclesListResponse,
+} from "./types";
 
 export async function listCycles(
   token: string,
@@ -41,6 +47,54 @@ export async function updateCycle(token: string, id: string, payload: Partial<Cy
 export async function deleteCycle(token: string, id: string) {
   return apiRequest<{ ok: true }>(
     `/cycles/${id}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addCycleComment(
+  token: string,
+  id: string,
+  payload: CycleCommentInput,
+) {
+  return apiRequest<ApiCycle>(
+    `/cycles/${id}/comments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteCycleComment(
+  token: string,
+  id: string,
+  commentId: string,
+) {
+  return apiRequest<ApiCycle>(
+    `/cycles/${id}/comments/${commentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addCycleAttachment(
+  token: string,
+  id: string,
+  payload: CycleAttachmentInput,
+) {
+  return apiRequest<ApiCycle>(
+    `/cycles/${id}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteCycleAttachment(
+  token: string,
+  id: string,
+  attachmentId: string,
+) {
+  return apiRequest<ApiCycle>(
+    `/cycles/${id}/attachments/${attachmentId}`,
     { method: "DELETE" },
     token,
   );

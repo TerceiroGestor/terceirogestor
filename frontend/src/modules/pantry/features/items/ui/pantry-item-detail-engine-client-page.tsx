@@ -13,10 +13,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { uploadPantryAttachment } from "@/features/uploads/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
+  addPantryItemAttachment,
+  addPantryItemComment,
   createPantrySector,
+  deletePantryItemAttachment,
+  deletePantryItemComment,
   type ApiPantryDonor,
   listPantryEntries,
   listPantryExits,
@@ -44,9 +50,9 @@ import {
   PANTRY_DEFAULT_UNIT,
   PANTRY_ROUTES,
 } from "@/modules/pantry/shared/domain/pantry.constants";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import { resumeDetailAutoSave, suspendDetailAutoSave } from "@/web-client/detail/detail-media-autosave-guard";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import {
   canUseModuleAction,
@@ -84,6 +90,7 @@ export function PantryItemDetailEngineClientPage({
   const params = useParams<{ id?: string }>();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
+  const { users: mentionableUsers } = useMentionableUsers("pantry.read");
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -127,6 +134,11 @@ export function PantryItemDetailEngineClientPage({
   const [newSectorOpen, setNewSectorOpen] = React.useState(false);
   const [newSectorName, setNewSectorName] = React.useState("");
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const [commentDraft, setCommentDraft] = React.useState({ body: "", mentionUserIds: [] as string[] });
+  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
+  const [tags, setTags] = React.useState<string[]>([]);
+  const [internalNotes, setInternalNotes] = React.useState<string | null>(null);
   const [movementsLoading, setMovementsLoading] = React.useState(false);
   const [entryRows, setEntryRows] = React.useState<ApiPantryEntry[]>([]);
   const [exitRows, setExitRows] = React.useState<ApiPantryExit[]>([]);
@@ -199,6 +211,8 @@ export function PantryItemDetailEngineClientPage({
       const nextDraft = draftFromItem(loaded);
       setItem(loaded);
       setDraft(nextDraft);
+      setTags(loaded.tags ?? []);
+      setInternalNotes(loaded.internalNotes ?? null);
       replaceSavedDraft(nextDraft);
     } catch (error) {
       const message =
@@ -314,7 +328,11 @@ export function PantryItemDetailEngineClientPage({
       const created = await dataProvider.create<ApiPantryItem>(
         pantryItemDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
           "pantry.items",
-        normalized,
+        {
+          ...normalized,
+          tags,
+          internalNotes,
+        },
       );
 
       toast({ variant: "success", title: "Alimento criado" });
@@ -333,7 +351,18 @@ export function PantryItemDetailEngineClientPage({
     } finally {
       setBusy(false);
     }
-  }, [canCreate, dataProvider, draft, enabled, router, tenantSlug, toast]);
+  }, [canCreate, dataProvider, draft, enabled, internalNotes, router, tags, tenantSlug, toast]);
+
+  const persistMetadata = React.useCallback(
+    async (patch: { tags?: string[]; internalNotes?: string | null }) => {
+      if (mode !== "edit" || !id) return;
+      const updated = await dataProvider.update<ApiPantryItem>("pantry.items", id, patch);
+      setItem(updated);
+      setTags(updated.tags ?? []);
+      setInternalNotes(updated.internalNotes ?? null);
+    },
+    [dataProvider, id, mode],
+  );
 
   const readOnly = mode === "edit" ? !canUpdate : !canCreate;
 
@@ -409,6 +438,115 @@ export function PantryItemDetailEngineClientPage({
     [pathname, router, tenantSlug],
   );
 
+  const submitComment = React.useCallback(async () => {
+    if (!token || mode !== "edit" || !id || !commentDraft.body.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const updated = await addPantryItemComment(token, id, {
+        body: commentDraft.body.trim(),
+        mentionUserIds: commentDraft.mentionUserIds,
+      });
+      setItem(updated);
+      setTags(updated.tags ?? []);
+      setInternalNotes(updated.internalNotes ?? null);
+      setCommentDraft({ body: "", mentionUserIds: [] });
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao comentar.";
+      toast({ variant: "destructive", title: "Falha ao comentar", description: message });
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }, [commentDraft.body, commentDraft.mentionUserIds, id, mode, toast, token]);
+
+  const deleteComment = React.useCallback(
+    async (commentId: string) => {
+      if (!token || mode !== "edit" || !id) return;
+      const updated = await deletePantryItemComment(token, id, commentId);
+      setItem(updated);
+    },
+    [id, mode, token],
+  );
+
+  const uploadAttachment = React.useCallback(async () => {
+    if (!token || mode !== "edit" || !id) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      resumeDetailAutoSave();
+      if (!file) return;
+      setAttachmentUploading(true);
+      try {
+        const uploaded = await uploadPantryAttachment(token, file);
+        const updated = await addPantryItemAttachment(token, id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        setItem(updated);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao enviar anexo.";
+        toast({ variant: "destructive", title: "Falha ao enviar", description: message });
+      } finally {
+        setAttachmentUploading(false);
+      }
+    };
+    input.oncancel = () => resumeDetailAutoSave();
+    suspendDetailAutoSave();
+    input.click();
+  }, [id, mode, toast, token]);
+
+  const deleteAttachment = React.useCallback(
+    async (attachmentId: string) => {
+      if (!token || mode !== "edit" || !id) return;
+      const updated = await deletePantryItemAttachment(token, id, attachmentId);
+      setItem(updated);
+    },
+    [id, mode, token],
+  );
+
+  const historyItems = React.useMemo<PantryItemDetailLayoutContext["historyItems"]>(
+    () => {
+      const items: PantryItemDetailLayoutContext["historyItems"] = [];
+      if (item) {
+        items.push({
+          id: `${item.id}:created`,
+          title: "Alimento criado",
+          description: item.name,
+          meta: "Criado",
+          createdAt: item.createdAt,
+        });
+      }
+      items.push(
+        ...(item?.comments ?? []).map((comment) => ({
+          id: `comment:${comment.id}`,
+          title: "Comentario registrado",
+          description: comment.body,
+          meta: `Por ${comment.author.name}`,
+          createdAt: comment.createdAt,
+        })),
+      );
+      items.push(
+        ...(item?.attachments ?? []).map((attachment) => ({
+          id: `attachment:${attachment.id}`,
+          title: "Anexo adicionado",
+          description: attachment.label,
+          meta: attachment.sizeLabel ?? attachment.mimeType ?? "Anexo",
+          createdAt: attachment.createdAt,
+        })),
+      );
+      return items;
+    },
+    [item],
+  );
+
   const donorNameById = React.useMemo<Record<string, string>>(() => {
     const next: Record<string, string> = {};
 
@@ -481,15 +619,31 @@ export function PantryItemDetailEngineClientPage({
       onOpenExit: openExitDetail,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
-      onNotesChange: (next) =>
-        setDraft((previous) => ({ ...previous, notes: next })),
-      onNotesBlur: () => {
-        void commitField("notes");
-      },
+      mentionableUsers,
+      commentDraft,
+      onCommentDraftChange: setCommentDraft,
+      onSubmitComment: () => void submitComment(),
+      onDeleteComment: (commentId) => void deleteComment(commentId),
+      commentSubmitting,
+      tags,
+      onTagsChange: setTags,
+      onTagsCommit: (next) => void persistMetadata({ tags: next, internalNotes }),
+      internalNotes,
+      onInternalNotesChange: setInternalNotes,
+      onInternalNotesBlur: () => void persistMetadata({ tags, internalNotes }),
+      onUploadAttachment: () => void uploadAttachment(),
+      onDeleteAttachment: (attachmentId) => void deleteAttachment(attachmentId),
+      attachmentUploading,
+      historyItems,
     }),
     [
+      attachmentUploading,
       auditVisibleCount,
+      commentDraft,
+      commentSubmitting,
       commitField,
+      deleteAttachment,
+      deleteComment,
       donorNameById,
       draft,
       entryLabelById,
@@ -500,14 +654,21 @@ export function PantryItemDetailEngineClientPage({
       item,
       mode,
       movementsLoading,
+      mentionableUsers,
       openEntryDetail,
       openExitDetail,
       openNewEntry,
       openNewExit,
+      persistMetadata,
       readOnly,
       sectorOptions,
       sectorsLoading,
       setDraft,
+      submitComment,
+      tags,
+      internalNotes,
+      uploadAttachment,
+      historyItems,
     ],
   );
 
@@ -533,7 +694,6 @@ export function PantryItemDetailEngineClientPage({
           { label: "Despensa", href: PANTRY_ROUTES.stock },
           ...(mode === "edit" ? [{ label: headerTitle }] : []),
         ]}
-        actionSlot={<PantryHeaderNav />}
       />
 
       <Dialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>

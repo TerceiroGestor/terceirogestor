@@ -4,6 +4,8 @@ import type { DataProvider, SearchArgs, SearchResult } from "@/web-client/data-p
 import { listAuditLogs } from "@/web-client/data-provider/rest/audit";
 import { searchPantryDonors } from "@/web-client/data-provider/rest/pantry-donors";
 import { searchPantryHistory } from "@/web-client/data-provider/rest/pantry-history";
+import { searchDepositDonors } from "@/web-client/data-provider/rest/deposit-donors";
+import { searchDepositHistory } from "@/web-client/data-provider/rest/deposit-history";
 import {
   createAdminRole,
   createAdminUser,
@@ -69,6 +71,7 @@ import {
   updateTaskRecordRemote,
 } from "@/web-client/data-provider/rest/tasks";
 import { searchPantryStock } from "@/web-client/data-provider/rest/pantry-stock";
+import { searchDepositStock } from "@/web-client/data-provider/rest/deposit-stock";
 import {
   createPantryItem,
   createPantryDonor,
@@ -91,6 +94,28 @@ import {
   updatePantryEntry,
   updatePantryExit,
 } from "@/modules/pantry/api";
+import {
+  createDepositItem,
+  createDepositDonor,
+  createDepositEntry,
+  createDepositExit,
+  deleteDepositItem,
+  deleteDepositDonor,
+  deleteDepositEntry,
+  deleteDepositExit,
+  getDepositItem,
+  getDepositDonor,
+  getDepositEntry,
+  getDepositExit,
+  listDepositDonorAuditLogs,
+  listDepositEntryAuditLogs,
+  listDepositItemAuditLogs,
+  listDepositExitAuditLogs,
+  updateDepositItem,
+  updateDepositDonor,
+  updateDepositEntry,
+  updateDepositExit,
+} from "@/modules/deposit/api";
 
 const inflightReadRequests = new Map<string, Promise<unknown>>();
 const inflightSearchRequests = new Map<string, Promise<unknown>>();
@@ -168,6 +193,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await searchPantryHistory(authToken, args)) as unknown as SearchResult<T>;
           case "pantry.donors":
             return (await searchPantryDonors(authToken, args)) as unknown as SearchResult<T>;
+          case "deposit.history":
+            return (await searchDepositHistory(authToken, args)) as unknown as SearchResult<T>;
+          case "deposit.donors":
+            return (await searchDepositDonors(authToken, args)) as unknown as SearchResult<T>;
           case "pantry.items.audit": {
             const entityId =
               typeof args.context?.entityId === "string" ? args.context.entityId : "";
@@ -224,8 +253,66 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
               limit: args.pagination?.pageSize,
             })) as unknown as SearchResult<T>;
           }
+          case "deposit.items.audit": {
+            const entityId =
+              typeof args.context?.entityId === "string" ? args.context.entityId : "";
+            if (!entityId) {
+              throw new Error("entityId ausente para auditoria do item.");
+            }
+            return (await listDepositItemAuditLogs(authToken, entityId, {
+              page:
+                typeof args.pagination?.pageIndex === "number"
+                  ? args.pagination.pageIndex + 1
+                  : undefined,
+              limit: args.pagination?.pageSize,
+            })) as unknown as SearchResult<T>;
+          }
+          case "deposit.donors.audit": {
+            const entityId =
+              typeof args.context?.entityId === "string" ? args.context.entityId : "";
+            if (!entityId) {
+              throw new Error("entityId ausente para auditoria da origem.");
+            }
+            return (await listDepositDonorAuditLogs(authToken, entityId, {
+              page:
+                typeof args.pagination?.pageIndex === "number"
+                  ? args.pagination.pageIndex + 1
+                  : undefined,
+              limit: args.pagination?.pageSize,
+            })) as unknown as SearchResult<T>;
+          }
+          case "deposit.entries.audit": {
+            const entityId =
+              typeof args.context?.entityId === "string" ? args.context.entityId : "";
+            if (!entityId) {
+              throw new Error("entityId ausente para auditoria da entrada.");
+            }
+            return (await listDepositEntryAuditLogs(authToken, entityId, {
+              page:
+                typeof args.pagination?.pageIndex === "number"
+                  ? args.pagination.pageIndex + 1
+                  : undefined,
+              limit: args.pagination?.pageSize,
+            })) as unknown as SearchResult<T>;
+          }
+          case "deposit.exits.audit": {
+            const entityId =
+              typeof args.context?.entityId === "string" ? args.context.entityId : "";
+            if (!entityId) {
+              throw new Error("entityId ausente para auditoria da saida.");
+            }
+            return (await listDepositExitAuditLogs(authToken, entityId, {
+              page:
+                typeof args.pagination?.pageIndex === "number"
+                  ? args.pagination.pageIndex + 1
+                  : undefined,
+              limit: args.pagination?.pageSize,
+            })) as unknown as SearchResult<T>;
+          }
           case "pantry.stock":
             return (await searchPantryStock(authToken, args)) as unknown as SearchResult<T>;
+          case "deposit.stock":
+            return (await searchDepositStock(authToken, args)) as unknown as SearchResult<T>;
           case "people.list":
             return (await searchPeople(authToken, args)) as unknown as SearchResult<T>;
           case "programs.list":
@@ -372,6 +459,14 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await getPantryEntry(authToken, id)) as unknown as T;
           case "pantry.exits":
             return (await getPantryExit(authToken, id)) as unknown as T;
+          case "deposit.items":
+            return (await getDepositItem(authToken, id)) as unknown as T;
+          case "deposit.donors":
+            return (await getDepositDonor(authToken, id)) as unknown as T;
+          case "deposit.entries":
+            return (await getDepositEntry(authToken, id)) as unknown as T;
+          case "deposit.exits":
+            return (await getDepositExit(authToken, id)) as unknown as T;
           case "people.detail":
             return (await readPerson(authToken, id)) as unknown as T;
           case "programs.detail":
@@ -404,6 +499,14 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await createPantryEntry(authToken, payload as never)) as unknown as T;
         case "pantry.exits":
           return (await createPantryExit(authToken, payload as never)) as unknown as T;
+        case "deposit.items":
+          return (await createDepositItem(authToken, payload as never)) as unknown as T;
+        case "deposit.donors":
+          return (await createDepositDonor(authToken, payload as never)) as unknown as T;
+        case "deposit.entries":
+          return (await createDepositEntry(authToken, payload as never)) as unknown as T;
+        case "deposit.exits":
+          return (await createDepositExit(authToken, payload as never)) as unknown as T;
         case "people.detail":
           return (await createPersonRecord(authToken, payload as never)) as unknown as T;
         case "programs.detail":
@@ -437,6 +540,14 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await updatePantryEntry(authToken, id, payload as never)) as unknown as T;
         case "pantry.exits":
           return (await updatePantryExit(authToken, id, payload as never)) as unknown as T;
+        case "deposit.items":
+          return (await updateDepositItem(authToken, id, payload as never)) as unknown as T;
+        case "deposit.donors":
+          return (await updateDepositDonor(authToken, id, payload as never)) as unknown as T;
+        case "deposit.entries":
+          return (await updateDepositEntry(authToken, id, payload as never)) as unknown as T;
+        case "deposit.exits":
+          return (await updateDepositExit(authToken, id, payload as never)) as unknown as T;
         case "people.detail":
           return (await updatePersonRecord(authToken, id, payload as never)) as unknown as T;
         case "programs.detail":
@@ -473,6 +584,18 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return;
         case "pantry.exits":
           await deletePantryExit(authToken, id);
+          return;
+        case "deposit.items":
+          await deleteDepositItem(authToken, id);
+          return;
+        case "deposit.donors":
+          await deleteDepositDonor(authToken, id);
+          return;
+        case "deposit.entries":
+          await deleteDepositEntry(authToken, id);
+          return;
+        case "deposit.exits":
+          await deleteDepositExit(authToken, id);
           return;
         case "people.detail":
           await deletePersonRecord(authToken, id);

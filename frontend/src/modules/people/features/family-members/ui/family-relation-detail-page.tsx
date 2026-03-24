@@ -159,6 +159,19 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
     [commitDraft],
   );
 
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      commitDraft(nextDraft);
+    },
+    [commitDraft, draft],
+  );
+
   const relatedPerson = current?.relatedPerson ?? null;
   const relatedPersonHref = relatedPerson
     ? withTenantPath(`/people/${relatedPerson.id}`, tenantSlug)
@@ -176,6 +189,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
   return (
     <PeopleRelationDetailShell
       personId={personId}
+      recordType="family-relation"
       tab="familia"
       title={
         mode === "create"
@@ -199,6 +213,8 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       relationId={relationIdRef.current}
       auditConfig={FAMILY_RELATION_AUDIT_CONFIG}
       notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {detailedError ? <div className="text-sm text-destructive">{detailedError}</div> : null}
       {mode === "edit" && detailedLoading && !current ? (

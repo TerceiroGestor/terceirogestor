@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FamilyRelationDetailPage } from "@/modules/people/features/family-members/ui/family-relation-detail-page";
 
-export default async function PeopleFamilyRelationDetailRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string; relationId: string }>;
-}) {
-  const { tenant, id, relationId } = await params;
-  redirect(`/${tenant}/person/${id}/family-relations/${relationId}`);
+export default function PeopleFamilyRelationDetailRoutePage() {
+  return <FamilyRelationDetailPage mode="edit" />;
 }

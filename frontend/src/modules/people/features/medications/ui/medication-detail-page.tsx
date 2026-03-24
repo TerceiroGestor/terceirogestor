@@ -195,9 +195,23 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
     [commitDraft],
   );
 
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      commitDraft(nextDraft);
+    },
+    [commitDraft, draft],
+  );
+
   return (
     <PeopleRelationDetailShell
       personId={personId}
+      recordType="medication"
       tab="medicacoes"
       title={mode === "create" ? "Nova medicacao" : current?.medication ?? "Medicacao"}
       subtitle="Gerencie os detalhes completos da medicacao em uma tela dedicada."
@@ -206,6 +220,8 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
       relationId={relationIdRef.current}
       auditConfig={MEDICATION_AUDIT_CONFIG}
       notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (

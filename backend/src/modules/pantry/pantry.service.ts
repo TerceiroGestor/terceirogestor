@@ -5,9 +5,17 @@ import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreatePantryDonorDto } from './dto/create-pantry-donor.dto';
+import { CreatePantryDonorAttachmentDto } from './dto/create-pantry-donor-attachment.dto';
+import { CreatePantryDonorCommentDto } from './dto/create-pantry-donor-comment.dto';
 import { CreatePantryEntryDto } from './dto/create-pantry-entry.dto';
+import { CreatePantryEntryAttachmentDto } from './dto/create-pantry-entry-attachment.dto';
+import { CreatePantryEntryCommentDto } from './dto/create-pantry-entry-comment.dto';
 import { CreatePantryExitDto } from './dto/create-pantry-exit.dto';
+import { CreatePantryExitAttachmentDto } from './dto/create-pantry-exit-attachment.dto';
+import { CreatePantryExitCommentDto } from './dto/create-pantry-exit-comment.dto';
 import { CreatePantryItemDto } from './dto/create-pantry-item.dto';
+import { CreatePantryItemAttachmentDto } from './dto/create-pantry-item-attachment.dto';
+import { CreatePantryItemCommentDto } from './dto/create-pantry-item-comment.dto';
 import { ListPantryItemsQueryDto } from './dto/list-pantry-items-query.dto';
 import { UpdatePantryDonorDto } from './dto/update-pantry-donor.dto';
 import { UpdatePantryEntryDto } from './dto/update-pantry-entry.dto';
@@ -74,9 +82,363 @@ const resolveExitTypeLabel = (type: string) => {
   }
 };
 
+const normalizeTags = (tags?: string[] | null) => {
+  const normalized = Array.from(
+    new Set((tags ?? []).map((entry) => normalizeString(entry)).filter(Boolean)),
+  );
+  return normalized.length ? normalized : [];
+};
+
+const parseTags = (value?: string | null) => {
+  if (!value) return [];
+
+  return Array.from(
+    new Set(
+      value
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  );
+};
+
+const serializeTags = (tags?: string[] | null) => {
+  const normalized = normalizeTags(tags);
+  return normalized.length ? normalized.join('\n') : null;
+};
+
+const parseMentionUserIds = (value: Prisma.JsonValue | null | undefined) =>
+  Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value
+            .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+            .filter(Boolean),
+        ),
+      )
+    : [];
+
+const formatBytes = (value?: number | null) => {
+  if (!value || value <= 0) return null;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 @Injectable()
 export class PantryService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private serializeCommentAuthor(
+    authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null,
+  ) {
+    return {
+      id: authorUser?.id ?? null,
+      name: authorUser?.name || authorUser?.email || 'Usuário',
+      email: authorUser?.email ?? null,
+      avatarUrl: authorUser?.avatarUrl ?? null,
+    };
+  }
+
+  private serializeAttachment(
+    attachment?: {
+      id: string;
+      label: string;
+      filePath: string;
+      mimeType: string | null;
+      fileSizeBytes: number | null;
+      createdAt: Date;
+    } | null,
+  ) {
+    if (!attachment) return null;
+
+    return {
+      id: attachment.id,
+      label: attachment.label,
+      filePath: attachment.filePath,
+      mimeType: attachment.mimeType,
+      fileSizeBytes: attachment.fileSizeBytes,
+      sizeLabel: formatBytes(attachment.fileSizeBytes),
+      createdAt: attachment.createdAt,
+    };
+  }
+
+  private serializeItem(
+    item: {
+      id: string;
+      tenantId: string;
+      name: string;
+      group: string | null;
+      defaultSector: string;
+      unit: string;
+      minStock: Prisma.Decimal | number;
+      notes: string | null;
+      tags?: string | null;
+      internalNotes?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      comments?: Array<{
+        id: string;
+        body: string;
+        mentionUserIds: Prisma.JsonValue | null;
+        createdAt: Date;
+        updatedAt: Date;
+        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+      }>;
+      attachments?: Array<{
+        id: string;
+        label: string;
+        filePath: string;
+        mimeType: string | null;
+        fileSizeBytes: number | null;
+        createdAt: Date;
+      }>;
+    } & Record<string, unknown>,
+    extra?: Partial<Record<string, unknown>>,
+  ) {
+    return {
+      id: item.id,
+      tenantId: item.tenantId,
+      name: item.name,
+      group: item.group,
+      defaultSector: normalizeSector(item.defaultSector),
+      unit: item.unit,
+      minStock: toNumber(item.minStock),
+      notes: item.notes ?? null,
+      tags: parseTags(item.tags),
+      internalNotes: item.internalNotes ?? null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      comments:
+        item.comments?.map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          author: this.serializeCommentAuthor(comment.authorUser),
+        })) ?? [],
+      attachments:
+        item.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
+        [],
+      ...(extra ?? {}),
+    };
+  }
+
+  private serializeDonor(donor: {
+    id: string;
+    name: string;
+    type: string;
+    contact: string | null;
+    avatarUrl: string | null;
+    tags?: string | null;
+    internalNotes?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    comments?: Array<{
+      id: string;
+      body: string;
+      mentionUserIds: Prisma.JsonValue | null;
+      createdAt: Date;
+      updatedAt: Date;
+      authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+    }>;
+    attachments?: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      mimeType: string | null;
+      fileSizeBytes: number | null;
+      createdAt: Date;
+    }>;
+  }) {
+    return {
+      id: donor.id,
+      name: donor.name,
+      type: donor.type,
+      contact: donor.contact,
+      avatarUrl: donor.avatarUrl,
+      tags: parseTags(donor.tags),
+      internalNotes: donor.internalNotes ?? null,
+      createdAt: donor.createdAt,
+      updatedAt: donor.updatedAt,
+      comments:
+        donor.comments?.map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          author: this.serializeCommentAuthor(comment.authorUser),
+        })) ?? [],
+      attachments:
+        donor.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
+        [],
+    };
+  }
+
+  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[] | null) {
+    const normalized = Array.from(
+      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+    );
+
+    if (!normalized.length) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: { tenantId, id: { in: normalized } },
+      select: { id: true },
+    });
+
+    return users.map((user) => user.id);
+  }
+
+  private serializeEntry(
+    entry: {
+      id: string;
+      itemId: string;
+      donorId: string | null;
+      sector: string;
+      quantity: Prisma.Decimal | number;
+      unit: string;
+      entryDate: Date;
+      expiryDate: Date | null;
+      notes: string | null;
+      tags?: string | null;
+      internalNotes?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      item: { id: string; name: string; unit: string; group?: string | null };
+      donor: { id: string; name: string; type: string; contact: string | null } | null;
+      comments?: Array<{
+        id: string;
+        body: string;
+        mentionUserIds: Prisma.JsonValue | null;
+        createdAt: Date;
+        updatedAt: Date;
+        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+      }>;
+      attachments?: Array<{
+        id: string;
+        label: string;
+        filePath: string;
+        mimeType: string | null;
+        fileSizeBytes: number | null;
+        createdAt: Date;
+      }>;
+    },
+    extras?: Partial<Record<string, unknown>>,
+  ) {
+    return {
+      id: entry.id,
+      itemId: entry.itemId,
+      donorId: entry.donorId,
+      sector: normalizeSector(entry.sector),
+      quantity: toNumber(entry.quantity),
+      unit: entry.unit,
+      entryDate: entry.entryDate,
+      expiryDate: entry.expiryDate,
+      notes: entry.notes,
+      tags: parseTags(entry.tags),
+      internalNotes: entry.internalNotes ?? null,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      item: entry.item,
+      donor: entry.donor,
+      comments:
+        entry.comments?.map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          author: this.serializeCommentAuthor(comment.authorUser),
+        })) ?? [],
+      attachments:
+        entry.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
+        [],
+      ...(extras ?? {}),
+    };
+  }
+
+  private serializeExit(
+    exit: {
+      id: string;
+      itemId: string;
+      sector: string;
+      quantity: Prisma.Decimal | number;
+      unit: string;
+      exitDate: Date;
+      type: string;
+      eventName: string | null;
+      notes: string | null;
+      tags?: string | null;
+      internalNotes?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      item: { id: string; name: string; unit: string; group?: string | null };
+      allocations?: Array<{
+        entryId: string;
+        quantity: Prisma.Decimal | number;
+        entry: { expiryDate: Date | null; sector: string; entryDate?: Date | null };
+      }>;
+      comments?: Array<{
+        id: string;
+        body: string;
+        mentionUserIds: Prisma.JsonValue | null;
+        createdAt: Date;
+        updatedAt: Date;
+        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+      }>;
+      attachments?: Array<{
+        id: string;
+        label: string;
+        filePath: string;
+        mimeType: string | null;
+        fileSizeBytes: number | null;
+        createdAt: Date;
+      }>;
+    },
+    extras?: Partial<Record<string, unknown>>,
+  ) {
+    return {
+      id: exit.id,
+      itemId: exit.itemId,
+      entryIds: exit.allocations?.map((allocation) => allocation.entryId) ?? [],
+      allocations:
+        exit.allocations?.map((allocation) => ({
+          entryId: allocation.entryId,
+          quantity: toNumber(allocation.quantity),
+          expiryDate: allocation.entry.expiryDate,
+          sector: normalizeSector(allocation.entry.sector),
+          ...(allocation.entry.entryDate ? { entryDate: allocation.entry.entryDate } : {}),
+        })) ?? [],
+      sector: normalizeSector(exit.sector),
+      quantity: toNumber(exit.quantity),
+      unit: exit.unit,
+      exitDate: exit.exitDate,
+      type: exit.type,
+      eventName: exit.eventName,
+      notes: exit.notes,
+      tags: parseTags(exit.tags),
+      internalNotes: exit.internalNotes ?? null,
+      createdAt: exit.createdAt,
+      updatedAt: exit.updatedAt,
+      item: exit.item,
+      comments:
+        exit.comments?.map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          author: this.serializeCommentAuthor(comment.authorUser),
+        })) ?? [],
+      attachments:
+        exit.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
+        [],
+      ...(extras ?? {}),
+    };
+  }
 
   async listHistory(
     tenantId: string,
@@ -467,6 +829,7 @@ export class PantryService {
             OR: [
               { name: { contains: search } },
               { group: { contains: search } },
+              { tags: { contains: search } },
             ],
           }
         : {}),
@@ -534,6 +897,15 @@ export class PantryService {
       include: {
         item: { select: { id: true, name: true, unit: true, group: true } },
         donor: { select: { id: true, name: true, type: true, contact: true } },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!entry) {
@@ -546,37 +918,35 @@ export class PantryService {
 
     const createdByMap = await this.resolveAuditUserLabels(tenantId, 'PantryEntry', [id]);
 
-    return {
-      id: entry.id,
-      itemId: entry.itemId,
-      donorId: entry.donorId,
-      sector: normalizeSector(entry.sector),
-      createdBy: createdByMap.get(entry.id) ?? 'Sistema',
-      quantity: toNumber(entry.quantity),
-      unit: entry.unit,
-      entryDate: entry.entryDate,
-      expiryDate: entry.expiryDate,
-      notes: entry.notes,
+    return this.serializeEntry(entry, {
       allocatedTotal,
       remaining,
       isClosed: remaining <= 0,
-      createdAt: entry.createdAt,
-      updatedAt: entry.updatedAt,
-      item: entry.item,
-      donor: entry.donor,
-    };
+      createdBy: createdByMap.get(entry.id) ?? 'Sistema',
+    });
   }
 
   async getItem(tenantId: string, id: string) {
     const item = await this.prisma.pantryItem.findFirst({
       where: { id, tenantId },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
+      },
     });
     if (!item) {
       throw new NotFoundException('Item nao encontrado');
     }
 
     const [enriched] = await this.enrichItems(tenantId, [item]);
-    return enriched;
+    return this.serializeItem(item, enriched ?? {});
   }
 
   async listItemAuditLogs(
@@ -666,11 +1036,20 @@ export class PantryService {
         unit: dto.unit,
         minStock: dto.minStock,
         notes: normalizeString(dto.notes),
+        tags: serializeTags(dto.tags),
+        internalNotes: normalizeString(dto.internalNotes),
+      },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
 
     const [enriched] = await this.enrichItems(tenantId, [item]);
-    return enriched;
+    return this.serializeItem(item, enriched ?? {});
   }
 
   async updateItem(tenantId: string, id: string, dto: UpdatePantryItemDto) {
@@ -690,16 +1069,30 @@ export class PantryService {
         unit: dto.unit,
         minStock: dto.minStock,
         notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+        tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
+        internalNotes:
+          dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
+      },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
 
     const [enriched] = await this.enrichItems(tenantId, [item]);
-    return enriched;
+    return this.serializeItem(item, enriched ?? {});
   }
 
   async deleteItem(tenantId: string, id: string) {
     await this.getItem(tenantId, id);
-    await this.prisma.pantryItem.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.pantryItemComment.deleteMany({ where: { tenantId, itemId: id } }),
+      this.prisma.pantryItemAttachment.deleteMany({ where: { tenantId, itemId: id } }),
+      this.prisma.pantryItem.delete({ where: { id } }),
+    ]);
     return { ok: true };
   }
 
@@ -721,6 +1114,7 @@ export class PantryService {
             OR: [
               { name: { contains: search } },
               { contact: { contains: search } },
+              { tags: { contains: search } },
             ],
           }
         : {}),
@@ -732,20 +1126,19 @@ export class PantryService {
         orderBy: { name: 'asc' },
         skip: isAll ? undefined : skip,
         take: isAll ? undefined : limit,
+        include: {
+          comments: {
+            orderBy: { createdAt: 'desc' },
+            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          },
+          attachments: { orderBy: { createdAt: 'desc' } },
+        },
       }),
       this.prisma.pantryDonor.count({ where }),
     ]);
 
     return {
-      data: data.map((donor) => ({
-        id: donor.id,
-        name: donor.name,
-        type: donor.type,
-        contact: donor.contact,
-        avatarUrl: donor.avatarUrl,
-        createdAt: donor.createdAt,
-        updatedAt: donor.updatedAt,
-      })),
+      data: data.map((donor) => this.serializeDonor(donor)),
       pagination: {
         page: isAll ? 1 : page,
         limit: isAll ? total : limit,
@@ -756,34 +1149,43 @@ export class PantryService {
   }
 
   async createDonor(tenantId: string, dto: CreatePantryDonorDto) {
-    return this.prisma.pantryDonor.create({
+    const donor = await this.prisma.pantryDonor.create({
       data: {
         tenantId,
         name: dto.name,
         type: dto.type ?? undefined,
         contact: dto.contact ?? null,
         avatarUrl: normalizeString(dto.avatarUrl),
+        tags: serializeTags(dto.tags),
+        internalNotes: normalizeString(dto.internalNotes),
+      },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
+    return this.serializeDonor(donor);
   }
 
   async getDonor(tenantId: string, id: string) {
     const donor = await this.prisma.pantryDonor.findFirst({
       where: { id, tenantId },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
+      },
     });
     if (!donor) {
       throw new NotFoundException('Doador não encontrado');
     }
 
-    return {
-      id: donor.id,
-      name: donor.name,
-      type: donor.type,
-      contact: donor.contact,
-      avatarUrl: donor.avatarUrl,
-      createdAt: donor.createdAt,
-      updatedAt: donor.updatedAt,
-    };
+    return this.serializeDonor(donor);
   }
 
   async listDonorAuditLogs(
@@ -978,7 +1380,7 @@ export class PantryService {
       throw new NotFoundException('Doador nao encontrado');
     }
 
-    return this.prisma.pantryDonor.update({
+    const updated = await this.prisma.pantryDonor.update({
       where: { id },
       data: {
         name: dto.name,
@@ -987,8 +1389,20 @@ export class PantryService {
         ...(dto.avatarUrl !== undefined
           ? { avatarUrl: normalizeString(dto.avatarUrl) }
           : {}),
+        ...(dto.tags !== undefined ? { tags: serializeTags(dto.tags) } : {}),
+        ...(dto.internalNotes !== undefined
+          ? { internalNotes: normalizeString(dto.internalNotes) }
+          : {}),
+      },
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
+    return this.serializeDonor(updated);
   }
 
   async deleteDonor(tenantId: string, id: string) {
@@ -999,7 +1413,11 @@ export class PantryService {
       throw new NotFoundException('Doador nao encontrado');
     }
 
-    await this.prisma.pantryDonor.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.pantryDonorComment.deleteMany({ where: { tenantId, donorId: id } }),
+      this.prisma.pantryDonorAttachment.deleteMany({ where: { tenantId, donorId: id } }),
+      this.prisma.pantryDonor.delete({ where: { id } }),
+    ]);
     return { ok: true };
   }
 
@@ -1041,6 +1459,8 @@ export class PantryService {
             OR: [
               { item: { name: { contains: search } } },
               { donor: { name: { contains: search } } },
+              { tags: { contains: search } },
+              { internalNotes: { contains: search } },
             ],
           }
         : {}),
@@ -1055,6 +1475,11 @@ export class PantryService {
         include: {
           item: true,
           donor: true,
+          comments: {
+            orderBy: { createdAt: 'desc' },
+            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          },
+          attachments: { orderBy: { createdAt: 'desc' } },
         },
       }),
       this.prisma.pantryEntry.count({ where }),
@@ -1072,37 +1497,14 @@ export class PantryService {
     );
 
     return {
-      data: data.map((entry) => ({
-        allocatedTotal: allocationMap.get(entry.id) ?? 0,
-        remaining: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
-        isClosed:
-          toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0) <= 0,
-        id: entry.id,
-        itemId: entry.itemId,
-        donorId: entry.donorId,
-        sector: normalizeSector(entry.sector),
-        createdBy: createdByMap.get(entry.id) ?? 'Sistema',
-        quantity: toNumber(entry.quantity),
-        unit: entry.unit,
-        entryDate: entry.entryDate,
-        expiryDate: entry.expiryDate,
-        notes: entry.notes,
-        createdAt: entry.createdAt,
-        updatedAt: entry.updatedAt,
-        item: {
-          id: entry.item.id,
-          name: entry.item.name,
-          unit: entry.item.unit,
-        },
-        donor: entry.donor
-          ? {
-              id: entry.donor.id,
-              name: entry.donor.name,
-              type: entry.donor.type,
-              contact: entry.donor.contact,
-            }
-          : null,
-      })),
+      data: data.map((entry) =>
+        this.serializeEntry(entry, {
+          allocatedTotal: allocationMap.get(entry.id) ?? 0,
+          remaining: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
+          isClosed: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0) <= 0,
+          createdBy: createdByMap.get(entry.id) ?? 'Sistema',
+        }),
+      ),
       pagination: {
         page,
         limit,
@@ -1120,7 +1522,7 @@ export class PantryService {
 
     const sector = await this.ensureSector(tenantId, dto.sector);
 
-    return this.prisma.pantryEntry.create({
+    const created = await this.prisma.pantryEntry.create({
       data: {
         tenantId,
         itemId: dto.itemId,
@@ -1131,9 +1533,20 @@ export class PantryService {
         entryDate: parseDateInput(dto.entryDate) ?? new Date(),
         expiryDate: parseDateInput(dto.expiryDate) ?? null,
         notes: dto.notes ?? null,
+        tags: serializeTags(dto.tags),
+        internalNotes: normalizeString(dto.internalNotes),
       },
-      include: { item: true, donor: true },
+      include: {
+        item: true,
+        donor: true,
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
+      },
     });
+    return this.serializeEntry(created);
   }
 
   async updateEntry(tenantId: string, id: string, dto: UpdatePantryEntryDto) {
@@ -1172,7 +1585,7 @@ export class PantryService {
     const sector =
       dto.sector !== undefined ? await this.ensureSector(tenantId, dto.sector) : undefined;
 
-    return this.prisma.pantryEntry.update({
+    const updated = await this.prisma.pantryEntry.update({
       where: { id },
       data: {
         itemId: dto.itemId,
@@ -1188,9 +1601,21 @@ export class PantryService {
               ? parseDateInput(dto.expiryDate)
               : undefined,
         notes: dto.notes ?? undefined,
+        tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
+        internalNotes:
+          dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
       },
-      include: { item: true, donor: true },
+      include: {
+        item: true,
+        donor: true,
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
+      },
     });
+    return this.serializeEntry(updated);
   }
 
   async deleteEntry(tenantId: string, id: string) {
@@ -1210,7 +1635,11 @@ export class PantryService {
       );
     }
 
-    await this.prisma.pantryEntry.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.pantryEntryComment.deleteMany({ where: { tenantId, entryId: id } }),
+      this.prisma.pantryEntryAttachment.deleteMany({ where: { tenantId, entryId: id } }),
+      this.prisma.pantryEntry.delete({ where: { id } }),
+    ]);
     return { ok: true };
   }
 
@@ -1251,6 +1680,8 @@ export class PantryService {
             OR: [
               { item: { name: { contains: search } } },
               { eventName: { contains: search } },
+              { tags: { contains: search } },
+              { internalNotes: { contains: search } },
             ],
           }
         : {}),
@@ -1269,6 +1700,11 @@ export class PantryService {
               entry: { select: { id: true, expiryDate: true, sector: true } },
             },
           },
+          comments: {
+            orderBy: { createdAt: 'desc' },
+            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          },
+          attachments: { orderBy: { createdAt: 'desc' } },
         },
       }),
       this.prisma.pantryExit.count({ where }),
@@ -1281,32 +1717,11 @@ export class PantryService {
     );
 
     return {
-      data: data.map((exit) => ({
-        id: exit.id,
-        itemId: exit.itemId,
-        entryIds: exit.allocations.map((allocation) => allocation.entryId),
-        allocations: exit.allocations.map((allocation) => ({
-          entryId: allocation.entryId,
-          quantity: toNumber(allocation.quantity),
-          expiryDate: allocation.entry.expiryDate,
-          sector: normalizeSector(allocation.entry.sector),
-        })),
-        sector: normalizeSector(exit.sector),
-        removedBy: removedByMap.get(exit.id) ?? 'Sistema',
-        quantity: toNumber(exit.quantity),
-        unit: exit.unit,
-        exitDate: exit.exitDate,
-        type: exit.type,
-        eventName: exit.eventName,
-        notes: exit.notes,
-        createdAt: exit.createdAt,
-        updatedAt: exit.updatedAt,
-        item: {
-          id: exit.item.id,
-          name: exit.item.name,
-          unit: exit.item.unit,
-        },
-      })),
+      data: data.map((exit) =>
+        this.serializeExit(exit, {
+          removedBy: removedByMap.get(exit.id) ?? 'Sistema',
+        }),
+      ),
       pagination: {
         page,
         limit,
@@ -1328,6 +1743,11 @@ export class PantryService {
             },
           },
         },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        },
+        attachments: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!exit) {
@@ -1336,28 +1756,9 @@ export class PantryService {
 
     const removedByMap = await this.resolveAuditUserLabels(tenantId, 'PantryExit', [id]);
 
-    return {
-      id: exit.id,
-      itemId: exit.itemId,
-      sector: normalizeSector(exit.sector),
+    return this.serializeExit(exit, {
       removedBy: removedByMap.get(exit.id) ?? 'Sistema',
-      quantity: toNumber(exit.quantity),
-      unit: exit.unit,
-      exitDate: exit.exitDate,
-      type: exit.type,
-      eventName: exit.eventName,
-      notes: exit.notes,
-      allocations: exit.allocations.map((allocation) => ({
-        entryId: allocation.entryId,
-        quantity: toNumber(allocation.quantity),
-        expiryDate: allocation.entry.expiryDate,
-        sector: normalizeSector(allocation.entry.sector),
-        entryDate: allocation.entry.entryDate,
-      })),
-      createdAt: exit.createdAt,
-      updatedAt: exit.updatedAt,
-      item: exit.item,
-    };
+    });
   }
 
   private async resolveOpenEntriesForExitAllocation(params: {
@@ -1418,7 +1819,7 @@ export class PantryService {
     const normalizedSector = normalizeSector(dto.sector);
     const exitDate = parseDateInput(dto.exitDate) ?? new Date();
 
-    return this.prisma.$transaction(async (trx) => {
+    const createdExitId = await this.prisma.$transaction(async (trx) => {
       await this.ensureSector(tenantId, normalizedSector, { client: trx });
       const exit = await trx.pantryExit.create({
         data: {
@@ -1431,6 +1832,8 @@ export class PantryService {
           type: dto.type ?? undefined,
           eventName: dto.eventName ?? null,
           notes: dto.notes ?? null,
+          tags: serializeTags(dto.tags),
+          internalNotes: normalizeString(dto.internalNotes),
         },
         include: { item: true },
       });
@@ -1471,7 +1874,7 @@ export class PantryService {
           },
         });
 
-        return exit;
+        return exit.id;
       }
 
       const openEntries = await this.resolveOpenEntriesForExitAllocation({
@@ -1509,8 +1912,10 @@ export class PantryService {
         });
       }
 
-      return exit;
+      return exit.id;
     });
+
+    return this.getExit(tenantId, createdExitId);
   }
 
   async updateExit(tenantId: string, id: string, dto: UpdatePantryExitDto) {
@@ -1533,7 +1938,7 @@ export class PantryService {
     const nextSector = normalizeSector(dto.sector ?? exit.sector);
     const nextQuantity = dto.quantity ?? currentQuantity;
 
-    return this.prisma.$transaction(async (trx) => {
+    const updatedExitId = await this.prisma.$transaction(async (trx) => {
       if (dto.sector !== undefined) {
         await this.ensureSector(tenantId, nextSector, { client: trx });
       }
@@ -1552,6 +1957,9 @@ export class PantryService {
           type: dto.type,
           eventName: dto.eventName ?? undefined,
           notes: dto.notes ?? undefined,
+          tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
+          internalNotes:
+            dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
         },
         include: { item: true },
       });
@@ -1592,7 +2000,7 @@ export class PantryService {
           },
         });
 
-        return updated;
+        return updated.id;
       }
 
       const openEntries = await this.resolveOpenEntriesForExitAllocation({
@@ -1631,8 +2039,10 @@ export class PantryService {
         });
       }
 
-      return updated;
+      return updated.id;
     });
+
+    return this.getExit(tenantId, updatedExitId);
   }
 
   async deleteExit(tenantId: string, id: string) {
@@ -1644,10 +2054,228 @@ export class PantryService {
     }
 
     await this.prisma.$transaction([
+      this.prisma.pantryExitComment.deleteMany({ where: { tenantId, exitId: id } }),
+      this.prisma.pantryExitAttachment.deleteMany({ where: { tenantId, exitId: id } }),
       this.prisma.pantryExitAllocation.deleteMany({ where: { tenantId, exitId: id } }),
       this.prisma.pantryExit.delete({ where: { id } }),
     ]);
     return { ok: true };
+  }
+
+  async addItemComment(
+    tenantId: string,
+    itemId: string,
+    dto: CreatePantryItemCommentDto,
+    actorUserId?: string,
+  ) {
+    await this.getItem(tenantId, itemId);
+    await this.prisma.pantryItemComment.create({
+      data: {
+        tenantId,
+        itemId,
+        authorUserId: actorUserId ?? null,
+        body: dto.body.trim(),
+        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+      },
+    });
+    return this.getItem(tenantId, itemId);
+  }
+
+  async deleteItemComment(tenantId: string, itemId: string, commentId: string) {
+    await this.getItem(tenantId, itemId);
+    await this.prisma.pantryItemComment.deleteMany({ where: { tenantId, itemId, id: commentId } });
+    return this.getItem(tenantId, itemId);
+  }
+
+  async addItemAttachment(
+    tenantId: string,
+    itemId: string,
+    dto: CreatePantryItemAttachmentDto,
+    actorUserId?: string,
+  ) {
+    await this.getItem(tenantId, itemId);
+    await this.prisma.pantryItemAttachment.create({
+      data: {
+        tenantId,
+        itemId,
+        uploadedByUserId: actorUserId ?? null,
+        label: dto.label.trim(),
+        filePath: dto.filePath,
+        mimeType: dto.mimeType ?? null,
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+    return this.getItem(tenantId, itemId);
+  }
+
+  async deleteItemAttachment(tenantId: string, itemId: string, attachmentId: string) {
+    await this.getItem(tenantId, itemId);
+    await this.prisma.pantryItemAttachment.deleteMany({
+      where: { tenantId, itemId, id: attachmentId },
+    });
+    return this.getItem(tenantId, itemId);
+  }
+
+  async addDonorComment(
+    tenantId: string,
+    donorId: string,
+    dto: CreatePantryDonorCommentDto,
+    actorUserId?: string,
+  ) {
+    await this.getDonor(tenantId, donorId);
+    await this.prisma.pantryDonorComment.create({
+      data: {
+        tenantId,
+        donorId,
+        authorUserId: actorUserId ?? null,
+        body: dto.body.trim(),
+        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+      },
+    });
+    return this.getDonor(tenantId, donorId);
+  }
+
+  async deleteDonorComment(tenantId: string, donorId: string, commentId: string) {
+    await this.getDonor(tenantId, donorId);
+    await this.prisma.pantryDonorComment.deleteMany({ where: { tenantId, donorId, id: commentId } });
+    return this.getDonor(tenantId, donorId);
+  }
+
+  async addDonorAttachment(
+    tenantId: string,
+    donorId: string,
+    dto: CreatePantryDonorAttachmentDto,
+    actorUserId?: string,
+  ) {
+    await this.getDonor(tenantId, donorId);
+    await this.prisma.pantryDonorAttachment.create({
+      data: {
+        tenantId,
+        donorId,
+        uploadedByUserId: actorUserId ?? null,
+        label: dto.label.trim(),
+        filePath: dto.filePath,
+        mimeType: dto.mimeType ?? null,
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+    return this.getDonor(tenantId, donorId);
+  }
+
+  async deleteDonorAttachment(tenantId: string, donorId: string, attachmentId: string) {
+    await this.getDonor(tenantId, donorId);
+    await this.prisma.pantryDonorAttachment.deleteMany({
+      where: { tenantId, donorId, id: attachmentId },
+    });
+    return this.getDonor(tenantId, donorId);
+  }
+
+  async addEntryComment(
+    tenantId: string,
+    entryId: string,
+    dto: CreatePantryEntryCommentDto,
+    actorUserId?: string,
+  ) {
+    await this.getEntry(tenantId, entryId);
+    await this.prisma.pantryEntryComment.create({
+      data: {
+        tenantId,
+        entryId,
+        authorUserId: actorUserId ?? null,
+        body: dto.body.trim(),
+        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+      },
+    });
+    return this.getEntry(tenantId, entryId);
+  }
+
+  async deleteEntryComment(tenantId: string, entryId: string, commentId: string) {
+    await this.getEntry(tenantId, entryId);
+    await this.prisma.pantryEntryComment.deleteMany({ where: { tenantId, entryId, id: commentId } });
+    return this.getEntry(tenantId, entryId);
+  }
+
+  async addEntryAttachment(
+    tenantId: string,
+    entryId: string,
+    dto: CreatePantryEntryAttachmentDto,
+    actorUserId?: string,
+  ) {
+    await this.getEntry(tenantId, entryId);
+    await this.prisma.pantryEntryAttachment.create({
+      data: {
+        tenantId,
+        entryId,
+        uploadedByUserId: actorUserId ?? null,
+        label: dto.label.trim(),
+        filePath: dto.filePath,
+        mimeType: dto.mimeType ?? null,
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+    return this.getEntry(tenantId, entryId);
+  }
+
+  async deleteEntryAttachment(tenantId: string, entryId: string, attachmentId: string) {
+    await this.getEntry(tenantId, entryId);
+    await this.prisma.pantryEntryAttachment.deleteMany({
+      where: { tenantId, entryId, id: attachmentId },
+    });
+    return this.getEntry(tenantId, entryId);
+  }
+
+  async addExitComment(
+    tenantId: string,
+    exitId: string,
+    dto: CreatePantryExitCommentDto,
+    actorUserId?: string,
+  ) {
+    await this.getExit(tenantId, exitId);
+    await this.prisma.pantryExitComment.create({
+      data: {
+        tenantId,
+        exitId,
+        authorUserId: actorUserId ?? null,
+        body: dto.body.trim(),
+        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+      },
+    });
+    return this.getExit(tenantId, exitId);
+  }
+
+  async deleteExitComment(tenantId: string, exitId: string, commentId: string) {
+    await this.getExit(tenantId, exitId);
+    await this.prisma.pantryExitComment.deleteMany({ where: { tenantId, exitId, id: commentId } });
+    return this.getExit(tenantId, exitId);
+  }
+
+  async addExitAttachment(
+    tenantId: string,
+    exitId: string,
+    dto: CreatePantryExitAttachmentDto,
+    actorUserId?: string,
+  ) {
+    await this.getExit(tenantId, exitId);
+    await this.prisma.pantryExitAttachment.create({
+      data: {
+        tenantId,
+        exitId,
+        uploadedByUserId: actorUserId ?? null,
+        label: dto.label.trim(),
+        filePath: dto.filePath,
+        mimeType: dto.mimeType ?? null,
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+    return this.getExit(tenantId, exitId);
+  }
+
+  async deleteExitAttachment(tenantId: string, exitId: string, attachmentId: string) {
+    await this.getExit(tenantId, exitId);
+    await this.prisma.pantryExitAttachment.deleteMany({
+      where: { tenantId, exitId, id: attachmentId },
+    });
+    return this.getExit(tenantId, exitId);
   }
 
   async getSummary(tenantId: string) {
@@ -2054,6 +2682,7 @@ export class PantryService {
             itemId: item.id,
             name: item.name,
             group: item.group,
+            tags: parseTags((item as { tags?: string | null }).tags ?? null),
             unit: item.unit,
             sector: 'Geral',
             sectorStock: 0,
@@ -2063,6 +2692,8 @@ export class PantryService {
             nextExpiryDate: null as Date | null,
             validityStatus: 'Sem validade',
             daysToExpire: null as number | null,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
           },
         ];
       }
@@ -2071,6 +2702,7 @@ export class PantryService {
         itemId: item.id,
         name: item.name,
         group: item.group,
+        tags: parseTags((item as { tags?: string | null }).tags ?? null),
         unit: item.unit,
         sector: sector.sector,
         sectorStock: sector.stock,
@@ -2080,6 +2712,8 @@ export class PantryService {
         nextExpiryDate: sector.nextExpiryDate,
         validityStatus: sector.validityStatus,
         daysToExpire: sector.daysToExpire,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
       }));
     });
 
@@ -2661,6 +3295,8 @@ export class PantryService {
         unit: item.unit,
         minStock,
         notes: item.notes ?? null,
+        tags: parseTags((item as { tags?: string | null }).tags ?? null),
+        internalNotes: (item as { internalNotes?: string | null }).internalNotes ?? null,
         stock,
         entriesTotal,
         exitsTotal,

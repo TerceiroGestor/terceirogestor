@@ -13,6 +13,7 @@ import {
 import { TagInput } from "@/components/ui/tag-input";
 import { RichText } from "@/components/ui/richtext/RichText";
 import { Tabs } from "@/components/ui/tabs";
+import { resolveMediaUrl } from "@/lib/api";
 import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
 import {
   GENDER_OPTIONS,
@@ -22,27 +23,44 @@ import {
   SEX_OPTIONS,
   STATUS_OPTIONS,
 } from "@/modules/people/shared/domain/people.constants";
-import type { Person, PersonFormData } from "@/modules/people/shared/domain/types";
+import type {
+  Person,
+  PersonAttachment,
+  PersonComment,
+  PersonFormData,
+  PersonMentionableUser,
+} from "@/modules/people/shared/domain/types";
 import { getAgeFromBirthDate, isBirthdayToday, resolvePersonDisplayNames } from "@/modules/people/shared/domain/utils";
 import { personFormSteps } from "@/modules/people/shared/config/people-form-config";
 import type { PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
 import { PeopleDetailContent } from "@/modules/people/shared/ui/people-detail-content";
 import { PeopleDetailSidebar } from "@/modules/people/shared/ui/people-detail-sidebar";
 import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
 import { DetailFormSteps, type DetailFormStep } from "@/web-client/detail/DetailFormSteps";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  buildAuditHistoryItems,
+} from "@/web-client/detail/audit-feed-utils";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
 export type PeopleDetailLayoutContext = DetailShellAuditContext & {
+  mode: "create" | "edit";
   person: Person;
   draft: PersonFormData;
   readOnly: boolean;
   avatarUploading: boolean;
   canAudit: boolean;
+  mentionableUsers: PersonMentionableUser[];
+  relatedAuditEntityIds: {
+    financialEntryIds: string[];
+    healthConditionIds: string[];
+    medicationIds: string[];
+    educationIds: string[];
+    detentionIds: string[];
+    relationIds: string[];
+  };
   tagSuggestions: string[];
   onAvatarFileSelect?: (file: File) => Promise<void> | void;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
@@ -55,6 +73,22 @@ export type PeopleDetailLayoutContext = DetailShellAuditContext & {
   onTabChange: (value: PeopleDetailTabValue) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
+  commentDraft: {
+    body: string;
+    mentionUserIds: string[];
+  };
+  commentSubmitting: boolean;
+  attachmentUploading: boolean;
+  onCommentDraftChange: React.Dispatch<
+    React.SetStateAction<{
+      body: string;
+      mentionUserIds: string[];
+    }>
+  >;
+  onSubmitComment: () => void;
+  onDeleteComment: (comment: PersonComment) => void;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachment: PersonAttachment) => void;
 };
 
 const lineInputClassName =
@@ -483,65 +517,231 @@ function PeopleDetailMain({
 }
 
 function PeopleDetailSide({
+  mode,
   person,
+  draft,
+  readOnly,
+  onDraftChange,
+  onCommitField,
   canAudit,
+  mentionableUsers,
+  relatedAuditEntityIds,
   detailAudit,
   auditVisibleCount,
   onAuditVisibleCountChange,
+  commentDraft,
+  commentSubmitting,
+  attachmentUploading,
+  onCommentDraftChange,
+  onSubmitComment,
+  onDeleteComment,
+  onUploadAttachment,
+  onDeleteAttachment,
 }: {
+  mode: "create" | "edit";
   person: Person;
+  draft: PersonFormData;
+  readOnly: boolean;
+  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
+  onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   canAudit: boolean;
+  mentionableUsers: PersonMentionableUser[];
+  relatedAuditEntityIds: {
+    financialEntryIds: string[];
+    healthConditionIds: string[];
+    medicationIds: string[];
+    educationIds: string[];
+    detentionIds: string[];
+    relationIds: string[];
+  };
   detailAudit?: DetailShellAuditContext["detailAudit"];
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
+  commentDraft: {
+    body: string;
+    mentionUserIds: string[];
+  };
+  commentSubmitting: boolean;
+  attachmentUploading: boolean;
+  onCommentDraftChange: React.Dispatch<
+    React.SetStateAction<{
+      body: string;
+      mentionUserIds: string[];
+    }>
+  >;
+  onSubmitComment: () => void;
+  onDeleteComment: (comment: PersonComment) => void;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachment: PersonAttachment) => void;
 }) {
   const ageValue = getAgeFromBirthDate(person.birthDate);
   const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
   const isTodayBirthdayValue = isBirthdayToday(person.birthDate);
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
+  const historyItems = React.useMemo(
+    () => buildAuditHistoryItems(detailAudit?.logs ?? []),
+    [detailAudit?.logs],
+  );
 
   const handleCopy = React.useCallback((value: string) => {
     if (!value || !navigator?.clipboard?.writeText) return;
     void navigator.clipboard.writeText(value);
   }, []);
 
+  const contextPanel =
+    mode === "edit" ? (
+      <FamilyRelationsProvider personId={person.id} initialMode="summary">
+        <PeopleDetailSidebar
+          person={person}
+          ageLabel={ageLabel}
+          isTodayBirthday={isTodayBirthdayValue}
+          onCopy={handleCopy}
+        />
+      </FamilyRelationsProvider>
+    ) : (
+      <div className="space-y-4 border border-border/60 bg-background px-4 py-4">
+        <div className="space-y-1 border-b border-border/50 pb-3">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Resumo
+          </div>
+          <div className="text-sm font-medium text-foreground">
+            {resolvePersonDisplayNames(person.fullName, person.socialName).primary}
+          </div>
+          {person.socialName ? (
+            <div className="text-xs text-muted-foreground">{person.socialName}</div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Status</span>
+            <span className="text-foreground">{person.status ?? "Sem status"}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Tipo</span>
+            <span className="text-foreground">{person.personType ?? "Sem tipo"}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Nascimento</span>
+            <span className="text-foreground">{person.birthDate ?? "-"}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Email</span>
+            <span className="text-foreground">{person.email ?? "-"}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Telefone</span>
+            <span className="text-foreground">{person.phone ?? "-"}</span>
+          </div>
+        </div>
+
+        <div className="border-t border-border/50 pt-3 text-xs text-muted-foreground">
+          Salve o cadastro para liberar contatos, documentos, mapa e demais dados relacionais.
+        </div>
+      </div>
+    );
+
   return (
-    <FamilyRelationsProvider personId={person.id} initialMode="summary">
-      <DetailSideTabs
-        tabs={[
-          {
-            value: "profile",
-            label: "Perfil",
-            content: (
-              <PeopleDetailSidebar
-                person={person}
-                ageLabel={ageLabel}
-                isTodayBirthday={isTodayBirthdayValue}
-                onCopy={handleCopy}
-              />
-            ),
-          },
-          {
-            value: "activity",
-            label: "Auditoria",
-            badge: canAudit && auditCount ? auditCount : undefined,
-            content: canAudit ? (
-              <DetailAuditFeed
-                mode="edit"
-                auditState={detailAudit}
-                auditVisibleCount={auditVisibleCount}
-                onAuditVisibleCountChange={onAuditVisibleCountChange}
-              />
-            ) : (
-              <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                Sem permissao para auditoria.
-              </div>
-            ),
-          },
-        ]}
-        defaultValue="profile"
-      />
-    </FamilyRelationsProvider>
+    <StandardDetailMetadataSide
+      mode={mode}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      comments={{
+        items: person.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: readOnly
+          ? undefined
+          : (commentId) => {
+              const comment = (person.comments ?? []).find((entry) => entry.id === commentId);
+              if (comment) {
+                onDeleteComment(comment);
+              }
+            },
+        submitting: commentSubmitting,
+        readOnly,
+        emptyLabel:
+          mode === "create"
+            ? "Salve o cadastro para habilitar comentarios."
+            : "Nenhum comentario registrado para esta pessoa.",
+      }}
+      notes={{
+        value: draft.notes,
+        onChange: (next) =>
+          onDraftChange((previous) => ({ ...previous, notes: next })),
+        onBlur: () => onCommitField?.("notes", draft.notes ?? null),
+        readOnly,
+      }}
+      tags={{
+        value: draft.tags ?? [],
+        onChange: (nextTags) =>
+          onDraftChange((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (nextTags) => onCommitField?.("tags", nextTags),
+        readOnly,
+      }}
+      attachments={{
+        items: (person.attachments ?? []).map((attachment) => ({
+          id: attachment.id,
+          label: attachment.label,
+          href: resolveMediaUrl(attachment.filePath),
+          description: attachment.uploadedBy?.name
+            ? `Enviado por ${attachment.uploadedBy.name}`
+            : "Anexo da pessoa",
+          mimeType: attachment.mimeType ?? null,
+          sizeLabel:
+            typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
+              ? attachment.fileSizeBytes >= 1024 * 1024
+                ? `${(attachment.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+                : attachment.fileSizeBytes >= 1024
+                  ? `${Math.round(attachment.fileSizeBytes / 1024)} KB`
+                  : `${attachment.fileSizeBytes} B`
+              : null,
+          statusLabel: attachment.createdAt
+            ? attachment.createdAt.slice(0, 16).replace("T", ", ")
+            : null,
+        })),
+        onUpload: readOnly ? undefined : onUploadAttachment,
+        onDelete: readOnly
+          ? undefined
+          : (attachmentId) => {
+              const attachment = (person.attachments ?? []).find((entry) => entry.id === attachmentId);
+              if (attachment) {
+                onDeleteAttachment(attachment);
+              }
+            },
+        readOnly,
+        emptyLabel:
+          mode === "create"
+            ? "Salve o cadastro para habilitar anexos."
+            : attachmentUploading
+              ? "Enviando anexo..."
+              : "Nenhum anexo cadastrado para esta pessoa.",
+      }}
+      history={{
+        items: historyItems,
+        emptyLabel:
+          mode === "create"
+            ? "O historico aparece apos salvar o cadastro."
+            : "Nenhum historico disponivel para esta pessoa.",
+      }}
+      contextPanel={contextPanel}
+      contextItems={[
+        { key: "status", label: "Status", value: person.status ?? "Sem status" },
+        { key: "type", label: "Tipo", value: person.personType ?? "Sem tipo" },
+        { key: "birthDate", label: "Nascimento", value: person.birthDate ?? "-" },
+        { key: "age", label: "Idade", value: ageLabel },
+        { key: "email", label: "Email", value: person.email ?? "-" },
+        { key: "phone", label: "Telefone", value: person.phone ?? "-" },
+        { key: "comments", label: "Comentarios", value: (person.comments ?? []).length },
+        { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
+        { key: "tags", label: "Tags", value: (draft.tags ?? []).length },
+      ]}
+      defaultTab="activity"
+    />
   );
 }
 
@@ -628,18 +828,48 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     />
   ),
   side: ({
+    mode,
     person,
+    draft,
+    readOnly,
+    onDraftChange,
+    onCommitField,
     canAudit,
+    mentionableUsers,
+    relatedAuditEntityIds,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    commentDraft,
+    commentSubmitting,
+    attachmentUploading,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    onUploadAttachment,
+    onDeleteAttachment,
   }) => (
     <PeopleDetailSide
+      mode={mode}
       person={person}
+      draft={draft}
+      readOnly={readOnly}
+      onDraftChange={onDraftChange}
+      onCommitField={onCommitField}
       canAudit={canAudit}
+      mentionableUsers={mentionableUsers}
+      relatedAuditEntityIds={relatedAuditEntityIds}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      commentDraft={commentDraft}
+      commentSubmitting={commentSubmitting}
+      attachmentUploading={attachmentUploading}
+      onCommentDraftChange={onCommentDraftChange}
+      onSubmitComment={onSubmitComment}
+      onDeleteComment={onDeleteComment}
+      onUploadAttachment={onUploadAttachment}
+      onDeleteAttachment={onDeleteAttachment}
     />
   ),
   auditSources: {
@@ -655,7 +885,64 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       },
       resolveEntityId: ({ person }) => person.id,
     },
-    filters: () => ({ entity: "Person" }),
+    relatedEntities: [
+      {
+        key: "comment",
+        entity: "PersonComment",
+        model: "audit.logs",
+        label: "Comentario",
+        resolveEntityIds: ({ person }) => (person.comments ?? []).map((item) => item.id),
+      },
+      {
+        key: "attachment",
+        entity: "PersonAttachment",
+        model: "audit.logs",
+        label: "Anexo",
+        resolveEntityIds: ({ person }) => (person.attachments ?? []).map((item) => item.id),
+      },
+      {
+        key: "financialEntry",
+        entity: "PersonFinancialEntry",
+        model: "audit.logs",
+        label: "Financeiro",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.financialEntryIds,
+      },
+      {
+        key: "healthCondition",
+        entity: "PersonHealthCondition",
+        model: "audit.logs",
+        label: "Saude",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.healthConditionIds,
+      },
+      {
+        key: "medication",
+        entity: "PersonMedication",
+        model: "audit.logs",
+        label: "Medicacao",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.medicationIds,
+      },
+      {
+        key: "education",
+        entity: "PersonEducation",
+        model: "audit.logs",
+        label: "Escolaridade",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.educationIds,
+      },
+      {
+        key: "detention",
+        entity: "PersonDetention",
+        model: "audit.logs",
+        label: "Reclusao",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.detentionIds,
+      },
+      {
+        key: "relation",
+        entity: "PersonRelation",
+        model: "audit.logs",
+        label: "Familia",
+        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.relationIds,
+      },
+    ],
     sort: [{ field: "createdAt", direction: "desc" }],
     pagination: { limit: 120 },
   },

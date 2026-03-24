@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -12,6 +13,72 @@ import { UpdateUserDto } from './dto/update-user.dto';
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listMentionableUsers(
+    tenantId: string,
+    currentUserId: string,
+    permissionKey: string,
+    search?: string,
+  ) {
+    const normalizedPermission = permissionKey.trim();
+    if (!normalizedPermission) {
+      throw new ForbiddenException('Permissao invalida para mencoes');
+    }
+
+    const currentUserPermissions = await this.getUserPermissions(
+      tenantId,
+      currentUserId,
+    );
+    if (!currentUserPermissions.includes(normalizedPermission)) {
+      throw new ForbiddenException(
+        'Voce nao pode listar mencoes para este modulo',
+      );
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        ...(search?.trim()
+          ? {
+              OR: [
+                { name: { contains: search.trim() } },
+                { email: { contains: search.trim() } },
+              ],
+            }
+          : {}),
+        roles: {
+          some: {
+            tenantId,
+            role: {
+              permissions: {
+                some: {
+                  tenantId,
+                  permission: {
+                    key: normalizedPermission,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ name: 'asc' }, { email: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+      },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      name: user.name?.trim() || user.email,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+    }));
+  }
 
   async findByEmailAndTenant(tenantId: string, email: string) {
     return this.prisma.user.findUnique({

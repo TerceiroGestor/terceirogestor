@@ -5,6 +5,21 @@ import {
   actionsListModuleDefinition,
 } from "@/modules/actions/config/actions-module-contract";
 import {
+  adminAuditDetailModuleDefinition,
+  adminAuditListModuleDefinition,
+  adminInstitutionModuleDefinition,
+  adminOverviewModuleDefinition,
+  adminPermissionsListModuleDefinition,
+  adminRoleDetailModuleDefinition,
+  adminRolesListModuleDefinition,
+  adminUserDetailModuleDefinition,
+  adminUsersListModuleDefinition,
+} from "@/modules/core/admin/config/admin-module-contract";
+import {
+  cyclesDetailModuleDefinition,
+  cyclesListModuleDefinition,
+} from "@/modules/cycles/config/cycles-module-contract";
+import {
   pantryDonorDetailModuleDefinition,
   pantryDonorsModuleDefinition,
   pantryEntryDetailModuleDefinition,
@@ -29,6 +44,8 @@ import {
   projectsDetailModuleDefinition,
   projectsListModuleDefinition,
 } from "@/modules/projects/config/projects-module-contract";
+import { projectCyclesListModuleDefinition } from "@/modules/projects/config/project-cycles-module-contract";
+import { projectGroupsListModuleDefinition } from "@/modules/projects/config/project-groups-module-contract";
 import {
   tasksDetailModuleDefinition,
   tasksListModuleDefinition,
@@ -39,6 +56,15 @@ import { validateRecordModuleDefinition } from "@/web-client/registry/types";
 // These definitions intentionally span heterogeneous query/context types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>> = [
+  adminOverviewModuleDefinition,
+  adminInstitutionModuleDefinition,
+  adminUsersListModuleDefinition,
+  adminUserDetailModuleDefinition,
+  adminRolesListModuleDefinition,
+  adminRoleDetailModuleDefinition,
+  adminPermissionsListModuleDefinition,
+  adminAuditListModuleDefinition,
+  adminAuditDetailModuleDefinition,
   pantryStockModuleDefinition,
   pantryHistoryModuleDefinition,
   pantryDonorsModuleDefinition,
@@ -54,8 +80,12 @@ const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>>
   programsDetailModuleDefinition,
   projectsListModuleDefinition,
   projectsDetailModuleDefinition,
+  projectGroupsListModuleDefinition,
+  projectCyclesListModuleDefinition,
   actionsListModuleDefinition,
   actionsDetailModuleDefinition,
+  cyclesListModuleDefinition,
+  cyclesDetailModuleDefinition,
   tasksListModuleDefinition,
   tasksDetailModuleDefinition,
 ];

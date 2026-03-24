@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { DetentionDetailPage } from "@/modules/people/features/detentions/ui/detention-detail-page";
 
-export default async function PeopleDetentionDetailRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string; detentionId: string }>;
-}) {
-  const { tenant, id, detentionId } = await params;
-  redirect(`/${tenant}/person/${id}/detentions/${detentionId}`);
+export default function PeopleDetentionDetailRoutePage() {
+  return <DetentionDetailPage mode="edit" />;
 }

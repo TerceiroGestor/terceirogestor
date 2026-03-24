@@ -13,14 +13,43 @@ export const programsSearchView: SearchViewDefinition = {
   features: {
     favorites: true,
     presets: true,
-    advancedFilters: false,
+    advancedFilters: true,
     groupBy: true,
     clearAll: true,
   },
-  fields: [],
+  fields: [
+    {
+      name: "status",
+      label: "Status",
+      type: "select",
+      operators: ["="],
+      options: PROGRAM_STATUS_OPTIONS,
+    },
+    {
+      name: "type",
+      label: "Tipo",
+      type: "select",
+      operators: ["="],
+      options: PROGRAM_TYPE_OPTIONS,
+    },
+    {
+      name: "tags",
+      label: "Tags",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "createdAt",
+      label: "Cadastro",
+      type: "date",
+      operators: ["=", ">=", "<="],
+    },
+  ],
   groupBy: [
     { field: "status", label: "Status" },
     { field: "type", label: "Tipo" },
+    { field: "tags", label: "Tags" },
+    { field: "createdAt", label: "Cadastro" },
   ],
   presets: [
     {

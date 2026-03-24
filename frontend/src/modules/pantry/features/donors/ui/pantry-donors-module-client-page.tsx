@@ -283,6 +283,15 @@ export function PantryDonorsModuleClientPage() {
         ),
       },
       {
+        accessorKey: "tags",
+        header: "Tags",
+        cell: ({ row }) => (
+          <div className="text-sm text-muted-foreground">
+            {row.original.tags?.length ? row.original.tags.slice(0, 3).join(", ") : "—"}
+          </div>
+        ),
+      },
+      {
         accessorKey: "createdAt",
         header: getModuleFieldLabel(
           pantryDonorsModuleDefinition,
@@ -294,6 +303,11 @@ export function PantryDonorsModuleClientPage() {
             {formatDateOnlyPtBR(row.original.createdAt)}
           </div>
         ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: () => <div className="text-sm text-muted-foreground">Ativo</div>,
       },
     ],
     [],

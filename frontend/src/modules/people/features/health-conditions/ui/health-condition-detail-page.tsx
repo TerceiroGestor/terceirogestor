@@ -177,9 +177,23 @@ export function HealthConditionDetailPage({
     [commitDraft],
   );
 
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      commitDraft(nextDraft);
+    },
+    [commitDraft, draft],
+  );
+
   return (
     <PeopleRelationDetailShell
       personId={personId}
+      recordType="health-condition"
       tab="saude"
       title={mode === "create" ? "Nova condicao de saude" : current?.type ?? "Condicao de saude"}
       subtitle="Gerencie os detalhes completos da condicao em uma tela dedicada."
@@ -188,6 +202,8 @@ export function HealthConditionDetailPage({
       relationId={relationIdRef.current}
       auditConfig={HEALTH_CONDITION_AUDIT_CONFIG}
       notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (

@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TagInput } from "@/components/ui/tag-input";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDateOnlyPtBR } from "@/lib/date";
+import { resolveMediaUrl } from "@/lib/api";
 import type { ApiProject, ProjectStatus } from "@/modules/projects/api";
 import type {
   ApiProjectCycle,
@@ -30,10 +32,12 @@ import {
 import type { ApiProjectAction, ActionStatus } from "@/modules/actions/api";
 import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  buildGroupedAuditFeed,
+  resolveAuditActionLabel,
+  resolveAuditChangedFieldsSummary,
+} from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
@@ -56,9 +60,49 @@ const PROJECT_AUDIT_FIELD_LABELS = {
   name: "Nome",
   status: "Status",
   description: "Descricao",
+  tags: "Tags",
   internalNotes: "Notas internas",
   startsAt: "Inicio",
   endsAt: "Fim",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
+  personId: "Pessoa",
+  role: "Papel",
+  status: "Status",
+  startsAt: "Inicio",
+  endsAt: "Fim",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROJECT_GROUP_AUDIT_FIELD_LABELS = {
+  name: "Nome",
+  description: "Descricao",
+  internalNotes: "Notas internas",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
+  peopleGroupId: "Grupo de pessoas",
+  participationKind: "Participacao",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
+  title: "Titulo",
+  status: "Status",
+  actionTypeId: "Tipo",
+  groupId: "Grupo",
+  cycleId: "Grupo de pessoas",
+  plannedStartAt: "Inicio planejado",
+  plannedEndAt: "Fim planejado",
+  executedAt: "Executada em",
+  internalNotes: "Notas internas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -271,6 +315,43 @@ function actionRelationColumns(): ColumnDef<ApiProjectAction, unknown>[] {
   ];
 }
 
+function resolveProjectHistoryTitle(sourceLabel: string, action: "CREATE" | "UPDATE" | "DELETE") {
+  const normalized = sourceLabel.trim() || "Registro";
+  if (action === "CREATE") {
+    return `${normalized} criado`;
+  }
+  if (action === "DELETE") {
+    return `${normalized} removido`;
+  }
+  return `${normalized} atualizado`;
+}
+
+function buildProjectHistoryItems(logs: NonNullable<ProjectsDetailLayoutContext["detailAudit"]>["logs"]) {
+  return buildGroupedAuditFeed(logs).map((group) => {
+    const primarySource = group.sourceLabels[0] ?? "Registro";
+    const actorName =
+      group.logs[0]?.user?.name?.trim() ||
+      group.logs[0]?.user?.email?.trim() ||
+      "Sistema";
+    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
+    const changedLabel = changedFields.labels.length
+      ? changedFields.hiddenCount > 0
+        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
+        : changedFields.labels.join(", ")
+      : null;
+
+    return {
+      id: group.id,
+      title: resolveProjectHistoryTitle(primarySource, group.action),
+      description: changedLabel
+        ? `${primarySource}: ${changedLabel}`
+        : group.sourceLabels.join(", "),
+      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
+      createdAt: group.createdAt,
+    };
+  });
+}
+
 export type ProjectDetailDraft = {
   programId: string;
   name: string;
@@ -278,6 +359,7 @@ export type ProjectDetailDraft = {
   startsAt: string;
   endsAt: string;
   description: string;
+  tags: string[];
   internalNotes: string | null;
 };
 
@@ -318,17 +400,40 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
   enrollmentRows: ApiProjectEnrollment[];
   actionRows: ApiProjectAction[];
   relationsLoading: boolean;
+  mentionableUsers: Array<{
+    id: string;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  }>;
+  commentDraft: {
+    body: string;
+    mentionUserIds: string[];
+  };
+  commentSubmitting: boolean;
+  attachmentUploading: boolean;
   onCommitField: <K extends keyof ProjectDetailDraft>(
     field: K,
     nextValue?: ProjectDetailDraft[K],
   ) => void;
+  onCommentDraftChange: React.Dispatch<
+    React.SetStateAction<{
+      body: string;
+      mentionUserIds: string[];
+    }>
+  >;
+  onSubmitComment: () => void;
+  onDeleteComment: (commentId: string) => void;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachmentId: string) => void;
   onNotesChange: (next: string | null) => void;
   onNotesBlur: () => void;
   onOpenGroup: (groupId: string) => void;
   onCreateGroup: () => void;
+  onOpenPeopleGroup: (peopleGroupId: string) => void;
   onOpenCycle: (cycleId: string) => void;
   onCreateCycle: () => void;
-  onOpenEnrollment: (personId: string) => void;
+  onOpenEnrollment: (enrollmentId: string) => void;
   onCreateEnrollment: () => void;
   onEndEnrollment: (enrollment: ApiProjectEnrollment) => void;
   onOpenAction: (actionId: string) => void;
@@ -456,6 +561,18 @@ function ProjectsDetailMain({
           readOnly={readOnly}
         />
       </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Tags</div>
+        <TagInput
+          value={draft.tags}
+          onChange={(tags) => {
+            setDraft((previous) => ({ ...previous, tags }));
+            onCommitField("tags", tags);
+          }}
+          disabled={readOnly}
+        />
+      </div>
     </div>
   );
 }
@@ -464,7 +581,9 @@ function ProjectsDetailSide({
   mode,
   canAudit,
   readOnly,
+  project,
   draft,
+  setDraft,
   selectedProgram,
   peopleGroupRows,
   groupRows,
@@ -473,6 +592,16 @@ function ProjectsDetailSide({
   detailAudit,
   auditVisibleCount,
   onAuditVisibleCountChange,
+  mentionableUsers,
+  commentDraft,
+  commentSubmitting,
+  attachmentUploading,
+  onCommitField,
+  onCommentDraftChange,
+  onSubmitComment,
+  onDeleteComment,
+  onUploadAttachment,
+  onDeleteAttachment,
   onNotesChange,
   onNotesBlur,
 }: Pick<
@@ -480,90 +609,120 @@ function ProjectsDetailSide({
   | "mode"
   | "canAudit"
   | "readOnly"
+  | "project"
   | "draft"
-      | "selectedProgram"
-      | "peopleGroupRows"
+  | "setDraft"
+  | "selectedProgram"
+  | "peopleGroupRows"
   | "groupRows"
   | "enrollmentRows"
   | "actionRows"
   | "detailAudit"
   | "auditVisibleCount"
   | "onAuditVisibleCountChange"
+  | "mentionableUsers"
+  | "commentDraft"
+  | "commentSubmitting"
+  | "attachmentUploading"
+  | "onCommitField"
+  | "onCommentDraftChange"
+  | "onSubmitComment"
+  | "onDeleteComment"
+  | "onUploadAttachment"
+  | "onDeleteAttachment"
   | "onNotesChange"
   | "onNotesBlur"
 >) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
+  const historyItems = React.useMemo(
+    () => buildProjectHistoryItems(detailAudit?.logs ?? []),
+    [detailAudit?.logs],
+  );
 
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Auditoria",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode={mode}
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "notes",
-          label: "Anotacoes",
-          content: (
-            <DetailNotesPanel
-              value={draft.internalNotes}
-              onChange={onNotesChange}
-              onBlur={onNotesBlur}
-              readOnly={readOnly}
-            />
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Programa</span>
-                <span className="text-right text-foreground">{selectedProgram?.name ?? "-"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Tipo do programa</span>
-                <span className="text-foreground">
-                  {formatProgramType(selectedProgram?.type ?? null)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Status</span>
-                <span className="text-foreground">{formatProjectStatus(draft.status)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Participantes</span>
-                <span className="text-foreground">{enrollmentRows.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Grupos</span>
-                <span className="text-foreground">{groupRows.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Grupos de Pessoas</span>
-                <span className="text-foreground">{peopleGroupRows.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Acoes</span>
-                <span className="text-foreground">{actionRows.length}</span>
-              </div>
-            </div>
-          ),
-        },
+    <StandardDetailMetadataSide
+      mode={mode}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      comments={{
+        items: project?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o projeto para habilitar comentarios."
+            : "Nenhum comentario registrado para este projeto.",
+      }}
+      notes={{
+        value: draft.internalNotes,
+        onChange: onNotesChange,
+        onBlur: onNotesBlur,
+        readOnly,
+      }}
+      tags={{
+        value: draft.tags,
+        onChange: (nextTags) =>
+          setDraft((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (next) => onCommitField("tags", next),
+        readOnly,
+        emptyLabel: mode === "create" ? "Adicione tags ao projeto." : "Nenhuma tag registrada.",
+      }}
+      attachments={{
+        items: (project?.attachments ?? []).map((attachment) => ({
+          id: attachment.id,
+          label: attachment.label,
+          href: resolveMediaUrl(attachment.filePath),
+          description: attachment.uploadedBy?.name
+            ? `Enviado por ${attachment.uploadedBy.name}`
+            : "Anexo do projeto",
+          mimeType: attachment.mimeType ?? null,
+          sizeLabel:
+            typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
+              ? attachment.fileSizeBytes >= 1024 * 1024
+                ? `${(attachment.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+                : attachment.fileSizeBytes >= 1024
+                  ? `${Math.round(attachment.fileSizeBytes / 1024)} KB`
+                  : `${attachment.fileSizeBytes} B`
+              : null,
+          statusLabel: attachment.createdAt
+            ? attachment.createdAt.slice(0, 16).replace("T", ", ")
+            : null,
+        })),
+        onUpload: mode === "edit" && !readOnly ? onUploadAttachment : undefined,
+        onDelete: mode === "edit" && !readOnly ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o projeto para habilitar anexos."
+            : attachmentUploading
+              ? "Enviando anexo..."
+              : "Nenhum anexo registrado para este projeto.",
+      }}
+      history={{
+        items: historyItems,
+        emptyLabel:
+          mode === "create"
+            ? "O historico aparece apos salvar o projeto."
+            : "Nenhum historico disponivel para este projeto.",
+      }}
+      contextItems={[
+        { key: "program", label: "Programa", value: selectedProgram?.name ?? "-" },
+        { key: "programType", label: "Tipo do programa", value: formatProgramType(selectedProgram?.type ?? null) },
+        { key: "status", label: "Status", value: formatProjectStatus(draft.status) },
+        { key: "participants", label: "Participantes", value: enrollmentRows.length },
+        { key: "groups", label: "Grupos", value: groupRows.length },
+        { key: "peopleGroups", label: "Grupos de Pessoas", value: peopleGroupRows.length },
+        { key: "actions", label: "Acoes", value: actionRows.length },
+        { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
-      defaultValue="activity"
+      defaultTab="activity"
     />
   );
 }
@@ -623,7 +782,9 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     mode,
     canAudit,
     readOnly,
+    project,
     draft,
+    setDraft,
     selectedProgram,
     peopleGroupRows,
     groupRows,
@@ -632,6 +793,16 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    commentSubmitting,
+    attachmentUploading,
+    onCommitField,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    onUploadAttachment,
+    onDeleteAttachment,
     onNotesChange,
     onNotesBlur,
   }) => (
@@ -639,7 +810,9 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       mode={mode}
       canAudit={canAudit}
       readOnly={readOnly}
+      project={project}
       draft={draft}
+      setDraft={setDraft}
       selectedProgram={selectedProgram}
       peopleGroupRows={peopleGroupRows}
       groupRows={groupRows}
@@ -648,6 +821,16 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      mentionableUsers={mentionableUsers}
+      commentDraft={commentDraft}
+      commentSubmitting={commentSubmitting}
+      attachmentUploading={attachmentUploading}
+      onCommitField={onCommitField}
+      onCommentDraftChange={onCommentDraftChange}
+      onSubmitComment={onSubmitComment}
+      onDeleteComment={onDeleteComment}
+      onUploadAttachment={onUploadAttachment}
+      onDeleteAttachment={onDeleteAttachment}
       onNotesChange={onNotesChange}
       onNotesBlur={onNotesBlur}
     />
@@ -709,7 +892,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
             );
           },
           searchPlaceholder: "Pesquisar",
-          onRowClick: () => undefined,
+          onRowClick: (row, context) =>
+            context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
             label: "Adicionar grupo de pessoas",
             onClick: (context) => context.onCreateCycle(),
@@ -765,7 +949,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
             });
           },
           searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) => context.onOpenEnrollment(row.person.id),
+          onRowClick: (row, context) => context.onOpenEnrollment(row.id),
           action: {
             label: "Nova matricula",
             onClick: (context) => context.onCreateEnrollment(),
@@ -869,6 +1053,49 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       },
       resolveEntityId: ({ project }) => project?.id,
     },
+    relatedEntities: [
+      {
+        key: "projectEnrollment",
+        entity: "ProjectEnrollment",
+        model: "audit.logs",
+        label: "Participante",
+        fieldLabels: PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ enrollmentRows }) => enrollmentRows.map((row) => row.id),
+      },
+      {
+        key: "projectGroup",
+        entity: "ProjectGroup",
+        model: "audit.logs",
+        label: "Grupo",
+        fieldLabels: PROJECT_GROUP_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ groupRows }) => groupRows.map((row) => row.id),
+      },
+      {
+        key: "projectPeopleGroup",
+        entity: "ProjectPeopleGroup",
+        model: "audit.logs",
+        label: "Grupo de pessoas",
+        fieldLabels: PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ peopleGroupRows }) => peopleGroupRows.map((row) => row.id),
+      },
+      {
+        key: "projectAction",
+        entity: "ProjectAction",
+        model: "audit.logs",
+        label: "Acao",
+        fieldLabels: PROJECT_ACTION_AUDIT_FIELD_LABELS,
+        valueFormatters: {
+          status: (value) => formatActionStatus(typeof value === "string" ? value : null),
+          plannedStartAt: (value) =>
+            typeof value === "string" && value ? formatDateOnlyPtBR(value.slice(0, 10)) : "-",
+          plannedEndAt: (value) =>
+            typeof value === "string" && value ? formatDateOnlyPtBR(value.slice(0, 10)) : "-",
+          executedAt: (value) =>
+            typeof value === "string" && value ? formatDateOnlyPtBR(value.slice(0, 10)) : "-",
+        },
+        resolveEntityIds: ({ actionRows }) => actionRows.map((row) => row.id),
+      },
+    ],
     sort: [{ field: "createdAt", direction: "desc" }],
     pagination: { limit: 120 },
   },

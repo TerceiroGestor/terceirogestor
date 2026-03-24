@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { MedicationDetailPage } from "@/modules/people/features/medications/ui/medication-detail-page";
 
-export default async function PeopleMedicationNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/medications/new`);
+export default function PeopleMedicationCreateRoutePage() {
+  return <MedicationDetailPage mode="create" />;
 }

@@ -23,6 +23,10 @@ import {
 import { normalizeString } from '../../core/utils/strings';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
+import { CreatePersonAttachmentDto } from './dto/create-person-attachment.dto';
+import { CreatePersonCommentDto } from './dto/create-person-comment.dto';
+import { CreatePersonRecordAttachmentDto } from './dto/create-person-record-attachment.dto';
+import { CreatePersonRecordCommentDto } from './dto/create-person-record-comment.dto';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreatePersonExpenseDto } from './dto/create-person-expense.dto';
 import { CreatePersonFinancialEntryDto } from './dto/create-person-financial-entry.dto';
@@ -86,6 +90,46 @@ type PersonWithHealthCounts = Prisma.PersonGetPayload<{
     };
   };
 }>;
+type PersonWithDetailRelations = Prisma.PersonGetPayload<{
+  include: {
+    _count: {
+      select: {
+        healthConditions: true;
+        medications: true;
+      };
+    };
+    comments: {
+      orderBy: {
+        createdAt: 'desc';
+      };
+      include: {
+        authorUser: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+            avatarUrl: true;
+          };
+        };
+      };
+    };
+    attachments: {
+      orderBy: {
+        createdAt: 'desc';
+      };
+      include: {
+        uploadedByUser: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+            avatarUrl: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 type PersonSummary = Prisma.PersonGetPayload<{
   select: {
     id: true;
@@ -120,6 +164,41 @@ type PersonDetentionRecord = Prisma.PersonDetentionGetPayload<{}>;
 type PersonContactRecord = Prisma.PersonContactGetPayload<{}>;
 type PersonSensitiveDocumentRecord =
   Prisma.PersonSensitiveDocumentGetPayload<{}>;
+type PersonRecordCommentRecord = Prisma.PersonRecordCommentGetPayload<{
+  include: {
+    authorUser: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        avatarUrl: true;
+      };
+    };
+  };
+}>;
+type PersonRecordAttachmentRecord = Prisma.PersonRecordAttachmentGetPayload<{
+  include: {
+    uploadedByUser: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        avatarUrl: true;
+      };
+    };
+  };
+}>;
+
+const PEOPLE_RECORD_TYPES = [
+  'education',
+  'health-condition',
+  'medication',
+  'detention',
+  'financial-entry',
+  'family-relation',
+] as const;
+
+type PeopleRecordType = (typeof PEOPLE_RECORD_TYPES)[number];
 
 const normalizeCepDigitsOrNull = (value?: string | null) => {
   const trimmed = value?.trim();
@@ -158,14 +237,114 @@ const parseTags = (raw?: string | null) => {
     .filter(Boolean);
 };
 
-const mapPerson = (person: PersonWithHealthCounts) => {
-  const { _count, tags, ...rest } = person;
+const parseMentionUserIds = (value: Prisma.JsonValue | null | undefined) => {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value.map((entry) => String(entry ?? '').trim()).filter(Boolean),
+    ),
+  );
+};
+
+const mapCommentAuthor = (
+  user:
+    | {
+        id: string;
+        name: string | null;
+        email: string | null;
+        avatarUrl: string | null;
+      }
+    | null
+    | undefined,
+) => ({
+  id: user?.id ?? null,
+  name: user?.name?.trim() || user?.email || 'Equipe interna',
+  email: user?.email ?? null,
+  avatarUrl: user?.avatarUrl ?? null,
+});
+
+const mapPersonCommentItem = (
+  comment:
+    | {
+        id: string;
+        body: string;
+        mentionUserIds: Prisma.JsonValue | null;
+        createdAt: Date;
+        updatedAt: Date;
+        authorUser?: {
+          id: string;
+          name: string | null;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
+      }
+    | PersonRecordCommentRecord,
+) => ({
+  id: comment.id,
+  body: comment.body,
+  mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+  author: mapCommentAuthor(comment.authorUser),
+  createdAt: comment.createdAt,
+  updatedAt: comment.updatedAt,
+});
+
+const mapPersonAttachmentItem = (
+  attachment:
+    | {
+        id: string;
+        label: string;
+        filePath: string;
+        mimeType: string | null;
+        fileSizeBytes: number | null;
+        createdAt: Date;
+        updatedAt: Date;
+        uploadedByUser?: {
+          id: string;
+          name: string | null;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
+      }
+    | PersonRecordAttachmentRecord,
+) => ({
+  id: attachment.id,
+  label: attachment.label,
+  filePath: attachment.filePath,
+  mimeType: attachment.mimeType ?? null,
+  fileSizeBytes: attachment.fileSizeBytes ?? null,
+  uploadedBy: attachment.uploadedByUser
+    ? {
+        id: attachment.uploadedByUser.id,
+        name:
+          attachment.uploadedByUser.name?.trim() ||
+          attachment.uploadedByUser.email ||
+          'Equipe interna',
+        email: attachment.uploadedByUser.email ?? null,
+        avatarUrl: attachment.uploadedByUser.avatarUrl ?? null,
+      }
+    : null,
+  createdAt: attachment.createdAt,
+  updatedAt: attachment.updatedAt,
+});
+
+const mapPerson = (person: PersonWithHealthCounts | PersonWithDetailRelations) => {
+  const {
+    _count,
+    tags,
+    comments,
+    attachments,
+    ...rest
+  } = person as PersonWithDetailRelations & PersonWithHealthCounts;
   return {
     ...rest,
     document: null,
     rg: null,
     nis: null,
     tags: parseTags(tags),
+    comments:
+      comments?.map(mapPersonCommentItem) ?? [],
+    attachments:
+      attachments?.map(mapPersonAttachmentItem) ?? [],
     hasHealthCondition: _count.healthConditions > 0,
     hasMedication: _count.medications > 0,
     hasHealthIssue: _count.healthConditions + _count.medications > 0,
@@ -396,6 +575,60 @@ const mapPersonContact = (contact: PersonContactRecord) => ({
   createdAt: contact.createdAt,
   updatedAt: contact.updatedAt,
 });
+
+const PERSON_DETAIL_INCLUDE = {
+  _count: {
+    select: { healthConditions: true, medications: true },
+  },
+  comments: {
+    orderBy: { createdAt: 'desc' },
+    include: {
+      authorUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: { createdAt: 'desc' },
+    include: {
+      uploadedByUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.PersonInclude;
+
+const PERSON_RECORD_COMMENT_INCLUDE = {
+  authorUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+    },
+  },
+} satisfies Prisma.PersonRecordCommentInclude;
+
+const PERSON_RECORD_ATTACHMENT_INCLUDE = {
+  uploadedByUser: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+    },
+  },
+} satisfies Prisma.PersonRecordAttachmentInclude;
 
 const normalizePhoneDigits = (value: string) => {
   const digits = value.replaceAll(/\D/g, '');
@@ -744,11 +977,7 @@ export class PeopleService {
     }
     const person = await this.prisma.person.create({
       data: buildCreateData(tenantId, dto),
-      include: {
-        _count: {
-          select: { healthConditions: true, medications: true },
-        },
-      },
+      include: PERSON_DETAIL_INCLUDE,
     });
     return mapPerson(person);
   }
@@ -799,11 +1028,7 @@ export class PeopleService {
   async findById(tenantId: string, id: string) {
     const person = await this.prisma.person.findFirst({
       where: { id, tenantId },
-      include: {
-        _count: {
-          select: { healthConditions: true, medications: true },
-        },
-      },
+      include: PERSON_DETAIL_INCLUDE,
     });
 
     if (!person) {
@@ -832,18 +1057,499 @@ export class PeopleService {
     });
     const refreshed = await this.prisma.person.findFirst({
       where: { id, tenantId },
-      include: {
-        _count: {
-          select: { healthConditions: true, medications: true },
-        },
-      },
+      include: PERSON_DETAIL_INCLUDE,
     });
     return mapPerson(
       refreshed ?? {
         ...person,
         _count: { healthConditions: 0, medications: 0 },
+        comments: [],
+        attachments: [],
       },
     );
+  }
+
+  async addComment(
+    tenantId: string,
+    actorUserId: string,
+    personId: string,
+    dto: CreatePersonCommentDto,
+  ) {
+    await this.findPersonEntity(tenantId, personId);
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Informe um comentario.');
+    }
+
+    const mentionUserIds = await this.resolveMentionUserIds(
+      tenantId,
+      dto.mentionUserIds,
+    );
+
+    await this.prisma.personComment.create({
+      data: {
+        tenantId,
+        personId,
+        authorUserId: actorUserId,
+        body,
+        mentionUserIds,
+      },
+    });
+
+    return this.findById(tenantId, personId);
+  }
+
+  async deleteComment(tenantId: string, personId: string, commentId: string) {
+    await this.findPersonEntity(tenantId, personId);
+    const comment = await this.findComment(tenantId, personId, commentId);
+
+    await this.prisma.personComment.delete({
+      where: { id: comment.id },
+    });
+
+    return this.findById(tenantId, personId);
+  }
+
+  async addAttachment(
+    tenantId: string,
+    actorUserId: string,
+    personId: string,
+    dto: CreatePersonAttachmentDto,
+  ) {
+    await this.findPersonEntity(tenantId, personId);
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/people/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.personAttachment.create({
+      data: {
+        tenantId,
+        personId,
+        uploadedByUserId: actorUserId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.findById(tenantId, personId);
+  }
+
+  async deleteAttachment(
+    tenantId: string,
+    personId: string,
+    attachmentId: string,
+  ) {
+    await this.findPersonEntity(tenantId, personId);
+    const attachment = await this.findAttachment(
+      tenantId,
+      personId,
+      attachmentId,
+    );
+
+    await this.prisma.personAttachment.delete({
+      where: { id: attachment.id },
+    });
+
+    return this.findById(tenantId, personId);
+  }
+
+  async getRecordMetadata(
+    tenantId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+
+    const [comments, attachments, tags] = await Promise.all([
+      this.prisma.personRecordComment.findMany({
+        where: { tenantId, personId, recordType, recordId },
+        orderBy: { createdAt: 'desc' },
+        include: PERSON_RECORD_COMMENT_INCLUDE,
+      }),
+      this.prisma.personRecordAttachment.findMany({
+        where: { tenantId, personId, recordType, recordId },
+        orderBy: { createdAt: 'desc' },
+        include: PERSON_RECORD_ATTACHMENT_INCLUDE,
+      }),
+      this.prisma.personRecordTag.findMany({
+        where: { tenantId, personId, recordType, recordId },
+        orderBy: [{ value: 'asc' }],
+        select: { value: true },
+      }),
+    ]);
+
+    return {
+      comments: comments.map(mapPersonCommentItem),
+      attachments: attachments.map(mapPersonAttachmentItem),
+      tags: tags.map((tag) => tag.value),
+    };
+  }
+
+  async addRecordComment(
+    tenantId: string,
+    actorUserId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+    dto: CreatePersonRecordCommentDto,
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Informe um comentario.');
+    }
+
+    const mentionUserIds = await this.resolveMentionUserIds(
+      tenantId,
+      dto.mentionUserIds,
+    );
+
+    await this.prisma.personRecordComment.create({
+      data: {
+        tenantId,
+        personId,
+        recordType,
+        recordId,
+        authorUserId: actorUserId,
+        body,
+        mentionUserIds,
+      },
+    });
+
+    return this.getRecordMetadata(tenantId, personId, recordType, recordId);
+  }
+
+  async deleteRecordComment(
+    tenantId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+    commentId: string,
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+    const comment = await this.findRecordComment(
+      tenantId,
+      personId,
+      recordType,
+      recordId,
+      commentId,
+    );
+
+    await this.prisma.personRecordComment.delete({
+      where: { id: comment.id },
+    });
+
+    return this.getRecordMetadata(tenantId, personId, recordType, recordId);
+  }
+
+  async addRecordAttachment(
+    tenantId: string,
+    actorUserId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+    dto: CreatePersonRecordAttachmentDto,
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/people/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.personRecordAttachment.create({
+      data: {
+        tenantId,
+        personId,
+        recordType,
+        recordId,
+        uploadedByUserId: actorUserId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.getRecordMetadata(tenantId, personId, recordType, recordId);
+  }
+
+  async deleteRecordAttachment(
+    tenantId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+    attachmentId: string,
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+    const attachment = await this.findRecordAttachment(
+      tenantId,
+      personId,
+      recordType,
+      recordId,
+      attachmentId,
+    );
+
+    await this.prisma.personRecordAttachment.delete({
+      where: { id: attachment.id },
+    });
+
+    return this.getRecordMetadata(tenantId, personId, recordType, recordId);
+  }
+
+  async setRecordTags(
+    tenantId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+    tags: string[],
+  ) {
+    const recordType = await this.assertRecordBelongsToPerson(
+      tenantId,
+      personId,
+      recordTypeRaw,
+      recordId,
+    );
+    const normalizedTags = Array.from(
+      new Set(
+        (tags ?? [])
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+          .slice(0, 30),
+      ),
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.personRecordTag.deleteMany({
+        where: { tenantId, personId, recordType, recordId },
+      });
+
+      if (!normalizedTags.length) return;
+
+      await tx.personRecordTag.createMany({
+        data: normalizedTags.map((value) => ({
+          tenantId,
+          personId,
+          recordType,
+          recordId,
+          value,
+        })),
+      });
+    });
+
+    return this.getRecordMetadata(tenantId, personId, recordType, recordId);
+  }
+
+  private async findPersonEntity(tenantId: string, personId: string) {
+    const person = await this.prisma.person.findFirst({
+      where: { id: personId, tenantId },
+      select: { id: true },
+    });
+
+    if (!person) {
+      throw new NotFoundException('Person not found');
+    }
+
+    return person;
+  }
+
+  private async findComment(
+    tenantId: string,
+    personId: string,
+    commentId: string,
+  ) {
+    const comment = await this.prisma.personComment.findFirst({
+      where: { id: commentId, tenantId, personId },
+      select: { id: true },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return comment;
+  }
+
+  private async findAttachment(
+    tenantId: string,
+    personId: string,
+    attachmentId: string,
+  ) {
+    const attachment = await this.prisma.personAttachment.findFirst({
+      where: { id: attachmentId, tenantId, personId },
+      select: { id: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    return attachment;
+  }
+
+  private normalizeRecordType(recordType: string): PeopleRecordType {
+    const normalized = recordType.trim().toLowerCase() as PeopleRecordType;
+    if (!PEOPLE_RECORD_TYPES.includes(normalized)) {
+      throw new BadRequestException('Tipo de registro invalido.');
+    }
+    return normalized;
+  }
+
+  private async assertRecordBelongsToPerson(
+    tenantId: string,
+    personId: string,
+    recordTypeRaw: string,
+    recordId: string,
+  ) {
+    await this.findPersonEntity(tenantId, personId);
+    const recordType = this.normalizeRecordType(recordTypeRaw);
+
+    let record: { id: string } | null = null;
+    switch (recordType) {
+      case 'education':
+        record = await this.prisma.personEducation.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+      case 'health-condition':
+        record = await this.prisma.personHealthCondition.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+      case 'medication':
+        record = await this.prisma.personMedication.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+      case 'detention':
+        record = await this.prisma.personDetention.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+      case 'financial-entry':
+        record = await this.prisma.personFinancialEntry.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+      case 'family-relation':
+        record = await this.prisma.personRelation.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
+    }
+
+    if (!record) {
+      throw new NotFoundException('Registro nao encontrado.');
+    }
+
+    return recordType;
+  }
+
+  private async findRecordComment(
+    tenantId: string,
+    personId: string,
+    recordType: PeopleRecordType,
+    recordId: string,
+    commentId: string,
+  ) {
+    const comment = await this.prisma.personRecordComment.findFirst({
+      where: { id: commentId, tenantId, personId, recordType, recordId },
+      select: { id: true },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return comment;
+  }
+
+  private async findRecordAttachment(
+    tenantId: string,
+    personId: string,
+    recordType: PeopleRecordType,
+    recordId: string,
+    attachmentId: string,
+  ) {
+    const attachment = await this.prisma.personRecordAttachment.findFirst({
+      where: { id: attachmentId, tenantId, personId, recordType, recordId },
+      select: { id: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    return attachment;
+  }
+
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[] | null,
+  ) {
+    const normalized = Array.from(
+      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+    );
+
+    if (!normalized.length) {
+      return [];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        id: { in: normalized },
+      },
+      select: { id: true },
+    });
+
+    return users.map((user) => user.id);
   }
 
   private getSensitiveAccessMeta() {

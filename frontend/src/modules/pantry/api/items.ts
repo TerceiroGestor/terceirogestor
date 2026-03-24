@@ -62,3 +62,48 @@ export async function deletePantryItem(token: string, id: string) {
     token,
   );
 }
+
+export async function addPantryItemComment(
+  token: string,
+  id: string,
+  payload: { body: string; mentionUserIds?: string[] },
+) {
+  return apiRequest<ApiPantryItem>(
+    `/pantry/items/${id}/comments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deletePantryItemComment(token: string, id: string, commentId: string) {
+  return apiRequest<ApiPantryItem>(
+    `/pantry/items/${id}/comments/${commentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addPantryItemAttachment(
+  token: string,
+  id: string,
+  payload: {
+    label: string;
+    filePath: string;
+    mimeType?: string | null;
+    fileSizeBytes?: number | null;
+  },
+) {
+  return apiRequest<ApiPantryItem>(
+    `/pantry/items/${id}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deletePantryItemAttachment(token: string, id: string, attachmentId: string) {
+  return apiRequest<ApiPantryItem>(
+    `/pantry/items/${id}/attachments/${attachmentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}

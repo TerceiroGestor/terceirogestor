@@ -1,5 +1,10 @@
 import type { WindowAction } from "@/web-client/registry/types";
 import {
+  actionsCreateAction,
+  actionsDetailAction,
+  actionsListAction,
+} from "@/web-client/registry/actions/actions";
+import {
   adminAuditDetailAction,
   adminAuditListAction,
   adminInstitutionAction,
@@ -26,6 +31,19 @@ import {
   pantryStockAction,
 } from "@/web-client/registry/actions/pantry";
 import {
+  depositDonorsAction,
+  depositDonorsCreateAction,
+  depositDonorsDetailAction,
+  depositEntriesCreateAction,
+  depositEntriesDetailAction,
+  depositExitsCreateAction,
+  depositExitsDetailAction,
+  depositHistoryAction,
+  depositItemsCreateAction,
+  depositItemsDetailAction,
+  depositStockAction,
+} from "@/web-client/registry/actions/deposit";
+import {
   peopleCreateAction,
   peopleDetailAction,
   peopleListAction,
@@ -42,7 +60,13 @@ import {
 } from "@/web-client/registry/actions/projects";
 import {
   projectCyclesListAction,
+  projectCyclesManageAction,
+  projectEnrollmentsManageAction,
+  projectActionsManageAction,
+  projectGroupsCreateAction,
+  projectGroupsDetailAction,
   projectGroupsListAction,
+  projectGroupsManageAction,
 } from "@/web-client/registry/actions/project-structure";
 import {
   programsCreateAction,
@@ -50,11 +74,20 @@ import {
   programsListAction,
 } from "@/web-client/registry/actions/programs";
 import {
+  cyclesCreateAction,
+  cyclesDetailAction,
+  cyclesListAction,
+} from "@/web-client/registry/actions/cycles";
+import {
   tasksCreateAction,
   tasksDetailAction,
   tasksListAction,
 } from "@/web-client/registry/actions/tasks";
 import type { SearchViewDefinition } from "@/web-client/search/types";
+import {
+  actionsDetailSearchView,
+  actionsSearchView,
+} from "@/web-client/registry/searchViews/actions";
 import {
   pantryDonorsSearchView,
   pantryEntriesSearchView,
@@ -62,6 +95,13 @@ import {
   pantryHistorySearchView,
   pantryStockSearchView,
 } from "@/web-client/registry/searchViews/pantry";
+import {
+  depositDonorsSearchView,
+  depositEntriesSearchView,
+  depositExitsSearchView,
+  depositHistorySearchView,
+  depositStockSearchView,
+} from "@/web-client/registry/searchViews/deposit";
 import { peopleSearchView } from "@/web-client/registry/searchViews/people";
 import {
   peopleSegmentsDetailSearchView,
@@ -94,6 +134,9 @@ export {
 } from "@/web-client/registry/window-actions";
 
 const WINDOW_ACTIONS: WindowAction[] = [
+  actionsListAction,
+  actionsDetailAction,
+  actionsCreateAction,
   adminOverviewAction,
   adminInstitutionAction,
   adminUsersListAction,
@@ -116,6 +159,17 @@ const WINDOW_ACTIONS: WindowAction[] = [
   pantryExitsCreateAction,
   pantryExitsDetailAction,
   pantryHistoryAction,
+  depositStockAction,
+  depositItemsCreateAction,
+  depositItemsDetailAction,
+  depositDonorsAction,
+  depositDonorsCreateAction,
+  depositDonorsDetailAction,
+  depositEntriesCreateAction,
+  depositEntriesDetailAction,
+  depositExitsCreateAction,
+  depositExitsDetailAction,
+  depositHistoryAction,
   peopleListAction,
   peopleDetailAction,
   peopleCreateAction,
@@ -126,7 +180,16 @@ const WINDOW_ACTIONS: WindowAction[] = [
   projectsDetailAction,
   projectsCreateAction,
   projectGroupsListAction,
+  projectGroupsCreateAction,
+  projectGroupsDetailAction,
+  projectGroupsManageAction,
   projectCyclesListAction,
+  projectCyclesManageAction,
+  projectEnrollmentsManageAction,
+  projectActionsManageAction,
+  cyclesListAction,
+  cyclesDetailAction,
+  cyclesCreateAction,
   programsListAction,
   programsDetailAction,
   programsCreateAction,
@@ -135,6 +198,8 @@ const WINDOW_ACTIONS: WindowAction[] = [
   tasksCreateAction,
 ];
 const SEARCH_VIEWS: SearchViewDefinition[] = [
+  actionsSearchView,
+  actionsDetailSearchView,
   adminSingletonSearchView,
   adminUsersSearchView,
   adminRolesSearchView,
@@ -145,6 +210,11 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   pantryExitsSearchView,
   pantryHistorySearchView,
   pantryStockSearchView,
+  depositDonorsSearchView,
+  depositEntriesSearchView,
+  depositExitsSearchView,
+  depositHistorySearchView,
+  depositStockSearchView,
   peopleSearchView,
   peopleSegmentsSearchView,
   peopleSegmentsDetailSearchView,

@@ -11,6 +11,8 @@ export type ApiPantryEntry = {
   entryDate: string;
   expiryDate: string | null;
   notes: string | null;
+  tags: string[];
+  internalNotes: string | null;
   allocatedTotal?: number;
   remaining?: number;
   isClosed?: boolean;
@@ -20,6 +22,28 @@ export type ApiPantryEntry = {
   donor:
     | { id: string; name: string; type: "PERSON" | "COMPANY"; contact: string | null }
     | null;
+  comments: Array<{
+    id: string;
+    body: string;
+    mentionUserIds: string[];
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string | null;
+      name: string;
+      email?: string | null;
+      avatarUrl?: string | null;
+    };
+  }>;
+  attachments: Array<{
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType?: string | null;
+    fileSizeBytes?: number | null;
+    sizeLabel?: string | null;
+    createdAt: string;
+  }>;
 };
 
 export type PantryEntriesListResponse = {
@@ -36,5 +60,6 @@ export type PantryEntryInput = {
   entryDate?: string;
   expiryDate?: string | null;
   notes?: string | null;
+  tags?: string[];
+  internalNotes?: string | null;
 };
-

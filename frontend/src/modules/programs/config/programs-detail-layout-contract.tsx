@@ -4,7 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { TagInput } from "@/components/ui/tag-input";
 import {
   Select,
   SelectContent,
@@ -12,8 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { resolveMediaUrl } from "@/lib/api";
 import { formatDateOnlyPtBR } from "@/lib/date";
-import type { ApiProgram, ProgramStatus, ProgramType } from "@/modules/programs/api";
+import type {
+  ApiProgram,
+  ApiProgramAttachment,
+  ProgramStatus,
+  ProgramType,
+} from "@/modules/programs/api";
 import {
   PROGRAM_STATUS_LABELS,
   PROGRAM_STATUS_OPTIONS,
@@ -22,10 +29,12 @@ import {
 } from "@/modules/programs/shared/domain/programs.constants";
 import type { ApiProject } from "@/modules/projects/api/types/projects";
 import { PROJECT_STATUS_LABELS } from "@/modules/projects/shared/domain/projects.constants";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  buildGroupedAuditFeed,
+  resolveAuditActionLabel,
+  resolveAuditChangedFieldsSummary,
+} from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
@@ -48,9 +57,38 @@ const PROGRAM_AUDIT_FIELD_LABELS = {
   type: "Tipo",
   status: "Status",
   description: "Descricao",
+  tags: "Tags",
   internalNotes: "Notas internas",
   startsAt: "Inicio",
   endsAt: "Fim",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROGRAM_PROJECT_AUDIT_FIELD_LABELS = {
+  name: "Nome",
+  status: "Status",
+  description: "Descricao",
+  tags: "Tags",
+  internalNotes: "Notas internas",
+  startsAt: "Inicio",
+  endsAt: "Fim",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROGRAM_COMMENT_AUDIT_FIELD_LABELS = {
+  body: "Comentario",
+  mentionUserIds: "Mencoes",
+  createdAt: "Criado em",
+  updatedAt: "Atualizado em",
+} as const;
+
+const PROGRAM_ATTACHMENT_AUDIT_FIELD_LABELS = {
+  label: "Anexo",
+  filePath: "Arquivo",
+  mimeType: "Tipo",
+  fileSizeBytes: "Tamanho",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -114,6 +152,62 @@ function projectRelationColumns(): ColumnDef<ApiProject, unknown>[] {
   ];
 }
 
+function resolveProgramHistoryTitle(sourceLabel: string, action: "CREATE" | "UPDATE" | "DELETE") {
+  const normalized = sourceLabel.trim() || "Registro";
+  if (action === "CREATE") return `${normalized} criado`;
+  if (action === "DELETE") return `${normalized} removido`;
+  return `${normalized} atualizado`;
+}
+
+function buildProgramHistoryItems(
+  logs: NonNullable<ProgramsDetailLayoutContext["detailAudit"]>["logs"],
+) {
+  return buildGroupedAuditFeed(logs).map((group) => {
+    const primarySource = group.sourceLabels[0] ?? "Registro";
+    const actorName =
+      group.logs[0]?.user?.name?.trim() ||
+      group.logs[0]?.user?.email?.trim() ||
+      "Sistema";
+    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
+    const changedLabel = changedFields.labels.length
+      ? changedFields.hiddenCount > 0
+        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
+        : changedFields.labels.join(", ")
+      : null;
+
+    return {
+      id: group.id,
+      title: resolveProgramHistoryTitle(primarySource, group.action),
+      description: changedLabel ? `${primarySource}: ${changedLabel}` : group.sourceLabels.join(", "),
+      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
+      createdAt: group.createdAt,
+    };
+  });
+}
+
+function buildProgramAttachmentItems(attachments: ApiProgramAttachment[]) {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    label: attachment.label,
+    href: resolveMediaUrl(attachment.filePath),
+    description: attachment.uploadedBy?.name
+      ? `Enviado por ${attachment.uploadedBy.name}`
+      : "Anexo do programa",
+    mimeType: attachment.mimeType ?? null,
+    sizeLabel:
+      typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
+        ? attachment.fileSizeBytes >= 1024 * 1024
+          ? `${(attachment.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+          : attachment.fileSizeBytes >= 1024
+            ? `${Math.round(attachment.fileSizeBytes / 1024)} KB`
+            : `${attachment.fileSizeBytes} B`
+        : null,
+    statusLabel: attachment.createdAt
+      ? attachment.createdAt.slice(0, 16).replace("T", ", ")
+      : null,
+  }));
+}
+
 export type ProgramDetailDraft = {
   name: string;
   type: ProgramType;
@@ -121,6 +215,7 @@ export type ProgramDetailDraft = {
   startsAt: string;
   endsAt: string;
   description: string;
+  tags: string[];
   internalNotes: string | null;
 };
 
@@ -134,10 +229,32 @@ export type ProgramsDetailLayoutContext = DetailShellAuditContext & {
   setDraft: React.Dispatch<React.SetStateAction<ProgramDetailDraft>>;
   projectRows: ApiProject[];
   projectsLoading: boolean;
+  mentionableUsers: Array<{
+    id: string;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  }>;
+  commentDraft: {
+    body: string;
+    mentionUserIds: string[];
+  };
+  commentSubmitting: boolean;
+  attachmentUploading: boolean;
   onCommitField: <K extends keyof ProgramDetailDraft>(
     field: K,
     nextValue?: ProgramDetailDraft[K],
   ) => void;
+  onCommentDraftChange: React.Dispatch<
+    React.SetStateAction<{
+      body: string;
+      mentionUserIds: string[];
+    }>
+  >;
+  onSubmitComment: () => void;
+  onDeleteComment: (commentId: string) => void;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachmentId: string) => void;
   onNotesChange: (next: string | null) => void;
   onNotesBlur: () => void;
   onOpenProject: (projectId: string) => void;
@@ -264,6 +381,18 @@ function ProgramsDetailMain({
           readOnly={readOnly}
         />
       </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Tags</div>
+        <TagInput
+          value={draft.tags}
+          onChange={(tags) => {
+            setDraft((previous) => ({ ...previous, tags }));
+            onCommitField("tags", tags);
+          }}
+          disabled={readOnly}
+        />
+      </div>
     </div>
   );
 }
@@ -272,11 +401,23 @@ function ProgramsDetailSide({
   mode,
   canAudit,
   readOnly,
+  program,
   draft,
+  setDraft,
   projectRows,
   detailAudit,
   auditVisibleCount,
   onAuditVisibleCountChange,
+  mentionableUsers,
+  commentDraft,
+  commentSubmitting,
+  attachmentUploading,
+  onCommitField,
+  onCommentDraftChange,
+  onSubmitComment,
+  onDeleteComment,
+  onUploadAttachment,
+  onDeleteAttachment,
   onNotesChange,
   onNotesBlur,
 }: Pick<
@@ -284,74 +425,94 @@ function ProgramsDetailSide({
   | "mode"
   | "canAudit"
   | "readOnly"
+  | "program"
   | "draft"
+  | "setDraft"
   | "projectRows"
   | "detailAudit"
   | "auditVisibleCount"
   | "onAuditVisibleCountChange"
+  | "mentionableUsers"
+  | "commentDraft"
+  | "commentSubmitting"
+  | "attachmentUploading"
+  | "onCommitField"
+  | "onCommentDraftChange"
+  | "onSubmitComment"
+  | "onDeleteComment"
+  | "onUploadAttachment"
+  | "onDeleteAttachment"
   | "onNotesChange"
   | "onNotesBlur"
 >) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
+  const historyItems = React.useMemo(
+    () => buildProgramHistoryItems(detailAudit?.logs ?? []),
+    [detailAudit?.logs],
+  );
 
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Auditoria",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode={mode}
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "notes",
-          label: "Anotacoes",
-          content: (
-            <DetailNotesPanel
-              value={draft.internalNotes}
-              onChange={onNotesChange}
-              onBlur={onNotesBlur}
-              readOnly={readOnly}
-            />
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Tipo</span>
-                <span className="text-foreground">{formatProgramType(draft.type)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Status</span>
-                <span className="text-foreground">{formatProgramStatus(draft.status)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Projetos</span>
-                <span className="text-foreground">{projectRows.length}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Vigencia</span>
-                <span className="text-right text-foreground">
-                  {formatPeriod(draft.startsAt || null, draft.endsAt || null)}
-                </span>
-              </div>
-            </div>
-          ),
-        },
+    <StandardDetailMetadataSide
+      mode={mode}
+      readOnly={readOnly}
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      comments={{
+        items: program?.comments ?? [],
+        draft: commentDraft,
+        users: mentionableUsers,
+        onDraftChange: onCommentDraftChange,
+        onSubmit: onSubmitComment,
+        onDelete: mode === "edit" ? onDeleteComment : undefined,
+        submitting: commentSubmitting,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o programa para habilitar comentarios."
+            : "Nenhum comentario registrado para este programa.",
+      }}
+      notes={{
+        value: draft.internalNotes,
+        onChange: onNotesChange,
+        onBlur: onNotesBlur,
+        readOnly,
+      }}
+      tags={{
+        value: draft.tags,
+        onChange: (nextTags) =>
+          setDraft((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (next) => onCommitField("tags", next),
+        readOnly,
+        emptyLabel: mode === "create" ? "Adicione tags ao programa." : "Nenhuma tag registrada.",
+      }}
+      attachments={{
+        items: buildProgramAttachmentItems(program?.attachments ?? []),
+        onUpload: mode === "edit" && !readOnly ? onUploadAttachment : undefined,
+        onDelete: mode === "edit" && !readOnly ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
+        emptyLabel:
+          mode === "create"
+            ? "Salve o programa para habilitar anexos."
+            : attachmentUploading
+              ? "Enviando anexo..."
+              : "Nenhum anexo registrado para este programa.",
+      }}
+      history={{
+        items: historyItems,
+        emptyLabel:
+          mode === "create"
+            ? "O historico aparece apos salvar o programa."
+            : "Nenhum historico disponivel para este programa.",
+      }}
+      contextItems={[
+        { key: "type", label: "Tipo", value: formatProgramType(draft.type) },
+        { key: "status", label: "Status", value: formatProgramStatus(draft.status) },
+        { key: "projects", label: "Projetos", value: projectRows.length },
+        { key: "tags", label: "Tags", value: draft.tags.length },
+        { key: "period", label: "Vigencia", value: formatPeriod(draft.startsAt || null, draft.endsAt || null) },
       ]}
-      defaultValue="activity"
+      defaultTab="activity"
     />
   );
 }
@@ -376,6 +537,10 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
             <div className="text-muted-foreground">Projetos</div>
             <div className="font-medium text-foreground">{projectRows.length}</div>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Tags</div>
+            <div className="font-medium text-foreground">{draft.tags.length}</div>
+          </div>
         </div>
       </div>
     ),
@@ -392,11 +557,23 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
     mode,
     canAudit,
     readOnly,
+    program,
     draft,
+    setDraft,
     projectRows,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    mentionableUsers,
+    commentDraft,
+    commentSubmitting,
+    attachmentUploading,
+    onCommitField,
+    onCommentDraftChange,
+    onSubmitComment,
+    onDeleteComment,
+    onUploadAttachment,
+    onDeleteAttachment,
     onNotesChange,
     onNotesBlur,
   }) => (
@@ -404,11 +581,23 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
       mode={mode}
       canAudit={canAudit}
       readOnly={readOnly}
+      program={program}
       draft={draft}
+      setDraft={setDraft}
       projectRows={projectRows}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      mentionableUsers={mentionableUsers}
+      commentDraft={commentDraft}
+      commentSubmitting={commentSubmitting}
+      attachmentUploading={attachmentUploading}
+      onCommitField={onCommitField}
+      onCommentDraftChange={onCommentDraftChange}
+      onSubmitComment={onSubmitComment}
+      onDeleteComment={onDeleteComment}
+      onUploadAttachment={onUploadAttachment}
+      onDeleteAttachment={onDeleteAttachment}
       onNotesChange={onNotesChange}
       onNotesBlur={onNotesBlur}
     />
@@ -435,6 +624,7 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
                 row.description ?? "",
                 formatProjectStatus(row.status),
                 formatPeriod(row.startsAt, row.endsAt),
+                ...(row.tags ?? []),
               ]
                 .join(" ")
                 .toLocaleLowerCase();
@@ -471,6 +661,38 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
       },
       resolveEntityId: ({ program }) => program?.id,
     },
+    relatedEntities: [
+      {
+        key: "programComment",
+        entity: "ProgramComment",
+        model: "audit.logs",
+        label: "Comentario",
+        fieldLabels: PROGRAM_COMMENT_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ program }) => (program?.comments ?? []).map((comment) => comment.id),
+      },
+      {
+        key: "programAttachment",
+        entity: "ProgramAttachment",
+        model: "audit.logs",
+        label: "Anexo",
+        fieldLabels: PROGRAM_ATTACHMENT_AUDIT_FIELD_LABELS,
+        resolveEntityIds: ({ program }) =>
+          (program?.attachments ?? []).map((attachment) => attachment.id),
+      },
+      {
+        key: "programProject",
+        entity: "Project",
+        model: "audit.logs",
+        label: "Projeto",
+        fieldLabels: PROGRAM_PROJECT_AUDIT_FIELD_LABELS,
+        valueFormatters: {
+          status: (value) => formatProjectStatus(typeof value === "string" ? value : null),
+          startsAt: (value) => (typeof value === "string" && value ? formatDateOnlyPtBR(value) : "-"),
+          endsAt: (value) => (typeof value === "string" && value ? formatDateOnlyPtBR(value) : "-"),
+        },
+        resolveEntityIds: ({ projectRows }) => projectRows.map((row) => row.id),
+      },
+    ],
     sort: [{ field: "createdAt", direction: "desc" }],
     pagination: { limit: 120 },
   },

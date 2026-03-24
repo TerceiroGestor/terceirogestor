@@ -61,6 +61,117 @@ function normalizePhotoPaths(value: string[] | null | undefined) {
   return unique.length ? unique.slice(0, 5) : null;
 }
 
+function normalizeTags(tags?: string[] | null) {
+  if (!tags) return null;
+  const cleaned = Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+}
+
+function parseTags(value: string | null | undefined) {
+  if (!value) return [] as string[];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((tag) => String(tag ?? '').trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseMentionUserIds(value: Prisma.JsonValue | null | undefined) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)));
+}
+
+const mapCommentAuthor = (
+  user:
+    | {
+        id: string;
+        name: string | null;
+        email: string | null;
+        avatarUrl?: string | null;
+      }
+    | null
+    | undefined,
+) => ({
+  id: user?.id ?? null,
+  name: user?.name?.trim() || user?.email || 'Equipe interna',
+  email: user?.email ?? null,
+  avatarUrl: user?.avatarUrl ?? null,
+});
+
+const mapProjectActionCommentItem = (
+  comment: {
+    id: string;
+    body: string;
+    mentionUserIds: Prisma.JsonValue | null;
+    createdAt: Date;
+    updatedAt: Date;
+    authorUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl?: string | null;
+    } | null;
+  },
+) => ({
+  id: comment.id,
+  body: comment.body,
+  mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
+  author: mapCommentAuthor(comment.authorUser),
+  createdAt: comment.createdAt,
+  updatedAt: comment.updatedAt,
+});
+
+const mapProjectActionAttachmentItem = (
+  attachment: {
+    id: string;
+    label: string;
+    filePath: string;
+    mimeType: string | null;
+    fileSizeBytes: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+    uploadedByUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl?: string | null;
+    } | null;
+  },
+) => ({
+  id: attachment.id,
+  label: attachment.label,
+  filePath: attachment.filePath,
+  mimeType: attachment.mimeType ?? null,
+  fileSizeBytes: attachment.fileSizeBytes ?? null,
+  uploadedBy: attachment.uploadedByUser
+    ? {
+        id: attachment.uploadedByUser.id,
+        name:
+          attachment.uploadedByUser.name?.trim() ||
+          attachment.uploadedByUser.email ||
+          'Equipe interna',
+        email: attachment.uploadedByUser.email ?? null,
+        avatarUrl: attachment.uploadedByUser.avatarUrl ?? null,
+      }
+    : null,
+  createdAt: attachment.createdAt,
+  updatedAt: attachment.updatedAt,
+});
+
+function serializeProjectAction<T extends { tags?: string | null; comments?: any[]; attachments?: any[] }>(
+  action: T,
+) {
+  return {
+    ...action,
+    tags: parseTags(action.tags),
+    comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
+    attachments: action.attachments?.map(mapProjectActionAttachmentItem) ?? [],
+  };
+}
+
 function resolveScopeFromTarget(params: {
   target: ActionTarget;
   groupId: string | null;
@@ -166,13 +277,29 @@ export class ActionsService {
             },
           },
         },
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedByUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
       },
     });
     if (!action) throw new NotFoundException('Acao nao encontrada');
     if (!canReadAll && action.createdByUserId !== user.userId) {
       throw new ForbiddenException('Permissao negada');
     }
-    return action;
+    return serializeProjectAction(action);
   }
 
   async listActionTypes(tenantId: string, query: ListActionTypesQueryDto) {
@@ -271,6 +398,8 @@ export class ActionsService {
         ? {
             OR: [
               { title: { contains: q } },
+              { tags: { contains: q } },
+              { internalNotes: { contains: q } },
               { actionType: { name: { contains: q } } },
               { group: { name: { contains: q } } },
               { cycle: { name: { contains: q } } },
@@ -313,7 +442,7 @@ export class ActionsService {
     ]);
 
     return {
-      data,
+      data: data.map((item) => serializeProjectAction(item)),
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };
   }
@@ -364,7 +493,7 @@ export class ActionsService {
     const title = (dto.title ?? '').trim();
     if (!title) throw new BadRequestException('Titulo e obrigatorio');
 
-    return this.prisma.projectAction.create({
+    const created = await this.prisma.projectAction.create({
       data: {
         tenantId: user.tenantId,
         projectId,
@@ -374,6 +503,8 @@ export class ActionsService {
         actionTypeId: dto.actionTypeId,
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        tags: normalizeTags(dto.tags),
+        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
         planHtml: normalizeHtml(dto.planHtml) ?? null,
         executedHtml: normalizeHtml(dto.executedHtml) ?? null,
         conclusionHtml: normalizeHtml(dto.conclusionHtml) ?? null,
@@ -385,26 +516,8 @@ export class ActionsService {
         executedStartAt,
         executedEndAt,
       },
-      include: {
-        actionType: { select: { id: true, name: true, target: true } },
-        createdByUser: { select: { id: true, name: true, email: true } },
-        group: { select: { id: true, name: true } },
-        cycle: {
-          select: {
-            id: true,
-            name: true,
-            segmentId: true,
-            segment: {
-              select: { id: true, name: true, category: true },
-            },
-            catalogCycleId: true,
-            catalogCycle: {
-              select: { id: true, name: true, audienceType: true },
-            },
-          },
-        },
-      },
     });
+    return this.getProjectAction(user, projectId, created.id);
   }
 
   async updateProjectAction(
@@ -483,13 +596,18 @@ export class ActionsService {
     const executedHtml = normalizeHtml(dto.executedHtml);
     const conclusionHtml = normalizeHtml(dto.conclusionHtml);
     const photoPaths = normalizePhotoPaths(dto.photoPaths);
+    const normalizedTags = dto.tags !== undefined ? normalizeTags(dto.tags) : undefined;
 
-    return this.prisma.projectAction.update({
+    await this.prisma.projectAction.update({
       where: { id: existing.id },
       data: {
         ...(title !== undefined ? { title } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          : {}),
+        ...(dto.tags !== undefined ? { tags: normalizedTags } : {}),
+        ...(dto.internalNotes !== undefined
+          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
           : {}),
         ...(dto.status !== undefined ? { status: dto.status as ActionStatus } : {}),
         ...(dto.actionTypeId !== undefined ? { actionTypeId: resolvedActionTypeId } : {}),
@@ -508,26 +626,8 @@ export class ActionsService {
         ...(dto.executedStartAt !== undefined ? { executedStartAt } : {}),
         ...(dto.executedEndAt !== undefined ? { executedEndAt } : {}),
       },
-      include: {
-        actionType: { select: { id: true, name: true, target: true } },
-        createdByUser: { select: { id: true, name: true, email: true } },
-        group: { select: { id: true, name: true } },
-        cycle: {
-          select: {
-            id: true,
-            name: true,
-            segmentId: true,
-            segment: {
-              select: { id: true, name: true, category: true },
-            },
-            catalogCycleId: true,
-            catalogCycle: {
-              select: { id: true, name: true, audienceType: true },
-            },
-          },
-        },
-      },
     });
+    return this.getProjectAction(user, projectId, existing.id);
   }
 
   async deleteProjectAction(user: JwtUser, projectId: string, actionId: string) {
@@ -540,9 +640,113 @@ export class ActionsService {
     await this.prisma.projectActionPeopleParticipation.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
+    await this.prisma.projectActionComment.deleteMany({
+      where: { tenantId: user.tenantId, actionId: existing.id },
+    });
+    await this.prisma.projectActionAttachment.deleteMany({
+      where: { tenantId: user.tenantId, actionId: existing.id },
+    });
 
     await this.prisma.projectAction.delete({ where: { id: existing.id } });
     return { ok: true as const };
+  }
+
+  async addProjectActionComment(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: { body: string; mentionUserIds?: string[] | null },
+  ) {
+    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const body = dto.body.trim();
+    if (!body) {
+      throw new BadRequestException('Informe um comentario.');
+    }
+
+    const mentionUserIds = await this.resolveMentionUserIds(user.tenantId, dto.mentionUserIds);
+
+    await this.prisma.projectActionComment.create({
+      data: {
+        tenantId: user.tenantId,
+        actionId: action.id,
+        authorUserId: user.userId,
+        body,
+        mentionUserIds,
+      },
+    });
+
+    return this.getProjectAction(user, projectId, action.id);
+  }
+
+  async deleteProjectActionComment(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    commentId: string,
+  ) {
+    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const comment = await this.prisma.projectActionComment.findFirst({
+      where: { id: commentId, tenantId: user.tenantId, actionId: action.id },
+      select: { id: true },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comentario nao encontrado');
+    }
+
+    await this.prisma.projectActionComment.delete({ where: { id: comment.id } });
+    return this.getProjectAction(user, projectId, action.id);
+  }
+
+  async addProjectActionAttachment(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: { label: string; filePath: string; mimeType?: string | null; fileSizeBytes?: number | null },
+  ) {
+    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/action-attachments/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.projectActionAttachment.create({
+      data: {
+        tenantId: user.tenantId,
+        actionId: action.id,
+        uploadedByUserId: user.userId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.getProjectAction(user, projectId, action.id);
+  }
+
+  async deleteProjectActionAttachment(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    attachmentId: string,
+  ) {
+    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const attachment = await this.prisma.projectActionAttachment.findFirst({
+      where: { id: attachmentId, tenantId: user.tenantId, actionId: action.id },
+      select: { id: true },
+    });
+    if (!attachment) {
+      throw new NotFoundException('Anexo nao encontrado');
+    }
+
+    await this.prisma.projectActionAttachment.delete({ where: { id: attachment.id } });
+    return this.getProjectAction(user, projectId, action.id);
   }
 
   async listActionPeopleGroups(
@@ -1216,5 +1420,25 @@ export class ActionsService {
     }
 
     return { ok: true as const, created, updated };
+  }
+
+  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[] | null) {
+    const normalized = Array.from(
+      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+    );
+
+    if (!normalized.length) {
+      return [];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        id: { in: normalized },
+      },
+      select: { id: true },
+    });
+
+    return users.map((user) => user.id);
   }
 }

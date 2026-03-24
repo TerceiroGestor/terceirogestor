@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -32,7 +32,9 @@ import {
 import { usePeopleColumns } from "@/modules/people/features/list/ui/columns";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
-import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import {
+  removeConditionAtIndex,
+} from "@/web-client/domain/conditions";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
@@ -499,3 +501,4 @@ export function PeopleListModuleClientPage() {
     </EntityModuleShell>
   );
 }
+

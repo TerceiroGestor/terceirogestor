@@ -25,6 +25,8 @@ export type ApiProjectAction = {
   actionTypeId: string;
   title: string;
   description: string | null;
+  tags: string[];
+  internalNotes: string | null;
   planHtml: string | null;
   executedHtml: string | null;
   conclusionHtml: string | null;
@@ -37,6 +39,8 @@ export type ApiProjectAction = {
   executedEndAt: string | null;
   createdAt: string;
   updatedAt: string;
+  comments: ApiProjectActionComment[];
+  attachments: ApiProjectActionAttachment[];
   actionType?: { id: string; name: string; target?: "PROJECT" | "GROUP" | "CYCLE" };
   createdByUser?: { id: string; name: string | null; email: string };
   group?: { id: string; name: string } | null;
@@ -60,6 +64,36 @@ export type ApiProjectAction = {
     | null;
 };
 
+export type ApiProjectActionComment = {
+  id: string;
+  body: string;
+  mentionUserIds: string[];
+  author: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiProjectActionAttachment = {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  uploadedBy: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PaginationMeta = {
   page: number;
   limit: number;
@@ -76,6 +110,8 @@ export type ProjectActionInput = {
   actionTypeId: string;
   title: string;
   description?: string | null;
+  tags?: string[];
+  internalNotes?: string | null;
   planHtml?: string | null;
   executedHtml?: string | null;
   conclusionHtml?: string | null;
@@ -88,6 +124,18 @@ export type ProjectActionInput = {
   plannedEndAt?: string | null;
   executedStartAt?: string | null;
   executedEndAt?: string | null;
+};
+
+export type ProjectActionCommentInput = {
+  body: string;
+  mentionUserIds?: string[];
+};
+
+export type ProjectActionAttachmentInput = {
+  label: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
 };
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";

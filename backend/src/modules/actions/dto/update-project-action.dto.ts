@@ -17,6 +17,15 @@ export class UpdateProjectActionDto {
   description?: string | null;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string | null;
+
+  @IsOptional()
   @IsString()
   planHtml?: string | null;
 

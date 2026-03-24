@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FamilyRelationDetailPage } from "@/modules/people/features/family-members/ui/family-relation-detail-page";
 
-export default async function PeopleFamilyRelationNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/family-relations/new`);
+export default function PeopleFamilyRelationCreateRoutePage() {
+  return <FamilyRelationDetailPage mode="create" />;
 }

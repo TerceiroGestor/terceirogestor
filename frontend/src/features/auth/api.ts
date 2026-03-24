@@ -16,6 +16,13 @@ export type CurrentUserRole = {
   description?: string | null;
 };
 
+export type MentionableUser = {
+  id: string;
+  name: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+};
+
 export type CurrentUserProfile = {
   id: string;
   name?: string | null;
@@ -69,6 +76,17 @@ export async function getAccessLogs(
 
 export async function getCurrentUser(token: string) {
   return apiRequest<CurrentUserProfile>('/users/me', {}, token);
+}
+
+export async function listMentionableUsers(
+  token: string,
+  params: {
+    permission: string;
+    search?: string;
+  },
+) {
+  const query = buildQuery(params);
+  return apiRequest<MentionableUser[]>(`/users/mentionable${query}`, {}, token);
 }
 
 export async function updateMyProfile(

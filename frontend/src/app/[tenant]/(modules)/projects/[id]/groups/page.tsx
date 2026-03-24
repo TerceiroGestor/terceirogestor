@@ -1,6 +1,5 @@
-import { ProjectGroupsManageRouteClientPage } from "@/modules/projects";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function ProjectGroupsManagePage() {
-  return <ProjectGroupsManageRouteClientPage />;
+  return <ScreenHost actionId="projects.groups.manage" />;
 }
-

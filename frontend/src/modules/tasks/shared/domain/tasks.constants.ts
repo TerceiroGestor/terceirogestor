@@ -89,3 +89,11 @@ export const TASK_DEPENDENCY_AUDIT_FIELD_LABELS: Record<string, string> = {
   taskId: "Tarefa",
   dependsOnTaskId: "Depende de",
 };
+
+export const TASK_ATTACHMENT_AUDIT_FIELD_LABELS: Record<string, string> = {
+  label: "Arquivo",
+  filePath: "Caminho",
+  mimeType: "Tipo",
+  fileSizeBytes: "Tamanho",
+  uploadedByUserId: "Enviado por",
+};

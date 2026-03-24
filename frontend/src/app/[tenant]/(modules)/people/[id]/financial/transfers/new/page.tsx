@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FinancialTransferDetailPage } from "@/modules/people/features/people-financial/ui/financial-transfer-detail-page";
 
-export default async function PeopleFinancialTransferNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/financial/transfers/new`);
+export default function PeopleFinancialTransferCreateRoutePage() {
+  return <FinancialTransferDetailPage mode="create" />;
 }

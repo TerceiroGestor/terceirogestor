@@ -40,7 +40,6 @@ import {
   type ApiPantryDonor,
   type ApiPantryEntry,
 } from "@/modules/pantry/api";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import {
   PANTRY_DEFAULT_SECTOR,
   PANTRY_DEFAULT_UNIT,
@@ -534,7 +533,6 @@ export function PantryEntryDetailClientPage() {
             ? [{ label: entry.item.name, href: `${PANTRY_ROUTES.items}/${entry.itemId}` }]
             : []),
         ]}
-        actionSlot={<PantryHeaderNav />}
         mode="edit"
         headerTitle={headerTitle}
         saving={saving}

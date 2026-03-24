@@ -1,5 +1,11 @@
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiProject, ProjectInput, ProjectsListResponse } from "./types";
+import type {
+  ApiProject,
+  ProjectAttachmentInput,
+  ProjectCommentInput,
+  ProjectInput,
+  ProjectsListResponse,
+} from "./types";
 
 export async function listProjects(
   token: string,
@@ -45,6 +51,54 @@ export async function updateProject(
 export async function deleteProject(token: string, id: string) {
   return apiRequest<{ ok: true }>(
     `/projects/${id}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProjectComment(
+  token: string,
+  id: string,
+  payload: ProjectCommentInput,
+) {
+  return apiRequest<ApiProject>(
+    `/projects/${id}/comments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectComment(
+  token: string,
+  id: string,
+  commentId: string,
+) {
+  return apiRequest<ApiProject>(
+    `/projects/${id}/comments/${commentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function addProjectAttachment(
+  token: string,
+  id: string,
+  payload: ProjectAttachmentInput,
+) {
+  return apiRequest<ApiProject>(
+    `/projects/${id}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectAttachment(
+  token: string,
+  id: string,
+  attachmentId: string,
+) {
+  return apiRequest<ApiProject>(
+    `/projects/${id}/attachments/${attachmentId}`,
     { method: "DELETE" },
     token,
   );

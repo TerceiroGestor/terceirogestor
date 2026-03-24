@@ -35,7 +35,6 @@ import {
   type ApiPantryEntry,
   type ApiPantryItem,
 } from "@/modules/pantry/api";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import {
   PANTRY_DEFAULT_SECTOR,
   PANTRY_DEFAULT_UNIT,
@@ -321,7 +320,6 @@ export function PantryExitNewClientPage() {
           { label: "Despensa", href: PANTRY_ROUTES.stock },
           ...(item?.name ? [{ label: item.name, href: `${PANTRY_ROUTES.items}/${itemId}` }] : []),
         ]}
-        actionSlot={<PantryHeaderNav />}
         mode="create"
         headerTitle={headerTitle}
         saving={saving}

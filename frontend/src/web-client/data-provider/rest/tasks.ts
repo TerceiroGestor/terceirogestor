@@ -4,6 +4,7 @@ import { apiRequest, buildQuery } from "@/lib/api";
 import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
 import type {
   TaskAssignableUser,
+  TaskAttachmentMutationInput,
   TaskChecklistItemMutationInput,
   TaskCommentMutationInput,
   TaskMutationInput,
@@ -249,6 +250,27 @@ export async function deleteTaskCommentRemote(
   commentId: string,
 ) {
   return apiRequest<TaskRecord>(`/tasks/${taskId}/comments/${commentId}`, {
+    method: "DELETE",
+  }, token);
+}
+
+export async function addTaskAttachmentRemote(
+  token: string,
+  taskId: string,
+  payload: TaskAttachmentMutationInput,
+) {
+  return apiRequest<TaskRecord>(`/tasks/${taskId}/attachments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function deleteTaskAttachmentRemote(
+  token: string,
+  taskId: string,
+  attachmentId: string,
+) {
+  return apiRequest<TaskRecord>(`/tasks/${taskId}/attachments/${attachmentId}`, {
     method: "DELETE",
   }, token);
 }

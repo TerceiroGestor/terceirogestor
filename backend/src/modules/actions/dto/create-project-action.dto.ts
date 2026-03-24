@@ -15,6 +15,15 @@ export class CreateProjectActionDto {
   description?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsString()
+  internalNotes?: string | null;
+
+  @IsOptional()
   @IsString()
   planHtml?: string | null;
 

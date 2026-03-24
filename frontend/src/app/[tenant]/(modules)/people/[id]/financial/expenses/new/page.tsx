@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FinancialExpenseDetailPage } from "@/modules/people/features/people-financial/ui/financial-expense-detail-page";
 
-export default async function PeopleFinancialExpenseNewRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  redirect(`/${tenant}/person/${id}/financial/expenses/new`);
+export default function PeopleFinancialExpenseCreateRoutePage() {
+  return <FinancialExpenseDetailPage mode="create" />;
 }

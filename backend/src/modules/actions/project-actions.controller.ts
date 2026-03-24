@@ -17,6 +17,8 @@ import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { ActionsService } from './actions.service';
+import { CreateProjectActionAttachmentDto } from './dto/create-project-action-attachment.dto';
+import { CreateProjectActionCommentDto } from './dto/create-project-action-comment.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
@@ -62,6 +64,55 @@ export class ProjectActionsController {
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
   ) {
     return this.service.getProjectAction(user, projectId, actionId);
+  }
+
+  @Post(':projectId/actions/:actionId/comments')
+  @Permissions('actions.update')
+  async addComment(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Body() dto: CreateProjectActionCommentDto,
+  ) {
+    return this.service.addProjectActionComment(user, projectId, actionId, dto);
+  }
+
+  @Delete(':projectId/actions/:actionId/comments/:commentId')
+  @Permissions('actions.update')
+  async deleteComment(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
+  ) {
+    return this.service.deleteProjectActionComment(user, projectId, actionId, commentId);
+  }
+
+  @Post(':projectId/actions/:actionId/attachments')
+  @Permissions('actions.update')
+  async addAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Body() dto: CreateProjectActionAttachmentDto,
+  ) {
+    return this.service.addProjectActionAttachment(user, projectId, actionId, dto);
+  }
+
+  @Delete(':projectId/actions/:actionId/attachments/:attachmentId')
+  @Permissions('actions.update')
+  async deleteAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+  ) {
+    return this.service.deleteProjectActionAttachment(
+      user,
+      projectId,
+      actionId,
+      attachmentId,
+    );
   }
 
   @Patch(':projectId/actions/:actionId')

@@ -13,14 +13,46 @@ export const cyclesSearchView: SearchViewDefinition = {
   features: {
     favorites: true,
     presets: true,
-    advancedFilters: false,
+    advancedFilters: true,
     groupBy: true,
     clearAll: true,
   },
-  fields: [],
+  fields: [
+    {
+      name: "audienceType",
+      label: "Publico",
+      type: "select",
+      operators: ["="],
+      options: CYCLE_AUDIENCE_OPTIONS,
+    },
+    {
+      name: "isActive",
+      label: "Status",
+      type: "select",
+      operators: ["="],
+      options: CYCLE_STATUS_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    },
+    {
+      name: "tags",
+      label: "Tags",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "createdAt",
+      label: "Cadastro",
+      type: "date",
+      operators: ["=", ">=", "<="],
+    },
+  ],
   groupBy: [
     { field: "audienceType", label: "Publico" },
     { field: "isActive", label: "Status" },
+    { field: "tags", label: "Tags" },
+    { field: "createdAt", label: "Cadastro" },
   ],
   presets: [
     {

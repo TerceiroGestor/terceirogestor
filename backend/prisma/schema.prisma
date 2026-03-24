@@ -130,6 +130,19 @@ enum PantryExitType {
   CORRECTION
 }
 
+enum DepositDonorType {
+  PERSON
+  COMPANY
+}
+
+enum DepositExitType {
+  LOAN
+  FINAL_REMOVAL
+  TRANSFER
+  ADJUSTMENT
+  LOSS
+}
+
 enum TaskOrganizerStatus {
   BACKLOG
   IN_PROGRESS
@@ -204,6 +217,11 @@ model Tenant {
   peopleSegments                       PeopleSegment[]
   peopleSegmentMemberships             PeopleSegmentMembership[]
   personContacts                       PersonContact[]
+  personComments                       PersonComment[]
+  personAttachments                    PersonAttachment[]
+  personRecordComments                 PersonRecordComment[]
+  personRecordAttachments              PersonRecordAttachment[]
+  personRecordTags                     PersonRecordTag[]
   personSensitiveDocuments             PersonSensitiveDocument[]
   personSensitiveAccessLogs            PersonSensitiveAccessLog[]
   rolePermissions                      RolePermission[]
@@ -232,15 +250,44 @@ model Tenant {
   pantryEntries                        PantryEntry[]
   pantryExits                          PantryExit[]
   pantryDonors                         PantryDonor[]
+  pantryItemComments                   PantryItemComment[]
+  pantryItemAttachments                PantryItemAttachment[]
+  pantryDonorComments                  PantryDonorComment[]
+  pantryDonorAttachments               PantryDonorAttachment[]
+  pantryEntryComments                  PantryEntryComment[]
+  pantryEntryAttachments               PantryEntryAttachment[]
+  pantryExitComments                   PantryExitComment[]
+  pantryExitAttachments                PantryExitAttachment[]
   pantryExitAllocations                PantryExitAllocation[]
+  depositItems                         DepositItem[]
+  depositSectors                       DepositSector[]
+  depositEntries                       DepositEntry[]
+  depositExits                         DepositExit[]
+  depositDonors                        DepositDonor[]
+  depositItemComments                  DepositItemComment[]
+  depositItemAttachments               DepositItemAttachment[]
+  depositDonorComments                 DepositDonorComment[]
+  depositDonorAttachments              DepositDonorAttachment[]
+  depositEntryComments                 DepositEntryComment[]
+  depositEntryAttachments              DepositEntryAttachment[]
+  depositExitComments                  DepositExitComment[]
+  depositExitAttachments               DepositExitAttachment[]
+  depositExitAllocations               DepositExitAllocation[]
   taskOrganizerTasks                   TaskOrganizerTask[]
   taskOrganizerChecklistItems          TaskOrganizerChecklistItem[]
   taskOrganizerSubtasks                TaskOrganizerSubtask[]
   taskOrganizerComments                TaskOrganizerComment[]
+  taskOrganizerAttachments             TaskOrganizerAttachment[]
   taskOrganizerTaskDependencies        TaskOrganizerTaskDependency[]
   programs                             Program[]
   cycles                               Cycle[]
   projects                             Project[]
+  projectComments                      ProjectComment[]
+  projectAttachments                   ProjectAttachment[]
+  programComments                      ProgramComment[]
+  programAttachments                   ProgramAttachment[]
+  cycleComments                        CycleComment[]
+  cycleAttachments                     CycleAttachment[]
   projectGroups                        ProjectGroup[]
   projectCycles                        ProjectCycle[]
   projectPeopleGroups                  ProjectPeopleGroup[]
@@ -249,6 +296,8 @@ model Tenant {
   projectEnrollmentCycleParticipations ProjectEnrollmentCycleParticipation[]
   actionTypes                          ActionType[]
   projectActions                       ProjectAction[]
+  projectActionComments                ProjectActionComment[]
+  projectActionAttachments             ProjectActionAttachment[]
   actionPeopleGroups                   ActionPeopleGroup[]
   projectActionAttendances             ProjectActionAttendance[]
   projectActionPeopleParticipations    ProjectActionPeopleParticipation[]
@@ -272,22 +321,51 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  tenant                     Tenant                     @relation(fields: [tenantId], references: [id])
-  roles                      UserRole[]
-  sessions                   UserSession[]
-  passwordResetTokens        PasswordResetToken[]
-  accessLogs                 AccessLog[]
-  auditLogs                  AuditLog[]
-  mfaTotpSetups              UserMfaTotpSetup[]
-  mfaChallenges              UserMfaChallenge[]
-  trustedDevices             UserTrustedDevice[]
-  recoveryCodes              UserMfaRecoveryCode[]
-  personSensitiveAccessLogs  PersonSensitiveAccessLog[]
-  projectActionsCreated      ProjectAction[]
-  assignedTaskOrganizerTasks TaskOrganizerTask[]        @relation("TaskOrganizerAssignedUser")
+  tenant                              Tenant                       @relation(fields: [tenantId], references: [id])
+  roles                               UserRole[]
+  sessions                            UserSession[]
+  passwordResetTokens                 PasswordResetToken[]
+  accessLogs                          AccessLog[]
+  auditLogs                           AuditLog[]
+  mfaTotpSetups                       UserMfaTotpSetup[]
+  mfaChallenges                       UserMfaChallenge[]
+  trustedDevices                      UserTrustedDevice[]
+  recoveryCodes                       UserMfaRecoveryCode[]
+  personSensitiveAccessLogs           PersonSensitiveAccessLog[]
+  personComments                      PersonComment[]
+  personAttachments                   PersonAttachment[]
+  personRecordComments                PersonRecordComment[]
+  personRecordAttachments             PersonRecordAttachment[]
+  pantryItemComments                  PantryItemComment[]
+  pantryItemAttachments               PantryItemAttachment[]
+  pantryDonorComments                 PantryDonorComment[]
+  pantryDonorAttachments              PantryDonorAttachment[]
+  pantryEntryComments                 PantryEntryComment[]
+  pantryEntryAttachments              PantryEntryAttachment[]
+  pantryExitComments                  PantryExitComment[]
+  pantryExitAttachments               PantryExitAttachment[]
+  depositItemComments                 DepositItemComment[]
+  depositItemAttachments              DepositItemAttachment[]
+  depositDonorComments                DepositDonorComment[]
+  depositDonorAttachments             DepositDonorAttachment[]
+  depositEntryComments                DepositEntryComment[]
+  depositEntryAttachments             DepositEntryAttachment[]
+  depositExitComments                 DepositExitComment[]
+  depositExitAttachments              DepositExitAttachment[]
+  projectActionsCreated               ProjectAction[]
+  projectComments                     ProjectComment[]
+  projectAttachments                  ProjectAttachment[]
+  programComments                     ProgramComment[]
+  programAttachments                  ProgramAttachment[]
+  cycleComments                       CycleComment[]
+  cycleAttachments                    CycleAttachment[]
+  projectActionComments               ProjectActionComment[]
+  projectActionAttachments            ProjectActionAttachment[]
+  assignedTaskOrganizerTasks          TaskOrganizerTask[]          @relation("TaskOrganizerAssignedUser")
   assignedTaskOrganizerChecklistItems TaskOrganizerChecklistItem[] @relation("TaskOrganizerChecklistAssignedUser")
-  assignedTaskOrganizerSubtasks TaskOrganizerSubtask[] @relation("TaskOrganizerSubtaskAssignedUser")
-  taskOrganizerComments TaskOrganizerComment[]
+  assignedTaskOrganizerSubtasks       TaskOrganizerSubtask[]       @relation("TaskOrganizerSubtaskAssignedUser")
+  taskOrganizerComments               TaskOrganizerComment[]
+  taskOrganizerAttachments            TaskOrganizerAttachment[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -375,26 +453,31 @@ model Person {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant              Tenant                     @relation(fields: [tenantId], references: [id])
-  householdMembers    HouseholdMember[]
-  relations           PersonRelation[]           @relation("PersonRelationPerson")
-  relatedRelations    PersonRelation[]           @relation("PersonRelationRelated")
-  financialEntries    PersonFinancialEntry[]
-  incomes             PersonIncome[]
-  expenses            PersonExpense[]
-  benefits            PersonBenefit[]
-  detentions          PersonDetention[]
-  assets              PersonAsset[]
-  transfers           HouseholdTransfer[]
-  healthConditions    PersonHealthCondition[]
-  medications         PersonMedication[]
-  educations          PersonEducation[]
-  contacts            PersonContact[]
-  sensitiveDocument   PersonSensitiveDocument?
-  sensitiveAccessLogs PersonSensitiveAccessLog[]
-  projectEnrollments  ProjectEnrollment[]
-  peopleGroupParticipations PeopleGroupParticipation[]
-  peopleSegmentMemberships PeopleSegmentMembership[]
+  tenant                     Tenant                             @relation(fields: [tenantId], references: [id])
+  householdMembers           HouseholdMember[]
+  relations                  PersonRelation[]                   @relation("PersonRelationPerson")
+  relatedRelations           PersonRelation[]                   @relation("PersonRelationRelated")
+  financialEntries           PersonFinancialEntry[]
+  incomes                    PersonIncome[]
+  expenses                   PersonExpense[]
+  benefits                   PersonBenefit[]
+  detentions                 PersonDetention[]
+  assets                     PersonAsset[]
+  transfers                  HouseholdTransfer[]
+  healthConditions           PersonHealthCondition[]
+  medications                PersonMedication[]
+  educations                 PersonEducation[]
+  contacts                   PersonContact[]
+  comments                   PersonComment[]
+  attachments                PersonAttachment[]
+  recordComments             PersonRecordComment[]
+  recordAttachments          PersonRecordAttachment[]
+  recordTags                 PersonRecordTag[]
+  sensitiveDocument          PersonSensitiveDocument?
+  sensitiveAccessLogs        PersonSensitiveAccessLog[]
+  projectEnrollments         ProjectEnrollment[]
+  peopleGroupParticipations  PeopleGroupParticipation[]
+  peopleSegmentMemberships   PeopleSegmentMembership[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
@@ -424,6 +507,108 @@ model PersonContact {
   @@index([tenantId])
   @@index([personId])
   @@index([tenantId, personId, type])
+}
+
+model PersonComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  personId       String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  person     Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  authorUser User?  @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([personId, createdAt])
+  @@index([authorUserId])
+}
+
+model PersonAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  personId         String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  uploadedByUser User?  @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([personId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model PersonRecordComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  personId       String   @db.Char(36)
+  recordType     String   @db.VarChar(64)
+  recordId       String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  person     Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  authorUser User?  @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([personId, recordType, recordId, createdAt], map: "PRComment_record_idx")
+  @@index([authorUserId])
+}
+
+model PersonRecordAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  personId         String   @db.Char(36)
+  recordType       String   @db.VarChar(64)
+  recordId         String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  person         Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  uploadedByUser User?  @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([personId, recordType, recordId, createdAt], map: "PRAttach_record_idx")
+  @@index([uploadedByUserId])
+}
+
+model PersonRecordTag {
+  id         String   @id @default(uuid()) @db.Char(36)
+  tenantId   String   @db.Char(36)
+  personId   String   @db.Char(36)
+  recordType String   @db.VarChar(64)
+  recordId   String   @db.Char(36)
+  value      String   @db.VarChar(120)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, recordType, recordId, value], map: "PRTag_record_value_key")
+  @@index([tenantId])
+  @@index([personId, recordType, recordId], map: "PRTag_record_idx")
 }
 
 model PersonSensitiveDocument {
@@ -470,18 +655,18 @@ model Household {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant            Tenant              @relation(fields: [tenantId], references: [id])
-  members           HouseholdMember[]
-  profile           HouseholdProfile?
-  financialEntries  PersonFinancialEntry[]
+  tenant                   Tenant                 @relation(fields: [tenantId], references: [id])
+  members                  HouseholdMember[]
+  profile                  HouseholdProfile?
+  financialEntries         PersonFinancialEntry[]
   outgoingFinancialEntries PersonFinancialEntry[] @relation("PersonFinancialEntryFromHousehold")
   incomingFinancialEntries PersonFinancialEntry[] @relation("PersonFinancialEntryToHousehold")
-  assets            HouseholdAsset[]
-  incomes           PersonIncome[]
-  expenses          PersonExpense[]
-  benefits          PersonBenefit[]
-  outgoingTransfers HouseholdTransfer[] @relation("HouseholdTransferFrom")
-  incomingTransfers HouseholdTransfer[] @relation("HouseholdTransferTo")
+  assets                   HouseholdAsset[]
+  incomes                  PersonIncome[]
+  expenses                 PersonExpense[]
+  benefits                 PersonBenefit[]
+  outgoingTransfers        HouseholdTransfer[]    @relation("HouseholdTransferFrom")
+  incomingTransfers        HouseholdTransfer[]    @relation("HouseholdTransferTo")
 
   @@index([tenantId])
 }
@@ -917,51 +1102,137 @@ model AuditLog {
 }
 
 model Program {
-  id          String        @id @default(uuid()) @db.Char(36)
-  tenantId    String        @db.Char(36)
-  name        String
-  type        ProgramType
-  description String?       @db.Text
-  internalNotes String?     @db.Text
-  status      ProgramStatus @default(PLANNED)
-  startsAt    DateTime?
-  endsAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(uuid()) @db.Char(36)
+  tenantId      String        @db.Char(36)
+  name          String
+  type          ProgramType
+  description   String?       @db.Text
+  tags          String?       @db.Text
+  internalNotes String?       @db.Text
+  status        ProgramStatus @default(PLANNED)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  projects Project[]
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  projects    Project[]
+  comments    ProgramComment[]
+  attachments ProgramAttachment[]
 
   @@index([tenantId])
   @@index([name])
   @@index([status])
 }
 
-model Project {
-  id          String        @id @default(uuid()) @db.Char(36)
-  tenantId    String        @db.Char(36)
-  programId   String        @db.Char(36)
-  name        String
-  description String?       @db.Text
-  internalNotes String?     @db.Text
-  status      ProjectStatus @default(PLANNED)
-  startsAt    DateTime?
-  endsAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model ProgramComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  programId      String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  tenant      Tenant              @relation(fields: [tenantId], references: [id])
-  program     Program             @relation(fields: [programId], references: [id])
-  groups      ProjectGroup[]
-  cycles      ProjectCycle[]
+  tenant     Tenant  @relation(fields: [tenantId], references: [id])
+  program    Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  authorUser User?   @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([programId, createdAt])
+  @@index([authorUserId])
+}
+
+model ProgramAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  programId        String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  program        Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  uploadedByUser User?   @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([programId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model Project {
+  id            String        @id @default(uuid()) @db.Char(36)
+  tenantId      String        @db.Char(36)
+  programId     String        @db.Char(36)
+  name          String
+  description   String?       @db.Text
+  tags          String?       @db.Text
+  internalNotes String?       @db.Text
+  status        ProjectStatus @default(PLANNED)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  program      Program              @relation(fields: [programId], references: [id])
+  groups       ProjectGroup[]
+  cycles       ProjectCycle[]
   peopleGroups ProjectPeopleGroup[]
-  enrollments ProjectEnrollment[]
-  actions     ProjectAction[]
+  enrollments  ProjectEnrollment[]
+  actions      ProjectAction[]
+  comments     ProjectComment[]
+  attachments  ProjectAttachment[]
 
   @@index([tenantId])
   @@index([programId])
   @@index([name])
   @@index([status])
+}
+
+model ProjectComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  projectId      String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant  @relation(fields: [tenantId], references: [id])
+  project    Project @relation(fields: [projectId], references: [id])
+  authorUser User?   @relation(fields: [authorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([authorUserId])
+}
+
+model ProjectAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  projectId        String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  project        Project @relation(fields: [projectId], references: [id])
+  uploadedByUser User?   @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([uploadedByUserId])
 }
 
 model Cycle {
@@ -973,17 +1244,60 @@ model Cycle {
   ageMin        Int?
   ageMax        Int?
   isActive      Boolean  @default(true)
+  tags          String?  @db.Text
   internalNotes String?  @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
   projectCycles ProjectCycle[]
+  comments      CycleComment[]
+  attachments   CycleAttachment[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([name])
   @@index([isActive])
+}
+
+model CycleComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  cycleId        String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  cycle      Cycle  @relation(fields: [cycleId], references: [id])
+  authorUser User?  @relation(fields: [authorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([cycleId])
+  @@index([authorUserId])
+}
+
+model CycleAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  cycleId          String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  cycle          Cycle  @relation(fields: [cycleId], references: [id])
+  uploadedByUser User?  @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([cycleId])
+  @@index([uploadedByUserId])
 }
 
 model PeopleGroup {
@@ -1000,10 +1314,10 @@ model PeopleGroup {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  tenant               Tenant                     @relation(fields: [tenantId], references: [id])
-  participations       PeopleGroupParticipation[]
-  projectPeopleGroups  ProjectPeopleGroup[]
-  actionPeopleGroups   ActionPeopleGroup[]
+  tenant              Tenant                     @relation(fields: [tenantId], references: [id])
+  participations      PeopleGroupParticipation[]
+  projectPeopleGroups ProjectPeopleGroup[]
+  actionPeopleGroups  ActionPeopleGroup[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1014,18 +1328,18 @@ model PeopleGroup {
 }
 
 model PeopleGroupParticipation {
-  id             String    @id @default(uuid()) @db.Char(36)
-  tenantId       String    @db.Char(36)
-  peopleGroupId  String    @db.Char(36)
-  personId       String    @db.Char(36)
-  activeKey      String?   @db.VarChar(80)
-  isActive       Boolean   @default(true)
-  startsAt       DateTime  @default(now())
-  endsAt         DateTime?
-  deletedAt      DateTime?
-  internalNotes  String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @db.Char(36)
+  peopleGroupId String    @db.Char(36)
+  personId      String    @db.Char(36)
+  activeKey     String?   @db.VarChar(80)
+  isActive      Boolean   @default(true)
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  deletedAt     DateTime?
+  internalNotes String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
@@ -1052,8 +1366,8 @@ model PeopleSegment {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant       Tenant                   @relation(fields: [tenantId], references: [id])
-  memberships  PeopleSegmentMembership[]
+  tenant        Tenant                    @relation(fields: [tenantId], references: [id])
+  memberships   PeopleSegmentMembership[]
   projectCycles ProjectCycle[]
 
   @@unique([tenantId, name])
@@ -1064,22 +1378,22 @@ model PeopleSegment {
 }
 
 model PeopleSegmentMembership {
-  id             String    @id @default(uuid()) @db.Char(36)
-  tenantId       String    @db.Char(36)
-  segmentId      String    @db.Char(36)
-  personId       String    @db.Char(36)
-  activeKey      String?   @db.VarChar(80)
-  isActive       Boolean   @default(true)
-  startsAt       DateTime  @default(now())
-  endsAt         DateTime?
-  deletedAt      DateTime?
-  internalNotes  String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid()) @db.Char(36)
+  tenantId      String    @db.Char(36)
+  segmentId     String    @db.Char(36)
+  personId      String    @db.Char(36)
+  activeKey     String?   @db.VarChar(80)
+  isActive      Boolean   @default(true)
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  deletedAt     DateTime?
+  internalNotes String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id])
-  segment  PeopleSegment @relation(fields: [segmentId], references: [id])
-  person   Person        @relation(fields: [personId], references: [id])
+  tenant  Tenant        @relation(fields: [tenantId], references: [id])
+  segment PeopleSegment @relation(fields: [segmentId], references: [id])
+  person  Person        @relation(fields: [personId], references: [id])
 
   @@unique([tenantId, activeKey])
   @@index([tenantId])
@@ -1090,14 +1404,14 @@ model PeopleSegmentMembership {
 }
 
 model ProjectGroup {
-  id          String   @id @default(uuid()) @db.Char(36)
-  tenantId    String   @db.Char(36)
-  projectId   String   @db.Char(36)
-  name        String
-  description String?  @db.Text
-  internalNotes String? @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  projectId     String   @db.Char(36)
+  name          String
+  description   String?  @db.Text
+  internalNotes String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   tenant      Tenant                             @relation(fields: [tenantId], references: [id])
   project     Project                            @relation(fields: [projectId], references: [id])
@@ -1131,17 +1445,17 @@ model ProjectPeopleGroup {
 }
 
 model ProjectCycle {
-  id        String    @id @default(uuid()) @db.Char(36)
-  tenantId  String    @db.Char(36)
-  projectId String    @db.Char(36)
-  catalogCycleId String? @db.Char(36)
-  segmentId String? @db.Char(36)
-  name      String
-  startsAt  DateTime?
-  endsAt    DateTime?
-  internalNotes String? @db.Text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id             String    @id @default(uuid()) @db.Char(36)
+  tenantId       String    @db.Char(36)
+  projectId      String    @db.Char(36)
+  catalogCycleId String?   @db.Char(36)
+  segmentId      String?   @db.Char(36)
+  name           String
+  startsAt       DateTime?
+  endsAt         DateTime?
+  internalNotes  String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   tenant         Tenant                                @relation(fields: [tenantId], references: [id])
   project        Project                               @relation(fields: [projectId], references: [id])
@@ -1159,25 +1473,25 @@ model ProjectCycle {
 }
 
 model ProjectEnrollment {
-  id        String           @id @default(uuid()) @db.Char(36)
-  tenantId  String           @db.Char(36)
-  projectId String           @db.Char(36)
-  personId  String           @db.Char(36)
-  status    EnrollmentStatus @default(ACTIVE)
-  participationKind ParticipationKind @default(PARTICIPANT)
-  role      ProjectParticipationRole @default(PUBLICO_ATENDIDO)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  deletedAt DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                String                   @id @default(uuid()) @db.Char(36)
+  tenantId          String                   @db.Char(36)
+  projectId         String                   @db.Char(36)
+  personId          String                   @db.Char(36)
+  status            EnrollmentStatus         @default(ACTIVE)
+  participationKind ParticipationKind        @default(PARTICIPANT)
+  role              ProjectParticipationRole @default(PUBLICO_ATENDIDO)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
-  tenant              Tenant                                @relation(fields: [tenantId], references: [id])
-  project             Project                               @relation(fields: [projectId], references: [id])
-  person              Person                                @relation(fields: [personId], references: [id])
-  groupMemberships    ProjectEnrollmentGroupMembership[]
-  cycleParticipations ProjectEnrollmentCycleParticipation[]
-  actionAttendances   ProjectActionAttendance[]
+  tenant                     Tenant                                @relation(fields: [tenantId], references: [id])
+  project                    Project                               @relation(fields: [projectId], references: [id])
+  person                     Person                                @relation(fields: [personId], references: [id])
+  groupMemberships           ProjectEnrollmentGroupMembership[]
+  cycleParticipations        ProjectEnrollmentCycleParticipation[]
+  actionAttendances          ProjectActionAttendance[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
@@ -1267,6 +1581,8 @@ model ProjectAction {
   actionTypeId      String       @db.Char(36)
   title             String
   description       String?      @db.Text
+  tags              String?      @db.Text
+  internalNotes     String?      @db.Text
   planHtml          String?      @db.Text
   executedHtml      String?      @db.Text
   conclusionHtml    String?      @db.Text
@@ -1280,15 +1596,17 @@ model ProjectAction {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  tenant        Tenant                    @relation(fields: [tenantId], references: [id])
-  project       Project                   @relation(fields: [projectId], references: [id])
-  createdByUser User?                     @relation(fields: [createdByUserId], references: [id])
-  group         ProjectGroup?             @relation(fields: [groupId], references: [id])
-  cycle         ProjectCycle?             @relation(fields: [cycleId], references: [id])
-  actionType    ActionType                @relation(fields: [actionTypeId], references: [id])
-  attendances   ProjectActionAttendance[]
-  peopleGroups  ActionPeopleGroup[]
+  tenant               Tenant                             @relation(fields: [tenantId], references: [id])
+  project              Project                            @relation(fields: [projectId], references: [id])
+  createdByUser        User?                              @relation(fields: [createdByUserId], references: [id])
+  group                ProjectGroup?                      @relation(fields: [groupId], references: [id])
+  cycle                ProjectCycle?                      @relation(fields: [cycleId], references: [id])
+  actionType           ActionType                         @relation(fields: [actionTypeId], references: [id])
+  attendances          ProjectActionAttendance[]
+  peopleGroups         ActionPeopleGroup[]
   peopleParticipations ProjectActionPeopleParticipation[]
+  comments             ProjectActionComment[]
+  attachments          ProjectActionAttachment[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -1298,6 +1616,46 @@ model ProjectAction {
   @@index([actionTypeId])
   @@index([status])
   @@index([plannedStartAt])
+}
+
+model ProjectActionComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  actionId       String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  action     ProjectAction @relation(fields: [actionId], references: [id])
+  authorUser User?         @relation(fields: [authorUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([actionId])
+  @@index([authorUserId])
+}
+
+model ProjectActionAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  actionId         String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  action         ProjectAction @relation(fields: [actionId], references: [id])
+  uploadedByUser User?         @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([actionId])
+  @@index([uploadedByUserId])
 }
 
 model ActionPeopleGroup {
@@ -1348,21 +1706,21 @@ model ProjectActionAttendance {
 }
 
 model ProjectActionPeopleParticipation {
-  id           String                        @id @default(uuid()) @db.Char(36)
-  tenantId     String                        @db.Char(36)
-  actionId     String                        @db.Char(36)
-  personId     String                        @db.Char(36)
-  enrollmentId String?                       @db.Char(36)
-  participationKind ParticipationKind       @default(TEAM)
-  role         ActionPeopleParticipationRole @default(PARTICIPANTE)
-  activeKey    String?                       @db.VarChar(120)
-  isActive     Boolean                       @default(true)
-  startsAt     DateTime                      @default(now())
-  endsAt       DateTime?
-  deletedAt    DateTime?
-  internalNotes String?                      @db.Text
-  createdAt    DateTime                      @default(now())
-  updatedAt    DateTime                      @updatedAt
+  id                String                        @id @default(uuid()) @db.Char(36)
+  tenantId          String                        @db.Char(36)
+  actionId          String                        @db.Char(36)
+  personId          String                        @db.Char(36)
+  enrollmentId      String?                       @db.Char(36)
+  participationKind ParticipationKind             @default(TEAM)
+  role              ActionPeopleParticipationRole @default(PARTICIPANTE)
+  activeKey         String?                       @db.VarChar(120)
+  isActive          Boolean                       @default(true)
+  startsAt          DateTime                      @default(now())
+  endsAt            DateTime?
+  deletedAt         DateTime?
+  internalNotes     String?                       @db.Text
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
 
   tenant     Tenant             @relation(fields: [tenantId], references: [id])
   action     ProjectAction      @relation(fields: [actionId], references: [id])
@@ -1389,12 +1747,16 @@ model PantryItem {
   unit          String
   minStock      Decimal  @db.Decimal(10, 2)
   notes         String?  @db.Text
+  tags          String?  @db.Text
+  internalNotes String?  @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant  Tenant        @relation(fields: [tenantId], references: [id])
-  entries PantryEntry[]
-  exits   PantryExit[]
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id])
+  entries     PantryEntry[]
+  exits       PantryExit[]
+  comments    PantryItemComment[]
+  attachments PantryItemAttachment[]
 
   @@index([tenantId])
   @@index([name])
@@ -1414,17 +1776,21 @@ model PantrySector {
 }
 
 model PantryDonor {
-  id        String          @id @default(uuid()) @db.Char(36)
-  tenantId  String          @db.Char(36)
-  name      String
-  type      PantryDonorType @default(PERSON)
-  contact   String?
-  avatarUrl String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id            String          @id @default(uuid()) @db.Char(36)
+  tenantId      String          @db.Char(36)
+  name          String
+  type          PantryDonorType @default(PERSON)
+  contact       String?
+  avatarUrl     String?
+  tags          String?         @db.Text
+  internalNotes String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  tenant  Tenant        @relation(fields: [tenantId], references: [id])
-  entries PantryEntry[]
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id])
+  entries     PantryEntry[]
+  comments    PantryDonorComment[]
+  attachments PantryDonorAttachment[]
 
   @@index([tenantId])
   @@index([name])
@@ -1441,16 +1807,20 @@ model PantryEntry {
   entryDate        DateTime  @default(now())
   expiryDate       DateTime?
   notes            String?   @db.Text
+  tags             String?   @db.Text
+  internalNotes    String?   @db.Text
   reversalOfExitId String?   @db.Char(36)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
-  item            PantryItem             @relation(fields: [itemId], references: [id])
-  donor           PantryDonor?           @relation(fields: [donorId], references: [id])
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  item            PantryItem              @relation(fields: [itemId], references: [id])
+  donor           PantryDonor?            @relation(fields: [donorId], references: [id])
   exitAllocations PantryExitAllocation[]
-  reversalOfExit  PantryExit?            @relation("PantryEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
-  reversalExits   PantryExit[]           @relation("PantryExitReversalOfEntry")
+  reversalOfExit  PantryExit?             @relation("PantryEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
+  reversalExits   PantryExit[]            @relation("PantryExitReversalOfEntry")
+  comments        PantryEntryComment[]
+  attachments     PantryEntryAttachment[]
 
   @@index([tenantId])
   @@index([itemId])
@@ -1472,6 +1842,8 @@ model PantryExit {
   type              PantryExitType @default(ATTENDED)
   eventName         String?
   notes             String?        @db.Text
+  tags              String?        @db.Text
+  internalNotes     String?        @db.Text
   reversalOfEntryId String?        @db.Char(36)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -1481,6 +1853,8 @@ model PantryExit {
   allocations     PantryExitAllocation[]
   reversalOfEntry PantryEntry?           @relation("PantryExitReversalOfEntry", fields: [reversalOfEntryId], references: [id])
   reversalEntries PantryEntry[]          @relation("PantryEntryReversalOfExit")
+  comments        PantryExitComment[]
+  attachments     PantryExitAttachment[]
 
   @@index([tenantId])
   @@index([itemId])
@@ -1507,6 +1881,474 @@ model PantryExitAllocation {
   @@index([entryId])
 }
 
+model PantryItemComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  itemId         String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  item       PantryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  authorUser User?      @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([itemId, createdAt])
+  @@index([authorUserId])
+}
+
+model PantryItemAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  itemId           String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  item           PantryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  uploadedByUser User?      @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([itemId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model PantryDonorComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  donorId        String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  donor      PantryDonor @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  authorUser User?       @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([donorId, createdAt])
+  @@index([authorUserId])
+}
+
+model PantryDonorAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  donorId          String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  donor          PantryDonor @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  uploadedByUser User?       @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([donorId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model PantryEntryComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  entryId        String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  entry      PantryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  authorUser User?       @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([entryId, createdAt])
+  @@index([authorUserId])
+}
+
+model PantryEntryAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  entryId          String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  entry          PantryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  uploadedByUser User?       @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([entryId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model PantryExitComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  exitId         String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  exit       PantryExit @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  authorUser User?      @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([exitId, createdAt])
+  @@index([authorUserId])
+}
+
+model PantryExitAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  exitId           String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  exit           PantryExit @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  uploadedByUser User?      @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([exitId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model DepositItem {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  name          String
+  group         String?
+  defaultSector String   @default("Geral")
+  unit          String
+  minStock      Decimal  @db.Decimal(10, 2)
+  notes         String?  @db.Text
+  tags          String?  @db.Text
+  internalNotes String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id])
+  entries     DepositEntry[]
+  exits       DepositExit[]
+  comments    DepositItemComment[]
+  attachments DepositItemAttachment[]
+
+  @@index([tenantId])
+  @@index([name])
+}
+
+model DepositSector {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model DepositDonor {
+  id            String           @id @default(uuid()) @db.Char(36)
+  tenantId      String           @db.Char(36)
+  name          String
+  type          DepositDonorType @default(PERSON)
+  contact       String?
+  avatarUrl     String?
+  tags          String?          @db.Text
+  internalNotes String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  tenant      Tenant                   @relation(fields: [tenantId], references: [id])
+  entries     DepositEntry[]
+  comments    DepositDonorComment[]
+  attachments DepositDonorAttachment[]
+
+  @@index([tenantId])
+  @@index([name])
+}
+
+model DepositEntry {
+  id               String    @id @default(uuid()) @db.Char(36)
+  tenantId         String    @db.Char(36)
+  itemId           String    @db.Char(36)
+  donorId          String?   @db.Char(36)
+  sector           String
+  quantity         Decimal   @db.Decimal(10, 2)
+  unit             String
+  entryDate        DateTime  @default(now())
+  expiryDate       DateTime?
+  notes            String?   @db.Text
+  tags             String?   @db.Text
+  internalNotes    String?   @db.Text
+  reversalOfExitId String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id])
+  item            DepositItem              @relation(fields: [itemId], references: [id])
+  donor           DepositDonor?            @relation(fields: [donorId], references: [id])
+  exitAllocations DepositExitAllocation[]
+  reversalOfExit  DepositExit?             @relation("DepositEntryReversalOfExit", fields: [reversalOfExitId], references: [id])
+  reversalExits   DepositExit[]            @relation("DepositExitReversalOfEntry")
+  comments        DepositEntryComment[]
+  attachments     DepositEntryAttachment[]
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([donorId])
+  @@index([sector])
+  @@index([entryDate])
+  @@index([expiryDate])
+  @@index([reversalOfExitId])
+}
+
+model DepositExit {
+  id                String          @id @default(uuid()) @db.Char(36)
+  tenantId          String          @db.Char(36)
+  itemId            String          @db.Char(36)
+  sector            String
+  quantity          Decimal         @db.Decimal(10, 2)
+  unit              String
+  exitDate          DateTime        @default(now())
+  type              DepositExitType @default(FINAL_REMOVAL)
+  destinationName   String?
+  destinationType   String?
+  expectedReturnAt  DateTime?
+  returnedAt        DateTime?
+  returnedQuantity  Decimal?        @db.Decimal(10, 2)
+  returnNotes       String?         @db.Text
+  notes             String?         @db.Text
+  tags              String?         @db.Text
+  internalNotes     String?         @db.Text
+  reversalOfEntryId String?         @db.Char(36)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  item            DepositItem             @relation(fields: [itemId], references: [id])
+  allocations     DepositExitAllocation[]
+  reversalOfEntry DepositEntry?           @relation("DepositExitReversalOfEntry", fields: [reversalOfEntryId], references: [id])
+  reversalEntries DepositEntry[]          @relation("DepositEntryReversalOfExit")
+  comments        DepositExitComment[]
+  attachments     DepositExitAttachment[]
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([sector])
+  @@index([exitDate])
+  @@index([reversalOfEntryId])
+}
+
+model DepositExitAllocation {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  exitId    String   @db.Char(36)
+  entryId   String   @db.Char(36)
+  quantity  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  exit   DepositExit  @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  entry  DepositEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@unique([exitId, entryId])
+  @@index([tenantId])
+  @@index([exitId])
+  @@index([entryId])
+}
+
+model DepositItemComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  itemId         String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  item       DepositItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  authorUser User?       @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([itemId, createdAt])
+  @@index([authorUserId])
+}
+
+model DepositItemAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  itemId           String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  item           DepositItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  uploadedByUser User?       @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([itemId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model DepositDonorComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  donorId        String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  donor      DepositDonor @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  authorUser User?        @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([donorId, createdAt])
+  @@index([authorUserId])
+}
+
+model DepositDonorAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  donorId          String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  donor          DepositDonor @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  uploadedByUser User?        @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([donorId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model DepositEntryComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  entryId        String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  entry      DepositEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  authorUser User?        @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([entryId, createdAt])
+  @@index([authorUserId])
+}
+
+model DepositEntryAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  entryId          String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  entry          DepositEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  uploadedByUser User?        @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([entryId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model DepositExitComment {
+  id             String   @id @default(uuid()) @db.Char(36)
+  tenantId       String   @db.Char(36)
+  exitId         String   @db.Char(36)
+  authorUserId   String?  @db.Char(36)
+  body           String   @db.Text
+  mentionUserIds Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  exit       DepositExit @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  authorUser User?       @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([exitId, createdAt])
+  @@index([authorUserId])
+}
+
+model DepositExitAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  exitId           String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  exit           DepositExit @relation(fields: [exitId], references: [id], onDelete: Cascade)
+  uploadedByUser User?       @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([exitId, createdAt])
+  @@index([uploadedByUserId])
+}
+
 model TaskOrganizerTask {
   id            String                @id @default(uuid()) @db.Char(36)
   tenantId      String                @db.Char(36)
@@ -1529,13 +2371,14 @@ model TaskOrganizerTask {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
-  tenant         Tenant                       @relation(fields: [tenantId], references: [id])
-  ownerUser      User?                        @relation("TaskOrganizerAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  checklistItems TaskOrganizerChecklistItem[]
-  subtasks       TaskOrganizerSubtask[]
-  comments       TaskOrganizerComment[]
+  tenant                Tenant                        @relation(fields: [tenantId], references: [id])
+  ownerUser             User?                         @relation("TaskOrganizerAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  checklistItems        TaskOrganizerChecklistItem[]
+  subtasks              TaskOrganizerSubtask[]
+  comments              TaskOrganizerComment[]
+  attachments           TaskOrganizerAttachment[]
   blockedByDependencies TaskOrganizerTaskDependency[] @relation("TaskOrganizerTaskBlockedBy")
-  dependentTaskLinks TaskOrganizerTaskDependency[] @relation("TaskOrganizerTaskBlocks")
+  dependentTaskLinks    TaskOrganizerTaskDependency[] @relation("TaskOrganizerTaskBlocks")
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1547,23 +2390,44 @@ model TaskOrganizerTask {
   @@index([dueDate])
 }
 
-model TaskOrganizerChecklistItem {
-  id        String    @id @default(uuid()) @db.Char(36)
-  tenantId  String    @db.Char(36)
-  taskId    String    @db.Char(36)
-  label     String
-  done      Boolean   @default(false)
-  owner     String?
-  ownerUserId String? @db.Char(36)
-  dueDate   DateTime?
-  notes     String?   @db.Text
-  sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+model TaskOrganizerAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  taskId           String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  tenant Tenant            @relation(fields: [tenantId], references: [id])
-  task   TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  ownerUser User?          @relation("TaskOrganizerChecklistAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  tenant         Tenant            @relation(fields: [tenantId], references: [id])
+  task           TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedByUser User?             @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([taskId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model TaskOrganizerChecklistItem {
+  id          String    @id @default(uuid()) @db.Char(36)
+  tenantId    String    @db.Char(36)
+  taskId      String    @db.Char(36)
+  label       String
+  done        Boolean   @default(false)
+  owner       String?
+  ownerUserId String?   @db.Char(36)
+  dueDate     DateTime?
+  notes       String?   @db.Text
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  task      TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ownerUser User?             @relation("TaskOrganizerChecklistAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([taskId, sortOrder])
@@ -1571,23 +2435,23 @@ model TaskOrganizerChecklistItem {
 }
 
 model TaskOrganizerSubtask {
-  id        String              @id @default(uuid()) @db.Char(36)
-  tenantId  String              @db.Char(36)
-  taskId    String              @db.Char(36)
-  title     String
-  status    TaskOrganizerStatus @default(BACKLOG)
-  owner     String?
-  ownerUserId String?           @db.Char(36)
-  startDate DateTime?
-  dueDate   DateTime?
-  description String?           @db.Text
-  sortOrder Int                 @default(0)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id          String              @id @default(uuid()) @db.Char(36)
+  tenantId    String              @db.Char(36)
+  taskId      String              @db.Char(36)
+  title       String
+  status      TaskOrganizerStatus @default(BACKLOG)
+  owner       String?
+  ownerUserId String?             @db.Char(36)
+  startDate   DateTime?
+  dueDate     DateTime?
+  description String?             @db.Text
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
-  tenant Tenant            @relation(fields: [tenantId], references: [id])
-  task   TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  ownerUser User?          @relation("TaskOrganizerSubtaskAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  task      TaskOrganizerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  ownerUser User?             @relation("TaskOrganizerSubtaskAssignedUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([taskId, sortOrder])
@@ -1614,11 +2478,11 @@ model TaskOrganizerComment {
 }
 
 model TaskOrganizerTaskDependency {
-  id            String   @id @default(uuid()) @db.Char(36)
-  tenantId      String   @db.Char(36)
-  taskId        String   @db.Char(36)
-  dependsOnTaskId String @db.Char(36)
-  createdAt     DateTime @default(now())
+  id              String   @id @default(uuid()) @db.Char(36)
+  tenantId        String   @db.Char(36)
+  taskId          String   @db.Char(36)
+  dependsOnTaskId String   @db.Char(36)
+  createdAt       DateTime @default(now())
 
   tenant        Tenant            @relation(fields: [tenantId], references: [id])
   task          TaskOrganizerTask @relation("TaskOrganizerTaskBlockedBy", fields: [taskId], references: [id], onDelete: Cascade)

@@ -37,7 +37,6 @@ import {
   type ApiPantryEntry,
   type ApiPantryExit,
 } from "@/modules/pantry/api";
-import { PantryHeaderNav } from "@/modules/pantry/shared/ui/pantry-header-nav";
 import {
   PANTRY_DEFAULT_SECTOR,
   PANTRY_DEFAULT_UNIT,
@@ -362,7 +361,6 @@ export function PantryExitDetailClientPage() {
             ? [{ label: exit.item.name, href: `${PANTRY_ROUTES.items}/${exit.itemId}` }]
             : []),
         ]}
-        actionSlot={<PantryHeaderNav />}
         mode="edit"
         headerTitle={headerTitle}
         saving={saving}

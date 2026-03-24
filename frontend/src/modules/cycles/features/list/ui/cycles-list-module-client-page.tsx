@@ -3,8 +3,10 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { ApiCycle, CycleAudienceType } from "@/modules/cycles/api";
 import {
@@ -15,13 +17,23 @@ import { CYCLE_AUDIENCE_LABELS } from "@/modules/cycles/shared/domain/cycles.con
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
-import { hasModulePermission } from "@/web-client/registry/module-utils";
+import {
+  canUseModuleAction,
+  getModuleGraphBuilderConfig,
+  hasModulePermission,
+} from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import { buildGraphViewModel, GraphView } from "@/web-client/views/GraphView";
-import { TableView } from "@/web-client/views/TableView";
+import { ListView } from "@/web-client/views/ListView";
+
+type CyclesFavoriteState = Pick<
+  CyclesListQueryState,
+  "view" | "searchText" | "domain" | "groupBy" | "pageSize" | "graph"
+>;
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -63,9 +75,15 @@ function formatStatus(isActive: boolean) {
   return isActive ? "Ativo" : "Inativo";
 }
 
-function formatAgeRange(ageMin: number | null | undefined, ageMax: number | null | undefined) {
-  if (ageMin == null && ageMax == null) return "Livre";
-  return `${ageMin ?? "-"} a ${ageMax ?? "-"}`;
+function resolveStatusBadge(isActive: boolean) {
+  return isActive ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>;
+}
+
+function resolveGroupLabel(field: string, value: unknown) {
+  if (field === "isActive") return value === false ? "Inativo" : "Ativo";
+  if (field === "audienceType") return formatAudienceType(typeof value === "string" ? value : null);
+  if (field === "createdAt") return typeof value === "string" && value ? formatDateOnlyPtBR(value) : "Sem cadastro";
+  return String(value ?? "Sem valor");
 }
 
 function columns(): ColumnDef<ApiCycle>[] {
@@ -73,23 +91,50 @@ function columns(): ColumnDef<ApiCycle>[] {
     {
       accessorKey: "name",
       header: "Ciclo",
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatAudienceType(row.original.audienceType)}
+          </div>
+        </div>
+      ),
     },
     {
-      accessorKey: "audienceType",
-      header: "Publico",
-      cell: ({ row }) => formatAudienceType(row.original.audienceType),
+      accessorKey: "tags",
+      header: "Tags",
+      cell: ({ row }) => {
+        const tags = row.original.tags ?? [];
+        if (!tags.length) return <span className="text-muted-foreground">-</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 3).map((tag) => (
+              <Badge key={`${row.original.id}:${tag}`} variant="outline" className="rounded-full px-2 text-[10px]">
+                {tag}
+              </Badge>
+            ))}
+            {tags.length > 3 ? (
+              <Badge variant="outline" className="rounded-full px-2 text-[10px]">
+                +{tags.length - 3}
+              </Badge>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
-      id: "ageRange",
-      header: "Faixa etaria",
-      accessorFn: (row) => formatAgeRange(row.ageMin, row.ageMax),
-      cell: ({ row }) => formatAgeRange(row.original.ageMin, row.original.ageMax),
+      accessorKey: "createdAt",
+      header: "Cadastro",
+      cell: ({ row }) => (
+        <span className="text-foreground">
+          {row.original.createdAt ? formatDateOnlyPtBR(row.original.createdAt.slice(0, 10)) : "-"}
+        </span>
+      ),
     },
     {
       accessorKey: "isActive",
       header: "Status",
-      cell: ({ row }) => formatStatus(row.original.isActive),
+      cell: ({ row }) => resolveStatusBadge(row.original.isActive),
     },
   ];
 }
@@ -102,8 +147,9 @@ export function CyclesListModuleClientPage() {
   const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
   const columnDefs = React.useMemo(() => columns(), []);
+  const graphBuilder = getModuleGraphBuilderConfig(cyclesListModuleDefinition);
   const canRead = hasModulePermission(cyclesListModuleDefinition, "canRead", permissions);
-  const canCreate = hasModulePermission(cyclesListModuleDefinition, "canCreate", permissions);
+  const canCreate = canUseModuleAction(cyclesListModuleDefinition, "create", permissions);
 
   const [rows, setRows] = React.useState<ApiCycle[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -142,11 +188,27 @@ export function CyclesListModuleClientPage() {
       .finally(() => setLoading(false));
   }, [authLoading, canRead, dataProvider, state.searchText, token, userLoading]);
 
+  const filteredRows = React.useMemo(() => {
+    if (!state.domain) return rows;
+    return rows.filter((row) =>
+      matchesDomainRecord(
+        {
+          audienceType: row.audienceType,
+          isActive: row.isActive,
+          tags: row.tags ?? [],
+          createdAt: row.createdAt?.slice(0, 10) ?? null,
+        },
+        state.domain,
+        (current, field) => current[field as keyof typeof current],
+      ),
+    );
+  }, [rows, state.domain]);
+
   const pagedRows = React.useMemo(() => {
     const start = state.pageIndex * state.pageSize;
-    return rows.slice(start, start + state.pageSize);
-  }, [rows, state.pageIndex, state.pageSize]);
-  const pageCount = Math.max(Math.ceil(Math.max(rows.length, 1) / state.pageSize), 1);
+    return filteredRows.slice(start, start + state.pageSize);
+  }, [filteredRows, state.pageIndex, state.pageSize]);
+  const pageCount = Math.max(Math.ceil(Math.max(filteredRows.length, 1) / state.pageSize), 1);
 
   const openDetail = React.useCallback(
     (cycle: ApiCycle) => {
@@ -179,34 +241,28 @@ export function CyclesListModuleClientPage() {
     [removeDomainCondition, setState, state.domain, state.groupBy],
   );
 
-  const favoriteSnapshot = React.useMemo(
+  const favoriteSnapshot = React.useMemo<CyclesFavoriteState>(
     () => ({
       view: state.view,
       searchText: state.searchText,
       domain: state.domain,
       groupBy: state.groupBy,
       pageSize: state.pageSize,
+      graph: state.graph,
     }),
-    [state.domain, state.groupBy, state.pageSize, state.searchText, state.view],
+    [state.domain, state.graph, state.groupBy, state.pageSize, state.searchText, state.view],
   );
-
-  const graphBuilder = React.useMemo(() => {
-    const graphView = cyclesListModuleDefinition.views.find(
-      (view) => view.id === "graph" && view.viewType === "graph",
-    );
-    return graphView?.viewType === "graph" ? graphView.params?.builder : undefined;
-  }, []);
 
   const graphModel = React.useMemo(
     () =>
       graphBuilder
         ? buildGraphViewModel(
-            rows as Array<Record<string, unknown>>,
+            filteredRows as Array<Record<string, unknown>>,
             state.graph,
             graphBuilder,
           )
         : null,
-    [graphBuilder, rows, state.graph],
+    [filteredRows, graphBuilder, state.graph],
   );
 
   if (!authLoading && !userLoading && !canRead) {
@@ -214,14 +270,14 @@ export function CyclesListModuleClientPage() {
   }
 
   return (
-    <EntityModuleShell
+    <EntityModuleShell<CyclesListQueryState, CyclesFavoriteState>
       moduleDefinition={cyclesListModuleDefinition}
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}
       favoriteSnapshot={favoriteSnapshot}
       isLoading={loading}
-      totalCount={rows.length}
+      totalCount={filteredRows.length}
       canCreate={canCreate}
       onCreate={() => router.push(withTenantPath("/cycle/new", tenantSlug))}
       onRefresh={() => setState((previous) => ({ ...previous }))}
@@ -239,7 +295,15 @@ export function CyclesListModuleClientPage() {
         />
       ) : (
         <>
-          <TableView data={pagedRows} columns={columnDefs} onRowClick={openDetail} />
+          <ListView
+            data={pagedRows}
+            columns={columnDefs}
+            groupByFields={state.groupBy}
+            resolveGroupLabel={resolveGroupLabel}
+            onRowClick={openDetail}
+            getRowId={(row) => row.id}
+            initialColumnPinning={{ left: ["name"] }}
+          />
           <PaginationBar
             pageIndex={state.pageIndex}
             pageCount={pageCount}

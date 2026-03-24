@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +19,7 @@ import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
 import { ModuleEmptyState } from "@/web-client/ui/ModulePrimitives";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { withTenantPath } from "@/lib/tenant-path";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   createProjectGroup,
   listProjects,
@@ -34,15 +34,17 @@ type StandaloneGroupDraft = {
 };
 
 export function ProjectGroupsCreateStandalonePage({
-  tenantSlug,
+  tenantSlug: tenantSlugProp,
 }: {
-  tenantSlug: string;
+  tenantSlug?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
   const { toast } = useToast();
+  const tenantSlug = tenantSlugProp ?? getTenantSlugFromPath(pathname) ?? "";
 
   const canCreate = permissions.includes("project-structure.create");
   const canReadProjects = permissions.includes("projects.read");

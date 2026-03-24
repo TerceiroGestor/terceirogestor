@@ -1,6 +1,5 @@
-import { ProjectCyclesManageRouteClientPage } from "@/modules/projects";
+import { ScreenHost } from "@/web-client/screen/ScreenHost";
 
 export default function ProjectCyclesManagePage() {
-  return <ProjectCyclesManageRouteClientPage />;
+  return <ScreenHost actionId="projects.cycles.manage" />;
 }
-

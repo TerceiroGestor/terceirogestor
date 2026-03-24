@@ -17,6 +17,10 @@ import {
   actionsDetailSearchView,
   actionsSearchView,
 } from "@/web-client/registry/searchViews/actions";
+import {
+  actionsDetailLayout,
+  type ActionsDetailLayoutContext,
+} from "@/modules/actions/config/actions-detail-layout-contract";
 
 export type ActionsListQueryState = {
   view: "list";
@@ -62,7 +66,7 @@ const ACTIONS_LIST_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Nova acao",
+    label: "Novo",
     permissionKey: "canCreate",
     scope: "list",
   },
@@ -78,6 +82,12 @@ const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
     label: "Visualizar acao",
+    permissionKey: "canRead",
+    scope: "detail",
+  },
+  audit: {
+    key: "audit",
+    label: "Auditoria",
     permissionKey: "canRead",
     scope: "detail",
   },
@@ -98,7 +108,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
     entity: { singular: "Acao", plural: "Acoes" },
     list: {
       searchPlaceholder: "Pesquisar",
-      createActionLabel: "Nova acao",
+      createActionLabel: "Novo",
       totalLabel: "Total",
       emptyStateLabel: "Nenhuma acao encontrada.",
     },
@@ -107,6 +117,8 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
     },
     fields: {
       title: { label: "Acao" },
+      tags: { label: "Tags" },
+      createdAt: { label: "Cadastro", type: "date" },
       status: { label: "Status" },
       "actionType.name": { label: "Tipo" },
       "group.name": { label: "Grupo" },
@@ -129,27 +141,48 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
 });
 
 export const actionsDetailModuleDefinition =
-  defineRecordModule<ActionsDetailQueryState>({
+  defineRecordModule<ActionsDetailQueryState, ActionsDetailLayoutContext>({
     moduleId: "actions.detail",
     basePath: ACTIONS_ROUTES.detail,
-    featureFlags: createStandardFeatureFlags({ list: false, detail: true }),
+    featureFlags: createStandardFeatureFlags({
+      list: false,
+      detail: true,
+      comments: true,
+      notes: true,
+      tags: true,
+      attachments: true,
+      audit: true,
+      history: true,
+      context: true,
+    }),
     actionKey: "actions.detail.screen",
     favoriteKey: "actions.detail.favorites",
     permissions: ACTIONS_PERMISSIONS,
     actions: ACTIONS_DETAIL_ACTIONS,
     queryAdapters: {
       listDataProvider: { model: "actions.list" },
+      auditDataProvider: { model: "audit.logs" },
     },
     domainAdapter: {
       entity: { singular: "Acao", plural: "Acoes" },
       detail: {
         fallbackTitle: "Acao",
       },
+      fields: {
+        title: { label: "Acao" },
+        tags: { label: "Tags" },
+        createdAt: { label: "Cadastro", type: "date" },
+        status: { label: "Status" },
+        internalNotes: { label: "Notas internas" },
+        plannedStartAt: { label: "Inicio planejado", type: "date" },
+        plannedEndAt: { label: "Fim planejado", type: "date" },
+      },
     },
     searchConfig: actionsDetailSearchView,
     views: [createStandardDetailView()],
     defaultQueryState: createStandardDetailQueryState<ActionsDetailQueryState>(),
     defaultView: "detail",
+    detailLayout: actionsDetailLayout,
   });
 
 export type ActionsModuleDefinition =

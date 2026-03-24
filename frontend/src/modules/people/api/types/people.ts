@@ -24,8 +24,54 @@ export type ApiPerson = {
   hasHealthIssue?: boolean | null;
   profileSummary: string | null;
   avatarUrl: string | null;
+  comments?: ApiPersonComment[];
+  attachments?: ApiPersonAttachment[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ApiPersonComment = {
+  id: string;
+  body: string;
+  mentionUserIds: string[];
+  author: {
+    id: string | null;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiPersonAttachment = {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  uploadedBy: {
+    id: string;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiPeopleRecordType =
+  | "education"
+  | "health-condition"
+  | "medication"
+  | "detention"
+  | "financial-entry"
+  | "family-relation";
+
+export type ApiPeopleRecordMetadata = {
+  comments: ApiPersonComment[];
+  attachments: ApiPersonAttachment[];
+  tags: string[];
 };
 
 export type PeopleListResponse = {

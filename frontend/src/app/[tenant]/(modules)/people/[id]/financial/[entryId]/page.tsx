@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
+import { FinancialEntryDetailPage } from "@/modules/people/features/people-financial/ui/financial-entry-detail-page";
 
-export default async function PeopleFinancialDetailRedirect({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string; entryId: string }>;
-}) {
-  const { tenant, id, entryId } = await params;
-  redirect(`/${tenant}/person/${id}/financial/${entryId}`);
+export default function PeopleFinancialEntryDetailRoutePage() {
+  return <FinancialEntryDetailPage mode="edit" />;
 }
