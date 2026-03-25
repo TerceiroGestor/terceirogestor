@@ -3,6 +3,7 @@ export { ProjectGroupsListModuleClientPage } from "@/modules/projects/features/l
 export { ProjectCyclesListModuleClientPage } from "@/modules/projects/features/list/ui/project-cycles-list-module-client-page";
 export { ProjectsDetailRouteClientPage } from "@/modules/projects/features/detail/ui/projects-detail-route-client-page";
 export { ProjectsDetailEngineClientPage } from "@/modules/projects/features/detail/ui/projects-detail-engine-client-page";
+export { ProjectGroupsDetailEngineClientPage } from "@/modules/projects/features/detail/ui/project-groups-detail-engine-client-page";
 export { ProjectGroupsManageRouteClientPage } from "@/modules/projects/features/detail/ui/project-groups-manage-route-client-page";
 export { ProjectCyclesManageRouteClientPage } from "@/modules/projects/features/detail/ui/project-cycles-manage-route-client-page";
 export { ProjectEnrollmentsManageRouteClientPage } from "@/modules/projects/features/detail/ui/project-enrollments-manage-route-client-page";

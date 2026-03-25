@@ -1,36 +1,25 @@
 "use client";
 
 import type { SearchArgs, SearchResult } from "@/web-client/data-provider/types";
-import { listProjectActions } from "@/modules/actions/api";
+import { listActions } from "@/modules/actions/api";
 import type { ApiProjectAction } from "@/modules/actions/api";
 
 export async function searchActions(
   token: string,
   args: SearchArgs,
 ): Promise<SearchResult<ApiProjectAction>> {
-  const projectId =
-    typeof args.context?.projectId === "string" ? args.context.projectId : "";
-
-  if (!projectId) {
-    return {
-      data: [],
-      pagination: {
-        page: 1,
-        limit: args.pagination?.pageSize ?? 20,
-        total: 0,
-        pages: 0,
-      },
-    };
-  }
-
-  return listProjectActions(token, projectId, {
+  return listActions(token, {
     q: args.searchText?.trim() || undefined,
     mine: typeof args.context?.onlyMine === "boolean" ? args.context.onlyMine : undefined,
-    groupId:
+    projectId:
+      typeof args.context?.projectId === "string" && args.context.projectId.trim()
+        ? args.context.projectId
+        : undefined,
+    projectGroupId:
       typeof args.context?.groupId === "string" && args.context.groupId.trim()
         ? args.context.groupId
         : undefined,
-    cycleId:
+    peopleGroupId:
       typeof args.context?.cycleId === "string" && args.context.cycleId.trim()
         ? args.context.cycleId
         : undefined,

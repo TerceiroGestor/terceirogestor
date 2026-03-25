@@ -17,18 +17,46 @@ export async function listProjectActions(
     mine?: boolean;
     status?: string;
     actionTypeId?: string;
-    groupId?: string;
-    cycleId?: string;
+    projectGroupId?: string;
+    peopleGroupId?: string;
+    targetEnrollmentId?: string;
     page?: number;
     limit?: number;
   },
 ) {
-  const query = buildQuery(params);
+  const query = buildQuery({
+    ...params,
+    groupId: params?.projectGroupId,
+    cycleId: params?.peopleGroupId,
+  });
   return apiRequest<ProjectActionsListResponse>(
     `/projects/${projectId}/actions${query}`,
     {},
     token,
   );
+}
+
+export async function listActions(
+  token: string,
+  params?: {
+    q?: string;
+    mine?: boolean;
+    status?: string;
+    actionTypeId?: string;
+    projectId?: string;
+    projectGroupId?: string;
+    peopleGroupId?: string;
+    targetEnrollmentId?: string;
+    page?: number;
+    limit?: number;
+  },
+) {
+  const query = buildQuery({
+    ...params,
+    groupId: params?.projectGroupId,
+    cycleId: params?.peopleGroupId,
+  });
+  return apiRequest<ProjectActionsListResponse>(`/actions${query}`, {}, token);
 }
 
 export async function getProjectAction(

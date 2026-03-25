@@ -337,7 +337,7 @@ const pantryItemEntryRelationColumns: ColumnDef<ApiPantryEntry>[] = [
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
     ),
   },
 ];
@@ -369,7 +369,7 @@ const pantryItemExitRelationColumns: ColumnDef<ApiPantryExit>[] = [
     id: "eventName",
     header: "Evento",
     accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "â€”"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "-"}</div>,
   },
   {
     id: "allocations",
@@ -405,7 +405,7 @@ const pantryItemExitRelationColumns: ColumnDef<ApiPantryExit>[] = [
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
     ),
   },
 ];
@@ -466,7 +466,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     accessorKey: "donorName",
     cell: ({ row }) => (
       <div className="truncate text-sm">
-        {row.original.kind === "ENTRY" ? row.original.donorName ?? "â€”" : "â€”"}
+        {row.original.kind === "ENTRY" ? (row.original.donorName ?? "-") : "-"}
       </div>
     ),
   },
@@ -488,7 +488,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     accessorKey: "eventName",
     cell: ({ row }) => (
       <div className="truncate text-sm">
-        {row.original.kind === "EXIT" ? row.original.eventName ?? "â€”" : "â€”"}
+        {row.original.kind === "EXIT" ? (row.original.eventName ?? "-") : "-"}
       </div>
     ),
   },
@@ -503,7 +503,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
     header: "Notas",
     accessorKey: "notes",
     cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>
+      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
     ),
   },
 ];
@@ -559,7 +559,7 @@ const pantryDonorDonationColumns: ColumnDef<ApiPantryEntry>[] = [
     accessorKey: "notes",
     cell: ({ row }) => (
       <div className="max-w-[340px] truncate text-xs text-muted-foreground">
-        {row.original.notes ?? ""}
+        {row.original.notes ?? "-"}
       </div>
     ),
   },
@@ -599,13 +599,13 @@ const pantryAllocatedExitColumns: ColumnDef<PantryAllocatedExitRow>[] = [
     id: "eventName",
     header: "Evento",
     accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "â€”"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "-"}</div>,
   },
   {
     id: "notes",
     header: "Notas",
     accessorKey: "notes",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "â€”"}</div>,
+    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>,
   },
 ];
 
@@ -654,7 +654,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               </div>
               {item.isBelowMin ? (
                 <Badge variant="destructive" className="h-5 px-2 text-[10px]">
-                  Abaixo do minimo
+                  Abaixo do m?nimo
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="h-5 px-2 text-[10px]">
@@ -847,8 +847,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           readOnly: readOnly || mode !== "edit",
           emptyLabel:
             mode === "create"
-              ? "Salve o alimento para habilitar comentarios."
-              : "Nenhum comentario registrado para este alimento.",
+              ? "Salve o alimento para habilitar coment?rios."
+              : "Nenhum coment?rio registrado para este alimento.",
         }}
         notes={{
           value: internalNotes,
@@ -884,13 +884,13 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           items: historyItems,
           emptyLabel:
             mode === "create"
-              ? "Salve o alimento para habilitar historico."
-              : "Nenhum historico registrado para este alimento.",
+              ? "Salve o alimento para habilitar hist?rico."
+              : "Nenhum hist?rico registrado para este alimento.",
         }}
         contextItems={[
           { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
           { key: "group", label: "Grupo", value: item?.group ?? "Sem grupo" },
-          { key: "sector", label: "Setor padrao", value: item?.defaultSector ?? PANTRY_DEFAULT_SECTOR },
+          { key: "sector", label: "Setor padrão", value: item?.defaultSector ?? PANTRY_DEFAULT_SECTOR },
           { key: "status", label: "Status", value: item?.validityStatus ?? "Sem status" },
         ]}
       />
@@ -1150,7 +1150,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
         onDelete: mode === "edit" ? onDeleteComment : undefined,
         submitting: commentSubmitting,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve o doador para habilitar comentarios." : "Nenhum comentario registrado para este doador.",
+        emptyLabel: mode === "create" ? "Salve o doador para habilitar comentários." : "Nenhum comentário registrado para este doador.",
       }}
       notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
@@ -1504,7 +1504,7 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
         onDelete: mode === "edit" ? onDeleteComment : undefined,
         submitting: commentSubmitting,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve a entrada para habilitar comentarios." : "Nenhum comentario registrado para esta entrada.",
+        emptyLabel: mode === "create" ? "Salve a entrada para habilitar comentários." : "Nenhum comentário registrado para esta entrada.",
       }}
       notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
@@ -1647,8 +1647,8 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
               setDraft((prev) => ({
                 ...prev,
                 entryId: nextEntryId,
-                sector: nextEntry ? nextEntry.sector ?? PANTRY_DEFAULT_SECTOR : prev.sector,
-                unit: nextEntry ? nextEntry.unit ?? prev.unit : prev.unit,
+                sector: nextEntry?.sector ?? prev.sector ?? PANTRY_DEFAULT_SECTOR,
+                unit: nextEntry?.unit ?? prev.unit,
               }));
               onPatch({ entryId: nextEntryId });
             }}
@@ -1930,7 +1930,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
         onDelete: mode === "edit" ? onDeleteComment : undefined,
         submitting: commentSubmitting,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve a saida para habilitar comentarios." : "Nenhum comentario registrado para esta saida.",
+        emptyLabel: mode === "create" ? "Salve a saída para habilitar comentários." : "Nenhum comentário registrado para esta saída.",
       }}
       notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
@@ -1947,7 +1947,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
         onUpload: onUploadAttachment,
         onDelete: mode === "edit" ? onDeleteAttachment : undefined,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve a saida para habilitar anexos." : "Nenhum anexo registrado para esta saida.",
+        emptyLabel: mode === "create" ? "Salve a sa?da para habilitar anexos." : "Nenhum anexo registrado para esta sa?da.",
       }}
       history={{ items: historyItems }}
       contextItems={[

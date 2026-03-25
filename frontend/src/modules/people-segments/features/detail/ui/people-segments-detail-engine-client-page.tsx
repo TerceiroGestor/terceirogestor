@@ -37,6 +37,7 @@ import {
 function buildDraft(segment?: ApiPeopleSegment | null): PeopleSegmentDetailDraft {
   return {
     name: segment?.name ?? "",
+    purpose: segment?.purpose ?? "PUBLICO",
     category: segment?.category ?? "",
     description: segment?.description ?? "",
     ageMin: segment?.ageMin != null ? String(segment.ageMin) : "",
@@ -49,6 +50,7 @@ function buildDraft(segment?: ApiPeopleSegment | null): PeopleSegmentDetailDraft
 function normalizeDraft(draft: PeopleSegmentDetailDraft): PeopleSegmentDetailDraft {
   return {
     name: draft.name.trim(),
+    purpose: draft.purpose,
     category: draft.category.trim(),
     description: draft.description.trim(),
     ageMin: draft.ageMin.trim(),
@@ -62,6 +64,7 @@ function toPayload(draft: PeopleSegmentDetailDraft) {
   const normalized = normalizeDraft(draft);
   return {
     name: normalized.name,
+    purpose: normalized.purpose,
     category: normalized.category || null,
     description: normalized.description || null,
     ageMin: normalized.ageMin ? Number(normalized.ageMin) : null,
@@ -201,8 +204,8 @@ export function PeopleSegmentsDetailEngineClientPage() {
     if (!payload.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
-        description: "Informe o nome do grupo de pessoas.",
+          title: "Dados invalidos",
+          description: "Informe o nome do grupo de pessoas.",
       });
       return;
     }
@@ -235,13 +238,13 @@ export function PeopleSegmentsDetailEngineClientPage() {
       if (!token || !id) return;
       try {
         await createPeopleSegmentMembership(token, id, { personId: person.id });
-        toast({ title: "People adicionada" });
+        toast({ title: "Participante adicionado" });
         await loadMemberships();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-          : "Falha ao adicionar people ao grupo.";
+            : "Falha ao adicionar participante ao grupo.";
         toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
     },

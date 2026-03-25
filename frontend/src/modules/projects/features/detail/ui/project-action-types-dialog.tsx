@@ -22,7 +22,7 @@ import {
 type ActionTypeFormValues = {
   name: string;
   description: string;
-  target: "PROJECT" | "GROUP" | "CYCLE";
+  target: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
   isActive: boolean;
 };
 

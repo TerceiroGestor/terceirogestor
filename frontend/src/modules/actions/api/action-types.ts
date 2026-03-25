@@ -20,7 +20,7 @@ export async function createActionType(
   payload: {
     name: string;
     description?: string | null;
-    target?: "PROJECT" | "GROUP" | "CYCLE";
+    target?: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
     isActive?: boolean;
   },
 ) {
@@ -37,7 +37,7 @@ export async function updateActionType(
   payload: Partial<{
     name: string;
     description: string | null;
-    target: "PROJECT" | "GROUP" | "CYCLE";
+    target: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
     isActive: boolean;
   }>,
 ) {

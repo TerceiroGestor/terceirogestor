@@ -69,7 +69,7 @@ const PEOPLE_SEGMENTS_LIST_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Novo grupo de pessoas",
+    label: "Novo",
     permissionKey: "canCreate",
     scope: "list",
   },
@@ -86,12 +86,6 @@ const PEOPLE_SEGMENTS_DETAIL_ACTIONS: RecordModuleActionMap = {
     key: "view",
     label: "Visualizar grupo de pessoas",
     permissionKey: "canRead",
-    scope: "detail",
-  },
-  create: {
-    key: "create",
-    label: "Novo grupo de pessoas",
-    permissionKey: "canCreate",
     scope: "detail",
   },
   edit: {
@@ -135,7 +129,7 @@ export const peopleSegmentsListModuleDefinition =
       entity: { singular: "Grupo de Pessoas", plural: "Grupos de Pessoas" },
       list: {
         searchPlaceholder: "Pesquisar",
-        createActionLabel: "Novo grupo de pessoas",
+        createActionLabel: "Novo",
         totalLabel: "Total",
         emptyStateLabel: "Nenhum grupo de pessoas encontrado.",
       },
@@ -144,8 +138,10 @@ export const peopleSegmentsListModuleDefinition =
       },
       fields: {
         name: { label: "Grupo de Pessoas" },
+        purpose: { label: "Finalidade" },
         groupType: { label: "Tipo do grupo" },
         category: { label: "Categoria" },
+        createdAt: { label: "Cadastro" },
         ageMin: { label: "Idade minima" },
         ageMax: { label: "Idade maxima" },
         isActive: { label: "Status" },
@@ -164,7 +160,7 @@ export const peopleSegmentsListModuleDefinition =
           searchable: true,
           sortable: true,
           paginated: true,
-          sortFields: ["name", "category", "ageMin", "ageMax", "isActive"],
+          sortFields: ["name", "purpose", "category", "createdAt", "ageMin", "ageMax", "isActive"],
         },
       }),
       {
@@ -176,10 +172,11 @@ export const peopleSegmentsListModuleDefinition =
           builder: {
             fields: [
               { field: "category", label: "Categoria", kind: "dimension" },
+              { field: "purpose", label: "Finalidade", kind: "dimension" },
               { field: "isActive", label: "Status", kind: "dimension" },
             ],
             defaultState: {
-              groupBy: "category",
+              groupBy: "purpose",
               metric: { field: null, op: "count" },
               timeField: null,
               timeBucket: null,
@@ -194,8 +191,8 @@ export const peopleSegmentsListModuleDefinition =
     ],
     defaultQueryState: createStandardListQueryState<PeopleSegmentsListQueryState>({
       view: "table",
-      graph: {
-        groupBy: "category",
+        graph: {
+        groupBy: "purpose",
         metric: { field: null, op: "count" },
         timeField: null,
         timeBucket: null,
@@ -217,6 +214,8 @@ export const peopleSegmentsDetailModuleDefinition =
       list: false,
       detail: true,
       notes: true,
+      history: true,
+      context: true,
       audit: true,
     }),
     actionKey: "people-segments.detail.screen",
@@ -236,8 +235,10 @@ export const peopleSegmentsDetailModuleDefinition =
       },
       fields: {
         name: { label: "Grupo de Pessoas" },
+        purpose: { label: "Finalidade" },
         groupType: { label: "Tipo do grupo" },
         category: { label: "Categoria" },
+        createdAt: { label: "Cadastro" },
         ageMin: { label: "Idade minima" },
         ageMax: { label: "Idade maxima" },
         isActive: { label: "Status" },

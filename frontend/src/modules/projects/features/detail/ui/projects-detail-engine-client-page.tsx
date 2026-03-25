@@ -130,7 +130,9 @@ export function ProjectsDetailEngineClientPage() {
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
   const [participantPickerOpen, setParticipantPickerOpen] = React.useState(false);
-  const [cyclePickerOpen, setCyclePickerOpen] = React.useState(false);
+  const [peopleGroupPickerPurpose, setPeopleGroupPickerPurpose] = React.useState<
+    "PUBLICO" | "EQUIPE" | null
+  >(null);
 
   const loadRelations = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
@@ -141,10 +143,10 @@ export function ProjectsDetailEngineClientPage() {
       return;
     }
 
-    setRelationsLoading(true);
+      setRelationsLoading(true);
     try {
       const [peopleGroups, groups, enrollments, actions] = await Promise.all([
-        listProjectPeopleGroups(token, id, { participationKind: "PARTICIPANT" }),
+        listProjectPeopleGroups(token, id),
         listProjectGroups(token, id),
         listProjectEnrollments(token, id, { page: 1, limit: 200 }),
         listProjectActions(token, id, { page: 1, limit: 200 }),
@@ -405,29 +407,51 @@ export function ProjectsDetailEngineClientPage() {
     setParticipantPickerOpen(true);
   }, []);
 
-  const handleCreateCycle = React.useCallback(() => {
-    setCyclePickerOpen(true);
+  const handleCreatePublicPeopleGroup = React.useCallback(() => {
+    setPeopleGroupPickerPurpose("PUBLICO");
+  }, []);
+
+  const handleCreateTeamPeopleGroup = React.useCallback(() => {
+    setPeopleGroupPickerPurpose("EQUIPE");
   }, []);
 
   const handlePickCycle = React.useCallback(
     async (peopleGroup: { id: string }) => {
-      if (!token || !id) return;
+      if (!token || !id || !peopleGroupPickerPurpose) return;
       try {
         await createProjectPeopleGroup(token, id, {
           peopleGroupId: peopleGroup.id,
-          participationKind: "PARTICIPANT",
+          participationKind: peopleGroupPickerPurpose === "EQUIPE" ? "TEAM" : "PARTICIPANT",
         });
-        toast({ title: "Grupo de Pessoas adicionado" });
+        toast({
+          title:
+            peopleGroupPickerPurpose === "EQUIPE"
+              ? "Grupo de Equipe adicionado"
+              : "Grupo de Pessoas adicionado",
+        });
+        setPeopleGroupPickerPurpose(null);
         await loadRelations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao adicionar grupo de pessoas.";
+            : peopleGroupPickerPurpose === "EQUIPE"
+              ? "Falha ao adicionar grupo de equipe."
+              : "Falha ao adicionar grupo de pessoas.";
         toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
     },
-    [id, loadRelations, toast, token],
+    [id, loadRelations, peopleGroupPickerPurpose, toast, token],
+  );
+
+  const publicPeopleGroupRows = React.useMemo(
+    () => peopleGroupRows.filter((row) => row.participationKind === "PARTICIPANT"),
+    [peopleGroupRows],
+  );
+
+  const teamPeopleGroupRows = React.useMemo(
+    () => peopleGroupRows.filter((row) => row.participationKind === "TEAM"),
+    [peopleGroupRows],
   );
 
   const handleEndEnrollment = React.useCallback(
@@ -475,12 +499,13 @@ export function ProjectsDetailEngineClientPage() {
         label: item.name,
         type: item.type,
         status: item.status,
-      })),
-      selectedProgram,
-      peopleGroupRows,
-      groupRows,
-      enrollmentRows,
-      actionRows,
+        })),
+        selectedProgram,
+        publicPeopleGroupRows,
+        teamPeopleGroupRows,
+        groupRows,
+        enrollmentRows,
+        actionRows,
       relationsLoading,
       mentionableUsers,
       commentDraft,
@@ -520,14 +545,8 @@ export function ProjectsDetailEngineClientPage() {
             tenantSlug,
           ),
         ),
-      onOpenCycle: (cycleId) =>
-        router.push(
-          withTenantPath(
-            `/projects/${id}/cycles?cycleId=${encodeURIComponent(cycleId)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
-      onCreateCycle: handleCreateCycle,
+      onCreatePublicPeopleGroup: handleCreatePublicPeopleGroup,
+      onCreateTeamPeopleGroup: handleCreateTeamPeopleGroup,
       onOpenEnrollment: (enrollmentId) =>
         router.push(
           withTenantPath(
@@ -580,12 +599,15 @@ export function ProjectsDetailEngineClientPage() {
       handleDeleteAttachment,
       handleDeleteComment,
       handleCreateEnrollment,
-      handleCreateCycle,
+      handleCreatePublicPeopleGroup,
+      handleCreateTeamPeopleGroup,
       handleEndEnrollment,
       handleSubmitComment,
       mentionableUsers,
+      publicPeopleGroupRows,
       router,
       selectedProgram,
+      teamPeopleGroupRows,
       tenantSlug,
     ],
   );
@@ -635,11 +657,14 @@ export function ProjectsDetailEngineClientPage() {
           }}
         />
       ) : null}
-      {mode === "edit" && token ? (
+      {mode === "edit" && token && peopleGroupPickerPurpose ? (
         <ProjectCyclePickerDialog
-          open={cyclePickerOpen}
-          onOpenChange={setCyclePickerOpen}
+          open={Boolean(peopleGroupPickerPurpose)}
+          onOpenChange={(open) => {
+            if (!open) setPeopleGroupPickerPurpose(null);
+          }}
           token={token}
+          purpose={peopleGroupPickerPurpose}
           onPick={handlePickCycle}
         />
       ) : null}

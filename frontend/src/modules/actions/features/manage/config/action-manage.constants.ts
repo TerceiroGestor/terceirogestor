@@ -95,9 +95,9 @@ export const ACTION_MANAGE_TEXT = {
       {
         title: "Equipe, apoio e voluntariado",
         items: [
-          "Use a aba Equipe para registrar facilitadores, apoio, voluntarios e outros papeis.",
-          "Cada people pode ser vinculada com um papel proprio na acao.",
-          "Esses vinculos aparecem separados do controle de presença do publico.",
+          "Use a aba Equipe para registrar facilitadores, apoio, voluntários e outros papéis.",
+          "Cada pessoa pode ser vinculada com um papel próprio na ação.",
+          "Esses vínculos aparecem separados do controle de presença do público.",
         ],
       },
       {

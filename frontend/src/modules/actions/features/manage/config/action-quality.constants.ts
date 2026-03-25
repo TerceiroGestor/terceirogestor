@@ -16,4 +16,3 @@ export const ACTION_QUALITY_TEXT = {
   notesTitle: "Observações",
   notesLabel: "Texto",
 } as const;
-

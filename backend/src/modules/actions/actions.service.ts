@@ -161,12 +161,25 @@ const mapProjectActionAttachmentItem = (
   updatedAt: attachment.updatedAt,
 });
 
-function serializeProjectAction<T extends { tags?: string | null; comments?: any[]; attachments?: any[] }>(
+function serializeProjectAction<
+  T extends {
+    tags?: string | null;
+    comments?: any[];
+    attachments?: any[];
+    group?: { id: string; name: string } | null;
+    cycle?: unknown;
+    targetEnrollment?: unknown;
+  },
+>(
   action: T,
 ) {
   return {
     ...action,
+    projectGroupId: (action as any).groupId ?? null,
+    peopleGroupId: (action as any).cycleId ?? null,
     tags: parseTags(action.tags),
+    projectGroup: action.group ?? null,
+    peopleGroup: action.cycle ?? null,
     comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
     attachments: action.attachments?.map(mapProjectActionAttachmentItem) ?? [],
   };
@@ -176,14 +189,117 @@ function resolveScopeFromTarget(params: {
   target: ActionTarget;
   groupId: string | null;
   cycleId: string | null;
+  targetEnrollmentId: string | null;
 }) {
-  if (params.target === 'GROUP') {
-    return { groupId: params.groupId, cycleId: null as string | null };
+  if (params.target === 'PROJECT_GROUP') {
+    return {
+      groupId: params.groupId,
+      cycleId: null as string | null,
+      targetEnrollmentId: null as string | null,
+    };
   }
-  if (params.target === 'CYCLE') {
-    return { groupId: null as string | null, cycleId: params.cycleId };
+  if (params.target === 'PEOPLE_GROUP') {
+    return {
+      groupId: null as string | null,
+      cycleId: params.cycleId,
+      targetEnrollmentId: null as string | null,
+    };
   }
-  return { groupId: null as string | null, cycleId: null as string | null };
+  if (params.target === 'ENROLLMENT') {
+    return {
+      groupId: null as string | null,
+      cycleId: null as string | null,
+      targetEnrollmentId: params.targetEnrollmentId,
+    };
+  }
+  return {
+    groupId: null as string | null,
+    cycleId: null as string | null,
+    targetEnrollmentId: null as string | null,
+  };
+}
+
+const projectActionInclude = {
+  project: { select: { id: true, name: true } },
+  actionType: { select: { id: true, name: true, target: true } },
+  createdByUser: { select: { id: true, name: true, email: true } },
+  group: { select: { id: true, name: true } },
+  cycle: {
+    select: {
+      id: true,
+      name: true,
+      segmentId: true,
+      segment: {
+        select: { id: true, name: true, category: true },
+      },
+      catalogCycleId: true,
+      catalogCycle: {
+        select: { id: true, name: true, audienceType: true },
+      },
+    },
+  },
+  targetEnrollment: {
+    include: {
+      person: {
+        select: {
+          id: true,
+          fullName: true,
+          socialName: true,
+          birthDate: true,
+          status: true,
+          avatarUrl: true,
+        },
+      },
+      groupMemberships: {
+        where: { isActive: true, deletedAt: null },
+        include: { group: { select: { id: true, name: true } } },
+      },
+      cycleParticipations: {
+        where: { isActive: true, deletedAt: null },
+        include: { cycle: { select: { id: true, name: true } } },
+      },
+    },
+  },
+} satisfies Prisma.ProjectActionInclude;
+
+function buildProjectActionWhere(params: {
+  tenantId: string;
+  userId: string;
+  canReadAll: boolean;
+  query: ListProjectActionsQueryDto;
+  projectId?: string | null;
+}) {
+  const { tenantId, userId, canReadAll, query } = params;
+  const q = normalizeString(query.q);
+  const effectiveMine = canReadAll ? (query.mine ?? false) : true;
+  const resolvedProjectId = params.projectId ?? query.projectId ?? null;
+
+  return {
+    tenantId,
+    ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
+    ...(effectiveMine ? { createdByUserId: userId } : {}),
+    ...(query.status ? { status: query.status as ActionStatus } : {}),
+    ...(query.actionTypeId ? { actionTypeId: query.actionTypeId } : {}),
+    ...(query.groupId ? { groupId: query.groupId } : {}),
+    ...(query.cycleId ? { cycleId: query.cycleId } : {}),
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q } },
+            { tags: { contains: q } },
+            { internalNotes: { contains: q } },
+            { actionType: { name: { contains: q } } },
+            { project: { name: { contains: q } } },
+            { group: { name: { contains: q } } },
+            { cycle: { name: { contains: q } } },
+            { cycle: { segment: { name: { contains: q } } } },
+            { cycle: { segment: { category: { contains: q } } } },
+            { cycle: { catalogCycle: { name: { contains: q } } } },
+            { cycle: { catalogCycle: { audienceType: { contains: q } } } },
+          ],
+        }
+      : {}),
+  } satisfies Prisma.ProjectActionWhereInput;
 }
 
 @Injectable()
@@ -210,20 +326,40 @@ export class ActionsService {
     if (!project) throw new NotFoundException('Projeto nao encontrado');
   }
 
-  private async ensureGroupBelongsToProject(tenantId: string, projectId: string, groupId: string) {
-    const group = await this.prisma.projectGroup.findFirst({
-      where: { id: groupId, tenantId, projectId },
+  private async ensureProjectGroupBelongsToProject(
+    tenantId: string,
+    projectId: string,
+    projectGroupId: string,
+  ) {
+    const projectGroup = await this.prisma.projectGroup.findFirst({
+      where: { id: projectGroupId, tenantId, projectId },
       select: { id: true },
     });
-    if (!group) throw new BadRequestException('Grupo invalido');
+    if (!projectGroup) throw new BadRequestException('Grupo de participantes invalido');
   }
 
-  private async ensureCycleBelongsToProject(tenantId: string, projectId: string, cycleId: string) {
-    const cycle = await this.prisma.projectCycle.findFirst({
-      where: { id: cycleId, tenantId, projectId },
+  private async ensurePeopleGroupLinkBelongsToProject(
+    tenantId: string,
+    projectId: string,
+    peopleGroupLinkId: string,
+  ) {
+    const peopleGroupLink = await this.prisma.projectCycle.findFirst({
+      where: { id: peopleGroupLinkId, tenantId, projectId },
       select: { id: true },
     });
-    if (!cycle) throw new BadRequestException('Ciclo invalido');
+    if (!peopleGroupLink) throw new BadRequestException('Grupo de pessoas invalido');
+  }
+
+  private async ensureEnrollmentBelongsToProject(
+    tenantId: string,
+    projectId: string,
+    enrollmentId: string,
+  ) {
+    const enrollment = await this.prisma.projectEnrollment.findFirst({
+      where: { id: enrollmentId, tenantId, projectId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!enrollment) throw new BadRequestException('Participante invalido');
   }
 
   private serializeEnrollment<T extends { groupMemberships?: any[]; cycleParticipations?: any[] }>(
@@ -274,6 +410,28 @@ export class ActionsService {
             catalogCycleId: true,
             catalogCycle: {
               select: { id: true, name: true, audienceType: true },
+            },
+          },
+        },
+        targetEnrollment: {
+          include: {
+            person: {
+              select: {
+                id: true,
+                fullName: true,
+                socialName: true,
+                birthDate: true,
+                status: true,
+                avatarUrl: true,
+              },
+            },
+            groupMemberships: {
+              where: { isActive: true, deletedAt: null },
+              include: { group: { select: { id: true, name: true } } },
+            },
+            cycleParticipations: {
+              where: { isActive: true, deletedAt: null },
+              include: { cycle: { select: { id: true, name: true } } },
             },
           },
         },
@@ -384,56 +542,57 @@ export class ActionsService {
       maxLimit: MAX_LIMIT,
     });
 
-    const q = normalizeString(query.q);
-    const effectiveMine = canReadAll ? (query.mine ?? false) : true;
-    const where: Prisma.ProjectActionWhereInput = {
+    const where = buildProjectActionWhere({
       tenantId: user.tenantId,
+      userId: user.userId,
+      canReadAll,
+      query,
       projectId,
-      ...(effectiveMine ? { createdByUserId: user.userId } : {}),
-      ...(query.status ? { status: query.status as ActionStatus } : {}),
-      ...(query.actionTypeId ? { actionTypeId: query.actionTypeId } : {}),
-      ...(query.groupId ? { groupId: query.groupId } : {}),
-      ...(query.cycleId ? { cycleId: query.cycleId } : {}),
-      ...(q
-        ? {
-            OR: [
-              { title: { contains: q } },
-              { tags: { contains: q } },
-              { internalNotes: { contains: q } },
-              { actionType: { name: { contains: q } } },
-              { group: { name: { contains: q } } },
-              { cycle: { name: { contains: q } } },
-              { cycle: { segment: { name: { contains: q } } } },
-              { cycle: { segment: { category: { contains: q } } } },
-              { cycle: { catalogCycle: { name: { contains: q } } } },
-              { cycle: { catalogCycle: { audienceType: { contains: q } } } },
-            ],
-          }
-        : {}),
-    };
+    });
 
     const [data, total] = await Promise.all([
       this.prisma.projectAction.findMany({
         where,
-        include: {
-          actionType: { select: { id: true, name: true, target: true } },
-          createdByUser: { select: { id: true, name: true, email: true } },
-          group: { select: { id: true, name: true } },
-          cycle: {
-            select: {
-              id: true,
-              name: true,
-              segmentId: true,
-              segment: {
-                select: { id: true, name: true, category: true },
-              },
-              catalogCycleId: true,
-              catalogCycle: {
-                select: { id: true, name: true, audienceType: true },
-              },
-            },
-          },
-        },
+        include: projectActionInclude,
+        orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take,
+      }),
+      this.prisma.projectAction.count({ where }),
+    ]);
+
+    return {
+      data: data.map((item) => serializeProjectAction(item)),
+      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+    };
+  }
+
+  async listActions(user: JwtUser, query: ListProjectActionsQueryDto) {
+    const canReadAll = await this.hasPermission(
+      user.tenantId,
+      user.userId,
+      'actions.manage',
+    );
+
+    const { page, limit, skip, take } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: false,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const where = buildProjectActionWhere({
+      tenantId: user.tenantId,
+      userId: user.userId,
+      canReadAll,
+      query,
+    });
+
+    const [data, total] = await Promise.all([
+      this.prisma.projectAction.findMany({
+        where,
+        include: projectActionInclude,
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
         skip,
         take,
@@ -464,22 +623,47 @@ export class ActionsService {
 
     const scope = resolveScopeFromTarget({
       target: type.target,
-      groupId: dto.groupId ?? null,
-      cycleId: dto.cycleId ?? null,
+      groupId: dto.projectGroupId ?? null,
+      cycleId: dto.peopleGroupId ?? null,
+      targetEnrollmentId: dto.targetEnrollmentId ?? null,
     });
 
-    if (type.target === 'GROUP' && !scope.groupId) {
-      throw new BadRequestException('Grupo e obrigatorio para este tipo de acao');
+    if (type.target === 'PROJECT_GROUP' && !scope.groupId) {
+      throw new BadRequestException(
+        'Grupo de participantes e obrigatorio para este tipo de acao',
+      );
     }
-    if (type.target === 'CYCLE' && !scope.cycleId) {
-      throw new BadRequestException('Ciclo e obrigatorio para este tipo de acao');
+    if (type.target === 'PEOPLE_GROUP' && !scope.cycleId) {
+      throw new BadRequestException(
+        'Grupo de pessoas e obrigatorio para este tipo de acao',
+      );
+    }
+    if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
+      throw new BadRequestException(
+        'Participante e obrigatorio para este tipo de acao',
+      );
     }
 
     if (scope.groupId) {
-      await this.ensureGroupBelongsToProject(user.tenantId, projectId, scope.groupId);
+      await this.ensureProjectGroupBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.groupId,
+      );
     }
     if (scope.cycleId) {
-      await this.ensureCycleBelongsToProject(user.tenantId, projectId, scope.cycleId);
+      await this.ensurePeopleGroupLinkBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.cycleId,
+      );
+    }
+    if (scope.targetEnrollmentId) {
+      await this.ensureEnrollmentBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.targetEnrollmentId,
+      );
     }
 
     const plannedStartAt = parseDateInput(dto.plannedStartAt);
@@ -500,6 +684,7 @@ export class ActionsService {
         createdByUserId: user.userId,
         groupId: scope.groupId,
         cycleId: scope.cycleId,
+        targetEnrollmentId: scope.targetEnrollmentId,
         actionTypeId: dto.actionTypeId,
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
@@ -538,27 +723,56 @@ export class ActionsService {
     if (!type.isActive) throw new BadRequestException('Tipo de acao inativo');
 
     const groupIdInput =
-      dto.groupId === undefined ? (existing.groupId ?? null) : dto.groupId ?? null;
+      dto.projectGroupId === undefined ? (existing.groupId ?? null) : dto.projectGroupId ?? null;
     const cycleIdInput =
-      dto.cycleId === undefined ? (existing.cycleId ?? null) : dto.cycleId ?? null;
+      dto.peopleGroupId === undefined ? (existing.cycleId ?? null) : dto.peopleGroupId ?? null;
+    const targetEnrollmentIdInput =
+      dto.targetEnrollmentId === undefined
+        ? ((existing as any).targetEnrollmentId ?? null)
+        : dto.targetEnrollmentId ?? null;
     const scope = resolveScopeFromTarget({
       target: type.target,
       groupId: groupIdInput,
       cycleId: cycleIdInput,
+      targetEnrollmentId: targetEnrollmentIdInput,
     });
 
-    if (type.target === 'GROUP' && !scope.groupId) {
-      throw new BadRequestException('Grupo e obrigatorio para este tipo de acao');
+    if (type.target === 'PROJECT_GROUP' && !scope.groupId) {
+      throw new BadRequestException(
+        'Grupo de participantes e obrigatorio para este tipo de acao',
+      );
     }
-    if (type.target === 'CYCLE' && !scope.cycleId) {
-      throw new BadRequestException('Ciclo e obrigatorio para este tipo de acao');
+    if (type.target === 'PEOPLE_GROUP' && !scope.cycleId) {
+      throw new BadRequestException(
+        'Grupo de pessoas e obrigatorio para este tipo de acao',
+      );
+    }
+    if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
+      throw new BadRequestException(
+        'Participante e obrigatorio para este tipo de acao',
+      );
     }
 
     if (scope.groupId) {
-      await this.ensureGroupBelongsToProject(user.tenantId, projectId, scope.groupId);
+      await this.ensureProjectGroupBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.groupId,
+      );
     }
     if (scope.cycleId) {
-      await this.ensureCycleBelongsToProject(user.tenantId, projectId, scope.cycleId);
+      await this.ensurePeopleGroupLinkBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.cycleId,
+      );
+    }
+    if (scope.targetEnrollmentId) {
+      await this.ensureEnrollmentBelongsToProject(
+        user.tenantId,
+        projectId,
+        scope.targetEnrollmentId,
+      );
     }
 
     const plannedStartAt =
@@ -611,8 +825,15 @@ export class ActionsService {
           : {}),
         ...(dto.status !== undefined ? { status: dto.status as ActionStatus } : {}),
         ...(dto.actionTypeId !== undefined ? { actionTypeId: resolvedActionTypeId } : {}),
-        ...(dto.actionTypeId !== undefined || dto.groupId !== undefined || dto.cycleId !== undefined
-          ? { groupId: scope.groupId, cycleId: scope.cycleId }
+        ...(dto.actionTypeId !== undefined ||
+        dto.projectGroupId !== undefined ||
+        dto.peopleGroupId !== undefined ||
+        dto.targetEnrollmentId !== undefined
+          ? {
+              groupId: scope.groupId,
+              cycleId: scope.cycleId,
+              targetEnrollmentId: scope.targetEnrollmentId,
+            }
           : {}),
         ...(planHtml !== undefined ? { planHtml } : {}),
         ...(executedHtml !== undefined ? { executedHtml } : {}),
@@ -950,18 +1171,30 @@ export class ActionsService {
       select: { peopleGroupId: true },
       distinct: ['peopleGroupId'],
     });
-    const actionPeopleGroupIds = actionPeopleGroups.map((row) => row.peopleGroupId);
+    let scopedPeopleGroupIds = actionPeopleGroups.map((row) => row.peopleGroupId);
+    if (!scopedPeopleGroupIds.length) {
+      const projectPeopleGroups = await this.prisma.projectPeopleGroup.findMany({
+        where: {
+          tenantId: user.tenantId,
+          projectId,
+          participationKind,
+        },
+        select: { peopleGroupId: true },
+        distinct: ['peopleGroupId'],
+      });
+      scopedPeopleGroupIds = projectPeopleGroups.map((row) => row.peopleGroupId);
+    }
     const personBaseWhere = buildPeopleWhere({
       tenantId: user.tenantId,
       query: q ?? undefined,
       filters,
     });
-    const peopleGroupScope: Prisma.PersonWhereInput | null = actionPeopleGroupIds.length
+    const peopleGroupScope: Prisma.PersonWhereInput | null = scopedPeopleGroupIds.length
       ? {
           peopleGroupParticipations: {
             some: {
               tenantId: user.tenantId,
-              peopleGroupId: { in: actionPeopleGroupIds },
+              peopleGroupId: { in: scopedPeopleGroupIds },
               isActive: true,
               deletedAt: null,
             },
@@ -1219,6 +1452,7 @@ export class ActionsService {
       tenantId: user.tenantId,
       projectId,
       status: 'ACTIVE',
+      ...(action.targetEnrollmentId ? { id: action.targetEnrollmentId } : {}),
       ...(scopedGroupId
         ? { groupMemberships: { some: { isActive: true, groupId: scopedGroupId } } }
         : {}),
@@ -1306,8 +1540,9 @@ export class ActionsService {
       action: {
         id: action.id,
         title: action.title,
-        groupId: action.groupId,
-        cycleId: action.cycleId,
+        projectGroupId: action.groupId,
+        peopleGroupId: action.cycleId,
+        targetEnrollmentId: (action as any).targetEnrollmentId ?? null,
       },
       data,
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),

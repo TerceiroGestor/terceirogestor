@@ -7,7 +7,7 @@ export type ApiActionType = {
   tenantId: string;
   name: string;
   description: string | null;
-  target: "PROJECT" | "GROUP" | "CYCLE";
+  target: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -20,8 +20,9 @@ export type ApiProjectAction = {
   tenantId: string;
   projectId: string;
   createdByUserId: string | null;
-  groupId: string | null;
-  cycleId: string | null;
+  projectGroupId: string | null;
+  peopleGroupId: string | null;
+  targetEnrollmentId: string | null;
   actionTypeId: string;
   title: string;
   description: string | null;
@@ -41,10 +42,15 @@ export type ApiProjectAction = {
   updatedAt: string;
   comments: ApiProjectActionComment[];
   attachments: ApiProjectActionAttachment[];
-  actionType?: { id: string; name: string; target?: "PROJECT" | "GROUP" | "CYCLE" };
+  project?: { id: string; name: string };
+  actionType?: {
+    id: string;
+    name: string;
+    target?: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
+  };
   createdByUser?: { id: string; name: string | null; email: string };
-  group?: { id: string; name: string } | null;
-  cycle?:
+  projectGroup?: { id: string; name: string } | null;
+  peopleGroup?:
     | {
         id: string;
         name: string;
@@ -62,6 +68,7 @@ export type ApiProjectAction = {
         } | null;
       }
     | null;
+  targetEnrollment?: ApiProjectEnrollment | null;
 };
 
 export type ApiProjectActionComment = {
@@ -118,8 +125,9 @@ export type ProjectActionInput = {
   completionPercent?: number | null;
   photoPaths?: string[] | null;
   status?: ActionStatus;
-  groupId?: string | null;
-  cycleId?: string | null;
+  projectGroupId?: string | null;
+  peopleGroupId?: string | null;
+  targetEnrollmentId?: string | null;
   plannedStartAt?: string | null;
   plannedEndAt?: string | null;
   executedStartAt?: string | null;
@@ -165,7 +173,13 @@ export type ProjectActionAttendancesListItem = {
 };
 
 export type ProjectActionAttendancesListResponse = {
-  action: { id: string; title: string; cycleId: string | null; groupId?: string | null };
+  action: {
+    id: string;
+    title: string;
+    peopleGroupId: string | null;
+    projectGroupId?: string | null;
+    targetEnrollmentId?: string | null;
+  };
   data: ProjectActionAttendancesListItem[];
   pagination: PaginationMeta;
 };

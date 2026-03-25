@@ -35,7 +35,7 @@ services:
       - "3001:3001"
     volumes:
       - ./backend/uploads:/app/uploads
-    command: sh -c "npx prisma migrate deploy && npx prisma db seed && npm run start:prod"
+    command: sh -c "npx prisma migrate deploy && npm run start:prod"
 
   frontend:
     build:

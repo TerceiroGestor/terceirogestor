@@ -55,6 +55,7 @@ export class PeopleGroupsService {
           }
         : {}),
       ...(query.groupType ? { groupType: query.groupType } : {}),
+      ...(query.purpose ? { purpose: query.purpose } : {}),
       ...(query.category ? { category: query.category.trim() } : {}),
       ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
     };
@@ -116,6 +117,7 @@ export class PeopleGroupsService {
         tenantId,
         name,
         groupType: dto.groupType ?? 'SEGMENT',
+        purpose: dto.purpose ?? (dto.groupType === 'TEAM_POOL' ? 'EQUIPE' : 'PUBLICO'),
         category: dto.category?.trim() ? dto.category.trim() : null,
         description: dto.description?.trim() ? dto.description.trim() : null,
         ageMin: dto.ageMin ?? null,
@@ -159,6 +161,7 @@ export class PeopleGroupsService {
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(dto.groupType !== undefined ? { groupType: dto.groupType } : {}),
+        ...(dto.purpose !== undefined ? { purpose: dto.purpose } : {}),
         ...(dto.category !== undefined
           ? { category: dto.category?.trim() ? dto.category.trim() : null }
           : {}),

@@ -1,6 +1,22 @@
 "use client";
 
+import {
+  BarChart3,
+  CalendarDays,
+  Clock3,
+  LayoutGrid,
+  Table2,
+} from "lucide-react";
 import type { Domain } from "@/web-client/domain/types";
+import {
+  defineRecordModule,
+  type CalendarMode,
+  type GanttScale,
+  type GraphBuilderState,
+  type RecordModuleActionMap,
+  type RecordModuleDefinition,
+  type SortDirection,
+} from "@/web-client/registry/types";
 import {
   createStandardDetailQueryState,
   createStandardDetailView,
@@ -9,11 +25,6 @@ import {
   createStandardListView,
 } from "@/web-client/starter";
 import {
-  defineRecordModule,
-  type RecordModuleActionMap,
-  type RecordModuleDefinition,
-} from "@/web-client/registry/types";
-import {
   actionsDetailSearchView,
   actionsSearchView,
 } from "@/web-client/registry/searchViews/actions";
@@ -21,18 +32,37 @@ import {
   actionsDetailLayout,
   type ActionsDetailLayoutContext,
 } from "@/modules/actions/config/actions-detail-layout-contract";
+import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
+
+export type ActionsListViewId =
+  | "table"
+  | "kanban"
+  | "timeline"
+  | "calendar"
+  | "gantt"
+  | "graph";
+
+export type ActionDateField =
+  | "plannedStartAt"
+  | "plannedEndAt"
+  | "executedStartAt"
+  | "executedEndAt";
 
 export type ActionsListQueryState = {
-  view: "list";
+  view: ActionsListViewId;
   searchText: string;
   domain: Domain;
   groupBy: string[];
   pageIndex: number;
   pageSize: number;
-  projectId: string;
-  onlyMine: boolean;
-  groupId: string;
-  cycleId: string;
+  timelineField: ActionDateField;
+  timelineSortDirection: SortDirection;
+  calendarField: ActionDateField;
+  calendarMode: CalendarMode;
+  ganttScale: GanttScale;
+  rangeFrom: string;
+  rangeTo: string;
+  graph: GraphBuilderState;
 };
 
 export type ActionsDetailQueryState = {
@@ -59,7 +89,7 @@ const ACTIONS_PERMISSIONS = {
 const ACTIONS_LIST_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Abrir acao",
+    label: "Abrir ação",
     permissionKey: "canRead",
     scope: "row",
     requiresReturnTo: true,
@@ -81,7 +111,7 @@ const ACTIONS_LIST_ACTIONS: RecordModuleActionMap = {
 const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar acao",
+    label: "Visualizar ação",
     permissionKey: "canRead",
     scope: "detail",
   },
@@ -96,7 +126,15 @@ const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
 export const actionsListModuleDefinition = defineRecordModule<ActionsListQueryState>({
   moduleId: "actions.list",
   basePath: ACTIONS_ROUTES.list,
-  featureFlags: createStandardFeatureFlags({ detail: false }),
+  featureFlags: createStandardFeatureFlags({
+    list: true,
+    detail: false,
+    kanban: true,
+    timeline: true,
+    calendar: true,
+    gantt: true,
+    graph: true,
+  }),
   actionKey: "actions.list.screen",
   favoriteKey: "actions.list.favorites",
   permissions: ACTIONS_PERMISSIONS,
@@ -105,39 +143,247 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
     listDataProvider: { model: "actions.list" },
   },
   domainAdapter: {
-    entity: { singular: "Acao", plural: "Acoes" },
+    entity: { singular: "Ação", plural: "Ações" },
     list: {
-      searchPlaceholder: "Pesquisar",
+      searchPlaceholder: "Pesquisar ações",
       createActionLabel: "Novo",
       totalLabel: "Total",
-      emptyStateLabel: "Nenhuma acao encontrada.",
+      emptyStateLabel: "Nenhuma ação encontrada.",
     },
     detail: {
-      fallbackTitle: "Acao",
+      fallbackTitle: "Ação",
     },
     fields: {
-      title: { label: "Acao" },
+      title: { label: "Ação" },
       tags: { label: "Tags" },
       createdAt: { label: "Cadastro", type: "date" },
       status: { label: "Status" },
       "actionType.name": { label: "Tipo" },
-      "group.name": { label: "Grupo" },
-      "cycle.segment.name": { label: "Segmento institucional" },
-      "cycle.catalogCycle.name": { label: "Catalogo legado" },
-      "cycle.name": { label: "Vinculo" },
-      plannedStartAt: { label: "Inicio planejado", type: "date" },
+      "project.name": { label: "Projeto" },
+      "projectGroup.name": { label: "Grupo de Participantes" },
+      "peopleGroup.segment.name": { label: "Grupo de Pessoas" },
+      "targetEnrollment.person.fullName": { label: "Participante" },
+      plannedStartAt: { label: "Início planejado", type: "date" },
       plannedEndAt: { label: "Fim planejado", type: "date" },
+      executedStartAt: { label: "Início executado", type: "date" },
+      executedEndAt: { label: "Fim executado", type: "date" },
+      completionPercent: { label: "Conclusão", type: "number" },
     },
   },
   searchConfig: actionsSearchView,
-  views: [createStandardListView()],
+  views: [
+    createStandardListView({
+      id: "table",
+      title: "Tabela",
+      viewType: "table",
+      icon: <Table2 className="size-4" />,
+      params: {
+        searchable: true,
+        sortable: true,
+        paginated: true,
+        sortFields: [
+          "title",
+          "status",
+          "createdAt",
+          "plannedStartAt",
+          "plannedEndAt",
+          "executedStartAt",
+          "executedEndAt",
+        ],
+      },
+    }),
+    {
+      id: "kanban",
+      title: "Kanban",
+      viewType: "kanban",
+      icon: <LayoutGrid className="size-4" />,
+      params: {
+        columnField: "status",
+        titleField: "title",
+        groupByFields: [
+          "status",
+          "actionType.name",
+          "project.name",
+          "projectGroup.name",
+          "peopleGroup.segment.name",
+          "targetEnrollment.person.fullName",
+          "tags",
+        ],
+        defaultGroupByField: "status",
+      },
+    },
+    {
+      id: "timeline",
+      title: "Timeline",
+      viewType: "timeline",
+      icon: <Clock3 className="size-4" />,
+      params: {
+        startDateField: "plannedStartAt",
+        endDateField: "plannedEndAt",
+        titleField: "title",
+        dateFields: [
+          "plannedStartAt",
+          "plannedEndAt",
+          "executedStartAt",
+          "executedEndAt",
+        ],
+        defaultDateField: "plannedStartAt",
+        sortDirections: ["desc", "asc"],
+        defaultSortDirection: "desc",
+      },
+    },
+    {
+      id: "calendar",
+      title: "Calendário",
+      viewType: "calendar",
+      icon: <CalendarDays className="size-4" />,
+      params: {
+        startDateField: "plannedStartAt",
+        titleField: "title",
+        dateFields: [
+          "plannedStartAt",
+          "plannedEndAt",
+          "executedStartAt",
+          "executedEndAt",
+        ],
+        defaultDateField: "plannedStartAt",
+        modes: ["day", "week", "month", "year"],
+        defaultMode: "month",
+      },
+    },
+    {
+      id: "gantt",
+      title: "Gantt",
+      viewType: "gantt",
+      params: {
+        startDateField: "plannedStartAt",
+        endDateField: "plannedEndAt",
+        titleField: "title",
+        progressField: "completionPercent",
+        groupByFields: [
+          "status",
+          "actionType.name",
+          "project.name",
+          "projectGroup.name",
+          "peopleGroup.segment.name",
+          "targetEnrollment.person.fullName",
+          "tags",
+          "createdAt",
+        ],
+        defaultGroupByField: "status",
+        scaleOptions: ["week", "month", "quarter"],
+        defaultScale: "month",
+      },
+    },
+    {
+      id: "graph",
+      title: "Gráfico",
+      viewType: "graph",
+      icon: <BarChart3 className="size-4" />,
+      params: {
+        builder: {
+          fields: [
+            {
+              field: "status",
+              label: "Status",
+              kind: "dimension",
+              formatValue: (value) => ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ?? String(value ?? "Sem valor"),
+            },
+            {
+              field: "actionType.name",
+              label: "Tipo",
+              kind: "dimension",
+              getValue: (row) =>
+                (row as {
+                  actionType?: { name?: string | null } | null;
+                }).actionType?.name ?? null,
+            },
+            {
+              field: "project.name",
+              label: "Projeto",
+              kind: "dimension",
+              getValue: (row) =>
+                (row as {
+                  project?: { name?: string | null } | null;
+                }).project?.name ?? null,
+            },
+            {
+              field: "projectGroup.name",
+              label: "Grupo de Participantes",
+              kind: "dimension",
+              getValue: (row) =>
+                (row as {
+                  projectGroup?: { name?: string | null } | null;
+                }).projectGroup?.name ?? null,
+            },
+            {
+              field: "peopleGroup.segment.name",
+              label: "Grupo de Pessoas",
+              kind: "dimension",
+              getValue: (row) => {
+                const record = row as {
+                  peopleGroup?:
+                    | {
+                        name?: string | null;
+                        segment?: { name?: string | null } | null;
+                      }
+                    | null;
+                };
+                return record.peopleGroup?.segment?.name ?? record.peopleGroup?.name ?? null;
+              },
+            },
+            {
+              field: "targetEnrollment.person.fullName",
+              label: "Participante",
+              kind: "dimension",
+              getValue: (row) =>
+                (row as {
+                  targetEnrollment?: {
+                    person?: { fullName?: string | null } | null;
+                  } | null;
+                }).targetEnrollment?.person?.fullName ?? null,
+            },
+            { field: "tags", label: "Tags", kind: "dimension", emptyValueLabel: "Sem tags" },
+            { field: "createdAt", label: "Cadastro", kind: "date" },
+            { field: "plannedStartAt", label: "Início planejado", kind: "date" },
+            { field: "plannedEndAt", label: "Fim planejado", kind: "date" },
+            { field: "executedStartAt", label: "Início executado", kind: "date" },
+            { field: "executedEndAt", label: "Fim executado", kind: "date" },
+            { field: "completionPercent", label: "Conclusão", kind: "metric" },
+          ],
+          defaultState: {
+            groupBy: "status",
+            metric: { field: null, op: "count" },
+            timeField: null,
+            timeBucket: null,
+            chartType: "bar",
+            filters: {},
+          },
+          maxGroups: 10,
+          downloadFileName: "acoes",
+        },
+      },
+    },
+  ],
   defaultQueryState: createStandardListQueryState<ActionsListQueryState>({
-    projectId: "",
-    onlyMine: false,
-    groupId: "",
-    cycleId: "",
+    view: "table",
+    timelineField: "plannedStartAt",
+    timelineSortDirection: "desc",
+    calendarField: "plannedStartAt",
+    calendarMode: "month",
+    ganttScale: "month",
+    rangeFrom: "",
+    rangeTo: "",
+    graph: {
+      groupBy: "status",
+      metric: { field: null, op: "count" },
+      timeField: null,
+      timeBucket: null,
+      chartType: "bar",
+      filters: {},
+    },
   }),
-  defaultView: "list",
+  defaultView: "table",
 });
 
 export const actionsDetailModuleDefinition =
@@ -164,22 +410,22 @@ export const actionsDetailModuleDefinition =
       auditDataProvider: { model: "audit.logs" },
     },
     domainAdapter: {
-      entity: { singular: "Acao", plural: "Acoes" },
+      entity: { singular: "Ação", plural: "Ações" },
       detail: {
-        fallbackTitle: "Acao",
+        fallbackTitle: "Ação",
       },
       fields: {
-        title: { label: "Acao" },
+        title: { label: "Ação" },
         tags: { label: "Tags" },
         createdAt: { label: "Cadastro", type: "date" },
         status: { label: "Status" },
         internalNotes: { label: "Notas internas" },
-        plannedStartAt: { label: "Inicio planejado", type: "date" },
+        plannedStartAt: { label: "Início planejado", type: "date" },
         plannedEndAt: { label: "Fim planejado", type: "date" },
       },
     },
     searchConfig: actionsDetailSearchView,
-    views: [createStandardDetailView()],
+    views: [createStandardDetailView({ icon: <Table2 className="size-4" /> })],
     defaultQueryState: createStandardDetailQueryState<ActionsDetailQueryState>(),
     defaultView: "detail",
     detailLayout: actionsDetailLayout,

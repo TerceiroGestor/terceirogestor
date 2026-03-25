@@ -6,7 +6,7 @@ import type {
   AttendanceStatus,
 } from "@/modules/actions/api";
 
-export type ActionTarget = "PROJECT" | "GROUP" | "CYCLE";
+export type ActionTarget = "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
 
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
   PLANNED: "Planejada",
@@ -34,14 +34,16 @@ export const ATTENDANCE_STATUS_OPTIONS = [
 
 export const ACTION_TARGET_LABELS: Record<ActionTarget, string> = {
   PROJECT: "Projeto",
-  GROUP: "Grupo",
-  CYCLE: "Segmento",
+  PROJECT_GROUP: "Grupo de Participantes",
+  PEOPLE_GROUP: "Grupo de Pessoas",
+  ENROLLMENT: "Participante",
 };
 
 export const ACTION_TARGET_OPTIONS = [
   { label: ACTION_TARGET_LABELS.PROJECT, value: "PROJECT" },
-  { label: ACTION_TARGET_LABELS.GROUP, value: "GROUP" },
-  { label: ACTION_TARGET_LABELS.CYCLE, value: "CYCLE" },
+  { label: ACTION_TARGET_LABELS.PROJECT_GROUP, value: "PROJECT_GROUP" },
+  { label: ACTION_TARGET_LABELS.PEOPLE_GROUP, value: "PEOPLE_GROUP" },
+  { label: ACTION_TARGET_LABELS.ENROLLMENT, value: "ENROLLMENT" },
 ] satisfies { label: string; value: ActionTarget }[];
 
 export const ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS: Record<

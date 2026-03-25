@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  ProjectGroupsDetailEngineClientPage,
   ProjectActionsManageRouteClientPage,
   ProjectCyclesListModuleClientPage,
   ProjectCyclesManageRouteClientPage,
   ProjectEnrollmentsManageRouteClientPage,
   ProjectGroupsListModuleClientPage,
-  ProjectGroupsManageRouteClientPage,
 } from "@/modules/projects";
 import {
   PROJECT_CYCLES_ROUTES,
@@ -14,6 +14,7 @@ import {
 } from "@/modules/projects/config/project-cycles-module-contract";
 import {
   PROJECT_GROUPS_ROUTES,
+  projectGroupsDetailModuleDefinition,
   projectGroupsListModuleDefinition,
 } from "@/modules/projects/config/project-groups-module-contract";
 import { ProjectGroupStandaloneDetailPage } from "@/modules/projects/features/detail/ui/project-group-standalone-detail-page";
@@ -42,9 +43,9 @@ export const projectGroupsListAction = createModuleWindowAction({
 
 export const projectGroupsCreateAction = createModuleWindowAction({
   id: PROJECT_STRUCTURE_ACTION_IDS.groupsCreate,
-  moduleDefinition: projectGroupsListModuleDefinition,
+  moduleDefinition: projectGroupsDetailModuleDefinition,
   permissions: "project-structure.create",
-  title: "Novo grupo",
+  title: "Novo grupo de participantes",
   breadcrumbs: [{ label: "Grupos", href: PROJECT_GROUPS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <ProjectGroupsCreateStandalonePage tenantSlug="" />,
@@ -52,9 +53,9 @@ export const projectGroupsCreateAction = createModuleWindowAction({
 
 export const projectGroupsDetailAction = createModuleWindowAction({
   id: PROJECT_STRUCTURE_ACTION_IDS.groupsDetail,
-  moduleDefinition: projectGroupsListModuleDefinition,
+  moduleDefinition: projectGroupsDetailModuleDefinition,
   permissions: "project-structure.read",
-  title: "Grupo",
+  title: "Grupo de Participantes",
   breadcrumbs: [{ label: "Grupos", href: PROJECT_GROUPS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <ProjectGroupStandaloneDetailPage />,
@@ -62,12 +63,12 @@ export const projectGroupsDetailAction = createModuleWindowAction({
 
 export const projectGroupsManageAction = createModuleWindowAction({
   id: PROJECT_STRUCTURE_ACTION_IDS.groupsManage,
-  moduleDefinition: projectGroupsListModuleDefinition,
+  moduleDefinition: projectGroupsDetailModuleDefinition,
   permissions: "project-structure.read",
   title: "Grupos do projeto",
   breadcrumbs: [{ label: "Projetos", href: "/projects" }],
   hideBreadcrumb: true,
-  render: () => <ProjectGroupsManageRouteClientPage />,
+  render: () => <ProjectGroupsDetailEngineClientPage />,
 });
 
 export const projectCyclesListAction = createModuleWindowAction({

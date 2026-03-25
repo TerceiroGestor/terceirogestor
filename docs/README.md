@@ -1,34 +1,18 @@
-# Documentação (template)
+# Documentação Canônica
 
-Este diretório é a **fonte única** de documentação do projeto (arquitetura, processos, padrões e guias).
+Esta pasta contém somente a documentação ativa do projeto. O padrão oficial é único e deve ser seguido por todos os módulos, sem exceções ou variações locais.
 
-## Índice
+Arquivos:
 
-### Visão geral
-- `docs/architecture.md` — visão do sistema e pastas
-- `docs/database.md` — modelo de dados, migrations e seed
-- `docs/patterns.md` — padrões de código/estrutura e “contratos” de módulos
-- `docs/changelog.md` — histórico e próximos passos
-- `docs/backlog.md` — ideias/pendências organizadas
+- [canonical-web-client-standard.md](/c:/server/system_development/docs/canonical-web-client-standard.md)
+- [canonical-business-structure.md](/c:/server/system_development/docs/canonical-business-structure.md)
+- [deployment-and-update.md](/c:/server/system_development/docs/deployment-and-update.md)
+- [module-canonical-checklist.md](/c:/server/system_development/docs/module-canonical-checklist.md)
 
-### Processos (para estudo/testes/debug)
-- `docs/processes/backend.md` — processos e endpoints do backend
-- `docs/processes/frontend.md` — processos do frontend e integração com API
-- `docs/processes/registro-tenant-admin.md` — detalhes do registro de tenant + admin
-- `docs/processes/testes-registro-2fa.md` — roteiro prático para validar registro + 2FA
-- `docs/processes/validacao-cpf.md` — validação e normalização de CPF
-- `docs/processes/fechamento-epico-1.1-pessoas.md` — checklist de validação (endereços/contatos/documentos sensíveis)
+Regra de ouro:
 
-### Como criar novos módulos
-- `docs/guides/backend-new-module.md` — criar módulo no backend (migrations/seed/perms/audit)
-- `docs/guides/frontend-new-module.md` — criar módulo no frontend (manifest/api/features/shared/perms)
-
-### Exemplo end-to-end
-- `docs/examples/task-module-e2e.md` — exemplo completo do módulo `tasks` (backend + frontend)
-
-### Templates de documentação por módulo
-- `docs/modules/_template/dev-guide.md`
-- `docs/modules/_template/user-guide.md`
-
-### Arquivo histórico (não usar como referência principal)
-- `docs/archive/` — documentos antigos/ideias de outros experimentos
+- toda nova tela deve nascer no padrão canônico
+- não criar shells paralelos
+- não criar SearchPanel especial por módulo
+- não criar detail alternativo para `new` e `edit`
+- não criar relation fora do padrão `relationSlot`

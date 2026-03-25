@@ -151,7 +151,7 @@ export function ActionPeopleParticipationPickerDialog({
                     : previous.filter((item) => !rows.some((row) => row.id === item.id)),
                 );
               }}
-              aria-label="Selecionar people da pagina"
+              aria-label="Selecionar pessoas da página"
             />
           );
         },
@@ -171,7 +171,7 @@ export function ActionPeopleParticipationPickerDialog({
       },
       {
         id: "person",
-        header: "People",
+        header: "Pessoa",
         accessorFn: (row) => row.person.fullName,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -258,7 +258,7 @@ export function ActionPeopleParticipationPickerDialog({
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao carregar people.";
+          : "Falha ao carregar pessoas.";
       setError(message);
       setRows([]);
       setPageCount(0);
@@ -346,23 +346,14 @@ export function ActionPeopleParticipationPickerDialog({
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Adicionar people"
-      description="Selecione people elegiveis do projeto para vincular a esta acao."
+      title="Adicionar pessoa"
+      description="Selecione pessoas elegíveis da equipe vinculada ao projeto para associar a esta ação."
       contentClassName="max-w-[1100px]"
       headerSlot={
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-muted-foreground">
             Selecionados: <strong>{selectedRows.length}</strong>
           </span>
-          <Button type="button" variant="ghost" disabled={saving || rows.length === 0} onClick={() => setSelectedRows((previous) => Array.from(new Map([...previous, ...rows].map((item) => [item.id, item])).values()))}>
-            Selecionar pagina
-          </Button>
-          <Button type="button" variant="ghost" disabled={saving || totalCount === 0} onClick={() => void handleSelectFiltered()}>
-            Selecionar filtrados
-          </Button>
-          <Button type="button" variant="ghost" disabled={saving || selectedRows.length === 0} onClick={() => setSelectedRows([])}>
-            Limpar
-          </Button>
           <Button type="button" variant="secondary" disabled={saving || selectedRows.length === 0} onClick={() => void handleBulkAdd()}>
             {saving ? "Adicionando..." : "Adicionar selecionados"}
           </Button>
@@ -428,6 +419,23 @@ export function ActionPeopleParticipationPickerDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {selectedRows.length > 0 ? (
+            <div className="min-w-[120px]">
+              <div className="mb-2 text-xs font-medium text-muted-foreground opacity-0">
+                Limpar
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 rounded-none border-x-0 border-t-0 border-border/70 px-0 text-sm"
+                disabled={saving}
+                onClick={() => setSelectedRows([])}
+              >
+                Limpar seleção
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <TableView

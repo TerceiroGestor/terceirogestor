@@ -9,13 +9,19 @@ export const projectGroupsSearchView: SearchViewDefinition = {
   features: {
     favorites: true,
     presets: true,
-    advancedFilters: false,
+    advancedFilters: true,
     groupBy: true,
     clearAll: true,
   },
-  fields: [],
+  fields: [
+    { name: "project.name", label: "Projeto", type: "text" },
+    { name: "createdAt", label: "Cadastro", type: "date" },
+    { name: "_count.memberships", label: "Participantes", type: "number" },
+    { name: "_count.actions", label: "Acoes", type: "number" },
+  ],
   groupBy: [
     { field: "project.name", label: "Projeto" },
+    { field: "createdAt", label: "Cadastro" },
   ],
   presets: [],
 };

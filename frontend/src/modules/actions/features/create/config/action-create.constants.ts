@@ -13,8 +13,8 @@ export const ACTION_CREATE_TEXT = {
   validations: {
     projectRequired: "Selecione um projeto",
     typeRequired: "Selecione um tipo",
-    titleRequired: "Informe um título",
-    groupRequired: "Selecione um grupo",
+    titleRequired: "Informe um titulo",
+    groupRequired: "Selecione um grupo de participantes",
     cycleRequired: "Selecione um grupo de pessoas",
   },
   toasts: {
@@ -28,35 +28,19 @@ export const ACTION_CREATE_TEXT = {
     titlePlaceholder: "Ex.: Oficina de artes",
     typeLabel: "Tipo",
     typePlaceholder: "Selecione um tipo",
+    targetLabel: "Direcionamento",
     statusLabel: "Status",
-    groupLabel: "Grupo",
-    groupPlaceholder: "Selecione um grupo",
-    cycleLabel: "Grupo de Pessoas",
+    groupLabel: "Grupo de Participantes",
+    groupPlaceholder: "Selecione um grupo de participantes",
+    cycleLabel: "Grupo de pessoas",
     cyclePlaceholder: "Selecione um grupo de pessoas",
-    plannedStartLabel: "Início planejado",
-    plannedEndLabel: "Término planejado",
+    plannedStartLabel: "Inicio planejado",
+    plannedEndLabel: "Termino planejado",
     planLabel: "Planejamento",
     planHelper: "Descreva objetivos, materiais, metodologia e etapas.",
     submitLabel: "Criar ação",
     cancelLabel: "Voltar",
   },
-  steps: [
-    {
-      title: "Básico",
-      description: "Projeto, título, tipo e status.",
-      fields: ["projectId", "title", "actionTypeId", "status"],
-    },
-    {
-      title: "Escopo",
-      description: "Grupo e/ou Segmento (quando aplicável).",
-      fields: ["groupId", "cycleId"],
-    },
-    {
-      title: "Planejamento",
-      description: "Datas planejadas e descrição do plano.",
-      fields: ["plannedStartAt", "plannedEndAt", "planHtml"],
-    },
-  ],
   usage: {
     title: "Criar ação",
     sections: [
@@ -64,21 +48,21 @@ export const ACTION_CREATE_TEXT = {
         title: "Selecionar projeto",
         items: [
           "Selecione um projeto para associar a ação.",
-          "Se houver apenas um projeto disponível, ele pode vir pré-selecionado.",
+          "Se houver apenas um projeto disponivel, ele pode vir pre-selecionado.",
         ],
       },
       {
         title: "Tipo e escopo",
         items: [
-          "Escolha o Tipo: ele define se a ação é do Projeto, de um Grupo ou de um Segmento.",
-          "Se o tipo for Grupo, selecione o Grupo. Se for Segmento, selecione o Segmento.",
+          "Escolha o tipo: ele define se a ação é do projeto, de um grupo de participantes ou de um grupo de pessoas.",
+          "Selecione o direcionamento correspondente para manter a ação ligada ao público correto.",
         ],
       },
       {
         title: "Planejamento",
         items: [
           "Preencha datas planejadas para facilitar relatórios e organização.",
-          "Use o campo de Planejamento para detalhar o que será feito.",
+          "Use o campo de planejamento para detalhar o que sera feito.",
         ],
       },
     ],

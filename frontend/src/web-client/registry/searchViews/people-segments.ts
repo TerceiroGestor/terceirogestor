@@ -9,13 +9,44 @@ export const peopleSegmentsSearchView: SearchViewDefinition = {
   features: {
     favorites: true,
     presets: true,
-    advancedFilters: false,
+    advancedFilters: true,
     groupBy: true,
     clearAll: true,
   },
-  fields: [],
+  fields: [
+    {
+      name: "purpose",
+      label: "Finalidade",
+      type: "select",
+      operators: ["="],
+      options: [
+        { value: "PUBLICO", label: "Publico" },
+        { value: "EQUIPE", label: "Equipe" },
+      ],
+    },
+    {
+      name: "category",
+      label: "Categoria",
+      type: "text",
+      operators: ["contains", "="],
+    },
+    {
+      name: "createdAt",
+      label: "Cadastro",
+      type: "date",
+      operators: ["between", ">=", "<=", "="],
+    },
+    {
+      name: "isActive",
+      label: "Status",
+      type: "boolean",
+      operators: ["="],
+    },
+  ],
   groupBy: [
+    { field: "purpose", label: "Finalidade" },
     { field: "category", label: "Categoria" },
+    { field: "createdAt", label: "Cadastro" },
     { field: "isActive", label: "Status" },
   ],
   presets: [
@@ -38,5 +69,12 @@ export const peopleSegmentsDetailSearchView: SearchViewDefinition = {
     groupBy: false,
     clearAll: false,
   },
-  fields: [],
+  fields: [
+    {
+      name: "isActive",
+      label: "Status",
+      type: "boolean",
+      operators: ["="],
+    },
+  ],
 };

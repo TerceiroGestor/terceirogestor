@@ -6,7 +6,6 @@ import {
   ACTIONS_ROUTES,
   actionsDetailModuleDefinition,
 } from "@/modules/actions/config/actions-module-contract";
-import { ActionCreateRouteClientPage } from "@/modules/actions/features/create/ui/action-create-route-client-page";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import type { ActionsDetailLayoutContext } from "@/modules/actions/config/actions-detail-layout-contract";
 
@@ -19,6 +18,12 @@ export function ActionCreateEngineClientPage() {
     mode: "create",
     readOnly: true,
     canAudit: false,
+    canUpdate: false,
+    canReadStructure: false,
+    canReadPeople: false,
+    canReadPeopleIdentity: false,
+    token: "",
+    projectId: "",
     action: null,
     draft: {
       tags: [],
@@ -37,6 +42,17 @@ export function ActionCreateEngineClientPage() {
     onDeleteAttachment: () => undefined,
     onNotesChange: () => undefined,
     onNotesBlur: () => undefined,
+    onSaveActionPatch: async () => undefined,
+    onActionLoaded: () => undefined,
+    onUploadPhoto: async () => undefined,
+    onDeletePhoto: async () => undefined,
+    onOpenTeamPicker: () => undefined,
+    onEndTeamParticipation: async () => undefined,
+    photoUploading: false,
+    reportRows: [],
+    reportPeopleRows: [],
+    reportLoading: false,
+    reportError: null,
     auditVisibleCount: 24,
     onAuditVisibleCountChange: () => undefined,
   } satisfies ActionsDetailLayoutContext;
@@ -46,17 +62,16 @@ export function ActionCreateEngineClientPage() {
       moduleDefinition={actionsDetailModuleDefinition}
       context={context}
       mode="create"
-      headerTitle="Nova acao"
-      breadcrumbTitle="Nova acao"
+      headerTitle="Nova ação"
+      breadcrumbTitle="Nova ação"
       breadcrumbItems={[
-        { label: "Acoes", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
-        { label: "Nova acao" },
+        { label: "Ações", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
+        { label: "Nova ação" },
       ]}
       saving={false}
       loading={false}
       readOnly
       onClose={() => router.push(withTenantPath(ACTIONS_ROUTES.list, tenantSlug))}
-      fallbackMainSlot={<ActionCreateRouteClientPage embedded />}
     />
   );
 }

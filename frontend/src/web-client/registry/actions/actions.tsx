@@ -23,7 +23,7 @@ export const actionsListAction = createModuleWindowAction({
   moduleDefinition: actionsListModuleDefinition,
   modulePermissionKey: "canRead",
   titleVariant: "list",
-  breadcrumbs: [{ label: "Acoes", href: ACTIONS_ROUTES.list }],
+  breadcrumbs: [{ label: "Ações", href: ACTIONS_ROUTES.list }],
   render: () => <ActionsListModuleClientPage />,
 });
 
@@ -32,7 +32,7 @@ export const actionsDetailAction = createModuleWindowAction({
   moduleDefinition: actionsDetailModuleDefinition,
   moduleActionKey: "view",
   titleVariant: "detail",
-  breadcrumbs: [{ label: "Acoes", href: ACTIONS_ROUTES.list }],
+  breadcrumbs: [{ label: "Ações", href: ACTIONS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <ActionDetailEngineClientPage />,
 });
@@ -42,7 +42,7 @@ export const actionsCreateAction = createModuleWindowAction({
   moduleDefinition: actionsDetailModuleDefinition,
   moduleActionKey: "create",
   titleVariant: "create",
-  breadcrumbs: [{ label: "Acoes", href: ACTIONS_ROUTES.list }],
+  breadcrumbs: [{ label: "Ações", href: ACTIONS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <ActionCreateEngineClientPage />,
 });

@@ -28,6 +28,7 @@ function mapPeopleGroup(group: ApiPeopleGroup): ApiPeopleSegment {
     tenantId: group.tenantId,
     name: group.name,
     groupType: group.groupType,
+    purpose: group.purpose,
     category: group.category,
     description: group.description,
     ageMin: group.ageMin,
@@ -66,6 +67,7 @@ function inferGroupType(
   input: Partial<PeopleSegmentInput>,
 ): NonNullable<PeopleSegmentInput["groupType"]> {
   if (input.groupType) return input.groupType;
+  if (input.purpose === "EQUIPE") return "TEAM_POOL";
   const category = input.category?.trim().toLocaleLowerCase();
   if (!category) return "SEGMENT";
   if (category.includes("ciclo")) return "CYCLE";
@@ -102,6 +104,7 @@ export async function createPeopleSegment(token: string, payload: PeopleSegmentI
   return mapPeopleGroup(
     await createPeopleGroup(token, {
       ...payload,
+      purpose: payload.purpose,
       groupType: inferGroupType(payload),
     }),
   );
@@ -115,6 +118,7 @@ export async function updatePeopleSegment(
   return mapPeopleGroup(
     await updatePeopleGroup(token, id, {
       ...payload,
+      purpose: payload.purpose,
       ...(payload.groupType || payload.category
         ? { groupType: inferGroupType(payload) }
         : {}),

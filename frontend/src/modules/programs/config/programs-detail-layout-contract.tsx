@@ -4,7 +4,6 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TagInput } from "@/components/ui/tag-input";
 import {
   Select,
   SelectContent,
@@ -382,17 +381,6 @@ function ProgramsDetailMain({
         />
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Tags</div>
-        <TagInput
-          value={draft.tags}
-          onChange={(tags) => {
-            setDraft((previous) => ({ ...previous, tags }));
-            onCommitField("tags", tags);
-          }}
-          disabled={readOnly}
-        />
-      </div>
     </div>
   );
 }

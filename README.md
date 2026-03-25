@@ -1,96 +1,26 @@
-﻿# system_development
+# system_development
 
-## Setup rapido (novo computador)
+Base canônica do projeto:
 
-1) Clonar o repositorio
-```bash
-git clone https://github.com/TerceiroGestor/system_development.git
-cd system_development
-```
+- frontend em `frontend/`
+- backend em `backend/`
+- deploy local/servidor com `docker-compose.yml`
+- atualização operacional com `script/update.sh`
+- documentação oficial em [docs/README.md](/c:/server/system_development/docs/README.md)
 
-2) Subir o banco (MySQL via Docker)
+Rotina rápida:
+
 ```bash
 docker compose up -d mysql
+cd backend && npm install
+cd ../frontend && npm install
+cd ../backend && npm run db:migrate:deploy && npm run db:seed
+cd ../frontend && npm run dev
 ```
 
-3) Configurar variaveis de ambiente
-- Backend: copie `backend/.env.example` para `backend/.env`.
-- Frontend: copie `frontend/.env.example` para `frontend/.env`.
+Validação mínima antes de finalizar mudanças:
 
-4) Instalar dependencias
 ```bash
-cd backend
-npm install
-cd ../frontend
-npm install
-```
-
-5) Migracoes e seed
-```bash
-cd ../backend
-npx prisma migrate deploy
-npx prisma generate
-npx prisma db seed
-```
-
-6) Rodar em desenvolvimento
-```bash
-# backend
-cd backend
-npm run start:dev
-
-# frontend
-cd ../frontend
-npm run dev
-```
-
-## Checklist rapido (antes de finalizar alteracoes)
-- Rodar `npm run build` no frontend.
-- Rodar `npm run build` no backend.
-
-## Docker (stack mysql + backend + frontend)
-1) Preparar variaveis do compose
-```bash
-copy .env.compose.example .env
-```
-Edite `.env` com:
-- `DATA_DIR` (padrao `./data`, ex: `/srv/dados/terceirogestor`)
-- `MYSQL_ROOT_PASSWORD`
-- `MYSQL_DATABASE`
-- `NEXT_PUBLIC_API_URL` (ex: `http://localhost:3001`)
-- `TZ`
-No Windows, use caminho com `/` (ex: `C:/dados/terceirogestor`) em `DATA_DIR`.
-
-2) Ajustar `.env` do backend e frontend (se necessario)
-- Backend: `backend/.env` (DATABASE_URL sera sobrescrita no container).
-- Frontend: `frontend/.env` (NEXT_PUBLIC_API_URL pode ser sobrescrita no container).
-
-3) Subir o banco, backend e frontend
-```bash
-docker compose up -d mysql backend frontend
-```
-Observacao: os dados do MySQL ficam em `${DATA_DIR}/mysql` (bind mount).
-
-Backup automatico:
-- arquivos em `${DATA_DIR}/backups`
-- executa diariamente as 12:00 (meio-dia) no timezone do container
-- ajuste `BACKUP_KEEP_DAYS` e `TZ` em `.env`
-```bash
-docker compose up -d backup
-```
-
-4) SSL em producao
-- Configure Nginx/Certbot direto no servidor (fora do compose).
-
-## Atualizacao (servidor)
-Rotina automatizada (Ubuntu):
-```bash
-bash scripts/update.sh
-```
-O script faz `git pull`, build das imagens, aplica migrations e recria os containers.
-Observacao: migrations rodam dentro do container, sem depender do Node/Prisma do host.
-
-Execucao manual (se precisar):
-```bash
-docker compose run --rm --no-deps backend npm run db:migrate:deploy
+cd backend && npm run build
+cd ../frontend && npm run build
 ```

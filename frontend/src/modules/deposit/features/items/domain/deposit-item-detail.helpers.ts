@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   formatDateOnlyPtBR,
@@ -46,7 +46,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function resolveExitTypeLabel(type: ApiDepositExit["type"] | string | null | undefined) {
-  if (!type) return "Saida";
+  if (!type) return "Saída";
   if (type in DEPOSIT_EXIT_TYPE_LABELS) {
     return DEPOSIT_EXIT_TYPE_LABELS[type as keyof typeof DEPOSIT_EXIT_TYPE_LABELS];
   }
@@ -69,13 +69,13 @@ export function resolveAuditActionLabel(action: DetailAuditFeedItem["action"]) {
 export function formatAuditNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("pt-BR")
-    : "-";
+    : "—";
 }
 
 export function formatAuditDate(value: unknown) {
   return typeof value === "string" && value.trim()
     ? formatDateOnlyPtBR(value)
-    : "-";
+    : "—";
 }
 
 export function formatAuditReferenceLabel(
@@ -87,7 +87,7 @@ export function formatAuditReferenceLabel(
   if (resolvedLabel) return resolvedLabel;
 
   const id = typeof value === "string" ? value.trim() : "";
-  if (!id) return "-";
+  if (!id) return "—";
 
   return `${fallbackPrefix} #${id.slice(0, 8)}`;
 }
@@ -117,7 +117,7 @@ export function buildDepositExitAuditLabel(exit: ApiDepositExit) {
     parts.push(destinationName);
   }
 
-  return `Saida ${parts.join(" | ")}`;
+  return `Saída ${parts.join(" | ")}`;
 }
 
 function isDateOnlyValue(value: string) {
@@ -136,18 +136,18 @@ export function formatAuditValue(
     const formatted = String(formatter(value) ?? "").trim();
     if (formatted) return formatted;
   }
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return "—";
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (!trimmed) return "-";
+    if (!trimmed) return "—";
     if (isDateOnlyValue(trimmed)) return formatDateOnlyPtBR(trimmed);
     if (isDateTimeValue(trimmed)) return formatDateTimePtBR(trimmed);
     return trimmed;
   }
   if (typeof value === "number") return formatAuditNumber(value);
-  if (typeof value === "boolean") return value ? "Sim" : "Nao";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
   if (Array.isArray(value)) {
-    return value.length ? value.map((item) => formatAuditValue(item)).join(", ") : "-";
+    return value.length ? value.map((item) => formatAuditValue(item)).join(", ") : "—";
   }
   return JSON.stringify(value);
 }
@@ -206,7 +206,7 @@ function isMeaningfulAuditFormatterValue(formatted: string, value: unknown) {
     return true;
   }
 
-  return formatted !== "â€”" && formatted !== "-" && formatted !== "-";
+  return formatted !== "—" && formatted !== "-" && formatted !== "-";
 }
 
 function normalizeAuditNumberString(value: string) {
@@ -263,7 +263,7 @@ function formatAuditValueStable(
   }
 
   if (typeof value === "boolean") {
-    return value ? "Sim" : "Nao";
+    return value ? "Sim" : "Não";
   }
 
   if (Array.isArray(value)) {
@@ -292,4 +292,3 @@ export function diffAuditFieldsStable(log: DetailAuditFeedItem) {
     }))
     .filter((row) => JSON.stringify(row.before) !== JSON.stringify(row.after));
 }
-

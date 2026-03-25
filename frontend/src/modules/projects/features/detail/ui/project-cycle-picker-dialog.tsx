@@ -17,6 +17,7 @@ type ProjectCyclePickerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   token: string;
+  purpose: "PUBLICO" | "EQUIPE";
   title?: string;
   description?: string;
   actionLabel?: string;
@@ -32,9 +33,10 @@ export function ProjectCyclePickerDialog({
   open,
   onOpenChange,
   token,
-  title = "Adicionar grupo de pessoas",
-  description = "Escolha um grupo de pessoas para vincular ao projeto.",
-  actionLabel = "Adicionar",
+  purpose,
+  title,
+  description,
+  actionLabel,
   onPick,
 }: ProjectCyclePickerDialogProps) {
   const [rows, setRows] = React.useState<ApiPeopleGroup[]>([]);
@@ -48,11 +50,20 @@ export function ProjectCyclePickerDialog({
   });
   const [search, setSearch] = React.useState("");
 
+  const resolvedTitle =
+    title ?? (purpose === "EQUIPE" ? "Adicionar grupo de equipe" : "Adicionar grupo de pessoas");
+  const resolvedDescription =
+    description ??
+    (purpose === "EQUIPE"
+      ? "Escolha um grupo institucional de equipe para vincular ao projeto."
+      : "Escolha um grupo institucional de publico para vincular ao projeto.");
+  const resolvedActionLabel = actionLabel ?? "Adicionar";
+
   const columns = React.useMemo<ColumnDef<ApiPeopleGroup>[]>(
     () => [
       {
         accessorKey: "name",
-        header: "Grupo de pessoas",
+        header: "Grupo institucional",
         cell: ({ row }) => (
           <div className="space-y-0.5">
             <p className="text-xs font-semibold text-foreground">{row.original.name}</p>
@@ -60,6 +71,15 @@ export function ProjectCyclePickerDialog({
               {row.original.description?.trim() || "Sem descricao"}
             </p>
           </div>
+        ),
+      },
+      {
+        accessorKey: "purpose",
+        header: "Finalidade",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {row.original.purpose === "EQUIPE" ? "Equipe" : "Publico"}
+          </span>
         ),
       },
       {
@@ -97,13 +117,13 @@ export function ProjectCyclePickerDialog({
                 onPick(row.original);
               }}
             >
-              {actionLabel}
+              {resolvedActionLabel}
             </Button>
           </div>
         ),
       },
     ],
-    [actionLabel, onPick],
+    [onPick, resolvedActionLabel],
   );
 
   const load = React.useCallback(async () => {
@@ -113,6 +133,7 @@ export function ProjectCyclePickerDialog({
     try {
       const response = await listPeopleGroups(token, {
         q: search.trim() || undefined,
+        purpose,
         isActive: true,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
@@ -132,7 +153,7 @@ export function ProjectCyclePickerDialog({
     } finally {
       setLoading(false);
     }
-  }, [open, pagination.pageIndex, pagination.pageSize, search, token]);
+  }, [open, pagination.pageIndex, pagination.pageSize, purpose, search, token]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -147,8 +168,8 @@ export function ProjectCyclePickerDialog({
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={title}
-      description={description}
+      title={resolvedTitle}
+      description={resolvedDescription}
       contentClassName="max-w-[980px]"
     >
       {error ? (

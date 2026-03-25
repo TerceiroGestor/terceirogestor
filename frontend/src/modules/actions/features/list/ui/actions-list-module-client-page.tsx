@@ -2,9 +2,17 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import {
+  ArrowUpDown,
+  CalendarDays,
+  Clock3,
+  FolderKanban,
+  Shapes,
+  Users,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,37 +20,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import type { ApiProjectAction } from "@/modules/actions/api";
+import {
+  listActions,
+  type ApiProjectAction,
+  type ProjectActionsListResponse,
+} from "@/modules/actions/api";
 import {
   actionsListModuleDefinition,
+  type ActionDateField,
   type ActionsListQueryState,
 } from "@/modules/actions/config/actions-module-contract";
 import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
-import {
-  listProjectCycles,
-  listProjectGroups,
-  listProjects,
-  type ApiProject,
-  type ApiProjectCycle,
-  type ApiProjectGroup,
-} from "@/modules/projects/api";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
-import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
   canUseModuleAction,
+  getModuleGraphBuilderConfig,
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { CalendarView } from "@/web-client/views/CalendarView";
+import {
+  buildGraphViewModel,
+  GraphBuilderControls,
+  GraphView,
+  parseGraphBuilderStateFromParams,
+  serializeGraphBuilderStateToParams,
+} from "@/web-client/views/GraphView";
+import { GanttView } from "@/web-client/views/GanttView";
+import { KanbanView } from "@/web-client/views/KanbanView";
 import { ListView } from "@/web-client/views/ListView";
+import { TimelineView } from "@/web-client/views/TimelineView";
 
 type ActionsFavoriteState = Pick<
   ActionsListQueryState,
@@ -51,11 +67,47 @@ type ActionsFavoriteState = Pick<
   | "domain"
   | "groupBy"
   | "pageSize"
-  | "projectId"
-  | "onlyMine"
-  | "groupId"
-  | "cycleId"
+  | "timelineField"
+  | "timelineSortDirection"
+  | "calendarField"
+  | "calendarMode"
+  | "ganttScale"
+  | "rangeFrom"
+  | "rangeTo"
+  | "graph"
 >;
+
+const actionsGraphBuilder = getModuleGraphBuilderConfig(actionsListModuleDefinition);
+const analysisControlClassName =
+  "h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0";
+const ACTION_CALENDAR_MODE_LABELS: Record<ActionsListQueryState["calendarMode"], string> = {
+  day: "Dia",
+  week: "Semana",
+  month: "Mes",
+  year: "Ano",
+};
+const ACTION_GANTT_SCALE_LABELS: Record<ActionsListQueryState["ganttScale"], string> = {
+  week: "Semana",
+  month: "Mes",
+  quarter: "Trimestre",
+};
+const ACTION_LIST_GROUP_FIELD_KEYS: Record<string, string> = {
+  status: "__group_status",
+  "actionType.name": "__group_action_type_name",
+  "project.name": "__group_project_name",
+  "projectGroup.name": "__group_project_group_name",
+  "peopleGroup.segment.name": "__group_people_group_name",
+  "targetEnrollment.person.fullName": "__group_target_enrollment_name",
+  tags: "__group_tags",
+  createdAt: "__group_created_at",
+};
+
+function parseActionDate(value: string | null | undefined) {
+  if (!value) return null;
+  const normalized = value.includes("T") ? value : `${value}T00:00:00`;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -64,9 +116,26 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
+function parseActionDateField(
+  value: string | null,
+  fallback: ActionDateField,
+): ActionDateField {
+  if (
+    value === "plannedStartAt" ||
+    value === "plannedEndAt" ||
+    value === "executedStartAt" ||
+    value === "executedEndAt"
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
 function parseState(params: URLSearchParams): ActionsListQueryState {
+  const calendarMode = params.get("calendarMode");
   return {
-    view: "list",
+    ...actionsListModuleDefinition.defaultQueryState,
+    view: (params.get("view") as ActionsListQueryState["view"]) ?? "table",
     searchText: params.get("q") ?? "",
     domain: parseDomain(params.get("d")) ?? null,
     groupBy: (params.get("g") ?? "")
@@ -75,24 +144,45 @@ function parseState(params: URLSearchParams): ActionsListQueryState {
       .filter(Boolean),
     pageIndex: parsePositiveInt(params.get("page"), 1) - 1,
     pageSize: Math.min(Math.max(parsePositiveInt(params.get("limit"), 20), 1), 100),
-    projectId: params.get("projectId") ?? "",
-    onlyMine: params.get("mine") === "1",
-    groupId: params.get("groupId") ?? "",
-    cycleId: params.get("cycleId") ?? "",
+    timelineField: parseActionDateField(params.get("timelineField"), "plannedStartAt"),
+    timelineSortDirection: params.get("timelineSort") === "asc" ? "asc" : "desc",
+    calendarField: parseActionDateField(params.get("calendarField"), "plannedStartAt"),
+    calendarMode:
+      calendarMode === "day" ||
+      calendarMode === "week" ||
+      calendarMode === "year"
+        ? (calendarMode as ActionsListQueryState["calendarMode"])
+        : "month",
+    ganttScale:
+      params.get("ganttScale") === "week" || params.get("ganttScale") === "quarter"
+        ? (params.get("ganttScale") as ActionsListQueryState["ganttScale"])
+        : "month",
+    rangeFrom: params.get("rangeFrom") ?? "",
+    rangeTo: params.get("rangeTo") ?? "",
+    graph: actionsGraphBuilder
+      ? parseGraphBuilderStateFromParams(params, actionsGraphBuilder)
+      : actionsListModuleDefinition.defaultQueryState.graph,
   };
 }
 
 function serializeState(state: ActionsListQueryState) {
   return {
+    view: state.view === "table" ? undefined : state.view,
     q: state.searchText.trim() || undefined,
     d: state.domain ? serializeDomain(state.domain) : undefined,
     g: state.groupBy.length ? state.groupBy.join(",") : undefined,
     page: state.pageIndex > 0 ? String(state.pageIndex + 1) : undefined,
     limit: state.pageSize === 20 ? undefined : String(state.pageSize),
-    projectId: state.projectId || undefined,
-    mine: state.onlyMine ? "1" : undefined,
-    groupId: state.groupId || undefined,
-    cycleId: state.cycleId || undefined,
+    timelineField: state.timelineField === "plannedStartAt" ? undefined : state.timelineField,
+    timelineSort: state.timelineSortDirection === "desc" ? undefined : state.timelineSortDirection,
+    calendarField: state.calendarField === "plannedStartAt" ? undefined : state.calendarField,
+    calendarMode: state.calendarMode === "month" ? undefined : state.calendarMode,
+    ganttScale: state.ganttScale === "month" ? undefined : state.ganttScale,
+    rangeFrom: state.rangeFrom || undefined,
+    rangeTo: state.rangeTo || undefined,
+    ...(actionsGraphBuilder
+      ? serializeGraphBuilderStateToParams(state.graph, actionsGraphBuilder)
+      : {}),
   };
 }
 
@@ -108,50 +198,120 @@ function resolveStatusBadge(status: ApiProjectAction["status"]) {
   }
 }
 
+function resolvePeopleGroupLabel(action: ApiProjectAction) {
+  return action.peopleGroup?.segment?.name ?? action.peopleGroup?.name ?? "-";
+}
+
+function resolveActionTypeLabel(action: ApiProjectAction) {
+  return action.actionType?.name ?? "Sem tipo";
+}
+
+function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
+  switch (field) {
+    case "title":
+      return record.title;
+    case "tags":
+      return record.tags ?? [];
+    case "createdAt":
+      return record.createdAt?.slice(0, 10) ?? null;
+    case "status":
+      return record.status;
+    case "project.name":
+      return record.project?.name ?? "";
+    case "actionType.name":
+      return resolveActionTypeLabel(record);
+    case "projectGroup.name":
+      return record.projectGroup?.name ?? "";
+    case "peopleGroup.segment.name":
+      return resolvePeopleGroupLabel(record);
+    case "targetEnrollment.person.fullName":
+      return record.targetEnrollment?.person?.fullName ?? "";
+    case "plannedStartAt":
+      return record.plannedStartAt?.slice(0, 10) ?? null;
+    case "plannedEndAt":
+      return record.plannedEndAt?.slice(0, 10) ?? null;
+    case "executedStartAt":
+      return record.executedStartAt?.slice(0, 10) ?? null;
+    case "executedEndAt":
+      return record.executedEndAt?.slice(0, 10) ?? null;
+    case "completionPercent":
+      return record.completionPercent ?? 0;
+    default:
+      return (record as Record<string, unknown>)[field];
+  }
+}
+
 function resolveGroupLabel(field: string, value: unknown) {
   if (field === "status" && typeof value === "string") {
     return ACTION_STATUS_LABELS[value as ApiProjectAction["status"]] ?? value;
   }
+  if (
+    (field === "createdAt" ||
+      field === "plannedStartAt" ||
+      field === "plannedEndAt" ||
+      field === "executedStartAt" ||
+      field === "executedEndAt") &&
+    typeof value === "string" &&
+    value
+  ) {
+    return formatDateOnlyPtBR(value);
+  }
   return String(value ?? "Sem valor");
-}
-
-function resolveCyclePrimaryLabel(cycle: ApiProjectAction["cycle"]) {
-  if (!cycle) return "Projeto";
-  return cycle.segment?.name ?? cycle.catalogCycle?.name ?? cycle.name;
-}
-
-function resolveCycleSecondaryLabel(cycle: ApiProjectAction["cycle"]) {
-  if (!cycle) return "";
-  const parts = [
-    cycle.segment?.category ?? cycle.catalogCycle?.audienceType ?? null,
-    cycle.name && (cycle.segment?.name ?? cycle.catalogCycle?.name) !== cycle.name
-      ? cycle.name
-      : null,
-  ].filter(Boolean);
-  return parts.join(" • ");
-}
-
-function formatCycleFilterLabel(cycle: ApiProjectCycle) {
-  const primary = cycle.segment?.name ?? cycle.catalogCycle?.name ?? cycle.name;
-  const secondaryParts = [
-    cycle.segment?.category ?? cycle.catalogCycle?.audienceType ?? null,
-    cycle.name && cycle.name !== primary ? cycle.name : null,
-  ].filter(Boolean);
-  return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
 }
 
 function actionColumns(): ColumnDef<ApiProjectAction>[] {
   return [
     {
       accessorKey: "title",
-      header: "Acao",
+      header: "Ação",
       cell: ({ row }) => (
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           <div className="font-medium text-foreground">{row.original.title}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.actionType?.name ?? row.original.group?.name ?? resolveCyclePrimaryLabel(row.original.cycle) ?? "Sem tipo"}
-          </div>
+          <div className="text-xs text-muted-foreground">{resolveActionTypeLabel(row.original)}</div>
         </div>
+      ),
+    },
+    {
+      id: "project",
+      header: "Projeto",
+      accessorFn: (row) => row.project?.name ?? "",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <FolderKanban className="size-4 text-muted-foreground" />
+          <span>{row.original.project?.name ?? "-"}</span>
+        </div>
+      ),
+    },
+    {
+      id: "peopleGroup",
+      header: "Grupo de Pessoas",
+      accessorFn: (row) => resolvePeopleGroupLabel(row),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Users className="size-4 text-muted-foreground" />
+          <span>{resolvePeopleGroupLabel(row.original)}</span>
+        </div>
+      ),
+    },
+    {
+      id: "projectGroup",
+      header: "Grupo de Participantes",
+      accessorFn: (row) => row.projectGroup?.name ?? "",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Shapes className="size-4 text-muted-foreground" />
+          <span>{row.original.projectGroup?.name ?? "-"}</span>
+        </div>
+      ),
+    },
+    {
+      id: "participant",
+      header: "Participante",
+      accessorFn: (row) => row.targetEnrollment?.person?.fullName ?? "",
+      cell: ({ row }) => (
+        <span className="text-sm text-foreground">
+          {row.original.targetEnrollment?.person?.fullName ?? "-"}
+        </span>
       ),
     },
     {
@@ -163,7 +323,11 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
         return (
           <div className="flex flex-wrap gap-1">
             {tags.slice(0, 3).map((tag) => (
-              <Badge key={`${row.original.id}:${tag}`} variant="outline" className="rounded-full px-2 text-[10px]">
+              <Badge
+                key={`${row.original.id}:${tag}`}
+                variant="outline"
+                className="rounded-full px-2 text-[10px]"
+              >
                 {tag}
               </Badge>
             ))}
@@ -175,6 +339,17 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
           </div>
         );
       },
+    },
+    {
+      accessorKey: "plannedStartAt",
+      header: "Início",
+      cell: ({ row }) => (
+        <span className="text-foreground">
+          {row.original.plannedStartAt
+            ? formatDateOnlyPtBR(row.original.plannedStartAt.slice(0, 10))
+            : "-"}
+        </span>
+      ),
     },
     {
       accessorKey: "createdAt",
@@ -193,111 +368,229 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
   ];
 }
 
+function ActionCalendarCard({ action }: { action: ApiProjectAction }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background px-3 py-3">
+      <div className="truncate text-sm font-medium text-foreground">{action.title}</div>
+      <div className="mt-2 text-xs text-muted-foreground">
+        {action.project?.name ?? "Sem projeto"}
+      </div>
+    </div>
+  );
+}
+
+function actionDateGetter(field: ActionDateField) {
+  return (action: ApiProjectAction) => parseActionDate(action[field]);
+}
+
+function resolveKanbanColumnValue(action: ApiProjectAction, field: string) {
+  switch (field) {
+    case "actionType.name":
+      return resolveActionTypeLabel(action);
+    case "project.name":
+      return action.project?.name ?? "Sem projeto";
+    case "projectGroup.name":
+      return action.projectGroup?.name ?? "Sem grupo";
+    case "peopleGroup.segment.name":
+      return resolvePeopleGroupLabel(action);
+    case "targetEnrollment.person.fullName":
+      return action.targetEnrollment?.person?.fullName ?? "Sem participante";
+    case "tags":
+      return action.tags?.[0] ?? "Sem tag";
+    case "status":
+    default:
+      return ACTION_STATUS_LABELS[action.status] ?? action.status;
+  }
+}
+
+function getActionGanttStart(action: ApiProjectAction) {
+  return (
+    parseActionDate(action.plannedStartAt) ??
+    parseActionDate(action.executedStartAt) ??
+    parseActionDate(action.plannedEndAt) ??
+    parseActionDate(action.executedEndAt)
+  );
+}
+
+function getActionGanttEnd(action: ApiProjectAction) {
+  return (
+    parseActionDate(action.plannedEndAt) ??
+    parseActionDate(action.executedEndAt) ??
+    parseActionDate(action.plannedStartAt) ??
+    parseActionDate(action.executedStartAt)
+  );
+}
+
+function resolveGanttGroupValue(action: ApiProjectAction, field: string) {
+  switch (field) {
+    case "actionType.name":
+      return resolveActionTypeLabel(action);
+    case "project.name":
+      return action.project?.name ?? "Sem projeto";
+    case "projectGroup.name":
+      return action.projectGroup?.name ?? "Sem grupo";
+    case "peopleGroup.segment.name":
+      return resolvePeopleGroupLabel(action);
+    case "targetEnrollment.person.fullName":
+      return action.targetEnrollment?.person?.fullName ?? "Sem participante";
+    case "tags":
+      return action.tags;
+    case "createdAt":
+      return action.createdAt?.slice(0, 10) ?? null;
+    case "status":
+    default:
+      return ACTION_STATUS_LABELS[action.status] ?? action.status;
+  }
+}
+
+async function fetchAllActions(token: string, searchText: string) {
+  const limit = 200;
+  const firstPage = await listActions(token, {
+    q: searchText || undefined,
+    page: 1,
+    limit,
+  });
+  const allRows = [...(firstPage.data ?? [])];
+  const totalPages = firstPage.pagination?.pages ?? 1;
+
+  if (totalPages <= 1) {
+    return allRows;
+  }
+
+  const requests: Promise<ProjectActionsListResponse>[] = [];
+  for (let page = 2; page <= totalPages; page += 1) {
+    requests.push(
+      listActions(token, {
+        q: searchText || undefined,
+        page,
+        limit,
+      }),
+    );
+  }
+
+  const pages = await Promise.all(requests);
+  for (const page of pages) {
+    allRows.push(...(page.data ?? []));
+  }
+
+  return allRows;
+}
+
+function resolveListGroupFieldKey(field: string) {
+  return ACTION_LIST_GROUP_FIELD_KEYS[field] ?? field;
+}
+
 export function ActionsListModuleClientPage() {
   const { token, isLoading: authLoading } = useAuth();
   const { permissions, isLoading: userLoading } = useCurrentUser();
   const router = useRouter();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
   const columns = React.useMemo(() => actionColumns(), []);
 
   const canRead = hasModulePermission(actionsListModuleDefinition, "canRead", permissions);
   const canCreate = canUseModuleAction(actionsListModuleDefinition, "create", permissions);
-  const canManageAll = permissions.includes("actions.manage");
 
   const [rows, setRows] = React.useState<ApiProjectAction[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [totalCount, setTotalCount] = React.useState(0);
-  const [pageCount, setPageCount] = React.useState(0);
-  const [projects, setProjects] = React.useState<ApiProject[]>([]);
-  const [groups, setGroups] = React.useState<ApiProjectGroup[]>([]);
-  const [cycles, setCycles] = React.useState<ApiProjectCycle[]>([]);
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   const [state, setState] = useModuleQueryState<ActionsListQueryState>({
     moduleDefinition: actionsListModuleDefinition,
-    trackedKeys: ["q", "d", "g", "page", "limit", "projectId", "mine", "groupId", "cycleId"],
+    trackedKeys: [
+      "view",
+      "q",
+      "d",
+      "g",
+      "page",
+      "limit",
+      "timelineField",
+      "timelineSort",
+      "calendarField",
+      "calendarMode",
+      "ganttScale",
+      "rangeFrom",
+      "rangeTo",
+      "gg",
+      "gmf",
+      "gmo",
+      "gtf",
+      "gtb",
+      "gct",
+    ],
     parse: parseState,
     serialize: serializeState,
+    equals: (left, right) =>
+      JSON.stringify(serializeState(left)) === JSON.stringify(serializeState(right)),
   });
 
-  React.useEffect(() => {
-    if (authLoading || userLoading || !token || !canRead) return;
-    listProjects(token, { all: true, limit: 200 })
-      .then((result) => setProjects(result.data ?? []))
-      .catch(() => setProjects([]));
-  }, [authLoading, canRead, token, userLoading]);
-
-  React.useEffect(() => {
-    if (!token || !canRead || !state.projectId) {
-      setGroups([]);
-      setCycles([]);
-      return;
-    }
-
-    Promise.all([
-      listProjectGroups(token, state.projectId),
-      listProjectCycles(token, state.projectId),
-    ])
-      .then(([nextGroups, nextCycles]) => {
-        setGroups(nextGroups);
-        setCycles(nextCycles);
-      })
-      .catch(() => {
-        setGroups([]);
-        setCycles([]);
-      });
-  }, [canRead, state.projectId, token]);
-
-  React.useEffect(() => {
+  const loadRows = React.useCallback(async () => {
     if (authLoading || userLoading) return;
     if (!token || !canRead) {
-      setLoading(false);
-      return;
-    }
-
-    if (!state.projectId) {
       setRows([]);
-      setTotalCount(0);
-      setPageCount(0);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
-    dataProvider
-      .search<ApiProjectAction>("actions.list", {
-        searchText: state.searchText,
-        pagination: {
-          pageIndex: state.pageIndex,
-          pageSize: state.pageSize,
-        },
-        context: {
-          projectId: state.projectId,
-          onlyMine: canManageAll ? state.onlyMine : true,
-          groupId: state.groupId || undefined,
-          cycleId: state.cycleId || undefined,
-        },
-      })
-      .then((result) => {
-        setRows(result.data);
-        setTotalCount(result.pagination.total);
-        setPageCount(result.pagination.pages);
-      })
-      .catch((nextError) => {
-        const message =
-          nextError && typeof nextError === "object" && "message" in nextError
-            ? String((nextError as { message?: string }).message)
-            : "Falha ao carregar acoes.";
-        setRows([]);
-        setTotalCount(0);
-        setPageCount(0);
-        setError(message);
-      })
-      .finally(() => setLoading(false));
-  }, [authLoading, canManageAll, canRead, dataProvider, state.cycleId, state.groupId, state.onlyMine, state.pageIndex, state.pageSize, state.projectId, state.searchText, token, userLoading]);
+    try {
+      const result = await fetchAllActions(token, state.searchText.trim());
+      setRows(result);
+    } catch (nextError) {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao carregar ações.";
+      setRows([]);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [authLoading, canRead, state.searchText, token, userLoading]);
+
+  React.useEffect(() => {
+    void loadRows();
+  }, [loadRows, refreshKey]);
+
+  const filteredRows = React.useMemo(() => {
+    return rows.filter((record) => matchesDomainRecord(record, state.domain, resolveRecordValue));
+  }, [rows, state.domain]);
+
+  const listRows = React.useMemo(() => {
+    return filteredRows.map((record) => ({
+      ...record,
+      [resolveListGroupFieldKey("status")]: record.status,
+      [resolveListGroupFieldKey("actionType.name")]: resolveActionTypeLabel(record),
+      [resolveListGroupFieldKey("project.name")]: record.project?.name ?? null,
+      [resolveListGroupFieldKey("projectGroup.name")]: record.projectGroup?.name ?? null,
+      [resolveListGroupFieldKey("peopleGroup.segment.name")]: resolvePeopleGroupLabel(record),
+      [resolveListGroupFieldKey("targetEnrollment.person.fullName")]:
+        record.targetEnrollment?.person?.fullName ?? null,
+      [resolveListGroupFieldKey("tags")]: record.tags ?? [],
+      [resolveListGroupFieldKey("createdAt")]: record.createdAt?.slice(0, 10) ?? null,
+    }));
+  }, [filteredRows]);
+
+  const listGroupByFields = React.useMemo(
+    () => state.groupBy.map((field) => resolveListGroupFieldKey(field)),
+    [state.groupBy],
+  );
+
+  const pagedRows = React.useMemo(() => {
+    const start = state.pageIndex * state.pageSize;
+    return listRows.slice(start, start + state.pageSize);
+  }, [listRows, state.pageIndex, state.pageSize]);
+
+  const pageCount = Math.max(Math.ceil(Math.max(listRows.length, 1) / state.pageSize), 1);
+
+  const openDetail = React.useCallback(
+    (action: ApiProjectAction) => {
+      router.push(withTenantPath(`/actions/${action.id}?projectId=${action.projectId}`, tenantSlug));
+    },
+    [router, tenantSlug],
+  );
 
   const removeDomainCondition = React.useCallback(
     (index: number) => {
@@ -326,21 +619,339 @@ export function ActionsListModuleClientPage() {
 
   const favoriteSnapshot = React.useMemo<ActionsFavoriteState>(
     () => ({
-      view: "list",
+      view: state.view,
       searchText: state.searchText,
       domain: state.domain,
       groupBy: state.groupBy,
       pageSize: state.pageSize,
-      projectId: state.projectId,
-      onlyMine: state.onlyMine,
-      groupId: state.groupId,
-      cycleId: state.cycleId,
+      timelineField: state.timelineField,
+      timelineSortDirection: state.timelineSortDirection,
+      calendarField: state.calendarField,
+      calendarMode: state.calendarMode,
+      ganttScale: state.ganttScale,
+      rangeFrom: state.rangeFrom,
+      rangeTo: state.rangeTo,
+      graph: state.graph,
     }),
-    [state],
+    [
+      state.calendarField,
+      state.calendarMode,
+      state.domain,
+      state.ganttScale,
+      state.graph,
+      state.groupBy,
+      state.pageSize,
+      state.rangeFrom,
+      state.rangeTo,
+      state.searchText,
+      state.timelineField,
+      state.timelineSortDirection,
+      state.view,
+    ],
   );
 
+  const graphModel = React.useMemo(
+    () =>
+      actionsGraphBuilder
+        ? buildGraphViewModel(
+            filteredRows as Array<Record<string, unknown>>,
+            state.graph,
+            actionsGraphBuilder,
+          )
+        : null,
+    [filteredRows, state.graph],
+  );
+
+  const ganttGroupField = React.useMemo(() => {
+    const selectedField = state.groupBy[0];
+    if (selectedField) {
+      return selectedField;
+    }
+    const ganttView = actionsListModuleDefinition.views.find(
+      (view) => view.id === "gantt" && view.viewType === "gantt",
+    );
+    if (ganttView?.viewType === "gantt") {
+      return ganttView.params?.defaultGroupByField ?? "status";
+    }
+    return "status";
+  }, [state.groupBy]);
+
+  const analysisSlot = React.useMemo(() => {
+    if (state.view === "timeline") {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Select
+            value={state.timelineField}
+            onValueChange={(next) =>
+              setState((previous) => ({
+                ...previous,
+                timelineField: next as ActionsListQueryState["timelineField"],
+              }))
+            }
+          >
+            <SelectTrigger className={`${analysisControlClassName} w-[12rem]`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="plannedStartAt">Início planejado</SelectItem>
+              <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
+              <SelectItem value="executedStartAt">Início executado</SelectItem>
+              <SelectItem value="executedEndAt">Fim executado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={state.timelineSortDirection}
+            onValueChange={(next) =>
+              setState((previous) => ({
+                ...previous,
+                timelineSortDirection: next as ActionsListQueryState["timelineSortDirection"],
+              }))
+            }
+          >
+            <SelectTrigger className={`${analysisControlClassName} w-[11rem]`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Mais recente</SelectItem>
+              <SelectItem value="asc">Mais antiga</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    if (state.view === "calendar") {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Select
+            value={state.calendarField}
+            onValueChange={(next) =>
+              setState((previous) => ({
+                ...previous,
+                calendarField: next as ActionsListQueryState["calendarField"],
+              }))
+            }
+          >
+            <SelectTrigger className={`${analysisControlClassName} w-[12rem]`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="plannedStartAt">Início planejado</SelectItem>
+              <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
+              <SelectItem value="executedStartAt">Início executado</SelectItem>
+              <SelectItem value="executedEndAt">Fim executado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={state.calendarMode}
+            onValueChange={(next) =>
+              setState((previous) => ({
+                ...previous,
+                calendarMode: next as ActionsListQueryState["calendarMode"],
+              }))
+            }
+          >
+            <SelectTrigger className={`${analysisControlClassName} w-[8rem]`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Dia</SelectItem>
+              <SelectItem value="week">Semana</SelectItem>
+              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="year">Ano</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Input
+            type="date"
+            value={state.rangeFrom}
+            onChange={(event) =>
+              setState((previous) => ({ ...previous, rangeFrom: event.target.value }))
+            }
+            className={`${analysisControlClassName} w-[9rem]`}
+          />
+          <Input
+            type="date"
+            value={state.rangeTo}
+            onChange={(event) =>
+              setState((previous) => ({ ...previous, rangeTo: event.target.value }))
+            }
+            className={`${analysisControlClassName} w-[9rem]`}
+          />
+        </div>
+      );
+    }
+
+    if (state.view === "graph" && actionsGraphBuilder) {
+      return (
+        <GraphBuilderControls
+          moduleDefinition={actionsListModuleDefinition}
+          builder={actionsGraphBuilder}
+          state={state.graph}
+          rows={filteredRows as Array<Record<string, unknown>>}
+          searchView={actionsListModuleDefinition.searchConfig}
+          hideGroupBy
+          layout="grid"
+          controlClassName={analysisControlClassName}
+          onChange={(updater) =>
+            setState((previous) => ({
+              ...previous,
+              graph: updater(previous.graph),
+            }))
+          }
+        />
+      );
+    }
+
+    if (state.view === "gantt") {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Select
+            value={state.ganttScale}
+            onValueChange={(next) =>
+              setState((previous) => ({
+                ...previous,
+                ganttScale: next as ActionsListQueryState["ganttScale"],
+              }))
+            }
+          >
+            <SelectTrigger className={`${analysisControlClassName} w-[9rem]`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Semana</SelectItem>
+              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="quarter">Trimestre</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    return undefined;
+  }, [
+    filteredRows,
+    setState,
+    state.calendarField,
+    state.calendarMode,
+    state.ganttScale,
+    state.graph,
+    state.rangeFrom,
+    state.rangeTo,
+    state.timelineField,
+    state.timelineSortDirection,
+    state.view,
+  ]);
+
+  const analysisFacets = React.useMemo(() => {
+    const facets = [];
+    const defaultState = actionsListModuleDefinition.defaultQueryState;
+
+    if (state.view === "timeline") {
+      facets.push({
+        key: "analysis:timelineField",
+        label: `Timeline: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.timelineField]?.label ?? state.timelineField}`,
+        tone: "analysis" as const,
+        analysisKind: "time" as const,
+        icon: <Clock3 className="size-3.5" />,
+      });
+      facets.push({
+        key: "analysis:timelineSort",
+        label: `Ordem: ${state.timelineSortDirection === "desc" ? "Mais recente" : "Mais antiga"}`,
+        tone: "analysis" as const,
+        analysisKind: "sort" as const,
+        icon: <ArrowUpDown className="size-3.5" />,
+        onRemove:
+          state.timelineSortDirection !== defaultState.timelineSortDirection
+            ? () =>
+                setState((previous) => ({
+                  ...previous,
+                  timelineSortDirection: defaultState.timelineSortDirection,
+                }))
+            : undefined,
+      });
+    }
+
+    if (state.view === "calendar") {
+      facets.push({
+        key: "analysis:calendarField",
+        label: `Calendário: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.calendarField]?.label ?? state.calendarField}`,
+        tone: "analysis" as const,
+        analysisKind: "time" as const,
+        icon: <CalendarDays className="size-3.5" />,
+      });
+      facets.push({
+        key: "analysis:calendarMode",
+        label: `Modo: ${ACTION_CALENDAR_MODE_LABELS[state.calendarMode]}`,
+        tone: "analysis" as const,
+        analysisKind: "time" as const,
+        icon: <CalendarDays className="size-3.5" />,
+      });
+    }
+
+    if (state.view === "gantt") {
+      facets.push({
+        key: "analysis:ganttScale",
+        label: `Escala: ${ACTION_GANTT_SCALE_LABELS[state.ganttScale]}`,
+        tone: "analysis" as const,
+        analysisKind: "time" as const,
+        icon: <CalendarDays className="size-3.5" />,
+      });
+    }
+
+    return facets;
+  }, [
+    setState,
+    state.calendarField,
+    state.calendarMode,
+    state.ganttScale,
+    state.groupBy,
+    state.timelineField,
+    state.timelineSortDirection,
+    state.view,
+  ]);
+
+  const hasActiveAnalysis = React.useMemo(() => {
+    const defaultState = actionsListModuleDefinition.defaultQueryState;
+    if (state.groupBy.length) return true;
+    if (state.view === "timeline") {
+      return (
+        state.timelineField !== defaultState.timelineField ||
+        state.timelineSortDirection !== defaultState.timelineSortDirection
+      );
+    }
+    if (state.view === "calendar") {
+      return (
+        state.calendarField !== defaultState.calendarField ||
+        state.calendarMode !== defaultState.calendarMode ||
+        Boolean(state.rangeFrom) ||
+        Boolean(state.rangeTo)
+      );
+    }
+    if (state.view === "graph") {
+      return JSON.stringify(state.graph) !== JSON.stringify(defaultState.graph);
+    }
+    if (state.view === "gantt") {
+      return state.ganttScale !== defaultState.ganttScale;
+    }
+    return false;
+  }, [
+    state.calendarField,
+    state.calendarMode,
+    state.ganttScale,
+    state.graph,
+    state.groupBy,
+    state.rangeFrom,
+    state.rangeTo,
+    state.timelineField,
+    state.timelineSortDirection,
+    state.view,
+  ]);
+
   if (!authLoading && !userLoading && !canRead) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Voce nao tem acesso a Acoes.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem acesso a Ações.</div>;
   }
 
   return (
@@ -349,121 +960,143 @@ export function ActionsListModuleClientPage() {
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}
+      analysisFacets={analysisFacets}
       favoriteSnapshot={favoriteSnapshot}
+      mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}
-      totalCount={totalCount}
-      canCreate={canCreate && Boolean(state.projectId)}
-      onCreate={() => router.push(withTenantPath(`/actions/new?projectId=${state.projectId}`, tenantSlug))}
-      onRefresh={() => setState((previous) => ({ ...previous }))}
-      rightSlot={
-        <div className="flex items-center gap-2 px-1">
-          <Select
-            value={state.projectId || "__none__"}
-            onValueChange={(value) =>
-              setState((previous) => ({
-                ...previous,
-                projectId: value === "__none__" ? "" : value,
-                groupId: "",
-                cycleId: "",
-                pageIndex: 0,
-              }))
-            }
-          >
-            <SelectTrigger className="h-8 w-[180px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none">
-              <SelectValue placeholder="Projeto" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Projeto</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={state.groupId || "__none__"}
-            onValueChange={(value) =>
-              setState((previous) => ({
-                ...previous,
-                groupId: value === "__none__" ? "" : value,
-                cycleId: "",
-                pageIndex: 0,
-              }))
-            }
-          >
-            <SelectTrigger className="h-8 w-[140px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none">
-              <SelectValue placeholder="Grupo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Todos os grupos</SelectItem>
-              {groups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={state.cycleId || "__none__"}
-            onValueChange={(value) =>
-              setState((previous) => ({
-                ...previous,
-                cycleId: value === "__none__" ? "" : value,
-                groupId: "",
-                pageIndex: 0,
-              }))
-            }
-          >
-            <SelectTrigger className="h-8 w-[140px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none">
-              <SelectValue placeholder="Grupo de Pessoas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Todos os grupos de pessoas</SelectItem>
-              {cycles.map((cycle) => (
-                <SelectItem key={cycle.id} value={cycle.id}>
-                  {formatCycleFilterLabel(cycle)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {canManageAll ? (
-            <div className="flex items-center gap-2">
-              <Switch
-                id="actions-only-mine"
-                checked={state.onlyMine}
-                onCheckedChange={(checked) =>
-                  setState((previous) => ({ ...previous, onlyMine: checked, pageIndex: 0 }))
-                }
-              />
-              <Label htmlFor="actions-only-mine" className="text-xs text-muted-foreground">
-                So minhas
-              </Label>
-            </div>
-          ) : null}
-        </div>
+      totalCount={filteredRows.length}
+      canCreate={canCreate}
+      onCreate={() => router.push(withTenantPath("/actions/new", tenantSlug))}
+      onRefresh={() => setRefreshKey((current) => current + 1)}
+      analysisSlot={analysisSlot}
+      hasActiveAnalysis={hasActiveAnalysis}
+      onResetAnalysis={() =>
+        setState((previous) => ({
+          ...previous,
+          groupBy: [],
+          pageIndex: 0,
+          timelineField: actionsListModuleDefinition.defaultQueryState.timelineField,
+          timelineSortDirection:
+            actionsListModuleDefinition.defaultQueryState.timelineSortDirection,
+          calendarField: actionsListModuleDefinition.defaultQueryState.calendarField,
+          calendarMode: actionsListModuleDefinition.defaultQueryState.calendarMode,
+          ganttScale: actionsListModuleDefinition.defaultQueryState.ganttScale,
+          rangeFrom: actionsListModuleDefinition.defaultQueryState.rangeFrom,
+          rangeTo: actionsListModuleDefinition.defaultQueryState.rangeTo,
+          graph: actionsListModuleDefinition.defaultQueryState.graph,
+        }))
       }
     >
       {error ? <div className="px-4 py-3 text-sm text-destructive">{error}</div> : null}
-      <ListView<ApiProjectAction>
-        data={rows}
-        columns={columns}
-        groupByFields={state.groupBy}
-        resolveGroupLabel={resolveGroupLabel}
-        onRowClick={(row) =>
-          router.push(withTenantPath(`/actions/${row.id}?projectId=${state.projectId}`, tenantSlug))
-        }
-      />
-      <PaginationBar
-        pageIndex={state.pageIndex}
-        pageSize={state.pageSize}
-        pageCount={pageCount}
-        onPageIndexChange={(pageIndex: number) => setState((previous) => ({ ...previous, pageIndex }))}
-        onPageSizeChange={(pageSize) => setState((previous) => ({ ...previous, pageSize, pageIndex: 0 }))}
-      />
+      {state.view === "kanban" ? (
+        <KanbanView
+          items={filteredRows}
+          getColumnKey={(action) => resolveKanbanColumnValue(action, state.groupBy[0] ?? "status")}
+          getColumnLabel={(value) => value}
+          renderCard={(action) => (
+            <button type="button" className="w-full text-left" onClick={() => openDetail(action)}>
+              <ActionCalendarCard action={action} />
+            </button>
+          )}
+        />
+      ) : state.view === "timeline" ? (
+        <TimelineView
+          items={filteredRows}
+          getDate={actionDateGetter(state.timelineField)}
+          renderTitle={(action) => action.title}
+          renderBody={(action) => (
+            <div className="grid gap-1 text-[12px]">
+              <div>{ACTION_STATUS_LABELS[action.status] ?? action.status}</div>
+              <div>{action.project?.name ?? "Sem projeto"}</div>
+            </div>
+          )}
+          sortDirection={state.timelineSortDirection}
+        />
+      ) : state.view === "calendar" ? (
+        <CalendarView
+          items={filteredRows}
+          getDate={actionDateGetter(state.calendarField)}
+          mode={state.calendarMode}
+          onModeChange={(calendarMode) => setState((previous) => ({ ...previous, calendarMode }))}
+          renderItem={(action) => (
+            <button type="button" className="w-full text-left" onClick={() => openDetail(action)}>
+              <ActionCalendarCard action={action} />
+            </button>
+          )}
+          dateFieldOptions={[
+            { value: "plannedStartAt", label: "Início planejado" },
+            { value: "plannedEndAt", label: "Fim planejado" },
+            { value: "executedStartAt", label: "Início executado" },
+            { value: "executedEndAt", label: "Fim executado" },
+          ]}
+          activeDateField={state.calendarField}
+          onActiveDateFieldChange={(next) =>
+            setState((previous) => ({
+              ...previous,
+              calendarField: next as ActionsListQueryState["calendarField"],
+            }))
+          }
+          rangeFrom={state.rangeFrom}
+          rangeTo={state.rangeTo}
+          onRangeFromChange={(value) => setState((previous) => ({ ...previous, rangeFrom: value }))}
+          onRangeToChange={(value) => setState((previous) => ({ ...previous, rangeTo: value }))}
+          showModeSelect={false}
+          showDateFieldSelect={false}
+          showRangeInputs={false}
+        />
+      ) : state.view === "gantt" ? (
+        <GanttView
+          items={filteredRows}
+          getItemId={(action) => action.id}
+          getItemLabel={(action) => action.title}
+          getStartDate={getActionGanttStart}
+          getEndDate={getActionGanttEnd}
+          renderTitle={(action) => action.title}
+          renderMeta={(action) => ACTION_STATUS_LABELS[action.status] ?? action.status}
+          renderExternalLabel={(action) => action.project?.name ?? null}
+          getGroupValue={(action) => resolveGanttGroupValue(action, ganttGroupField)}
+          getGroupLabel={(value) => resolveGroupLabel(ganttGroupField, value)}
+          onItemClick={openDetail}
+          scale={state.ganttScale}
+        />
+      ) : state.view === "graph" && graphModel ? (
+        <GraphView
+          data={graphModel.data}
+          xKey={graphModel.xKey}
+          chartType={graphModel.chartType}
+          series={graphModel.series}
+          height={420}
+          emptyState={graphModel.emptyState}
+          downloadFileName={graphModel.downloadFileName}
+        />
+      ) : (
+        <>
+          <ListView<ApiProjectAction>
+            data={pagedRows}
+            columns={columns}
+            groupByFields={listGroupByFields}
+            resolveGroupLabel={(field, value) => {
+              const originalField =
+                Object.entries(ACTION_LIST_GROUP_FIELD_KEYS).find(([, key]) => key === field)?.[0] ??
+                field;
+              return resolveGroupLabel(originalField, value);
+            }}
+            onRowClick={openDetail}
+            getRowId={(row) => row.id}
+            initialColumnPinning={{ left: ["title"] }}
+          />
+          <PaginationBar
+            pageIndex={state.pageIndex}
+            pageSize={state.pageSize}
+            pageCount={pageCount}
+            onPageIndexChange={(pageIndex) => setState((previous) => ({ ...previous, pageIndex }))}
+            onPageSizeChange={(pageSize) =>
+              setState((previous) => ({ ...previous, pageIndex: 0, pageSize }))
+            }
+            disabled={loading}
+          />
+        </>
+      )}
     </EntityModuleShell>
   );
 }

@@ -1,7 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { PaginationQueryDto } from '../../../core/dto/pagination-query.dto';
-import { PeopleGroupType } from '../../../generated/prisma';
+import { PeopleGroupPurpose, PeopleGroupType } from '../../../generated/prisma';
 
 export class ListPeopleGroupsQueryDto extends PaginationQueryDto {
   @IsOptional()
@@ -11,6 +11,10 @@ export class ListPeopleGroupsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(PeopleGroupType)
   groupType?: PeopleGroupType;
+
+  @IsOptional()
+  @IsEnum(PeopleGroupPurpose)
+  purpose?: PeopleGroupPurpose;
 
   @IsOptional()
   @IsString()

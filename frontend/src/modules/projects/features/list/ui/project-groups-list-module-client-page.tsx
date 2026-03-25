@@ -14,6 +14,7 @@ import {
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import { hasModulePermission } from "@/web-client/registry/module-utils";
@@ -21,7 +22,7 @@ import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import { buildGraphViewModel, GraphView } from "@/web-client/views/GraphView";
 import { KanbanView } from "@/web-client/views/KanbanView";
-import { TableView } from "@/web-client/views/TableView";
+import { ListView } from "@/web-client/views/ListView";
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -57,7 +58,7 @@ function columns(): ColumnDef<ApiProjectGroup>[] {
   return [
     {
       accessorKey: "name",
-      header: "Grupo",
+      header: "Grupo de Participantes",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.name}</div>
@@ -74,6 +75,13 @@ function columns(): ColumnDef<ApiProjectGroup>[] {
       cell: ({ row }) => row.original.project?.name ?? "-",
     },
     {
+      id: "actionsCount",
+      header: "Acoes",
+      accessorFn: (row) => row._count?.actions ?? 0,
+      meta: { dataType: "number" },
+      cell: ({ row }) => row.original._count?.actions ?? 0,
+    },
+    {
       id: "memberships",
       header: "Participantes",
       accessorFn: (row) => row._count?.memberships ?? 0,
@@ -81,9 +89,9 @@ function columns(): ColumnDef<ApiProjectGroup>[] {
       cell: ({ row }) => row.original._count?.memberships ?? 0,
     },
     {
-      accessorKey: "updatedAt",
-      header: "Atualizado",
-      cell: ({ row }) => row.original.updatedAt.slice(0, 10),
+      accessorKey: "createdAt",
+      header: "Cadastro",
+      cell: ({ row }) => row.original.createdAt.slice(0, 10),
     },
   ];
 }
@@ -102,6 +110,7 @@ export function ProjectGroupsListModuleClientPage() {
   const [rows, setRows] = React.useState<ApiProjectGroup[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   const [state, setState] = useModuleQueryState<ProjectGroupsListQueryState>({
     moduleDefinition: projectGroupsListModuleDefinition,
@@ -134,13 +143,25 @@ export function ProjectGroupsListModuleClientPage() {
         setError(message);
       })
       .finally(() => setLoading(false));
-  }, [authLoading, canRead, dataProvider, state.searchText, token, userLoading]);
+  }, [authLoading, canRead, dataProvider, refreshKey, state.searchText, token, userLoading]);
+
+  const filteredRows = React.useMemo(
+    () =>
+      rows.filter((row) =>
+        matchesDomainRecord(
+          row,
+          state.domain,
+          (current, field) => current[field as keyof typeof current],
+        ),
+      ),
+    [rows, state.domain],
+  );
 
   const pagedRows = React.useMemo(() => {
     const start = state.pageIndex * state.pageSize;
-    return rows.slice(start, start + state.pageSize);
-  }, [rows, state.pageIndex, state.pageSize]);
-  const pageCount = Math.max(Math.ceil(Math.max(rows.length, 1) / state.pageSize), 1);
+    return filteredRows.slice(start, start + state.pageSize);
+  }, [filteredRows, state.pageIndex, state.pageSize]);
+  const pageCount = Math.max(Math.ceil(Math.max(filteredRows.length, 1) / state.pageSize), 1);
 
   const openDetail = React.useCallback(
     (group: ApiProjectGroup) => {
@@ -200,12 +221,12 @@ export function ProjectGroupsListModuleClientPage() {
     () =>
       graphBuilder
         ? buildGraphViewModel(
-            rows as Array<Record<string, unknown>>,
-            projectGroupsListModuleDefinition.defaultQueryState.graph,
+            filteredRows as Array<Record<string, unknown>>,
+            state.graph,
             graphBuilder,
           )
         : null,
-    [graphBuilder, rows],
+    [filteredRows, graphBuilder, state.graph],
   );
 
   if (!authLoading && !userLoading && !canRead) {
@@ -220,15 +241,15 @@ export function ProjectGroupsListModuleClientPage() {
       queryFacets={queryFacets}
       favoriteSnapshot={favoriteSnapshot}
       isLoading={loading}
-      totalCount={rows.length}
+      totalCount={filteredRows.length}
       canCreate={canCreate}
       onCreate={() => router.push(withTenantPath("/group/new", tenantSlug))}
-      onRefresh={() => setState((previous) => ({ ...previous }))}
+      onRefresh={() => setRefreshKey((previous) => previous + 1)}
     >
       {error ? <div className="px-4 py-3 text-sm text-destructive">{error}</div> : null}
       {state.view === "kanban" ? (
         <KanbanView
-          items={rows}
+          items={filteredRows}
           getColumnKey={(group) => group.project?.name ?? "Sem projeto"}
           getColumnLabel={(value) => value}
           renderCard={(group) => (
@@ -250,7 +271,12 @@ export function ProjectGroupsListModuleClientPage() {
         />
       ) : (
         <>
-          <TableView data={pagedRows} columns={columnDefs} onRowClick={openDetail} />
+          <ListView
+            data={pagedRows}
+            columns={columnDefs}
+            onRowClick={openDetail}
+            groupByFields={state.groupBy}
+          />
           <PaginationBar
             pageIndex={state.pageIndex}
             pageCount={pageCount}

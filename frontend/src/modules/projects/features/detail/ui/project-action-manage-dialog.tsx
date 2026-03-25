@@ -207,7 +207,10 @@ export function ProjectActionManageDialog({
                       Tipo: <strong>{action.actionType?.name ?? "—"}</strong>
                     </span>
                     <span>
-                      Segmento: <strong>{action.cycle?.name ?? "—"}</strong>
+                      Grupo de Pessoas:{" "}
+                      <strong>
+                        {action.peopleGroup?.segment?.name ?? action.peopleGroup?.name ?? "—"}
+                      </strong>
                     </span>
                     <span>
                       Planejamento:{" "}

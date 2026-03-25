@@ -56,11 +56,15 @@ export class UpdateProjectActionDto {
 
   @IsOptional()
   @IsUUID('4')
-  groupId?: string | null;
+  projectGroupId?: string | null;
 
   @IsOptional()
   @IsUUID('4')
-  cycleId?: string | null;
+  peopleGroupId?: string | null;
+
+  @IsOptional()
+  @IsUUID('4')
+  targetEnrollmentId?: string | null;
 
   @IsOptional()
   @IsString()

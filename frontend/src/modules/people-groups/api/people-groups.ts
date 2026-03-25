@@ -14,6 +14,7 @@ export async function listPeopleGroups(
   params?: {
     q?: string;
     groupType?: string;
+    purpose?: "PUBLICO" | "EQUIPE";
     category?: string;
     isActive?: boolean;
     ageMin?: number;

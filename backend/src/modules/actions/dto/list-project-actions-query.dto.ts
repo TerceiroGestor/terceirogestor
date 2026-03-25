@@ -4,6 +4,10 @@ import { ActionStatus } from '../../../generated/prisma';
 
 export class ListProjectActionsQueryDto {
   @IsOptional()
+  @IsUUID('4')
+  projectId?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(120)
   q?: string;

@@ -317,14 +317,14 @@ const PANTRY_ENTRY_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   createExit: {
     key: "createExit",
-    label: "Nova saida",
+    label: "Nova sa?da",
     permissionKey: "canCreate",
     scope: "relation",
     requiresReturnTo: true,
   },
   openExit: {
     key: "openExit",
-    label: "Abrir saida",
+    label: "Abrir sa?da",
     permissionKey: "canRead",
     scope: "relation",
     requiresReturnTo: true,
@@ -334,7 +334,7 @@ const PANTRY_ENTRY_DETAIL_ACTIONS: RecordModuleActionMap = {
 const PANTRY_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar saida",
+    label: "Visualizar sa?da",
     permissionKey: "canRead",
     scope: "detail",
   },
@@ -346,13 +346,13 @@ const PANTRY_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   edit: {
     key: "edit",
-    label: "Editar saida",
+    label: "Editar sa?da",
     permissionKey: "canEdit",
     scope: "detail",
   },
   delete: {
     key: "delete",
-    label: "Excluir saida",
+    label: "Excluir sa?da",
     permissionKey: "canDelete",
     scope: "detail",
   },
@@ -515,10 +515,10 @@ const PANTRY_ENTRY_DOMAIN_ADAPTER: RecordDomainAdapter = {
 };
 
 const PANTRY_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
-  entity: { singular: "Saida", plural: "Saidas" },
+  entity: { singular: "Sa?da", plural: "Sa?das" },
   detail: {
-    createTitle: "Nova saida",
-    fallbackTitle: "Saida",
+    createTitle: "Nova sa?da",
+    fallbackTitle: "Sa?da",
   },
   fields: {
     ...Object.fromEntries(
@@ -527,12 +527,12 @@ const PANTRY_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
         { label },
       ]),
     ),
-    entryId: { label: "Entrada", type: "uuid", emptyValueLabel: "Automatico" },
+    entryId: { label: "Entrada", type: "uuid", emptyValueLabel: "Autom?tico" },
     sector: { label: "Setor" },
     quantity: { label: "Quantidade", type: "number" },
     unit: { label: "Unidade" },
-    exitDate: { label: "Data da saida", type: "date" },
-    type: { label: "Tipo de saida" },
+    exitDate: { label: "Data da sa?da", type: "date" },
+    type: { label: "Tipo de sa?da" },
     eventName: { label: "Evento", emptyValueLabel: "Sem evento" },
     notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
@@ -652,14 +652,14 @@ const STOCK_VIEWS: ViewConfig[] = [
           { field: "validityStatus", label: "Validade", kind: "dimension" },
           {
             field: "isBelowMin",
-            label: "Abaixo do minimo",
+            label: "Abaixo do m?nimo",
             kind: "dimension",
-            formatValue: (value) => (value ? "Abaixo do minimo" : "OK"),
+            formatValue: (value) => (value ? "Abaixo do m?nimo" : "OK"),
           },
           { field: "nextExpiryDate", label: "Prox. validade", kind: "date" },
           { field: "sectorStock", label: "Saldo (setor)", kind: "metric" },
           { field: "itemStock", label: "Saldo (total)", kind: "metric" },
-          { field: "minStock", label: "Estoque minimo", kind: "metric" },
+          { field: "minStock", label: "Estoque m?nimo", kind: "metric" },
           { field: "daysToExpire", label: "Dias", kind: "metric" },
           {
             field: "itemId",
@@ -799,12 +799,12 @@ const HISTORY_VIEWS: ViewConfig[] = [
             field: "kind",
             label: "Movimento",
             kind: "dimension",
-            formatValue: (value) => (value === "ENTRY" ? "Entrada" : "Saida"),
+            formatValue: (value) => (value === "ENTRY" ? "Entrada" : "Sa?da"),
           },
           { field: "sector", label: "Setor", kind: "dimension", emptyValueLabel: "Geral" },
           {
             field: "type",
-            label: "Tipo de saida",
+            label: "Tipo de sa?da",
             kind: "dimension",
             formatValue: (value) =>
               typeof value === "string" && value in PANTRY_EXIT_TYPE_LABELS
@@ -884,7 +884,7 @@ const HISTORY_VIEWS: ViewConfig[] = [
           },
         ],
         maxGroups: 12,
-        downloadFileName: "historico",
+        downloadFileName: "hist?rico",
       },
     },
   },
@@ -1145,7 +1145,7 @@ export const pantryItemDetailModuleDefinition = defineRecordModule<
     },
     {
       key: "exits",
-      label: "Saidas",
+      label: "Sa?das",
       viewType: "list",
       dataSource: "pantry.exits",
       count: (context) => context.exitRows.length,
@@ -1153,7 +1153,7 @@ export const pantryItemDetailModuleDefinition = defineRecordModule<
     },
     {
       key: "history",
-      label: "Historico",
+      label: "Hist?rico",
       viewType: "list",
       dataSource: "pantry.history",
       count: (context) => context.historyRows.length,
@@ -1224,7 +1224,7 @@ export const pantryEntryDetailModuleDefinition = defineRecordModule<
   relatedSources: [
     {
       key: "allocatedExits",
-      label: "Saidas vinculadas",
+      label: "Sa?das vinculadas",
       viewType: "list",
       dataSource: "pantry.exits",
       count: (context) => context.allocatedExits.length,

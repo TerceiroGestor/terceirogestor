@@ -19,10 +19,12 @@ import type {
   ApiPeopleSegmentMembership,
 } from "@/modules/people-segments/api";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
-import { DetailNotesPanel } from "@/web-client/detail/DetailNotesPanel";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  buildGroupedAuditFeed,
+  resolveAuditActionLabel,
+  resolveAuditChangedFieldsSummary,
+} from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
@@ -42,6 +44,7 @@ const AUTO_SAVE_EDITING = {
 
 const PEOPLE_SEGMENT_AUDIT_FIELD_LABELS = {
   name: "Nome",
+  purpose: "Finalidade",
   category: "Categoria",
   description: "Descricao",
   ageMin: "Idade minima",
@@ -52,8 +55,12 @@ const PEOPLE_SEGMENT_AUDIT_FIELD_LABELS = {
   updatedAt: "Atualizado em",
 } as const;
 
+const PEOPLE_GROUP_PURPOSE_OPTIONS = [
+  { value: "PUBLICO", label: "Publico atendido" },
+  { value: "EQUIPE", label: "Equipe institucional" },
+] as const;
+
 const PEOPLE_GROUP_CATEGORY_OPTIONS = [
-  { value: "Ciclo", label: "Ciclo" },
   { value: "Publico", label: "Publico" },
   { value: "Equipe", label: "Equipe" },
   { value: "Relacionamento", label: "Relacionamento" },
@@ -92,6 +99,7 @@ function formatPeriod(startsAt: string | null | undefined, endsAt: string | null
 
 export type PeopleSegmentDetailDraft = {
   name: string;
+  purpose: "PUBLICO" | "EQUIPE";
   category: string;
   description: string;
   ageMin: string;
@@ -225,20 +233,21 @@ function PeopleSegmentsDetailMain({
           />
         </div>
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Categoria</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Finalidade</div>
           <Select
-            value={draft.category}
+            value={draft.purpose}
             onValueChange={(value) => {
-              setDraft((previous) => ({ ...previous, category: value }));
-              onCommitField("category", value);
+              const nextValue = value as PeopleSegmentDetailDraft["purpose"];
+              setDraft((previous) => ({ ...previous, purpose: nextValue }));
+              onCommitField("purpose", nextValue);
             }}
             disabled={readOnly}
           >
             <SelectTrigger className={PEOPLE_SEGMENT_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder="Categoria" />
+              <SelectValue placeholder="Finalidade" />
             </SelectTrigger>
             <SelectContent>
-              {PEOPLE_GROUP_CATEGORY_OPTIONS.map((option) => (
+              {PEOPLE_GROUP_PURPOSE_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -268,6 +277,39 @@ function PeopleSegmentsDetailMain({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr] md:items-end">
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Categoria</div>
+          <Select
+            value={draft.category || "__empty__"}
+            onValueChange={(value) => {
+              const nextValue = value === "__empty__" ? "" : value;
+              setDraft((previous) => ({ ...previous, category: nextValue }));
+              onCommitField("category", nextValue);
+            }}
+            disabled={readOnly}
+          >
+            <SelectTrigger className={PEOPLE_SEGMENT_DETAIL_INPUT_CLASS}>
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__empty__">Nao informada</SelectItem>
+              {PEOPLE_GROUP_CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Faixa etaria</div>
+          <div className="text-sm text-muted-foreground">
+            Defina a faixa de idade apenas quando esse grupo institucional exigir controle por idade.
+          </div>
         </div>
       </div>
 
@@ -317,126 +359,35 @@ function PeopleSegmentsDetailMain({
   );
 }
 
-function PeopleSegmentsDetailSide({
-  mode,
-  canAudit,
-  readOnly,
-  draft,
-  memberships,
-  historyMemberships,
-  detailAudit,
-  auditVisibleCount,
-  onAuditVisibleCountChange,
-  onNotesChange,
-  onNotesBlur,
-}: Pick<
-  PeopleSegmentsDetailLayoutContext,
-  | "mode"
-  | "canAudit"
-  | "readOnly"
-  | "draft"
-  | "memberships"
-  | "historyMemberships"
-  | "detailAudit"
-  | "auditVisibleCount"
-  | "onAuditVisibleCountChange"
-  | "onNotesChange"
-  | "onNotesBlur"
->) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
-  const activeCount = memberships.filter((membership) => membership.isActive).length;
+function buildPeopleSegmentsHistoryItems(
+  logs: NonNullable<PeopleSegmentsDetailLayoutContext["detailAudit"]>["logs"],
+) {
+  return buildGroupedAuditFeed(logs).map((group) => {
+    const primarySource = group.sourceLabels[0] ?? "Registro";
+    const actorName =
+      group.logs[0]?.user?.name?.trim() ||
+      group.logs[0]?.user?.email?.trim() ||
+      "Sistema";
+    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
+    const changedLabel = changedFields.labels.length
+      ? changedFields.hiddenCount > 0
+        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
+        : changedFields.labels.join(", ")
+      : null;
 
-  return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Auditoria",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode={mode}
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "notes",
-          label: "Anotacoes",
-          content: (
-            <DetailNotesPanel
-              value={draft.internalNotes}
-              onChange={onNotesChange}
-              onBlur={onNotesBlur}
-              readOnly={readOnly}
-            />
-          ),
-        },
-        {
-          value: "history",
-          label: "Historico",
-          badge: historyMemberships.length || undefined,
-          content: historyMemberships.length ? (
-            <div className="space-y-4">
-              {historyMemberships.map((membership) => (
-                <div
-                  key={membership.id}
-                  className="space-y-1 border-b border-border/50 pb-3 last:border-b-0 last:pb-0"
-                >
-                  <div className="font-medium text-foreground">
-                    {membership.person.fullName}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {membership.person.personType ?? "-"} - {membership.person.status ?? "-"}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatPeriod(membership.startsAt, membership.endsAt)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Nenhuma participacao encerrada.
-            </div>
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Categoria</span>
-                <span className="text-foreground">{draft.category.trim() || "-"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Status</span>
-                <span className="text-foreground">{formatStatus(draft.isActive)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Faixa etaria</span>
-                <span className="text-right text-foreground">{formatAgeRange(draft.ageMin, draft.ageMax)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-3">
-                <span className="text-muted-foreground">Ativos</span>
-                <span className="text-foreground">{activeCount}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Historico</span>
-                <span className="text-foreground">{memberships.length}</span>
-              </div>
-            </div>
-          ),
-        },
-      ]}
-      defaultValue="activity"
-    />
-  );
+    return {
+      id: group.id,
+      title:
+        group.action === "CREATE"
+          ? `${primarySource} criado`
+          : group.action === "DELETE"
+            ? `${primarySource} removido`
+            : `${primarySource} atualizado`,
+      description: changedLabel ? `${primarySource}: ${changedLabel}` : group.sourceLabels.join(", "),
+      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
+      createdAt: group.createdAt,
+    };
+  });
 }
 
 export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetailLayoutContext> = {
@@ -454,6 +405,12 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
             <div>{resolveStatusBadge(draft.isActive)}</div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Finalidade</div>
+            <div className="font-medium text-foreground">
+              {draft.purpose === "EQUIPE" ? "Equipe institucional" : "Publico atendido"}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Categoria</div>
             <div className="font-medium text-foreground">{draft.category.trim() || "-"}</div>
           </div>
@@ -462,7 +419,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
             <div className="font-medium text-foreground">{formatAgeRange(draft.ageMin, draft.ageMax)}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">People</div>
+            <div className="text-muted-foreground">Participantes</div>
             <div className="font-medium text-foreground">
               {memberships.filter((membership) => membership.isActive).length}
             </div>
@@ -485,36 +442,59 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
     readOnly,
     draft,
     memberships,
-    historyMemberships,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
     onNotesChange,
     onNotesBlur,
   }) => (
-    <PeopleSegmentsDetailSide
+    <StandardDetailMetadataSide
       mode={mode}
       canAudit={canAudit}
       readOnly={readOnly}
-      draft={draft}
-      memberships={memberships}
-      historyMemberships={historyMemberships}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
-      onNotesChange={onNotesChange}
-      onNotesBlur={onNotesBlur}
+      notes={{
+        value: draft.internalNotes,
+        onChange: onNotesChange,
+        onBlur: onNotesBlur,
+        readOnly,
+      }}
+      history={{
+        items: buildPeopleSegmentsHistoryItems(detailAudit?.logs ?? []),
+        emptyLabel:
+          mode === "create"
+            ? "O historico aparece apos salvar o grupo de pessoas."
+            : "Nenhum historico disponivel para este grupo de pessoas.",
+      }}
+      contextItems={[
+        {
+          key: "purpose",
+          label: "Finalidade",
+          value: draft.purpose === "EQUIPE" ? "Equipe institucional" : "Publico atendido",
+        },
+        { key: "category", label: "Categoria", value: draft.category.trim() || "-" },
+        { key: "status", label: "Status", value: formatStatus(draft.isActive) },
+        { key: "ageRange", label: "Faixa etaria", value: formatAgeRange(draft.ageMin, draft.ageMax) },
+        {
+          key: "participants",
+          label: "Participantes ativos",
+          value: memberships.filter((membership) => membership.isActive).length,
+        },
+      ]}
+      defaultTab="activity"
     />
   ),
   tabTemplates: [
     {
       key: "participants",
-      label: "People",
+      label: "Participantes",
       badge: ({ memberships }) => memberships.filter((membership) => membership.isActive).length,
       relations: [
         {
-      key: "people-segment.memberships",
-          label: "People",
+          key: "people-segment.memberships",
+          label: "Participantes",
           loading: ({ membershipsLoading }) => membershipsLoading,
           rows: ({ mode, memberships }) => (mode === "edit" ? memberships : []),
           columns: (context) =>
@@ -526,7 +506,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
           getRowId: (row) => row.id,
           onRowClick: (row, context) => context.onOpenPerson(row.person.id),
           action: {
-            label: "Adicionar people",
+            label: "Novo",
             onClick: (context) => context.onCreateMembership(),
             hidden: ({ readOnly, mode, canManageMemberships }) =>
               readOnly || mode !== "edit" || !canManageMemberships,
@@ -551,7 +531,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o grupo de pessoas para gerenciar people."
+              ? "Salve o grupo de pessoas para gerenciar participantes."
               : "Nenhuma pessoa vinculada.",
         },
       ],
@@ -565,6 +545,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
       label: "Grupo de Pessoas",
       fieldLabels: PEOPLE_SEGMENT_AUDIT_FIELD_LABELS,
       valueFormatters: {
+        purpose: (value) => (value === "EQUIPE" ? "Equipe institucional" : "Publico atendido"),
         isActive: (value) => formatStatus(value === true),
       },
       resolveEntityId: ({ segment }) => segment?.id,

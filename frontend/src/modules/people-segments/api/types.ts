@@ -5,6 +5,7 @@ export type ApiPeopleSegment = {
   tenantId: string;
   name: string;
   groupType?: "CYCLE" | "SEGMENT" | "TEAM_POOL" | "NETWORK" | "OTHER";
+  purpose?: "PUBLICO" | "EQUIPE";
   category: string | null;
   description: string | null;
   ageMin: number | null;
@@ -21,6 +22,7 @@ export type ApiPeopleSegment = {
 export type PeopleSegmentInput = {
   name: string;
   groupType?: ApiPeopleSegment["groupType"];
+  purpose?: ApiPeopleSegment["purpose"];
   category?: string | null;
   description?: string | null;
   ageMin?: number | null;

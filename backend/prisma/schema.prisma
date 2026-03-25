@@ -63,6 +63,11 @@ enum PeopleGroupType {
   OTHER
 }
 
+enum PeopleGroupPurpose {
+  PUBLICO
+  EQUIPE
+}
+
 enum ActionStatus {
   PLANNED
   EXECUTED
@@ -71,8 +76,9 @@ enum ActionStatus {
 
 enum ActionTarget {
   PROJECT
-  GROUP
-  CYCLE
+  PROJECT_GROUP
+  PEOPLE_GROUP
+  ENROLLMENT
 }
 
 enum AttendanceStatus {
@@ -1305,6 +1311,7 @@ model PeopleGroup {
   tenantId      String          @db.Char(36)
   name          String
   groupType     PeopleGroupType @default(SEGMENT)
+  purpose       PeopleGroupPurpose @default(PUBLICO)
   category      String?
   description   String?         @db.Text
   ageMin        Int?
@@ -1323,6 +1330,7 @@ model PeopleGroup {
   @@index([tenantId])
   @@index([name])
   @@index([groupType])
+  @@index([purpose])
   @@index([category])
   @@index([isActive])
 }
@@ -1493,6 +1501,7 @@ model ProjectEnrollment {
   cycleParticipations        ProjectEnrollmentCycleParticipation[]
   actionAttendances          ProjectActionAttendance[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
+  targetedActions            ProjectAction[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -1578,6 +1587,7 @@ model ProjectAction {
   createdByUserId   String?      @db.Char(36)
   groupId           String?      @db.Char(36)
   cycleId           String?      @db.Char(36)
+  targetEnrollmentId String?     @db.Char(36)
   actionTypeId      String       @db.Char(36)
   title             String
   description       String?      @db.Text
@@ -1601,6 +1611,7 @@ model ProjectAction {
   createdByUser        User?                              @relation(fields: [createdByUserId], references: [id])
   group                ProjectGroup?                      @relation(fields: [groupId], references: [id])
   cycle                ProjectCycle?                      @relation(fields: [cycleId], references: [id])
+  targetEnrollment     ProjectEnrollment?                 @relation(fields: [targetEnrollmentId], references: [id])
   actionType           ActionType                         @relation(fields: [actionTypeId], references: [id])
   attendances          ProjectActionAttendance[]
   peopleGroups         ActionPeopleGroup[]
@@ -1613,6 +1624,7 @@ model ProjectAction {
   @@index([createdByUserId])
   @@index([groupId])
   @@index([cycleId])
+  @@index([targetEnrollmentId])
   @@index([actionTypeId])
   @@index([status])
   @@index([plannedStartAt])

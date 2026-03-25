@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { PeopleGroupType } from '../../../generated/prisma';
+import { PeopleGroupPurpose, PeopleGroupType } from '../../../generated/prisma';
 
 export class UpdatePeopleGroupDto {
   @IsOptional()
@@ -10,6 +10,10 @@ export class UpdatePeopleGroupDto {
   @IsOptional()
   @IsEnum(PeopleGroupType)
   groupType?: PeopleGroupType;
+
+  @IsOptional()
+  @IsEnum(PeopleGroupPurpose)
+  purpose?: PeopleGroupPurpose;
 
   @IsOptional()
   @IsString()

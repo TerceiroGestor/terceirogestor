@@ -14,13 +14,14 @@ import {
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import { hasModulePermission } from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import { buildGraphViewModel, GraphView } from "@/web-client/views/GraphView";
-import { TableView } from "@/web-client/views/TableView";
+import { ListView } from "@/web-client/views/ListView";
 
 function parsePositiveInt(value: string | null, fallback: number) {
   if (!value) return fallback;
@@ -62,17 +63,47 @@ function formatAgeRange(ageMin: number | null | undefined, ageMax: number | null
   return `${ageMin ?? "-"} a ${ageMax ?? "-"}`;
 }
 
+function formatPurpose(purpose: ApiPeopleSegment["purpose"]) {
+  return purpose === "EQUIPE" ? "Equipe" : "Publico";
+}
+
+function formatCreatedAt(value: string | null | undefined) {
+  if (!value) return "-";
+  return value.slice(0, 10).split("-").reverse().join("/");
+}
+
+function resolveGroupLabel(field: string, value: unknown) {
+  if (field === "purpose") {
+    return formatPurpose(value as ApiPeopleSegment["purpose"]);
+  }
+  if (field === "isActive") {
+    return value === false ? "Inativos" : "Ativos";
+  }
+  if (field === "createdAt") {
+    return typeof value === "string" && value ? formatCreatedAt(value) : "Sem cadastro";
+  }
+  const label = String(value ?? "").trim();
+  return label || "Sem valor";
+}
+
 function columns(): ColumnDef<ApiPeopleSegment>[] {
   return [
     {
       accessorKey: "name",
       header: "Grupo de Pessoas",
-      cell: ({ row }) => <span className="font-medium text-foreground">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatAgeRange(row.original.ageMin, row.original.ageMax)}
+          </div>
+        </div>
+      ),
     },
     {
-      accessorKey: "groupType",
-      header: "Tipo",
-      cell: ({ row }) => row.original.groupType ?? "-",
+      accessorKey: "purpose",
+      header: "Finalidade",
+      cell: ({ row }) => formatPurpose(row.original.purpose),
     },
     {
       accessorKey: "category",
@@ -80,14 +111,13 @@ function columns(): ColumnDef<ApiPeopleSegment>[] {
       cell: ({ row }) => row.original.category ?? "-",
     },
     {
-      id: "ageRange",
-      header: "Faixa etaria",
-      accessorFn: (row) => formatAgeRange(row.ageMin, row.ageMax),
-      cell: ({ row }) => formatAgeRange(row.original.ageMin, row.original.ageMax),
+      accessorKey: "createdAt",
+      header: "Cadastro",
+      cell: ({ row }) => formatCreatedAt(row.original.createdAt),
     },
     {
       id: "memberships",
-      header: "People",
+      header: "Participantes",
       accessorFn: (row) => row._count?.memberships ?? 0,
       meta: { dataType: "number" },
       cell: ({ row }) => row.original._count?.memberships ?? 0,
@@ -148,11 +178,27 @@ export function PeopleSegmentsListModuleClientPage() {
       .finally(() => setLoading(false));
   }, [authLoading, canRead, dataProvider, state.searchText, token, userLoading]);
 
+  const filteredRows = React.useMemo(() => {
+    if (!state.domain) return rows;
+    return rows.filter((row) =>
+      matchesDomainRecord(
+        {
+          purpose: row.purpose ?? "PUBLICO",
+          category: row.category ?? null,
+          createdAt: row.createdAt?.slice(0, 10) ?? null,
+          isActive: row.isActive,
+        },
+        state.domain,
+        (current, field) => current[field as keyof typeof current],
+      ),
+    );
+  }, [rows, state.domain]);
+
   const pagedRows = React.useMemo(() => {
     const start = state.pageIndex * state.pageSize;
-    return rows.slice(start, start + state.pageSize);
-  }, [rows, state.pageIndex, state.pageSize]);
-  const pageCount = Math.max(Math.ceil(Math.max(rows.length, 1) / state.pageSize), 1);
+    return filteredRows.slice(start, start + state.pageSize);
+  }, [filteredRows, state.pageIndex, state.pageSize]);
+  const pageCount = Math.max(Math.ceil(Math.max(filteredRows.length, 1) / state.pageSize), 1);
 
   const openDetail = React.useCallback(
     (segment: ApiPeopleSegment) => {
@@ -207,12 +253,12 @@ export function PeopleSegmentsListModuleClientPage() {
     () =>
       graphBuilder
         ? buildGraphViewModel(
-            rows as Array<Record<string, unknown>>,
+            filteredRows as Array<Record<string, unknown>>,
             state.graph,
             graphBuilder,
           )
         : null,
-    [graphBuilder, rows, state.graph],
+    [filteredRows, graphBuilder, state.graph],
   );
 
   if (!authLoading && !userLoading && !canRead) {
@@ -231,7 +277,7 @@ export function PeopleSegmentsListModuleClientPage() {
       queryFacets={queryFacets}
       favoriteSnapshot={favoriteSnapshot}
       isLoading={loading}
-      totalCount={rows.length}
+      totalCount={filteredRows.length}
       canCreate={canCreate}
       onCreate={() => router.push(withTenantPath("/people-groups/new", tenantSlug))}
       onRefresh={() => setState((previous) => ({ ...previous }))}
@@ -249,7 +295,15 @@ export function PeopleSegmentsListModuleClientPage() {
         />
       ) : (
         <>
-          <TableView data={pagedRows} columns={columnDefs} onRowClick={openDetail} />
+          <ListView
+            data={pagedRows}
+            columns={columnDefs}
+            groupByFields={state.groupBy}
+            resolveGroupLabel={resolveGroupLabel}
+            onRowClick={openDetail}
+            getRowId={(row) => row.id}
+            initialColumnPinning={{ left: ["name"] }}
+          />
           <PaginationBar
             pageIndex={state.pageIndex}
             pageCount={pageCount}

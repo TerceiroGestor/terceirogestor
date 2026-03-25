@@ -39,8 +39,8 @@ type ActionFormValues = {
   title: string;
   description: string;
   status: ActionStatus;
-  groupId: string;
-  cycleId: string;
+  projectGroupId: string;
+  peopleGroupId: string;
   plannedStartAt: string;
   plannedEndAt: string;
   executedStartAt: string;
@@ -236,8 +236,8 @@ export function ProjectActionsCard({
         options: ACTION_STATUS_OPTIONS,
       },
       {
-        name: "groupId",
-        label: "Grupo",
+        name: "projectGroupId",
+        label: "Grupo de Participantes",
         type: "select",
         options: groupOptions,
         helperText: canReadStructure
@@ -245,8 +245,8 @@ export function ProjectActionsCard({
           : "VocÃª nÃ£o tem permissÃ£o para listar grupos.",
       },
       {
-        name: "cycleId",
-        label: "Ciclo",
+        name: "peopleGroupId",
+        label: "Grupo de Pessoas",
         type: "select",
         options: cycleOptions,
         helperText: canReadStructure
@@ -267,8 +267,8 @@ export function ProjectActionsCard({
         title: "",
         description: "",
         status: "PLANNED",
-        groupId: NONE_VALUE,
-        cycleId: NONE_VALUE,
+        projectGroupId: NONE_VALUE,
+        peopleGroupId: NONE_VALUE,
         plannedStartAt: "",
         plannedEndAt: "",
         executedStartAt: "",
@@ -280,8 +280,8 @@ export function ProjectActionsCard({
       title: editing.title ?? "",
       description: editing.description ?? "",
       status: editing.status ?? "PLANNED",
-      groupId: editing.groupId ?? NONE_VALUE,
-      cycleId: editing.cycleId ?? NONE_VALUE,
+      projectGroupId: editing.projectGroupId ?? NONE_VALUE,
+      peopleGroupId: editing.peopleGroupId ?? NONE_VALUE,
       plannedStartAt: toDateOnly(editing.plannedStartAt),
       plannedEndAt: toDateOnly(editing.plannedEndAt),
       executedStartAt: toDateOnly(editing.executedStartAt),
@@ -300,8 +300,12 @@ export function ProjectActionsCard({
             <span className="font-medium">{row.original.title}</span>
             <span className="text-xs text-muted-foreground">
               {row.original.actionType?.name ?? "—"}
-              {row.original.group?.name ? ` • ${row.original.group.name}` : ""}
-              {row.original.cycle?.name ? ` • ${row.original.cycle.name}` : ""}
+              {row.original.projectGroup?.name ? ` • ${row.original.projectGroup.name}` : ""}
+              {row.original.peopleGroup?.segment?.name
+                ? ` • ${row.original.peopleGroup.segment.name}`
+                : row.original.peopleGroup?.name
+                  ? ` • ${row.original.peopleGroup.name}`
+                  : ""}
             </span>
           </div>
         ),
@@ -386,8 +390,10 @@ export function ProjectActionsCard({
         title: values.title.trim(),
         description: values.description.trim() ? values.description.trim() : null,
         status: values.status,
-        groupId: values.groupId === NONE_VALUE ? null : values.groupId,
-        cycleId: values.cycleId === NONE_VALUE ? null : values.cycleId,
+        projectGroupId:
+          values.projectGroupId === NONE_VALUE ? null : values.projectGroupId,
+        peopleGroupId:
+          values.peopleGroupId === NONE_VALUE ? null : values.peopleGroupId,
         plannedStartAt: values.plannedStartAt.trim() ? values.plannedStartAt : null,
         plannedEndAt: values.plannedEndAt.trim() ? values.plannedEndAt : null,
         executedStartAt: values.executedStartAt.trim() ? values.executedStartAt : null,

@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TagInput } from "@/components/ui/tag-input";
 import { RichText } from "@/components/ui/richtext/RichText";
 import { Tabs } from "@/components/ui/tabs";
 import { resolveMediaUrl } from "@/lib/api";
@@ -312,17 +311,13 @@ function IdentificationStep({
 function OrganizationStep({
   draft,
   readOnly,
-  tagSuggestions,
   onDraftChange,
   onCommitField,
-  onCommitDraft,
 }: {
   draft: PersonFormData;
   readOnly: boolean;
-  tagSuggestions: string[];
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -351,19 +346,6 @@ function OrganizationStep({
           </Select>
         </SectionField>
       </div>
-
-      <SectionField label="Tags">
-        <TagInput
-          value={draft.tags ?? []}
-          onChange={(tags) => {
-            const nextDraft = { ...draft, tags };
-            onDraftChange(() => nextDraft);
-            onCommitDraft?.(nextDraft);
-          }}
-          suggestions={tagSuggestions}
-          disabled={readOnly}
-        />
-      </SectionField>
 
       {draft.status === "Desligado" ? (
         <SectionField label="Motivo do desligamento">
@@ -407,7 +389,6 @@ function PeopleInlineForm({
   step,
   draft,
   readOnly,
-  tagSuggestions,
   onDraftChange,
   onCommitField,
   onCommitDraft,
@@ -415,7 +396,6 @@ function PeopleInlineForm({
   step: string;
   draft: PersonFormData;
   readOnly: boolean;
-  tagSuggestions: string[];
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   onCommitDraft?: (nextDraft: PersonFormData) => void;
@@ -425,10 +405,8 @@ function PeopleInlineForm({
       <OrganizationStep
         draft={draft}
         readOnly={readOnly}
-        tagSuggestions={tagSuggestions}
         onDraftChange={onDraftChange}
         onCommitField={onCommitField}
-        onCommitDraft={onCommitDraft}
       />
     );
   }
@@ -458,7 +436,6 @@ function PeopleDetailMain({
   person,
   draft,
   readOnly,
-  tagSuggestions,
   onDraftChange,
   onCommitField,
   onCommitDraft,
@@ -468,7 +445,6 @@ function PeopleDetailMain({
   person: Person;
   draft: PersonFormData;
   readOnly: boolean;
-  tagSuggestions: string[];
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   onCommitDraft?: (nextDraft: PersonFormData) => void;
@@ -495,7 +471,6 @@ function PeopleDetailMain({
           step={formStep}
           draft={draft}
           readOnly={readOnly}
-          tagSuggestions={tagSuggestions}
           onDraftChange={onDraftChange}
           onCommitField={onCommitField}
           onCommitDraft={onCommitDraft}
@@ -808,7 +783,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     person,
     draft,
     readOnly,
-    tagSuggestions,
     onDraftChange,
     onCommitField,
     onCommitDraft,
@@ -819,7 +793,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       person={person}
       draft={draft}
       readOnly={readOnly}
-      tagSuggestions={tagSuggestions}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
       onCommitDraft={onCommitDraft}

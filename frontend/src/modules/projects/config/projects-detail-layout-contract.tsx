@@ -5,7 +5,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TagInput } from "@/components/ui/tag-input";
 import {
   Select,
   SelectContent,
@@ -18,7 +17,6 @@ import { formatDateOnlyPtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
 import type { ApiProject, ProjectStatus } from "@/modules/projects/api";
 import type {
-  ApiProjectCycle,
   ApiProjectEnrollment,
   ApiProjectGroup,
 } from "@/modules/projects/api";
@@ -164,32 +162,6 @@ function groupRelationColumns(): ColumnDef<ApiProjectGroup, unknown>[] {
             </div>
           </div>
         ),
-    },
-  ];
-}
-
-function cycleRelationColumns(): ColumnDef<ApiProjectCycle, unknown>[] {
-  return [
-    {
-      accessorKey: "name",
-        header: "Grupo de pessoas",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">
-            {row.original.segment?.name ?? row.original.catalogCycle?.name ?? row.original.name}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.segment?.category?.trim() ||
-              row.original.catalogCycle?.audienceType?.trim() ||
-              "Grupo de pessoas"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "startsAt",
-      header: "Periodo",
-      cell: ({ row }) => formatPeriod(row.original.startsAt, row.original.endsAt),
     },
   ];
 }
@@ -352,6 +324,39 @@ function buildProjectHistoryItems(logs: NonNullable<ProjectsDetailLayoutContext[
   });
 }
 
+function peopleGroupRelationColumns(): ColumnDef<
+  ProjectsDetailLayoutContext["publicPeopleGroupRows"][number],
+  unknown
+>[] {
+  return [
+    {
+      accessorKey: "peopleGroup.name",
+      header: "Grupo de Pessoas",
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <div className="font-medium text-foreground">{row.original.peopleGroup.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.peopleGroup.description?.trim() ||
+              row.original.peopleGroup.category?.trim() ||
+              "Grupo institucional"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "category",
+      header: "Categoria",
+      cell: ({ row }) => row.original.peopleGroup.category?.trim() || "-",
+    },
+    {
+      id: "ageRange",
+      header: "Faixa etaria",
+      cell: ({ row }) =>
+        formatAgeRange(row.original.peopleGroup.ageMin ?? null, row.original.peopleGroup.ageMax ?? null),
+    },
+  ];
+}
+
 export type ProjectDetailDraft = {
   programId: string;
   name: string;
@@ -383,7 +388,20 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
     status?: ProgramStatus;
   }>;
   selectedProgram: ApiProgram | null;
-  peopleGroupRows: Array<{
+  publicPeopleGroupRows: Array<{
+    id: string;
+    peopleGroupId: string;
+    participationKind: "PARTICIPANT" | "TEAM";
+    peopleGroup: {
+      id: string;
+      name: string;
+      category?: string | null;
+      description?: string | null;
+      ageMin?: number | null;
+      ageMax?: number | null;
+    };
+  }>;
+  teamPeopleGroupRows: Array<{
     id: string;
     peopleGroupId: string;
     participationKind: "PARTICIPANT" | "TEAM";
@@ -431,8 +449,8 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
   onOpenGroup: (groupId: string) => void;
   onCreateGroup: () => void;
   onOpenPeopleGroup: (peopleGroupId: string) => void;
-  onOpenCycle: (cycleId: string) => void;
-  onCreateCycle: () => void;
+  onCreatePublicPeopleGroup: () => void;
+  onCreateTeamPeopleGroup: () => void;
   onOpenEnrollment: (enrollmentId: string) => void;
   onCreateEnrollment: () => void;
   onEndEnrollment: (enrollment: ApiProjectEnrollment) => void;
@@ -562,17 +580,6 @@ function ProjectsDetailMain({
         />
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Tags</div>
-        <TagInput
-          value={draft.tags}
-          onChange={(tags) => {
-            setDraft((previous) => ({ ...previous, tags }));
-            onCommitField("tags", tags);
-          }}
-          disabled={readOnly}
-        />
-      </div>
     </div>
   );
 }
@@ -585,7 +592,8 @@ function ProjectsDetailSide({
   draft,
   setDraft,
   selectedProgram,
-  peopleGroupRows,
+  publicPeopleGroupRows,
+  teamPeopleGroupRows,
   groupRows,
   enrollmentRows,
   actionRows,
@@ -613,7 +621,8 @@ function ProjectsDetailSide({
   | "draft"
   | "setDraft"
   | "selectedProgram"
-  | "peopleGroupRows"
+  | "publicPeopleGroupRows"
+  | "teamPeopleGroupRows"
   | "groupRows"
   | "enrollmentRows"
   | "actionRows"
@@ -718,7 +727,8 @@ function ProjectsDetailSide({
         { key: "status", label: "Status", value: formatProjectStatus(draft.status) },
         { key: "participants", label: "Participantes", value: enrollmentRows.length },
         { key: "groups", label: "Grupos", value: groupRows.length },
-        { key: "peopleGroups", label: "Grupos de Pessoas", value: peopleGroupRows.length },
+        { key: "publicPeopleGroups", label: "Grupos de Pessoas", value: publicPeopleGroupRows.length },
+        { key: "teamPeopleGroups", label: "Grupos de Equipe", value: teamPeopleGroupRows.length },
         { key: "actions", label: "Acoes", value: actionRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
@@ -732,7 +742,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
   header: {
     title: ({ project, draft, mode }) =>
       mode === "create" ? "Novo projeto" : ((project?.name ?? draft.name) || "Projeto"),
-    slot: ({ draft, selectedProgram, peopleGroupRows, groupRows, actionRows, enrollmentRows }) => (
+    slot: ({ draft, selectedProgram, publicPeopleGroupRows, teamPeopleGroupRows, groupRows, actionRows, enrollmentRows }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
@@ -759,7 +769,11 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Grupos de Pessoas</div>
-            <div className="font-medium text-foreground">{peopleGroupRows.length}</div>
+            <div className="font-medium text-foreground">{publicPeopleGroupRows.length}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground">Grupos de Equipe</div>
+            <div className="font-medium text-foreground">{teamPeopleGroupRows.length}</div>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Acoes</div>
@@ -786,7 +800,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     draft,
     setDraft,
     selectedProgram,
-    peopleGroupRows,
+    publicPeopleGroupRows,
+    teamPeopleGroupRows,
     groupRows,
     enrollmentRows,
     actionRows,
@@ -814,7 +829,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       draft={draft}
       setDraft={setDraft}
       selectedProgram={selectedProgram}
-      peopleGroupRows={peopleGroupRows}
+      publicPeopleGroupRows={publicPeopleGroupRows}
+      teamPeopleGroupRows={teamPeopleGroupRows}
       groupRows={groupRows}
       enrollmentRows={enrollmentRows}
       actionRows={actionRows}
@@ -839,42 +855,14 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     {
       key: "peopleGroups",
       label: "Grupos de Pessoas",
-      badge: ({ peopleGroupRows }) => peopleGroupRows.length,
+      badge: ({ publicPeopleGroupRows }) => publicPeopleGroupRows.length,
       relations: [
         {
           key: "project.people-groups",
           label: "Grupos de Pessoas",
           loading: ({ relationsLoading }) => relationsLoading,
-          rows: ({ mode, peopleGroupRows }) => (mode === "edit" ? peopleGroupRows : []),
-          columns: [
-            {
-              accessorKey: "peopleGroup.name",
-              header: "Grupo de Pessoas",
-              cell: ({ row }: { row: { original: ProjectsDetailLayoutContext["peopleGroupRows"][number] } }) => (
-                <div className="space-y-0.5">
-                  <div className="font-medium text-foreground">{row.original.peopleGroup.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {row.original.peopleGroup.description?.trim() || row.original.peopleGroup.category?.trim() || "Grupo de pessoas"}
-                  </div>
-                </div>
-              ),
-            },
-            {
-              id: "category",
-              header: "Categoria",
-              cell: ({ row }: { row: { original: ProjectsDetailLayoutContext["peopleGroupRows"][number] } }) =>
-                row.original.peopleGroup.category?.trim() || "-",
-            },
-            {
-              id: "ageRange",
-              header: "Faixa etaria",
-              cell: ({ row }: { row: { original: ProjectsDetailLayoutContext["peopleGroupRows"][number] } }) =>
-                formatAgeRange(
-                  row.original.peopleGroup.ageMin ?? null,
-                  row.original.peopleGroup.ageMax ?? null,
-                ),
-            },
-          ] as ColumnDef<ProjectsDetailLayoutContext["peopleGroupRows"][number], unknown>[],
+          rows: ({ mode, publicPeopleGroupRows }) => (mode === "edit" ? publicPeopleGroupRows : []),
+          columns: peopleGroupRelationColumns(),
           getRowId: (row) => row.id,
           filterRows: (rows, query) => {
             const needle = query.trim().toLocaleLowerCase();
@@ -895,8 +883,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           onRowClick: (row, context) =>
             context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Adicionar grupo de pessoas",
-            onClick: (context) => context.onCreateCycle(),
+            label: "Novo",
+            onClick: (context) => context.onCreatePublicPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
           },
@@ -904,6 +892,48 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
             mode === "create"
               ? "Salve o projeto para gerenciar grupos de pessoas."
               : "Nenhum grupo de pessoas vinculado.",
+        },
+      ],
+    },
+    {
+      key: "teamPeopleGroups",
+      label: "Grupos de Equipe",
+      badge: ({ teamPeopleGroupRows }) => teamPeopleGroupRows.length,
+      relations: [
+        {
+          key: "project.team-people-groups",
+          label: "Grupos de Equipe",
+          loading: ({ relationsLoading }) => relationsLoading,
+          rows: ({ mode, teamPeopleGroupRows }) => (mode === "edit" ? teamPeopleGroupRows : []),
+          columns: peopleGroupRelationColumns(),
+          getRowId: (row) => row.id,
+          filterRows: (rows, query) => {
+            const needle = query.trim().toLocaleLowerCase();
+            if (!needle) return rows;
+            return rows.filter((row) =>
+              [
+                row.peopleGroup.name,
+                row.peopleGroup.category ?? "",
+                row.peopleGroup.description ?? "",
+                formatAgeRange(row.peopleGroup.ageMin ?? null, row.peopleGroup.ageMax ?? null),
+              ]
+                .join(" ")
+                .toLocaleLowerCase()
+                .includes(needle),
+            );
+          },
+          searchPlaceholder: "Pesquisar",
+          onRowClick: (row, context) => context.onOpenPeopleGroup(row.peopleGroupId),
+          action: {
+            label: "Novo",
+            onClick: (context) => context.onCreateTeamPeopleGroup(),
+            hidden: ({ readOnly, mode, canManageStructure }) =>
+              readOnly || mode !== "edit" || !canManageStructure,
+          },
+          emptyLabel: ({ mode }) =>
+            mode === "create"
+              ? "Salve o projeto para gerenciar grupos de equipe."
+              : "Nenhum grupo de equipe vinculado.",
         },
       ],
     },
@@ -1076,7 +1106,12 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         model: "audit.logs",
         label: "Grupo de pessoas",
         fieldLabels: PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS,
-        resolveEntityIds: ({ peopleGroupRows }) => peopleGroupRows.map((row) => row.id),
+        valueFormatters: {
+          participationKind: (value) =>
+            value === "TEAM" ? "Equipe" : "Publico atendido",
+        },
+        resolveEntityIds: ({ publicPeopleGroupRows, teamPeopleGroupRows }) =>
+          [...publicPeopleGroupRows, ...teamPeopleGroupRows].map((row) => row.id),
       },
       {
         key: "projectAction",

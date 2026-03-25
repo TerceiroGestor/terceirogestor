@@ -16,6 +16,36 @@ export const actionsSearchView: SearchViewDefinition = {
   },
   fields: [
     {
+      name: "project.name",
+      label: "Projeto",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "actionType.name",
+      label: "Tipo",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "projectGroup.name",
+      label: "Grupo de Participantes",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "peopleGroup.segment.name",
+      label: "Grupo de Pessoas",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
+      name: "targetEnrollment.person.fullName",
+      label: "Participante",
+      type: "text",
+      operators: ["contains", "=", "!="],
+    },
+    {
       name: "status",
       label: "Status",
       type: "select",
@@ -36,12 +66,14 @@ export const actionsSearchView: SearchViewDefinition = {
     },
   ],
   groupBy: [
+    { field: "project.name", label: "Projeto" },
     { field: "status", label: "Status" },
     { field: "tags", label: "Tags" },
     { field: "createdAt", label: "Cadastro" },
     { field: "actionType.name", label: "Tipo" },
-    { field: "group.name", label: "Grupo" },
-    { field: "cycle.name", label: "Ciclo" },
+    { field: "projectGroup.name", label: "Grupo de Participantes" },
+    { field: "peopleGroup.segment.name", label: "Grupo de Pessoas" },
+    { field: "targetEnrollment.person.fullName", label: "Participante" },
   ],
 };
 
