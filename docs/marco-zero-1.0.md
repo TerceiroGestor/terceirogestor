@@ -26,7 +26,7 @@ O projeto ja possui os blocos centrais corretos (`RecordListHost`, `DetailShellE
 Risco principal:
 
 - o smoke atual valida estrutura minima, mas nao garante padrao visual e operacional completo
-- existem divergencias entre regra de negocio e implementacao (exemplo: `Cycle` declarado como legado na regra canonica)
+- existem divergencias entre regra de negocio e implementacao quando residuos legados permanecem no fluxo ativo
 
 Decisao de marco zero:
 
@@ -42,6 +42,7 @@ Um modulo e considerado 100% canonico quando:
 - `new` e `edit` usam o mesmo fluxo estrutural
 - relacoes seguem matriz canonica de cardinalidade
 - nao existem componentes paralelos quando ha capability canonica
+- nao existe uso ativo de `DataTable`, `FormEngine` ou modulo removido no fluxo canonico
 - modulo entra no sistema com contrato, smoke, checklist de aceite e validacao final
 
 ## Contrato de interface canonica
@@ -62,18 +63,15 @@ Um modulo e considerado 100% canonico quando:
 - detail nao exibe acao `Novo`
 - `Excluir` aparece somente quando permitido
 - campos principais no `main`; `Tags` apenas no `side`
+- relation ja contabilizada em `relationSlot` nao deve ser resumida novamente em card no corpo principal
 
 ### Side
 
 - usa `StandardDetailMetadataSide`
-- abas fixas:
-  - `Auditoria`
-  - `Comentarios`
-  - `Notas internas`
-  - `Tags`
-  - `Anexos`
-  - `Historico`
-  - `Contexto`
+- nenhuma aba visivel pode existir sem operacao funcional real
+- `Comentarios`, `Notas internas`, `Tags` e `Anexos` so podem aparecer quando houver suporte completo em UI, API e persistencia
+- `Auditoria`, `Historico` e `Contexto` seguem comportamento canonico
+- textos de orientacao nao ficam na tela; devem ir para o painel `Como usar`
 
 ### Relations
 
@@ -82,6 +80,27 @@ Um modulo e considerado 100% canonico quando:
 - clique em linha abre detail do registro relacionado
 - acao de criar relacao usa fluxo relacional canonico
 - sem dependencia de tela legada para operacao principal
+
+### Relation operacional
+
+Quando a relation tambem executar operacao de negocio, ela passa a seguir o subtipo `relation operacional`.
+
+Obrigatorio:
+
+- continuar dentro do `DetailShellEngine`
+- usar `ListView` como corpo da relation
+- concentrar filtros, busca, selecao e acoes no topo do proprio slot relacional
+- usar acoes por linha nas colunas da lista
+- usar selecao nativa do `ListView` para operacao em lote
+- usar salvamento explicito quando houver mutacao em lote
+- manter metricas compactas, sem cards redundantes de resumo
+
+Proibido:
+
+- `DataTable` no `relationSlot`
+- page paralela de gestao quando o fluxo puder viver na aba atual
+- textos explicativos no corpo da relation
+- card informativo repetindo contagem ja exibida na relation
 
 ## Matriz canonica de relacionamentos
 
@@ -164,12 +183,27 @@ Obrigatorio em qualquer novo modulo:
 - declarar ownership da relacao (quem cria, quem encerra, quem consulta)
 - definir semantica de exclusao (`cascade`, `restrict`, `setNull`)
 - definir auditoria minima de vinculo para relacoes sensiveis
+- centralizar labels e textos reutilizaveis em constantes de modulo quando aplicavel
+- corrigir acentuacao e bloquear texto corrompido na UI
 
 Proibido:
 
 - N:N implicito sem entidade associativa quando houver estado de negocio
 - 1:1 modelado como lista sem necessidade real
 - fluxo relacional em tela paralela fora do shell canonico
+- aba lateral com comentarios/tags/anexos/notas sem backend ou persistencia real
+- texto explicativo espalhado em `main`, `side` ou `relations`
+- `DataTable` no fluxo canonico ativo de modulos
+- `FormEngine` no fluxo canonico ativo de modulos
+- modulo removido em navegacao, filtro, seletor, relation ou regra ativa de modulo canonico
+
+## Legados obrigatorios a eliminar
+
+Para liberar o `Marco Zero 1.0`, estes residuos precisam sair do fluxo canonico ativo:
+
+- `DataTable`: substituir por `ListView` em list, detail e relation
+- `FormEngine`: substituir por formulario principal canônico dentro de `DetailShellEngine`
+- modulo removido: excluir do fluxo institucional ativo sem compatibilidade permanente
 
 ## Plano operacional de fechamento (5 dias)
 
@@ -216,6 +250,7 @@ Para liberar marco zero 1.0:
 - smoke de contratos aprovado
 - `lint` e `build` de frontend/backend aprovados
 - sem residuos legados no fluxo ativo canonico
+- sem `DataTable`, `FormEngine` ou modulo removido visiveis no fluxo canonico ativo
 
 ## Criterio de pronto do Marco Zero 1.0
 

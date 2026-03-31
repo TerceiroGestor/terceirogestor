@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -26,7 +26,8 @@ import {
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { BulkEnrollmentDialog } from "@/modules/projects/features/detail/ui/bulk-enrollment-dialog";
-import { ProjectCyclePickerDialog } from "@/modules/projects/features/detail/ui/project-cycle-picker-dialog";
+import { ProjectPeopleGroupPickerDialog } from "@/modules/projects/features/detail/ui/project-people-group-picker-dialog";
+import { ProjectEnrollmentManageDialog } from "@/modules/projects/features/detail/ui/project-enrollment-manage-dialog";
 import { listPrograms, type ApiProgram } from "@/modules/programs/api";
 import {
   type ProjectDetailDraft,
@@ -36,6 +37,7 @@ import {
   projectsDetailModuleDefinition,
   PROJECTS_ROUTES,
 } from "@/modules/projects/config/projects-module-contract";
+import { PROJECT_GROUPS_ROUTES } from "@/modules/projects/config/project-groups-module-contract";
 import { listProjectActions, type ApiProjectAction } from "@/modules/actions/api";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
@@ -97,6 +99,7 @@ export function ProjectsDetailEngineClientPage() {
   const isEdit = mode === "edit";
   const initialProgramId = searchParams.get("programId") ?? "";
   const returnTo = searchParams.get("returnTo");
+  const requestedEnrollmentId = searchParams.get("enrollmentId");
 
   const canRead = hasModulePermission(projectsDetailModuleDefinition, "canRead", permissions);
   const canCreate = canUseModuleAction(projectsDetailModuleDefinition, "create", permissions);
@@ -130,9 +133,30 @@ export function ProjectsDetailEngineClientPage() {
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
   const [participantPickerOpen, setParticipantPickerOpen] = React.useState(false);
+  const [editingEnrollment, setEditingEnrollment] =
+    React.useState<ApiProjectEnrollment | null>(null);
+  const [enrollmentDialogOpen, setEnrollmentDialogOpen] = React.useState(false);
   const [peopleGroupPickerPurpose, setPeopleGroupPickerPurpose] = React.useState<
     "PUBLICO" | "EQUIPE" | null
   >(null);
+
+  const buildProjectDetailHref = React.useCallback(
+    (options?: { enrollmentId?: string | null }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (options?.enrollmentId === null) {
+        params.delete("enrollmentId");
+      } else if (typeof options?.enrollmentId === "string" && options.enrollmentId.trim()) {
+        params.set("enrollmentId", options.enrollmentId);
+      }
+
+      const query = params.toString();
+      return withTenantPath(
+        `${PROJECTS_ROUTES.detail}/${id}${query ? `?${query}` : ""}`,
+        tenantSlug,
+      );
+    },
+    [id, searchParams, tenantSlug],
+  );
 
   const loadRelations = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
@@ -250,13 +274,51 @@ export function ProjectsDetailEngineClientPage() {
     void loadRelations();
   }, [loadRelations]);
 
+  React.useEffect(() => {
+    if (!isEdit) {
+      setEditingEnrollment(null);
+      setEnrollmentDialogOpen(false);
+      return;
+    }
+
+    if (!requestedEnrollmentId) {
+      setEditingEnrollment(null);
+      setEnrollmentDialogOpen(false);
+      return;
+    }
+
+    if (relationsLoading) {
+      return;
+    }
+
+    const target =
+      enrollmentRows.find((row) => row.id === requestedEnrollmentId) ?? null;
+
+    if (!target) {
+      setEditingEnrollment(null);
+      setEnrollmentDialogOpen(false);
+      router.replace(buildProjectDetailHref({ enrollmentId: null }));
+      return;
+    }
+
+    setEditingEnrollment(target);
+    setEnrollmentDialogOpen(true);
+  }, [
+    buildProjectDetailHref,
+    enrollmentRows,
+    isEdit,
+    relationsLoading,
+    requestedEnrollmentId,
+    router,
+  ]);
+
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
     const normalized = normalizeDraft(draft);
     if (!normalized.programId || !normalized.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inv\u00e1lidos",
         description: "Informe programa e nome do projeto.",
       });
       return;
@@ -309,7 +371,7 @@ export function ProjectsDetailEngineClientPage() {
   const handleDeleteComment = React.useCallback(
     async (commentId: string) => {
       if (!token || !id) return;
-      if (!window.confirm("Excluir este comentario?")) return;
+      if (!window.confirm("Excluir este coment\u00e1rio?")) return;
       setCommentSubmitting(true);
       try {
         const updated = await deleteProjectComment(token, id, commentId);
@@ -321,7 +383,7 @@ export function ProjectsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao excluir comentario.";
+            : "Falha ao excluir coment\u00e1rio.";
         toast({ variant: "destructive", title: "Falha ao excluir", description: message });
       } finally {
         setCommentSubmitting(false);
@@ -415,7 +477,7 @@ export function ProjectsDetailEngineClientPage() {
     setPeopleGroupPickerPurpose("EQUIPE");
   }, []);
 
-  const handlePickCycle = React.useCallback(
+  const handlePickPeopleGroup = React.useCallback(
     async (peopleGroup: { id: string }) => {
       if (!token || !id || !peopleGroupPickerPurpose) return;
       try {
@@ -458,8 +520,8 @@ export function ProjectsDetailEngineClientPage() {
     async (enrollment: ApiProjectEnrollment) => {
       if (!token || !id || !canDeleteEnrollments) return;
       const confirmed = await confirm({
-        title: "Encerrar matricula",
-        description: `Encerrar a matricula de "${enrollment.person.fullName}" preservando o historico?`,
+        title: "Encerrar matr\u00edcula",
+        description: `Encerrar a matr\u00edcula de "${enrollment.person.fullName}" preservando o hist\u00f3rico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
@@ -467,17 +529,28 @@ export function ProjectsDetailEngineClientPage() {
       if (!confirmed) return;
       try {
         await deleteProjectEnrollment(token, id, enrollment.id);
-        toast({ title: "Matricula encerrada" });
+        toast({ title: "Matr\u00edcula encerrada" });
         await loadRelations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao encerrar matricula.";
+            : "Falha ao encerrar matr\u00edcula.";
         toast({ variant: "destructive", title: "Falha ao encerrar", description: message });
       }
     },
     [canDeleteEnrollments, confirm, id, loadRelations, toast, token],
+  );
+
+  const handleEnrollmentDialogChange = React.useCallback(
+    (open: boolean) => {
+      setEnrollmentDialogOpen(open);
+      if (!open) {
+        setEditingEnrollment(null);
+        router.replace(buildProjectDetailHref({ enrollmentId: null }));
+      }
+    },
+    [buildProjectDetailHref, router],
   );
 
   const context = React.useMemo<ProjectsDetailLayoutContext>(
@@ -534,7 +607,7 @@ export function ProjectsDetailEngineClientPage() {
       onCreateGroup: () =>
         router.push(
           withTenantPath(
-            `/group/new?projectId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
+            `${PROJECT_GROUPS_ROUTES.list}/new?projectId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
             tenantSlug,
           ),
         ),
@@ -548,12 +621,7 @@ export function ProjectsDetailEngineClientPage() {
       onCreatePublicPeopleGroup: handleCreatePublicPeopleGroup,
       onCreateTeamPeopleGroup: handleCreateTeamPeopleGroup,
       onOpenEnrollment: (enrollmentId) =>
-        router.push(
-          withTenantPath(
-            `/projects/${id}/enrollments?enrollmentId=${encodeURIComponent(enrollmentId)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
+        router.push(buildProjectDetailHref({ enrollmentId })),
       onCreateEnrollment: handleCreateEnrollment,
       onEndEnrollment: handleEndEnrollment,
       onOpenAction: (actionId) =>
@@ -601,6 +669,7 @@ export function ProjectsDetailEngineClientPage() {
       handleCreateEnrollment,
       handleCreatePublicPeopleGroup,
       handleCreateTeamPeopleGroup,
+      buildProjectDetailHref,
       handleEndEnrollment,
       handleSubmitComment,
       mentionableUsers,
@@ -613,7 +682,7 @@ export function ProjectsDetailEngineClientPage() {
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permiss\u00e3o.</div>;
   }
 
   const headerTitle =
@@ -657,17 +726,30 @@ export function ProjectsDetailEngineClientPage() {
           }}
         />
       ) : null}
+      {mode === "edit" && token && editingEnrollment ? (
+        <ProjectEnrollmentManageDialog
+          open={enrollmentDialogOpen}
+          onOpenChange={handleEnrollmentDialogChange}
+          token={token}
+          projectId={id}
+          enrollment={editingEnrollment}
+          onCompleted={loadRelations}
+        />
+      ) : null}
       {mode === "edit" && token && peopleGroupPickerPurpose ? (
-        <ProjectCyclePickerDialog
+        <ProjectPeopleGroupPickerDialog
           open={Boolean(peopleGroupPickerPurpose)}
           onOpenChange={(open) => {
             if (!open) setPeopleGroupPickerPurpose(null);
           }}
           token={token}
           purpose={peopleGroupPickerPurpose}
-          onPick={handlePickCycle}
+          onPick={handlePickPeopleGroup}
         />
       ) : null}
     </>
   );
 }
+
+
+

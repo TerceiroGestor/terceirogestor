@@ -38,12 +38,12 @@ const DETENTION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
     key: "detention",
     entity: "PersonDetention",
     model: "audit.logs",
-    label: "Reclusao",
+    label: "Reclusão",
     fieldLabels: {
       status: "Status",
       type: "Tipo",
       unit: "Unidade",
-      startDate: "Inicio",
+      startDate: "Início",
       endDate: "Fim",
       notes: "Notas",
     },
@@ -86,6 +86,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   const [draft, setDraft] = React.useState<DetentionFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(detentionId || null);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(detentionId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
     enabled: true,
@@ -108,6 +109,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleDetentionPath(personId, created.id), tenantSlug));
         return initialFormValues(created);
       }
@@ -120,6 +122,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
     if (mode !== "edit" || !current) return;
     const nextDraft = initialFormValues(current);
     relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
     setDraft(nextDraft);
     replaceSavedDraft(nextDraft);
   }, [current, mode, replaceSavedDraft]);
@@ -157,11 +160,10 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
       personId={personId}
       recordType="detention"
       tab="reclusao"
-      title={mode === "create" ? "Novo registro de reclusao" : current?.status ?? "Reclusao"}
-      subtitle="Gerencie os detalhes completos do registro de reclusao."
+      title={mode === "create" ? "Novo registro de reclusão" : current?.status ?? "Reclusão"}
       mode={mode}
       saving={saving}
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={DETENTION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
@@ -172,7 +174,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
         <div className="text-sm text-muted-foreground">Carregando registro...</div>
       ) : null}
       {mode === "edit" && !isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Registro nao encontrado.</div>
+        <div className="text-sm text-muted-foreground">Registro não encontrado.</div>
       ) : null}
       {mode === "create" || current ? (
         <DetentionForm

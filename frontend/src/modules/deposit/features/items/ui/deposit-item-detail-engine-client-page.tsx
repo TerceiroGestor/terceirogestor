@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +51,7 @@ import {
   DEPOSIT_DEFAULT_SECTOR,
   DEPOSIT_DEFAULT_UNIT,
   DEPOSIT_ROUTES,
+  DEPOSIT_USAGE_TEXT,
 } from "@/modules/deposit/shared/domain/deposit.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
@@ -146,6 +149,16 @@ export function DepositItemDetailEngineClientPage({
   const [historyRows, setHistoryRows] = React.useState<ApiDepositHistoryMovement[]>(
     [],
   );
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("deposit-items-detail", DEPOSIT_USAGE_TEXT.items.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: DEPOSIT_USAGE_TEXT.items.title,
+    items: usageItems,
+  });
 
   const persistItemDraft = React.useCallback(
     async (nextDraft: ItemDraft) => {
@@ -307,8 +320,8 @@ export function DepositItemDetailEngineClientPage({
     if (!canCreate) {
       toast({
         variant: "destructive",
-        title: "Sem permissao",
-        description: "Voce nao tem permissao para criar objetos.",
+        title: "Sem permissão",
+        description: "Você não tem permissão para criar objetos.",
       });
       return;
     }
@@ -317,7 +330,7 @@ export function DepositItemDetailEngineClientPage({
     if (!normalized.name || !normalized.unit || !normalized.defaultSector) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Preencha nome, setor e unidade.",
       });
       return;
@@ -527,7 +540,7 @@ export function DepositItemDetailEngineClientPage({
       items.push(
         ...(item?.comments ?? []).map((comment) => ({
           id: `comment:${comment.id}`,
-          title: "Comentario registrado",
+          title: "Comentário registrado",
           description: comment.body,
           meta: `Por ${comment.author.name}`,
           createdAt: comment.createdAt,
@@ -673,7 +686,7 @@ export function DepositItemDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   return (

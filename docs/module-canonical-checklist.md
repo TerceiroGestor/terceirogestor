@@ -34,9 +34,11 @@ Evidencia:
 
 - [ ] `PASSA` usa `DetailShellEngine`
 - [ ] `PASSA` `new` e `edit` usam o mesmo formulario principal
+- [ ] `PASSA` nao usa `FormEngine` legado no fluxo `new/edit/detail`
 - [ ] `PASSA` detail nao exibe botao `Novo`
 - [ ] `PASSA` acao `Excluir` apenas quando permitida
 - [ ] `PASSA` `Tags` nao sao duplicadas no corpo principal
+- [ ] `PASSA` relations nao duplicam card de contagem/resumo no corpo principal
 
 Evidencia:
 
@@ -46,14 +48,10 @@ Evidencia:
 ## 3. Side padrao
 
 - [ ] `PASSA` usa `StandardDetailMetadataSide`
-- [ ] `PASSA` abas fixas presentes:
-- [ ] `PASSA` `Auditoria`
-- [ ] `PASSA` `Comentarios`
-- [ ] `PASSA` `Notas internas`
-- [ ] `PASSA` `Tags`
-- [ ] `PASSA` `Anexos`
-- [ ] `PASSA` `Historico`
-- [ ] `PASSA` `Contexto`
+- [ ] `PASSA` nenhuma aba visivel fica sem operacao real
+- [ ] `PASSA` `Comentarios`, `Notas internas`, `Tags` e `Anexos` so aparecem quando houver suporte funcional completo
+- [ ] `PASSA` `Auditoria`, `Historico` e `Contexto` seguem comportamento canonico
+- [ ] `PASSA` side nao usa texto explicativo de ajuda dentro da tela
 
 Evidencia:
 
@@ -64,9 +62,12 @@ Evidencia:
 
 - [ ] `PASSA` relations no rodape do detail ou aba canonica
 - [ ] `PASSA` relation usa host/list padrao
+- [ ] `PASSA` relation operacional usa `ListView`, nunca `DataTable`
+- [ ] `PASSA` filtros, selecao e acoes de relation operacional ficam no proprio slot relacional
 - [ ] `PASSA` clique abre detail relacionado
 - [ ] `PASSA` criar relacao usa fluxo relacional canonico
 - [ ] `PASSA` nao depende de tela legada
+- [ ] `PASSA` relation nao usa texto explicativo ou card de resumo duplicado
 
 Evidencia:
 
@@ -89,9 +90,13 @@ Evidencia:
 ## 6. Consistencia funcional
 
 - [ ] `PASSA` labels visiveis em portugues
+- [ ] `PASSA` sem erro de acentuacao ou texto corrompido
 - [ ] `PASSA` sem texto tecnico para usuario final
+- [ ] `PASSA` textos de orientacao migrados para `Como usar` quando necessario
 - [ ] `PASSA` sem componente legado fora do shell canonico
-- [ ] `PASSA` `Cycle` fora do fluxo canonico ativo (removido ou isolado)
+- [ ] `PASSA` sem `DataTable` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem `FormEngine` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem modulo removido ou rota legada no fluxo canonico ativo
 
 Evidencia:
 

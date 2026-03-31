@@ -59,8 +59,6 @@ import {
   projectsListAction,
 } from "@/web-client/registry/actions/projects";
 import {
-  projectCyclesListAction,
-  projectCyclesManageAction,
   projectEnrollmentsManageAction,
   projectActionsManageAction,
   projectGroupsCreateAction,
@@ -73,11 +71,6 @@ import {
   programsDetailAction,
   programsListAction,
 } from "@/web-client/registry/actions/programs";
-import {
-  cyclesCreateAction,
-  cyclesDetailAction,
-  cyclesListAction,
-} from "@/web-client/registry/actions/cycles";
 import {
   tasksCreateAction,
   tasksDetailAction,
@@ -112,7 +105,6 @@ import {
   projectsSearchView,
 } from "@/web-client/registry/searchViews/projects";
 import {
-  projectCyclesSearchView,
   projectGroupsSearchView,
 } from "@/web-client/registry/searchViews/project-structure";
 import {
@@ -183,13 +175,8 @@ const WINDOW_ACTIONS: WindowAction[] = [
   projectGroupsCreateAction,
   projectGroupsDetailAction,
   projectGroupsManageAction,
-  projectCyclesListAction,
-  projectCyclesManageAction,
   projectEnrollmentsManageAction,
   projectActionsManageAction,
-  cyclesListAction,
-  cyclesDetailAction,
-  cyclesCreateAction,
   programsListAction,
   programsDetailAction,
   programsCreateAction,
@@ -221,7 +208,6 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   projectsSearchView,
   projectsDetailSearchView,
   projectGroupsSearchView,
-  projectCyclesSearchView,
   programsSearchView,
   programsDetailSearchView,
   tasksSearchView,

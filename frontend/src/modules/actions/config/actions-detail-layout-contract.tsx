@@ -4,29 +4,34 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichText } from "@/components/ui/richtext/RichText";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
   ApiProjectAction,
   ApiProjectActionPeopleParticipation,
-  ActionStatus,
   ProjectActionAttendancesListItem,
   ProjectActionInput,
 } from "@/modules/actions/api";
 import {
   ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
+  ATTENDANCE_STATUS_OPTIONS,
   ACTION_STATUS_LABELS,
-  ACTION_STATUS_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
 import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
+import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
 import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
-import { ProjectActionAttendancesCard } from "@/modules/projects/features/detail/ui/project-action-attendances-card";
+import {
+  AttendanceNotesDialog,
+  QualityNotesDialog,
+  buildParticipantsColumns,
+  buildQualityColumns,
+  countAttendanceHighlights,
+  countDistinctAttendanceGroups,
+  type AttendanceDraft,
+  type AttendanceNotesDialogState,
+  type AttendanceStatusFilter,
+  type QualityDraft,
+  type QualityNotesDialogState,
+} from "@/modules/actions/features/manage/ui/action-operational-relations";
 import { SectionCard } from "@/components/section-card";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
@@ -60,17 +65,17 @@ const ACTION_AUDIT_FIELD_LABELS = {
   completionPercent: "Progresso",
   photoPaths: "Fotos",
   status: "Status",
-  plannedStartAt: "Inicio planejado",
+  plannedStartAt: "Início planejado",
   plannedEndAt: "Fim planejado",
-  executedStartAt: "Inicio executado",
+  executedStartAt: "Início executado",
   executedEndAt: "Fim executado",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
 
 const ACTION_COMMENT_AUDIT_FIELD_LABELS = {
-  body: "Comentario",
-  mentionUserIds: "Mencoes",
+  body: "Comentário",
+  mentionUserIds: "Menções",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -86,18 +91,15 @@ const ACTION_ATTACHMENT_AUDIT_FIELD_LABELS = {
 
 function SectionField({
   label,
-  helper,
   children,
 }: {
   label: string;
-  helper?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <div className={fieldLabelClassName}>{label}</div>
       {children}
-      {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
     </div>
   );
 }
@@ -115,7 +117,7 @@ function formatPeriod(start: string | null | undefined, end: string | null | und
   const from = start ? start.slice(0, 10) : "-";
   const to = end ? end.slice(0, 10) : "-";
   if (!start && !end) return "Não informado";
-  return `${from} ate ${to}`;
+  return `${from} até ${to}`;
 }
 
 function buildActionHistoryItems(logs: NonNullable<ActionsDetailLayoutContext["detailAudit"]>["logs"]) {
@@ -229,129 +231,6 @@ function teamParticipationColumns({
   ];
 }
 
-function ActionPlanSection({
-  action,
-  readOnly,
-  saving,
-  onSave,
-}: {
-  action: ApiProjectAction | null;
-  readOnly: boolean;
-  saving: boolean;
-  onSave: (patch: Partial<ProjectActionInput>) => Promise<void>;
-}) {
-  const [draft, setDraft] = React.useState({
-    title: action?.title ?? "",
-    status: action?.status ?? ("PLANNED" as ActionStatus),
-    plannedStartAt: toDateOnly(action?.plannedStartAt),
-    plannedEndAt: toDateOnly(action?.plannedEndAt),
-    planHtml: action?.planHtml ?? "",
-  });
-
-  React.useEffect(() => {
-    setDraft({
-      title: action?.title ?? "",
-      status: action?.status ?? "PLANNED",
-      plannedStartAt: toDateOnly(action?.plannedStartAt),
-      plannedEndAt: toDateOnly(action?.plannedEndAt),
-      planHtml: action?.planHtml ?? "",
-    });
-  }, [action]);
-
-  if (!action) return null;
-
-  return (
-    <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_240px_240px]">
-        <SectionField label="Título">
-          <Input
-            value={draft.title}
-            onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
-            className={lineInputClassName}
-            readOnly={readOnly || saving}
-          />
-        </SectionField>
-        <SectionField label="Status">
-          <Select
-            value={draft.status}
-            onValueChange={(value) =>
-              setDraft((previous) => ({ ...previous, status: value as ActionStatus }))
-            }
-            disabled={readOnly || saving}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {ACTION_STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
-        <SectionField label="Periodo planejado" helper={formatPeriod(action.plannedStartAt, action.plannedEndAt)}>
-          <div className="h-10 border-b border-border/60" />
-        </SectionField>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionField label="Inicio planejado">
-          <Input
-            type="date"
-            value={draft.plannedStartAt}
-            onChange={(event) =>
-              setDraft((previous) => ({ ...previous, plannedStartAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={readOnly || saving}
-          />
-        </SectionField>
-        <SectionField label="Fim planejado">
-          <Input
-            type="date"
-            value={draft.plannedEndAt}
-            onChange={(event) =>
-              setDraft((previous) => ({ ...previous, plannedEndAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={readOnly || saving}
-          />
-        </SectionField>
-      </div>
-
-      <SectionField label="Planejamento">
-        <RichText
-          value={draft.planHtml}
-          disabled={readOnly || saving}
-          onChange={(value) => setDraft((previous) => ({ ...previous, planHtml: value }))}
-        />
-      </SectionField>
-
-      {!readOnly ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() =>
-              void onSave({
-                title: draft.title.trim(),
-                status: draft.status,
-                plannedStartAt: draft.plannedStartAt.trim() || null,
-                plannedEndAt: draft.plannedEndAt.trim() || null,
-                planHtml: draft.planHtml.trim() || null,
-              })
-            }
-            disabled={saving || !draft.title.trim()}
-          >
-            {saving ? "Salvando..." : "Salvar planejamento"}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function ActionExecutedSection({
   action,
   readOnly,
@@ -382,7 +261,7 @@ function ActionExecutedSection({
   return (
     <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1.2fr]">
-        <SectionField label="Inicio executado">
+        <SectionField label="Início executado">
           <Input
             type="date"
             value={draft.executedStartAt}
@@ -404,12 +283,14 @@ function ActionExecutedSection({
             readOnly={readOnly || saving}
           />
         </SectionField>
-        <SectionField label="Periodo executado" helper={formatPeriod(action.executedStartAt, action.executedEndAt)}>
-          <div className="h-10 border-b border-border/60" />
+        <SectionField label="Período executado">
+          <div className="flex h-10 items-center border-b border-border/60 text-sm text-foreground">
+            {formatPeriod(action.executedStartAt, action.executedEndAt)}
+          </div>
         </SectionField>
       </div>
 
-      <SectionField label="Relato da execucao">
+      <SectionField label="Relato da execução">
         <RichText
           value={draft.executedHtml}
           disabled={readOnly || saving}
@@ -430,7 +311,7 @@ function ActionExecutedSection({
             }
             disabled={saving}
           >
-            {saving ? "Salvando..." : "Salvar execucao"}
+            {saving ? "Salvando..." : "Salvar execução"}
           </Button>
         </div>
       ) : null}
@@ -470,7 +351,7 @@ function ActionConclusionSection({
   return (
     <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
       <div className="grid gap-6 xl:grid-cols-[240px_1fr]">
-        <SectionField label="% atingida" helper="Estimativa do quanto foi atingido em relacao ao planejado.">
+        <SectionField label="% atingido">
           <Input
             type="number"
             min="0"
@@ -508,7 +389,7 @@ function ActionConclusionSection({
             }
             disabled={saving}
           >
-            {saving ? "Salvando..." : "Salvar conclusao"}
+            {saving ? "Salvando..." : "Salvar conclusão"}
           </Button>
         </div>
       ) : null}
@@ -533,7 +414,7 @@ function ActionPhotosSection({
   const photoPaths = action?.photoPaths ?? [];
 
   return (
-    <SectionCard title="Fotos" subtitle="Adicione até 5 fotos desta ação.">
+    <SectionCard title="Fotos">
       <input
         ref={inputRef}
         type="file"
@@ -551,7 +432,7 @@ function ActionPhotosSection({
       {!readOnly ? (
         <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
           <div className="text-sm text-muted-foreground">
-            {photoPaths.length >= 5 ? "Limite de 5 fotos atingido." : "Adicione registros visuais da ação."}
+            {photoPaths.length >= 5 ? "5/5 fotos" : `${photoPaths.length}/5 fotos`}
           </div>
           <Button
             type="button"
@@ -609,6 +490,7 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   canReadStructure: boolean;
   canReadPeople: boolean;
   canReadPeopleIdentity: boolean;
+  tenantSlug: string;
   token: string;
   projectId: string;
   action: ApiProjectAction | null;
@@ -631,6 +513,21 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
   reportLoading: boolean;
   reportError: string | null;
+  attendanceGroupId: string;
+  attendanceStatusFilter: AttendanceStatusFilter;
+  attendanceGroupOptions: Array<{
+    label: string;
+    value: string;
+  }>;
+  attendanceDrafts: Record<string, AttendanceDraft>;
+  attendanceSaving: boolean;
+  attendanceNotesDialog: AttendanceNotesDialogState | null;
+  qualityGroupId: string;
+  qualityDrafts: Record<string, QualityDraft>;
+  qualitySaving: boolean;
+  qualityNotesDialog: QualityNotesDialogState | null;
+  participantRows: ProjectActionAttendancesListItem[];
+  qualityRows: ProjectActionAttendancesListItem[];
   onCommitField: <K extends keyof ActionMetadataDraft>(
     field: K,
     nextValue?: ActionMetadataDraft[K],
@@ -653,6 +550,38 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onDeletePhoto: (path: string) => Promise<void>;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
+  onAttendanceGroupChange: (value: string) => void;
+  onAttendanceStatusFilterChange: (value: AttendanceStatusFilter) => void;
+  getAttendanceEffective: (row: ProjectActionAttendancesListItem) => {
+    status: import("@/modules/actions/api").AttendanceStatus | null;
+    notes: string | null;
+  };
+  setAttendanceRowDraft: (
+    row: ProjectActionAttendancesListItem,
+    patch: AttendanceDraft,
+    prune?: boolean,
+  ) => void;
+  applyAttendanceStatusToRows: (
+    rows: ProjectActionAttendancesListItem[],
+    status: import("@/modules/actions/api").AttendanceStatus,
+  ) => void;
+  saveAttendanceDrafts: () => void;
+  onAttendanceNotesDialogChange: (state: AttendanceNotesDialogState | null) => void;
+  applyAttendanceNotesDialog: (state: AttendanceNotesDialogState) => void;
+  onQualityGroupChange: (value: string) => void;
+  getQualityEffective: (row: ProjectActionAttendancesListItem) => {
+    qualityScore: number | null;
+    qualityNotes: string | null;
+    isHighlight: boolean;
+  };
+  setQualityRowDraft: (
+    row: ProjectActionAttendancesListItem,
+    patch: QualityDraft,
+    prune?: boolean,
+  ) => void;
+  saveQualityDrafts: () => void;
+  onQualityNotesDialogChange: (state: QualityNotesDialogState | null) => void;
+  applyQualityNotesDialog: (state: QualityNotesDialogState) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -673,39 +602,246 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
   tabTemplates: [
     {
       key: "participants",
-      label: "Participantes",
+      label: ACTION_RELATION_TEXT.participants.tabLabel,
       visible: ({ mode }) => mode === "edit",
       content: ({
-        token,
-        projectId,
-        action,
+        attendanceNotesDialog,
         canUpdate,
-        canReadStructure,
-        canReadPeople,
-        canReadPeopleIdentity,
-      }) =>
-        action ? (
-          <ProjectActionAttendancesCard
-            token={token}
-            projectId={projectId}
-            actionId={action.id}
-            canUpdate={canUpdate}
-            canReadStructure={canReadStructure}
-            canReadPeople={canReadPeople}
-            canReadPeopleIdentity={canReadPeopleIdentity}
-          />
-        ) : null,
+        onAttendanceNotesDialogChange,
+        applyAttendanceNotesDialog,
+      }) => (
+        <AttendanceNotesDialog
+          state={attendanceNotesDialog}
+          canUpdate={canUpdate}
+          onOpenChange={(open) => {
+            if (!open) onAttendanceNotesDialogChange(null);
+          }}
+          onStateChange={onAttendanceNotesDialogChange}
+          onConfirm={applyAttendanceNotesDialog}
+        />
+      ),
+      relations: [
+        {
+          key: "participants-attendance",
+          label: ACTION_RELATION_TEXT.participants.relationLabel,
+          variant: "operational",
+          loading: ({ reportLoading }) => reportLoading,
+          error: ({ reportError }) => reportError,
+          rows: ({ participantRows }) => participantRows,
+          columns: ({
+            canUpdate,
+            canReadPeople,
+            tenantSlug,
+            getAttendanceEffective,
+            setAttendanceRowDraft,
+            onAttendanceNotesDialogChange,
+          }) =>
+            buildParticipantsColumns({
+              canUpdate,
+              canReadPeople,
+              tenantSlug,
+              getEffective: getAttendanceEffective,
+              onSetRowDraft: setAttendanceRowDraft,
+              onOpenNotesDialog: (row) =>
+                onAttendanceNotesDialogChange({
+                  enrollmentId: row.enrollment.id,
+                  fullName: row.enrollment.person.fullName,
+                  status: getAttendanceEffective(row).status ?? "",
+                  notes: getAttendanceEffective(row).notes ?? "",
+                }),
+            }),
+          getRowId: (row) => row.enrollment.id,
+          searchable: true,
+          searchPlaceholder: ACTION_RELATION_TEXT.participants.searchPlaceholder,
+          filters: [
+            {
+              key: "group",
+              label: ACTION_RELATION_TEXT.participants.groupFilterLabel,
+              type: "select",
+              value: ({ attendanceGroupId }) => attendanceGroupId,
+              onChange: ({ onAttendanceGroupChange }, value) => onAttendanceGroupChange(value),
+              options: ({ attendanceGroupOptions }) => attendanceGroupOptions,
+            },
+            {
+              key: "status",
+              label: ACTION_RELATION_TEXT.participants.statusFilterLabel,
+              type: "select",
+              value: ({ attendanceStatusFilter }) => attendanceStatusFilter,
+              onChange: ({ onAttendanceStatusFilterChange }, value) =>
+                onAttendanceStatusFilterChange(value as AttendanceStatusFilter),
+              options: () => [
+                {
+                  label: ACTION_RELATION_TEXT.participants.allStatuses,
+                  value: "all",
+                },
+                {
+                  label: ACTION_RELATION_TEXT.participants.notRecorded,
+                  value: "not_recorded",
+                },
+                ...ATTENDANCE_STATUS_OPTIONS,
+              ],
+            },
+          ],
+          stats: [
+            {
+              key: "total",
+              label: ACTION_RELATION_TEXT.participants.stats.total,
+              value: ({ reportRows }) => reportRows.length,
+            },
+            {
+              key: "filtered",
+              label: ACTION_RELATION_TEXT.participants.stats.filtered,
+              value: (_context, rows) => rows.length,
+            },
+            {
+              key: "groups",
+              label: ACTION_RELATION_TEXT.participants.stats.groups,
+              value: (_context, rows) => countDistinctAttendanceGroups(rows),
+            },
+            {
+              key: "changed",
+              label: ACTION_RELATION_TEXT.participants.stats.changed,
+              value: ({ attendanceDrafts }) => Object.keys(attendanceDrafts).length,
+            },
+          ],
+          selection: {
+            mode: "toggle",
+            enabled: ({ canUpdate }) => canUpdate,
+            toggleLabel: (_context, active) =>
+              active
+                ? ACTION_RELATION_TEXT.participants.selectionOff
+                : ACTION_RELATION_TEXT.participants.selectionOn,
+            bulkActions: [
+              {
+                key: "present",
+                label: ACTION_RELATION_TEXT.participants.bulk.present,
+                onClick: ({ applyAttendanceStatusToRows }, rows) =>
+                  applyAttendanceStatusToRows(rows, "PRESENT"),
+              },
+              {
+                key: "absent",
+                label: ACTION_RELATION_TEXT.participants.bulk.absent,
+                variant: "outline",
+                onClick: ({ applyAttendanceStatusToRows }, rows) =>
+                  applyAttendanceStatusToRows(rows, "ABSENT"),
+              },
+              {
+                key: "excused",
+                label: ACTION_RELATION_TEXT.participants.bulk.excused,
+                variant: "secondary",
+                onClick: ({ applyAttendanceStatusToRows }, rows) =>
+                  applyAttendanceStatusToRows(rows, "EXCUSED"),
+              },
+            ],
+          },
+          primaryAction: {
+            label: ACTION_RELATION_TEXT.participants.save,
+            onClick: ({ saveAttendanceDrafts }) => saveAttendanceDrafts(),
+            hidden: ({ canUpdate }) => !canUpdate,
+            disabled: ({ attendanceDrafts, attendanceSaving }) =>
+              attendanceSaving || Object.keys(attendanceDrafts).length === 0,
+          },
+          emptyLabel: "Sem participantes.",
+        },
+      ],
       emptyLabel: "Sem participantes.",
+    },
+    {
+      key: "quality",
+      label: ACTION_RELATION_TEXT.quality.tabLabel,
+      visible: ({ mode }) => mode === "edit",
+      content: ({ qualityNotesDialog, canUpdate, onQualityNotesDialogChange, applyQualityNotesDialog }) => (
+        <QualityNotesDialog
+          state={qualityNotesDialog}
+          canUpdate={canUpdate}
+          onOpenChange={(open) => {
+            if (!open) onQualityNotesDialogChange(null);
+          }}
+          onStateChange={onQualityNotesDialogChange}
+          onConfirm={applyQualityNotesDialog}
+        />
+      ),
+      relations: [
+        {
+          key: "participants-quality",
+          label: ACTION_RELATION_TEXT.quality.relationLabel,
+          variant: "operational",
+          loading: ({ reportLoading }) => reportLoading,
+          error: ({ reportError }) => reportError,
+          rows: ({ qualityRows }) => qualityRows,
+          columns: ({
+            canUpdate,
+            canReadPeople,
+            tenantSlug,
+            getQualityEffective,
+            setQualityRowDraft,
+            onQualityNotesDialogChange,
+          }) =>
+            buildQualityColumns({
+              canUpdate,
+              canReadPeople,
+              tenantSlug,
+              getEffective: getQualityEffective,
+              onSetRowDraft: setQualityRowDraft,
+              onOpenNotesDialog: (row) =>
+                onQualityNotesDialogChange({
+                  enrollmentId: row.enrollment.id,
+                  fullName: row.enrollment.person.fullName,
+                  qualityNotes: getQualityEffective(row).qualityNotes ?? "",
+                }),
+            }),
+          getRowId: (row) => row.enrollment.id,
+          searchable: true,
+          searchPlaceholder: ACTION_RELATION_TEXT.quality.searchPlaceholder,
+          filters: [
+            {
+              key: "group",
+              label: ACTION_RELATION_TEXT.quality.groupFilterLabel,
+              type: "select",
+              value: ({ qualityGroupId }) => qualityGroupId,
+              onChange: ({ onQualityGroupChange }, value) => onQualityGroupChange(value),
+              options: ({ attendanceGroupOptions }) => attendanceGroupOptions,
+            },
+          ],
+          stats: [
+            {
+              key: "tracked",
+              label: ACTION_RELATION_TEXT.quality.stats.tracked,
+              value: ({ reportRows }) => reportRows.filter((row) => row.attendance !== null).length,
+            },
+            {
+              key: "filtered",
+              label: ACTION_RELATION_TEXT.quality.stats.filtered,
+              value: (_context, rows) => rows.length,
+            },
+            {
+              key: "highlights",
+              label: ACTION_RELATION_TEXT.quality.stats.highlights,
+              value: (_context, rows) => countAttendanceHighlights(rows),
+            },
+            {
+              key: "changed",
+              label: ACTION_RELATION_TEXT.quality.stats.changed,
+              value: ({ qualityDrafts }) => Object.keys(qualityDrafts).length,
+            },
+          ],
+          primaryAction: {
+            label: ACTION_RELATION_TEXT.quality.save,
+            onClick: ({ saveQualityDrafts }) => saveQualityDrafts(),
+            hidden: ({ canUpdate }) => !canUpdate,
+            disabled: ({ qualityDrafts, qualitySaving }) =>
+              qualitySaving || Object.keys(qualityDrafts).length === 0,
+          },
+          emptyLabel: "Nenhuma pessoa com presença registrada.",
+        },
+      ],
+      emptyLabel: "Sem qualidade.",
     },
     {
       key: "team",
       label: "Equipe",
       visible: ({ mode }) => mode === "edit",
-      content: () => (
-        <div className="text-sm text-muted-foreground">
-          Pessoas de apoio e equipe envolvidas na execução da ação.
-        </div>
-      ),
+      content: () => null,
       relations: [
         {
           key: "team-people",
@@ -739,7 +875,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           onSave={onSaveActionPatch}
         />
       ),
-      emptyLabel: "Sem execucao.",
+      emptyLabel: "Sem execução.",
     },
     {
       key: "conclusion",
@@ -753,7 +889,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           onSave={onSaveActionPatch}
         />
       ),
-      emptyLabel: "Sem conclusao.",
+      emptyLabel: "Sem conclusão.",
     },
     {
       key: "photos",
@@ -775,7 +911,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: "Relatório",
       visible: ({ mode }) => mode === "edit",
       content: ({ action, reportRows, reportPeopleRows, reportLoading, reportError, canReadPeople }) => (
-        <SectionCard title="Relatório" subtitle="Prévia do relatório completo da ação.">
+        <SectionCard title="Relatório">
           {reportError ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {reportError}
@@ -793,7 +929,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           ) : null}
         </SectionCard>
       ),
-      emptyLabel: "Sem relatorio.",
+      emptyLabel: "Sem relatório.",
     },
   ],
   side: ({
@@ -837,8 +973,8 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "Salve a ação para habilitar comentários."
-            : "Nenhum comentário registrado para esta ação.",
+            ? "Salve para habilitar comentários."
+            : "Nenhum comentário.",
       }}
       notes={{
         value: draft.internalNotes,
@@ -851,7 +987,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         onChange: (nextTags) => setDraft((previous) => ({ ...previous, tags: nextTags })),
         onCommit: (next) => onCommitField("tags", next),
         readOnly,
-        emptyLabel: mode === "create" ? "Adicione tags após criar a ação." : "Nenhuma tag registrada.",
+        emptyLabel: mode === "create" ? "Salve para habilitar tags." : "Nenhuma tag.",
       }}
       attachments={{
         items: (action?.attachments ?? []).map((attachment) => ({
@@ -877,17 +1013,17 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "Salve a ação para habilitar anexos."
+            ? "Salve para habilitar anexos."
             : attachmentUploading
               ? "Enviando anexo..."
-              : "Nenhum anexo registrado para esta ação.",
+              : "Nenhum anexo.",
       }}
       history={{
         items: buildActionHistoryItems(detailAudit?.logs ?? []),
         emptyLabel:
           mode === "create"
-            ? "O histórico aparece após salvar a ação."
-            : "Nenhum histórico disponível para esta ação.",
+            ? "Salve para habilitar histórico."
+            : "Nenhum histórico.",
       }}
       contextItems={[
         { key: "status", label: "Status", value: formatStatus(action?.status) },
@@ -897,12 +1033,11 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           label: "Escopo",
           value:
             action?.projectGroup?.name ??
-            action?.peopleGroup?.segment?.name ??
             action?.peopleGroup?.name ??
             action?.targetEnrollment?.person?.fullName ??
             "Projeto",
         },
-        { key: "period", label: "Periodo", value: formatPeriod(action?.plannedStartAt, action?.plannedEndAt) },
+        { key: "period", label: "Período", value: formatPeriod(action?.plannedStartAt, action?.plannedEndAt) },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
       defaultTab="activity"
@@ -925,7 +1060,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         key: "actionComment",
         entity: "ProjectActionComment",
         model: "audit.logs",
-        label: "Comentario",
+        label: "Comentário",
         fieldLabels: ACTION_COMMENT_AUDIT_FIELD_LABELS,
         resolveEntityIds: ({ action }) => (action?.comments ?? []).map((comment) => comment.id),
       },

@@ -27,21 +27,4 @@ export class ProjectStructureCatalogController {
       all: all === 'true',
     });
   }
-
-  @Get('project-cycles')
-  @Permissions('project-structure.read')
-  async listAllCycles(
-    @CurrentUser() user: JwtUser,
-    @Query('q') q?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('all') all?: string,
-  ) {
-    return this.service.listAllCycles(user.tenantId, {
-      q,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-      all: all === 'true',
-    });
-  }
 }

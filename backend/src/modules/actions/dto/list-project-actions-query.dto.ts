@@ -31,7 +31,7 @@ export class ListProjectActionsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  cycleId?: string;
+  peopleGroupId?: string;
 
   @IsOptional()
   @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))

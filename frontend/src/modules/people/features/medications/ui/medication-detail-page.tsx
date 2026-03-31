@@ -44,16 +44,16 @@ const MEDICATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
     key: "medication",
     entity: "PersonMedication",
     model: "audit.logs",
-    label: "Medicacao",
+    label: "Medicação",
     fieldLabels: {
       reason: "Motivo",
-      medication: "Medicacao",
+      medication: "Medicação",
       dosage: "Dosagem",
-      schedule: "Horario",
-      startDate: "Inicio",
+      schedule: "Horário",
+      startDate: "Início",
       endDate: "Fim",
-      prescribingDoctor: "Medico prescritor",
-      permissionDocumentUrl: "Autorizacao",
+      prescribingDoctor: "Médico prescritor",
+      permissionDocumentUrl: "Autorização",
       documentUrl: "Documento",
       notes: "Notas",
     },
@@ -62,8 +62,8 @@ const MEDICATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
         typeof value === "string" && value.trim() ? "Documento anexado" : "Sem documento",
       permissionDocumentUrl: (value) =>
         typeof value === "string" && value.trim()
-          ? "Autorizacao anexada"
-          : "Sem autorizacao",
+          ? "Autorização anexada"
+          : "Sem autorização",
     },
     resolveEntityId: ({ relationId }) => relationId,
   },
@@ -121,6 +121,7 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "medicacoes"), tenantSlug);
   const [draft, setDraft] = React.useState<MedicationFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(medicationId || null);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(medicationId || null);
 
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
@@ -164,6 +165,7 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleMedicationPath(personId, created.id), tenantSlug));
         return initialValues(created);
       }
@@ -176,6 +178,7 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
     if (mode !== "edit" || !current) return;
     const nextDraft = initialValues(current);
     relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
     setDraft(nextDraft);
     replaceSavedDraft(nextDraft);
   }, [current, mode, replaceSavedDraft]);
@@ -213,11 +216,10 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
       personId={personId}
       recordType="medication"
       tab="medicacoes"
-      title={mode === "create" ? "Nova medicacao" : current?.medication ?? "Medicacao"}
-      subtitle="Gerencie os detalhes completos da medicacao em uma tela dedicada."
+      title={mode === "create" ? "Nova medicação" : current?.medication ?? "Medicação"}
       mode={mode}
       saving={saving}
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={MEDICATION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
@@ -225,10 +227,10 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Carregando medicacao...</div>
+        <div className="text-sm text-muted-foreground">Carregando medicação...</div>
       ) : null}
       {mode === "edit" && !isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Medicacao nao encontrada.</div>
+        <div className="text-sm text-muted-foreground">Medicação não encontrada.</div>
       ) : null}
       {mode === "create" || current ? (
         <MedicationForm

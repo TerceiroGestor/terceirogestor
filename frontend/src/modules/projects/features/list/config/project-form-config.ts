@@ -16,15 +16,13 @@ export function buildProjectFormFields(programOptions: SelectOption[]): FormFiel
     { name: "programId", label: "Programa", type: "select", options: programOptions, required: true },
     { name: "name", label: "Nome", type: "text", required: true },
     { name: "status", label: "Status", type: "select", options: PROJECT_STATUS_OPTIONS, required: true },
-    { name: "startsAt", label: "Início (vigência)", type: "date" },
-    { name: "endsAt", label: "Término (vigência)", type: "date" },
+    { name: "startsAt", label: "Início", type: "date" },
+    { name: "endsAt", label: "Término", type: "date" },
     {
       name: "description",
       label: "Descrição",
       type: "textarea",
-      helperText: "Detalhes operacionais, metas e público-alvo (opcional).",
       rows: 4,
     },
   ];
 }
-

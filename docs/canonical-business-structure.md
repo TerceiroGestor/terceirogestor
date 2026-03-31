@@ -28,12 +28,6 @@ Nome visível:
 
 - `Grupo de Participantes`
 
-## Cycle
-
-`Cycle` não faz mais parte da modelagem ativa.
-
-Qualquer resíduo de `cycle` deve ser tratado como legado e removido do fluxo canônico.
-
 ## Action
 
 A ação pertence a um projeto e pode ter alvo explícito:

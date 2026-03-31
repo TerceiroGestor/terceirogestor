@@ -10,23 +10,25 @@ export function DetailNotesPanel({
   onChange,
   onBlur,
   readOnly,
-  placeholder = "Anotacoes internas...",
-  intro = "Visivel apenas para a equipe interna.",
-  footer = "Essas notas ficam salvas no registro.",
+  placeholder = "Notas internas",
+  intro = null,
+  footer = null,
 }: {
   value: string | null | undefined;
   onChange: (next: string | null) => void;
   onBlur: () => void;
   readOnly?: boolean;
   placeholder?: string;
-  intro?: string;
-  footer?: string;
+  intro?: string | null;
+  footer?: string | null;
 }) {
   return (
     <div className="space-y-3">
-      <div className="border-b border-border/50 pb-3 text-[11px] text-muted-foreground">
-        {intro}
-      </div>
+      {intro ? (
+        <div className="border-b border-border/50 pb-3 text-[11px] text-muted-foreground">
+          {intro}
+        </div>
+      ) : null}
       <Textarea
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value || null)}
@@ -35,7 +37,7 @@ export function DetailNotesPanel({
         className={textareaClassName}
         readOnly={readOnly}
       />
-      <div className="text-[11px] text-muted-foreground">{footer}</div>
+      {footer ? <div className="text-[11px] text-muted-foreground">{footer}</div> : null}
     </div>
   );
 }

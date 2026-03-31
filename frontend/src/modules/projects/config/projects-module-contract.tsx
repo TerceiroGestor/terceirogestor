@@ -167,9 +167,9 @@ export const projectsListModuleDefinition = defineRecordModule<ProjectsListQuery
       status: { label: "Status" },
       tags: { label: "Tags" },
       createdAt: { label: "Cadastro", type: "date" },
-      description: { label: "Descricao" },
+      description: { label: "Descrição" },
       internalNotes: { label: "Notas internas" },
-      startsAt: { label: "Inicio", type: "date" },
+      startsAt: { label: "Início", type: "date" },
       endsAt: { label: "Fim", type: "date" },
       "program.name": { label: "Programa" },
       "program.type": { label: "Tipo do programa" },
@@ -219,7 +219,7 @@ export const projectsListModuleDefinition = defineRecordModule<ProjectsListQuery
     },
     {
       id: "calendar",
-      title: "Calendario",
+      title: "Calendário",
       viewType: "calendar",
       icon: <CalendarDays className="size-4" />,
       params: {
@@ -248,7 +248,7 @@ export const projectsListModuleDefinition = defineRecordModule<ProjectsListQuery
     },
     {
       id: "graph",
-      title: "Grafico",
+      title: "Gráfico",
       viewType: "graph",
       icon: <BarChart3 className="size-4" />,
       params: {
@@ -329,10 +329,10 @@ export const projectsDetailModuleDefinition =
         programId: { label: "Programa" },
         name: { label: "Projeto" },
         status: { label: "Status" },
-        description: { label: "Descricao" },
+        description: { label: "Descrição" },
         tags: { label: "Tags" },
         internalNotes: { label: "Notas internas" },
-        startsAt: { label: "Inicio", type: "date" },
+        startsAt: { label: "Início", type: "date" },
         endsAt: { label: "Fim", type: "date" },
       },
     },

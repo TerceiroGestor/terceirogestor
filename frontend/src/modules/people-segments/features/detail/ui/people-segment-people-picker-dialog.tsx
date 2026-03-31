@@ -98,7 +98,7 @@ export function PeopleSegmentPeoplePickerDialog({
   open,
   onOpenChange,
   title = "Adicionar participante",
-  description = "Selecione people e adicione ao grupo de pessoas.",
+  description,
   actionLabel = "Adicionar",
   onPick,
   onBulkPick,
@@ -140,7 +140,7 @@ export function PeopleSegmentPeoplePickerDialog({
                     : previous.filter((person) => !rows.some((row) => row.id === person.id)),
                 );
               }}
-              aria-label="Selecionar people da pagina"
+              aria-label="Selecionar pessoas da página"
             />
           );
         },

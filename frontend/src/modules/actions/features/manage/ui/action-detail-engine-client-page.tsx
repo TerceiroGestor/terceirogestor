@@ -17,7 +17,9 @@ import {
   getProjectAction,
   listProjectActionAttendances,
   listProjectActionPeopleParticipations,
+  upsertProjectActionAttendances,
   updateProjectAction,
+  type AttendanceStatus,
   type ApiProjectAction,
   type ProjectActionAttendancesListItem,
 } from "@/modules/actions/api";
@@ -29,6 +31,17 @@ import {
   type ActionMetadataDraft,
   type ActionsDetailLayoutContext,
 } from "@/modules/actions/config/actions-detail-layout-contract";
+import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
+import {
+  buildAttendanceGroupOptions,
+  filterAttendanceRows,
+  filterQualityRows,
+  type AttendanceDraft,
+  type AttendanceNotesDialogState,
+  type AttendanceStatusFilter,
+  type QualityDraft,
+  type QualityNotesDialogState,
+} from "@/modules/actions/features/manage/ui/action-operational-relations";
 import { ActionPeopleParticipationPickerDialog } from "@/modules/actions/features/manage/ui/action-people-participation-picker-dialog";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
@@ -96,7 +109,7 @@ export function ActionDetailEngineClientPage() {
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
-  const tenantSlug = getTenantSlugFromPath(pathname);
+  const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const id = params?.id ? String(params.id) : "";
   const projectId = searchParams.get("projectId") ?? "";
   const returnTo = searchParams.get("returnTo");
@@ -125,6 +138,24 @@ export function ActionDetailEngineClientPage() {
   >([]);
   const [reportLoading, setReportLoading] = React.useState(false);
   const [reportError, setReportError] = React.useState<string | null>(null);
+  const [attendanceGroupId, setAttendanceGroupId] = React.useState<string>(
+    ACTION_RELATION_VALUES.allGroups,
+  );
+  const [attendanceStatusFilter, setAttendanceStatusFilter] =
+    React.useState<AttendanceStatusFilter>("all");
+  const [attendanceDrafts, setAttendanceDrafts] = React.useState<Record<string, AttendanceDraft>>(
+    {},
+  );
+  const [attendanceSaving, setAttendanceSaving] = React.useState(false);
+  const [attendanceNotesDialog, setAttendanceNotesDialog] =
+    React.useState<AttendanceNotesDialogState | null>(null);
+  const [qualityGroupId, setQualityGroupId] = React.useState<string>(
+    ACTION_RELATION_VALUES.allGroups,
+  );
+  const [qualityDrafts, setQualityDrafts] = React.useState<Record<string, QualityDraft>>({});
+  const [qualitySaving, setQualitySaving] = React.useState(false);
+  const [qualityNotesDialog, setQualityNotesDialog] =
+    React.useState<QualityNotesDialogState | null>(null);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const persistDraft = React.useCallback(
@@ -160,6 +191,8 @@ export function ActionDetailEngineClientPage() {
     if (!token || !projectId || !id || !canRead) return;
     setReportLoading(true);
     setReportError(null);
+    setAttendanceSaving(true);
+    setQualitySaving(true);
     try {
       const [rows, people] = await Promise.all([
         fetchAllAttendances({ token, projectId, actionId: id }),
@@ -193,6 +226,15 @@ export function ActionDetailEngineClientPage() {
   React.useEffect(() => {
     setAuditVisibleCount(24);
     setCommentDraft(EMPTY_COMMENT_DRAFT);
+    setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
+    setAttendanceStatusFilter("all");
+    setAttendanceDrafts({});
+    setAttendanceSaving(false);
+    setAttendanceNotesDialog(null);
+    setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
+    setQualityDrafts({});
+    setQualitySaving(false);
+    setQualityNotesDialog(null);
   }, [id]);
 
   React.useEffect(() => {
@@ -399,6 +441,294 @@ export function ActionDetailEngineClientPage() {
     [id, projectId, refreshReport, toast, token],
   );
 
+  const attendanceGroupOptions = React.useMemo(
+    () => buildAttendanceGroupOptions(reportRows),
+    [reportRows],
+  );
+
+  React.useEffect(() => {
+    if (!attendanceGroupOptions.some((option) => option.value === attendanceGroupId)) {
+      setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
+    }
+    if (!attendanceGroupOptions.some((option) => option.value === qualityGroupId)) {
+      setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
+    }
+  }, [attendanceGroupId, attendanceGroupOptions, qualityGroupId]);
+
+  const participantRows = React.useMemo(
+    () =>
+      filterAttendanceRows(reportRows, {
+        groupId: attendanceGroupId,
+        status: attendanceStatusFilter,
+      }),
+    [attendanceGroupId, attendanceStatusFilter, reportRows],
+  );
+
+  const qualityRows = React.useMemo(
+    () =>
+      filterQualityRows(reportRows, {
+        groupId: qualityGroupId,
+      }),
+    [qualityGroupId, reportRows],
+  );
+
+  const getAttendanceEffective = React.useCallback(
+    (row: ProjectActionAttendancesListItem) => {
+      const draftEntry = attendanceDrafts[row.enrollment.id];
+      return {
+        status: (draftEntry?.status ?? row.attendance?.status ?? null) as AttendanceStatus | null,
+        notes:
+          draftEntry?.notes !== undefined
+            ? draftEntry.notes
+            : (row.attendance?.notes ?? null),
+      };
+    },
+    [attendanceDrafts],
+  );
+
+  const setAttendanceRowDraft = React.useCallback(
+    (
+      row: ProjectActionAttendancesListItem,
+      patch: AttendanceDraft,
+      prune = false,
+    ) => {
+      setAttendanceDrafts((previous) => {
+        const next = { ...previous };
+        const merged = { ...(previous[row.enrollment.id] ?? {}), ...patch };
+
+        if (prune) {
+          const originalStatus = row.attendance?.status ?? undefined;
+          const originalNotes = row.attendance?.notes ?? null;
+          const statusMatches =
+            merged.status === undefined || merged.status === originalStatus;
+          const notesMatches =
+            merged.notes === undefined || merged.notes === originalNotes;
+
+          if (statusMatches && notesMatches) {
+            delete next[row.enrollment.id];
+            return next;
+          }
+        }
+
+        next[row.enrollment.id] = merged;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const applyAttendanceStatusToRows = React.useCallback(
+    (rows: ProjectActionAttendancesListItem[], status: AttendanceStatus) => {
+      rows.forEach((row) => {
+        setAttendanceRowDraft(row, { status }, true);
+      });
+    },
+    [setAttendanceRowDraft],
+  );
+
+  const saveAttendanceDrafts = React.useCallback(async () => {
+    if (!token || !projectId) return;
+
+    const items = Object.entries(attendanceDrafts).map(([enrollmentId, entry]) => {
+      const row = reportRows.find((item) => item.enrollment.id === enrollmentId);
+      return {
+        enrollmentId,
+        status: entry.status ?? row?.attendance?.status ?? null,
+        notes: entry.notes,
+      };
+    });
+
+    if (!items.length) return;
+
+    const missingStatus = items.find((item) => !item.status);
+    if (missingStatus) {
+      toast({
+        title: ACTION_RELATION_TEXT.participants.savePendingTitle,
+        description: ACTION_RELATION_TEXT.participants.savePendingDescription,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const result = await upsertProjectActionAttendances(
+        token,
+        projectId,
+        id,
+        items.map((item) => ({
+          enrollmentId: item.enrollmentId,
+          status: item.status as AttendanceStatus,
+          ...(item.notes !== undefined ? { notes: item.notes } : {}),
+        })),
+      );
+      setAttendanceDrafts({});
+      setAttendanceNotesDialog(null);
+      toast({
+        title: ACTION_RELATION_TEXT.participants.saveOkTitle,
+        description: ACTION_RELATION_TEXT.participants.saveOkDescription(
+          result.created,
+          result.updated,
+        ),
+      });
+      await refreshReport();
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao salvar presenças.";
+      toast({ variant: "destructive", title: "Falha ao salvar", description: message });
+    } finally {
+      setAttendanceSaving(false);
+    }
+  }, [attendanceDrafts, id, projectId, refreshReport, reportRows, toast, token]);
+
+  const applyAttendanceNotesDialog = React.useCallback(
+    (state: AttendanceNotesDialogState) => {
+      const row = reportRows.find((item) => item.enrollment.id === state.enrollmentId);
+      if (!row) {
+        setAttendanceNotesDialog(null);
+        return;
+      }
+
+      setAttendanceRowDraft(
+        row,
+        {
+          ...(state.status ? { status: state.status as AttendanceStatus } : {}),
+          notes: state.notes.trim() ? state.notes.trim() : null,
+        },
+        true,
+      );
+      setAttendanceNotesDialog(null);
+    },
+    [reportRows, setAttendanceRowDraft],
+  );
+
+  const getQualityEffective = React.useCallback(
+    (row: ProjectActionAttendancesListItem) => {
+      const draftEntry = qualityDrafts[row.enrollment.id];
+      return {
+        qualityScore:
+          draftEntry?.qualityScore === undefined
+            ? (row.attendance?.qualityScore ?? null)
+            : draftEntry.qualityScore,
+        qualityNotes:
+          draftEntry?.qualityNotes === undefined
+            ? (row.attendance?.qualityNotes ?? null)
+            : draftEntry.qualityNotes,
+        isHighlight:
+          draftEntry?.isHighlight === undefined
+            ? Boolean(row.attendance?.isHighlight)
+            : Boolean(draftEntry.isHighlight),
+      };
+    },
+    [qualityDrafts],
+  );
+
+  const setQualityRowDraft = React.useCallback(
+    (
+      row: ProjectActionAttendancesListItem,
+      patch: QualityDraft,
+      prune = false,
+    ) => {
+      setQualityDrafts((previous) => {
+        const next = { ...previous };
+        const merged = { ...(previous[row.enrollment.id] ?? {}), ...patch };
+
+        if (prune) {
+          const originalScore = row.attendance?.qualityScore ?? null;
+          const originalNotes = row.attendance?.qualityNotes ?? null;
+          const originalHighlight = Boolean(row.attendance?.isHighlight);
+          const scoreMatches =
+            merged.qualityScore === undefined || merged.qualityScore === originalScore;
+          const notesMatches =
+            merged.qualityNotes === undefined || merged.qualityNotes === originalNotes;
+          const highlightMatches =
+            merged.isHighlight === undefined || merged.isHighlight === originalHighlight;
+
+          if (scoreMatches && notesMatches && highlightMatches) {
+            delete next[row.enrollment.id];
+            return next;
+          }
+        }
+
+        next[row.enrollment.id] = merged;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const saveQualityDrafts = React.useCallback(async () => {
+    if (!token || !projectId) return;
+    const enrollmentIds = Object.keys(qualityDrafts);
+    if (!enrollmentIds.length) return;
+
+    const items = enrollmentIds
+      .map((enrollmentId) => {
+        const row = reportRows.find((item) => item.enrollment.id === enrollmentId);
+        if (!row?.attendance) return null;
+        const patch = qualityDrafts[enrollmentId] ?? {};
+        return {
+          enrollmentId,
+          status: row.attendance.status,
+          ...(patch.qualityScore !== undefined ? { qualityScore: patch.qualityScore } : {}),
+          ...(patch.qualityNotes !== undefined ? { qualityNotes: patch.qualityNotes } : {}),
+          ...(patch.isHighlight !== undefined ? { isHighlight: patch.isHighlight } : {}),
+        };
+      })
+      .filter(Boolean) as Array<{
+      enrollmentId: string;
+      status: AttendanceStatus;
+      qualityScore?: number | null;
+      qualityNotes?: string | null;
+      isHighlight?: boolean;
+    }>;
+
+    if (!items.length) {
+      toast({
+        title: ACTION_RELATION_TEXT.quality.saveNothingTitle,
+        description: ACTION_RELATION_TEXT.quality.saveNothingDescription,
+      });
+      return;
+    }
+
+    try {
+      await upsertProjectActionAttendances(token, projectId, id, items);
+      setQualityDrafts({});
+      setQualityNotesDialog(null);
+      toast({ title: ACTION_RELATION_TEXT.quality.saveOkTitle });
+      await refreshReport();
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao salvar qualidade.";
+      toast({ variant: "destructive", title: "Falha ao salvar", description: message });
+    } finally {
+      setQualitySaving(false);
+    }
+  }, [id, projectId, qualityDrafts, refreshReport, reportRows, toast, token]);
+
+  const applyQualityNotesDialog = React.useCallback(
+    (state: QualityNotesDialogState) => {
+      const row = reportRows.find((item) => item.enrollment.id === state.enrollmentId);
+      if (!row) {
+        setQualityNotesDialog(null);
+        return;
+      }
+
+      setQualityRowDraft(
+        row,
+        {
+          qualityNotes: state.qualityNotes.trim() ? state.qualityNotes.trim() : null,
+        },
+        true,
+      );
+      setQualityNotesDialog(null);
+    },
+    [reportRows, setQualityRowDraft],
+  );
+
   if (!authLoading && !userLoading && !token) {
     return <div className="px-4 py-6 text-sm text-muted-foreground">Redirecionando...</div>;
   }
@@ -419,6 +749,7 @@ export function ActionDetailEngineClientPage() {
     canReadStructure,
     canReadPeople,
     canReadPeopleIdentity,
+    tenantSlug,
     token: token ?? "",
     projectId,
     action,
@@ -433,6 +764,18 @@ export function ActionDetailEngineClientPage() {
     reportPeopleRows,
     reportLoading,
     reportError,
+    attendanceGroupId,
+    attendanceStatusFilter,
+    attendanceGroupOptions,
+    attendanceDrafts,
+    attendanceSaving,
+    attendanceNotesDialog,
+    qualityGroupId,
+    qualityDrafts,
+    qualitySaving,
+    qualityNotesDialog,
+    participantRows,
+    qualityRows,
     onCommitField: (field: keyof ActionMetadataDraft, nextValue?: ActionMetadataDraft[keyof ActionMetadataDraft]) =>
       void commitField(field, nextValue),
     onCommentDraftChange: setCommentDraft,
@@ -453,6 +796,20 @@ export function ActionDetailEngineClientPage() {
     onDeletePhoto: handleDeletePhoto,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
     onEndTeamParticipation: handleEndTeamParticipation,
+    onAttendanceGroupChange: setAttendanceGroupId,
+    onAttendanceStatusFilterChange: setAttendanceStatusFilter,
+    getAttendanceEffective,
+    setAttendanceRowDraft,
+    applyAttendanceStatusToRows,
+    saveAttendanceDrafts: () => void saveAttendanceDrafts(),
+    onAttendanceNotesDialogChange: setAttendanceNotesDialog,
+    applyAttendanceNotesDialog,
+    onQualityGroupChange: setQualityGroupId,
+    getQualityEffective,
+    setQualityRowDraft,
+    saveQualityDrafts: () => void saveQualityDrafts(),
+    onQualityNotesDialogChange: setQualityNotesDialog,
+    applyQualityNotesDialog,
     auditVisibleCount,
     onAuditVisibleCountChange: setAuditVisibleCount,
   } satisfies ActionsDetailLayoutContext & { token: string };
@@ -477,7 +834,15 @@ export function ActionDetailEngineClientPage() {
           { label: "Ações", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
           { label: action?.title || id || "Ação" },
         ]}
-        saving={saving || commentSubmitting || attachmentUploading || photoUploading || reportLoading}
+        saving={
+          saving ||
+          commentSubmitting ||
+          attachmentUploading ||
+          photoUploading ||
+          reportLoading ||
+          attendanceSaving ||
+          qualitySaving
+        }
         loading={loading || authLoading || userLoading}
         readOnly={!canEdit}
         onClose={() => router.push(closeHref)}

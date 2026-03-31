@@ -209,7 +209,7 @@ export function ProjectActionManageDialog({
                     <span>
                       Grupo de Pessoas:{" "}
                       <strong>
-                        {action.peopleGroup?.segment?.name ?? action.peopleGroup?.name ?? "—"}
+                        {action.peopleGroup?.name ?? "—"}
                       </strong>
                     </span>
                     <span>

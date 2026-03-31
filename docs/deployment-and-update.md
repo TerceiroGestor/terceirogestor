@@ -29,11 +29,33 @@ docker compose build --pull backend frontend
 docker compose up -d backend frontend backup
 ```
 
+Fluxo guiado no Windows / PowerShell:
+
+```powershell
+Copy-Item .env.compose.example .env
+.\script\up.ps1
+```
+
+Sem seed:
+
+```powershell
+.\script\up.ps1 -SkipSeed
+```
+
+Com proxy local Nginx no mesmo projeto Docker:
+
+```powershell
+.\script\up.ps1 -WithNginx
+```
+
+Se quiser guardar volumes fora do repo no Windows, prefira um caminho como `C:/docker-data/system_development` em `DATA_DIR`.
+
 ## Atualização oficial
 
 Script oficial:
 
 - [script/update.sh](/c:/server/system_development/script/update.sh)
+- [script/update.ps1](/c:/server/system_development/script/update.ps1)
 
 Fluxo:
 
@@ -52,10 +74,22 @@ Fluxo:
 bash script/update.sh
 ```
 
+PowerShell:
+
+```powershell
+.\script\update.ps1
+```
+
 Sem seed:
 
 ```bash
 bash script/update.sh --skip-seed
+```
+
+PowerShell sem seed:
+
+```powershell
+.\script\update.ps1 -SkipSeed
 ```
 
 ## Verificação mínima

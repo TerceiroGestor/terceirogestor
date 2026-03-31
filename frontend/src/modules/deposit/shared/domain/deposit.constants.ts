@@ -1,3 +1,5 @@
+import type { UsageDocumentationSection } from "@/components/UsageDocumentation/usage-documentation.helpers";
+
 export const DEPOSIT_ITEM_UNIT = [
   { label: "Unidade (un)", value: "un" },
   { label: "Kit", value: "kit" },
@@ -13,13 +15,13 @@ export const DEPOSIT_ITEM_GROUP = [
   { label: "Material Escolar", value: "Material Escolar" },
   { label: "Brinquedos", value: "Brinquedos" },
   { label: "Roupas", value: "Roupas" },
-  { label: "Calcados", value: "Calcados" },
+  { label: "Calçados", value: "Calçados" },
   { label: "Material de Oficina", value: "Material de Oficina" },
   { label: "Material Esportivo", value: "Material Esportivo" },
   { label: "Livros", value: "Livros" },
-  { label: "Material de Escritorio", value: "Material de Escritorio" },
-  { label: "Eletronicos", value: "Eletronicos" },
-  { label: "Mobilia", value: "Mobilia" },
+  { label: "Material de Escritório", value: "Material de Escritório" },
+  { label: "Eletrônicos", value: "Eletrônicos" },
+  { label: "Mobília", value: "Mobília" },
   { label: "Outros", value: "Outros" },
 ] as const;
 
@@ -41,9 +43,9 @@ export const DEPOSIT_EXIT_TYPE_LABELS: Record<
   (typeof DEPOSIT_EXIT_TYPE_OPTIONS)[number],
   string
 > = {
-  LOAN: "Emprestimo",
-  FINAL_REMOVAL: "Doacao",
-  TRANSFER: "Transferencia",
+  LOAN: "Empréstimo",
+  FINAL_REMOVAL: "Doação",
+  TRANSFER: "Transferência",
   ADJUSTMENT: "Ajuste",
   LOSS: "Perda",
 };
@@ -58,7 +60,7 @@ export const DEPOSIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   group: "Grupo de objetos",
   defaultSector: "Setor",
   unit: "Unidade",
-  minStock: "Estoque minimo",
+  minStock: "Estoque mínimo",
   notes: "Notas internas",
 };
 
@@ -77,15 +79,15 @@ export const DEPOSIT_ENTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   entryDate: "Data da entrada",
   expiryDate: "Data limite",
   notes: "Notas",
-  reversalOfExitId: "Retorno de saida",
+  reversalOfExitId: "Retorno de saída",
 };
 
 export const DEPOSIT_EXIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   sector: "Setor",
   quantity: "Quantidade",
   unit: "Unidade",
-  exitDate: "Data da saida",
-  type: "Tipo de saida",
+  exitDate: "Data da saída",
+  type: "Tipo de saída",
   destinationName: "Destino",
   destinationType: "Tipo de destino",
   expectedReturnAt: "Retorno previsto",
@@ -140,4 +142,90 @@ export const DEPOSIT_SEARCH_VIEW_IDS = {
   history: "deposit.history.search",
   entries: "deposit.entries.search",
   exits: "deposit.exits.search",
+} as const;
+
+export const DEPOSIT_USAGE_TEXT = {
+  items: {
+    title: "Depósito / Objetos",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite nome, grupo, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
+          "Use as abas Entradas, Saídas e Histórico para acompanhar o fluxo operacional do objeto.",
+        ],
+      },
+      {
+        title: "Movimentações",
+        items: [
+          "Use Nova entrada para registrar recebimentos do objeto.",
+          "Use Nova saída para registrar empréstimos, transferências, doações ou ajustes.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume saldo, grupo, setor padrão e status do objeto.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  donors: {
+    title: "Depósito / Fontes",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite nome, tipo, contato e foto da fonte diretamente no detalhe.",
+          "Use a aba Doações para abrir as entradas vinculadas à fonte.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam no painel lateral.",
+          "O contexto resume tipo e contato da fonte.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  entries: {
+    title: "Depósito / Entradas",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite setor, quantidade, unidade, fonte e notas diretamente no detalhe.",
+          "Use a aba Saídas vinculadas para abrir as saídas consumidas a partir desta entrada.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume objeto, setor e status da entrada.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  exits: {
+    title: "Depósito / Saídas",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite entrada de origem, setor, quantidade, data, tipo, destino e retorno diretamente no detalhe.",
+          "Use a aba Entradas vinculadas para ver os lotes consumidos por esta saída.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume objeto, setor e tipo da saída.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
 } as const;

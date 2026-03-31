@@ -30,17 +30,17 @@ import {
 import type { PersonRelationsTree } from "@/modules/people/shared/domain/types";
 
 const depthOptions = [
-  { value: "1", label: "1 nivel" },
-  { value: "2", label: "2 niveis" },
-  { value: "3", label: "3 niveis" },
-  { value: "4", label: "4 niveis" },
+  { value: "1", label: "1 nível" },
+  { value: "2", label: "2 níveis" },
+  { value: "3", label: "3 níveis" },
+  { value: "4", label: "4 níveis" },
 ];
 
 const relationLegend = [
-  "Pai/Mae",
+  "Pai/Mãe",
   "Filho(a)",
-  "Irmao(a)",
-  "Conjuge",
+  "Irmão(a)",
+  "Cônjuge",
 ];
 
 const mapApiTree = (
@@ -90,7 +90,7 @@ export function PeopleTreeClientPage() {
         const message =
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: string }).message)
-            : "Falha ao carregar arvore genealogica.";
+            : "Falha ao carregar árvore genealógica.";
         setError(message);
       })
       .finally(() => setIsLoading(false));
@@ -127,11 +127,11 @@ export function PeopleTreeClientPage() {
   return (
     <>
       <PageBreadcrumb
-        title="Arvore genealogica"
+        title="Árvore genealógica"
         items={[
           { label: "Pessoas", href: "/people" },
           { label: rootLabel, href: detailPath },
-          { label: "Arvore genealogica" },
+          { label: "Árvore genealógica" },
         ]}
         actionSlot={
           <Button variant="outline" size="sm" asChild>
@@ -142,8 +142,7 @@ export function PeopleTreeClientPage() {
 
       <div className="space-y-6 px-4 py-6">
         <SectionCard
-          title="Mapa de relacoes"
-          subtitle="Veja parentescos diretos e indiretos."
+          title="Mapa de relações"
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -179,7 +178,7 @@ export function PeopleTreeClientPage() {
               {nodes.length} pessoas encontradas
             </Badge>
             <Badge variant="outline">
-              Niveis: {tree?.depth ?? depthValue}
+              Níveis: {tree?.depth ?? depthValue}
             </Badge>
             {tree?.truncated ? (
               <Badge variant="destructive">
@@ -196,7 +195,7 @@ export function PeopleTreeClientPage() {
 
           {isLoading ? (
             <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-              Carregando arvore...
+              Carregando árvore...
             </div>
           ) : null}
 
@@ -216,4 +215,6 @@ export function PeopleTreeClientPage() {
     </>
   );
 }
+
+
 

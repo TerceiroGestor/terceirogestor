@@ -19,7 +19,6 @@ import {
 import {
   DEPOSIT_AUDIT_FIELD_LABELS,
   DEPOSIT_ACTION_IDS,
-  DEPOSIT_DONOR_AUDIT_FIELD_LABELS,
   DEPOSIT_DONOR_TYPE_LABELS,
   DEPOSIT_ENTRY_AUDIT_FIELD_LABELS,
   DEPOSIT_EXIT_AUDIT_FIELD_LABELS,
@@ -317,14 +316,14 @@ const DEPOSIT_ENTRY_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   createExit: {
     key: "createExit",
-    label: "Nova sa?da",
+    label: "Nova saída",
     permissionKey: "canCreate",
     scope: "relation",
     requiresReturnTo: true,
   },
   openExit: {
     key: "openExit",
-    label: "Abrir sa?da",
+    label: "Abrir saída",
     permissionKey: "canRead",
     scope: "relation",
     requiresReturnTo: true,
@@ -334,7 +333,7 @@ const DEPOSIT_ENTRY_DETAIL_ACTIONS: RecordModuleActionMap = {
 const DEPOSIT_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar sa?da",
+    label: "Visualizar saída",
     permissionKey: "canRead",
     scope: "detail",
   },
@@ -346,13 +345,13 @@ const DEPOSIT_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   edit: {
     key: "edit",
-    label: "Editar sa?da",
+    label: "Editar saída",
     permissionKey: "canEdit",
     scope: "detail",
   },
   delete: {
     key: "delete",
-    label: "Excluir sa?da",
+    label: "Excluir saída",
     permissionKey: "canDelete",
     scope: "detail",
   },
@@ -386,7 +385,7 @@ const DEPOSIT_STOCK_DOMAIN_ADAPTER: RecordDomainAdapter = {
     sectorStock: { label: "Saldo (setor)", type: "number" },
     itemStock: { label: "Saldo (total)", type: "number" },
     unit: { label: "Unidade" },
-    minStock: { label: "M?nimo", type: "number" },
+    minStock: { label: "Mínimo", type: "number" },
     isBelowMin: { label: "Abaixo do mínimo", type: "boolean" },
     nextExpiryDate: { label: "Data limite", type: "date" },
     daysToExpire: { label: "Dias", type: "number" },
@@ -400,7 +399,7 @@ const DEPOSIT_STOCK_DOMAIN_ADAPTER: RecordDomainAdapter = {
 };
 
 const DEPOSIT_HISTORY_DOMAIN_ADAPTER: RecordDomainAdapter = {
-  entity: { singular: "Movimento", plural: "Hist?rico" },
+  entity: { singular: "Movimento", plural: "Histórico" },
   list: {
     searchPlaceholder: "Pesquisar movimentos, itens, fontes ou destinos",
     totalLabel: "Total",
@@ -515,10 +514,10 @@ const DEPOSIT_ENTRY_DOMAIN_ADAPTER: RecordDomainAdapter = {
 };
 
 const DEPOSIT_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
-  entity: { singular: "Sa?da", plural: "Sa?das" },
+  entity: { singular: "Saída", plural: "Saídas" },
   detail: {
-    createTitle: "Nova sa?da",
-    fallbackTitle: "Sa?da",
+    createTitle: "Nova saída",
+    fallbackTitle: "Saída",
   },
   fields: {
     ...Object.fromEntries(
@@ -527,12 +526,12 @@ const DEPOSIT_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
         { label },
       ]),
     ),
-    entryId: { label: "Entrada", type: "uuid", emptyValueLabel: "Autom?tico" },
+    entryId: { label: "Entrada", type: "uuid", emptyValueLabel: "Automático" },
     sector: { label: "Setor" },
     quantity: { label: "Quantidade", type: "number" },
     unit: { label: "Unidade" },
-    exitDate: { label: "Data da sa?da", type: "date" },
-    type: { label: "Tipo de sa?da" },
+    exitDate: { label: "Data da saída", type: "date" },
+    type: { label: "Tipo de saída" },
     destinationName: { label: "Destino", emptyValueLabel: "Sem destino" },
     notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
@@ -623,7 +622,7 @@ const STOCK_VIEWS: ViewConfig[] = [
   },
   {
     id: "calendar",
-    title: "Calendario",
+    title: "Calendário",
     viewType: "calendar",
     icon: <CalendarDays className="size-4" />,
     supports: ANALYTIC_SUPPORT,
@@ -638,7 +637,7 @@ const STOCK_VIEWS: ViewConfig[] = [
   },
   {
     id: "graph",
-    title: "Grafico",
+    title: "Gráfico",
     viewType: "graph",
     icon: <BarChart3 className="size-4" />,
     supports: ANALYTIC_SUPPORT,
@@ -652,14 +651,14 @@ const STOCK_VIEWS: ViewConfig[] = [
           { field: "validityStatus", label: "Status", kind: "dimension" },
           {
             field: "isBelowMin",
-            label: "Abaixo do m?nimo",
+            label: "Abaixo do mínimo",
             kind: "dimension",
-            formatValue: (value) => (value ? "Abaixo do m?nimo" : "OK"),
+            formatValue: (value) => (value ? "Abaixo do mínimo" : "OK"),
           },
           { field: "nextExpiryDate", label: "Prox. validade", kind: "date" },
           { field: "sectorStock", label: "Saldo (setor)", kind: "metric" },
           { field: "itemStock", label: "Saldo (total)", kind: "metric" },
-          { field: "minStock", label: "Estoque m?nimo", kind: "metric" },
+          { field: "minStock", label: "Estoque mínimo", kind: "metric" },
           { field: "daysToExpire", label: "Dias", kind: "metric" },
           {
             field: "itemId",
@@ -709,7 +708,7 @@ const STOCK_VIEWS: ViewConfig[] = [
           {
             id: "to",
             field: "nextExpiryDate",
-            label: "Ate",
+            label: "Até",
             type: "date",
             operator: "<=",
           },
@@ -773,7 +772,7 @@ const HISTORY_VIEWS: ViewConfig[] = [
   },
   {
     id: "calendar",
-    title: "Calendario",
+    title: "Calendário",
     viewType: "calendar",
     icon: <CalendarDays className="size-4" />,
     supports: ANALYTIC_SUPPORT,
@@ -788,7 +787,7 @@ const HISTORY_VIEWS: ViewConfig[] = [
   },
   {
     id: "graph",
-    title: "Grafico",
+    title: "Gráfico",
     viewType: "graph",
     icon: <BarChart3 className="size-4" />,
     supports: ANALYTIC_SUPPORT,
@@ -799,12 +798,12 @@ const HISTORY_VIEWS: ViewConfig[] = [
             field: "kind",
             label: "Movimento",
             kind: "dimension",
-            formatValue: (value) => (value === "ENTRY" ? "Entrada" : "Sa?da"),
+            formatValue: (value) => (value === "ENTRY" ? "Entrada" : "Saída"),
           },
           { field: "sector", label: "Setor", kind: "dimension", emptyValueLabel: "Geral" },
           {
             field: "type",
-            label: "Tipo de sa?da",
+            label: "Tipo de saída",
             kind: "dimension",
             formatValue: (value) =>
               typeof value === "string" && value in DEPOSIT_EXIT_TYPE_LABELS
@@ -828,7 +827,7 @@ const HISTORY_VIEWS: ViewConfig[] = [
           },
           { field: "destinationName", label: "Destino", kind: "dimension", emptyValueLabel: "Sem destino" },
           { field: "donorName", label: "Fonte", kind: "dimension", emptyValueLabel: "Sem fonte" },
-          { field: "actor", label: "Usuario", kind: "dimension", emptyValueLabel: "Sistema" },
+          { field: "actor", label: "Usuário", kind: "dimension", emptyValueLabel: "Sistema" },
           { field: "movementDate", label: "Data do movimento", kind: "date" },
           { field: "expiryDate", label: "Status", kind: "date" },
           { field: "quantity", label: "Quantidade", kind: "metric" },
@@ -878,13 +877,13 @@ const HISTORY_VIEWS: ViewConfig[] = [
           {
             id: "to",
             field: "movementDate",
-            label: "Ate",
+            label: "Até",
             type: "date",
             operator: "<=",
           },
         ],
         maxGroups: 12,
-        downloadFileName: "hist?rico",
+        downloadFileName: "histórico",
       },
     },
   },
@@ -1145,7 +1144,7 @@ export const depositItemDetailModuleDefinition = defineRecordModule<
     },
     {
       key: "exits",
-      label: "Sa?das",
+      label: "Saídas",
       viewType: "list",
       dataSource: "deposit.exits",
       count: (context) => context.exitRows.length,
@@ -1153,7 +1152,7 @@ export const depositItemDetailModuleDefinition = defineRecordModule<
     },
     {
       key: "history",
-      label: "Hist?rico",
+      label: "Histórico",
       viewType: "list",
       dataSource: "deposit.history",
       count: (context) => context.historyRows.length,
@@ -1224,7 +1223,7 @@ export const depositEntryDetailModuleDefinition = defineRecordModule<
   relatedSources: [
     {
       key: "allocatedExits",
-      label: "Sa?das vinculadas",
+      label: "Saídas vinculadas",
       viewType: "list",
       dataSource: "deposit.exits",
       count: (context) => context.allocatedExits.length,

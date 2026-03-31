@@ -11,6 +11,44 @@ if [[ "${1:-}" == "--skip-seed" ]]; then
   SKIP_SEED="1"
 fi
 
+prepare_backend_env_file() {
+  local source_file="backend/.env"
+  local target_file="backend/.env.docker"
+
+  if [[ ! -f "$source_file" ]]; then
+    return 0
+  fi
+
+  : > "$target_file"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "${line// }" || "$line" =~ ^[[:space:]]*# || "$line" != *=* ]]; then
+      printf '%s\n' "$line" >> "$target_file"
+      continue
+    fi
+
+    local key="${line%%=*}"
+    local value="${line#*=}"
+
+    if [[ ${#value} -ge 2 ]]; then
+      if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+        value="${value:1:${#value}-2}"
+      elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+    fi
+
+    if [[ "$value" == *"'"* ]]; then
+      printf '%s=%s\n' "$key" "$value" >> "$target_file"
+      continue
+    fi
+
+    printf "%s='%s'\n" "$key" "$value" >> "$target_file"
+  done < "$source_file"
+
+  export BACKEND_ENV_FILE="./backend/.env.docker"
+}
+
 wait_for_mysql() {
   local container="mysql-terceirogestor"
   local max_attempts=60
@@ -38,6 +76,8 @@ wait_for_mysql() {
   echo "MySQL did not become healthy in time."
   return 1
 }
+
+prepare_backend_env_file
 
 echo "[1/8] git pull"
 git pull --ff-only

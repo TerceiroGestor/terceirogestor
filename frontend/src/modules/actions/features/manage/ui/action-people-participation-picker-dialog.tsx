@@ -16,8 +16,8 @@ import { SectionDialog } from "@/components/section-dialog";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
-import { collectAndConditions, removeConditionAtIndex } from "@/web-client/domain/conditions";
-import type { Domain, DomainValue } from "@/web-client/domain/types";
+import { removeConditionAtIndex } from "@/web-client/domain/conditions";
+import type { Domain } from "@/web-client/domain/types";
 import { getTenantSlugFromPath } from "@/lib/tenant-path";
 import {
   listEligibleProjectActionPeople,
@@ -33,67 +33,6 @@ import { peopleSearchView } from "@/web-client/registry/searchViews/people";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
 import { TableView } from "@/web-client/views/TableView";
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
-
-function toFilterValue(value: DomainValue | undefined) {
-  if (value === undefined || value === null) return "";
-  if (Array.isArray(value)) return value.map((item) => String(item ?? "")).join(",");
-  return String(value);
-}
-
-function mapDomainOperatorToAdvancedFilter(
-  operator: string,
-): AdvancedFilter["operator"] | null {
-  switch (operator) {
-    case "=":
-      return "equals";
-    case "contains":
-    case "ilike":
-      return "contains";
-    case "in":
-      return "in";
-    case "not_in":
-      return "notIn";
-    case "is_null":
-      return "isEmpty";
-    case "not_null":
-      return "isNotEmpty";
-    case "between":
-      return "between";
-    case ">":
-      return "gt";
-    case ">=":
-      return "gte";
-    case "<":
-      return "lt";
-    case "<=":
-      return "lte";
-    case "starts_with":
-      return "starts";
-    case "ends_with":
-      return "ends";
-    default:
-      return null;
-  }
-}
-
-function serializePeopleDomain(domain: Domain | null | undefined) {
-  const conditions = collectAndConditions(domain ?? null) ?? [];
-
-  const filters = conditions
-    .map<AdvancedFilter | null>((condition) => {
-      const operator = mapDomainOperatorToAdvancedFilter(condition.operator);
-      if (!operator) return null;
-      const value =
-        operator === "between" && Array.isArray(condition.value)
-          ? condition.value.map((item) => String(item ?? "")).join("..")
-          : toFilterValue(condition.value);
-      return { columnId: condition.field, operator, value };
-    })
-    .filter(Boolean) as AdvancedFilter[];
-
-  return filters.length ? JSON.stringify(filters) : undefined;
-}
 
 type ActionPeopleParticipationPickerDialogProps = {
   open: boolean;
@@ -122,7 +61,6 @@ export function ActionPeopleParticipationPickerDialog({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
-  const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 10 });
   const [searchText, setSearchText] = React.useState("");
   const [domain, setDomain] = React.useState<Domain>(null);
@@ -188,7 +126,9 @@ export function ActionPeopleParticipationPickerDialog({
               <div className="font-medium text-foreground">{row.original.person.fullName}</div>
               <div className="text-xs text-muted-foreground">
                 {PROJECT_PARTICIPATION_ROLE_LABELS[row.original.role] ?? row.original.role}
-                {row.original.cycle?.name ? ` - ${row.original.cycle.name}` : ""}
+                {row.original.peopleGroups?.length
+                  ? ` - ${row.original.peopleGroups.map((group) => group.name).join(", ")}`
+                  : ""}
               </div>
             </div>
           </div>
@@ -252,7 +192,6 @@ export function ActionPeopleParticipationPickerDialog({
         limit: pagination.pageSize,
       });
       setRows(response.data);
-      setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
     } catch (nextError) {
       const message =
@@ -262,7 +201,6 @@ export function ActionPeopleParticipationPickerDialog({
       setError(message);
       setRows([]);
       setPageCount(0);
-      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -310,44 +248,11 @@ export function ActionPeopleParticipationPickerDialog({
       setSaving(false);
     }
   }, [onPick, role, selectedRows]);
-
-  const handleSelectFiltered = React.useCallback(async () => {
-    setSaving(true);
-    try {
-      const firstPage = await listEligibleProjectActionPeople(token, projectId, actionId, {
-        q: searchText.trim() || undefined,
-        filters: domain,
-        participationKind: "TEAM",
-        page: 1,
-        limit: 200,
-      });
-      let allRows = [...firstPage.data];
-      for (let page = 2; page <= firstPage.pagination.pages; page += 1) {
-        const response = await listEligibleProjectActionPeople(token, projectId, actionId, {
-          q: searchText.trim() || undefined,
-          filters: domain,
-          participationKind: "TEAM",
-          page,
-          limit: 200,
-        });
-        allRows = Array.from(
-          new Map([...allRows, ...response.data].map((item) => [item.id, item])).values(),
-        );
-      }
-      setSelectedRows((previous) =>
-        Array.from(new Map([...previous, ...allRows].map((item) => [item.id, item])).values()),
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [actionId, domain, projectId, searchText, token]);
-
   return (
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Adicionar pessoa"
-      description="Selecione pessoas elegíveis da equipe vinculada ao projeto para associar a esta ação."
       contentClassName="max-w-[1100px]"
       headerSlot={
         <div className="flex flex-wrap items-center gap-3">

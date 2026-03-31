@@ -76,6 +76,10 @@ function mergeUniquePeople(
   );
 }
 
+function resolveEligiblePeopleGroups(person: ApiEligibleProjectPerson) {
+  return person.eligiblePeopleGroups ?? person.eligibleSegments ?? [];
+}
+
 export function BulkEnrollmentDialog({
   open,
   onOpenChange,
@@ -126,7 +130,7 @@ export function BulkEnrollmentDialog({
       const response = await listEligibleProjectPeople(token, projectId, {
         q: searchText.trim() || undefined,
         filters: domain,
-        segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+        peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
       });
@@ -270,7 +274,7 @@ export function BulkEnrollmentDialog({
       const firstPage = await listEligibleProjectPeople(token, projectId, {
         q: searchText.trim() || undefined,
         filters: domain,
-        segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+        peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
         page: 1,
         limit: 200,
       });
@@ -280,7 +284,7 @@ export function BulkEnrollmentDialog({
         const response = await listEligibleProjectPeople(token, projectId, {
           q: searchText.trim() || undefined,
           filters: domain,
-          segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+          peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
           page,
           limit: 200,
         });
@@ -415,10 +419,15 @@ export function BulkEnrollmentDialog({
       {
         id: "eligibility",
         header: "Grupos de Pessoas",
-        accessorFn: (row) => row.eligibleSegments?.map((segment) => segment.name).join(", ") ?? "",
+        accessorFn: (row) =>
+          resolveEligiblePeopleGroups(row)
+            .map((peopleGroup) => peopleGroup.name)
+            .join(", "),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.eligibleSegments?.map((segment) => segment.name).join(", ") || "-"}
+            {resolveEligiblePeopleGroups(row.original)
+              .map((peopleGroup) => peopleGroup.name)
+              .join(", ") || "-"}
           </span>
         ),
       },
@@ -466,7 +475,7 @@ export function BulkEnrollmentDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Adicionar participante"
-      description="Selecione people elegiveis e adicione ao projeto com o papel desejado."
+      description="Selecione pessoas elegiveis e adicione ao projeto com o papel desejado."
       contentClassName="max-w-[1100px] overflow-hidden"
     >
       {formError ? (

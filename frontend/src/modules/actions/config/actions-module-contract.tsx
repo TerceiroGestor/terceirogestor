@@ -7,7 +7,16 @@ import {
   LayoutGrid,
   Table2,
 } from "lucide-react";
+import {
+  actionsDetailLayout,
+  type ActionsDetailLayoutContext,
+} from "@/modules/actions/config/actions-detail-layout-contract";
+import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import type { Domain } from "@/web-client/domain/types";
+import {
+  actionsDetailSearchView,
+  actionsSearchView,
+} from "@/web-client/registry/searchViews/actions";
 import {
   defineRecordModule,
   type CalendarMode,
@@ -24,15 +33,6 @@ import {
   createStandardListQueryState,
   createStandardListView,
 } from "@/web-client/starter";
-import {
-  actionsDetailSearchView,
-  actionsSearchView,
-} from "@/web-client/registry/searchViews/actions";
-import {
-  actionsDetailLayout,
-  type ActionsDetailLayoutContext,
-} from "@/modules/actions/config/actions-detail-layout-contract";
-import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 
 export type ActionsListViewId =
   | "table"
@@ -161,7 +161,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
       "actionType.name": { label: "Tipo" },
       "project.name": { label: "Projeto" },
       "projectGroup.name": { label: "Grupo de Participantes" },
-      "peopleGroup.segment.name": { label: "Grupo de Pessoas" },
+      "peopleGroup.name": { label: "Grupo de Pessoas" },
       "targetEnrollment.person.fullName": { label: "Participante" },
       plannedStartAt: { label: "Início planejado", type: "date" },
       plannedEndAt: { label: "Fim planejado", type: "date" },
@@ -205,7 +205,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
           "actionType.name",
           "project.name",
           "projectGroup.name",
-          "peopleGroup.segment.name",
+          "peopleGroup.name",
           "targetEnrollment.person.fullName",
           "tags",
         ],
@@ -265,7 +265,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
           "actionType.name",
           "project.name",
           "projectGroup.name",
-          "peopleGroup.segment.name",
+          "peopleGroup.name",
           "targetEnrollment.person.fullName",
           "tags",
           "createdAt",
@@ -287,7 +287,9 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
               field: "status",
               label: "Status",
               kind: "dimension",
-              formatValue: (value) => ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ?? String(value ?? "Sem valor"),
+              formatValue: (value) =>
+                ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ??
+                String(value ?? "Sem valor"),
             },
             {
               field: "actionType.name",
@@ -317,7 +319,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
                 }).projectGroup?.name ?? null,
             },
             {
-              field: "peopleGroup.segment.name",
+              field: "peopleGroup.name",
               label: "Grupo de Pessoas",
               kind: "dimension",
               getValue: (row) => {
@@ -325,11 +327,10 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
                   peopleGroup?:
                     | {
                         name?: string | null;
-                        segment?: { name?: string | null } | null;
                       }
                     | null;
                 };
-                return record.peopleGroup?.segment?.name ?? record.peopleGroup?.name ?? null;
+                return record.peopleGroup?.name ?? null;
               },
             },
             {
@@ -386,50 +387,52 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
   defaultView: "table",
 });
 
-export const actionsDetailModuleDefinition =
-  defineRecordModule<ActionsDetailQueryState, ActionsDetailLayoutContext>({
-    moduleId: "actions.detail",
-    basePath: ACTIONS_ROUTES.detail,
-    featureFlags: createStandardFeatureFlags({
-      list: false,
-      detail: true,
-      comments: true,
-      notes: true,
-      tags: true,
-      attachments: true,
-      audit: true,
-      history: true,
-      context: true,
-    }),
-    actionKey: "actions.detail.screen",
-    favoriteKey: "actions.detail.favorites",
-    permissions: ACTIONS_PERMISSIONS,
-    actions: ACTIONS_DETAIL_ACTIONS,
-    queryAdapters: {
-      listDataProvider: { model: "actions.list" },
-      auditDataProvider: { model: "audit.logs" },
+export const actionsDetailModuleDefinition = defineRecordModule<
+  ActionsDetailQueryState,
+  ActionsDetailLayoutContext
+>({
+  moduleId: "actions.detail",
+  basePath: ACTIONS_ROUTES.detail,
+  featureFlags: createStandardFeatureFlags({
+    list: false,
+    detail: true,
+    comments: true,
+    notes: true,
+    tags: true,
+    attachments: true,
+    audit: true,
+    history: true,
+    context: true,
+  }),
+  actionKey: "actions.detail.screen",
+  favoriteKey: "actions.detail.favorites",
+  permissions: ACTIONS_PERMISSIONS,
+  actions: ACTIONS_DETAIL_ACTIONS,
+  queryAdapters: {
+    listDataProvider: { model: "actions.list" },
+    auditDataProvider: { model: "audit.logs" },
+  },
+  domainAdapter: {
+    entity: { singular: "Ação", plural: "Ações" },
+    detail: {
+      fallbackTitle: "Ação",
     },
-    domainAdapter: {
-      entity: { singular: "Ação", plural: "Ações" },
-      detail: {
-        fallbackTitle: "Ação",
-      },
-      fields: {
-        title: { label: "Ação" },
-        tags: { label: "Tags" },
-        createdAt: { label: "Cadastro", type: "date" },
-        status: { label: "Status" },
-        internalNotes: { label: "Notas internas" },
-        plannedStartAt: { label: "Início planejado", type: "date" },
-        plannedEndAt: { label: "Fim planejado", type: "date" },
-      },
+    fields: {
+      title: { label: "Ação" },
+      tags: { label: "Tags" },
+      createdAt: { label: "Cadastro", type: "date" },
+      status: { label: "Status" },
+      internalNotes: { label: "Notas internas" },
+      plannedStartAt: { label: "Início planejado", type: "date" },
+      plannedEndAt: { label: "Fim planejado", type: "date" },
     },
-    searchConfig: actionsDetailSearchView,
-    views: [createStandardDetailView({ icon: <Table2 className="size-4" /> })],
-    defaultQueryState: createStandardDetailQueryState<ActionsDetailQueryState>(),
-    defaultView: "detail",
-    detailLayout: actionsDetailLayout,
-  });
+  },
+  searchConfig: actionsDetailSearchView,
+  views: [createStandardDetailView({ icon: <Table2 className="size-4" /> })],
+  defaultQueryState: createStandardDetailQueryState<ActionsDetailQueryState>(),
+  defaultView: "detail",
+  detailLayout: actionsDetailLayout,
+});
 
 export type ActionsModuleDefinition =
   | RecordModuleDefinition<ActionsListQueryState>

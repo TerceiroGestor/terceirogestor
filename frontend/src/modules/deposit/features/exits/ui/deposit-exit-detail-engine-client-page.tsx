@@ -7,6 +7,8 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +53,7 @@ import {
   DEPOSIT_DEFAULT_SECTOR,
   DEPOSIT_DEFAULT_UNIT,
   DEPOSIT_ROUTES,
+  DEPOSIT_USAGE_TEXT,
 } from "@/modules/deposit/shared/domain/deposit.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
@@ -168,6 +171,16 @@ export function DepositExitDetailEngineClientPage({
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [tags, setTags] = React.useState<string[]>([]);
   const [internalNotes, setInternalNotes] = React.useState<string | null>(null);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("deposit-exits-detail", DEPOSIT_USAGE_TEXT.exits.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: DEPOSIT_USAGE_TEXT.exits.title,
+    items: usageItems,
+  });
 
   const persistExitDraft = React.useCallback(
     async (nextDraft: DepositExitDraft) => {
@@ -408,8 +421,8 @@ export function DepositExitDetailEngineClientPage({
     if (!canCreate) {
       toast({
         variant: "destructive",
-        title: "Sem permissao",
-        description: "Voce nao tem permissao para registrar saidas.",
+        title: "Sem permissão",
+        description: "Você não tem permissão para registrar saídas.",
       });
       return;
     }
@@ -420,7 +433,7 @@ export function DepositExitDetailEngineClientPage({
     if (!sector || !unit || !Number.isFinite(quantity) || quantity <= 0) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe setor, unidade e quantidade.",
       });
       return;
@@ -446,13 +459,13 @@ export function DepositExitDetailEngineClientPage({
         tags,
         internalNotes,
       });
-      toast({ variant: "success", title: "Saida registrada" });
+      toast({ variant: "success", title: "Saída registrada" });
       close();
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao registrar saida.";
+          : "Falha ao registrar saída.";
 
       toast({
         variant: "destructive",
@@ -511,8 +524,8 @@ export function DepositExitDetailEngineClientPage({
     if (!exit || !canDeleteAction) return;
 
     const confirmed = await confirm({
-      title: "Excluir saida?",
-      description: "Esta acao nao pode ser desfeita.",
+      title: "Excluir saída?",
+      description: "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir",
       confirmVariant: "destructive",
     });
@@ -522,13 +535,13 @@ export function DepositExitDetailEngineClientPage({
     setBusy(true);
     try {
       await dataProvider.delete("deposit.exits", exit.id);
-      toast({ variant: "success", title: "Saida excluida" });
+      toast({ variant: "success", title: "Saída excluída" });
       close();
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao excluir saida.";
+          : "Falha ao excluir saída.";
 
       toast({
         variant: "destructive",
@@ -629,8 +642,8 @@ export function DepositExitDetailEngineClientPage({
       if (exit) {
         items.push({
           id: `${exit.id}:created`,
-          title: "Saida criada",
-          description: exit.item?.name ?? "Saida",
+          title: "Saída criada",
+          description: exit.item?.name ?? "Saída",
           meta: "Criada",
           createdAt: exit.createdAt,
         });
@@ -638,7 +651,7 @@ export function DepositExitDetailEngineClientPage({
       items.push(
         ...(exit?.comments ?? []).map((comment) => ({
           id: `comment:${comment.id}`,
-          title: "Comentario registrado",
+          title: "Comentário registrado",
           description: comment.body,
           meta: `Por ${comment.author.name}`,
           createdAt: comment.createdAt,
@@ -664,8 +677,8 @@ export function DepositExitDetailEngineClientPage({
         ? `Nova saida de ${item.name}`
         : "Nova saida"
       : exit
-        ? `Saida - ${formatDateOnlyPtBR(exit.exitDate)}`
-        : "Saida";
+        ? `SaÃ­da - ${formatDateOnlyPtBR(exit.exitDate)}`
+        : "SaÃ­da";
 
   const context = React.useMemo<DepositExitDetailLayoutContext>(
     () => ({
@@ -751,7 +764,7 @@ export function DepositExitDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissÃƒÆ’Ã‚Â£o.</div>;
   }
 
   if (mode === "create" && !itemIdFromQuery) {
@@ -777,13 +790,13 @@ export function DepositExitDetailEngineClientPage({
         onClose={close}
         breadcrumbTitle={headerTitle}
         breadcrumbItems={[
-          { label: "Depósito", href: DEPOSIT_ROUTES.stock },
+          { label: "DepÃƒÆ’Ã‚Â³sito", href: DEPOSIT_ROUTES.stock },
           ...(mode === "edit" && exit?.item?.name
             ? [{ label: exit.item.name, href: `${DEPOSIT_ROUTES.items}/${exit.itemId}` }]
             : mode === "create" && item?.name
               ? [{ label: item.name, href: `${DEPOSIT_ROUTES.items}/${item.id}` }]
               : []),
-          ...(mode === "edit" ? [{ label: "Saida" }] : []),
+          ...(mode === "edit" ? [{ label: "SaÃ­da" }] : []),
         ]}
         headerActionsSlot={
           mode === "edit" && canDeleteAction ? (

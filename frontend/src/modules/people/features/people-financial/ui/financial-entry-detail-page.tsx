@@ -69,13 +69,13 @@ const AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
       subcategory: "Subcategoria",
       status: "Status",
       amount: "Valor",
-      frequency: "Frequencia",
+      frequency: "Frequência",
       contractType: "Contrato",
-      householdId: "Familia",
+      householdId: "Família",
       fromHouseholdId: "Origem",
       toHouseholdId: "Destino",
-      includeInHouseholdBudget: "No calculo familiar",
-      startDate: "Inicio",
+      includeInHouseholdBudget: "No cálculo familiar",
+      startDate: "Início",
       endDate: "Fim",
       notes: "Notas",
     },
@@ -153,6 +153,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
 
   const [draft, setDraft] = React.useState<FinancialEntryFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(entryId || null);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(entryId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
     enabled: true,
@@ -190,6 +191,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleFinancialEntryPath(personId, created.id), tenantSlug));
         return initialFormValues(created);
       }
@@ -202,6 +204,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
     if (mode !== "edit" || !current) return;
     const nextDraft = initialFormValues(current);
     relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
     setDraft(nextDraft);
     replaceSavedDraft(nextDraft);
   }, [current, mode, replaceSavedDraft]);
@@ -225,10 +228,9 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
       recordType="financial-entry"
       tab="financeiro"
       title={mode === "create" ? "Novo registro financeiro" : current?.category ?? "Financeiro"}
-      subtitle="Gerencie um unico registro financeiro com tipificacao socioeconomica."
       mode={mode}
       saving={saving}
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
@@ -239,7 +241,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
         <div className="text-sm text-muted-foreground">Carregando registro financeiro...</div>
       ) : null}
       {mode === "edit" && !isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Registro financeiro nao encontrado.</div>
+        <div className="text-sm text-muted-foreground">Registro financeiro não encontrado.</div>
       ) : null}
       {mode === "create" || current ? (
         <FinancialEntryForm

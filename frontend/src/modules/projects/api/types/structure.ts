@@ -47,38 +47,6 @@ export type ApiProjectGroup = {
   _count?: { memberships: number; actions: number };
 };
 
-export type ApiProjectCycle = {
-  id: string;
-  tenantId: string;
-  projectId: string;
-  segmentId?: string | null;
-  catalogCycleId?: string | null;
-  name: string;
-  startsAt: string | null;
-  endsAt: string | null;
-  internalNotes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  project?: { id: string; name: string; programId?: string | null };
-  segment?: {
-    id: string;
-    name: string;
-    category?: string | null;
-    ageMin?: number | null;
-    ageMax?: number | null;
-    isActive?: boolean;
-  } | null;
-  catalogCycle?: {
-    id: string;
-    name: string;
-    audienceType?: string | null;
-    ageMin?: number | null;
-    ageMax?: number | null;
-    isActive?: boolean;
-  } | null;
-  _count?: { participations: number; actions: number };
-};
-
 export type ApiEnrollmentPerson = {
   id: string;
   fullName: string;
@@ -109,6 +77,11 @@ export type ApiEligibleProjectPerson = ApiEnrollmentPerson & {
   profileSummary?: string | null;
   createdAt: string;
   updatedAt: string;
+  eligiblePeopleGroups?: Array<{
+    id: string;
+    name: string;
+    category?: string | null;
+  }>;
   eligibleSegments?: Array<{
     id: string;
     name: string;
@@ -147,15 +120,6 @@ export type ProjectGroupInput = {
   internalNotes?: string | null;
 };
 
-export type ProjectCycleInput = {
-  name?: string;
-  segmentId?: string | null;
-  catalogCycleId?: string | null;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  internalNotes?: string | null;
-};
-
 export type ProjectEnrollmentInput = {
   personId: string;
   status?: EnrollmentStatus;
@@ -174,10 +138,6 @@ export type EnrollmentGroupInput = {
   groupId: string;
 };
 
-export type EnrollmentCycleInput = {
-  cycleId: string | null;
-};
-
 export type ProjectEnrollmentsListResponse = {
   data: ApiProjectEnrollment[];
   pagination: ProjectsPagination;
@@ -190,10 +150,5 @@ export type EligibleProjectPeopleListResponse = {
 
 export type ProjectGroupsListResponse = {
   data: ApiProjectGroup[];
-  pagination: ProjectsPagination;
-};
-
-export type ProjectCyclesListResponse = {
-  data: ApiProjectCycle[];
   pagination: ProjectsPagination;
 };

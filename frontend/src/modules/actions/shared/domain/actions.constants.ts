@@ -53,8 +53,8 @@ export const ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS: Record<
   PARTICIPANTE: "Participante",
   FACILITADOR: "Facilitador",
   APOIO: "Apoio",
-  VOLUNTARIO: "Voluntario",
-  RESPONSAVEL_TECNICO: "Responsavel tecnico",
+  VOLUNTARIO: "Voluntário",
+  RESPONSAVEL_TECNICO: "Responsável técnico",
   CONVIDADO: "Convidado",
 };
 

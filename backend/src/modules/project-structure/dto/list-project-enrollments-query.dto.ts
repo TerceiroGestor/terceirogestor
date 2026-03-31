@@ -20,7 +20,7 @@ export class ListProjectEnrollmentsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  cycleId?: string;
+  peopleGroupId?: string;
 
   @IsOptional()
   @IsUUID('4')
@@ -28,7 +28,7 @@ export class ListProjectEnrollmentsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  excludeCycleId?: string;
+  excludePeopleGroupId?: string;
 
   @IsOptional()
   @IsString()

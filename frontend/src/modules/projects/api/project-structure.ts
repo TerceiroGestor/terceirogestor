@@ -1,16 +1,12 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
-  ApiProjectCycle,
-  ProjectCyclesListResponse,
   ApiEligibleProjectPerson,
   ApiProjectEnrollment,
   ApiProjectGroup,
   ApiProjectPeopleGroup,
   EligibleProjectPeopleListResponse,
   ProjectGroupsListResponse,
-  EnrollmentCycleInput,
   EnrollmentGroupInput,
-  ProjectCycleInput,
   ProjectEnrollmentInput,
   ProjectEnrollmentsListResponse,
   ProjectGroupInput,
@@ -175,59 +171,6 @@ export async function deleteProjectGroup(
   );
 }
 
-export async function listProjectCycles(token: string, projectId: string) {
-  return apiRequest<ApiProjectCycle[]>(
-    `/projects/${projectId}/cycles`,
-    {},
-    token,
-  );
-}
-
-export async function listAllProjectCycles(
-  token: string,
-  params?: { q?: string; page?: number; limit?: number; all?: boolean },
-) {
-  const query = buildQuery(params);
-  return apiRequest<ProjectCyclesListResponse>(`/project-cycles${query}`, {}, token);
-}
-
-export async function createProjectCycle(
-  token: string,
-  projectId: string,
-  payload: ProjectCycleInput,
-) {
-  return apiRequest<ApiProjectCycle>(
-    `/projects/${projectId}/cycles`,
-    { method: "POST", body: JSON.stringify(payload) },
-    token,
-  );
-}
-
-export async function updateProjectCycle(
-  token: string,
-  projectId: string,
-  cycleId: string,
-  payload: Partial<ProjectCycleInput>,
-) {
-  return apiRequest<ApiProjectCycle>(
-    `/projects/${projectId}/cycles/${cycleId}`,
-    { method: "PATCH", body: JSON.stringify(payload) },
-    token,
-  );
-}
-
-export async function deleteProjectCycle(
-  token: string,
-  projectId: string,
-  cycleId: string,
-) {
-  return apiRequest<{ ok: true }>(
-    `/projects/${projectId}/cycles/${cycleId}`,
-    { method: "DELETE" },
-    token,
-  );
-}
-
 export async function listProjectEnrollments(
   token: string,
   projectId: string,
@@ -236,9 +179,9 @@ export async function listProjectEnrollments(
     status?: string;
     groupId?: string;
     groupHistoryId?: string;
-    cycleId?: string;
+    peopleGroupId?: string;
     excludeGroupId?: string;
-    excludeCycleId?: string;
+    excludePeopleGroupId?: string;
     filters?: Domain | null;
     page?: number;
     limit?: number;
@@ -261,7 +204,7 @@ export async function listEligibleProjectPeople(
   projectId: string,
   params?: {
     q?: string;
-    segmentId?: string;
+    peopleGroupId?: string;
     filters?: Domain | null;
     page?: number;
     limit?: number;
@@ -337,19 +280,6 @@ export async function removeEnrollmentFromGroup(
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/enrollments/${enrollmentId}/groups/${groupId}`,
     { method: "DELETE" },
-    token,
-  );
-}
-
-export async function setEnrollmentCycle(
-  token: string,
-  projectId: string,
-  enrollmentId: string,
-  payload: EnrollmentCycleInput,
-) {
-  return apiRequest<{ ok: true }>(
-    `/projects/${projectId}/enrollments/${enrollmentId}/cycle`,
-    { method: "POST", body: JSON.stringify(payload) },
     token,
   );
 }

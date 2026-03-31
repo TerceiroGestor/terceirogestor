@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+﻿import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '../src/generated/prisma';
 import { createPrismaAdapter } from '../src/core/prisma/prisma-adapter';
 
@@ -49,13 +49,6 @@ const ids = {
     voluntarios: '11111111-1111-4111-8111-111111111616',
     parceiros: '11111111-1111-4111-8111-111111111617',
     c1t: '11111111-1111-4111-8111-111111111618',
-  },
-  projectCycles: {
-    musicaC1m: '11111111-1111-4111-8111-111111111701',
-    musicaC2m: '11111111-1111-4111-8111-111111111702',
-    musicaC3m: '11111111-1111-4111-8111-111111111703',
-    musicaFamilias: '11111111-1111-4111-8111-111111111704',
-    familiasBase: '11111111-1111-4111-8111-111111111705',
   },
   groups: {
     musicaMeninos: '11111111-1111-4111-8111-111111111801',
@@ -574,13 +567,10 @@ async function main() {
     prisma.projectAction.deleteMany(),
     prisma.actionType.deleteMany(),
     prisma.projectEnrollmentGroupMembership.deleteMany(),
-    prisma.projectEnrollmentCycleParticipation.deleteMany(),
     prisma.projectEnrollment.deleteMany(),
     prisma.projectGroup.deleteMany(),
-    prisma.projectCycle.deleteMany(),
     prisma.peopleSegmentMembership.deleteMany(),
     prisma.peopleSegment.deleteMany(),
-    prisma.cycle.deleteMany(),
     prisma.project.deleteMany(),
     prisma.program.deleteMany(),
     prisma.taskOrganizerComment.deleteMany(),
@@ -984,50 +974,6 @@ async function main() {
     ],
   });
 
-  await prisma.projectCycle.createMany({
-    data: [
-      {
-        id: ids.projectCycles.musicaC1m,
-        tenantId: ids.tenant,
-        projectId: ids.projects.musicaManha,
-        segmentId: ids.segments.c1m,
-        name: 'C1M',
-        startsAt: new Date('2026-02-01T08:00:00Z'),
-      },
-      {
-        id: ids.projectCycles.musicaC2m,
-        tenantId: ids.tenant,
-        projectId: ids.projects.musicaManha,
-        segmentId: ids.segments.c2m,
-        name: 'C2M',
-        startsAt: new Date('2026-02-01T08:00:00Z'),
-      },
-      {
-        id: ids.projectCycles.musicaC3m,
-        tenantId: ids.tenant,
-        projectId: ids.projects.musicaManha,
-        segmentId: ids.segments.c3m,
-        name: 'C3M',
-        startsAt: new Date('2026-02-01T08:00:00Z'),
-      },
-      {
-        id: ids.projectCycles.musicaFamilias,
-        tenantId: ids.tenant,
-        projectId: ids.projects.musicaManha,
-        segmentId: ids.segments.familiares,
-        name: 'Familiares',
-        startsAt: new Date('2026-02-01T08:00:00Z'),
-      },
-      {
-        id: ids.projectCycles.familiasBase,
-        tenantId: ids.tenant,
-        projectId: ids.projects.apoioFamilias,
-        segmentId: ids.segments.familiares,
-        name: 'Familiares',
-        startsAt: new Date('2026-02-05T08:00:00Z'),
-      },
-    ],
-  });
 
   await prisma.projectGroup.createMany({
     data: [
@@ -1064,7 +1010,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[0].id,
       role: 'PUBLICO_ATENDIDO',
-      cycleId: ids.projectCycles.musicaC1m,
       groupIds: [ids.groups.coralPreparacao],
       startsAt: new Date('2026-02-03T08:00:00Z'),
     },
@@ -1073,7 +1018,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[1].id,
       role: 'PUBLICO_ATENDIDO',
-      cycleId: ids.projectCycles.musicaC1m,
       groupIds: [ids.groups.musicaMeninos],
       startsAt: new Date('2026-02-03T08:00:00Z'),
     },
@@ -1082,7 +1026,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[2].id,
       role: 'PUBLICO_ATENDIDO',
-      cycleId: ids.projectCycles.musicaC2m,
       groupIds: [ids.groups.coralPreparacao],
       startsAt: new Date('2026-02-03T08:00:00Z'),
     },
@@ -1091,7 +1034,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[3].id,
       role: 'PUBLICO_ATENDIDO',
-      cycleId: ids.projectCycles.musicaC3m,
       groupIds: [ids.groups.musicaMeninos],
       startsAt: new Date('2026-02-03T08:00:00Z'),
     },
@@ -1100,7 +1042,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[6].id,
       role: 'FAMILIAR',
-      cycleId: ids.projectCycles.musicaFamilias,
       groupIds: [],
       startsAt: new Date('2026-02-10T08:00:00Z'),
     },
@@ -1109,7 +1050,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[9].id,
       role: 'EQUIPE_TECNICA',
-      cycleId: null,
       groupIds: [],
       startsAt: new Date('2026-02-01T08:00:00Z'),
     },
@@ -1118,7 +1058,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[11].id,
       role: 'VOLUNTARIO',
-      cycleId: null,
       groupIds: [],
       startsAt: new Date('2026-02-01T08:00:00Z'),
     },
@@ -1127,7 +1066,6 @@ async function main() {
       projectId: ids.projects.musicaManha,
       personId: people[13].id,
       role: 'PARCEIRO',
-      cycleId: null,
       groupIds: [],
       startsAt: new Date('2026-02-01T08:00:00Z'),
     },
@@ -1136,7 +1074,6 @@ async function main() {
       projectId: ids.projects.apoioFamilias,
       personId: people[7].id,
       role: 'FAMILIAR',
-      cycleId: ids.projectCycles.familiasBase,
       groupIds: [ids.groups.familiasEscuta],
       startsAt: new Date('2026-02-12T08:00:00Z'),
     },
@@ -1145,7 +1082,6 @@ async function main() {
       projectId: ids.projects.apoioFamilias,
       personId: people[8].id,
       role: 'FAMILIAR',
-      cycleId: ids.projectCycles.familiasBase,
       groupIds: [ids.groups.familiasEscuta],
       startsAt: new Date('2026-02-12T08:00:00Z'),
     },
@@ -1154,7 +1090,6 @@ async function main() {
       projectId: ids.projects.apoioFamilias,
       personId: people[10].id,
       role: 'EQUIPE_TECNICA',
-      cycleId: null,
       groupIds: [],
       startsAt: new Date('2026-02-05T08:00:00Z'),
     },
@@ -1163,7 +1098,6 @@ async function main() {
       projectId: ids.projects.apoioFamilias,
       personId: people[12].id,
       role: 'VOLUNTARIO',
-      cycleId: null,
       groupIds: [],
       startsAt: new Date('2026-02-05T08:00:00Z'),
     },
@@ -1185,21 +1119,6 @@ async function main() {
     })),
   });
 
-  const cycleParticipations = enrollments
-    .filter((enrollment) => enrollment.cycleId)
-    .map((enrollment, index) => ({
-      id: `11111111-1111-4111-8111-111111115${String(index + 1).padStart(3, '0')}`,
-      tenantId: ids.tenant,
-      enrollmentId: enrollment.id,
-      cycleId: enrollment.cycleId!,
-      activeKey: enrollment.id,
-      isActive: true,
-      startsAt: enrollment.startsAt,
-    }));
-
-  await prisma.projectEnrollmentCycleParticipation.createMany({
-    data: cycleParticipations,
-  });
 
   const groupMemberships = enrollments.flatMap((enrollment, enrollmentIndex) =>
     enrollment.groupIds.map((groupId, groupIndex) => ({
@@ -1232,7 +1151,7 @@ async function main() {
         tenantId: ids.tenant,
         name: 'Encontro de Segmento',
         description: 'Acoes focadas em um segmento do projeto.',
-        target: 'CYCLE',
+        target: 'PEOPLE_GROUP',
         isActive: true,
       },
       {
@@ -1240,7 +1159,7 @@ async function main() {
         tenantId: ids.tenant,
         name: 'Atividade de Grupo',
         description: 'Atividades de grupos operacionais.',
-        target: 'GROUP',
+        target: 'PROJECT_GROUP',
         isActive: true,
       },
     ],
@@ -1286,7 +1205,6 @@ async function main() {
         tenantId: ids.tenant,
         projectId: ids.projects.musicaManha,
         createdByUserId: ids.users.gestor,
-        cycleId: ids.projectCycles.musicaC2m,
         actionTypeId: ids.actionTypes.encontro,
         title: 'Encontro do segmento C2M',
         description: 'Encontro especifico para o segmento C2M.',
@@ -1301,7 +1219,6 @@ async function main() {
         tenantId: ids.tenant,
         projectId: ids.projects.apoioFamilias,
         createdByUserId: ids.users.admin,
-        cycleId: ids.projectCycles.familiasBase,
         actionTypeId: ids.actionTypes.encontro,
         title: 'Roda de conversa com familias',
         description: 'Encontro de escuta e fortalecimento de vinculos.',
@@ -1393,12 +1310,6 @@ async function main() {
     ],
   });
 
-  const participationByEnrollmentId = new Map(
-    cycleParticipations.map((participation) => [
-      participation.enrollmentId,
-      participation.id,
-    ]),
-  );
 
   await prisma.projectActionAttendance.createMany({
     data: [
@@ -1434,9 +1345,6 @@ async function main() {
         tenantId: ids.tenant,
         actionId: ids.actions.rodaFamilias,
         enrollmentId: '11111111-1111-4111-8111-111111114009',
-        cycleParticipationId: participationByEnrollmentId.get(
-          '11111111-1111-4111-8111-111111114009',
-        ),
         status: 'PRESENT',
         qualityScore: 5,
         qualityNotes: 'Contribuiu com relatos relevantes.',
@@ -1447,9 +1355,6 @@ async function main() {
         tenantId: ids.tenant,
         actionId: ids.actions.rodaFamilias,
         enrollmentId: '11111111-1111-4111-8111-111111114010',
-        cycleParticipationId: participationByEnrollmentId.get(
-          '11111111-1111-4111-8111-111111114010',
-        ),
         status: 'EXCUSED',
         notes: 'Ausencia justificada por trabalho.',
       },
@@ -1458,9 +1363,6 @@ async function main() {
         tenantId: ids.tenant,
         actionId: ids.actions.encontroC2m,
         enrollmentId: '11111111-1111-4111-8111-111111114003',
-        cycleParticipationId: participationByEnrollmentId.get(
-          '11111111-1111-4111-8111-111111114003',
-        ),
         status: 'PRESENT',
         qualityScore: 5,
         qualityNotes: 'Participacao ativa no encontro do segmento.',
@@ -1561,16 +1463,6 @@ async function main() {
         createdAt: new Date('2026-02-01T08:15:00Z'),
       },
       {
-        id: '11111111-1111-4111-8111-111111118004',
-        tenantId: ids.tenant,
-        userId: ids.users.gestor,
-        entity: 'ProjectCycle',
-        entityId: ids.projectCycles.musicaC1m,
-        action: 'CREATE',
-        after: { project: 'Projeto Musica Manha', segment: 'C1M' },
-        createdAt: new Date('2026-02-01T08:20:00Z'),
-      },
-      {
         id: '11111111-1111-4111-8111-111111118005',
         tenantId: ids.tenant,
         userId: ids.users.gestor,
@@ -1621,3 +1513,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

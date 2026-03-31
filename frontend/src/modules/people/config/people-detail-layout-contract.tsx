@@ -15,11 +15,16 @@ import { Tabs } from "@/components/ui/tabs";
 import { resolveMediaUrl } from "@/lib/api";
 import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
 import {
+  GENDER_LABELS,
   GENDER_OPTIONS,
   MARITAL_STATUS_OPTIONS,
+  PERSON_TYPE_LABELS,
   PERSON_TYPE_OPTIONS,
+  RACE_COLOR_LABELS,
   RACE_COLOR_OPTIONS,
+  SEX_LABELS,
   SEX_OPTIONS,
+  STATUS_LABELS,
   STATUS_OPTIONS,
 } from "@/modules/people/shared/domain/people.constants";
 import type {
@@ -197,7 +202,7 @@ function IdentificationStep({
             <SelectItem value="__empty__">Sem tipo</SelectItem>
             {PERSON_TYPE_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {PERSON_TYPE_LABELS[option] ?? option}
               </SelectItem>
             ))}
           </SelectContent>
@@ -217,16 +222,16 @@ function IdentificationStep({
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__empty__">Nao informado</SelectItem>
+            <SelectItem value="__empty__">Não informado</SelectItem>
             {SEX_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {SEX_LABELS[option] ?? option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </SectionField>
-      <SectionField label="Genero">
+      <SectionField label="Gênero">
         <Select
           value={draft.gender ?? "__empty__"}
           onValueChange={(next) => {
@@ -240,16 +245,16 @@ function IdentificationStep({
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__empty__">Nao informado</SelectItem>
+            <SelectItem value="__empty__">Não informado</SelectItem>
             {GENDER_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {GENDER_LABELS[option] ?? option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </SectionField>
-      <SectionField label="Raca/Cor">
+      <SectionField label="Raça/Cor">
         <Select
           value={draft.raceColor ?? "__empty__"}
           onValueChange={(next) => {
@@ -263,10 +268,10 @@ function IdentificationStep({
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__empty__">Nao informado</SelectItem>
+            <SelectItem value="__empty__">Não informado</SelectItem>
             {RACE_COLOR_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {RACE_COLOR_LABELS[option] ?? option}
               </SelectItem>
             ))}
           </SelectContent>
@@ -286,7 +291,7 @@ function IdentificationStep({
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__empty__">Nao informado</SelectItem>
+            <SelectItem value="__empty__">Não informado</SelectItem>
             {MARITAL_STATUS_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -339,7 +344,7 @@ function OrganizationStep({
               <SelectItem value="__empty__">Sem status</SelectItem>
               {STATUS_OPTIONS.filter((option) => option !== "Em analise").map((option) => (
                 <SelectItem key={option} value={option}>
-                  {option}
+                  {STATUS_LABELS[option] ?? option}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -456,7 +461,6 @@ function PeopleDetailMain({
       personFormSteps.map((step, index) => ({
         key: index === 0 ? "identification" : index === 1 ? "organization" : "notes",
         title: step.title,
-        description: typeof step.description === "string" ? step.description : undefined,
       })),
     [],
   );
@@ -500,7 +504,6 @@ function PeopleDetailSide({
   onCommitField,
   canAudit,
   mentionableUsers,
-  relatedAuditEntityIds,
   detailAudit,
   auditVisibleCount,
   onAuditVisibleCountChange,
@@ -521,14 +524,6 @@ function PeopleDetailSide({
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   canAudit: boolean;
   mentionableUsers: PersonMentionableUser[];
-  relatedAuditEntityIds: {
-    financialEntryIds: string[];
-    healthConditionIds: string[];
-    medicationIds: string[];
-    educationIds: string[];
-    detentionIds: string[];
-    relationIds: string[];
-  };
   detailAudit?: DetailShellAuditContext["detailAudit"];
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
@@ -608,10 +603,6 @@ function PeopleDetailSide({
             <span className="text-foreground">{person.phone ?? "-"}</span>
           </div>
         </div>
-
-        <div className="border-t border-border/50 pt-3 text-xs text-muted-foreground">
-          Salve o cadastro para liberar contatos, documentos, mapa e demais dados relacionais.
-        </div>
       </div>
     );
 
@@ -641,8 +632,8 @@ function PeopleDetailSide({
         readOnly,
         emptyLabel:
           mode === "create"
-            ? "Salve o cadastro para habilitar comentarios."
-            : "Nenhum comentario registrado para esta pessoa.",
+            ? "Indisponível."
+            : "Nenhum comentário.",
       }}
       notes={{
         value: draft.notes,
@@ -657,6 +648,7 @@ function PeopleDetailSide({
           onDraftChange((previous) => ({ ...previous, tags: nextTags })),
         onCommit: (nextTags) => onCommitField?.("tags", nextTags),
         readOnly,
+        emptyLabel: mode === "create" ? "Indisponível." : "Nenhuma tag.",
       }}
       attachments={{
         items: (person.attachments ?? []).map((attachment) => ({
@@ -691,17 +683,17 @@ function PeopleDetailSide({
         readOnly,
         emptyLabel:
           mode === "create"
-            ? "Salve o cadastro para habilitar anexos."
+            ? "Indisponível."
             : attachmentUploading
-              ? "Enviando anexo..."
-              : "Nenhum anexo cadastrado para esta pessoa.",
+              ? "Enviando..."
+              : "Nenhum anexo.",
       }}
       history={{
         items: historyItems,
         emptyLabel:
           mode === "create"
-            ? "O historico aparece apos salvar o cadastro."
-            : "Nenhum historico disponivel para esta pessoa.",
+            ? "Sem histórico."
+            : "Nenhum histórico.",
       }}
       contextPanel={contextPanel}
       contextItems={[
@@ -711,7 +703,7 @@ function PeopleDetailSide({
         { key: "age", label: "Idade", value: ageLabel },
         { key: "email", label: "Email", value: person.email ?? "-" },
         { key: "phone", label: "Telefone", value: person.phone ?? "-" },
-        { key: "comments", label: "Comentarios", value: (person.comments ?? []).length },
+        { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
         { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
         { key: "tags", label: "Tags", value: (draft.tags ?? []).length },
       ]}
@@ -725,8 +717,8 @@ export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
   socialName: "Nome social",
   birthDate: "Nascimento",
   sex: "Sexo",
-  gender: "Genero",
-  raceColor: "Raca/Cor",
+  gender: "Gênero",
+  raceColor: "Raça/Cor",
   maritalStatus: "Estado civil",
   nationality: "Nacionalidade",
   email: "Email",
@@ -809,7 +801,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     onCommitField,
     canAudit,
     mentionableUsers,
-    relatedAuditEntityIds,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
@@ -831,7 +822,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       onCommitField={onCommitField}
       canAudit={canAudit}
       mentionableUsers={mentionableUsers}
-      relatedAuditEntityIds={relatedAuditEntityIds}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
@@ -884,14 +874,14 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         key: "healthCondition",
         entity: "PersonHealthCondition",
         model: "audit.logs",
-        label: "Saude",
+        label: "Saúde",
         resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.healthConditionIds,
       },
       {
         key: "medication",
         entity: "PersonMedication",
         model: "audit.logs",
-        label: "Medicacao",
+        label: "Medicação",
         resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.medicationIds,
       },
       {
@@ -905,7 +895,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         key: "detention",
         entity: "PersonDetention",
         model: "audit.logs",
-        label: "Reclusao",
+        label: "Reclusão",
         resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.detentionIds,
       },
       {

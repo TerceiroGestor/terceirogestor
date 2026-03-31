@@ -44,13 +44,8 @@ export function UsageDocumentationProvider({
         widthPx={config?.widthPx}
       >
         {config?.children ?? (
-          <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              Documentação desta página em construção.
-            </p>
-            <p className="text-muted-foreground">
-              Em breve, cada tela terá um passo a passo e exemplos.
-            </p>
+          <div className="text-sm text-muted-foreground">
+            Documentação desta página ainda não foi cadastrada.
           </div>
         )}
       </UsageDocumentation>

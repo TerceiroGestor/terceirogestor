@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -25,6 +27,7 @@ import {
   programsDetailModuleDefinition,
   PROGRAMS_ROUTES,
 } from "@/modules/programs/config/programs-module-contract";
+import { PROGRAM_USAGE_TEXT } from "@/modules/programs/shared/domain/programs.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import {
@@ -104,6 +107,16 @@ export function ProgramsDetailEngineClientPage() {
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("programs-detail", PROGRAM_USAGE_TEXT.detail.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: PROGRAM_USAGE_TEXT.detail.title,
+    items: usageItems,
+  });
 
   const persistDraft = React.useCallback(
     async (nextDraft: ProgramDetailDraft) => {
@@ -194,7 +207,7 @@ export function ProgramsDetailEngineClientPage() {
     if (!normalized.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe o nome do programa.",
       });
       return;
@@ -247,7 +260,7 @@ export function ProgramsDetailEngineClientPage() {
   const handleDeleteComment = React.useCallback(
     async (commentId: string) => {
       if (!token || !id) return;
-      if (!window.confirm("Excluir este comentario?")) return;
+      if (!window.confirm("Excluir este comentário?")) return;
       setCommentSubmitting(true);
       try {
         const updated = await deleteProgramComment(token, id, commentId);
@@ -259,7 +272,7 @@ export function ProgramsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao excluir comentario.";
+            : "Falha ao excluir comentário.";
         toast({ variant: "destructive", title: "Falha ao excluir", description: message });
       } finally {
         setCommentSubmitting(false);
@@ -404,7 +417,7 @@ export function ProgramsDetailEngineClientPage() {
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   const headerTitle =

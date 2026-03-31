@@ -7,6 +7,8 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -28,7 +30,7 @@ import {
   type PantryDonorDraft,
 } from "@/modules/pantry/config/pantry-detail-layout-contract";
 import { pantryDonorDetailModuleDefinition } from "@/modules/pantry/config/pantry-module-contract";
-import { PANTRY_ROUTES } from "@/modules/pantry/shared/domain/pantry.constants";
+import { PANTRY_ROUTES, PANTRY_USAGE_TEXT } from "@/modules/pantry/shared/domain/pantry.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { resumeDetailAutoSave, suspendDetailAutoSave } from "@/web-client/detail/detail-media-autosave-guard";
@@ -135,6 +137,16 @@ export function PantryDonorDetailEngineClientPage({
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entries, setEntries] = React.useState<ApiPantryEntry[]>([]);
   const [donors, setDonors] = React.useState<ApiPantryDonor[]>([]);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("pantry-donors-detail", PANTRY_USAGE_TEXT.donors.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: PANTRY_USAGE_TEXT.donors.title,
+    items: usageItems,
+  });
 
   const persistDonorDraft = React.useCallback(
     async (nextDraft: PantryDonorDraft) => {
@@ -287,8 +299,8 @@ export function PantryDonorDetailEngineClientPage({
     if (!canCreate) {
       toast({
         variant: "destructive",
-        title: "Sem permissao",
-        description: "Voce nao tem permissao para criar doadores.",
+        title: "Sem permissão",
+        description: "Você não tem permissão para criar doadores.",
       });
       return;
     }
@@ -297,7 +309,7 @@ export function PantryDonorDetailEngineClientPage({
     if (!normalized.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe o nome.",
       });
       return;
@@ -459,7 +471,7 @@ export function PantryDonorDetailEngineClientPage({
       items.push(
         ...(donor?.comments ?? []).map((comment) => ({
           id: `comment:${comment.id}`,
-          title: "Comentario registrado",
+          title: "Comentário registrado",
           description: comment.body,
           meta: `Por ${comment.author.name}`,
           createdAt: comment.createdAt,
@@ -594,7 +606,7 @@ export function PantryDonorDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   return (

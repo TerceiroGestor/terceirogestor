@@ -14,7 +14,7 @@ import { DEPOSIT_DEFAULT_SECTOR } from "@/modules/deposit/shared/domain/deposit.
 import { ListView } from "@/web-client/views/ListView";
 
 function resolveKindLabel(kind: ApiDepositHistoryMovement["kind"]) {
-  return kind === "ENTRY" ? "Entrada" : "Saida";
+  return kind === "ENTRY" ? "Entrada" : "Saída";
 }
 
 function dateCell(value: string | null | undefined) {
@@ -151,7 +151,7 @@ export function DepositItemMovementsTabs({
           const count = row.original.allocations?.length ?? 0;
           return (
             <div className="text-sm text-muted-foreground">
-              {count ? `${count} lote${count > 1 ? "s" : ""}` : "Automatico"}
+              {count ? `${count} lote${count > 1 ? "s" : ""}` : "Automático"}
             </div>
           );
         },
@@ -249,7 +249,7 @@ export function DepositItemMovementsTabs({
       },
       {
         id: "type",
-        header: "Tipo de saida",
+        header: "Tipo de saída",
         accessorKey: "type",
         cell: ({ row }) => (
           <div className="truncate text-sm">
@@ -271,7 +271,7 @@ export function DepositItemMovementsTabs({
       },
       {
         id: "actor",
-        header: "Usuario",
+        header: "Usuário",
         accessorKey: "actor",
         cell: ({ row }) => <div className="truncate text-sm">{row.original.actor}</div>,
       },
@@ -303,13 +303,13 @@ export function DepositItemMovementsTabs({
             value="exits"
             className="rounded-none border-b-2 border-transparent bg-transparent px-0 text-xs text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=inactive]:hover:bg-transparent"
           >
-            Saidas
+            Saídas
           </TabsTrigger>
           <TabsTrigger
             value="history"
             className="rounded-none border-b-2 border-transparent bg-transparent px-0 text-xs text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=inactive]:hover:bg-transparent"
           >
-            Historico
+            Histórico
           </TabsTrigger>
         </TabsList>
 

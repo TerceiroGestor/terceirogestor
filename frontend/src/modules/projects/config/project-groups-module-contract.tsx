@@ -43,8 +43,8 @@ export type ProjectGroupsDetailQueryState = {
 };
 
 export const PROJECT_GROUPS_ROUTES = {
-  list: "/group",
-  detail: "/group",
+  list: "/projects/groups",
+  detail: "/projects/groups",
 } as const;
 
 const PROJECT_GROUPS_PERMISSIONS = {
@@ -85,7 +85,7 @@ const PROJECT_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   edit: {
     key: "edit",
-    label: "Salvar alteracoes",
+    label: "Salvar alterações",
     permissionKey: "canEdit",
     scope: "detail",
   },
@@ -137,11 +137,11 @@ export const projectGroupsListModuleDefinition =
       },
       fields: {
         name: { label: "Grupo de Participantes" },
-        description: { label: "Descricao" },
+        description: { label: "Descrição" },
         "project.name": { label: "Projeto" },
         createdAt: { label: "Cadastro", type: "date" },
         "_count.memberships": { label: "Participantes", type: "number" },
-        "_count.actions": { label: "Acoes", type: "number" },
+        "_count.actions": { label: "Ações", type: "number" },
         internalNotes: { label: "Notas internas" },
         updatedAt: { label: "Atualizado em", type: "date" },
       },
@@ -180,7 +180,7 @@ export const projectGroupsListModuleDefinition =
       },
       {
         id: "graph",
-        title: "Grafico",
+        title: "Gráfico",
         viewType: "graph",
         icon: <BarChart3 className="size-4" />,
         params: {
@@ -196,7 +196,7 @@ export const projectGroupsListModuleDefinition =
               },
               {
                 field: "_count.actions",
-                label: "Acoes",
+                label: "Ações",
                 kind: "metric",
                 allowedOps: ["sum", "avg", "count", "max", "min"],
               },
@@ -261,7 +261,7 @@ export const projectGroupsDetailModuleDefinition =
       },
       fields: {
         name: { label: "Grupo de Participantes" },
-        description: { label: "Descricao" },
+        description: { label: "Descrição" },
         internalNotes: { label: "Notas internas" },
       },
     },

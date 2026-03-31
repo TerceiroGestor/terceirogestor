@@ -31,7 +31,7 @@ type ProjectEnrollmentPickerDialogProps = {
   description?: string;
   actionLabel?: string;
   excludeGroupId?: string;
-  excludeCycleId?: string;
+  excludePeopleGroupId?: string;
   onPick: (enrollment: ApiProjectEnrollment) => void | Promise<void>;
   onBulkPick?: (enrollments: ApiProjectEnrollment[]) => void | Promise<void>;
 };
@@ -54,7 +54,7 @@ export function ProjectEnrollmentPickerDialog({
   description = "Escolha participantes ja matriculados no projeto.",
   actionLabel = "Adicionar",
   excludeGroupId,
-  excludeCycleId,
+  excludePeopleGroupId,
   onPick,
   onBulkPick,
 }: ProjectEnrollmentPickerDialogProps) {
@@ -203,7 +203,7 @@ export function ProjectEnrollmentPickerDialog({
       const response = await listProjectEnrollments(token, projectId, {
         status: "ACTIVE",
         excludeGroupId,
-        excludeCycleId,
+        excludePeopleGroupId,
         q: searchText.trim() || undefined,
         filters: domain,
         page: pagination.pageIndex + 1,
@@ -226,7 +226,7 @@ export function ProjectEnrollmentPickerDialog({
     }
   }, [
     domain,
-    excludeCycleId,
+    excludePeopleGroupId,
     excludeGroupId,
     open,
     pagination.pageIndex,
@@ -240,7 +240,7 @@ export function ProjectEnrollmentPickerDialog({
     if (!open) return;
     setPagination((previous) => ({ ...previous, pageIndex: 0 }));
     setSelectedRows([]);
-  }, [open, searchText, domain, excludeGroupId, excludeCycleId]);
+  }, [open, searchText, domain, excludeGroupId, excludePeopleGroupId]);
 
   React.useEffect(() => {
     void load();
@@ -290,7 +290,7 @@ export function ProjectEnrollmentPickerDialog({
       const firstPage = await listProjectEnrollments(token, projectId, {
         status: "ACTIVE",
         excludeGroupId,
-        excludeCycleId,
+        excludePeopleGroupId,
         q: searchText.trim() || undefined,
         filters: domain,
         page: 1,
@@ -301,7 +301,7 @@ export function ProjectEnrollmentPickerDialog({
         const response = await listProjectEnrollments(token, projectId, {
           status: "ACTIVE",
           excludeGroupId,
-          excludeCycleId,
+          excludePeopleGroupId,
           q: searchText.trim() || undefined,
           filters: domain,
           page,
@@ -313,7 +313,7 @@ export function ProjectEnrollmentPickerDialog({
     } finally {
       setSaving(false);
     }
-  }, [token, projectId, excludeGroupId, excludeCycleId, searchText, domain]);
+  }, [token, projectId, excludeGroupId, excludePeopleGroupId, searchText, domain]);
 
   return (
     <SectionDialog

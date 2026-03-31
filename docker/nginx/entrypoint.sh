@@ -1,5 +1,9 @@
 #!/bin/sh
-set -e
+set -eu
+
+SERVER_NAME="${SERVER_NAME:-localhost}"
+PRIMARY_DOMAIN="${PRIMARY_DOMAIN:-$SERVER_NAME}"
+export SERVER_NAME PRIMARY_DOMAIN
 
 TEMPLATE_HTTP="/etc/nginx/templates/app.http.conf.template"
 TEMPLATE_HTTPS="/etc/nginx/templates/app.https.conf.template"

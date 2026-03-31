@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useConfirm } from "@/components/confirm/use-confirm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
@@ -20,6 +22,7 @@ import {
   PEOPLE_SEGMENTS_ROUTES,
   peopleSegmentsDetailModuleDefinition,
 } from "@/modules/people-segments/config/people-segments-module-contract";
+import { PEOPLE_SEGMENT_USAGE_TEXT } from "@/modules/people-segments/shared/domain/people-segments.constants";
 import {
   type PeopleSegmentDetailDraft,
   type PeopleSegmentsDetailLayoutContext,
@@ -106,6 +109,16 @@ export function PeopleSegmentsDetailEngineClientPage() {
   const [busy, setBusy] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("people-segments-detail", PEOPLE_SEGMENT_USAGE_TEXT.detail.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: PEOPLE_SEGMENT_USAGE_TEXT.detail.title,
+    items: usageItems,
+  });
 
   const loadMemberships = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
@@ -204,8 +217,8 @@ export function PeopleSegmentsDetailEngineClientPage() {
     if (!payload.name) {
       toast({
         variant: "destructive",
-          title: "Dados invalidos",
-          description: "Informe o nome do grupo de pessoas.",
+        title: "Dados inválidos",
+        description: "Informe o nome do grupo de pessoas.",
       });
       return;
     }
@@ -301,8 +314,8 @@ export function PeopleSegmentsDetailEngineClientPage() {
     async (membership: ApiPeopleSegmentMembership) => {
       if (!token || !id || !canManageMemberships) return;
       const confirmed = await confirm({
-        title: "Encerrar vinculo",
-        description: `Encerrar o vinculo de "${membership.person.fullName}" com este grupo de pessoas preservando o historico?`,
+        title: "Encerrar vínculo",
+        description: `Encerrar o vínculo de "${membership.person.fullName}" com este grupo de pessoas preservando o histórico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
@@ -310,13 +323,13 @@ export function PeopleSegmentsDetailEngineClientPage() {
       if (!confirmed) return;
       try {
         await endPeopleSegmentMembership(token, id, membership.id);
-        toast({ title: "Vinculo encerrado" });
+        toast({ title: "Vínculo encerrado" });
         await loadMemberships();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao encerrar vinculo.";
+            : "Falha ao encerrar vínculo.";
         toast({ variant: "destructive", title: "Falha ao encerrar", description: message });
       }
     },
@@ -367,7 +380,7 @@ export function PeopleSegmentsDetailEngineClientPage() {
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   const headerTitle =

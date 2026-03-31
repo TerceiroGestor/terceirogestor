@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -10,17 +11,19 @@ import { uploadAvatar } from "@/features/uploads/api";
 import { stripApiUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
+import { DetailRelationItemDialog } from "@/web-client/detail/DetailRelationItemDialog";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import { CompactMultiSelect } from "@/web-client/ui/CompactMultiSelect";
 import { canUseModuleAction } from "@/web-client/registry/module-utils";
 import { adminUserDetailModuleDefinition } from "@/modules/core/admin/config/admin-module-contract";
 import type { AdminUserDetailLayoutContext } from "@/modules/core/admin/config/admin-detail-layouts";
 import type { AdminUserFormDraft, AdminUserRecord, AdminUserRoleOption } from "@/modules/core/admin/admin.types";
-import { ADMIN_ROUTES } from "@/modules/core/admin/admin.constants";
+import { ADMIN_ROUTES, ADMIN_USAGE_TEXT } from "@/modules/core/admin/admin.constants";
 
 function buildDraftUserRecord(draft: AdminUserFormDraft): AdminUserRecord {
   return {
     id: "draft-user",
-    name: draft.name || "Novo usuario",
+    name: draft.name || "Novo usuário",
     email: draft.email || "",
     avatarUrl:
       typeof draft.avatarUrl === "string" && draft.avatarUrl.trim() ? draft.avatarUrl : null,
@@ -66,6 +69,30 @@ export function AdminUserCreatePage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [rolePickerOpen, setRolePickerOpen] = React.useState(false);
+  const [rolePickerSelection, setRolePickerSelection] = React.useState<string[]>([]);
+
+  const usageItems = React.useMemo(
+    () =>
+      ADMIN_USAGE_TEXT.users.sections.map((section, index) => ({
+        id: `admin-users-create-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: ADMIN_USAGE_TEXT.users.title,
+    items: usageItems,
+  });
 
   React.useEffect(() => {
     if (authLoading || userLoading) {
@@ -103,14 +130,54 @@ export function AdminUserCreatePage() {
     };
   }, [authLoading, canCreate, token, userLoading]);
 
+  const selectedRoleOptions = React.useMemo(
+    () => roleOptions.filter((role) => draft.roleIds.includes(role.id)),
+    [draft.roleIds, roleOptions],
+  );
+
+  const draftUserRecord = React.useMemo(
+    () => ({
+      ...buildDraftUserRecord(draft),
+      roles: selectedRoleOptions,
+      roleIds: draft.roleIds,
+      roleNames: selectedRoleOptions.map((role) => role.name),
+    }),
+    [draft, selectedRoleOptions],
+  );
+
+  const handleOpenRolePicker = React.useCallback(() => {
+    setRolePickerSelection(draft.roleIds);
+    setRolePickerOpen(true);
+  }, [draft.roleIds]);
+
+  const handleApplyRoleSelection = React.useCallback(() => {
+    const nextRoleIds = Array.from(new Set(rolePickerSelection));
+    setDraft((previous) => ({ ...previous, roleIds: nextRoleIds }));
+    setRolePickerOpen(false);
+  }, [rolePickerSelection]);
+
+  const handleRemoveRoleId = React.useCallback((roleId: string) => {
+    setDraft((previous) => ({
+      ...previous,
+      roleIds: previous.roleIds.filter((entry) => entry !== roleId),
+    }));
+  }, []);
+
+  const handleOpenRoleDetail = React.useCallback(
+    (roleId: string) => {
+      router.push(withTenantPath(`${ADMIN_ROUTES.roles}/${roleId}`, tenantSlug));
+    },
+    [router, tenantSlug],
+  );
+
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
     if (!token) {
-      setError("Sessao invalida.");
+      setError("Sessão inválida.");
       return;
     }
     if (!draft.name.trim() || !draft.email.trim() || !draft.password.trim()) {
-      setError("Informe nome, email e senha.");
+      setError("Informe nome, e-mail e senha.");
       return;
     }
 
@@ -139,13 +206,13 @@ export function AdminUserCreatePage() {
           ...(avatarUrl !== undefined ? { avatarUrl } : {}),
         },
       );
-      toast({ title: "Usuario criado" });
+      toast({ title: "Usuário criado" });
       router.push(withTenantPath(`${ADMIN_ROUTES.users}/${created.id}`, tenantSlug));
     } catch (nextError) {
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao criar usuario.";
+          : "Falha ao criar usuário.";
       setError(message);
       toast({ variant: "destructive", title: "Falha ao criar", description: message });
     } finally {
@@ -154,17 +221,18 @@ export function AdminUserCreatePage() {
   }, [canCreate, dataProvider, draft, router, tenantSlug, toast, token]);
 
   if (authLoading || userLoading || loading) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Carregando usuario...</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Carregando usuário...</div>;
   }
 
   if (!canCreate) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Voce nao tem permissao para criar usuarios.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão para criar usuários.</div>;
   }
 
   const context: AdminUserDetailLayoutContext = {
-    user: buildDraftUserRecord(draft),
+    user: draftUserRecord,
     draft,
     roleOptions,
+    selectedRoleOptions,
     canEdit: true,
     canAudit: false,
     isCreate: true,
@@ -173,6 +241,9 @@ export function AdminUserCreatePage() {
     onDraftChange: setDraft,
     onAvatarFileSelect: (file) =>
       setDraft((previous) => ({ ...previous, avatarUrl: file })),
+    onOpenRolePicker: handleOpenRolePicker,
+    onRemoveRoleId: handleRemoveRoleId,
+    onOpenRoleDetail: handleOpenRoleDetail,
   };
 
   return (
@@ -185,18 +256,39 @@ export function AdminUserCreatePage() {
         dataProvider={dataProvider}
         auditEnabled={false}
         mode="create"
-        headerTitle={draft.name.trim() || "Novo usuario"}
+        headerTitle={draft.name.trim() || "Novo usuário"}
         saving={saving}
         readOnly={false}
         onSave={() => void handleCreate()}
         onClose={() => router.push(withTenantPath(ADMIN_ROUTES.users, tenantSlug))}
-        breadcrumbTitle="Novo usuario"
+        breadcrumbTitle="Novo usuário"
         breadcrumbItems={[
           { label: "Geral", href: ADMIN_ROUTES.overview },
-          { label: "Usuarios", href: ADMIN_ROUTES.users },
-          { label: "Novo usuario" },
+          { label: "Usuários", href: ADMIN_ROUTES.users },
+          { label: "Novo usuário" },
         ]}
       />
+
+      <DetailRelationItemDialog
+        open={rolePickerOpen}
+        onOpenChange={setRolePickerOpen}
+        title="Vincular perfis"
+        onSave={handleApplyRoleSelection}
+        saveLabel="Aplicar"
+      >
+        <CompactMultiSelect
+          options={roleOptions.map((role) => ({
+            value: role.id,
+            label: role.name,
+            description: role.description,
+          }))}
+          selectedValues={rolePickerSelection}
+          onChange={setRolePickerSelection}
+          label="Perfis"
+          placeholder="Selecionar perfis"
+          emptyLabel="Nenhum perfil selecionado."
+        />
+      </DetailRelationItemDialog>
     </>
   );
 }

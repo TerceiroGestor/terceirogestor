@@ -15,7 +15,6 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "project-cycles:backfill-catalog": "node scripts/backfill-project-cycle-catalog.js",
     "permissions:backfill": "node scripts/backfill-core-permissions.js",
     "people:backfill-sensitive-docs": "node scripts/backfill-person-sensitive-documents.js",
     "build": "nest build",

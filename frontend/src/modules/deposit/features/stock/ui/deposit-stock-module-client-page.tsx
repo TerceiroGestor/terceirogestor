@@ -34,7 +34,6 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   formatDateOnlyPtBR,
   parseLocalDateOnly,
-  type DateBucket,
 } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { DepositDashboardResponse } from "@/modules/deposit/api";
@@ -94,19 +93,19 @@ const DEFAULT_TIMELINE_SORT: DepositStockQueryState["timelineSortDirection"] = "
 const CALENDAR_MODE_LABELS: Record<DepositStockQueryState["calendarMode"], string> = {
   day: "Dia",
   week: "Semana",
-  month: "Mes",
+  month: "Mês",
   year: "Ano",
 };
 const GRAPH_METRIC_LABELS = {
   count: "Contagem",
   sum: "Soma",
-  avg: "Media",
-  min: "Minimo",
-  max: "Maximo",
+  avg: "Média",
+  min: "Mínimo",
+  max: "Máximo",
   distinct_count: "Distintos",
 } as const;
 const GRAPH_CHART_LABELS = {
-  area: "Area",
+  area: "Área",
   bar: "Barras",
   bar_horizontal: "Barras horizontais",
   donut: "Rosca",
@@ -223,7 +222,7 @@ function resolveGroupValue(row: StockRow, field: string) {
     case "validityStatus":
       return row.validityStatus;
     case "isBelowMin":
-      return row.isBelowMin ? "Abaixo do minimo" : "OK";
+      return row.isBelowMin ? "Abaixo do mínimo" : "OK";
     default:
       return String((row as Record<string, unknown>)[field] ?? "").trim() || "—";
   }
@@ -240,7 +239,7 @@ function resolveDate(row: StockRow, field: string) {
 
 function resolveBelowMinBadge(row: StockRow) {
   return row.isBelowMin ? (
-    <Badge variant="destructive">Abaixo do minimo</Badge>
+    <Badge variant="destructive">Abaixo do mínimo</Badge>
   ) : (
     <Badge variant="secondary">OK</Badge>
   );
@@ -671,7 +670,7 @@ export function DepositStockModuleClientPage() {
             <SelectContent>
               <SelectItem value="day">Dia</SelectItem>
               <SelectItem value="week">Semana</SelectItem>
-              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="month">M?s</SelectItem>
               <SelectItem value="year">Ano</SelectItem>
             </SelectContent>
           </Select>
@@ -765,7 +764,7 @@ export function DepositStockModuleClientPage() {
         dateFields.find((field) => field.name === state.calendarField)?.label ?? state.calendarField;
       facets.push({
         key: "analysis:calendarField",
-        label: `Calendario: ${calendarLabel}`,
+        label: `Calendário: ${calendarLabel}`,
         tone: "analysis",
         analysisKind: "time",
         icon: <CalendarDays className="size-3.5" />,
@@ -794,7 +793,7 @@ export function DepositStockModuleClientPage() {
       if (state.calendarTo) {
         facets.push({
           key: "analysis:calendarTo",
-          label: `Ate: ${state.calendarTo}`,
+          label: `Até: ${state.calendarTo}`,
           tone: "analysis",
           analysisKind: "time",
           icon: <CalendarDays className="size-3.5" />,
@@ -835,7 +834,7 @@ export function DepositStockModuleClientPage() {
       });
       facets.push({
         key: "analysis:graphChart",
-        label: `Grafico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
+        label: `Gráfico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
         tone: "analysis",
         analysisKind: "chart",
         icon: <PieChart className="size-3.5" />,
@@ -1149,7 +1148,7 @@ export function DepositStockModuleClientPage() {
                 if (field === "validityStatus") return String(value ?? "").trim() || "Sem data limite";
                 if (field === "isBelowMin") {
                   return String(value ?? "").includes("true")
-                    ? "Abaixo do minimo"
+                    ? "Abaixo do mínimo"
                     : "OK";
                 }
                 return String(value ?? "").trim() || "Sem valor";

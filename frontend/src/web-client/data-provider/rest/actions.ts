@@ -20,8 +20,8 @@ export async function searchActions(
         ? args.context.groupId
         : undefined,
     peopleGroupId:
-      typeof args.context?.cycleId === "string" && args.context.cycleId.trim()
-        ? args.context.cycleId
+      typeof args.context?.peopleGroupId === "string" && args.context.peopleGroupId.trim()
+        ? args.context.peopleGroupId
         : undefined,
     page:
       typeof args.pagination?.pageIndex === "number"

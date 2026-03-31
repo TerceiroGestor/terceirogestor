@@ -1,6 +1,8 @@
+import type { UsageDocumentationSection } from "@/components/UsageDocumentation/usage-documentation.helpers";
+
 export const PANTRY_ITEM_UNIT = [
   { label: "Unidade (un)", value: "un" },
-  { label: "Kilograma (kg)", value: "kg" },
+  { label: "Quilograma (kg)", value: "kg" },
   { label: "Grama (g)", value: "g" },
   { label: "Litro (l)", value: "l" },
   { label: "Mililitro (ml)", value: "ml" },
@@ -149,4 +151,90 @@ export const PANTRY_SEARCH_VIEW_IDS = {
   history: "pantry.history.search",
   entries: "pantry.entries.search",
   exits: "pantry.exits.search",
+} as const;
+
+export const PANTRY_USAGE_TEXT = {
+  items: {
+    title: "Despensa / Alimentos",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite nome, grupo, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
+          "Use as abas Entradas, Saídas e Histórico para acompanhar o fluxo operacional do alimento.",
+        ],
+      },
+      {
+        title: "Movimentações",
+        items: [
+          "Use Nova entrada para registrar recebimentos do alimento.",
+          "Use Nova saída para registrar consumo, doação, evento ou correção de estoque.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume saldo, grupo, setor padrão e status do alimento.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  donors: {
+    title: "Despensa / Doadores",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite nome, tipo, contato e foto do doador diretamente no detalhe.",
+          "Use a aba Doações para abrir as entradas vinculadas ao doador.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam no painel lateral.",
+          "O contexto resume tipo e contato do doador.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  entries: {
+    title: "Despensa / Entradas",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite setor, quantidade, unidade, validade, doador e notas diretamente no detalhe.",
+          "Use a aba Saídas vinculadas para abrir as saídas consumidas a partir desta entrada.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume alimento, setor e status da entrada.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
+  exits: {
+    title: "Despensa / Saídas",
+    sections: [
+      {
+        title: "Dados principais",
+        items: [
+          "Edite entrada de origem, setor, quantidade, data, tipo e evento diretamente no detalhe.",
+          "Use a aba Entradas vinculadas para ver os lotes consumidos por esta saída.",
+        ],
+      },
+      {
+        title: "Painel lateral",
+        items: [
+          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "O contexto resume alimento, setor e tipo da saída.",
+        ],
+      },
+    ] satisfies UsageDocumentationSection[],
+  },
 } as const;

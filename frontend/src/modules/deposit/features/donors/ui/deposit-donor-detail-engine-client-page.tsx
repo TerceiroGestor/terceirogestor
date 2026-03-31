@@ -7,6 +7,8 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -28,7 +30,7 @@ import {
   type DepositDonorDraft,
 } from "@/modules/deposit/config/deposit-detail-layout-contract";
 import { depositDonorDetailModuleDefinition } from "@/modules/deposit/config/deposit-module-contract";
-import { DEPOSIT_ROUTES } from "@/modules/deposit/shared/domain/deposit.constants";
+import { DEPOSIT_ROUTES, DEPOSIT_USAGE_TEXT } from "@/modules/deposit/shared/domain/deposit.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { resumeDetailAutoSave, suspendDetailAutoSave } from "@/web-client/detail/detail-media-autosave-guard";
@@ -135,6 +137,16 @@ export function DepositDonorDetailEngineClientPage({
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entries, setEntries] = React.useState<ApiDepositEntry[]>([]);
   const [donors, setDonors] = React.useState<ApiDepositDonor[]>([]);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("deposit-donors-detail", DEPOSIT_USAGE_TEXT.donors.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: DEPOSIT_USAGE_TEXT.donors.title,
+    items: usageItems,
+  });
 
   const persistDonorDraft = React.useCallback(
     async (nextDraft: DepositDonorDraft) => {
@@ -287,8 +299,8 @@ export function DepositDonorDetailEngineClientPage({
     if (!canCreate) {
       toast({
         variant: "destructive",
-        title: "Sem permissao",
-        description: "Voce nao tem permissao para criar fontees.",
+        title: "Sem permissão",
+        description: "Você não tem permissão para criar fontes.",
       });
       return;
     }
@@ -297,7 +309,7 @@ export function DepositDonorDetailEngineClientPage({
     if (!normalized.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe o nome.",
       });
       return;
@@ -459,7 +471,7 @@ export function DepositDonorDetailEngineClientPage({
       items.push(
         ...(donor?.comments ?? []).map((comment) => ({
           id: `comment:${comment.id}`,
-          title: "Comentario registrado",
+          title: "Comentário registrado",
           description: comment.body,
           meta: `Por ${comment.author.name}`,
           createdAt: comment.createdAt,
@@ -525,7 +537,7 @@ export function DepositDonorDetailEngineClientPage({
   );
 
   const headerTitle =
-    mode === "create" ? "Novo fonte" : donor?.name ? donor.name : "Fonte";
+    mode === "create" ? "Nova fonte" : donor?.name ? donor.name : "Fonte";
 
   const context = React.useMemo<DepositDonorDetailLayoutContext>(
     () => ({
@@ -594,7 +606,7 @@ export function DepositDonorDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   return (

@@ -23,7 +23,6 @@ export const auditEntityLabels: Record<string, string> = {
 
   Project: "Projetos",
   ProjectGroup: "Grupos (projetos)",
-  ProjectCycle: "Ciclos (projetos)",
   ProjectEnrollment: "Inscrições (projetos)",
 
   Program: "Programas",

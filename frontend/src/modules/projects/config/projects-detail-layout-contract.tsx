@@ -24,7 +24,6 @@ import { PROJECT_STATUS_LABELS, PROJECT_STATUS_OPTIONS } from "@/modules/project
 import { PROJECT_PARTICIPATION_ROLE_LABELS } from "@/modules/projects/shared/domain/projects.constants";
 import type { ApiProgram, ProgramStatus, ProgramType } from "@/modules/programs/api";
 import {
-  PROGRAM_STATUS_LABELS,
   PROGRAM_TYPE_LABELS,
 } from "@/modules/programs/shared/domain/programs.constants";
 import type { ApiProjectAction, ActionStatus } from "@/modules/actions/api";
@@ -57,10 +56,10 @@ const PROJECT_AUDIT_FIELD_LABELS = {
   programId: "Programa",
   name: "Nome",
   status: "Status",
-  description: "Descricao",
+  description: "Descrição",
   tags: "Tags",
   internalNotes: "Notas internas",
-  startsAt: "Inicio",
+  startsAt: "Início",
   endsAt: "Fim",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -70,7 +69,7 @@ const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
   personId: "Pessoa",
   role: "Papel",
   status: "Status",
-  startsAt: "Inicio",
+  startsAt: "Início",
   endsAt: "Fim",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -78,7 +77,7 @@ const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
 
 const PROJECT_GROUP_AUDIT_FIELD_LABELS = {
   name: "Nome",
-  description: "Descricao",
+  description: "Descrição",
   internalNotes: "Notas internas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -86,18 +85,18 @@ const PROJECT_GROUP_AUDIT_FIELD_LABELS = {
 
 const PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
   peopleGroupId: "Grupo de pessoas",
-  participationKind: "Participacao",
+  participationKind: "Participação",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
 
 const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
-  title: "Titulo",
+  title: "Título",
   status: "Status",
   actionTypeId: "Tipo",
   groupId: "Grupo",
-  cycleId: "Grupo de pessoas",
-  plannedStartAt: "Inicio planejado",
+  peopleGroupId: "Grupo de pessoas",
+  plannedStartAt: "Início planejado",
   plannedEndAt: "Fim planejado",
   executedAt: "Executada em",
   internalNotes: "Notas internas",
@@ -108,11 +107,6 @@ const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
 function formatProgramType(value: ProgramType | string | null | undefined) {
   if (!value) return "-";
   return PROGRAM_TYPE_LABELS[value as ProgramType] ?? String(value);
-}
-
-function formatProgramStatus(value: ProgramStatus | string | null | undefined) {
-  if (!value) return "-";
-  return PROGRAM_STATUS_LABELS[value as ProgramStatus] ?? String(value);
 }
 
 function formatProjectStatus(value: ProjectStatus | string | null | undefined) {
@@ -126,8 +120,8 @@ function formatActionStatus(value: ActionStatus | string | null | undefined) {
 }
 
 function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
-  if (!startsAt && !endsAt) return "Nao informada";
-  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} ate ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
+  if (!startsAt && !endsAt) return "Não informada";
+  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
 }
 
 function formatAgeRange(ageMin: number | string | null | undefined, ageMax: number | string | null | undefined) {
@@ -252,7 +246,7 @@ function enrollmentRelationColumns({
                 onEndEnrollment(row.original);
               }}
             >
-              Encerrar matricula
+              Encerrar matrícula
             </Button>
           </div>
         ) : null,
@@ -264,7 +258,7 @@ function actionRelationColumns(): ColumnDef<ApiProjectAction, unknown>[] {
   return [
     {
       accessorKey: "title",
-      header: "Acao",
+      header: "Ação",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.title}</div>
@@ -281,7 +275,7 @@ function actionRelationColumns(): ColumnDef<ApiProjectAction, unknown>[] {
     },
     {
       accessorKey: "plannedStartAt",
-      header: "Periodo",
+      header: "Período",
       cell: ({ row }) => formatPeriod(row.original.plannedStartAt, row.original.plannedEndAt),
     },
   ];
@@ -536,7 +530,7 @@ function ProjectsDetailMain({
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Inicio</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Início</div>
           <Input
             type="date"
             value={draft.startsAt}
@@ -545,7 +539,7 @@ function ProjectsDetailMain({
             }
             onBlur={() => onCommitField("startsAt")}
             className={PROJECT_DETAIL_INPUT_CLASS}
-            title="Inicio"
+            title="Início"
             readOnly={readOnly}
           />
         </div>
@@ -567,7 +561,7 @@ function ProjectsDetailMain({
       </div>
 
       <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descricao</div>
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
         <Textarea
           value={draft.description}
           onChange={(event) =>
@@ -575,7 +569,7 @@ function ProjectsDetailMain({
           }
           onBlur={() => onCommitField("description")}
           className={PROJECT_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descricao, objetivo e contexto do projeto"
+          placeholder="Descrição"
           readOnly={readOnly}
         />
       </div>
@@ -666,8 +660,8 @@ function ProjectsDetailSide({
         readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "Salve o projeto para habilitar comentarios."
-            : "Nenhum comentario registrado para este projeto.",
+            ? "Indisponível."
+            : "Nenhum comentário.",
       }}
       notes={{
         value: draft.internalNotes,
@@ -681,7 +675,7 @@ function ProjectsDetailSide({
           setDraft((previous) => ({ ...previous, tags: nextTags })),
         onCommit: (next) => onCommitField("tags", next),
         readOnly,
-        emptyLabel: mode === "create" ? "Adicione tags ao projeto." : "Nenhuma tag registrada.",
+        emptyLabel: mode === "create" ? "Indisponível." : "Nenhuma tag.",
       }}
       attachments={{
         items: (project?.attachments ?? []).map((attachment) => ({
@@ -709,17 +703,17 @@ function ProjectsDetailSide({
         readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "Salve o projeto para habilitar anexos."
+            ? "Indisponível."
             : attachmentUploading
-              ? "Enviando anexo..."
-              : "Nenhum anexo registrado para este projeto.",
+              ? "Enviando..."
+              : "Nenhum anexo.",
       }}
       history={{
         items: historyItems,
         emptyLabel:
           mode === "create"
-            ? "O historico aparece apos salvar o projeto."
-            : "Nenhum historico disponivel para este projeto.",
+            ? "Sem histórico."
+            : "Nenhum histórico.",
       }}
       contextItems={[
         { key: "program", label: "Programa", value: selectedProgram?.name ?? "-" },
@@ -729,7 +723,7 @@ function ProjectsDetailSide({
         { key: "groups", label: "Grupos", value: groupRows.length },
         { key: "publicPeopleGroups", label: "Grupos de Pessoas", value: publicPeopleGroupRows.length },
         { key: "teamPeopleGroups", label: "Grupos de Equipe", value: teamPeopleGroupRows.length },
-        { key: "actions", label: "Acoes", value: actionRows.length },
+        { key: "actions", label: "Ações", value: actionRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
       defaultTab="activity"
@@ -742,7 +736,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
   header: {
     title: ({ project, draft, mode }) =>
       mode === "create" ? "Novo projeto" : ((project?.name ?? draft.name) || "Projeto"),
-    slot: ({ draft, selectedProgram, publicPeopleGroupRows, teamPeopleGroupRows, groupRows, actionRows, enrollmentRows }) => (
+    slot: ({ draft, selectedProgram }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
@@ -758,26 +752,6 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
             <div className="font-medium text-foreground">
               {formatProgramType(selectedProgram?.type ?? null)}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Participantes</div>
-            <div className="font-medium text-foreground">{enrollmentRows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Grupos</div>
-            <div className="font-medium text-foreground">{groupRows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Grupos de Pessoas</div>
-            <div className="font-medium text-foreground">{publicPeopleGroupRows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Grupos de Equipe</div>
-            <div className="font-medium text-foreground">{teamPeopleGroupRows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Acoes</div>
-            <div className="font-medium text-foreground">{actionRows.length}</div>
           </div>
         </div>
       </div>
@@ -883,15 +857,15 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           onRowClick: (row, context) =>
             context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Novo",
+            label: "Vincular grupo de pessoas",
             onClick: (context) => context.onCreatePublicPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o projeto para gerenciar grupos de pessoas."
-              : "Nenhum grupo de pessoas vinculado.",
+              ? "Indisponível."
+              : "Nenhum vínculo.",
         },
       ],
     },
@@ -925,15 +899,15 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           searchPlaceholder: "Pesquisar",
           onRowClick: (row, context) => context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Novo",
+            label: "Vincular grupo de equipe",
             onClick: (context) => context.onCreateTeamPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o projeto para gerenciar grupos de equipe."
-              : "Nenhum grupo de equipe vinculado.",
+              ? "Indisponível."
+              : "Nenhum vínculo.",
         },
       ],
     },
@@ -981,15 +955,15 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           searchPlaceholder: "Pesquisar",
           onRowClick: (row, context) => context.onOpenEnrollment(row.id),
           action: {
-            label: "Nova matricula",
+            label: "Vincular participante",
             onClick: (context) => context.onCreateEnrollment(),
             hidden: ({ readOnly, mode, canManageEnrollments }) =>
               readOnly || mode !== "edit" || !canManageEnrollments,
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o projeto para gerenciar participantes."
-              : "Nenhum participante vinculado.",
+              ? "Indisponível."
+              : "Nenhum vínculo.",
         },
       ],
     },
@@ -1021,18 +995,18 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
               readOnly || mode !== "edit" || !canManageStructure,
           },
           emptyLabel: ({ mode }) =>
-            mode === "create" ? "Salve o projeto para gerenciar grupos." : "Nenhum grupo vinculado.",
+            mode === "create" ? "Indisponível." : "Nenhum vínculo.",
         },
       ],
     },
     {
       key: "actions",
-      label: "Acoes",
+      label: "Ações",
       badge: ({ actionRows }) => actionRows.length,
       relations: [
         {
           key: "project.actions",
-          label: "Acoes",
+          label: "Ações",
           loading: ({ relationsLoading }) => relationsLoading,
           rows: ({ mode, actionRows }) => (mode === "edit" ? actionRows : []),
           columns: actionRelationColumns(),
@@ -1045,7 +1019,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
                 row.title,
                 row.actionType?.name ?? "",
                 row.group?.name ?? "",
-                row.cycle?.name ?? "",
+                row.peopleGroup?.name ?? "",
                 formatActionStatus(row.status),
                 formatPeriod(row.plannedStartAt, row.plannedEndAt),
               ]
@@ -1057,13 +1031,13 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           searchPlaceholder: "Pesquisar",
           onRowClick: (row, context) => context.onOpenAction(row.id),
           action: {
-            label: "Nova acao",
+            label: "Nova ação",
             onClick: (context) => context.onCreateAction(),
             hidden: ({ readOnly, mode, canManageActions }) =>
               readOnly || mode !== "edit" || !canManageActions,
           },
           emptyLabel: ({ mode }) =>
-            mode === "create" ? "Salve o projeto para gerenciar acoes." : "Nenhuma acao vinculada.",
+            mode === "create" ? "Indisponível." : "Nenhum vínculo.",
         },
       ],
     },
@@ -1108,7 +1082,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         fieldLabels: PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS,
         valueFormatters: {
           participationKind: (value) =>
-            value === "TEAM" ? "Equipe" : "Publico atendido",
+            value === "TEAM" ? "Equipe" : "Público atendido",
         },
         resolveEntityIds: ({ publicPeopleGroupRows, teamPeopleGroupRows }) =>
           [...publicPeopleGroupRows, ...teamPeopleGroupRows].map((row) => row.id),
@@ -1117,7 +1091,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         key: "projectAction",
         entity: "ProjectAction",
         model: "audit.logs",
-        label: "Acao",
+        label: "Ação",
         fieldLabels: PROJECT_ACTION_AUDIT_FIELD_LABELS,
         valueFormatters: {
           status: (value) => formatActionStatus(typeof value === "string" ? value : null),

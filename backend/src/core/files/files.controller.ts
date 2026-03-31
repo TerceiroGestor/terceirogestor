@@ -20,7 +20,6 @@ const ACTION_PHOTO_DIR = join(process.cwd(), 'uploads', 'actions');
 const PEOPLE_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'people');
 const PANTRY_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'pantry');
 const DEPOSIT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'deposit');
-const CYCLE_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'cycles');
 const PROGRAM_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'programs');
 const PROJECT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'projects');
 const ACTION_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'action-attachments');
@@ -32,7 +31,6 @@ const MAX_ACTION_PHOTO_FILE_SIZE = 6 * 1024 * 1024;
 const MAX_PEOPLE_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PANTRY_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEPOSIT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_CYCLE_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROGRAM_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROJECT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_ACTION_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
@@ -89,23 +87,6 @@ const ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS = new Set([
   '.zip',
 ]);
 const ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_CYCLE_ATTACHMENT_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
   '.png',
@@ -217,10 +198,6 @@ function ensurePantryAttachmentDir() {
 
 function ensureDepositAttachmentDir() {
   fs.mkdirSync(DEPOSIT_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureCycleAttachmentDir() {
-  fs.mkdirSync(CYCLE_ATTACHMENT_DIR, { recursive: true });
 }
 
 function ensureProgramAttachmentDir() {
@@ -502,46 +479,6 @@ export class FilesController {
 
     return {
       path: `/uploads/deposit/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
-  }
-
-  @Post('cycle-attachments')
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureCycleAttachmentDir();
-          cb(null, CYCLE_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_CYCLE_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
-      limits: { fileSize: MAX_CYCLE_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_CYCLE_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
-    }),
-  )
-  uploadCycleAttachment(@UploadedFile() file?: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('Arquivo obrigatorio.');
-    }
-
-    return {
-      path: `/uploads/cycles/${file.filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || file.filename,

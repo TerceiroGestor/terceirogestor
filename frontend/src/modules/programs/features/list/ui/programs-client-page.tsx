@@ -116,7 +116,7 @@ export function ProgramsClientPage() {
             {resolveStatusBadge(row.original.status)}
             <p className="text-[11px] text-muted-foreground">
               {row.original.startsAt || row.original.endsAt
-                ? `${formatDate(row.original.startsAt)} — ${formatDate(row.original.endsAt)}`
+                ? `${formatDate(row.original.startsAt)} - ${formatDate(row.original.endsAt)}`
                 : "Vigência não informada"}
             </p>
           </div>
@@ -280,7 +280,7 @@ export function ProgramsClientPage() {
   if (!canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem permissão para acessar Programas.
+        Você não tem permissão para acessar programas.
       </div>
     );
   }
@@ -294,7 +294,7 @@ export function ProgramsClientPage() {
 
       <SectionCard
         title="Programas"
-        subtitle="Camada estratégica (SUAS): organiza projetos e consolida indicadores."
+        
         actions={
           canCreate ? <Button onClick={openCreate}>Novo programa</Button> : null
         }
@@ -355,11 +355,7 @@ export function ProgramsClientPage() {
             if (!open) setEditing(null);
           }}
           title={editing ? "Editar programa" : "Novo programa"}
-          description={
-            editing
-              ? "Atualize os dados estratégicos do programa."
-              : "Cadastre um programa para organizar os projetos."
-          }
+          description={undefined}
           contentClassName="max-w-[920px]"
         >
           {formError ? (

@@ -4,6 +4,7 @@ import {
   GENDER_OPTIONS,
   GENDER_LABELS,
   MARITAL_STATUS_OPTIONS,
+  PERSON_TYPE_LABELS,
   PERSON_TYPE_OPTIONS,
   PEOPLE_FORM_TEXT,
   RACE_COLOR_OPTIONS,
@@ -62,7 +63,7 @@ export const personFormFields: FormField<PersonFormData>[] = [
     name: "personType",
     label: PEOPLE_FORM_TEXT.fields.personType.label,
     type: "select",
-    options: buildOptions(PERSON_TYPE_OPTIONS),
+    options: buildOptions(PERSON_TYPE_OPTIONS, PERSON_TYPE_LABELS),
   },
   {
     name: "gender",
@@ -120,7 +121,6 @@ export const personFormFields: FormField<PersonFormData>[] = [
 export const personFormSteps: FormStep[] = [
   {
     title: PEOPLE_FORM_TEXT.steps.identification.title,
-    description: PEOPLE_FORM_TEXT.steps.identification.description,
     fields: [
       "fullName",
       "avatarUrl",
@@ -138,12 +138,10 @@ export const personFormSteps: FormStep[] = [
   },
   {
     title: PEOPLE_FORM_TEXT.steps.organization.title,
-    description: PEOPLE_FORM_TEXT.steps.organization.description,
     fields: ["tags", "status", "departureReason"],
   },
   {
     title: PEOPLE_FORM_TEXT.steps.notes.title,
-    description: PEOPLE_FORM_TEXT.steps.notes.description,
     fields: ["profileSummary"],
   },
 ];

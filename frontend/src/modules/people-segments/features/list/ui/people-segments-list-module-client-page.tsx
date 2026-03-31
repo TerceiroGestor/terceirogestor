@@ -64,7 +64,7 @@ function formatAgeRange(ageMin: number | null | undefined, ageMax: number | null
 }
 
 function formatPurpose(purpose: ApiPeopleSegment["purpose"]) {
-  return purpose === "EQUIPE" ? "Equipe" : "Publico";
+  return purpose === "EQUIPE" ? "Equipe" : "Público";
 }
 
 function formatCreatedAt(value: string | null | undefined) {
@@ -243,10 +243,10 @@ export function PeopleSegmentsListModuleClientPage() {
   );
 
   const graphBuilder = React.useMemo(() => {
-    const graphView = peopleSegmentsListModuleDefinition.views.find(
+    const graphoiew = peopleSegmentsListModuleDefinition.views.find(
       (view) => view.id === "graph" && view.viewType === "graph",
     );
-    return graphView?.viewType === "graph" ? graphView.params?.builder : undefined;
+    return graphoiew?.viewType === "graph" ? graphoiew.params?.builder : undefined;
   }, []);
 
   const graphModel = React.useMemo(
@@ -264,7 +264,7 @@ export function PeopleSegmentsListModuleClientPage() {
   if (!authLoading && !userLoading && !canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Voce nao tem acesso a grupos de pessoas.
+        Você não tem acesso a grupos de pessoas.
       </div>
     );
   }

@@ -17,7 +17,7 @@ export const projectsManifest: ModuleManifest = {
     },
     {
       title: "Grupos",
-      href: "/group",
+      href: "/projects/groups",
       icon: FolderTree,
       permissions: ["project-structure.read"],
       order: 31,

@@ -208,7 +208,6 @@ export type TasksDetailLayoutContext = DetailShellAuditContext & {
 function TaskDetailSide({
   task,
   draft,
-  assignableUsers,
   mentionableUsers,
   detailAudit,
   canAudit,
@@ -230,7 +229,6 @@ function TaskDetailSide({
 }: {
   task: TaskRecord;
   draft: TaskMutationInput;
-  assignableUsers: TaskAssignableUser[];
   mentionableUsers: DetailCommentUser[];
   detailAudit?: DetailShellAuditContext["detailAudit"];
   canAudit: boolean;
@@ -500,7 +498,6 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
   side: ({
     task,
     draft,
-    assignableUsers,
     mentionableUsers,
     detailAudit,
     canAudit,
@@ -523,7 +520,6 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
     <TaskDetailSide
       task={task}
       draft={draft}
-      assignableUsers={assignableUsers}
       mentionableUsers={mentionableUsers}
       detailAudit={detailAudit}
       canAudit={canAudit}

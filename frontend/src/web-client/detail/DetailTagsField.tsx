@@ -18,8 +18,8 @@ export function DetailTagsField({
   onCommit,
   readOnly,
   label = "Tags",
-  placeholder = "Ex: Produto, Time interno",
-  helperText = "Separe as tags por virgula.",
+  placeholder = "Adicionar tags",
+  helperText = null,
   emptyLabel = "Sem tags.",
 }: {
   value: string[];
@@ -28,7 +28,7 @@ export function DetailTagsField({
   readOnly?: boolean;
   label?: string;
   placeholder?: string;
-  helperText?: string;
+  helperText?: string | null;
   emptyLabel?: string;
 }) {
   const [inputValue, setInputValue] = React.useState(() => formatDelimitedTags(value));
@@ -77,7 +77,7 @@ export function DetailTagsField({
         readOnly={readOnly}
       />
 
-      <div className="text-[11px] text-muted-foreground">{helperText}</div>
+      {helperText ? <div className="text-[11px] text-muted-foreground">{helperText}</div> : null}
 
       <div className="flex flex-wrap gap-1.5">
         {value.length ? (

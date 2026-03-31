@@ -26,16 +26,19 @@ import {
   type ApiActionType,
   type ActionStatus,
 } from "@/modules/actions/api";
-import { ACTION_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import {
-  listProjectCycles,
+  ACTION_STATUS_OPTIONS,
+  ACTION_TARGET_LABELS,
+} from "@/modules/actions/shared/domain/actions.constants";
+import {
   listProjectEnrollments,
   listProjectGroups,
+  listProjectPeopleGroups,
   listProjects,
   type ApiProject,
-  type ApiProjectCycle,
   type ApiProjectEnrollment,
   type ApiProjectGroup,
+  type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { ACTION_CREATE_TEXT } from "../config/action-create.constants";
 
@@ -60,36 +63,31 @@ type ActionCreateValues = {
 
 function SectionField({
   label,
-  helper,
   children,
 }: {
   label: string;
-  helper?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <div className={fieldLabelClassName}>{label}</div>
       {children}
-      {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
     </div>
   );
 }
 
-function formatCycleOptionLabel(cycle: ApiProjectCycle) {
-  const primary = cycle.segment?.name ?? cycle.catalogCycle?.name ?? cycle.name;
+function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
+  const primary = row.peopleGroup?.name ?? "";
   const secondaryParts = [
-    cycle.segment?.category ?? cycle.catalogCycle?.audienceType ?? null,
-    cycle.name && cycle.name !== primary ? cycle.name : null,
+    row.peopleGroup?.category ?? null,
+    row.peopleGroup?.description ?? null,
   ].filter(Boolean);
   return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
 }
 
 function resolveTypeTargetLabel(target: ApiActionType["target"] | undefined) {
-  if (target === "PROJECT_GROUP") return "Grupo de Participantes";
-  if (target === "PEOPLE_GROUP") return "Grupo de Pessoas";
-  if (target === "ENROLLMENT") return "Participante";
-  return "Projeto";
+  if (!target) return ACTION_TARGET_LABELS.PROJECT;
+  return ACTION_TARGET_LABELS[target];
 }
 
 type ActionCreateFormSectionProps = {
@@ -119,13 +117,15 @@ export function ActionCreateFormSection({
   const { toast } = useToast();
 
   const canCreate = permissions.includes("actions.create");
+  const canUpdate = permissions.includes("actions.update");
+  const canAccessForm = mode === "edit" ? canUpdate : canCreate;
   const initialProjectId =
     projectIdProp ?? action?.projectId ?? params.get("projectId") ?? NONE_VALUE;
 
   const [projects, setProjects] = React.useState<ApiProject[]>([]);
   const [actionTypes, setActionTypes] = React.useState<ApiActionType[]>([]);
   const [groups, setGroups] = React.useState<ApiProjectGroup[]>([]);
-  const [cycles, setCycles] = React.useState<ApiProjectCycle[]>([]);
+  const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
   const [enrollments, setEnrollments] = React.useState<ApiProjectEnrollment[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [values, setValues] = React.useState<ActionCreateValues>({
@@ -165,7 +165,7 @@ export function ActionCreateFormSection({
   }, [action, mode]);
 
   React.useEffect(() => {
-    if (!token || !isAuthenticated || authLoading || !canCreate) return;
+    if (!token || !isAuthenticated || authLoading || !canAccessForm) return;
     (async () => {
       try {
         const [projectsResponse, types] = await Promise.all([
@@ -201,34 +201,34 @@ export function ActionCreateFormSection({
         });
       }
     })();
-  }, [authLoading, canCreate, isAuthenticated, toast, token]);
+  }, [authLoading, canAccessForm, isAuthenticated, toast, token]);
 
   React.useEffect(() => {
-    if (!token || !canCreate) return;
-      if (!values.projectId || values.projectId === NONE_VALUE) {
-        setGroups([]);
-        setCycles([]);
-        setEnrollments([]);
-        return;
-      }
+    if (!token || !canAccessForm) return;
+    if (!values.projectId || values.projectId === NONE_VALUE) {
+      setGroups([]);
+      setPeopleGroups([]);
+      setEnrollments([]);
+      return;
+    }
 
     (async () => {
       try {
-        const [projectGroups, projectCycles, projectEnrollments] = await Promise.all([
+        const [projectGroups, projectPeopleGroups, projectEnrollments] = await Promise.all([
           listProjectGroups(token, values.projectId),
-          listProjectCycles(token, values.projectId),
+          listProjectPeopleGroups(token, values.projectId, { participationKind: "PARTICIPANT" }),
           listProjectEnrollments(token, values.projectId, { page: 1, limit: 200 }),
         ]);
         setGroups(projectGroups);
-        setCycles(projectCycles);
+        setPeopleGroups(projectPeopleGroups);
         setEnrollments(projectEnrollments.data ?? []);
       } catch {
         setGroups([]);
-        setCycles([]);
+        setPeopleGroups([]);
         setEnrollments([]);
       }
     })();
-  }, [canCreate, token, values.projectId]);
+  }, [canAccessForm, token, values.projectId]);
 
   const handleSubmit = async () => {
     if (!token) return;
@@ -350,7 +350,7 @@ export function ActionCreateFormSection({
 
   if (!isAuthenticated || authLoading) return null;
 
-  if (!canCreate) {
+  if (!canAccessForm) {
     return <div className="text-sm text-muted-foreground">{ACTION_CREATE_TEXT.noAccessSubtitle}</div>;
   }
 
@@ -425,14 +425,7 @@ export function ActionCreateFormSection({
           </Select>
         </SectionField>
 
-        <SectionField
-          label={ACTION_CREATE_TEXT.form.targetLabel}
-          helper={
-            selectedType
-              ? `Esta ação será direcionada para: ${resolveTypeTargetLabel(selectedType.target)}.`
-              : "Selecione um tipo para definir o direcionamento da ação."
-          }
-        >
+        <SectionField label={ACTION_CREATE_TEXT.form.targetLabel}>
           <div className="flex h-10 items-center border-b border-border/60 text-sm text-foreground">
             {selectedType ? resolveTypeTargetLabel(selectedType.target) : "-"}
           </div>
@@ -459,14 +452,7 @@ export function ActionCreateFormSection({
           </Select>
         </SectionField>
 
-        <SectionField
-          label={ACTION_CREATE_TEXT.form.groupLabel}
-          helper={
-            selectedType && selectedType.target !== "PROJECT_GROUP"
-              ? "Disponível apenas para ações direcionadas a Grupo de Participantes."
-              : undefined
-          }
-        >
+        <SectionField label={ACTION_CREATE_TEXT.form.groupLabel}>
           <Select
             value={values.projectGroupId}
             onValueChange={(next) =>
@@ -488,14 +474,7 @@ export function ActionCreateFormSection({
           </Select>
         </SectionField>
 
-        <SectionField
-          label={ACTION_CREATE_TEXT.form.cycleLabel}
-          helper={
-            selectedType && selectedType.target !== "PEOPLE_GROUP"
-              ? "Disponível apenas para ações direcionadas a Grupo de Pessoas."
-              : undefined
-          }
-        >
+        <SectionField label={ACTION_CREATE_TEXT.form.cycleLabel}>
           <Select
             value={values.peopleGroupId}
             onValueChange={(next) =>
@@ -508,23 +487,16 @@ export function ActionCreateFormSection({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.cyclePlaceholder}</SelectItem>
-              {cycles.map((cycle) => (
-                <SelectItem key={cycle.id} value={cycle.id}>
-                  {formatCycleOptionLabel(cycle)}
+              {peopleGroups.map((row) => (
+                <SelectItem key={row.id} value={row.peopleGroupId}>
+                  {formatPeopleGroupOptionLabel(row)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </SectionField>
 
-        <SectionField
-          label="Participante"
-          helper={
-            selectedType && selectedType.target !== "ENROLLMENT"
-              ? "Disponível apenas para ações direcionadas a Participante."
-              : undefined
-          }
-        >
+        <SectionField label="Participante">
           <Select
             value={values.targetEnrollmentId}
             onValueChange={(next) =>
@@ -571,7 +543,7 @@ export function ActionCreateFormSection({
         </SectionField>
       </div>
 
-      <SectionField label={ACTION_CREATE_TEXT.form.planLabel} helper={ACTION_CREATE_TEXT.form.planHelper}>
+      <SectionField label={ACTION_CREATE_TEXT.form.planLabel}>
         <RichText
           value={values.planHtml}
           disabled={saving}
@@ -599,3 +571,4 @@ export function ActionCreateFormSection({
     </div>
   );
 }
+

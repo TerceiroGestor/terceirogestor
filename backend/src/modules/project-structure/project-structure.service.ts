@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   EnrollmentStatus,
   ParticipationKind,
@@ -10,14 +10,12 @@ import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { buildPeopleWhere, parseAdvancedFilters } from '../people/people.filters';
-import { CreateProjectCycleDto } from './dto/create-project-cycle.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
 import { CreateProjectGroupDto } from './dto/create-project-group.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
-import { UpdateProjectCycleDto } from './dto/update-project-cycle.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
 import { UpdateProjectGroupDto } from './dto/update-project-group.dto';
 
@@ -28,7 +26,7 @@ function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | nul
   const startsAt = params.startsAt ?? null;
   const endsAt = params.endsAt ?? null;
   if (startsAt && endsAt && startsAt > endsAt) {
-    throw new BadRequestException('Período inválido: início maior que término');
+    throw new BadRequestException('PerÃ­odo invÃ¡lido: inÃ­cio maior que tÃ©rmino');
   }
 }
 
@@ -36,7 +34,7 @@ function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | nul
 export class ProjectStructureService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private serializeEnrollment<T extends { groupMemberships?: any[]; cycleParticipations?: any[] }>(
+  private serializeEnrollment<T extends { groupMemberships?: any[] }>(
     enrollment: T,
   ) {
     const groups = (enrollment.groupMemberships ?? []).map((m) => m.group);
@@ -48,7 +46,6 @@ export class ProjectStructureService {
       deletedAt: membership.deletedAt,
       group: membership.group,
     }));
-    const cycle = (enrollment.cycleParticipations ?? [])[0]?.cycle ?? null;
     const person = (enrollment as any).person;
     const peopleGroups = (person?.peopleGroupParticipations ?? [])
       .map((participation: { peopleGroup?: unknown }) => participation.peopleGroup)
@@ -68,43 +65,10 @@ export class ProjectStructureService {
       ...(person ? { person: withPersonFlags } : {}),
       groups,
       groupMembershipHistory,
-      cycle,
+      cycle: null,
       peopleGroups,
       groupMemberships: undefined,
-      cycleParticipations: undefined,
     };
-  }
-
-  private async getCatalogCycle(tenantId: string, catalogCycleId: string) {
-    const cycle = await this.prisma.cycle.findFirst({
-      where: { id: catalogCycleId, tenantId },
-      select: {
-        id: true,
-        name: true,
-        audienceType: true,
-        ageMin: true,
-        ageMax: true,
-        isActive: true,
-      },
-    });
-    if (!cycle) throw new BadRequestException('Ciclo de catalogo invÃ¡lido');
-    return cycle;
-  }
-
-  private async getPeopleSegment(tenantId: string, segmentId: string) {
-    const segment = await this.prisma.peopleSegment.findFirst({
-      where: { id: segmentId, tenantId },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        ageMin: true,
-        ageMax: true,
-        isActive: true,
-      },
-    });
-    if (!segment) throw new BadRequestException('Segmento invalido');
-    return segment;
   }
 
   private async getPeopleGroup(tenantId: string, peopleGroupId: string) {
@@ -129,7 +93,7 @@ export class ProjectStructureService {
       where: { id: projectId, tenantId },
       select: { id: true },
     });
-    if (!project) throw new NotFoundException('Projeto não encontrado');
+    if (!project) throw new NotFoundException('Projeto nÃ£o encontrado');
   }
 
   async listGroups(tenantId: string, projectId: string) {
@@ -181,9 +145,23 @@ export class ProjectStructureService {
   async deletePeopleGroup(tenantId: string, projectId: string, projectPeopleGroupId: string) {
     const existing = await this.prisma.projectPeopleGroup.findFirst({
       where: { id: projectPeopleGroupId, tenantId, projectId },
-      select: { id: true },
+      select: { id: true, peopleGroupId: true, participationKind: true },
     });
     if (!existing) throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
+
+    const actionsCount = await this.prisma.actionPeopleGroup.count({
+      where: {
+        tenantId,
+        peopleGroupId: existing.peopleGroupId,
+        participationKind: existing.participationKind,
+        action: { projectId },
+      },
+    });
+    if (actionsCount > 0) {
+      throw new BadRequestException(
+        'Nao e possivel remover o grupo de pessoas: existem acoes vinculadas',
+      );
+    }
 
     await this.prisma.projectPeopleGroup.delete({ where: { id: existing.id } });
     return { ok: true as const };
@@ -239,7 +217,7 @@ export class ProjectStructureService {
   async createGroup(tenantId: string, projectId: string, dto: CreateProjectGroupDto) {
     await this.ensureProjectExists(tenantId, projectId);
     const name = (dto.name ?? '').trim();
-    if (!name) throw new BadRequestException('Nome é obrigatório');
+    if (!name) throw new BadRequestException('Nome Ã© obrigatÃ³rio');
     return this.prisma.projectGroup.create({
       data: {
         tenantId,
@@ -260,11 +238,11 @@ export class ProjectStructureService {
     const existing = await this.prisma.projectGroup.findFirst({
       where: { id: groupId, tenantId, projectId },
     });
-    if (!existing) throw new NotFoundException('Grupo não encontrado');
+    if (!existing) throw new NotFoundException('Grupo nÃ£o encontrado');
 
     const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
     if (name !== undefined && !name) {
-      throw new BadRequestException('Nome é obrigatório');
+      throw new BadRequestException('Nome Ã© obrigatÃ³rio');
     }
 
     return this.prisma.projectGroup.update({
@@ -286,264 +264,27 @@ export class ProjectStructureService {
       where: { id: groupId, tenantId, projectId },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Grupo não encontrado');
+    if (!existing) throw new NotFoundException('Grupo nÃ£o encontrado');
 
     const membershipsCount = await this.prisma.projectEnrollmentGroupMembership.count({
       where: { tenantId, groupId: existing.id },
     });
+    const actionsCount = await this.prisma.projectAction.count({
+      where: { tenantId, projectId, groupId: existing.id },
+    });
     if (membershipsCount > 0) {
       throw new BadRequestException(
-        'Não é possível excluir o grupo: existem participantes vinculados',
+        'NÃ£o Ã© possÃ­vel excluir o grupo: existem participantes vinculados',
+      );
+    }
+
+    if (actionsCount > 0) {
+      throw new BadRequestException(
+        'Nao e possivel excluir o grupo: existem acoes vinculadas',
       );
     }
 
     await this.prisma.projectGroup.delete({ where: { id: existing.id } });
-    return { ok: true as const };
-  }
-
-  async listCycles(tenantId: string, projectId: string) {
-    await this.ensureProjectExists(tenantId, projectId);
-    return this.prisma.projectCycle.findMany({
-      where: { tenantId, projectId },
-      include: {
-        segment: {
-          select: {
-            id: true,
-            name: true,
-            category: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-        catalogCycle: {
-          select: {
-            id: true,
-            name: true,
-            audienceType: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-  }
-
-  async listAllCycles(
-    tenantId: string,
-    params: { q?: string; page?: number; limit?: number; all?: boolean },
-  ) {
-    const { page, limit, skip, take, isAll } = resolvePagination({
-      page: params.page,
-      limit: params.limit,
-      all: params.all,
-      defaultLimit: DEFAULT_LIMIT,
-      maxLimit: MAX_LIMIT,
-    });
-    const q = normalizeString(params.q);
-    const where: Prisma.ProjectCycleWhereInput = {
-      tenantId,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q } },
-              { internalNotes: { contains: q } },
-              { project: { name: { contains: q } } },
-              { segment: { name: { contains: q } } },
-              { segment: { category: { contains: q } } },
-              { catalogCycle: { name: { contains: q } } },
-              { catalogCycle: { audienceType: { contains: q } } },
-            ],
-          }
-        : {}),
-    };
-
-    const [data, total] = await Promise.all([
-      this.prisma.projectCycle.findMany({
-        where,
-        include: {
-          project: {
-            select: { id: true, name: true, programId: true },
-          },
-          segment: {
-            select: {
-              id: true,
-              name: true,
-              category: true,
-              ageMin: true,
-              ageMax: true,
-              isActive: true,
-            },
-          },
-          catalogCycle: {
-            select: {
-              id: true,
-              name: true,
-              audienceType: true,
-              ageMin: true,
-              ageMax: true,
-              isActive: true,
-            },
-          },
-          _count: { select: { participations: true, actions: true } },
-        },
-        orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }],
-        ...(isAll ? {} : { skip, take }),
-      }),
-      this.prisma.projectCycle.count({ where }),
-    ]);
-
-    return {
-      data,
-      pagination: buildPaginationMeta({ page, limit, total, isAll }),
-    };
-  }
-
-  async createCycle(tenantId: string, projectId: string, dto: CreateProjectCycleDto) {
-    await this.ensureProjectExists(tenantId, projectId);
-    const segment =
-      dto.segmentId ? await this.getPeopleSegment(tenantId, dto.segmentId) : null;
-    const catalogCycle =
-      dto.catalogCycleId ? await this.getCatalogCycle(tenantId, dto.catalogCycleId) : null;
-    const name = (dto.name ?? segment?.name ?? catalogCycle?.name ?? '').trim();
-    if (!name) throw new BadRequestException('Nome é obrigatório');
-
-    const startsAt = parseDateInput(dto.startsAt);
-    const endsAt = parseDateInput(dto.endsAt);
-    ensureValidPeriod({ startsAt, endsAt });
-
-    return this.prisma.projectCycle.create({
-      data: {
-        tenantId,
-        projectId,
-        segmentId: segment?.id ?? null,
-        catalogCycleId: catalogCycle?.id ?? null,
-        name,
-        startsAt,
-        endsAt,
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
-      },
-      include: {
-        segment: {
-          select: {
-            id: true,
-            name: true,
-            category: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-        catalogCycle: {
-          select: {
-            id: true,
-            name: true,
-            audienceType: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-      },
-    });
-  }
-
-  async updateCycle(
-    tenantId: string,
-    projectId: string,
-    cycleId: string,
-    dto: UpdateProjectCycleDto,
-  ) {
-    const existing = await this.prisma.projectCycle.findFirst({
-      where: { id: cycleId, tenantId, projectId },
-      include: {
-        segment: {
-          select: { id: true, name: true },
-        },
-        catalogCycle: {
-          select: { id: true, name: true },
-        },
-      },
-    });
-    if (!existing) throw new NotFoundException('Ciclo não encontrado');
-
-    const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
-    if (name !== undefined && !name) {
-      throw new BadRequestException('Nome é obrigatório');
-    }
-
-    const startsAt =
-      dto.startsAt !== undefined ? parseDateInput(dto.startsAt) : existing.startsAt;
-    const endsAt =
-      dto.endsAt !== undefined ? parseDateInput(dto.endsAt) : existing.endsAt;
-    ensureValidPeriod({ startsAt, endsAt });
-    const segment =
-      dto.segmentId !== undefined
-        ? dto.segmentId
-          ? await this.getPeopleSegment(tenantId, dto.segmentId)
-          : null
-        : existing.segment;
-
-    return this.prisma.projectCycle.update({
-      where: { id: existing.id },
-      data: {
-        ...(name !== undefined
-          ? { name }
-          : dto.segmentId !== undefined && segment?.name
-            ? { name: segment.name }
-            : {}),
-        ...(dto.segmentId !== undefined ? { segmentId: segment?.id ?? null } : {}),
-        ...(dto.startsAt !== undefined ? { startsAt } : {}),
-        ...(dto.endsAt !== undefined ? { endsAt } : {}),
-        ...(dto.internalNotes !== undefined
-          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
-          : {}),
-      },
-      include: {
-        segment: {
-          select: {
-            id: true,
-            name: true,
-            category: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-        catalogCycle: {
-          select: {
-            id: true,
-            name: true,
-            audienceType: true,
-            ageMin: true,
-            ageMax: true,
-            isActive: true,
-          },
-        },
-      },
-    });
-  }
-
-  async deleteCycle(tenantId: string, projectId: string, cycleId: string) {
-    const existing = await this.prisma.projectCycle.findFirst({
-      where: { id: cycleId, tenantId, projectId },
-      select: { id: true },
-    });
-    if (!existing) throw new NotFoundException('Ciclo não encontrado');
-
-    const participationsCount =
-      await this.prisma.projectEnrollmentCycleParticipation.count({
-        where: { tenantId, cycleId: existing.id },
-    });
-    if (participationsCount > 0) {
-      throw new BadRequestException(
-        'Não é possível excluir o ciclo: existem participantes vinculados',
-      );
-    }
-
-    await this.prisma.projectCycle.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
 
@@ -564,6 +305,8 @@ export class ProjectStructureService {
     const q = normalizeString(query.q);
     const filters = parseAdvancedFilters(query.filters);
     const personWhere = buildPeopleWhere({ tenantId, query: undefined, filters });
+    const scopedPeopleGroupId = query.peopleGroupId ?? null;
+    const excludedPeopleGroupId = query.excludePeopleGroupId ?? null;
     const and: Prisma.ProjectEnrollmentWhereInput[] = [];
     if (query.excludeGroupId) {
       and.push({
@@ -574,11 +317,18 @@ export class ProjectStructureService {
         },
       });
     }
-    if (query.excludeCycleId) {
+    if (excludedPeopleGroupId) {
       and.push({
         NOT: {
-          cycleParticipations: {
-            some: { isActive: true, deletedAt: null, cycleId: query.excludeCycleId },
+          person: {
+            peopleGroupParticipations: {
+              some: {
+                tenantId,
+                peopleGroupId: excludedPeopleGroupId,
+                isActive: true,
+                deletedAt: null,
+              },
+            },
           },
         },
       });
@@ -588,7 +338,6 @@ export class ProjectStructureService {
       tenantId,
       projectId,
       deletedAt: null,
-      person: personWhere,
       ...(query.status ? { status: query.status as EnrollmentStatus } : {}),
       ...(query.groupHistoryId
         ? {
@@ -603,18 +352,30 @@ export class ProjectStructureService {
             },
           }
         : {}),
-      ...(query.cycleId
+      ...(scopedPeopleGroupId
         ? {
-            cycleParticipations: {
-              some: { isActive: true, deletedAt: null, cycleId: query.cycleId },
+            person: {
+              AND: [
+                personWhere,
+                {
+                  peopleGroupParticipations: {
+                    some: {
+                      tenantId,
+                      peopleGroupId: scopedPeopleGroupId,
+                      isActive: true,
+                      deletedAt: null,
+                    },
+                  },
+                },
+              ],
             },
           }
-        : {}),
+        : { person: personWhere }),
       ...(and.length ? { AND: and } : {}),
       ...(q
         ? {
-            OR: [
-              { person: { fullName: { contains: q } } },
+          OR: [
+            { person: { fullName: { contains: q } } },
               { person: { socialName: { contains: q } } },
               { person: { personType: { contains: q } } },
               { person: { status: { contains: q } } },
@@ -624,8 +385,15 @@ export class ProjectStructureService {
                 },
               },
               {
-                cycleParticipations: {
-                  some: { isActive: true, deletedAt: null, cycle: { name: { contains: q } } },
+                person: {
+                  peopleGroupParticipations: {
+                    some: {
+                      tenantId,
+                      isActive: true,
+                      deletedAt: null,
+                      peopleGroup: { name: { contains: q } },
+                    },
+                  },
                 },
               },
             ],
@@ -668,10 +436,6 @@ export class ProjectStructureService {
               : { isActive: true, deletedAt: null },
             include: { group: { select: { id: true, name: true } } },
           },
-          cycleParticipations: {
-            where: { isActive: true, deletedAt: null },
-            include: { cycle: { select: { id: true, name: true } } },
-          },
         },
         orderBy: { createdAt: 'desc' },
         ...(isAll ? {} : { skip, take }),
@@ -712,47 +476,27 @@ export class ProjectStructureService {
     });
 
     const projectPeopleGroupIds = projectPeopleGroups.map((row) => row.peopleGroupId);
-
     if (projectPeopleGroupIds.length === 0) {
-      const legacyProjectSegments = await this.prisma.projectCycle.findMany({
-        where: { tenantId, projectId, segmentId: { not: null } },
-        select: { segmentId: true },
-        distinct: ['segmentId'],
-      });
-
-      const legacySegmentIds = legacyProjectSegments
-        .map((row) => row.segmentId)
-        .filter((value): value is string => Boolean(value));
-
-      if (legacySegmentIds.length === 0) {
-        return {
-          data: [],
-          pagination: buildPaginationMeta({ page, limit, total: 0, isAll: false }),
-        };
-      }
-
-      const effectiveSegmentIds =
-        query.segmentId && legacySegmentIds.includes(query.segmentId)
-          ? [query.segmentId]
-          : legacySegmentIds;
-
-      return this.listEligiblePeopleByLegacySegments(
-        tenantId,
-        projectId,
-        page,
-        limit,
-        skip,
-        take,
-        query.q,
-        effectiveSegmentIds,
-        query.filters,
-      );
+      return {
+        data: [],
+        pagination: buildPaginationMeta({ page, limit, total: 0, isAll: false }),
+      };
     }
 
+    const requestedPeopleGroupId = query.peopleGroupId ?? null;
     const effectivePeopleGroupIds =
-      query.segmentId && projectPeopleGroupIds.includes(query.segmentId)
-        ? [query.segmentId]
-        : projectPeopleGroupIds;
+      requestedPeopleGroupId === null
+        ? projectPeopleGroupIds
+        : projectPeopleGroupIds.includes(requestedPeopleGroupId)
+          ? [requestedPeopleGroupId]
+          : [];
+
+    if (effectivePeopleGroupIds.length === 0) {
+      return {
+        data: [],
+        pagination: buildPaginationMeta({ page, limit, total: 0, isAll: false }),
+      };
+    }
 
     const q = normalizeString(query.q);
     const basePeopleWhere = buildPeopleWhere({ tenantId, query: undefined, filters });
@@ -860,6 +604,9 @@ export class ProjectStructureService {
     return {
       data: data.map((person) => ({
         ...person,
+        eligiblePeopleGroups: person.peopleGroupParticipations
+          .map((participation) => participation.peopleGroup)
+          .filter((peopleGroup) => Boolean(peopleGroup)),
         eligibleSegments: person.peopleGroupParticipations
           .map((participation) => participation.peopleGroup)
           .filter((peopleGroup) => Boolean(peopleGroup)),
@@ -1007,7 +754,7 @@ export class ProjectStructureService {
       where: { id: personId, tenantId },
       select: { id: true },
     });
-    if (!person) throw new BadRequestException('Pessoa inválida');
+    if (!person) throw new BadRequestException('Pessoa invÃ¡lida');
   }
 
   private async ensureGroupBelongsToProject(
@@ -1019,19 +766,7 @@ export class ProjectStructureService {
       where: { id: groupId, tenantId, projectId },
       select: { id: true },
     });
-    if (!group) throw new BadRequestException('Grupo inválido');
-  }
-
-  private async ensureCycleBelongsToProject(
-    tenantId: string,
-    projectId: string,
-    cycleId: string,
-  ) {
-    const cycle = await this.prisma.projectCycle.findFirst({
-      where: { id: cycleId, tenantId, projectId },
-      select: { id: true },
-    });
-    if (!cycle) throw new BadRequestException('Ciclo inválido');
+    if (!group) throw new BadRequestException('Grupo invÃ¡lido');
   }
 
   private async ensureEnrollmentBelongsToProject(params: {
@@ -1048,7 +783,7 @@ export class ProjectStructureService {
       },
       select: { id: true, personId: true },
     });
-    if (!enrollment) throw new NotFoundException('Matrícula não encontrada');
+    if (!enrollment) throw new NotFoundException('MatrÃ­cula nÃ£o encontrada');
     return enrollment;
   }
 
@@ -1115,63 +850,6 @@ export class ProjectStructureService {
     return { ok: true as const };
   }
 
-  async setEnrollmentCycle(
-    tenantId: string,
-    projectId: string,
-    enrollmentId: string,
-    cycleId: string | null,
-  ) {
-    await this.ensureProjectExists(tenantId, projectId);
-    if (cycleId) {
-      await this.ensureCycleBelongsToProject(tenantId, projectId, cycleId);
-    }
-    await this.ensureEnrollmentBelongsToProject({ tenantId, projectId, enrollmentId });
-
-    const current = await this.prisma.projectEnrollmentCycleParticipation.findFirst({
-      where: { tenantId, enrollmentId, isActive: true, deletedAt: null },
-      select: { id: true, cycleId: true },
-    });
-
-    if (cycleId && current?.cycleId === cycleId) {
-      return { ok: true as const };
-    }
-
-    const now = new Date();
-    const operations: Prisma.PrismaPromise<any>[] = [
-      this.prisma.projectEnrollmentCycleParticipation.updateMany({
-        where: { tenantId, enrollmentId, isActive: true, deletedAt: null },
-        data: { activeKey: null, isActive: false, endsAt: now, deletedAt: now },
-      }),
-    ];
-
-    if (cycleId) {
-      operations.push(
-        this.prisma.projectEnrollmentCycleParticipation.create({
-          data: {
-            tenantId,
-            enrollmentId,
-            cycleId,
-            activeKey: enrollmentId,
-            isActive: true,
-            startsAt: now,
-            deletedAt: null,
-          },
-        }),
-      );
-    }
-
-    try {
-      await this.prisma.$transaction(operations);
-    } catch (err) {
-      if (err && typeof err === 'object' && 'code' in err && (err as any).code === 'P2002') {
-        throw new BadRequestException('Pessoa já está em um ciclo ativo.');
-      }
-      throw err;
-    }
-
-    return { ok: true as const };
-  }
-
   private async ensureNoActiveEnrollment(params: {
     tenantId: string;
     projectId: string;
@@ -1191,7 +869,7 @@ export class ProjectStructureService {
     });
     if (existing) {
       throw new BadRequestException(
-        'Pessoa já está vinculada ao projeto (matrícula ativa).',
+        'Pessoa jÃ¡ estÃ¡ vinculada ao projeto (matrÃ­cula ativa).',
       );
     }
   }
@@ -1263,10 +941,6 @@ export class ProjectStructureService {
           where: { isActive: true, deletedAt: null },
           include: { group: { select: { id: true, name: true } } },
         },
-        cycleParticipations: {
-          where: { isActive: true, deletedAt: null },
-          include: { cycle: { select: { id: true, name: true } } },
-        },
       },
     });
 
@@ -1282,8 +956,8 @@ export class ProjectStructureService {
     const existing = await this.prisma.projectEnrollment.findFirst({
       where: { id: enrollmentId, tenantId, projectId },
     });
-    if (!existing) throw new NotFoundException('Matrícula não encontrada');
-    if (existing.deletedAt) throw new NotFoundException('Matrícula não encontrada');
+    if (!existing) throw new NotFoundException('MatrÃ­cula nÃ£o encontrada');
+    if (existing.deletedAt) throw new NotFoundException('MatrÃ­cula nÃ£o encontrada');
 
     const startsAt =
       dto.startsAt === undefined
@@ -1364,10 +1038,6 @@ export class ProjectStructureService {
           where: { isActive: true, deletedAt: null },
           include: { group: { select: { id: true, name: true } } },
         },
-        cycleParticipations: {
-          where: { isActive: true, deletedAt: null },
-          include: { cycle: { select: { id: true, name: true } } },
-        },
       },
     });
 
@@ -1379,7 +1049,7 @@ export class ProjectStructureService {
       where: { id: enrollmentId, tenantId, projectId },
       select: { id: true, endsAt: true, deletedAt: true },
     });
-    if (!existing) throw new NotFoundException('Matrícula não encontrada');
+    if (!existing) throw new NotFoundException('MatrÃ­cula nÃ£o encontrada');
 
     if (existing.deletedAt) {
       return { ok: true as const };
@@ -1388,15 +1058,6 @@ export class ProjectStructureService {
     const now = new Date();
     await this.prisma.$transaction([
       this.prisma.projectEnrollmentGroupMembership.updateMany({
-        where: { tenantId, enrollmentId: existing.id, isActive: true, deletedAt: null },
-        data: {
-          activeKey: null,
-          isActive: false,
-          endsAt: now,
-          deletedAt: now,
-        },
-      }),
-      this.prisma.projectEnrollmentCycleParticipation.updateMany({
         where: { tenantId, enrollmentId: existing.id, isActive: true, deletedAt: null },
         data: {
           activeKey: null,
@@ -1417,4 +1078,5 @@ export class ProjectStructureService {
     return { ok: true as const };
   }
 }
+
 

@@ -133,12 +133,10 @@ export function ActionReportPreview({
         <div className="text-sm text-muted-foreground">
           {action.actionType?.name ?? "—"}
           {action.projectGroup?.name ? ` • ${action.projectGroup.name}` : ""}
-          {action.peopleGroup?.segment?.name
-            ? ` • ${action.peopleGroup.segment.name}`
-            : action.peopleGroup?.name
-              ? ` • ${action.peopleGroup.name}`
-              : action.targetEnrollment?.person?.fullName
-                ? ` • ${action.targetEnrollment.person.fullName}`
+          {action.peopleGroup?.name
+            ? ` • ${action.peopleGroup.name}`
+            : action.targetEnrollment?.person?.fullName
+              ? ` • ${action.targetEnrollment.person.fullName}`
               : ""}
         </div>
       </div>

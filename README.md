@@ -18,6 +18,14 @@ cd ../backend && npm run db:migrate:deploy && npm run db:seed
 cd ../frontend && npm run dev
 ```
 
+Windows / PowerShell:
+
+```powershell
+Copy-Item .env.compose.example .env
+.\script\up.ps1
+.\script\update.ps1 -SkipSeed
+```
+
 Validação mínima antes de finalizar mudanças:
 
 ```bash

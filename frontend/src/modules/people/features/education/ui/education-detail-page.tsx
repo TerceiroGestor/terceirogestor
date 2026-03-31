@@ -100,6 +100,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   const [draft, setDraft] = React.useState<EducationFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(educationId || null);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(educationId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
     enabled: true,
@@ -125,6 +126,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleEducationPath(personId, created.id), tenantSlug));
         return initialFormValues(created);
       }
@@ -137,6 +139,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
     if (mode !== "edit" || !current) return;
     const nextDraft = initialFormValues(current);
     relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
     setDraft(nextDraft);
     replaceSavedDraft(nextDraft);
   }, [current, mode, replaceSavedDraft]);
@@ -175,10 +178,9 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
       recordType="education"
       tab="escolaridade"
       title={mode === "create" ? "Novo registro escolar" : current?.level ?? "Escolaridade"}
-      subtitle="Gerencie os detalhes completos do registro escolar."
       mode={mode}
       saving={saving}
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={EDUCATION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}

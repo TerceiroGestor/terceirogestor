@@ -614,7 +614,7 @@ export function ProjectEnrollmentsCard({
   return (
     <SectionCard
       title="Participantes"
-      subtitle="Vincule pessoas ao projeto. Atribua grupos e ciclos nas telas de gestão."
+      subtitle="Vincule pessoas ao projeto e organize os grupos nas telas de gestao."
       actions={
         canCreate ? (
           <div className="flex flex-wrap items-center gap-2">

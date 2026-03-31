@@ -39,12 +39,12 @@ const HEALTH_CONDITION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
     key: "health-condition",
     entity: "PersonHealthCondition",
     model: "audit.logs",
-    label: "Condicao de saude",
+    label: "Condição de saúde",
     fieldLabels: {
-      type: "Tipo de condicao",
-      description: "Descricao",
+      type: "Tipo de condição",
+      description: "Descrição",
       severity: "Severidade",
-      diagnosisDate: "Data do diagnostico",
+      diagnosisDate: "Data do diagnóstico",
       documentUrl: "Documento",
       notes: "Notas",
     },
@@ -105,18 +105,7 @@ export function HealthConditionDetailPage({
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "saude"), tenantSlug);
   const [draft, setDraft] = React.useState<HealthConditionFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(conditionId || null);
-  const savePathRef = React.useRef(
-    withTenantPath(buildPeopleHealthConditionPath(personId, conditionId || undefined), tenantSlug),
-  );
-
-  React.useEffect(() => {
-    if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
-    relationIdRef.current = current.id;
-    savePathRef.current = withTenantPath(buildPeopleHealthConditionPath(personId, current.id), tenantSlug);
-    setDraft(nextDraft);
-    replaceSavedDraft(nextDraft);
-  }, [current, mode, personId, tenantSlug]);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(conditionId || null);
 
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
@@ -150,8 +139,8 @@ export function HealthConditionDetailPage({
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         const nextPath = withTenantPath(buildPeopleHealthConditionPath(personId, created.id), tenantSlug);
-        savePathRef.current = nextPath;
         router.replace(nextPath);
         return initialFormValues(created);
       }
@@ -161,6 +150,15 @@ export function HealthConditionDetailPage({
     },
     onError: () => undefined,
   });
+
+  React.useEffect(() => {
+    if (mode !== "edit" || !current) return;
+    const nextDraft = initialFormValues(current);
+    relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
+    setDraft(nextDraft);
+    replaceSavedDraft(nextDraft);
+  }, [current, mode, replaceSavedDraft]);
 
   const handleValuesChange = React.useCallback(
     (values: HealthConditionFormValues) => {
@@ -195,11 +193,10 @@ export function HealthConditionDetailPage({
       personId={personId}
       recordType="health-condition"
       tab="saude"
-      title={mode === "create" ? "Nova condicao de saude" : current?.type ?? "Condicao de saude"}
-      subtitle="Gerencie os detalhes completos da condicao em uma tela dedicada."
+      title={mode === "create" ? "Nova condição de saúde" : current?.type ?? "Condição de saúde"}
       mode={mode}
       saving={saving}
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={HEALTH_CONDITION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
@@ -207,10 +204,10 @@ export function HealthConditionDetailPage({
     >
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Carregando condicao...</div>
+        <div className="text-sm text-muted-foreground">Carregando condição...</div>
       ) : null}
       {mode === "edit" && !isLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Condicao nao encontrada.</div>
+        <div className="text-sm text-muted-foreground">Condição não encontrada.</div>
       ) : null}
       {mode === "create" || current ? (
         <HealthConditionForm

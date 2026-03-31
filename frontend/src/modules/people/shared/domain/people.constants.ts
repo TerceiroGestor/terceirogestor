@@ -79,11 +79,21 @@ export const STATUS_LABELS: Record<(typeof STATUS_OPTIONS)[number], string> = {
   Desligado: "Desligado",
 };
 
+export const PERSON_TYPE_LABELS: Record<(typeof PERSON_TYPE_OPTIONS)[number], string> = {
+  Atendido: "Atendido",
+  Familiar: "Familiar",
+  Funcionario: "Funcionário",
+  Voluntario: "Voluntário",
+  Oficineiro: "Oficineiro",
+  Parceiro: "Parceiro",
+  Doador: "Doador",
+};
+
 export const MARITAL_STATUS_OPTIONS = [
   { label: "Solteiro(a)", value: "Solteiro(a)" },
   { label: "Casado(a)", value: "Casado(a)" },
   { label: "Divorciado(a)", value: "Divorciado(a)" },
-  { label: "Viúvo(a)", value: "Viúvo(a)" },
+  { label: "Viúvo(a)", value: "ViÃºvo(a)" },
 ] as const;
 
 export const PEOPLE_FORM_TEXT = {
@@ -91,7 +101,7 @@ export const PEOPLE_FORM_TEXT = {
     identification: {
       title: "Identificação",
       description:
-        "Dados básicos da pessoa. Contatos e documentos sensíveis são gerenciados no Detalhe.",
+        "Dados básicos da pessoa. Contatos e documentos sensíveis são gerenciados no detalhe.",
     },
     organization: {
       title: "Organização",

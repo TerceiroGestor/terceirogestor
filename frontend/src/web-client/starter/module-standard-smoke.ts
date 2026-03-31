@@ -16,10 +16,6 @@ import {
   adminUsersListModuleDefinition,
 } from "@/modules/core/admin/config/admin-module-contract";
 import {
-  cyclesDetailModuleDefinition,
-  cyclesListModuleDefinition,
-} from "@/modules/cycles/config/cycles-module-contract";
-import {
   pantryDonorDetailModuleDefinition,
   pantryDonorsModuleDefinition,
   pantryEntryDetailModuleDefinition,
@@ -44,7 +40,6 @@ import {
   projectsDetailModuleDefinition,
   projectsListModuleDefinition,
 } from "@/modules/projects/config/projects-module-contract";
-import { projectCyclesListModuleDefinition } from "@/modules/projects/config/project-cycles-module-contract";
 import { projectGroupsListModuleDefinition } from "@/modules/projects/config/project-groups-module-contract";
 import {
   tasksDetailModuleDefinition,
@@ -81,11 +76,8 @@ const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>>
   projectsListModuleDefinition,
   projectsDetailModuleDefinition,
   projectGroupsListModuleDefinition,
-  projectCyclesListModuleDefinition,
   actionsListModuleDefinition,
   actionsDetailModuleDefinition,
-  cyclesListModuleDefinition,
-  cyclesDetailModuleDefinition,
   tasksListModuleDefinition,
   tasksDetailModuleDefinition,
 ];

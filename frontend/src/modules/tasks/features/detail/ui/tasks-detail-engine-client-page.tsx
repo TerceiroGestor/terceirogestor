@@ -158,7 +158,6 @@ export function TasksDetailEngineClientPage() {
   const id = params?.id ? String(params.id) : "";
 
   const canRead = hasModulePermission(tasksDetailModuleDefinition, "canRead", permissions);
-  const canCreate = canUseModuleAction(tasksDetailModuleDefinition, "create", permissions);
   const canUpdate = canUseModuleAction(tasksDetailModuleDefinition, "edit", permissions);
   const canDelete = canUseModuleAction(tasksDetailModuleDefinition, "delete", permissions);
   const canAudit = canUseModuleAction(tasksDetailModuleDefinition, "audit", permissions);
@@ -794,6 +793,7 @@ export function TasksDetailEngineClientPage() {
       handleSubmitComment,
       handleToggleChecklistItem,
       handleToggleSubtaskStatus,
+      mentionableUsers,
       openChecklistDialog,
       openSubtaskDialog,
       setDraftValue,

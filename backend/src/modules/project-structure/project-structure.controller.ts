@@ -15,7 +15,6 @@ import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
-import { CreateProjectCycleDto } from './dto/create-project-cycle.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
 import { CreateProjectGroupDto } from './dto/create-project-group.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
@@ -23,8 +22,6 @@ import { AddEnrollmentGroupDto } from './dto/add-enrollment-group.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
-import { SetEnrollmentCycleDto } from './dto/set-enrollment-cycle.dto';
-import { UpdateProjectCycleDto } from './dto/update-project-cycle.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
 import { UpdateProjectGroupDto } from './dto/update-project-group.dto';
 import { ProjectStructureService } from './project-structure.service';
@@ -105,46 +102,6 @@ export class ProjectStructureController {
     return this.service.deleteGroup(user.tenantId, projectId, groupId);
   }
 
-  @Get(':projectId/cycles')
-  @Permissions('project-structure.read')
-  async listCycles(
-    @CurrentUser() user: JwtUser,
-    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
-  ) {
-    return this.service.listCycles(user.tenantId, projectId);
-  }
-
-  @Post(':projectId/cycles')
-  @Permissions('project-structure.create')
-  async createCycle(
-    @CurrentUser() user: JwtUser,
-    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
-    @Body() dto: CreateProjectCycleDto,
-  ) {
-    return this.service.createCycle(user.tenantId, projectId, dto);
-  }
-
-  @Patch(':projectId/cycles/:cycleId')
-  @Permissions('project-structure.update')
-  async updateCycle(
-    @CurrentUser() user: JwtUser,
-    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
-    @Param('cycleId', new ParseUUIDPipe({ version: '4' })) cycleId: string,
-    @Body() dto: UpdateProjectCycleDto,
-  ) {
-    return this.service.updateCycle(user.tenantId, projectId, cycleId, dto);
-  }
-
-  @Delete(':projectId/cycles/:cycleId')
-  @Permissions('project-structure.delete')
-  async deleteCycle(
-    @CurrentUser() user: JwtUser,
-    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
-    @Param('cycleId', new ParseUUIDPipe({ version: '4' })) cycleId: string,
-  ) {
-    return this.service.deleteCycle(user.tenantId, projectId, cycleId);
-  }
-
   @Get(':projectId/enrollments')
   @Permissions('enrollments.read')
   async listEnrollments(
@@ -206,23 +163,6 @@ export class ProjectStructureController {
       projectId,
       enrollmentId,
       groupId,
-    );
-  }
-
-  @Post(':projectId/enrollments/:enrollmentId/cycle')
-  @Permissions('enrollments.update')
-  async setEnrollmentCycle(
-    @CurrentUser() user: JwtUser,
-    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
-    @Param('enrollmentId', new ParseUUIDPipe({ version: '4' }))
-    enrollmentId: string,
-    @Body() dto: SetEnrollmentCycleDto,
-  ) {
-    return this.service.setEnrollmentCycle(
-      user.tenantId,
-      projectId,
-      enrollmentId,
-      dto.cycleId ?? null,
     );
   }
 

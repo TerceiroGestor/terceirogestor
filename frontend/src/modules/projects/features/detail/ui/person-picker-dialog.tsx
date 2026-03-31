@@ -48,12 +48,16 @@ function mergeUniquePeople(
   );
 }
 
+function resolveEligiblePeopleGroups(person: ApiEligibleProjectPerson) {
+  return person.eligiblePeopleGroups ?? person.eligibleSegments ?? [];
+}
+
 export function PersonPickerDialog({
   open,
   onOpenChange,
   projectId,
   title = "Selecionar pessoa",
-  description = "Escolha people elegiveis para vincular ao projeto.",
+  description,
   onPick,
   actionLabel = "Adicionar",
 }: PersonPickerDialogProps) {
@@ -97,7 +101,7 @@ export function PersonPickerDialog({
                     : previous.filter((person) => !rows.some((row) => row.id === person.id)),
                 );
               }}
-              aria-label="Selecionar people da pagina"
+              aria-label="Selecionar pessoas da página"
             />
           );
         },
@@ -163,10 +167,15 @@ export function PersonPickerDialog({
       {
         id: "peopleGroups",
         header: "Grupos de Pessoas",
-        accessorFn: (row) => row.eligibleSegments?.map((segment) => segment.name).join(", ") ?? "",
+        accessorFn: (row) =>
+          resolveEligiblePeopleGroups(row)
+            .map((peopleGroup) => peopleGroup.name)
+            .join(", "),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.eligibleSegments?.map((segment) => segment.name).join(", ") || "-"}
+            {resolveEligiblePeopleGroups(row.original)
+              .map((peopleGroup) => peopleGroup.name)
+              .join(", ") || "-"}
           </span>
         ),
       },
@@ -214,7 +223,7 @@ export function PersonPickerDialog({
       const response = await listEligibleProjectPeople(token, projectId, {
         q: searchText.trim() || undefined,
         filters: domain,
-        segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+        peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
       });
@@ -225,7 +234,7 @@ export function PersonPickerDialog({
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
-          : "Falha ao carregar people.";
+          : "Falha ao carregar pessoas.";
       setError(message);
       setRows([]);
       setTotalCount(0);
@@ -286,7 +295,7 @@ export function PersonPickerDialog({
       const firstPage = await listEligibleProjectPeople(token, projectId, {
         q: searchText.trim() || undefined,
         filters: domain,
-        segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+        peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
         page: 1,
         limit: 200,
       });
@@ -295,7 +304,7 @@ export function PersonPickerDialog({
         const response = await listEligibleProjectPeople(token, projectId, {
           q: searchText.trim() || undefined,
           filters: domain,
-          segmentId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
+          peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
           page,
           limit: 200,
         });
@@ -306,7 +315,7 @@ export function PersonPickerDialog({
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
-          : "Falha ao selecionar people filtradas.";
+          : "Falha ao selecionar pessoas filtradas.";
       setError(message);
     } finally {
       setSaving(false);
@@ -321,7 +330,7 @@ export function PersonPickerDialog({
         await onPick(person);
       }
       toast({
-        title: "People adicionadas",
+        title: "Pessoas adicionadas",
         description: `${selectedPeople.length} registro(s) processados.`,
       });
       setSelectedPeople([]);

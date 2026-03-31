@@ -286,20 +286,15 @@ model Tenant {
   taskOrganizerAttachments             TaskOrganizerAttachment[]
   taskOrganizerTaskDependencies        TaskOrganizerTaskDependency[]
   programs                             Program[]
-  cycles                               Cycle[]
   projects                             Project[]
   projectComments                      ProjectComment[]
   projectAttachments                   ProjectAttachment[]
   programComments                      ProgramComment[]
   programAttachments                   ProgramAttachment[]
-  cycleComments                        CycleComment[]
-  cycleAttachments                     CycleAttachment[]
   projectGroups                        ProjectGroup[]
-  projectCycles                        ProjectCycle[]
   projectPeopleGroups                  ProjectPeopleGroup[]
   projectEnrollments                   ProjectEnrollment[]
   projectEnrollmentGroupMemberships    ProjectEnrollmentGroupMembership[]
-  projectEnrollmentCycleParticipations ProjectEnrollmentCycleParticipation[]
   actionTypes                          ActionType[]
   projectActions                       ProjectAction[]
   projectActionComments                ProjectActionComment[]
@@ -363,8 +358,6 @@ model User {
   projectAttachments                  ProjectAttachment[]
   programComments                     ProgramComment[]
   programAttachments                  ProgramAttachment[]
-  cycleComments                       CycleComment[]
-  cycleAttachments                    CycleAttachment[]
   projectActionComments               ProjectActionComment[]
   projectActionAttachments            ProjectActionAttachment[]
   assignedTaskOrganizerTasks          TaskOrganizerTask[]          @relation("TaskOrganizerAssignedUser")
@@ -1188,7 +1181,6 @@ model Project {
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
   program      Program              @relation(fields: [programId], references: [id])
   groups       ProjectGroup[]
-  cycles       ProjectCycle[]
   peopleGroups ProjectPeopleGroup[]
   enrollments  ProjectEnrollment[]
   actions      ProjectAction[]
@@ -1238,71 +1230,6 @@ model ProjectAttachment {
 
   @@index([tenantId])
   @@index([projectId])
-  @@index([uploadedByUserId])
-}
-
-model Cycle {
-  id            String   @id @default(uuid()) @db.Char(36)
-  tenantId      String   @db.Char(36)
-  name          String
-  description   String?  @db.Text
-  audienceType  String?
-  ageMin        Int?
-  ageMax        Int?
-  isActive      Boolean  @default(true)
-  tags          String?  @db.Text
-  internalNotes String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  tenant        Tenant            @relation(fields: [tenantId], references: [id])
-  projectCycles ProjectCycle[]
-  comments      CycleComment[]
-  attachments   CycleAttachment[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-  @@index([name])
-  @@index([isActive])
-}
-
-model CycleComment {
-  id             String   @id @default(uuid()) @db.Char(36)
-  tenantId       String   @db.Char(36)
-  cycleId        String   @db.Char(36)
-  authorUserId   String?  @db.Char(36)
-  body           String   @db.Text
-  mentionUserIds Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  tenant     Tenant @relation(fields: [tenantId], references: [id])
-  cycle      Cycle  @relation(fields: [cycleId], references: [id])
-  authorUser User?  @relation(fields: [authorUserId], references: [id])
-
-  @@index([tenantId])
-  @@index([cycleId])
-  @@index([authorUserId])
-}
-
-model CycleAttachment {
-  id               String   @id @default(uuid()) @db.Char(36)
-  tenantId         String   @db.Char(36)
-  cycleId          String   @db.Char(36)
-  uploadedByUserId String?  @db.Char(36)
-  label            String
-  filePath         String
-  mimeType         String?
-  fileSizeBytes    Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  tenant         Tenant @relation(fields: [tenantId], references: [id])
-  cycle          Cycle  @relation(fields: [cycleId], references: [id])
-  uploadedByUser User?  @relation(fields: [uploadedByUserId], references: [id])
-
-  @@index([tenantId])
-  @@index([cycleId])
   @@index([uploadedByUserId])
 }
 
@@ -1374,9 +1301,8 @@ model PeopleSegment {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant        Tenant                    @relation(fields: [tenantId], references: [id])
-  memberships   PeopleSegmentMembership[]
-  projectCycles ProjectCycle[]
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id])
+  memberships PeopleSegmentMembership[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1452,34 +1378,6 @@ model ProjectPeopleGroup {
   @@index([participationKind])
 }
 
-model ProjectCycle {
-  id             String    @id @default(uuid()) @db.Char(36)
-  tenantId       String    @db.Char(36)
-  projectId      String    @db.Char(36)
-  catalogCycleId String?   @db.Char(36)
-  segmentId      String?   @db.Char(36)
-  name           String
-  startsAt       DateTime?
-  endsAt         DateTime?
-  internalNotes  String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  tenant         Tenant                                @relation(fields: [tenantId], references: [id])
-  project        Project                               @relation(fields: [projectId], references: [id])
-  catalogCycle   Cycle?                                @relation(fields: [catalogCycleId], references: [id])
-  segment        PeopleSegment?                        @relation(fields: [segmentId], references: [id])
-  participations ProjectEnrollmentCycleParticipation[]
-  actions        ProjectAction[]
-
-  @@unique([tenantId, projectId, name])
-  @@index([tenantId])
-  @@index([projectId])
-  @@index([catalogCycleId])
-  @@index([segmentId])
-  @@index([name])
-}
-
 model ProjectEnrollment {
   id                String                   @id @default(uuid()) @db.Char(36)
   tenantId          String                   @db.Char(36)
@@ -1498,7 +1396,6 @@ model ProjectEnrollment {
   project                    Project                               @relation(fields: [projectId], references: [id])
   person                     Person                                @relation(fields: [personId], references: [id])
   groupMemberships           ProjectEnrollmentGroupMembership[]
-  cycleParticipations        ProjectEnrollmentCycleParticipation[]
   actionAttendances          ProjectActionAttendance[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
   targetedActions            ProjectAction[]
@@ -1535,32 +1432,6 @@ model ProjectEnrollmentGroupMembership {
   @@index([isActive])
 }
 
-model ProjectEnrollmentCycleParticipation {
-  id           String    @id @default(uuid()) @db.Char(36)
-  tenantId     String    @db.Char(36)
-  enrollmentId String    @db.Char(36)
-  cycleId      String    @db.Char(36)
-  activeKey    String?   @db.Char(36)
-  isActive     Boolean   @default(true)
-  startsAt     DateTime  @default(now())
-  endsAt       DateTime?
-  deletedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  tenant            Tenant                    @relation(fields: [tenantId], references: [id])
-  enrollment        ProjectEnrollment         @relation(fields: [enrollmentId], references: [id])
-  cycle             ProjectCycle              @relation(fields: [cycleId], references: [id])
-  actionAttendances ProjectActionAttendance[]
-
-  @@unique([tenantId, activeKey])
-  @@index([tenantId])
-  @@index([enrollmentId])
-  @@index([cycleId])
-  @@index([activeKey])
-  @@index([isActive])
-}
-
 model ActionType {
   id          String       @id @default(uuid()) @db.Char(36)
   tenantId    String       @db.Char(36)
@@ -1586,7 +1457,6 @@ model ProjectAction {
   projectId         String       @db.Char(36)
   createdByUserId   String?      @db.Char(36)
   groupId           String?      @db.Char(36)
-  cycleId           String?      @db.Char(36)
   targetEnrollmentId String?     @db.Char(36)
   actionTypeId      String       @db.Char(36)
   title             String
@@ -1610,7 +1480,6 @@ model ProjectAction {
   project              Project                            @relation(fields: [projectId], references: [id])
   createdByUser        User?                              @relation(fields: [createdByUserId], references: [id])
   group                ProjectGroup?                      @relation(fields: [groupId], references: [id])
-  cycle                ProjectCycle?                      @relation(fields: [cycleId], references: [id])
   targetEnrollment     ProjectEnrollment?                 @relation(fields: [targetEnrollmentId], references: [id])
   actionType           ActionType                         @relation(fields: [actionTypeId], references: [id])
   attendances          ProjectActionAttendance[]
@@ -1623,7 +1492,6 @@ model ProjectAction {
   @@index([projectId])
   @@index([createdByUserId])
   @@index([groupId])
-  @@index([cycleId])
   @@index([targetEnrollmentId])
   @@index([actionTypeId])
   @@index([status])
@@ -1695,7 +1563,6 @@ model ProjectActionAttendance {
   tenantId             String           @db.Char(36)
   actionId             String           @db.Char(36)
   enrollmentId         String           @db.Char(36)
-  cycleParticipationId String?          @db.Char(36)
   status               AttendanceStatus @default(PRESENT)
   notes                String?          @db.Text
   qualityScore         Int?
@@ -1707,13 +1574,11 @@ model ProjectActionAttendance {
   tenant             Tenant                               @relation(fields: [tenantId], references: [id])
   action             ProjectAction                        @relation(fields: [actionId], references: [id])
   enrollment         ProjectEnrollment                    @relation(fields: [enrollmentId], references: [id])
-  cycleParticipation ProjectEnrollmentCycleParticipation? @relation(fields: [cycleParticipationId], references: [id])
 
   @@unique([tenantId, actionId, enrollmentId])
   @@index([tenantId])
   @@index([actionId])
   @@index([enrollmentId])
-  @@index([cycleParticipationId])
   @@index([status])
 }
 

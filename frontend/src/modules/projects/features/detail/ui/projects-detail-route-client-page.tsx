@@ -149,11 +149,6 @@ export function ProjectsDetailRouteClientPage({
             Grupos
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={withTenantPath(`/projects/${project.id}/cycles`, tenantSlug)}>
-            Ciclos
-          </Link>
-        </DropdownMenuItem>
         {canReadActions ? (
           <DropdownMenuItem asChild>
             <Link href={withTenantPath(`/projects/${project.id}/actions`, tenantSlug)}>

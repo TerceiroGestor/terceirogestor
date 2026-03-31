@@ -27,7 +27,7 @@ export async function listProjectActions(
   const query = buildQuery({
     ...params,
     groupId: params?.projectGroupId,
-    cycleId: params?.peopleGroupId,
+    peopleGroupId: params?.peopleGroupId,
   });
   return apiRequest<ProjectActionsListResponse>(
     `/projects/${projectId}/actions${query}`,
@@ -54,7 +54,7 @@ export async function listActions(
   const query = buildQuery({
     ...params,
     groupId: params?.projectGroupId,
-    cycleId: params?.peopleGroupId,
+    peopleGroupId: params?.peopleGroupId,
   });
   return apiRequest<ProjectActionsListResponse>(`/actions${query}`, {}, token);
 }

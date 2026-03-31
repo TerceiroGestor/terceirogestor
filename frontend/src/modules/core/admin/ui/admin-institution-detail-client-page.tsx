@@ -111,7 +111,7 @@ export function AdminInstitutionDetailClientPage() {
       toast({ variant: "destructive", title: "Falha ao salvar", description: message });
     },
   });
-  const { saving, replaceSavedDraft, commitField, commitDraft } = autoSave;
+  const { saving, replaceSavedDraft, commitField } = autoSave;
 
   React.useEffect(() => {
     if (authLoading || userLoading) {

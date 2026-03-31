@@ -54,6 +54,11 @@ export type ApiProjectAction = {
     | {
         id: string;
         name: string;
+        category?: string | null;
+        description?: string | null;
+        ageMin?: number | null;
+        ageMax?: number | null;
+        isActive?: boolean;
         segmentId?: string | null;
         segment?: {
           id: string;
@@ -163,7 +168,6 @@ export type ApiProjectActionAttendance = {
   qualityScore: number | null;
   qualityNotes: string | null;
   isHighlight: boolean;
-  cycleParticipationId: string | null;
   updatedAt: string;
 };
 

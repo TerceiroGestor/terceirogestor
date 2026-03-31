@@ -37,7 +37,7 @@ const AUTO_SAVE_EDITING = {
 
 const AUDIT_FIELD_LABELS = {
   name: "Nome",
-  description: "Descricao",
+  description: "Descrição",
   internalNotes: "Notas internas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -152,7 +152,7 @@ function participantColumns({
                 onEndMembership(row.original);
               }}
             >
-              Encerrar vinculo
+              Encerrar vínculo
             </Button>
           </div>
         ) : null,
@@ -162,8 +162,8 @@ function participantColumns({
 
 function formatHistoryPeriod(row: ApiProjectEnrollment, groupId?: string | null) {
   const membership = row.groupMembershipHistory.find((item) => item.group.id === groupId);
-  if (!membership?.startsAt && !membership?.endsAt) return "Periodo nao informado";
-  return `${membership?.startsAt?.slice(0, 10) ?? "-"} ate ${membership?.endsAt?.slice(0, 10) ?? "-"}`;
+  if (!membership?.startsAt && !membership?.endsAt) return "Período não informado";
+  return `${membership?.startsAt?.slice(0, 10) ?? "-"} até ${membership?.endsAt?.slice(0, 10) ?? "-"}`;
 }
 
 function ProjectGroupsDetailMain({
@@ -223,7 +223,7 @@ function ProjectGroupsDetailMain({
       </div>
 
       <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descricao</div>
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
         <Textarea
           value={draft.description}
           onChange={(event) =>
@@ -231,7 +231,6 @@ function ProjectGroupsDetailMain({
           }
           onBlur={() => onCommitField("description")}
           className={TEXTAREA_CLASS}
-          placeholder="Descreva o objetivo e as regras do grupo de participantes."
           readOnly={readOnly}
         />
       </div>
@@ -277,24 +276,12 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
       mode === "create"
         ? "Novo grupo de participantes"
         : group?.name || draft.name || "Grupo de Participantes",
-    slot: ({ project, draft, rows, historyRows }) => (
+    slot: ({ project }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Projeto</div>
             <div className="font-medium text-foreground">{project?.name ?? "-"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Grupo</div>
-            <div className="font-medium text-foreground">{draft.name.trim() || "-"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Participantes</div>
-            <div className="font-medium text-foreground">{rows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Historico</div>
-            <div className="font-medium text-foreground">{historyRows.length}</div>
           </div>
         </div>
       </div>
@@ -342,14 +329,14 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
         items: buildProjectGroupsHistoryItems(detailAudit?.logs ?? []),
         emptyLabel:
           mode === "create"
-            ? "O historico aparece apos salvar o grupo de participantes."
-            : "Nenhum historico disponivel para este grupo de participantes.",
+            ? "Salve para habilitar histórico."
+            : "Nenhum histórico.",
       }}
       contextItems={[
         { key: "project", label: "Projeto", value: project?.name ?? "-" },
         { key: "group", label: "Grupo", value: draft.name.trim() || "-" },
         { key: "participants", label: "Participantes ativos", value: rows.length },
-        { key: "historyParticipants", label: "Participacoes encerradas", value: historyRows.length },
+        { key: "historyParticipants", label: "Participações encerradas", value: historyRows.length },
       ]}
       defaultTab="activity"
     />
@@ -374,7 +361,7 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
           getRowId: (row) => row.id,
           onRowClick: (row, context) => context.onOpenPerson(row.person.id),
           action: {
-            label: "Novo",
+            label: "Vincular participante",
             onClick: (context) => context.onCreateParticipant(),
             hidden: ({ readOnly, mode, canManageParticipants }) =>
               readOnly || mode !== "edit" || !canManageParticipants,
@@ -399,19 +386,19 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o grupo de participantes para gerenciar pessoas."
+              ? "Salve para habilitar participantes."
               : "Nenhum participante neste grupo.",
         },
       ],
     },
     {
       key: "historyParticipants",
-      label: "Historico",
+      label: "Histórico",
       badge: ({ historyRows }) => historyRows.length,
       relations: [
         {
           key: "project-group.history-participants",
-          label: "Participacoes encerradas",
+          label: "Participações encerradas",
           loading: ({ participantsLoading }) => participantsLoading,
           rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
           columns: ({ tenantSlug, group }) => [
@@ -440,7 +427,7 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
             },
             {
               id: "period",
-              header: "Periodo",
+              header: "Período",
               accessorFn: (row) => formatHistoryPeriod(row, group?.id),
             },
           ],
@@ -459,7 +446,7 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "O historico aparece apos salvar o grupo."
+              ? "Salve para habilitar histórico."
               : "Nenhum participante encerrado neste grupo.",
         },
       ],
@@ -479,9 +466,9 @@ export const projectGroupsDetailLayout: DetailLayoutConfig<ProjectGroupsDetailLa
         key: "projectEnrollmentGroupMembership",
         entity: "ProjectEnrollmentGroupMembership",
         model: "audit.logs",
-        label: "Vinculo de grupo",
+        label: "Vínculo de grupo",
         fieldLabels: {
-          startsAt: "Inicio",
+          startsAt: "Início",
           endsAt: "Fim",
           isActive: "Status",
           deletedAt: "Encerrado em",

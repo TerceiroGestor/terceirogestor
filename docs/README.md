@@ -5,6 +5,9 @@ Esta pasta contem somente a documentacao ativa do projeto. O padrao oficial e un
 Arquivos:
 
 - [marco-zero-1.0.md](/c:/server/system_development/docs/marco-zero-1.0.md)
+- [marco-zero-1.0-implementation-plan.md](/c:/server/system_development/docs/marco-zero-1.0-implementation-plan.md)
+- [marco-zero-1.0-audit-matrix-template.md](/c:/server/system_development/docs/marco-zero-1.0-audit-matrix-template.md)
+- [marco-zero-1.0-audit-matrix.csv](/c:/server/system_development/docs/marco-zero-1.0-audit-matrix.csv)
 - [canonical-web-client-standard.md](/c:/server/system_development/docs/canonical-web-client-standard.md)
 - [canonical-business-structure.md](/c:/server/system_development/docs/canonical-business-structure.md)
 - [deployment-and-update.md](/c:/server/system_development/docs/deployment-and-update.md)

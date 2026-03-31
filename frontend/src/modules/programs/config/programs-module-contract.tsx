@@ -165,10 +165,10 @@ export const programsListModuleDefinition = defineRecordModule<ProgramsListQuery
       name: { label: "Programa" },
       type: { label: "Tipo" },
       status: { label: "Status" },
-      description: { label: "Descricao" },
+      description: { label: "Descrição" },
       tags: { label: "Tags" },
       internalNotes: { label: "Notas internas" },
-      startsAt: { label: "Inicio", type: "date" },
+      startsAt: { label: "Início", type: "date" },
       endsAt: { label: "Fim", type: "date" },
       createdAt: { label: "Criado em", type: "date" },
       updatedAt: { label: "Atualizado em", type: "date" },
@@ -217,7 +217,7 @@ export const programsListModuleDefinition = defineRecordModule<ProgramsListQuery
     },
     {
       id: "calendar",
-      title: "Calendario",
+      title: "Calendário",
       viewType: "calendar",
       icon: <CalendarDays className="size-4" />,
       params: {
@@ -246,7 +246,7 @@ export const programsListModuleDefinition = defineRecordModule<ProgramsListQuery
     },
     {
       id: "graph",
-      title: "Grafico",
+      title: "Gráfico",
       viewType: "graph",
       icon: <BarChart3 className="size-4" />,
       params: {
@@ -254,7 +254,7 @@ export const programsListModuleDefinition = defineRecordModule<ProgramsListQuery
           fields: [
             { field: "status", label: "Status", kind: "dimension" },
             { field: "type", label: "Tipo", kind: "dimension" },
-            { field: "startsAt", label: "Inicio", kind: "date" },
+            { field: "startsAt", label: "Início", kind: "date" },
             { field: "endsAt", label: "Fim", kind: "date" },
           ],
           defaultState: {
@@ -326,10 +326,10 @@ export const programsDetailModuleDefinition =
         name: { label: "Programa" },
         type: { label: "Tipo" },
         status: { label: "Status" },
-        description: { label: "Descricao" },
+        description: { label: "Descrição" },
         tags: { label: "Tags" },
         internalNotes: { label: "Notas internas" },
-        startsAt: { label: "Inicio", type: "date" },
+        startsAt: { label: "Início", type: "date" },
         endsAt: { label: "Fim", type: "date" },
         createdAt: { label: "Criado em", type: "date" },
         updatedAt: { label: "Atualizado em", type: "date" },

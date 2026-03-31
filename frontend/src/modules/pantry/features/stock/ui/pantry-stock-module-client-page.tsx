@@ -34,7 +34,6 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   formatDateOnlyPtBR,
   parseLocalDateOnly,
-  type DateBucket,
 } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { PantryDashboardResponse } from "@/modules/pantry/api";
@@ -94,19 +93,19 @@ const DEFAULT_TIMELINE_SORT: PantryStockQueryState["timelineSortDirection"] = "d
 const CALENDAR_MODE_LABELS: Record<PantryStockQueryState["calendarMode"], string> = {
   day: "Dia",
   week: "Semana",
-  month: "Mes",
+  month: "Mês",
   year: "Ano",
 };
 const GRAPH_METRIC_LABELS = {
   count: "Contagem",
   sum: "Soma",
-  avg: "Media",
-  min: "Minimo",
-  max: "Maximo",
+  avg: "Média",
+  min: "Mínimo",
+  max: "Máximo",
   distinct_count: "Distintos",
 } as const;
 const GRAPH_CHART_LABELS = {
-  area: "Area",
+  area: "Área",
   bar: "Barras",
   bar_horizontal: "Barras horizontais",
   donut: "Rosca",
@@ -671,7 +670,7 @@ export function PantryStockModuleClientPage() {
             <SelectContent>
               <SelectItem value="day">Dia</SelectItem>
               <SelectItem value="week">Semana</SelectItem>
-              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="month">M?s</SelectItem>
               <SelectItem value="year">Ano</SelectItem>
             </SelectContent>
           </Select>
@@ -765,7 +764,7 @@ export function PantryStockModuleClientPage() {
         dateFields.find((field) => field.name === state.calendarField)?.label ?? state.calendarField;
       facets.push({
         key: "analysis:calendarField",
-        label: `Calendario: ${calendarLabel}`,
+        label: `Calendário: ${calendarLabel}`,
         tone: "analysis",
         analysisKind: "time",
         icon: <CalendarDays className="size-3.5" />,
@@ -794,7 +793,7 @@ export function PantryStockModuleClientPage() {
       if (state.calendarTo) {
         facets.push({
           key: "analysis:calendarTo",
-          label: `Ate: ${state.calendarTo}`,
+          label: `Até: ${state.calendarTo}`,
           tone: "analysis",
           analysisKind: "time",
           icon: <CalendarDays className="size-3.5" />,
@@ -835,7 +834,7 @@ export function PantryStockModuleClientPage() {
       });
       facets.push({
         key: "analysis:graphChart",
-        label: `Grafico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
+        label: `Gráfico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
         tone: "analysis",
         analysisKind: "chart",
         icon: <PieChart className="size-3.5" />,

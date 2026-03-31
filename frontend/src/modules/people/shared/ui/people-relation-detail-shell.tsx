@@ -49,7 +49,6 @@ type PeopleRelationDetailShellProps = {
   subtitle?: string;
   mode?: "create" | "edit";
   saving?: boolean;
-  headerTitleSlot?: React.ReactNode;
   headerActionsSlot?: React.ReactNode;
   notes?: string | null;
   onNotesChange?: (next: string | null) => void;
@@ -82,7 +81,6 @@ export function PeopleRelationDetailShell({
   subtitle,
   mode = "edit",
   saving = false,
-  headerTitleSlot,
   headerActionsSlot,
   notes,
   onNotesChange,
@@ -367,19 +365,16 @@ export function PeopleRelationDetailShell({
               readOnly: mode !== "edit" || !relationId,
               emptyLabel:
                 mode === "create"
-                  ? "Salve o registro para habilitar comentarios."
+                  ? "Indisponível."
                   : metadataLoading
-                    ? "Carregando comentarios..."
-                    : "Nenhum comentario registrado para este item.",
+                    ? "Carregando..."
+                    : "Nenhum comentário.",
             }}
             notes={{
               value: notes,
               onChange: (next) => onNotesChange?.(next),
               onBlur: () => onNotesCommit?.(notes ?? null),
               readOnly: relationNotesReadOnly,
-              placeholder: relationNotesReadOnly
-                ? "Use o formulario principal para registrar notas."
-                : "Registre observacoes internas deste item.",
             }}
             tags={{
               value: metadata.tags,
@@ -389,8 +384,8 @@ export function PeopleRelationDetailShell({
               readOnly: mode !== "edit" || !relationId,
               emptyLabel:
                 mode === "create"
-                  ? "Salve o registro para habilitar tags."
-                  : "Nenhuma tag registrada para este item.",
+                  ? "Indisponível."
+                  : "Nenhuma tag.",
             }}
             attachments={{
               items: metadata.attachments.map((attachment) => ({
@@ -418,23 +413,23 @@ export function PeopleRelationDetailShell({
               readOnly: mode !== "edit" || !relationId,
               emptyLabel:
                 mode === "create"
-                  ? "Salve o registro para habilitar anexos."
+                  ? "Indisponível."
                   : attachmentUploading
-                    ? "Enviando anexo..."
-                    : "Nenhum anexo registrado para este item.",
+                    ? "Enviando..."
+                    : "Nenhum anexo.",
             }}
             history={{
               items: historyItems,
               emptyLabel:
                 mode === "create"
-                  ? "O historico aparece apos salvar o registro."
-                  : "Nenhum historico disponivel para este registro.",
+                  ? "Sem histórico."
+                  : "Nenhum histórico.",
             }}
             contextItems={[
               { key: "person", label: "Pessoa", value: personName },
               { key: "type", label: "Registro", value: title },
-              { key: "relationId", label: "Id", value: relationId ?? "Nao salvo" },
-              { key: "comments", label: "Comentarios", value: metadata.comments.length },
+              { key: "relationId", label: "Id", value: relationId ?? "Não salvo" },
+              { key: "comments", label: "Comentários", value: metadata.comments.length },
               { key: "attachments", label: "Anexos", value: metadata.attachments.length },
               { key: "tags", label: "Tags", value: metadata.tags.length },
             ]}

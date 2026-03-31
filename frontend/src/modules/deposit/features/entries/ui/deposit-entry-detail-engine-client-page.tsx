@@ -7,6 +7,8 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
+import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +55,7 @@ import {
   DEPOSIT_DEFAULT_SECTOR,
   DEPOSIT_DEFAULT_UNIT,
   DEPOSIT_ROUTES,
+  DEPOSIT_USAGE_TEXT,
 } from "@/modules/deposit/shared/domain/deposit.constants";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
@@ -164,6 +167,16 @@ export function DepositEntryDetailEngineClientPage({
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [tags, setTags] = React.useState<string[]>([]);
   const [internalNotes, setInternalNotes] = React.useState<string | null>(null);
+
+  const usageItems = React.useMemo(
+    () => buildUsageDocumentationItems("deposit-entries-detail", DEPOSIT_USAGE_TEXT.entries.sections),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: DEPOSIT_USAGE_TEXT.entries.title,
+    items: usageItems,
+  });
 
   const persistEntryDraft = React.useCallback(
     async (nextDraft: DepositEntryDraft) => {
@@ -473,8 +486,8 @@ export function DepositEntryDetailEngineClientPage({
     if (!canCreate) {
       toast({
         variant: "destructive",
-        title: "Sem permissao",
-        description: "Voce nao tem permissao para registrar entradas.",
+        title: "Sem permissão",
+        description: "Você não tem permissão para registrar entradas.",
       });
       return;
     }
@@ -485,7 +498,7 @@ export function DepositEntryDetailEngineClientPage({
     if (!sector || !unit || !Number.isFinite(quantity) || quantity <= 0) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe setor, unidade e quantidade.",
       });
       return;
@@ -579,15 +592,15 @@ export function DepositEntryDetailEngineClientPage({
     if (!canDelete) {
       toast({
         variant: "destructive",
-        title: "Nao e possivel excluir",
-        description: "Esta entrada ja teve saidas registradas.",
+        title: "Não é possível excluir",
+        description: "Esta entrada já teve saídas registradas.",
       });
       return;
     }
 
     const confirmed = await confirm({
       title: "Excluir entrada?",
-      description: "Esta acao nao pode ser desfeita.",
+      description: "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir",
       confirmVariant: "destructive",
     });
@@ -597,7 +610,7 @@ export function DepositEntryDetailEngineClientPage({
     setBusy(true);
     try {
       await dataProvider.delete("deposit.entries", entry.id);
-      toast({ variant: "success", title: "Entrada excluida" });
+      toast({ variant: "success", title: "Entrada excluída" });
       close();
     } catch (error) {
       const message =
@@ -716,7 +729,7 @@ export function DepositEntryDetailEngineClientPage({
       items.push(
         ...(entry?.comments ?? []).map((comment) => ({
           id: `comment:${comment.id}`,
-          title: "Comentario registrado",
+          title: "Comentário registrado",
           description: comment.body,
           meta: `Por ${comment.author.name}`,
           createdAt: comment.createdAt,
@@ -835,7 +848,7 @@ export function DepositEntryDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   if (mode === "create" && !itemIdFromQuery) {
@@ -880,7 +893,7 @@ export function DepositEntryDetailEngineClientPage({
               title={
                 canDelete
                   ? "Excluir entrada"
-                  : "Esta entrada ja teve saidas registradas"
+                  : "Esta entrada j? teve saídas registradas"
               }
             >
               <Trash2 className="mr-1 size-4" />

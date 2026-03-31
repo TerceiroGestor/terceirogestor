@@ -4,9 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { resolveMediaUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useFamilyRelations } from "@/modules/people/features/family-members/data/use-family-relations";
 import {
@@ -15,10 +13,8 @@ import {
 } from "@/modules/people/features/family-members/ui/family-relation-form";
 import type { HouseholdMember, PersonRelation } from "@/modules/people/shared/domain/types";
 import {
-  buildPeopleDetailTabPath,
   buildPeopleFamilyRelationPath,
 } from "@/modules/people/shared/domain/people-relation-routes";
-import { getInitials } from "@/modules/people/shared/domain/utils";
 import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-relation-detail-shell";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
@@ -52,13 +48,13 @@ const FAMILY_RELATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
     key: "family-relation",
     entity: "PersonRelation",
     model: "audit.logs",
-    label: "Vinculo familiar",
+    label: "Vínculo familiar",
     fieldLabels: {
-      type: "Tipo de vinculo",
+      type: "Tipo de vínculo",
       livesTogether: "Mora junto",
-      isLegalGuardian: "Responsavel legal",
-      isHouseholdHead: "Responsavel principal",
-      householdRole: "Papel no domicilio",
+      isLegalGuardian: "Responsável legal",
+      isHouseholdHead: "Responsável principal",
+      householdRole: "Papel no domicílio",
       isIncomeContributor: "Contribui renda",
       isProvider: "Provedor",
       isDependent: "Dependente",
@@ -96,10 +92,10 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
     [current, data],
   );
   const createInitialValues = React.useMemo(() => initialFormValues(), []);
-  const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "familia"), tenantSlug);
 
   const [draft, setDraft] = React.useState<FamilyRelationFormValues>(createInitialValues);
   const relationIdRef = React.useRef<string | null>(relationId || null);
+  const [activeRelationId, setActiveRelationId] = React.useState<string | null>(relationId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
     enabled: true,
@@ -129,6 +125,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
         const created = await create(payload);
         if (!created) return values;
         relationIdRef.current = created.id;
+        setActiveRelationId(created.id);
         router.replace(
           withTenantPath(buildPeopleFamilyRelationPath(personId, created.id), tenantSlug),
         );
@@ -143,6 +140,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
     if (mode !== "edit" || !current) return;
     const nextDraft = initialFormValues(current, currentMember);
     relationIdRef.current = current.id;
+    setActiveRelationId(current.id);
     setDraft(nextDraft);
     replaceSavedDraft(nextDraft);
   }, [current, currentMember, mode, replaceSavedDraft]);
@@ -176,15 +174,6 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
   const relatedPersonHref = relatedPerson
     ? withTenantPath(`/people/${relatedPerson.id}`, tenantSlug)
     : null;
-  const headerTitleSlot = relatedPerson ? (
-    <Avatar className="size-12 border border-border/60">
-      <AvatarImage
-        src={resolveMediaUrl(relatedPerson.avatarUrl || "/avatar.jpg")}
-        alt={relatedPerson.fullName}
-      />
-      <AvatarFallback>{getInitials(relatedPerson.fullName)}</AvatarFallback>
-    </Avatar>
-  ) : null;
 
   return (
     <PeopleRelationDetailShell
@@ -193,13 +182,11 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       tab="familia"
       title={
         mode === "create"
-          ? "Novo vinculo familiar"
-          : current?.relatedPerson.fullName ?? "Vinculo familiar"
+          ? "Novo vínculo familiar"
+          : current?.relatedPerson.fullName ?? "Vínculo familiar"
       }
-      subtitle="Gerencie os dados completos do vinculo familiar."
       mode={mode}
       saving={saving}
-      headerTitleSlot={headerTitleSlot}
       headerActionsSlot={
         relatedPersonHref ? (
           <Button variant="outline" size="sm" asChild>
@@ -210,7 +197,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
           </Button>
         ) : undefined
       }
-      relationId={relationIdRef.current}
+      relationId={activeRelationId}
       auditConfig={FAMILY_RELATION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
@@ -218,10 +205,10 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
     >
       {detailedError ? <div className="text-sm text-destructive">{detailedError}</div> : null}
       {mode === "edit" && detailedLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Carregando vinculo...</div>
+        <div className="text-sm text-muted-foreground">Carregando vínculo...</div>
       ) : null}
       {mode === "edit" && !detailedLoading && !current ? (
-        <div className="text-sm text-muted-foreground">Vinculo nao encontrado.</div>
+        <div className="text-sm text-muted-foreground">Vínculo não encontrado.</div>
       ) : null}
       {mode === "create" || current ? (
         <FamilyRelationForm

@@ -422,12 +422,9 @@ export class ProjectsService {
     });
     if (!existing) throw new NotFoundException('Projeto não encontrado');
 
-    const [groupsCount, cyclesCount, enrollmentsCount] =
+    const [groupsCount, enrollmentsCount] =
       await this.prisma.$transaction([
         this.prisma.projectGroup.count({
-          where: { tenantId, projectId: existing.id },
-        }),
-        this.prisma.projectCycle.count({
           where: { tenantId, projectId: existing.id },
         }),
         this.prisma.projectEnrollment.count({
@@ -435,7 +432,7 @@ export class ProjectsService {
         }),
       ]);
 
-    if (groupsCount > 0 || cyclesCount > 0 || enrollmentsCount > 0) {
+    if (groupsCount > 0 || enrollmentsCount > 0) {
       throw new BadRequestException(
         'Não é possível excluir o projeto: existem grupos/ciclos/participantes vinculados',
       );

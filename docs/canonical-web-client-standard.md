@@ -137,6 +137,44 @@ Regras:
 - `Novo` dentro da relation abre o fluxo de criação relacional correto
 - evitar cards operacionais isolados quando a relação puder ser modelada como list
 
+### Tipos de relation
+
+Existem apenas 2 tipos canônicos de relation:
+
+- `relation informacional`: lista relacional simples, com abertura do detail relacionado e ações de vincular/remover quando aplicável
+- `relation operacional`: lista relacional que também executa operação de negócio no próprio slot
+
+### Relation operacional
+
+Use `relation operacional` quando a mesma lista precisar suportar fluxo de trabalho dentro da aba ou do rodapé, como:
+
+- presença
+- nota
+- destaque
+- observação
+- seleção em lote
+- ação por linha
+
+Estrutura obrigatória da `relation operacional`:
+
+- barra superior compacta no próprio `relationSlot`
+- busca no padrão do slot relacional
+- filtros do domínio no topo da relation, sem criar tela paralela
+- ações globais no topo (`Selecionar`, `Salvar`, `Vincular`, etc.) quando necessário
+- métricas compactas e textuais (`total`, `filtrados`, `alterados`, `selecionados`)
+- corpo sempre em `ListView`
+- ações por linha implementadas nas colunas da própria lista
+- seleção em lote usando a seleção nativa do `ListView`
+- salvamento explícito quando houver mutação em lote
+- dialog auxiliar apenas para complemento operacional, nunca como estrutura principal da relation
+
+Regras visuais da `relation operacional`:
+
+- não usar card de resumo duplicando a contagem já exibida na relation
+- não usar subtítulo ou texto explicativo no corpo da tela
+- não usar `DataTable`
+- não criar page de gestão paralela quando o fluxo puder existir no shell atual
+
 ## Regras de implementação
 
 ### Obrigatório
@@ -153,6 +191,17 @@ Regras:
 - criar layout diferente entre `new` e `edit`
 - deixar `Tags` no body principal
 - usar componentes legados quando já existir capability canônica
+- usar `DataTable` em `list`, `detail`, `relationSlot` ou abas relacionais do fluxo canônico ativo
+- usar `FormEngine` em `/module/new`, `/module/[id]` ou formulário principal de módulo canônico
+- manter modulo removido ou rota legada no fluxo ativo de modulos canonicos
+
+## Legados a eliminar do fluxo ativo
+
+Os seguintes legados não fazem parte do padrão canônico `1.0`:
+
+- `DataTable`: substituir por `ListView`
+- `FormEngine`: substituir pelo formulário principal dentro de `DetailShellEngine`
+- modulos removidos do canônico: excluir do fluxo ativo, sem compatibilidade permanente
 
 ## Checklist rápido
 
@@ -163,5 +212,6 @@ Um módulo só é canônico quando:
 - `/module/[id]` usa o mesmo detail padrão
 - `sideSlot` tem a estrutura fixa
 - `relationSlot` usa list relacional
+- relation operacional usa `ListView`, nunca `DataTable`
 - `SearchPanel` funciona igual aos outros módulos
 - as mesmas views estão disponíveis quando o domínio suporta

@@ -49,7 +49,7 @@ export type WindowAction = {
   views?: WindowActionView[];
   actionSlot?: React.ReactNode;
   render: () => React.ReactNode;
-  moduleDefinition?: RecordModuleDefinition<any, any>;
+  moduleDefinition?: RecordModuleDefinition;
   hideBreadcrumb?: boolean;
 };
 
@@ -593,7 +593,75 @@ export type DetailRelationActionConfig<TContext> = {
   onClick: (context: TContext) => void;
   disabled?: (context: TContext) => boolean;
   hidden?: (context: TContext) => boolean;
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive";
 };
+
+export type DetailRelationFilterOption = {
+  label: string;
+  value: string;
+};
+
+export type DetailRelationSelectFilterConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  key: string;
+  label: string;
+  type: "select";
+  value: (context: TContext) => string;
+  onChange: (context: TContext, value: string) => void;
+  options: (context: TContext) => DetailRelationFilterOption[];
+  placeholder?: string | ((context: TContext) => string);
+  hidden?: (context: TContext) => boolean;
+  disabled?: (context: TContext) => boolean;
+};
+
+export type DetailRelationFilterConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = DetailRelationSelectFilterConfig<TContext>;
+
+export type DetailRelationStatConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TRow = unknown,
+> = {
+  key: string;
+  label: string;
+  value: (context: TContext, rows: TRow[]) => React.ReactNode;
+  hidden?: (context: TContext) => boolean;
+};
+
+export type DetailRelationBulkActionConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TRow = unknown,
+> = {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  onClick: (context: TContext, rows: TRow[]) => void;
+  disabled?: (context: TContext, rows: TRow[]) => boolean;
+  hidden?: (context: TContext, rows: TRow[]) => boolean;
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive";
+};
+
+export type DetailRelationSelectionConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TRow = unknown,
+> = Partial<{
+  mode: "always" | "toggle";
+  enabled: (context: TContext) => boolean;
+  toggleLabel: string | ((context: TContext, active: boolean) => string);
+  bulkActions: DetailRelationBulkActionConfig<TContext, TRow>[];
+}>;
+
+export type DetailOperationalRelationConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+  TRow = unknown,
+> = Partial<{
+  filters: DetailRelationFilterConfig<TContext>[];
+  stats: DetailRelationStatConfig<TContext, TRow>[];
+  primaryAction: DetailRelationActionConfig<TContext>;
+  secondaryActions: DetailRelationActionConfig<TContext>[];
+  selection: DetailRelationSelectionConfig<TContext, TRow>;
+}>;
 
 export type DetailRelationConfig<
   TContext extends Record<string, unknown> = Record<string, unknown>,
@@ -602,8 +670,10 @@ export type DetailRelationConfig<
   key: string;
   label: string;
   description?: string;
+  variant?: "informational" | "operational";
   visible?: (context: TContext) => boolean;
   loading?: (context: TContext) => boolean;
+  error?: string | ((context: TContext) => string | null | undefined);
   rows: (context: TContext) => TRow[];
   columns:
     | ColumnDef<TRow, unknown>[]
@@ -617,7 +687,7 @@ export type DetailRelationConfig<
   searchPlaceholder?: string | ((context: TContext) => string);
   filterRows?: (rows: TRow[], query: string, context: TContext) => TRow[];
   action?: DetailRelationActionConfig<TContext>;
-};
+} & DetailOperationalRelationConfig<TContext, TRow>;
 
 export type DetailTabTemplate<
   TContext extends Record<string, unknown> = Record<string, unknown>,
@@ -627,6 +697,7 @@ export type DetailTabTemplate<
   visible?: (context: TContext) => boolean;
   badge?: (context: TContext) => React.ReactNode;
   content?: (context: TContext) => React.ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   relations?: DetailRelationConfig<TContext, any>[];
   emptyLabel?: string;
 };
@@ -646,6 +717,7 @@ export type DetailLayoutConfig<
   tabs?: (context: TContext) => React.ReactNode;
   tabTemplates?: DetailTabTemplate<TContext>[];
   bottom?: (context: TContext) => React.ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bottomRelations?: DetailRelationConfig<TContext, any>[];
   side?: (context: TContext) => React.ReactNode;
   sideSlot?: (context: TContext) => React.ReactNode;

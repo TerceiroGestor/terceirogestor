@@ -1,5 +1,10 @@
-import { ScreenHost } from "@/web-client/screen/ScreenHost";
+import { redirect } from "next/navigation";
+import { withTenantPath } from "@/lib/tenant-path";
 
-export default function GroupPage() {
-  return <ScreenHost actionId="project-groups.list" />;
+export default function LegacyGroupListPage({
+  params,
+}: {
+  params: { tenant: string };
+}) {
+  redirect(withTenantPath("/projects/groups", params.tenant));
 }

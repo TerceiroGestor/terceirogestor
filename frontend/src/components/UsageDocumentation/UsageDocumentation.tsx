@@ -113,7 +113,7 @@ export function UsageDocumentation({
 
               {filteredItems.length === 0 ? (
                 <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-                  Nenhum resultado para “{query.trim()}”.
+                  Nenhum resultado para &quot;{query.trim()}&quot;.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -128,7 +128,7 @@ export function UsageDocumentation({
                           <span className="text-xs text-muted-foreground group-open:hidden">
                             Abrir
                           </span>
-                          <span className="text-xs text-muted-foreground hidden group-open:inline">
+                          <span className="hidden text-xs text-muted-foreground group-open:inline">
                             Fechar
                           </span>
                         </div>

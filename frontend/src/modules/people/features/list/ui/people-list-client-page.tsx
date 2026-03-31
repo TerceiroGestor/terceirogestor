@@ -17,7 +17,6 @@ import {
   toDateInputValue,
 } from "@/modules/people/shared/domain/utils";
 import { PeopleFormDialog } from "@/modules/people/shared/ui/people-form-dialog";
-import { PEOPLE_FORM_TEXT } from "@/modules/people/shared/domain/people.constants";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -490,11 +489,6 @@ export function PeopleListClientPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         title={editing ? "Editar cadastro" : "Novo cadastro de pessoa"}
-        description={
-          editing
-            ? PEOPLE_FORM_TEXT.dialogs.editDescription
-            : PEOPLE_FORM_TEXT.dialogs.createDescription
-        }
         initialValues={initialValues}
         submitLabel={editing ? "Salvar" : "Cadastrar"}
         onSubmit={handleSubmit}

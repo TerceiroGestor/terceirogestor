@@ -83,12 +83,12 @@ const analysisControlClassName =
 const ACTION_CALENDAR_MODE_LABELS: Record<ActionsListQueryState["calendarMode"], string> = {
   day: "Dia",
   week: "Semana",
-  month: "Mes",
+  month: "Mês",
   year: "Ano",
 };
 const ACTION_GANTT_SCALE_LABELS: Record<ActionsListQueryState["ganttScale"], string> = {
   week: "Semana",
-  month: "Mes",
+  month: "Mês",
   quarter: "Trimestre",
 };
 const ACTION_LIST_GROUP_FIELD_KEYS: Record<string, string> = {
@@ -96,6 +96,7 @@ const ACTION_LIST_GROUP_FIELD_KEYS: Record<string, string> = {
   "actionType.name": "__group_action_type_name",
   "project.name": "__group_project_name",
   "projectGroup.name": "__group_project_group_name",
+  "peopleGroup.name": "__group_people_group_name",
   "peopleGroup.segment.name": "__group_people_group_name",
   "targetEnrollment.person.fullName": "__group_target_enrollment_name",
   tags: "__group_tags",
@@ -199,7 +200,7 @@ function resolveStatusBadge(status: ApiProjectAction["status"]) {
 }
 
 function resolvePeopleGroupLabel(action: ApiProjectAction) {
-  return action.peopleGroup?.segment?.name ?? action.peopleGroup?.name ?? "-";
+  return action.peopleGroup?.name ?? "-";
 }
 
 function resolveActionTypeLabel(action: ApiProjectAction) {
@@ -222,6 +223,7 @@ function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
       return resolveActionTypeLabel(record);
     case "projectGroup.name":
       return record.projectGroup?.name ?? "";
+    case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(record);
     case "targetEnrollment.person.fullName":
@@ -342,7 +344,7 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
     },
     {
       accessorKey: "plannedStartAt",
-      header: "Início",
+      header: "InÃ­cio",
       cell: ({ row }) => (
         <span className="text-foreground">
           {row.original.plannedStartAt
@@ -391,6 +393,7 @@ function resolveKanbanColumnValue(action: ApiProjectAction, field: string) {
       return action.project?.name ?? "Sem projeto";
     case "projectGroup.name":
       return action.projectGroup?.name ?? "Sem grupo";
+    case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(action);
     case "targetEnrollment.person.fullName":
@@ -429,6 +432,7 @@ function resolveGanttGroupValue(action: ApiProjectAction, field: string) {
       return action.project?.name ?? "Sem projeto";
     case "projectGroup.name":
       return action.projectGroup?.name ?? "Sem grupo";
+    case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(action);
     case "targetEnrollment.person.fullName":
@@ -565,7 +569,7 @@ export function ActionsListModuleClientPage() {
       [resolveListGroupFieldKey("actionType.name")]: resolveActionTypeLabel(record),
       [resolveListGroupFieldKey("project.name")]: record.project?.name ?? null,
       [resolveListGroupFieldKey("projectGroup.name")]: record.projectGroup?.name ?? null,
-      [resolveListGroupFieldKey("peopleGroup.segment.name")]: resolvePeopleGroupLabel(record),
+      [resolveListGroupFieldKey("peopleGroup.name")]: resolvePeopleGroupLabel(record),
       [resolveListGroupFieldKey("targetEnrollment.person.fullName")]:
         record.targetEnrollment?.person?.fullName ?? null,
       [resolveListGroupFieldKey("tags")]: record.tags ?? [],
@@ -693,9 +697,9 @@ export function ActionsListModuleClientPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="plannedStartAt">Início planejado</SelectItem>
+              <SelectItem value="plannedStartAt">InÃ­cio planejado</SelectItem>
               <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
-              <SelectItem value="executedStartAt">Início executado</SelectItem>
+              <SelectItem value="executedStartAt">InÃ­cio executado</SelectItem>
               <SelectItem value="executedEndAt">Fim executado</SelectItem>
             </SelectContent>
           </Select>
@@ -737,9 +741,9 @@ export function ActionsListModuleClientPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="plannedStartAt">Início planejado</SelectItem>
+              <SelectItem value="plannedStartAt">InÃ­cio planejado</SelectItem>
               <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
-              <SelectItem value="executedStartAt">Início executado</SelectItem>
+              <SelectItem value="executedStartAt">InÃ­cio executado</SelectItem>
               <SelectItem value="executedEndAt">Fim executado</SelectItem>
             </SelectContent>
           </Select>
@@ -759,7 +763,7 @@ export function ActionsListModuleClientPage() {
             <SelectContent>
               <SelectItem value="day">Dia</SelectItem>
               <SelectItem value="week">Semana</SelectItem>
-              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="month">Mês</SelectItem>
               <SelectItem value="year">Ano</SelectItem>
             </SelectContent>
           </Select>
@@ -822,7 +826,7 @@ export function ActionsListModuleClientPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="week">Semana</SelectItem>
-              <SelectItem value="month">Mes</SelectItem>
+              <SelectItem value="month">Mês</SelectItem>
               <SelectItem value="quarter">Trimestre</SelectItem>
             </SelectContent>
           </Select>
@@ -877,7 +881,7 @@ export function ActionsListModuleClientPage() {
     if (state.view === "calendar") {
       facets.push({
         key: "analysis:calendarField",
-        label: `Calendário: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.calendarField]?.label ?? state.calendarField}`,
+        label: `CalendÃ¡rio: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.calendarField]?.label ?? state.calendarField}`,
         tone: "analysis" as const,
         analysisKind: "time" as const,
         icon: <CalendarDays className="size-3.5" />,
@@ -907,7 +911,6 @@ export function ActionsListModuleClientPage() {
     state.calendarField,
     state.calendarMode,
     state.ganttScale,
-    state.groupBy,
     state.timelineField,
     state.timelineSortDirection,
     state.view,
@@ -1024,9 +1027,9 @@ export function ActionsListModuleClientPage() {
             </button>
           )}
           dateFieldOptions={[
-            { value: "plannedStartAt", label: "Início planejado" },
+            { value: "plannedStartAt", label: "InÃ­cio planejado" },
             { value: "plannedEndAt", label: "Fim planejado" },
-            { value: "executedStartAt", label: "Início executado" },
+            { value: "executedStartAt", label: "InÃ­cio executado" },
             { value: "executedEndAt", label: "Fim executado" },
           ]}
           activeDateField={state.calendarField}
@@ -1100,3 +1103,5 @@ export function ActionsListModuleClientPage() {
     </EntityModuleShell>
   );
 }
+
+

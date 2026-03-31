@@ -658,7 +658,7 @@ export function ProgramsListModuleClientPage() {
     if (state.view === "timeline") {
       facets.push({
         key: "analysis:timelineField",
-        label: `Timeline: ${state.timelineField === "startsAt" ? "Inicio" : "Fim"}`,
+        label: `Timeline: ${state.timelineField === "startsAt" ? "Início" : "Fim"}`,
         tone: "analysis" as const,
         analysisKind: "time" as const,
         icon: <Clock3 className="size-3.5" />,
@@ -683,7 +683,7 @@ export function ProgramsListModuleClientPage() {
     if (state.view === "calendar") {
       facets.push({
         key: "analysis:calendarField",
-        label: `Calendario: ${state.calendarField === "startsAt" ? "Inicio" : "Fim"}`,
+        label: `Calendário: ${state.calendarField === "startsAt" ? "Início" : "Fim"}`,
         tone: "analysis" as const,
         analysisKind: "time" as const,
         icon: <CalendarDays className="size-3.5" />,
@@ -757,7 +757,7 @@ export function ProgramsListModuleClientPage() {
   ]);
 
   if (!authLoading && !userLoading && !canRead) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Voce nao tem acesso a Programas.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground"></div>;
   }
 
   return (
@@ -830,7 +830,7 @@ export function ProgramsListModuleClientPage() {
             </button>
           )}
           dateFieldOptions={[
-            { value: "startsAt", label: "Inicio" },
+            { value: "startsAt", label: "Início" },
             { value: "endsAt", label: "Fim" },
           ]}
           activeDateField={state.calendarField}

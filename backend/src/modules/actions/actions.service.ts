@@ -84,6 +84,25 @@ function parseMentionUserIds(value: Prisma.JsonValue | null | undefined) {
   return Array.from(new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)));
 }
 
+function resolvePrimaryActionPeopleGroup(action: {
+  peopleGroups?: Array<{
+    peopleGroupId: string;
+    participationKind?: ParticipationKind;
+    peopleGroup?: {
+      id: string;
+      name: string;
+      category?: string | null;
+      description?: string | null;
+      ageMin?: number | null;
+      ageMax?: number | null;
+      isActive?: boolean;
+    } | null;
+  }>;
+}) {
+  const rows = action.peopleGroups ?? [];
+  return rows.find((row) => row.participationKind === 'PARTICIPANT') ?? rows[0] ?? null;
+}
+
 const mapCommentAuthor = (
   user:
     | {
@@ -161,25 +180,16 @@ const mapProjectActionAttachmentItem = (
   updatedAt: attachment.updatedAt,
 });
 
-function serializeProjectAction<
-  T extends {
-    tags?: string | null;
-    comments?: any[];
-    attachments?: any[];
-    group?: { id: string; name: string } | null;
-    cycle?: unknown;
-    targetEnrollment?: unknown;
-  },
->(
-  action: T,
-) {
+function serializeProjectAction(action: any) {
+  const primaryPeopleGroup = resolvePrimaryActionPeopleGroup(action);
   return {
     ...action,
     projectGroupId: (action as any).groupId ?? null,
-    peopleGroupId: (action as any).cycleId ?? null,
+    peopleGroupId: primaryPeopleGroup?.peopleGroupId ?? null,
     tags: parseTags(action.tags),
     projectGroup: action.group ?? null,
-    peopleGroup: action.cycle ?? null,
+    peopleGroup: primaryPeopleGroup?.peopleGroup ?? null,
+    peopleGroups: undefined,
     comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
     attachments: action.attachments?.map(mapProjectActionAttachmentItem) ?? [],
   };
@@ -188,33 +198,33 @@ function serializeProjectAction<
 function resolveScopeFromTarget(params: {
   target: ActionTarget;
   groupId: string | null;
-  cycleId: string | null;
+  peopleGroupId: string | null;
   targetEnrollmentId: string | null;
 }) {
   if (params.target === 'PROJECT_GROUP') {
     return {
       groupId: params.groupId,
-      cycleId: null as string | null,
+      peopleGroupId: null as string | null,
       targetEnrollmentId: null as string | null,
     };
   }
   if (params.target === 'PEOPLE_GROUP') {
     return {
       groupId: null as string | null,
-      cycleId: params.cycleId,
+      peopleGroupId: params.peopleGroupId,
       targetEnrollmentId: null as string | null,
     };
   }
   if (params.target === 'ENROLLMENT') {
     return {
       groupId: null as string | null,
-      cycleId: null as string | null,
+      peopleGroupId: null as string | null,
       targetEnrollmentId: params.targetEnrollmentId,
     };
   }
   return {
     groupId: null as string | null,
-    cycleId: null as string | null,
+    peopleGroupId: null as string | null,
     targetEnrollmentId: null as string | null,
   };
 }
@@ -224,19 +234,22 @@ const projectActionInclude = {
   actionType: { select: { id: true, name: true, target: true } },
   createdByUser: { select: { id: true, name: true, email: true } },
   group: { select: { id: true, name: true } },
-  cycle: {
-    select: {
-      id: true,
-      name: true,
-      segmentId: true,
-      segment: {
-        select: { id: true, name: true, category: true },
-      },
-      catalogCycleId: true,
-      catalogCycle: {
-        select: { id: true, name: true, audienceType: true },
+  peopleGroups: {
+    where: { participationKind: 'PARTICIPANT' },
+    include: {
+      peopleGroup: {
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          description: true,
+          ageMin: true,
+          ageMax: true,
+          isActive: true,
+        },
       },
     },
+    orderBy: { createdAt: 'asc' },
   },
   targetEnrollment: {
     include: {
@@ -248,15 +261,23 @@ const projectActionInclude = {
           birthDate: true,
           status: true,
           avatarUrl: true,
+          peopleGroupParticipations: {
+            where: { isActive: true, deletedAt: null },
+            select: {
+              peopleGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                },
+              },
+            },
+          },
         },
       },
       groupMemberships: {
         where: { isActive: true, deletedAt: null },
         include: { group: { select: { id: true, name: true } } },
-      },
-      cycleParticipations: {
-        where: { isActive: true, deletedAt: null },
-        include: { cycle: { select: { id: true, name: true } } },
       },
     },
   },
@@ -273,32 +294,46 @@ function buildProjectActionWhere(params: {
   const q = normalizeString(query.q);
   const effectiveMine = canReadAll ? (query.mine ?? false) : true;
   const resolvedProjectId = params.projectId ?? query.projectId ?? null;
+  const scopedPeopleGroupId = query.peopleGroupId ?? null;
+  const and: Prisma.ProjectActionWhereInput[] = [];
+
+  if (query.actionTypeId) {
+    and.push({ actionTypeId: query.actionTypeId });
+  }
+  if (query.groupId) {
+    and.push({ groupId: query.groupId });
+  }
+  if (scopedPeopleGroupId) {
+    and.push({
+      peopleGroups: {
+        some: {
+          participationKind: 'PARTICIPANT',
+          peopleGroupId: scopedPeopleGroupId,
+        },
+      },
+    });
+  }
+  if (q) {
+    and.push({
+      OR: [
+        { title: { contains: q } },
+        { tags: { contains: q } },
+        { internalNotes: { contains: q } },
+        { actionType: { name: { contains: q } } },
+        { project: { name: { contains: q } } },
+        { group: { name: { contains: q } } },
+        { peopleGroups: { some: { peopleGroup: { name: { contains: q } } } } },
+        { peopleGroups: { some: { peopleGroup: { category: { contains: q } } } } },
+      ],
+    });
+  }
 
   return {
     tenantId,
     ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
     ...(effectiveMine ? { createdByUserId: userId } : {}),
     ...(query.status ? { status: query.status as ActionStatus } : {}),
-    ...(query.actionTypeId ? { actionTypeId: query.actionTypeId } : {}),
-    ...(query.groupId ? { groupId: query.groupId } : {}),
-    ...(query.cycleId ? { cycleId: query.cycleId } : {}),
-    ...(q
-      ? {
-          OR: [
-            { title: { contains: q } },
-            { tags: { contains: q } },
-            { internalNotes: { contains: q } },
-            { actionType: { name: { contains: q } } },
-            { project: { name: { contains: q } } },
-            { group: { name: { contains: q } } },
-            { cycle: { name: { contains: q } } },
-            { cycle: { segment: { name: { contains: q } } } },
-            { cycle: { segment: { category: { contains: q } } } },
-            { cycle: { catalogCycle: { name: { contains: q } } } },
-            { cycle: { catalogCycle: { audienceType: { contains: q } } } },
-          ],
-        }
-      : {}),
+    ...(and.length ? { AND: and } : {}),
   } satisfies Prisma.ProjectActionWhereInput;
 }
 
@@ -338,13 +373,14 @@ export class ActionsService {
     if (!projectGroup) throw new BadRequestException('Grupo de participantes invalido');
   }
 
-  private async ensurePeopleGroupLinkBelongsToProject(
+  private async ensurePeopleGroupBelongsToProject(
     tenantId: string,
     projectId: string,
-    peopleGroupLinkId: string,
+    peopleGroupId: string,
+    participationKind: ParticipationKind = 'PARTICIPANT',
   ) {
-    const peopleGroupLink = await this.prisma.projectCycle.findFirst({
-      where: { id: peopleGroupLinkId, tenantId, projectId },
+    const peopleGroupLink = await this.prisma.projectPeopleGroup.findFirst({
+      where: { tenantId, projectId, peopleGroupId, participationKind },
       select: { id: true },
     });
     if (!peopleGroupLink) throw new BadRequestException('Grupo de pessoas invalido');
@@ -362,12 +398,12 @@ export class ActionsService {
     if (!enrollment) throw new BadRequestException('Participante invalido');
   }
 
-  private serializeEnrollment<T extends { groupMemberships?: any[]; cycleParticipations?: any[] }>(
-    enrollment: T,
-  ) {
+  private serializeEnrollment<T extends { groupMemberships?: any[] }>(enrollment: T) {
     const groups = (enrollment.groupMemberships ?? []).map((m) => m.group);
-    const cycle = (enrollment.cycleParticipations ?? [])[0]?.cycle ?? null;
     const person = (enrollment as any).person;
+    const peopleGroups = (person?.peopleGroupParticipations ?? [])
+      .map((participation: { peopleGroup?: unknown }) => participation.peopleGroup)
+      .filter((peopleGroup: unknown) => Boolean(peopleGroup));
     const withPersonFlags =
       person && person._count
         ? {
@@ -375,15 +411,16 @@ export class ActionsService {
             hasHealthCondition: (person._count.healthConditions ?? 0) > 0,
             hasMedication: (person._count.medications ?? 0) > 0,
             _count: undefined,
+            peopleGroupParticipations: undefined,
           }
         : person;
     return {
       ...enrollment,
       ...(person ? { person: withPersonFlags } : {}),
       groups,
-      cycle,
+      cycle: null,
+      peopleGroups,
       groupMemberships: undefined,
-      cycleParticipations: undefined,
     };
   }
 
@@ -399,19 +436,22 @@ export class ActionsService {
         actionType: { select: { id: true, name: true, target: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
         group: { select: { id: true, name: true } },
-        cycle: {
-          select: {
-            id: true,
-            name: true,
-            segmentId: true,
-            segment: {
-              select: { id: true, name: true, category: true },
-            },
-            catalogCycleId: true,
-            catalogCycle: {
-              select: { id: true, name: true, audienceType: true },
+        peopleGroups: {
+          where: { participationKind: 'PARTICIPANT' },
+          include: {
+            peopleGroup: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                description: true,
+                ageMin: true,
+                ageMax: true,
+                isActive: true,
+              },
             },
           },
+          orderBy: { createdAt: 'asc' },
         },
         targetEnrollment: {
           include: {
@@ -423,15 +463,23 @@ export class ActionsService {
                 birthDate: true,
                 status: true,
                 avatarUrl: true,
+                peopleGroupParticipations: {
+                  where: { isActive: true, deletedAt: null },
+                  select: {
+                    peopleGroup: {
+                      select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                      },
+                    },
+                  },
+                },
               },
             },
             groupMemberships: {
               where: { isActive: true, deletedAt: null },
               include: { group: { select: { id: true, name: true } } },
-            },
-            cycleParticipations: {
-              where: { isActive: true, deletedAt: null },
-              include: { cycle: { select: { id: true, name: true } } },
             },
           },
         },
@@ -458,6 +506,41 @@ export class ActionsService {
       throw new ForbiddenException('Permissao negada');
     }
     return serializeProjectAction(action);
+  }
+
+  private async syncParticipantPeopleGroupScope(params: {
+    tenantId: string;
+    projectId: string;
+    actionId: string;
+    peopleGroupId: string | null;
+  }) {
+    await this.prisma.actionPeopleGroup.deleteMany({
+      where: {
+        tenantId: params.tenantId,
+        actionId: params.actionId,
+        participationKind: 'PARTICIPANT',
+      },
+    });
+
+    if (!params.peopleGroupId) {
+      return;
+    }
+
+    await this.ensurePeopleGroupBelongsToProject(
+      params.tenantId,
+      params.projectId,
+      params.peopleGroupId,
+      'PARTICIPANT',
+    );
+
+    await this.prisma.actionPeopleGroup.create({
+      data: {
+        tenantId: params.tenantId,
+        actionId: params.actionId,
+        peopleGroupId: params.peopleGroupId,
+        participationKind: 'PARTICIPANT',
+      },
+    });
   }
 
   async listActionTypes(tenantId: string, query: ListActionTypesQueryDto) {
@@ -624,7 +707,7 @@ export class ActionsService {
     const scope = resolveScopeFromTarget({
       target: type.target,
       groupId: dto.projectGroupId ?? null,
-      cycleId: dto.peopleGroupId ?? null,
+      peopleGroupId: dto.peopleGroupId ?? null,
       targetEnrollmentId: dto.targetEnrollmentId ?? null,
     });
 
@@ -633,7 +716,7 @@ export class ActionsService {
         'Grupo de participantes e obrigatorio para este tipo de acao',
       );
     }
-    if (type.target === 'PEOPLE_GROUP' && !scope.cycleId) {
+    if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
       );
@@ -651,11 +734,11 @@ export class ActionsService {
         scope.groupId,
       );
     }
-    if (scope.cycleId) {
-      await this.ensurePeopleGroupLinkBelongsToProject(
+    if (scope.peopleGroupId) {
+      await this.ensurePeopleGroupBelongsToProject(
         user.tenantId,
         projectId,
-        scope.cycleId,
+        scope.peopleGroupId,
       );
     }
     if (scope.targetEnrollmentId) {
@@ -683,7 +766,6 @@ export class ActionsService {
         projectId,
         createdByUserId: user.userId,
         groupId: scope.groupId,
-        cycleId: scope.cycleId,
         targetEnrollmentId: scope.targetEnrollmentId,
         actionTypeId: dto.actionTypeId,
         title,
@@ -701,6 +783,12 @@ export class ActionsService {
         executedStartAt,
         executedEndAt,
       },
+    });
+    await this.syncParticipantPeopleGroupScope({
+      tenantId: user.tenantId,
+      projectId,
+      actionId: created.id,
+      peopleGroupId: scope.peopleGroupId,
     });
     return this.getProjectAction(user, projectId, created.id);
   }
@@ -724,8 +812,8 @@ export class ActionsService {
 
     const groupIdInput =
       dto.projectGroupId === undefined ? (existing.groupId ?? null) : dto.projectGroupId ?? null;
-    const cycleIdInput =
-      dto.peopleGroupId === undefined ? (existing.cycleId ?? null) : dto.peopleGroupId ?? null;
+    const peopleGroupIdInput =
+      dto.peopleGroupId === undefined ? (existing.peopleGroupId ?? null) : dto.peopleGroupId ?? null;
     const targetEnrollmentIdInput =
       dto.targetEnrollmentId === undefined
         ? ((existing as any).targetEnrollmentId ?? null)
@@ -733,7 +821,7 @@ export class ActionsService {
     const scope = resolveScopeFromTarget({
       target: type.target,
       groupId: groupIdInput,
-      cycleId: cycleIdInput,
+      peopleGroupId: peopleGroupIdInput,
       targetEnrollmentId: targetEnrollmentIdInput,
     });
 
@@ -742,7 +830,7 @@ export class ActionsService {
         'Grupo de participantes e obrigatorio para este tipo de acao',
       );
     }
-    if (type.target === 'PEOPLE_GROUP' && !scope.cycleId) {
+    if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
       );
@@ -760,11 +848,11 @@ export class ActionsService {
         scope.groupId,
       );
     }
-    if (scope.cycleId) {
-      await this.ensurePeopleGroupLinkBelongsToProject(
+    if (scope.peopleGroupId) {
+      await this.ensurePeopleGroupBelongsToProject(
         user.tenantId,
         projectId,
-        scope.cycleId,
+        scope.peopleGroupId,
       );
     }
     if (scope.targetEnrollmentId) {
@@ -831,7 +919,6 @@ export class ActionsService {
         dto.targetEnrollmentId !== undefined
           ? {
               groupId: scope.groupId,
-              cycleId: scope.cycleId,
               targetEnrollmentId: scope.targetEnrollmentId,
             }
           : {}),
@@ -848,6 +935,19 @@ export class ActionsService {
         ...(dto.executedEndAt !== undefined ? { executedEndAt } : {}),
       },
     });
+    if (
+      dto.actionTypeId !== undefined ||
+      dto.projectGroupId !== undefined ||
+      dto.peopleGroupId !== undefined ||
+      dto.targetEnrollmentId !== undefined
+    ) {
+      await this.syncParticipantPeopleGroupScope({
+        tenantId: user.tenantId,
+        projectId,
+        actionId: existing.id,
+        peopleGroupId: scope.peopleGroupId,
+      });
+    }
     return this.getProjectAction(user, projectId, existing.id);
   }
 
@@ -1001,11 +1101,12 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    const peopleGroup = await this.prisma.peopleGroup.findFirst({
-      where: { id: dto.peopleGroupId, tenantId: user.tenantId },
-      select: { id: true },
-    });
-    if (!peopleGroup) throw new BadRequestException('Grupo de pessoas invalido');
+    await this.ensurePeopleGroupBelongsToProject(
+      user.tenantId,
+      projectId,
+      dto.peopleGroupId,
+      dto.participationKind,
+    );
 
     return this.prisma.actionPeopleGroup.create({
       data: {
@@ -1091,6 +1192,18 @@ export class ActionsService {
               sex: true,
               gender: true,
               raceColor: true,
+              peopleGroupParticipations: {
+                where: { isActive: true, deletedAt: null },
+                select: {
+                  peopleGroup: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    },
+                  },
+                },
+              },
               _count: { select: { healthConditions: true, medications: true } },
             },
           },
@@ -1106,16 +1219,24 @@ export class ActionsService {
                   sex: true,
                   gender: true,
                   raceColor: true,
+                  peopleGroupParticipations: {
+                    where: { isActive: true, deletedAt: null },
+                    select: {
+                      peopleGroup: {
+                        select: {
+                          id: true,
+                          name: true,
+                          category: true,
+                        },
+                      },
+                    },
+                  },
                   _count: { select: { healthConditions: true, medications: true } },
                 },
               },
               groupMemberships: {
                 where: { isActive: true, deletedAt: null },
                 include: { group: { select: { id: true, name: true } } },
-              },
-              cycleParticipations: {
-                where: { isActive: true, deletedAt: null },
-                include: { cycle: { select: { id: true, name: true } } },
               },
             },
           },
@@ -1235,16 +1356,24 @@ export class ActionsService {
               sex: true,
               gender: true,
               raceColor: true,
+              peopleGroupParticipations: {
+                where: { isActive: true, deletedAt: null },
+                select: {
+                  peopleGroup: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    },
+                  },
+                },
+              },
               _count: { select: { healthConditions: true, medications: true } },
             },
           },
           groupMemberships: {
             where: { isActive: true, deletedAt: null },
             include: { group: { select: { id: true, name: true } } },
-          },
-          cycleParticipations: {
-            where: { isActive: true, deletedAt: null },
-            include: { cycle: { select: { id: true, name: true } } },
           },
         },
         orderBy: [{ person: { fullName: 'asc' } }],
@@ -1351,6 +1480,18 @@ export class ActionsService {
             sex: true,
             gender: true,
             raceColor: true,
+            peopleGroupParticipations: {
+              where: { isActive: true, deletedAt: null },
+              select: {
+                peopleGroup: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                  },
+                },
+              },
+            },
             _count: { select: { healthConditions: true, medications: true } },
           },
         },
@@ -1366,16 +1507,24 @@ export class ActionsService {
                 sex: true,
                 gender: true,
                 raceColor: true,
+                peopleGroupParticipations: {
+                  where: { isActive: true, deletedAt: null },
+                  select: {
+                    peopleGroup: {
+                      select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                      },
+                    },
+                  },
+                },
                 _count: { select: { healthConditions: true, medications: true } },
               },
             },
             groupMemberships: {
               where: { isActive: true, deletedAt: null },
               include: { group: { select: { id: true, name: true } } },
-            },
-            cycleParticipations: {
-              where: { isActive: true, deletedAt: null },
-              include: { cycle: { select: { id: true, name: true } } },
             },
           },
         },
@@ -1447,6 +1596,7 @@ export class ActionsService {
 
     const q = normalizeString(query.q);
     const scopedGroupId = action.groupId ?? query.groupId ?? null;
+    const scopedPeopleGroupId = (action as any).peopleGroupId ?? null;
 
     const where: Prisma.ProjectEnrollmentWhereInput = {
       tenantId: user.tenantId,
@@ -1465,11 +1615,34 @@ export class ActionsService {
                   some: { isActive: true, group: { name: { contains: q } } },
                 },
               },
+              {
+                person: {
+                  peopleGroupParticipations: {
+                    some: {
+                      tenantId: user.tenantId,
+                      isActive: true,
+                      deletedAt: null,
+                      peopleGroup: { name: { contains: q } },
+                    },
+                  },
+                },
+              },
             ],
           }
         : {}),
-      ...(action.cycleId
-        ? { cycleParticipations: { some: { isActive: true, cycleId: action.cycleId } } }
+      ...(scopedPeopleGroupId
+        ? {
+            person: {
+              peopleGroupParticipations: {
+                some: {
+                  tenantId: user.tenantId,
+                  peopleGroupId: scopedPeopleGroupId,
+                  isActive: true,
+                  deletedAt: null,
+                },
+              },
+            },
+          }
         : {}),
     };
 
@@ -1487,16 +1660,24 @@ export class ActionsService {
               sex: true,
               gender: true,
               raceColor: true,
+              peopleGroupParticipations: {
+                where: { isActive: true, deletedAt: null },
+                select: {
+                  peopleGroup: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    },
+                  },
+                },
+              },
               _count: { select: { healthConditions: true, medications: true } },
             },
           },
           groupMemberships: {
             where: { isActive: true },
             include: { group: { select: { id: true, name: true } } },
-          },
-          cycleParticipations: {
-            where: { isActive: true },
-            include: { cycle: { select: { id: true, name: true } } },
           },
         },
         orderBy: [{ person: { fullName: 'asc' } }],
@@ -1521,7 +1702,6 @@ export class ActionsService {
         qualityScore: true,
         qualityNotes: true,
         isHighlight: true,
-        cycleParticipationId: true,
         updatedAt: true,
       },
     });
@@ -1541,7 +1721,7 @@ export class ActionsService {
         id: action.id,
         title: action.title,
         projectGroupId: action.groupId,
-        peopleGroupId: action.cycleId,
+        peopleGroupId: (action as any).peopleGroupId ?? null,
         targetEnrollmentId: (action as any).targetEnrollmentId ?? null,
       },
       data,
@@ -1569,17 +1749,6 @@ export class ActionsService {
     if (enrollments.length !== enrollmentIds.length) {
       throw new BadRequestException('Matricula invalida');
     }
-
-    const activeCycles = await this.prisma.projectEnrollmentCycleParticipation.findMany({
-      where: {
-        tenantId: user.tenantId,
-        enrollmentId: { in: enrollmentIds },
-        isActive: true,
-        ...(action.cycleId ? { cycleId: action.cycleId } : {}),
-      },
-      select: { id: true, enrollmentId: true },
-    });
-    const cycleByEnrollment = new Map(activeCycles.map((row) => [row.enrollmentId, row.id]));
 
     const existing = await this.prisma.projectActionAttendance.findMany({
       where: { tenantId: user.tenantId, actionId, enrollmentId: { in: enrollmentIds } },
@@ -1612,7 +1781,6 @@ export class ActionsService {
                   ? item.qualityNotes.trim()
                   : null;
 
-          const cycleParticipationId = cycleByEnrollment.get(item.enrollmentId) ?? null;
           const existingId = existingByEnrollment.get(item.enrollmentId) ?? null;
 
           if (existingId) {
@@ -1624,7 +1792,6 @@ export class ActionsService {
                 ...(item.qualityScore !== undefined ? { qualityScore: item.qualityScore ?? null } : {}),
                 ...(qualityNotes !== undefined ? { qualityNotes } : {}),
                 ...(item.isHighlight !== undefined ? { isHighlight: item.isHighlight } : {}),
-                cycleParticipationId,
               },
             });
             updated += 1;
@@ -1641,7 +1808,6 @@ export class ActionsService {
               qualityScore: item.qualityScore ?? null,
               qualityNotes: qualityNotes === undefined ? null : qualityNotes,
               isHighlight: item.isHighlight ?? false,
-              cycleParticipationId,
             },
           });
           created += 1;

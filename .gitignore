@@ -1,4 +1,5 @@
 .env
+backend/.env.docker
 /docker/certbot/
 tmp-playwright-local/
 .tmp-playwright/

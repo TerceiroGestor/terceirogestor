@@ -8,7 +8,7 @@ export class ListEligibleProjectPeopleQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  segmentId?: string;
+  peopleGroupId?: string;
 
   @IsOptional()
   @IsString()

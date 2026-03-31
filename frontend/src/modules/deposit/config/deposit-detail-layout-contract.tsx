@@ -3,7 +3,6 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,6 @@ import {
   DEPOSIT_DONOR_TYPE_LABELS,
   DEPOSIT_DONOR_AUDIT_FIELD_LABELS,
   DEPOSIT_DEFAULT_SECTOR,
-  DEPOSIT_DEFAULT_UNIT,
   DEPOSIT_ENTRY_AUDIT_FIELD_LABELS,
   DEPOSIT_EXIT_ENTRY_AUTO_VALUE,
   DEPOSIT_EXIT_AUDIT_FIELD_LABELS,
@@ -237,9 +235,6 @@ const DEPOSIT_DETAIL_BAND_CLASS =
 const DEPOSIT_DETAIL_SECTION_CLASS =
   "border-y border-border/60 bg-transparent px-0 py-4";
 
-const DEPOSIT_DETAIL_SUBSECTION_CLASS =
-  "border-b border-border/50 bg-transparent pb-4";
-
 const AUTO_SAVE_EDITING = {
   saveMode: "auto",
   autoSave: {
@@ -277,7 +272,7 @@ function formatOptionalDate(value: string | null | undefined) {
 }
 
 function resolveMovementKindLabel(kind: ApiDepositHistoryMovement["kind"]) {
-  return kind === "ENTRY" ? "Entrada" : "Sa?da";
+  return kind === "ENTRY" ? "Entrada" : "Saída";
 }
 
 const depositItemEntryRelationColumns: ColumnDef<ApiDepositEntry>[] = [
@@ -384,7 +379,7 @@ const depositItemExitRelationColumns: ColumnDef<ApiDepositExit>[] = [
       const count = row.original.allocations?.length ?? 0;
       return (
         <div className="text-sm text-muted-foreground">
-          {count ? `${count} lote${count > 1 ? "s" : ""}` : "Autom?tico"}
+          {count ? `${count} lote${count > 1 ? "s" : ""}` : "Automático"}
         </div>
       );
     },
@@ -659,7 +654,7 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
               </div>
               {item.isBelowMin ? (
                 <Badge variant="destructive" className="h-5 px-2 text-[10px]">
-                  Abaixo do m?nimo
+                  Abaixo do mínimo
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="h-5 px-2 text-[10px]">
@@ -735,7 +730,6 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
         {
           key: "item.entries",
           label: "Entradas",
-          description: "Lotes registrados para este objeto.",
           rows: ({ mode, entryRows }) => (mode === "edit" ? entryRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: depositItemEntryRelationColumns,
@@ -759,24 +753,23 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
     },
     {
       key: "exits",
-      label: "Sa?das",
+      label: "Saídas",
       badge: ({ exitRows }) => exitRows.length,
       relations: [
         {
           key: "item.exits",
-          label: "Sa?das",
-          description: "Movimentos de sa?da associados a este objeto.",
+          label: "Saídas",
           rows: ({ mode, exitRows }) => (mode === "edit" ? exitRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: depositItemExitRelationColumns,
           searchable: true,
-          searchPlaceholder: "Pesquisar sa?das por tipo, setor, destino ou notas",
+          searchPlaceholder: "Pesquisar saídas por tipo, setor, destino ou notas",
           getRowId: (row) => row.id,
           onRowClick: (row, context) => context.onOpenExit(row.id),
           emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o objeto para registrar sa?das." : "Sem sa?das.",
+            mode !== "edit" ? "Salve o objeto para registrar saídas." : "Sem saídas.",
           action: {
-            label: "Nova sa?da",
+            label: "Nova saída",
             icon: <Plus className="mr-1 size-4" />,
             onClick: (context) => context.onNewExit(),
             disabled: (context) => context.readOnly || context.mode !== "edit",
@@ -787,25 +780,24 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
     },
     {
       key: "history",
-      label: "Hist?rico",
+      label: "Histórico",
       badge: ({ historyRows }) => historyRows.length,
       relations: [
         {
           key: "item.history",
-          label: "Hist?rico",
-          description: "Linha do tempo operacional do objeto.",
+          label: "Histórico",
           rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: depositItemHistoryRelationColumns,
           searchable: true,
-          searchPlaceholder: "Pesquisar histÃ³rico por movimento, usuÃ¡rio, setor ou notas",
+          searchPlaceholder: "Pesquisar histórico por movimento, usuário, setor ou notas",
           getRowId: (row) => row.id,
           onRowClick: (row, context) =>
             row.kind === "ENTRY"
               ? context.onOpenEntry(row.id)
               : context.onOpenExit(row.id),
           emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o objeto para ver o histÃ³rico." : "Sem histÃ³rico.",
+            mode !== "edit" ? "Salve o objeto para ver o histórico." : "Sem histórico.",
         },
       ],
     },
@@ -852,8 +844,8 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
           readOnly: readOnly || mode !== "edit",
           emptyLabel:
             mode === "create"
-              ? "Salve o objeto para habilitar coment?rios."
-              : "Nenhum coment?rio registrado para este objeto.",
+              ? "Salve o objeto para habilitar comentários."
+              : "Nenhum comentário registrado para este objeto.",
         }}
         notes={{
           value: internalNotes,
@@ -889,8 +881,8 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
           items: historyItems,
           emptyLabel:
             mode === "create"
-              ? "Salve o objeto para habilitar hist?rico."
-              : "Nenhum hist?rico registrado para este objeto.",
+              ? "Salve o objeto para habilitar histórico."
+              : "Nenhum histórico registrado para este objeto.",
         }}
         contextItems={[
           { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
@@ -939,7 +931,7 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
             formatAuditReferenceLabel(
               context.exitLabelById[typeof value === "string" ? value.trim() : ""],
               value,
-              "Sa?da",
+              "Saída",
             ),
         },
         joinKey: "itemId",
@@ -950,7 +942,7 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
         key: "exits",
         entity: "DepositExit",
         model: "deposit.exits",
-        label: "Sa?da",
+        label: "Saída",
         fieldLabels: DEPOSIT_EXIT_AUDIT_FIELD_LABELS,
         valueFormatters: {
           sector: (value) =>
@@ -1105,15 +1097,14 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
   bottomRelations: [
     {
       key: "donor.donations",
-      label: "DoaÃ§Ãµes",
-      description: "Entradas vinculadas a este fonte.",
+      label: "Doações",
       rows: ({ mode, entries }) => (mode === "edit" ? entries : []),
       loading: ({ entriesLoading }) => entriesLoading,
       columns: depositDonorDonationColumns,
       getRowId: (row) => row.id,
       onRowClick: (row, context) => context.onOpenEntry(row.id),
       emptyLabel: ({ mode }) =>
-        mode !== "edit" ? "Salve o fonte para ver as doaÃ§Ãµes." : "Sem doaÃ§Ãµes.",
+        mode !== "edit" ? "Salve o fonte para ver as doações." : "Sem doações.",
     },
   ],
   side: ({
@@ -1201,7 +1192,7 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
         key: "donations",
         entity: "DepositEntry",
         model: "deposit.entries",
-        label: "Doacao",
+        label: "Doa??o",
         fieldLabels: DEPOSIT_ENTRY_AUDIT_FIELD_LABELS,
         valueFormatters: {
           donorId: (value, { context }) =>
@@ -1215,7 +1206,7 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
               ? formatAuditDate(value)
               : "Sem data limite",
           reversalOfExitId: (value) =>
-            formatAuditReferenceLabel(undefined, value, "Sa?da"),
+            formatAuditReferenceLabel(undefined, value, "Saída"),
         },
         joinKey: "donorId",
         idField: "id",
@@ -1429,8 +1420,7 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
   bottomRelations: [
     {
       key: "entry.allocatedExits",
-      label: "Sa?das vinculadas",
-      description: "Sa?das que consumiram esta entrada.",
+      label: "Saídas vinculadas",
       rows: ({ mode, allocatedExits }) => (mode === "edit" ? allocatedExits : []),
       loading: ({ allocatedExitsLoading }) => allocatedExitsLoading,
       columns: depositAllocatedExitColumns,
@@ -1446,8 +1436,8 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
       },
       emptyLabel: ({ mode }) =>
         mode !== "edit"
-          ? "Salve a entrada para ver sa?das relacionadas."
-          : "Sem sa?das vinculadas.",
+          ? "Salve a entrada para ver saídas relacionadas."
+          : "Sem saídas vinculadas.",
     },
   ],
   side: ({
@@ -1538,7 +1528,7 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
           formatAuditReferenceLabel(
             context.exitLabelById[typeof value === "string" ? value.trim() : ""],
             value,
-            "Sa?da",
+            "Saída",
           ),
       },
       joinKey: "entryId",
@@ -1550,7 +1540,7 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
         key: "entry.exits",
         entity: "DepositExit",
         model: "deposit.exits",
-        label: "Sa?da",
+        label: "Saída",
         fieldLabels: DEPOSIT_EXIT_AUDIT_FIELD_LABELS,
         valueFormatters: {
           sector: (value) =>
@@ -1684,7 +1674,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
                 </span>
               </>
             ) : (
-              "Autom?tico: distribui pela entrada dispon?vel mais adequada no setor."
+              "Automático: distribui pela entrada dispon?vel mais adequada no setor."
             )}
           </div>
         </div>
@@ -1762,7 +1752,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_220px_1fr] md:items-end">
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Data da sa?da
+            Data da saída
           </div>
           <Input
             type="date"
@@ -1773,13 +1763,13 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
             onBlur={() => onCommitField("exitDate")}
             className={DEPOSIT_DETAIL_INPUT_CLASS}
             readOnly={saving || readOnly}
-            title="Data da sa?da"
+            title="Data da saída"
           />
         </div>
 
         <div>
           <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Tipo de sa?da
+            Tipo de saída
           </div>
           <Select
             value={draft.type}
@@ -1791,7 +1781,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
             disabled={saving || readOnly}
           >
             <SelectTrigger className={DEPOSIT_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder="Tipo de sa?da" />
+              <SelectValue placeholder="Tipo de saída" />
             </SelectTrigger>
             <SelectContent>
               {DEPOSIT_EXIT_TYPE_OPTIONS.map((option) => (
@@ -1832,7 +1822,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
               }
               onBlur={() => onCommitField("destinationType")}
               className={DEPOSIT_DETAIL_INPUT_CLASS}
-              placeholder="Ex: Doacao, sala, oficina"
+              placeholder="Ex: Doa??o, sala, oficina"
               readOnly={saving || readOnly}
             />
           </div>
@@ -1929,7 +1919,6 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
     {
       key: "exit.allocations",
       label: "Entradas vinculadas",
-      description: "Entradas consumidas por esta sa?da.",
       rows: ({ mode, exit, entryById }) =>
         mode === "edit"
           ? (exit?.allocations ?? []).map((allocation) => ({
@@ -1945,7 +1934,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
       onRowClick: (row, context) => context.onOpenEntry(row.entryId),
       emptyLabel: ({ mode }) =>
         mode !== "edit"
-          ? "Salve a sa?da para ver entradas relacionadas."
+          ? "Salve a saída para ver entradas relacionadas."
           : "Sem entradas vinculadas.",
     },
   ],
@@ -2005,7 +1994,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
         onUpload: onUploadAttachment,
         onDelete: mode === "edit" ? onDeleteAttachment : undefined,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve a sa?da para habilitar anexos." : "Nenhum anexo registrado para esta sa?da.",
+        emptyLabel: mode === "create" ? "Salve a saída para habilitar anexos." : "Nenhum anexo registrado para esta saída.",
       }}
       history={{ items: historyItems }}
       contextItems={[
@@ -2020,7 +2009,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
       key: "exit",
       entity: "DepositExit",
       model: "deposit.exits",
-      label: "Sa?da",
+      label: "Saída",
       fieldLabels: DEPOSIT_EXIT_AUDIT_FIELD_LABELS,
       valueFormatters: {
         sector: (value) =>
@@ -2061,7 +2050,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
               ? formatAuditDate(value)
               : "Sem data limite",
           reversalOfExitId: (value) =>
-            formatAuditReferenceLabel(undefined, value, "Sa?da"),
+            formatAuditReferenceLabel(undefined, value, "Saída"),
         },
         joinKey: "entryId",
         idField: "id",

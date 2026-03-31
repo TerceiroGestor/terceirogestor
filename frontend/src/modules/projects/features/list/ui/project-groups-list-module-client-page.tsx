@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { ApiProjectGroup } from "@/modules/projects/api";
 import {
+  PROJECT_GROUPS_ROUTES,
   projectGroupsListModuleDefinition,
   type ProjectGroupsListQueryState,
 } from "@/modules/projects/config/project-groups-module-contract";
@@ -167,7 +168,7 @@ export function ProjectGroupsListModuleClientPage() {
     (group: ApiProjectGroup) => {
       router.push(
         withTenantPath(
-          `/group/${encodeURIComponent(group.id)}`,
+          `${PROJECT_GROUPS_ROUTES.detail}/${encodeURIComponent(group.id)}`,
           tenantSlug,
         ),
       );
@@ -243,7 +244,9 @@ export function ProjectGroupsListModuleClientPage() {
       isLoading={loading}
       totalCount={filteredRows.length}
       canCreate={canCreate}
-      onCreate={() => router.push(withTenantPath("/group/new", tenantSlug))}
+      onCreate={() =>
+        router.push(withTenantPath(`${PROJECT_GROUPS_ROUTES.list}/new`, tenantSlug))
+      }
       onRefresh={() => setRefreshKey((previous) => previous + 1)}
     >
       {error ? <div className="px-4 py-3 text-sm text-destructive">{error}</div> : null}

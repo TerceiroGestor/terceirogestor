@@ -205,7 +205,7 @@ export function ProjectGroupsDetailEngineClientPage({
         if (mode === "edit" && resolvedId) {
           const allGroups = await listAllProjectGroups(authToken, { all: true });
           const selected = allGroups.data.find((item) => item.id === resolvedId) ?? null;
-          if (!selected) throw new Error("Grupo de participantes nao encontrado.");
+          if (!selected) throw new Error("Grupo de participantes não encontrado.");
 
           const nextProject =
             availableProjects.find((item) => item.id === selected.projectId) ??
@@ -265,7 +265,7 @@ export function ProjectGroupsDetailEngineClientPage({
     if (!normalized.projectId) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Selecione o projeto do grupo de participantes.",
       });
       return;
@@ -273,7 +273,7 @@ export function ProjectGroupsDetailEngineClientPage({
     if (!normalized.name) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
+        title: "Dados inválidos",
         description: "Informe o nome do grupo de participantes.",
       });
       return;
@@ -289,7 +289,7 @@ export function ProjectGroupsDetailEngineClientPage({
       toast({ title: "Grupo de participantes criado" });
       router.replace(
         withTenantPath(
-          `/group/${encodeURIComponent(created.id)}?returnTo=${encodeURIComponent(returnTo)}`,
+          `${PROJECT_GROUPS_ROUTES.detail}/${encodeURIComponent(created.id)}?returnTo=${encodeURIComponent(returnTo)}`,
           tenantSlug,
         ),
       );
@@ -316,7 +316,7 @@ export function ProjectGroupsDetailEngineClientPage({
     if (!confirmed) return;
     try {
       await deleteProjectGroup(token, resolvedProjectId, resolvedId);
-      toast({ title: "Grupo excluido" });
+      toast({ title: "Grupo excluído" });
       router.push(returnTo);
     } catch (error) {
       const message =
@@ -360,8 +360,8 @@ export function ProjectGroupsDetailEngineClientPage({
     async (enrollment: ApiProjectEnrollment) => {
       if (!token || !resolvedProjectId || !resolvedId || !canUpdateEnrollments) return;
       const confirmed = await confirm({
-        title: "Encerrar vinculo",
-        description: `Encerrar o vinculo de "${enrollment.person.fullName}" com este grupo preservando o historico?`,
+        title: "Encerrar vínculo",
+        description: `Encerrar o vínculo de "${enrollment.person.fullName}" com este grupo preservando o histórico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
@@ -369,13 +369,13 @@ export function ProjectGroupsDetailEngineClientPage({
       if (!confirmed) return;
       try {
         await removeEnrollmentFromGroup(token, resolvedProjectId, enrollment.id, resolvedId);
-        toast({ title: "Vinculo encerrado" });
+        toast({ title: "Vínculo encerrado" });
         await loadParticipants();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao encerrar vinculo.";
+            : "Falha ao encerrar vínculo.";
         toast({ variant: "destructive", title: "Falha ao encerrar", description: message });
       }
     },
@@ -433,7 +433,7 @@ export function ProjectGroupsDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissão.</div>;
   }
 
   const headerTitle =
@@ -475,7 +475,6 @@ export function ProjectGroupsDetailEngineClientPage({
           token={token}
           projectId={resolvedProjectId}
           title="Adicionar participante"
-          description="Escolha participantes matriculados no projeto."
           actionLabel="Adicionar"
           excludeGroupId={resolvedId}
           onPick={handlePickEnrollment}

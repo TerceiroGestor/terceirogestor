@@ -55,10 +55,10 @@ const PROGRAM_AUDIT_FIELD_LABELS = {
   name: "Nome",
   type: "Tipo",
   status: "Status",
-  description: "Descricao",
+  description: "Descrição",
   tags: "Tags",
   internalNotes: "Notas internas",
-  startsAt: "Inicio",
+  startsAt: "Início",
   endsAt: "Fim",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -67,18 +67,18 @@ const PROGRAM_AUDIT_FIELD_LABELS = {
 const PROGRAM_PROJECT_AUDIT_FIELD_LABELS = {
   name: "Nome",
   status: "Status",
-  description: "Descricao",
+  description: "Descrição",
   tags: "Tags",
   internalNotes: "Notas internas",
-  startsAt: "Inicio",
+  startsAt: "Início",
   endsAt: "Fim",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
 
 const PROGRAM_COMMENT_AUDIT_FIELD_LABELS = {
-  body: "Comentario",
-  mentionUserIds: "Mencoes",
+  body: "Comentário",
+  mentionUserIds: "Menções",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -108,8 +108,8 @@ function formatProjectStatus(value: string | null | undefined) {
 }
 
 function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
-  if (!startsAt && !endsAt) return "Nao informada";
-  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} ate ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
+  if (!startsAt && !endsAt) return "Não informada";
+  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
 }
 
 function resolveStatusBadge(status: ProgramStatus) {
@@ -133,7 +133,7 @@ function projectRelationColumns(): ColumnDef<ApiProject, unknown>[] {
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.name}</div>
           <div className="text-xs text-muted-foreground">
-            {row.original.description?.trim() || "Sem descricao"}
+            {row.original.description?.trim() || "Sem descrição"}
           </div>
         </div>
       ),
@@ -145,7 +145,7 @@ function projectRelationColumns(): ColumnDef<ApiProject, unknown>[] {
     },
     {
       accessorKey: "startsAt",
-      header: "Periodo",
+      header: "Período",
       cell: ({ row }) => formatPeriod(row.original.startsAt, row.original.endsAt),
     },
   ];
@@ -337,7 +337,7 @@ function ProgramsDetailMain({
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Inicio</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Início</div>
           <Input
             type="date"
             value={draft.startsAt}
@@ -346,7 +346,7 @@ function ProgramsDetailMain({
             }
             onBlur={() => onCommitField("startsAt")}
             className={PROGRAM_DETAIL_INPUT_CLASS}
-            title="Inicio"
+            title="Início"
             readOnly={readOnly}
           />
         </div>
@@ -368,7 +368,7 @@ function ProgramsDetailMain({
       </div>
 
       <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descricao</div>
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
         <Textarea
           value={draft.description}
           onChange={(event) =>
@@ -376,7 +376,7 @@ function ProgramsDetailMain({
           }
           onBlur={() => onCommitField("description")}
           className={PROGRAM_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descricao, objetivo e contexto do programa"
+          placeholder="Descrição, objetivo e contexto do programa"
           readOnly={readOnly}
         />
       </div>
@@ -457,8 +457,8 @@ function ProgramsDetailSide({
         readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "Salve o programa para habilitar comentarios."
-            : "Nenhum comentario registrado para este programa.",
+            ? "Salve o programa para habilitar comentários."
+            : "Nenhum comentário registrado para este programa.",
       }}
       notes={{
         value: draft.internalNotes,
@@ -490,15 +490,15 @@ function ProgramsDetailSide({
         items: historyItems,
         emptyLabel:
           mode === "create"
-            ? "O historico aparece apos salvar o programa."
-            : "Nenhum historico disponivel para este programa.",
+            ? "O histórico aparece após salvar o programa."
+            : "Nenhum histórico disponível para este programa.",
       }}
       contextItems={[
         { key: "type", label: "Tipo", value: formatProgramType(draft.type) },
         { key: "status", label: "Status", value: formatProgramStatus(draft.status) },
         { key: "projects", label: "Projetos", value: projectRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
-        { key: "period", label: "Vigencia", value: formatPeriod(draft.startsAt || null, draft.endsAt || null) },
+        { key: "period", label: "Vigência", value: formatPeriod(draft.startsAt || null, draft.endsAt || null) },
       ]}
       defaultTab="activity"
     />
@@ -654,7 +654,7 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
         key: "programComment",
         entity: "ProgramComment",
         model: "audit.logs",
-        label: "Comentario",
+        label: "Comentário",
         fieldLabels: PROGRAM_COMMENT_AUDIT_FIELD_LABELS,
         resolveEntityIds: ({ program }) => (program?.comments ?? []).map((comment) => comment.id),
       },

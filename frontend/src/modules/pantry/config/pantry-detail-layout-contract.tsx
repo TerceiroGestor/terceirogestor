@@ -3,7 +3,6 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,6 @@ import {
   PANTRY_DONOR_TYPE_LABELS,
   PANTRY_DONOR_AUDIT_FIELD_LABELS,
   PANTRY_DEFAULT_SECTOR,
-  PANTRY_DEFAULT_UNIT,
   PANTRY_ENTRY_AUDIT_FIELD_LABELS,
   PANTRY_EXIT_ENTRY_AUTO_VALUE,
   PANTRY_EXIT_AUDIT_FIELD_LABELS,
@@ -232,9 +230,6 @@ const PANTRY_DETAIL_BAND_CLASS =
 const PANTRY_DETAIL_SECTION_CLASS =
   "border-y border-border/60 bg-transparent px-0 py-4";
 
-const PANTRY_DETAIL_SUBSECTION_CLASS =
-  "border-b border-border/50 bg-transparent pb-4";
-
 const AUTO_SAVE_EDITING = {
   saveMode: "auto",
   autoSave: {
@@ -260,7 +255,7 @@ function resolveDonorTypeAuditValue(value: unknown) {
   const donorType = typeof value === "string" ? value : "";
   return donorType && donorType in PANTRY_DONOR_TYPE_LABELS
     ? PANTRY_DONOR_TYPE_LABELS[donorType as keyof typeof PANTRY_DONOR_TYPE_LABELS]
-    : donorType || "â€”";
+    : donorType || "—";
 }
 
 function resolveAvatarAuditValue(value: unknown) {
@@ -268,7 +263,7 @@ function resolveAvatarAuditValue(value: unknown) {
 }
 
 function formatOptionalDate(value: string | null | undefined) {
-  return value ? formatDateOnlyPtBR(value) : "â€”";
+  return value ? formatDateOnlyPtBR(value) : "—";
 }
 
 function resolveMovementKindLabel(kind: ApiPantryHistoryMovement["kind"]) {
@@ -478,7 +473,7 @@ const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = 
       <div className="truncate text-sm">
         {row.original.kind === "EXIT" && row.original.type
           ? resolveExitTypeLabel(row.original.type)
-          : "â€”"}
+          : "—"}
       </div>
     ),
   },
@@ -654,7 +649,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               </div>
               {item.isBelowMin ? (
                 <Badge variant="destructive" className="h-5 px-2 text-[10px]">
-                  Abaixo do m?nimo
+                  Abaixo do mínimo
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="h-5 px-2 text-[10px]">
@@ -668,7 +663,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               <div className="font-medium text-foreground">
                 {item.nextExpiryDate
                   ? formatDateOnlyPtBR(item.nextExpiryDate)
-                  : "â€”"}
+                  : "—"}
               </div>
               {item.daysToExpire !== null ? (
                 <div className="font-mono tabular-nums text-muted-foreground">
@@ -682,7 +677,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
               <div className="font-medium text-foreground">
                 {item.lastMovementDate
                   ? formatDateOnlyPtBR(item.lastMovementDate)
-                  : "â€”"}
+                  : "—"}
               </div>
             </div>
           </div>
@@ -730,7 +725,6 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         {
           key: "item.entries",
           label: "Entradas",
-          description: "Lotes registrados para este alimento.",
           rows: ({ mode, entryRows }) => (mode === "edit" ? entryRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemEntryRelationColumns,
@@ -760,7 +754,6 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         {
           key: "item.exits",
           label: "Saídas",
-          description: "Movimentos de saída associados a este alimento.",
           rows: ({ mode, exitRows }) => (mode === "edit" ? exitRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemExitRelationColumns,
@@ -788,7 +781,6 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         {
           key: "item.history",
           label: "Histórico",
-          description: "Linha do tempo operacional do alimento.",
           rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
           loading: ({ movementLoading }) => movementLoading,
           columns: pantryItemHistoryRelationColumns,
@@ -847,8 +839,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           readOnly: readOnly || mode !== "edit",
           emptyLabel:
             mode === "create"
-              ? "Salve o alimento para habilitar coment?rios."
-              : "Nenhum coment?rio registrado para este alimento.",
+              ? "Salve o alimento para habilitar comentários."
+              : "Nenhum comentário registrado para este alimento.",
         }}
         notes={{
           value: internalNotes,
@@ -884,8 +876,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           items: historyItems,
           emptyLabel:
             mode === "create"
-              ? "Salve o alimento para habilitar hist?rico."
-              : "Nenhum hist?rico registrado para este alimento.",
+              ? "Salve o alimento para habilitar histórico."
+              : "Nenhum histórico registrado para este alimento.",
         }}
         contextItems={[
           { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
@@ -934,7 +926,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
             formatAuditReferenceLabel(
               context.exitLabelById[typeof value === "string" ? value.trim() : ""],
               value,
-              "Sa?da",
+              "Saída",
             ),
         },
         joinKey: "itemId",
@@ -945,7 +937,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         key: "exits",
         entity: "PantryExit",
         model: "pantry.exits",
-        label: "Sa?da",
+        label: "Saída",
         fieldLabels: PANTRY_EXIT_AUDIT_FIELD_LABELS,
         valueFormatters: {
           sector: (value) =>
@@ -1101,7 +1093,6 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
     {
       key: "donor.donations",
       label: "Doações",
-      description: "Entradas vinculadas a este doador.",
       rows: ({ mode, entries }) => (mode === "edit" ? entries : []),
       loading: ({ entriesLoading }) => entriesLoading,
       columns: pantryDonorDonationColumns,
@@ -1196,7 +1187,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
         key: "donations",
         entity: "PantryEntry",
         model: "pantry.entries",
-        label: "Doacao",
+        label: "Doa??o",
         fieldLabels: PANTRY_ENTRY_AUDIT_FIELD_LABELS,
         valueFormatters: {
           donorId: (value, { context }) =>
@@ -1210,7 +1201,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
               ? formatAuditDate(value)
               : "Sem validade",
           reversalOfExitId: (value) =>
-            formatAuditReferenceLabel(undefined, value, "Sa?da"),
+            formatAuditReferenceLabel(undefined, value, "Saída"),
         },
         joinKey: "donorId",
         idField: "id",
@@ -1445,7 +1436,6 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
     {
       key: "entry.allocatedExits",
       label: "Saídas vinculadas",
-      description: "Saídas que consumiram este lote.",
       rows: ({ mode, allocatedExits }) => (mode === "edit" ? allocatedExits : []),
       loading: ({ allocatedExitsLoading }) => allocatedExitsLoading,
       columns: pantryAllocatedExitColumns,
@@ -1871,7 +1861,6 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
     {
       key: "exit.allocations",
       label: "Lotes vinculados",
-      description: "Entradas consumidas por esta saída.",
       rows: ({ mode, exit, entryById }) =>
         mode === "edit"
           ? (exit?.allocations ?? []).map((allocation) => ({
@@ -1947,7 +1936,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
         onUpload: onUploadAttachment,
         onDelete: mode === "edit" ? onDeleteAttachment : undefined,
         readOnly: readOnly || mode !== "edit",
-        emptyLabel: mode === "create" ? "Salve a sa?da para habilitar anexos." : "Nenhum anexo registrado para esta sa?da.",
+        emptyLabel: mode === "create" ? "Salve a saída para habilitar anexos." : "Nenhum anexo registrado para esta saída.",
       }}
       history={{ items: historyItems }}
       contextItems={[

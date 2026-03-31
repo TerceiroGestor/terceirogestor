@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { repairTextDecoding } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -57,7 +58,7 @@ export function PantryItemDetailForm({
     }));
     const current = draft.unit?.trim();
     if (current && !base.some((opt) => opt.value === current)) {
-      return [{ label: current, value: current }, ...base];
+      return [{ label: repairTextDecoding(current) ?? current, value: current }, ...base];
     }
     return base;
   }, [draft.unit]);
@@ -69,7 +70,7 @@ export function PantryItemDetailForm({
     }));
     const current = (draft.group ?? "").trim();
     if (current && !base.some((opt) => opt.value === current)) {
-      return [{ label: current, value: current }, ...base];
+      return [{ label: repairTextDecoding(current) ?? current, value: current }, ...base];
     }
     return base;
   }, [draft.group]);

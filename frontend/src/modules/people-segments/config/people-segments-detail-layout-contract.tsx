@@ -18,6 +18,11 @@ import type {
   ApiPeopleSegment,
   ApiPeopleSegmentMembership,
 } from "@/modules/people-segments/api";
+import {
+  PEOPLE_SEGMENT_AUDIT_FIELD_LABELS,
+  PEOPLE_SEGMENT_CATEGORY_OPTIONS,
+  PEOPLE_SEGMENT_PURPOSE_OPTIONS,
+} from "@/modules/people-segments/shared/domain/people-segments.constants";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
@@ -41,32 +46,6 @@ const AUTO_SAVE_EDITING = {
     trigger: "field-commit",
   },
 } as const;
-
-const PEOPLE_SEGMENT_AUDIT_FIELD_LABELS = {
-  name: "Nome",
-  purpose: "Finalidade",
-  category: "Categoria",
-  description: "Descricao",
-  ageMin: "Idade minima",
-  ageMax: "Idade maxima",
-  isActive: "Status",
-  internalNotes: "Notas internas",
-  createdAt: "Criado em",
-  updatedAt: "Atualizado em",
-} as const;
-
-const PEOPLE_GROUP_PURPOSE_OPTIONS = [
-  { value: "PUBLICO", label: "Publico atendido" },
-  { value: "EQUIPE", label: "Equipe institucional" },
-] as const;
-
-const PEOPLE_GROUP_CATEGORY_OPTIONS = [
-  { value: "Publico", label: "Publico" },
-  { value: "Equipe", label: "Equipe" },
-  { value: "Relacionamento", label: "Relacionamento" },
-  { value: "Rede", label: "Rede" },
-  { value: "Outro", label: "Outro" },
-] as const;
 
 const PEOPLE_GROUP_STATUS_OPTIONS = [
   { value: "active", label: "Ativo" },
@@ -93,8 +72,8 @@ function formatMembershipStatus(row: ApiPeopleSegmentMembership) {
 }
 
 function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
-  if (!startsAt && !endsAt) return "Nao informada";
-  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} ate ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
+  if (!startsAt && !endsAt) return "Não informada";
+  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
 }
 
 export type PeopleSegmentDetailDraft = {
@@ -201,7 +180,7 @@ function membershipColumns({
                 onEndMembership(row.original);
               }}
             >
-              Encerrar vinculo
+              Encerrar vínculo
             </Button>
           </div>
         ) : null,
@@ -247,7 +226,7 @@ function PeopleSegmentsDetailMain({
               <SelectValue placeholder="Finalidade" />
             </SelectTrigger>
             <SelectContent>
-              {PEOPLE_GROUP_PURPOSE_OPTIONS.map((option) => (
+              {PEOPLE_SEGMENT_PURPOSE_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -280,7 +259,7 @@ function PeopleSegmentsDetailMain({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr] md:items-end">
+      <div className="mt-3">
         <div>
           <div className="mb-2 text-xs font-medium text-muted-foreground">Categoria</div>
           <Select
@@ -296,8 +275,8 @@ function PeopleSegmentsDetailMain({
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__empty__">Nao informada</SelectItem>
-              {PEOPLE_GROUP_CATEGORY_OPTIONS.map((option) => (
+              <SelectItem value="__empty__">Não informada</SelectItem>
+              {PEOPLE_SEGMENT_CATEGORY_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -305,17 +284,11 @@ function PeopleSegmentsDetailMain({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Faixa etaria</div>
-          <div className="text-sm text-muted-foreground">
-            Defina a faixa de idade apenas quando esse grupo institucional exigir controle por idade.
-          </div>
-        </div>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade minima</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade mínima</div>
           <Input
             type="number"
             min={0}
@@ -329,7 +302,7 @@ function PeopleSegmentsDetailMain({
           />
         </div>
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade maxima</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade máxima</div>
           <Input
             type="number"
             min={0}
@@ -345,13 +318,13 @@ function PeopleSegmentsDetailMain({
       </div>
 
       <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descricao</div>
+        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
         <Textarea
           value={draft.description}
           onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
           onBlur={() => onCommitField("description")}
           className={PEOPLE_SEGMENT_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descricao do grupo de pessoas"
+          placeholder="Descrição do grupo de pessoas"
           readOnly={readOnly}
         />
       </div>
@@ -407,7 +380,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Finalidade</div>
             <div className="font-medium text-foreground">
-              {draft.purpose === "EQUIPE" ? "Equipe institucional" : "Publico atendido"}
+              {draft.purpose === "EQUIPE" ? "Equipe institucional" : "Público atendido"}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -415,7 +388,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
             <div className="font-medium text-foreground">{draft.category.trim() || "-"}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Faixa etaria</div>
+            <div className="text-muted-foreground">Faixa etária</div>
             <div className="font-medium text-foreground">{formatAgeRange(draft.ageMin, draft.ageMax)}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -465,18 +438,18 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
         items: buildPeopleSegmentsHistoryItems(detailAudit?.logs ?? []),
         emptyLabel:
           mode === "create"
-            ? "O historico aparece apos salvar o grupo de pessoas."
-            : "Nenhum historico disponivel para este grupo de pessoas.",
+            ? "O histórico aparece após salvar o grupo de pessoas."
+            : "Nenhum histórico disponível para este grupo de pessoas.",
       }}
       contextItems={[
         {
           key: "purpose",
           label: "Finalidade",
-          value: draft.purpose === "EQUIPE" ? "Equipe institucional" : "Publico atendido",
+          value: draft.purpose === "EQUIPE" ? "Equipe institucional" : "Público atendido",
         },
         { key: "category", label: "Categoria", value: draft.category.trim() || "-" },
         { key: "status", label: "Status", value: formatStatus(draft.isActive) },
-        { key: "ageRange", label: "Faixa etaria", value: formatAgeRange(draft.ageMin, draft.ageMax) },
+        { key: "ageRange", label: "Faixa etária", value: formatAgeRange(draft.ageMin, draft.ageMax) },
         {
           key: "participants",
           label: "Participantes ativos",
@@ -545,7 +518,7 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
       label: "Grupo de Pessoas",
       fieldLabels: PEOPLE_SEGMENT_AUDIT_FIELD_LABELS,
       valueFormatters: {
-        purpose: (value) => (value === "EQUIPE" ? "Equipe institucional" : "Publico atendido"),
+        purpose: (value) => (value === "EQUIPE" ? "Equipe institucional" : "Público atendido"),
         isActive: (value) => formatStatus(value === true),
       },
       resolveEntityId: ({ segment }) => segment?.id,
@@ -555,9 +528,9 @@ export const peopleSegmentsDetailLayout: DetailLayoutConfig<PeopleSegmentsDetail
         key: "peopleSegmentMembership",
         entity: "PeopleGroupParticipation",
         model: "audit.logs",
-        label: "Vinculo",
+        label: "Vínculo",
         fieldLabels: {
-          startsAt: "Inicio",
+          startsAt: "Início",
           endsAt: "Fim",
           isActive: "Status",
           internalNotes: "Notas internas",

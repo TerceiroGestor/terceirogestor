@@ -2,19 +2,25 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { listPermissions } from "@/features/admin/api";
-import { splitPermissionKey } from "@/features/admin/config/rbac.constants";
+import { RBAC_MODULE_LABELS, splitPermissionKey } from "@/features/admin/config/rbac.constants";
+import { repairTextDecoding } from "@/lib/utils";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
+import { DetailRelationItemDialog } from "@/web-client/detail/DetailRelationItemDialog";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { canUseModuleAction } from "@/web-client/registry/module-utils";
 import { adminRoleDetailModuleDefinition } from "@/modules/core/admin/config/admin-module-contract";
-import type { AdminRoleDetailLayoutContext } from "@/modules/core/admin/config/admin-detail-layouts";
+import {
+  AdminPermissionMatrix,
+  type AdminRoleDetailLayoutContext,
+} from "@/modules/core/admin/config/admin-detail-layouts";
 import type { AdminPermissionRecord, AdminRoleFormDraft, AdminRoleRecord } from "@/modules/core/admin/admin.types";
-import { ADMIN_ROUTES } from "@/modules/core/admin/admin.constants";
+import { ADMIN_ROUTES, ADMIN_USAGE_TEXT } from "@/modules/core/admin/admin.constants";
 
 function buildDraftRoleRecord(draft: AdminRoleFormDraft): AdminRoleRecord {
   return {
@@ -36,11 +42,13 @@ function mapPermissionRecord(
   permission: Awaited<ReturnType<typeof listPermissions>>[number],
 ): AdminPermissionRecord {
   const parsed = splitPermissionKey(permission.key);
+  const moduleKey = parsed?.moduleKey ?? "outros";
   return {
     ...permission,
-    moduleKey: parsed?.moduleKey ?? "outros",
-    moduleLabel: parsed?.moduleKey ?? "outros",
+    moduleKey,
+    moduleLabel: repairTextDecoding(RBAC_MODULE_LABELS[moduleKey] ?? moduleKey) ?? moduleKey,
     action: parsed?.action ?? "read",
+    description: repairTextDecoding(permission.description),
   };
 }
 
@@ -64,6 +72,30 @@ export function AdminRoleCreatePage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [permissionPickerOpen, setPermissionPickerOpen] = React.useState(false);
+  const [permissionPickerSelection, setPermissionPickerSelection] = React.useState<string[]>([]);
+
+  const usageItems = React.useMemo(
+    () =>
+      ADMIN_USAGE_TEXT.roles.sections.map((section, index) => ({
+        id: `admin-roles-create-${index}`,
+        title: section.title,
+        searchText: section.items.join(" "),
+        content: (
+          <ul className="list-disc space-y-1 pl-5">
+            {section.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ),
+      })),
+    [],
+  );
+
+  useRegisterUsageDocumentation({
+    title: ADMIN_USAGE_TEXT.roles.title,
+    items: usageItems,
+  });
 
   React.useEffect(() => {
     if (authLoading || userLoading) {
@@ -109,6 +141,24 @@ export function AdminRoleCreatePage() {
     [draft.permissionKeys, permissionRecords],
   );
 
+  const handleOpenPermissionPicker = React.useCallback(() => {
+    setPermissionPickerSelection(draft.permissionKeys);
+    setPermissionPickerOpen(true);
+  }, [draft.permissionKeys]);
+
+  const handleApplyPermissionSelection = React.useCallback(() => {
+    const nextPermissionKeys = Array.from(new Set(permissionPickerSelection));
+    setDraft((previous) => ({ ...previous, permissionKeys: nextPermissionKeys }));
+    setPermissionPickerOpen(false);
+  }, [permissionPickerSelection]);
+
+  const handleRemovePermissionKey = React.useCallback((permissionKey: string) => {
+    setDraft((previous) => ({
+      ...previous,
+      permissionKeys: previous.permissionKeys.filter((entry) => entry !== permissionKey),
+    }));
+  }, []);
+
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
     if (!draft.name.trim()) {
@@ -147,7 +197,7 @@ export function AdminRoleCreatePage() {
   }
 
   if (!canCreate) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Voce nao tem permissao para criar perfis.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem permissão para criar perfis.</div>;
   }
 
   const context: AdminRoleDetailLayoutContext = {
@@ -161,6 +211,8 @@ export function AdminRoleCreatePage() {
     auditVisibleCount: 0,
     onAuditVisibleCountChange: () => undefined,
     onDraftChange: setDraft,
+    onOpenPermissionPicker: handleOpenPermissionPicker,
+    onRemovePermissionKey: handleRemovePermissionKey,
   };
 
   return (
@@ -185,6 +237,21 @@ export function AdminRoleCreatePage() {
           { label: "Novo perfil" },
         ]}
       />
+
+      <DetailRelationItemDialog
+        open={permissionPickerOpen}
+        onOpenChange={setPermissionPickerOpen}
+        title="Vincular permissões"
+        onSave={handleApplyPermissionSelection}
+        saveLabel="Aplicar"
+      >
+        <AdminPermissionMatrix
+          permissionOptions={permissionOptions}
+          selectedPermissionKeys={permissionPickerSelection}
+          readOnly={false}
+          onChange={setPermissionPickerSelection}
+        />
+      </DetailRelationItemDialog>
     </>
   );
 }

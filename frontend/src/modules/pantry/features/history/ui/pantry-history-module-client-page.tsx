@@ -26,7 +26,6 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   formatDateOnlyPtBR,
   parseLocalDateOnly,
-  type DateBucket,
 } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { ApiPantryHistoryMovement } from "@/modules/pantry/api";
@@ -782,7 +781,7 @@ export function PantryHistoryModuleClientPage() {
         dateFields.find((field) => field.name === state.calendarField)?.label ?? state.calendarField;
       facets.push({
         key: "analysis:calendarField",
-        label: `Calendario: ${calendarLabel}`,
+        label: `Calendário: ${calendarLabel}`,
         tone: "analysis",
         analysisKind: "time",
         icon: <CalendarDays className="size-3.5" />,
@@ -852,7 +851,7 @@ export function PantryHistoryModuleClientPage() {
       });
       facets.push({
         key: "analysis:graphChart",
-        label: `Grafico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
+        label: `Gráfico: ${GRAPH_CHART_LABELS[state.graph.chartType] ?? state.graph.chartType}`,
         tone: "analysis",
         analysisKind: "chart",
         icon: <PieChart className="size-3.5" />,

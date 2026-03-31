@@ -6,13 +6,14 @@ import {
   ACTIONS_ROUTES,
   actionsDetailModuleDefinition,
 } from "@/modules/actions/config/actions-module-contract";
-import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import type { ActionsDetailLayoutContext } from "@/modules/actions/config/actions-detail-layout-contract";
+import { ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
+import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 
 export function ActionCreateEngineClientPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const tenantSlug = getTenantSlugFromPath(pathname);
+  const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
 
   const context = {
     mode: "create",
@@ -22,6 +23,7 @@ export function ActionCreateEngineClientPage() {
     canReadStructure: false,
     canReadPeople: false,
     canReadPeopleIdentity: false,
+    tenantSlug,
     token: "",
     projectId: "",
     action: null,
@@ -53,6 +55,36 @@ export function ActionCreateEngineClientPage() {
     reportPeopleRows: [],
     reportLoading: false,
     reportError: null,
+    attendanceGroupId: ACTION_RELATION_VALUES.allGroups,
+    attendanceStatusFilter: "all",
+    attendanceGroupOptions: [],
+    attendanceDrafts: {},
+    attendanceSaving: false,
+    attendanceNotesDialog: null,
+    qualityGroupId: ACTION_RELATION_VALUES.allGroups,
+    qualityDrafts: {},
+    qualitySaving: false,
+    qualityNotesDialog: null,
+    participantRows: [],
+    qualityRows: [],
+    onAttendanceGroupChange: () => undefined,
+    onAttendanceStatusFilterChange: () => undefined,
+    getAttendanceEffective: () => ({ status: null, notes: null }),
+    setAttendanceRowDraft: () => undefined,
+    applyAttendanceStatusToRows: () => undefined,
+    saveAttendanceDrafts: () => undefined,
+    onAttendanceNotesDialogChange: () => undefined,
+    applyAttendanceNotesDialog: () => undefined,
+    onQualityGroupChange: () => undefined,
+    getQualityEffective: () => ({
+      qualityScore: null,
+      qualityNotes: null,
+      isHighlight: false,
+    }),
+    setQualityRowDraft: () => undefined,
+    saveQualityDrafts: () => undefined,
+    onQualityNotesDialogChange: () => undefined,
+    applyQualityNotesDialog: () => undefined,
     auditVisibleCount: 24,
     onAuditVisibleCountChange: () => undefined,
   } satisfies ActionsDetailLayoutContext;

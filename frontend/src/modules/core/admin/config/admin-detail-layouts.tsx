@@ -19,7 +19,7 @@ import {
 } from "@/features/admin/config/rbac.constants";
 import { resolveMediaUrl } from "@/lib/api";
 import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
-import { cn } from "@/lib/utils";
+import { cn, repairTextDecoding } from "@/lib/utils";
 import type {
   AdminAuditRecord,
   AdminPermissionRecord,
@@ -34,12 +34,12 @@ import type {
   AdminUserRoleOption,
 } from "@/modules/core/admin/admin.types";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import { DetailAuditFeed } from "@/web-client/detail/DetailAuditFeed";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
-import { DetailSideTabs } from "@/web-client/detail/DetailSideTabs";
-import { buildGroupedAuditFeed } from "@/web-client/detail/audit-feed-utils";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
-import { CompactMultiSelect } from "@/web-client/ui/CompactMultiSelect";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import type {
+  DetailHistoryItem,
+  DetailLayoutConfig,
+} from "@/web-client/registry/types";
 import { ModuleMetricsStrip, type ModuleMetricItem } from "@/web-client/ui/ModuleMetricsStrip";
 import { ModuleEmptyState, ModuleSectionHeader, ModuleSurface } from "@/web-client/ui/ModulePrimitives";
 
@@ -58,6 +58,26 @@ const fieldLabelClassName =
   "text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground";
 const summaryValueClassName = "text-sm text-foreground";
 
+function buildMetadataHistoryItems(
+  entries: Array<{
+    key: string;
+    title: string;
+    description?: React.ReactNode;
+    meta?: React.ReactNode;
+    createdAt?: string | null | undefined;
+  }>,
+): DetailHistoryItem[] {
+  return entries
+    .filter((entry) => Boolean(entry.createdAt))
+    .map((entry) => ({
+      id: entry.key,
+      title: entry.title,
+      description: entry.description,
+      meta: entry.meta,
+      createdAt: entry.createdAt ?? null,
+    }));
+}
+
 function normalizePermissionModules(permissionKeys: string[]) {
   const grouped = new Map<string, string[]>();
 
@@ -72,7 +92,7 @@ function normalizePermissionModules(permissionKeys: string[]) {
   return Array.from(grouped.entries())
     .map(([moduleKey, actions]) => ({
       moduleKey,
-      moduleLabel: RBAC_MODULE_LABELS[moduleKey] ?? moduleKey,
+      moduleLabel: repairTextDecoding(RBAC_MODULE_LABELS[moduleKey] ?? moduleKey) ?? moduleKey,
       actions: Array.from(new Set(actions)).sort((left, right) => left.localeCompare(right)),
     }))
     .sort((left, right) => left.moduleLabel.localeCompare(right.moduleLabel));
@@ -143,7 +163,7 @@ function OverviewMain({
     () => [
       {
         key: "users",
-        label: "Usuarios",
+        label: "Usuários",
         value: record.usersTotal,
         description: `${record.activeUsersTotal} ativos`,
         tone: "info",
@@ -159,7 +179,7 @@ function OverviewMain({
       },
       {
         key: "permissions",
-        label: "Permissoes",
+        label: "Permissões",
         value: record.permissionsTotal,
         description: "Chaves registradas",
         tone: "default",
@@ -168,14 +188,14 @@ function OverviewMain({
         key: "inactive",
         label: "Inativos",
         value: record.inactiveUsersTotal,
-        description: "Usuarios fora de operacao",
+        description: "Usuários fora de operação",
         tone: record.inactiveUsersTotal ? "danger" : "success",
       },
       {
         key: "audit",
         label: "Auditoria",
         value: canReadAudit ? "Ativa" : "Restrita",
-        description: "Rastreabilidade do modulo",
+        description: "Rastreabilidade do módulo",
         tone: canReadAudit ? "success" : "default",
         onClick: canReadAudit ? onOpenAudit : undefined,
       },
@@ -202,12 +222,11 @@ function OverviewMain({
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.38fr)]">
         <ModuleSurface className="p-4">
           <ModuleSectionHeader
-            title="Resumo da administracao"
-            description="Panorama da instituicao e pontos de acesso rapido."
+            title="Resumo da administração"
             actionSlot={
               canReadInstitution ? (
                 <Button variant="outline" size="sm" onClick={onOpenInstitution}>
-                  Abrir instituicao
+                  Abrir instituição
                 </Button>
               ) : null
             }
@@ -236,17 +255,14 @@ function OverviewMain({
         </ModuleSurface>
 
         <ModuleSurface className="p-4">
-          <ModuleSectionHeader
-            title="Navegacao"
-            description="Acesse rapidamente as areas administrativas."
-          />
+          <ModuleSectionHeader title="Navegação" />
           <div className="grid gap-2 pt-4">
             <Button variant="ghost" className="justify-between rounded-none px-0" onClick={onOpenInstitution} disabled={!canReadInstitution}>
               Instituicao
               <span className="text-xs text-muted-foreground">Detalhe</span>
             </Button>
             <Button variant="ghost" className="justify-between rounded-none px-0" onClick={onOpenUsers} disabled={!canReadUsers}>
-              Usuarios
+              Usuários
               <span className="text-xs text-muted-foreground">{record.usersTotal}</span>
             </Button>
             <Button variant="ghost" className="justify-between rounded-none px-0" onClick={onOpenRoles} disabled={!canReadRoles}>
@@ -262,17 +278,14 @@ function OverviewMain({
       </div>
 
       <ModuleSurface className="p-4">
-        <ModuleSectionHeader
-          title="Descricao"
-          description="Apresentacao institucional usada como referencia administrativa."
-        />
+        <ModuleSectionHeader title="Descrição" />
         <div className="pt-4">
           {record.description ? (
             <RichTextReadonly value={record.description} bodyClassName="max-h-none" />
           ) : (
             <ModuleEmptyState
               title={null}
-              description="Nenhuma descricao institucional cadastrada."
+              description="Nenhuma descrição institucional cadastrada."
               compact
               className="border border-dashed border-border/50"
             />
@@ -290,47 +303,63 @@ function OverviewSide({
   canReadAudit,
 }: Pick<AdminOverviewLayoutContext, "record" | "canReadUsers" | "canReadRoles" | "canReadAudit">) {
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-4">
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Usuarios ativos</span>
-                  <span className="text-foreground">{record.activeUsersTotal}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Usuarios inativos</span>
-                  <span className="text-foreground">{record.inactiveUsersTotal}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Perfis</span>
-                  <span className="text-foreground">{record.rolesTotal}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Permissoes</span>
-                  <span className="text-foreground">{record.permissionsTotal}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Acesso a usuarios</span>
-                  <span className="text-foreground">{canReadUsers ? "Sim" : "Nao"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Acesso a perfis</span>
-                  <span className="text-foreground">{canReadRoles ? "Sim" : "Nao"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Acesso a auditoria</span>
-                  <span className="text-foreground">{canReadAudit ? "Sim" : "Nao"}</span>
-                </div>
-              </div>
+    <StandardDetailMetadataSide
+      mode="edit"
+      readOnly
+      history={{
+        items: buildMetadataHistoryItems([
+          {
+            key: "overview:created",
+            title: "Configuracoes registradas",
+            description: "Base institucional cadastrada.",
+            createdAt: record.createdAt ?? null,
+          },
+          {
+            key: "overview:updated",
+            title: "Configuracoes atualizadas",
+            description: "Indicadores administrativos revisados.",
+            createdAt:
+              record.updatedAt && record.updatedAt !== record.createdAt
+                ? record.updatedAt
+                : null,
+          },
+        ]),
+      }}
+      contextPanel={
+        <div className="space-y-4">
+          <div className="grid gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Usuários ativos</span>
+              <span className="text-foreground">{record.activeUsersTotal}</span>
             </div>
-          ),
-        },
-      ]}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Usuários inativos</span>
+              <span className="text-foreground">{record.inactiveUsersTotal}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Perfis</span>
+              <span className="text-foreground">{record.rolesTotal}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Permissões</span>
+              <span className="text-foreground">{record.permissionsTotal}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Acesso a usuários</span>
+              <span className="text-foreground">{canReadUsers ? "Sim" : "Nao"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Acesso a perfis</span>
+              <span className="text-foreground">{canReadRoles ? "Sim" : "Nao"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Acesso a auditoria</span>
+              <span className="text-foreground">{canReadAudit ? "Sim" : "Nao"}</span>
+            </div>
+          </div>
+        </div>
+      }
+      defaultTab="context"
     />
   );
 }
@@ -401,7 +430,7 @@ function TenantForm({
       </SectionField>
 
       <div className="xl:col-span-2 space-y-2">
-        <div className={fieldLabelClassName}>Descricao</div>
+        <div className={fieldLabelClassName}>Descrição</div>
         <div className="rounded-lg border border-border/60 bg-background/50 p-3">
           <RichText
             value={draft.description}
@@ -430,69 +459,68 @@ function TenantSide({
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 }) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
-
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Atividade",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode="edit"
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-4">
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Slug</span>
-                  <span className="font-mono text-foreground">{record.slug || "-"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className="text-foreground">{record.status ?? "-"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Atualizado</span>
-                  <span className="text-foreground">{formatDateTimePtBR(record.updatedAt)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Criado</span>
-                  <span className="text-foreground">{formatDateTimePtBR(record.createdAt)}</span>
-                </div>
-              </div>
+    <StandardDetailMetadataSide
+      mode="edit"
+      readOnly
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      history={{
+        items: buildMetadataHistoryItems([
+          {
+            key: "tenant:created",
+            title: "Instituicao registrada",
+            description: "Cadastro institucional criado.",
+            createdAt: record.createdAt ?? null,
+          },
+          {
+            key: "tenant:updated",
+            title: "Instituicao atualizada",
+            description: "Dados institucionais alterados.",
+            createdAt:
+              record.updatedAt && record.updatedAt !== record.createdAt
+                ? record.updatedAt
+                : null,
+          },
+        ]),
+      }}
+      contextPanel={
+        <div className="space-y-4">
+          <div className="grid gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Slug</span>
+              <span className="font-mono text-foreground">{record.slug || "-"}</span>
             </div>
-          ),
-        },
-      ]}
-      defaultValue={canAudit ? "activity" : "context"}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Status</span>
+              <span className="text-foreground">{record.status ?? "-"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Atualizado</span>
+              <span className="text-foreground">{formatDateTimePtBR(record.updatedAt)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Criado</span>
+              <span className="text-foreground">{formatDateTimePtBR(record.createdAt)}</span>
+            </div>
+          </div>
+        </div>
+      }
+      defaultTab={canAudit ? "activity" : "context"}
     />
   );
 }
 
 function UserForm({
   draft,
-  roleOptions,
   canEdit,
   onDraftChange,
   isCreate = false,
   onCommitField,
-  onCommitDraft,
 }: {
   draft: AdminUserFormDraft;
-  roleOptions: AdminUserRoleOption[];
   canEdit: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<AdminUserFormDraft>>;
   isCreate?: boolean;
@@ -500,7 +528,6 @@ function UserForm({
     field: K,
     nextValue?: AdminUserFormDraft[K],
   ) => void;
-  onCommitDraft?: (nextDraft: AdminUserFormDraft) => void;
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -558,27 +585,6 @@ function UserForm({
           </label>
         </div>
       </SectionField>
-
-      <div className="xl:col-span-2 space-y-2">
-        <div className={fieldLabelClassName}>Perfis</div>
-        <CompactMultiSelect
-          options={roleOptions.map((role) => ({
-            value: role.id,
-            label: role.name,
-            description: role.description,
-          }))}
-          selectedValues={draft.roleIds}
-          disabled={!canEdit}
-          label="Perfis"
-          placeholder="Selecionar perfis"
-          emptyLabel="Nenhum perfil vinculado."
-          onChange={(roleIds) => {
-            const nextDraft = { ...draft, roleIds };
-            onDraftChange(() => nextDraft);
-            onCommitDraft?.(nextDraft);
-          }}
-        />
-      </div>
     </div>
   );
 }
@@ -604,115 +610,97 @@ function UserSide({
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 }) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
   const avatarSrc = user.avatarUrl ? resolveMediaUrl(user.avatarUrl) : "";
   const initials = getInitials(user.name?.trim() || user.email);
 
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Atividade",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode="edit"
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b border-border/50 pb-4">
-                <Avatar className="size-12 border border-border/60">
-                  {avatarSrc ? <AvatarImage src={avatarSrc} alt={user.name?.trim() || user.email} /> : null}
-                  <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-foreground">
-                    {user.name?.trim() || user.email}
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-                </div>
-              </div>
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Status</span>
-                  <BooleanBadge value={user.isActive} />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">MFA</span>
-                  <span className="text-foreground">{user.mfaTotpEnabled ? "Ativo" : "Inativo"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Telefone</span>
-                  <span className="text-foreground">{user.phone ?? "-"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Criado</span>
-                  <span className="text-foreground">{formatDateTimePtBR(user.createdAt)}</span>
-                </div>
-              </div>
-              <div className="space-y-2 border-t border-border/50 pt-4">
-                <div className={fieldLabelClassName}>Bio</div>
-                <div className="text-sm text-muted-foreground">{user.bio?.trim() || "Sem bio cadastrada."}</div>
-              </div>
-            </div>
-          ),
-        },
-        {
-          value: "mfa",
-          label: "MFA",
-          content: (
-            <div className="space-y-4">
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className="text-foreground">{user.mfaTotpEnabled ? "Ativo" : "Inativo"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Usuario</span>
-                  <span className="truncate text-foreground">{user.email}</span>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
-                {isCreate
-                  ? "O MFA fica disponivel depois que o usuario for criado."
-                  : user.mfaTotpEnabled
-                    ? "O usuario ja configurou o MFA. Voce pode resetar a configuracao atual para exigir um novo setup."
-                    : "O usuario ainda nao configurou MFA. A ativacao e feita no proprio perfil do usuario."}
-              </div>
-
-              {!isCreate && canEdit ? (
-                <Button
-                  type="button"
-                  variant={user.mfaTotpEnabled ? "outline" : "ghost"}
-                  size="sm"
-                  onClick={onResetMfa}
-                  disabled={resettingMfa || !user.mfaTotpEnabled}
-                >
-                  {resettingMfa ? "Resetando..." : "Resetar MFA"}
-                </Button>
+    <StandardDetailMetadataSide
+      mode={isCreate ? "create" : "edit"}
+      readOnly={!canEdit}
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      history={{
+        items: buildMetadataHistoryItems([
+          {
+            key: `user:${user.id}:created`,
+            title: "Usuário criado",
+            description: user.name?.trim() || user.email,
+            createdAt: user.createdAt,
+          },
+          {
+            key: `user:${user.id}:updated`,
+            title: "Usuário atualizado",
+            description: "Dados cadastrais revisados.",
+            createdAt:
+              user.updatedAt && user.updatedAt !== user.createdAt
+                ? user.updatedAt
+                : null,
+          },
+        ]),
+      }}
+      contextPanel={
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 border-b border-border/50 pb-4">
+            <Avatar className="size-12 border border-border/60">
+              {avatarSrc ? (
+                <AvatarImage src={avatarSrc} alt={user.name?.trim() || user.email} />
               ) : null}
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-foreground">
+                {user.name?.trim() || user.email}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
             </div>
-          ),
-        },
-      ]}
-      defaultValue={canAudit ? "activity" : "context"}
+          </div>
+          <div className="grid gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Status</span>
+              <BooleanBadge value={user.isActive} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">MFA</span>
+              <span className="text-foreground">{user.mfaTotpEnabled ? "Ativo" : "Inativo"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Telefone</span>
+              <span className="text-foreground">{user.phone ?? "-"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Criado</span>
+              <span className="text-foreground">{formatDateTimePtBR(user.createdAt)}</span>
+            </div>
+          </div>
+          <div className="space-y-2 border-t border-border/50 pt-4">
+            <div className={fieldLabelClassName}>Bio</div>
+            <div className="text-sm text-muted-foreground">
+              {user.bio?.trim() || "Sem bio cadastrada."}
+            </div>
+          </div>
+          {!isCreate && canEdit && user.mfaTotpEnabled ? (
+            <div className="border-t border-border/50 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onResetMfa}
+                disabled={resettingMfa}
+              >
+                {resettingMfa ? "Resetando..." : "Resetar MFA"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      }
+      defaultTab={canAudit ? "activity" : "context"}
     />
   );
 }
 
-function PermissionMatrix({
+export function AdminPermissionMatrix({
   permissionOptions,
   selectedPermissionKeys,
   readOnly,
@@ -748,7 +736,7 @@ function PermissionMatrix({
       };
       current.actions.set(action, {
         key: permission.key,
-        description: permission.description,
+        description: repairTextDecoding(permission.description),
       });
       grouped.set(moduleKey, current);
     });
@@ -789,7 +777,7 @@ function PermissionMatrix({
         <thead>
           <tr className="border-b border-border/60 bg-muted/30">
             <th className="w-[240px] px-3 py-2 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Modulo
+              Módulo
             </th>
             {actionColumns.map((action) => (
               <th
@@ -807,7 +795,9 @@ function PermissionMatrix({
             <tr key={module.moduleKey} className="border-b border-border/40 last:border-b-0">
               <td className="px-3 py-3 align-middle">
                 <div className="space-y-1">
-                  <div className="font-medium text-foreground">{module.moduleLabel}</div>
+                  <div className="font-medium text-foreground">
+                    {repairTextDecoding(module.moduleLabel) ?? module.moduleLabel}
+                  </div>
                   <div className="font-mono text-[11px] text-muted-foreground">{module.moduleKey}</div>
                 </div>
               </td>
@@ -819,7 +809,7 @@ function PermissionMatrix({
                     {permission ? (
                       <Checkbox
                         checked={checked}
-                        title={permission.description?.trim() || permission.key}
+                        title={repairTextDecoding(permission.description?.trim() || permission.key) ?? permission.key}
                         onCheckedChange={(next) => {
                           if (readOnly) return;
                           onChange(
@@ -831,7 +821,7 @@ function PermissionMatrix({
                         disabled={readOnly}
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                      <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </td>
                 );
@@ -846,21 +836,17 @@ function PermissionMatrix({
 
 function RoleForm({
   draft,
-  permissionOptions,
   canEdit,
   onDraftChange,
   onCommitField,
-  onCommitDraft,
 }: {
   draft: AdminRoleFormDraft;
-  permissionOptions: AdminRolePermissionOption[];
   canEdit: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<AdminRoleFormDraft>>;
   onCommitField?: <K extends keyof AdminRoleFormDraft>(
     field: K,
     nextValue?: AdminRoleFormDraft[K],
   ) => void;
-  onCommitDraft?: (nextDraft: AdminRoleFormDraft) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -877,7 +863,7 @@ function RoleForm({
         />
         </SectionField>
 
-        <SectionField label="Descricao">
+        <SectionField label="Descrição">
           <Textarea
             value={draft.description}
             onChange={(event) =>
@@ -891,19 +877,6 @@ function RoleForm({
         </SectionField>
       </div>
 
-      <div className="space-y-2">
-        <div className={fieldLabelClassName}>Permissoes</div>
-        <PermissionMatrix
-          permissionOptions={permissionOptions}
-          selectedPermissionKeys={draft.permissionKeys}
-          readOnly={!canEdit}
-          onChange={(permissionKeys) => {
-            const nextDraft = { ...draft, permissionKeys };
-            onDraftChange(() => nextDraft);
-            onCommitDraft?.(nextDraft);
-          }}
-        />
-      </div>
     </div>
   );
 }
@@ -923,87 +896,144 @@ function RoleSide({
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 }) {
-  const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
   const modules = normalizePermissionModules(permissionKeys);
 
   return (
-    <DetailSideTabs
-      tabs={[
-        {
-          value: "activity",
-          label: "Atividade",
-          badge: canAudit && auditCount ? auditCount : undefined,
-          content: canAudit ? (
-            <DetailAuditFeed
-              mode="edit"
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="text-sm text-muted-foreground">Sem permissao para auditoria.</div>
-          ),
-        },
-        {
-          value: "context",
-          label: "Contexto",
-          content: (
-            <div className="space-y-4">
-              <div className="grid gap-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Permissoes</span>
-                  <span className="text-foreground">{permissionKeys.length}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Modulos</span>
-                  <span className="text-foreground">{modules.length}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Atualizado</span>
-                  <span className="text-foreground">{formatDateTimePtBR(role.updatedAt)}</span>
-                </div>
-              </div>
-              <div className="space-y-3 border-t border-border/50 pt-4">
-                {modules.length ? (
-                  modules.map((module) => (
-                    <div key={module.moduleKey} className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">{module.moduleLabel}</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {module.actions.map((action) => (
-                          <Badge
-                            key={`${module.moduleKey}:${action}`}
-                            variant="outline"
-                            className="rounded-full px-2 text-[10px]"
-                          >
-                            {RBAC_ACTION_LABELS[action as keyof typeof RBAC_ACTION_LABELS] ?? action}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-muted-foreground">Nenhum modulo ativo.</div>
-                )}
-              </div>
+    <StandardDetailMetadataSide
+      mode="edit"
+      readOnly
+      detailAudit={detailAudit}
+      auditVisibleCount={auditVisibleCount}
+      onAuditVisibleCountChange={onAuditVisibleCountChange}
+      canAudit={canAudit}
+      history={{
+        items: buildMetadataHistoryItems([
+          {
+            key: `role:${role.id}:created`,
+            title: "Perfil criado",
+            description: role.name,
+            createdAt: role.createdAt,
+          },
+          {
+            key: `role:${role.id}:updated`,
+            title: "Perfil atualizado",
+            description: "Configuracao de acesso revisada.",
+            createdAt:
+              role.updatedAt && role.updatedAt !== role.createdAt
+                ? role.updatedAt
+                : null,
+          },
+        ]),
+      }}
+      contextPanel={
+        <div className="space-y-4">
+          <div className="grid gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Permissões</span>
+              <span className="text-foreground">{permissionKeys.length}</span>
             </div>
-          ),
-        },
-      ]}
-      defaultValue={canAudit ? "activity" : "context"}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Módulos</span>
+              <span className="text-foreground">{modules.length}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Atualizado</span>
+              <span className="text-foreground">{formatDateTimePtBR(role.updatedAt)}</span>
+            </div>
+          </div>
+          <div className="space-y-3 border-t border-border/50 pt-4">
+            {modules.length ? (
+              modules.map((module) => (
+                <div key={module.moduleKey} className="space-y-1">
+                  <div className="text-sm font-medium text-foreground">
+                    {repairTextDecoding(module.moduleLabel) ?? module.moduleLabel}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {module.actions.map((action) => (
+                      <Badge
+                        key={`${module.moduleKey}:${action}`}
+                        variant="outline"
+                        className="rounded-full px-2 text-[10px]"
+                      >
+                        {RBAC_ACTION_LABELS[action as keyof typeof RBAC_ACTION_LABELS] ??
+                          action}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">Nenhum módulo ativo.</div>
+            )}
+          </div>
+        </div>
+      }
+      defaultTab={canAudit ? "activity" : "context"}
     />
   );
 }
 
-function rolePermissionColumns(): ColumnDef<AdminPermissionRecord, unknown>[] {
-  return [
+function userRoleRelationColumns({
+  canEdit,
+  onRemoveRoleId,
+}: Pick<AdminUserDetailLayoutContext, "canEdit" | "onRemoveRoleId">): ColumnDef<
+  AdminUserRoleOption,
+  unknown
+>[] {
+  const columns: ColumnDef<AdminUserRoleOption, unknown>[] = [
+    {
+      accessorKey: "name",
+      header: "Perfil",
+      cell: ({ row }) => row.original.name,
+    },
+    {
+      accessorKey: "description",
+      header: "Descrição",
+      cell: ({ row }) => repairTextDecoding(row.original.description?.trim() || "-") ?? "-",
+    },
+  ];
+
+  if (canEdit) {
+    columns.push({
+      id: "actions",
+      header: "Ação",
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemoveRoleId?.(row.original.id);
+          }}
+        >
+          Remover
+        </Button>
+      ),
+    });
+  }
+
+  return columns;
+}
+
+function rolePermissionRelationColumns({
+  canEdit,
+  onRemovePermissionKey,
+}: Pick<
+  AdminRoleDetailLayoutContext,
+  "canEdit" | "onRemovePermissionKey"
+>): ColumnDef<AdminPermissionRecord, unknown>[] {
+  const columns: ColumnDef<AdminPermissionRecord, unknown>[] = [
     {
       accessorKey: "moduleLabel",
-      header: "Modulo",
-      cell: ({ row }) => row.original.moduleLabel,
+      header: "Módulo",
+      cell: ({ row }) => repairTextDecoding(row.original.moduleLabel) ?? row.original.moduleLabel,
     },
     {
       accessorKey: "action",
-      header: "Acao",
+      header: "Ação",
       cell: ({ row }) =>
         RBAC_ACTION_LABELS[row.original.action as keyof typeof RBAC_ACTION_LABELS] ??
         row.original.action,
@@ -1015,25 +1045,34 @@ function rolePermissionColumns(): ColumnDef<AdminPermissionRecord, unknown>[] {
     },
     {
       accessorKey: "description",
-      header: "Descricao",
-      cell: ({ row }) => row.original.description?.trim() || "-",
+      header: "Descrição",
+      cell: ({ row }) => repairTextDecoding(row.original.description?.trim() || "-") ?? "-",
     },
   ];
-}
 
-function userRoleColumns(): ColumnDef<AdminUserRoleOption, unknown>[] {
-  return [
-    {
-      accessorKey: "name",
-      header: "Perfil",
-      cell: ({ row }) => row.original.name,
-    },
-    {
-      accessorKey: "description",
-      header: "Descricao",
-      cell: ({ row }) => row.original.description?.trim() || "-",
-    },
-  ];
+  if (canEdit) {
+    columns.push({
+      id: "actions",
+      header: "Ação",
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemovePermissionKey?.(row.original.key);
+          }}
+        >
+          Remover
+        </Button>
+      ),
+    });
+  }
+
+  return columns;
 }
 
 export type AdminOverviewLayoutContext = DetailShellAuditContext & {
@@ -1068,6 +1107,7 @@ export type AdminUserDetailLayoutContext = DetailShellAuditContext & {
   user: AdminUserRecord;
   draft: AdminUserFormDraft;
   roleOptions: AdminUserRoleOption[];
+  selectedRoleOptions: AdminUserRoleOption[];
   canEdit: boolean;
   canAudit: boolean;
   isCreate?: boolean;
@@ -1078,6 +1118,9 @@ export type AdminUserDetailLayoutContext = DetailShellAuditContext & {
   onDraftChange: React.Dispatch<React.SetStateAction<AdminUserFormDraft>>;
   onResetMfa?: () => void;
   onAvatarFileSelect?: (file: File) => Promise<void> | void;
+  onOpenRolePicker?: () => void;
+  onRemoveRoleId?: (roleId: string) => void;
+  onOpenRoleDetail?: (roleId: string) => void;
   onCommitField?: <K extends keyof AdminUserFormDraft>(
     field: K,
     nextValue?: AdminUserFormDraft[K],
@@ -1096,6 +1139,8 @@ export type AdminRoleDetailLayoutContext = DetailShellAuditContext & {
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
   onDraftChange: React.Dispatch<React.SetStateAction<AdminRoleFormDraft>>;
+  onOpenPermissionPicker?: () => void;
+  onRemovePermissionKey?: (permissionKey: string) => void;
   onCommitField?: <K extends keyof AdminRoleFormDraft>(
     field: K,
     nextValue?: AdminRoleFormDraft[K],
@@ -1138,29 +1183,25 @@ function AuditDetailMain({ record }: AdminAuditDetailLayoutContext) {
         <SectionField label="Entidade">
           <div className={summaryValueClassName}>{record.entity}</div>
         </SectionField>
-        <SectionField label="Acao">
+        <SectionField label="Ação">
           <div className={summaryValueClassName}>{record.action}</div>
         </SectionField>
         <SectionField label="ID da entidade">
-          <div className="font-mono text-sm text-foreground">{record.entityId || "—"}</div>
+          <div className="font-mono text-sm text-foreground">{record.entityId || "-"}</div>
         </SectionField>
         <SectionField label="Data">
           <div className={summaryValueClassName}>{formatDateTimePtBR(record.createdAt)}</div>
         </SectionField>
-        <SectionField label="Usuario">
+        <SectionField label="Usuário">
           <div className={summaryValueClassName}>{record.userName || "Sistema"}</div>
         </SectionField>
         <SectionField label="Email">
-          <div className={summaryValueClassName}>{record.userEmail || "—"}</div>
+          <div className={summaryValueClassName}>{record.userEmail || "-"}</div>
         </SectionField>
       </div>
 
       <section className="space-y-3">
-        <ModuleSectionHeader
-          title="Alteracoes"
-          description="Campos modificados neste evento de auditoria."
-          meta={changeRows.length}
-        />
+        <ModuleSectionHeader title="Alterações" meta={changeRows.length} />
         {changeRows.length ? (
           <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/50">
             <table className="min-w-full border-collapse text-sm">
@@ -1185,7 +1226,7 @@ function AuditDetailMain({ record }: AdminAuditDetailLayoutContext) {
         ) : (
           <ModuleEmptyState
             title="Sem diff detalhado"
-            description="Este registro nao possui campos comparaveis no before/after."
+            description="Este registro não possui campos comparáveis no before/after."
             compact
           />
         )}
@@ -1207,6 +1248,34 @@ function AuditDetailMain({ record }: AdminAuditDetailLayoutContext) {
   );
 }
 
+function AuditDetailSide({ record }: AdminAuditDetailLayoutContext) {
+  return (
+    <StandardDetailMetadataSide
+      mode="edit"
+      readOnly
+      history={{
+        items: buildMetadataHistoryItems([
+          {
+            key: `audit:${record.id}:created`,
+            title: "Evento de auditoria registrado",
+            description: `${record.entity} ${record.action}`,
+            meta: record.userName || "Sistema",
+            createdAt: record.createdAt,
+          },
+        ]),
+      }}
+      contextItems={[
+        { key: "entityId", label: "ID da entidade", value: record.entityId || "-" },
+        { key: "user", label: "Usuário", value: record.userName || "Sistema" },
+        { key: "email", label: "Email", value: record.userEmail || "-" },
+        { key: "requestId", label: "Request ID", value: record.requestId || "-" },
+        { key: "ipAddress", label: "IP", value: record.ipAddress || "-" },
+      ]}
+      defaultTab="context"
+    />
+  );
+}
+
 export const adminOverviewLayout: DetailLayoutConfig<AdminOverviewLayoutContext> = {
   header: {
     title: ({ record }) => record.name,
@@ -1218,7 +1287,7 @@ export const adminOverviewLayout: DetailLayoutConfig<AdminOverviewLayoutContext>
             <div className="font-medium text-foreground">{record.status ?? "-"}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Usuarios</div>
+            <div className="text-muted-foreground">Usuários</div>
             <div className="font-medium text-foreground">{record.usersTotal}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -1226,7 +1295,7 @@ export const adminOverviewLayout: DetailLayoutConfig<AdminOverviewLayoutContext>
             <div className="font-medium text-foreground">{record.rolesTotal}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Permissoes</div>
+            <div className="text-muted-foreground">Permissões</div>
             <div className="font-medium text-foreground">{record.permissionsTotal}</div>
           </div>
         </div>
@@ -1308,7 +1377,7 @@ export const adminTenantDetailLayout: DetailLayoutConfig<AdminTenantLayoutContex
         logoUrl: "Logo",
         cnpj: "CNPJ",
         startYear: "Ano de inicio",
-        description: "Descricao",
+        description: "Descrição",
         status: "Status",
       },
       resolveEntityId: ({ record }) => record.id,
@@ -1328,14 +1397,14 @@ export const adminUserDetailLayout: DetailLayoutConfig<AdminUserDetailLayoutCont
     leadingSlot: ({ draft, canEdit, avatarUploading, onAvatarFileSelect }) => (
       <DetailIdentityMediaField
         variant="header"
-        name={draft.name || draft.email || "Usuario"}
+        name={draft.name || draft.email || "Usuário"}
         value={draft.avatarUrl}
         readOnly={!canEdit}
         busy={avatarUploading}
         onFileSelect={onAvatarFileSelect}
       />
     ),
-    slot: ({ user }) => (
+    slot: ({ user, selectedRoleOptions }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
@@ -1344,7 +1413,7 @@ export const adminUserDetailLayout: DetailLayoutConfig<AdminUserDetailLayoutCont
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Perfis</div>
-            <div className="font-medium text-foreground">{user.roleNames.length}</div>
+            <div className="font-medium text-foreground">{selectedRoleOptions.length}</div>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">MFA</div>
@@ -1360,21 +1429,17 @@ export const adminUserDetailLayout: DetailLayoutConfig<AdminUserDetailLayoutCont
   },
   main: ({
     draft,
-    roleOptions,
     canEdit,
     onDraftChange,
     isCreate,
     onCommitField,
-    onCommitDraft,
   }) => (
     <UserForm
       draft={draft}
-      roleOptions={roleOptions}
       canEdit={canEdit}
       onDraftChange={onDraftChange}
       isCreate={isCreate}
       onCommitField={onCommitField}
-      onCommitDraft={onCommitDraft}
     />
   ),
   side: ({
@@ -1400,12 +1465,36 @@ export const adminUserDetailLayout: DetailLayoutConfig<AdminUserDetailLayoutCont
       onAuditVisibleCountChange={onAuditVisibleCountChange}
     />
   ),
+  tabTemplates: [
+    {
+      key: "roles",
+      label: "Perfis",
+      badge: ({ selectedRoleOptions }) => selectedRoleOptions.length,
+      relations: [
+        {
+          key: "user-roles",
+          label: "Perfis vinculados",
+          rows: ({ selectedRoleOptions }) => selectedRoleOptions,
+          columns: ({ canEdit, onRemoveRoleId }) =>
+            userRoleRelationColumns({ canEdit, onRemoveRoleId }),
+          getRowId: (row) => row.id,
+          onRowClick: (row, { onOpenRoleDetail }) => onOpenRoleDetail?.(row.id),
+          emptyLabel: "Nenhum perfil vinculado a este usuário.",
+          action: {
+            label: "Vincular perfil",
+            onClick: ({ onOpenRolePicker }) => onOpenRolePicker?.(),
+            hidden: ({ canEdit }) => !canEdit,
+          },
+        },
+      ],
+    },
+  ],
   auditSources: {
     primaryEntity: {
       key: "user",
       entity: "User",
       model: "audit.logs",
-      label: "Usuario",
+      label: "Usuário",
       fieldLabels: {
         name: "Nome",
         email: "Email",
@@ -1435,11 +1524,11 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Permissoes</div>
+            <div className="text-muted-foreground">Permissões</div>
             <div className="font-medium text-foreground">{selectedPermissionRecords.length}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Modulos</div>
+            <div className="text-muted-foreground">Módulos</div>
             <div className="font-medium text-foreground">
               {normalizePermissionModules(selectedPermissionRecords.map((entry) => entry.key)).length}
             </div>
@@ -1450,19 +1539,15 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
   },
   main: ({
     draft,
-    permissionOptions,
     canEdit,
     onDraftChange,
     onCommitField,
-    onCommitDraft,
   }) => (
     <RoleForm
       draft={draft}
-      permissionOptions={permissionOptions}
       canEdit={canEdit}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
-      onCommitDraft={onCommitDraft}
     />
   ),
   side: ({
@@ -1485,16 +1570,23 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
   tabTemplates: [
     {
       key: "permissions",
-      label: "Permissoes",
+      label: "Permissões",
       badge: ({ selectedPermissionRecords }) => selectedPermissionRecords.length,
       relations: [
         {
           key: "role-permissions",
-          label: "Permissoes atribuidas",
+          label: "Permissões",
           rows: ({ selectedPermissionRecords }) => selectedPermissionRecords,
-          columns: rolePermissionColumns(),
+          columns: ({ canEdit, onRemovePermissionKey }) =>
+            rolePermissionRelationColumns({ canEdit, onRemovePermissionKey }),
           getRowId: (row) => row.id,
-          emptyLabel: "Nenhuma permissao vinculada.",
+          searchable: true,
+          emptyLabel: "Nenhuma permissão vinculada.",
+          action: {
+            label: "Vincular permissão",
+            onClick: ({ onOpenPermissionPicker }) => onOpenPermissionPicker?.(),
+            hidden: ({ canEdit }) => !canEdit,
+          },
         },
       ],
     },
@@ -1507,7 +1599,7 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
       label: "Perfil",
       fieldLabels: {
         name: "Perfil",
-        description: "Descricao",
+        description: "Descrição",
       },
       resolveEntityId: ({ role }) => role.id,
     },
@@ -1518,12 +1610,12 @@ export const adminRoleDetailLayout: DetailLayoutConfig<AdminRoleDetailLayoutCont
 
 export const adminAuditDetailLayout: DetailLayoutConfig<AdminAuditDetailLayoutContext> = {
   header: {
-    title: ({ record }) => `${record.entity} • ${record.action}`,
+    title: ({ record }) => `${record.entity} / ${record.action}`,
     slot: ({ record }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Usuario</div>
+            <div className="text-muted-foreground">Usuário</div>
             <div className="font-medium text-foreground">{record.userName || "Sistema"}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -1531,7 +1623,7 @@ export const adminAuditDetailLayout: DetailLayoutConfig<AdminAuditDetailLayoutCo
             <div className="font-medium text-foreground">{record.entity}</div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Acao</div>
+            <div className="text-muted-foreground">Ação</div>
             <div className="font-medium text-foreground">{record.action}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -1543,4 +1635,5 @@ export const adminAuditDetailLayout: DetailLayoutConfig<AdminAuditDetailLayoutCo
     ),
   },
   main: (context) => <AuditDetailMain {...context} />,
+  side: (context) => <AuditDetailSide {...context} />,
 };

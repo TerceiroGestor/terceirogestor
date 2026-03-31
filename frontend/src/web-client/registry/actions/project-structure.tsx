@@ -3,15 +3,9 @@
 import {
   ProjectGroupsDetailEngineClientPage,
   ProjectActionsManageRouteClientPage,
-  ProjectCyclesListModuleClientPage,
-  ProjectCyclesManageRouteClientPage,
   ProjectEnrollmentsManageRouteClientPage,
   ProjectGroupsListModuleClientPage,
 } from "@/modules/projects";
-import {
-  PROJECT_CYCLES_ROUTES,
-  projectCyclesListModuleDefinition,
-} from "@/modules/projects/config/project-cycles-module-contract";
 import {
   PROJECT_GROUPS_ROUTES,
   projectGroupsDetailModuleDefinition,
@@ -26,8 +20,6 @@ export const PROJECT_STRUCTURE_ACTION_IDS = {
   groupsCreate: "project-groups.create",
   groupsDetail: "project-groups.detail",
   groupsManage: "projects.groups.manage",
-  cyclesList: "project-cycles.list",
-  cyclesManage: "projects.cycles.manage",
   enrollmentsManage: "projects.enrollments.manage",
   actionsManage: "projects.actions.manage",
 } as const;
@@ -69,25 +61,6 @@ export const projectGroupsManageAction = createModuleWindowAction({
   breadcrumbs: [{ label: "Projetos", href: "/projects" }],
   hideBreadcrumb: true,
   render: () => <ProjectGroupsDetailEngineClientPage />,
-});
-
-export const projectCyclesListAction = createModuleWindowAction({
-  id: PROJECT_STRUCTURE_ACTION_IDS.cyclesList,
-  moduleDefinition: projectCyclesListModuleDefinition,
-  modulePermissionKey: "canRead",
-  titleVariant: "list",
-  breadcrumbs: [{ label: "Ciclos", href: PROJECT_CYCLES_ROUTES.list }],
-  render: () => <ProjectCyclesListModuleClientPage />,
-});
-
-export const projectCyclesManageAction = createModuleWindowAction({
-  id: PROJECT_STRUCTURE_ACTION_IDS.cyclesManage,
-  moduleDefinition: projectCyclesListModuleDefinition,
-  permissions: "project-structure.read",
-  title: "Ciclos do projeto",
-  breadcrumbs: [{ label: "Projetos", href: "/projects" }],
-  hideBreadcrumb: true,
-  render: () => <ProjectCyclesManageRouteClientPage />,
 });
 
 export const projectEnrollmentsManageAction = createModuleWindowAction({
