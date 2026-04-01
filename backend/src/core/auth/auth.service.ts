@@ -392,7 +392,7 @@ export class AuthService {
     });
 
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
     const resetUrl = `${webUrl}/${encodeURIComponent(
       tenant.slug,
     )}/reset-password?token=${encodeURIComponent(token)}`;

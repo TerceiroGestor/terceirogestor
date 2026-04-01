@@ -1,66 +1,116 @@
+name: terceirogestor
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql-terceirogestor
     restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
-    ports:
-      - "3306:3306"
+      TZ: ${TZ:-America/Sao_Paulo}
     volumes:
-      - type: bind
-        source: ${DATA_DIR:-./data}/mysql
-        target: /var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 20s
+    logging: *default-logging
 
   backend:
     build:
       context: ./backend
       args:
-        DATABASE_URL: "mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&ssl=false"
-    container_name: backend-terceirogestor
+        DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&ssl=false
     restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
-    env_file:
-      - ${BACKEND_ENV_FILE:-./backend/.env}
     environment:
       NODE_ENV: production
-      DATABASE_URL: "mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&ssl=false"
-    ports:
-      - "3001:3001"
+      PORT: "3001"
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&ssl=false
+      JWT_SECRET: ${JWT_SECRET}
+      APP_NAME: ${APP_NAME:-Terceiro Gestor}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-}
+      PII_MASTER_KEY: ${PII_MASTER_KEY:-}
+      WEB_URL: ${WEB_URL:-http://localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@terceirogestor.local}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost/api/registration/oauth/google/callback}
+      MICROSOFT_OAUTH_CLIENT_ID: ${MICROSOFT_OAUTH_CLIENT_ID:-}
+      MICROSOFT_OAUTH_CLIENT_SECRET: ${MICROSOFT_OAUTH_CLIENT_SECRET:-}
+      MICROSOFT_OAUTH_REDIRECT_URI: ${MICROSOFT_OAUTH_REDIRECT_URI:-http://localhost/api/registration/oauth/microsoft/callback}
+      TZ: ${TZ:-America/Sao_Paulo}
     volumes:
-      - type: bind
-        source: ./backend/uploads
-        target: /app/uploads
-    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+      - uploads_data:/app/uploads
+    command: ["sh", "-c", "mkdir -p /app/uploads && npm run start:prod"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
 
   frontend:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    container_name: frontend-terceirogestor
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       API_INTERNAL_URL: http://backend:3001
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+
+  nginx:
+    build:
+      context: ./docker/nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     ports:
-      - "3000:3000"
+      - "80:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
 
   backup:
-    image: alpine:3.20
-    container_name: mysql-backup-terceirogestor
+    build:
+      context: ./docker/backup
     restart: unless-stopped
     depends_on:
       mysql:
@@ -72,22 +122,18 @@ services:
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       BACKUP_DIR: /backups
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
-      TZ: ${TZ:-UTC}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
+      TZ: ${TZ:-America/Sao_Paulo}
     volumes:
       - type: bind
-        source: ${DATA_DIR:-./data}/backups
+        source: ${BACKUP_PATH:-./storage/backups}
         target: /backups
-    entrypoint: >-
-      /bin/sh -c "apk add --no-cache mariadb-client tzdata >/dev/null
-      && mkdir -p $$BACKUP_DIR
-      && cat <<'EOF' > /usr/local/bin/backup.sh
-      #!/bin/sh
-      TS=$(date +%Y%m%d-%H%M%S)
-      mysqldump -h \"$$MYSQL_HOST\" -P \"$$MYSQL_PORT\" -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" \"$$MYSQL_DATABASE\" \
-        | gzip > \"$$BACKUP_DIR/$$MYSQL_DATABASE-$$TS.sql.gz\"
-      find \"$$BACKUP_DIR\" -type f -name \"$$MYSQL_DATABASE-*.sql.gz\" -mtime +$$BACKUP_KEEP_DAYS -delete
-      EOF
-      && chmod +x /usr/local/bin/backup.sh
-      && echo '0 12 * * * /usr/local/bin/backup.sh' > /etc/crontabs/root
-      && crond -f -l 2"
+      - uploads_data:/uploads
+    logging: *default-logging
+
+volumes:
+  mysql_data:
+    name: terceirogestor_mysql_data
+  uploads_data:
+    name: terceirogestor_uploads_data

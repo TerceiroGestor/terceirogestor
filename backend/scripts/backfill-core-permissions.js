@@ -1,21 +1,6 @@
-const fs = require('fs');
 const path = require('path');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
-
-function readEnvFileValue(key) {
-  try {
-    const envPath = path.join(process.cwd(), '.env');
-    const content = fs.readFileSync(envPath, 'utf8');
-    const line = content
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .find((l) => l && !l.startsWith('#') && l.startsWith(`${key}=`));
-    if (!line) return null;
-    return line.slice(key.length + 1).trim().replace(/^"|"$/g, '');
-  } catch {
-    return null;
-  }
-}
+const { loadRootEnv, readEnvFileValue } = require('./env-file');
 
 function parseDatabaseUrl(databaseUrl) {
   let url;
@@ -79,6 +64,8 @@ const ROLE_PERMISSION_MAP = [
 ];
 
 async function main() {
+  loadRootEnv();
+
   const databaseUrl =
     process.env.DATABASE_URL || readEnvFileValue('DATABASE_URL');
   if (!databaseUrl) {
@@ -87,7 +74,7 @@ async function main() {
 
   const adapter = new PrismaMariaDb(parseDatabaseUrl(databaseUrl));
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { PrismaClient } = require(path.join(process.cwd(), 'src/generated/prisma'));
+  const { PrismaClient } = require(path.join(__dirname, '..', 'src/generated/prisma'));
   const prisma = new PrismaClient({ adapter });
 
   try {

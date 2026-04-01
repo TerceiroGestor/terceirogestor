@@ -85,7 +85,7 @@ export class RegistrationController {
       },
     );
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
     return {
       url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
     };
@@ -114,7 +114,7 @@ export class RegistrationController {
       },
     );
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost:3000';
+      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
     return {
       url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
     };

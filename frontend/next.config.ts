@@ -1,7 +1,46 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { NextConfig } from "next";
+
+function loadRootEnv() {
+  const envPaths = [
+    path.resolve(__dirname, "..", ".env.local"),
+    path.resolve(__dirname, "..", ".env"),
+  ];
+
+  for (const filepath of envPaths) {
+    if (!fs.existsSync(filepath)) continue;
+
+    const content = fs.readFileSync(filepath, "utf8");
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+
+      const idx = line.indexOf("=");
+      if (idx === -1) continue;
+
+      const key = line.slice(0, idx).trim();
+      if (!key || process.env[key] !== undefined) continue;
+
+      let value = line.slice(idx + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      process.env[key] = value;
+    }
+  }
+}
+
+loadRootEnv();
 
 function resolveImageRemotePatterns() {
   const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+    { protocol: "http", hostname: "localhost", pathname: "/**" },
+    { protocol: "http", hostname: "127.0.0.1", pathname: "/**" },
     { protocol: "http", hostname: "localhost", port: "3001", pathname: "/**" },
     { protocol: "http", hostname: "127.0.0.1", port: "3001", pathname: "/**" },
   ];

@@ -8,7 +8,9 @@ const DEFAULT_API_URL = "http://localhost:3001";
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ?? "";
 const fallbackApiUrl =
   typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:3001`
+    ? ["", "80", "443"].includes(window.location.port)
+      ? `${window.location.origin}/api`
+      : `${window.location.protocol}//${window.location.hostname}:3001`
     : DEFAULT_API_URL;
 const isLocalEnv =
   envApiUrl.includes("localhost") || envApiUrl.includes("127.0.0.1");
@@ -17,19 +19,53 @@ const isRemoteBrowser =
   !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
 export const API_URL =
-  envApiUrl && (!isLocalEnv || !isRemoteBrowser) ? envApiUrl : fallbackApiUrl;
+  (envApiUrl && (!isLocalEnv || !isRemoteBrowser) ? envApiUrl : fallbackApiUrl)
+    .replace(/\/+$/, "");
 
-export function resolveMediaUrl(url?: string | null) {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("/uploads/")) return `${API_URL}${url}`;
+function normalizeLegacyMediaUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const isLegacyLocalBackend =
+      ["localhost", "127.0.0.1"].includes(parsed.hostname) &&
+      parsed.port === "3001";
+
+    if (isLegacyLocalBackend && parsed.pathname.startsWith("/uploads/")) {
+      return `${API_URL}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return url;
+  }
+
   return url;
 }
 
+export function resolveMediaUrl(url?: string | null) {
+  if (!url) return "";
+
+  const normalized = normalizeLegacyMediaUrl(url);
+  if (normalized.startsWith("http")) return normalized;
+  if (normalized.startsWith("/api/uploads/")) return normalized;
+  if (normalized.startsWith("/uploads/")) return `${API_URL}${normalized}`;
+  return normalized;
+}
+
 export function stripApiUrl(url: string) {
-  if (url.startsWith(API_URL)) {
+  if (url.startsWith(`${API_URL}/`)) {
     return url.slice(API_URL.length);
   }
+  if (url.startsWith("/api/")) {
+    return url.slice("/api".length);
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return url;
+  }
+
   return url;
 }
 

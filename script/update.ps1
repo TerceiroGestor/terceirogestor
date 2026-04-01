@@ -1,58 +1,51 @@
 [CmdletBinding()]
 param(
-  [switch]$SkipSeed,
-  [switch]$WithNginx
+  [switch]$SeedDemoData
 )
 
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "docker-compose.common.ps1")
+. (Join-Path $PSScriptRoot "common.ps1")
 
 $rootDir = Get-ProjectRoot
 Set-Location $rootDir
 
-Write-Host "== system_development update =="
+Write-Host "== terceirogestor update =="
 
 Ensure-ComposeEnv -ProjectRoot $rootDir
-Prepare-BackendComposeEnv -ProjectRoot $rootDir
-$composeFiles = Get-ComposeFiles -ProjectRoot $rootDir -WithNginx:$WithNginx
+Ensure-BackupDirectory -ProjectRoot $rootDir
 
-$buildServices = @("backend", "frontend")
-if ($WithNginx) {
-  $buildServices += "nginx"
-}
+Write-Host "[1/7] build backup helper"
+Invoke-Compose build backup
 
-$recreateServices = @("backend", "frontend", "backup")
-if ($WithNginx) {
-  $recreateServices += "nginx"
-}
+Write-Host "[2/7] ensure mysql up"
+Invoke-Compose up -d mysql
+Wait-ForComposeServiceHealth -Service "mysql"
 
-Write-Host "[1/8] git pull"
+Write-Host "[3/7] create safety backup"
+Invoke-Compose run --rm --no-deps backup backup-now
+
+Write-Host "[4/7] git pull"
 Invoke-NativeCommand -Name "git" -Arguments @("pull", "--ff-only") -FailurePrefix "git pull --ff-only"
 
-Write-Host "[2/8] ensure mysql up"
-Invoke-Compose -ComposeFiles $composeFiles up -d mysql backup
-Wait-ForMySqlHealth
+Write-Host "[5/7] rebuild images"
+Invoke-Compose build --pull
 
-Write-Host "[3/8] build images"
-Invoke-Compose -ComposeFiles $composeFiles build --pull @buildServices
+Write-Host "[6/7] apply migrations and maintenance"
+Invoke-Compose run --rm --no-deps backend npm run db:migrate:deploy
+Invoke-Compose run --rm --no-deps backend npm run permissions:backfill
 
-Write-Host "[4/8] apply migrations (inside container)"
-Invoke-Compose -ComposeFiles $composeFiles run --rm --no-deps backend npm run db:migrate:deploy
-
-if ($SkipSeed) {
-  Write-Host "[5/8] seed database (skipped)"
+if ($SeedDemoData) {
+  Write-Host "[seed] demo data"
+  Invoke-Compose run --rm --no-deps backend npm run db:seed
 }
 else {
-  Write-Host "[5/8] seed database (inside container)"
-  Invoke-Compose -ComposeFiles $composeFiles run --rm --no-deps backend npm run db:seed
+  Write-Host "[seed] demo data (skipped)"
 }
 
-Write-Host "[6/8] backfill core permissions"
-Invoke-Compose -ComposeFiles $composeFiles run --rm --no-deps backend npm run permissions:backfill
+Write-Host "[7/7] recreate stack"
+Invoke-Compose up -d --force-recreate backend frontend nginx backup
+Wait-ForComposeServiceHealth -Service "nginx"
 
-Write-Host "[7/8] recreate containers"
-Invoke-Compose -ComposeFiles $composeFiles up -d --force-recreate @recreateServices
-
-Write-Host "[8/8] status"
-Invoke-Compose -ComposeFiles $composeFiles ps
+Write-Host "[status]"
+Invoke-Compose ps

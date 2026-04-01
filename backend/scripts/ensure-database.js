@@ -1,27 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const mariadb = require("mariadb");
-
-function loadDotEnv(filepath) {
-  if (!fs.existsSync(filepath)) return;
-  const content = fs.readFileSync(filepath, "utf8");
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const idx = line.indexOf("=");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim();
-    if (!key || process.env[key] !== undefined) continue;
-    let value = line.slice(idx + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    process.env[key] = value;
-  }
-}
+const { loadRootEnv } = require("./env-file");
 
 async function ensureDatabase(databaseUrl) {
   const url = new URL(databaseUrl);
@@ -48,7 +26,7 @@ async function ensureDatabase(databaseUrl) {
 }
 
 async function main() {
-  loadDotEnv(path.join(process.cwd(), ".env"));
+  loadRootEnv();
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is not set");
@@ -60,4 +38,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

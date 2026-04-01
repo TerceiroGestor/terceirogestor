@@ -1,6 +1,11 @@
 .env
+.env.local
+backend/.env
+frontend/.env
 backend/.env.docker
 /docker/certbot/
+storage/backups/*
+!storage/backups/.gitkeep
 tmp-playwright-local/
 .tmp-playwright/
 test-results/
