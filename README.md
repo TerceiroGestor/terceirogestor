@@ -208,6 +208,7 @@ Atencao:
 Observacao importante:
 
 - use apenas caracteres seguros para URL em `MYSQL_ROOT_PASSWORD` como letras, numeros, ponto, underscore e hifen
+- se algum segredo tiver `$`, use aspas simples no `.env` da raiz para o Docker Compose nao interpretar isso como variavel
 
 ## Problemas comuns
 
