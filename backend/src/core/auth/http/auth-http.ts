@@ -11,11 +11,22 @@ export function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
 
+export function isSecureCookiesEnabled() {
+  const webUrl = process.env.WEB_URL?.trim() ?? '';
+  if (webUrl.startsWith('https://')) {
+    return true;
+  }
+  if (webUrl.startsWith('http://')) {
+    return false;
+  }
+  return isProduction();
+}
+
 export function getCookieOptions() {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure: isProduction(),
+    secure: isSecureCookiesEnabled(),
     path: '/',
   };
 }

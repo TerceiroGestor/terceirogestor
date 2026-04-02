@@ -1,12 +1,12 @@
 # Terceiro Gestor t
 
-Este projeto foi reorganizado para rodar direto no Docker, com acesso unico em `http://localhost`, persistencia de dados, backup automatico e atualizacao simplificada por PowerShell.
+Este projeto foi reorganizado para rodar direto no Docker, com acesso unico pela URL definida em `WEB_URL`, persistencia de dados, backup automatico e atualizacao simplificada por PowerShell.
 
 Toda a configuracao do projeto agora fica centralizada no `.env` da raiz. Isso vale para Docker e tambem para execucao local de backend/frontend.
 
 ## Como ficou
 
-- acesso publico so por `http://localhost:80`
+- acesso publico so pela URL configurada em `WEB_URL` na porta `80`
 - `mysql` e `uploads` persistidos em volumes Docker
 - backup automatico do banco e dos uploads
 - backup manual com um comando
@@ -56,10 +56,15 @@ O script valida automaticamente:
 - se `.env` tem as chaves minimas obrigatorias
 - se algum valor com `$` foi deixado sem aspas simples
 
-4. Acessar:
+4. Ajustar a URL publica no `.env`:
+
+- em maquina local: `WEB_URL=http://localhost`
+- em servidor/LAN: `WEB_URL=http://192.168.1.250` ou seu dominio
+
+5. Acessar:
 
 ```text
-http://localhost
+URL definida em WEB_URL
 ```
 
 Se quiser subir com dados de demonstracao na primeira vez:
@@ -73,6 +78,7 @@ Importante:
 - o seed de demonstracao nao roda por padrao
 - `backend/.env` e `frontend/.env` nao sao mais necessarios
 - `localhost:3000` e `localhost:3001` nao sao mais o caminho oficial de acesso
+- para acesso por IP ou dominio, ajuste `WEB_URL` e os callbacks OAuth no `.env`
 
 ## Onde os dados ficam
 
@@ -206,7 +212,7 @@ Atencao:
 - `MYSQL_ROOT_PASSWORD`: senha do MySQL
 - `MYSQL_DATABASE`: nome do banco
 - `JWT_SECRET`: segredo principal da aplicacao
-- `WEB_URL`: URL externa do sistema. Para este fluxo, use `http://localhost`
+- `WEB_URL`: URL externa do sistema. Exemplo local: `http://localhost`. Exemplo LAN: `http://192.168.1.250`
 - `NEXT_PUBLIC_API_URL`: mantenha `/api`
 - `GOOGLE_OAUTH_REDIRECT_URI`: callback publica do Google
 - `MICROSOFT_OAUTH_REDIRECT_URI`: callback publica da Microsoft
@@ -247,4 +253,4 @@ Se algo falhar depois de uma atualizacao:
 1. editar codigo
 2. fazer commit e push
 3. no servidor ou maquina principal, rodar `.\script\update.ps1`
-4. acessar `http://localhost`
+4. acessar a URL configurada em `WEB_URL`

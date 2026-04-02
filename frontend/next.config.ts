@@ -60,6 +60,21 @@ function resolveImageRemotePatterns() {
     }
   }
 
+  const webUrl = (process.env.WEB_URL ?? "").trim();
+  if (webUrl.startsWith("http")) {
+    try {
+      const parsed = new URL(webUrl);
+      patterns.push({
+        protocol: parsed.protocol.replace(":", "") as "http" | "https",
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        pathname: "/**",
+      });
+    } catch {
+      // Ignore invalid URLs.
+    }
+  }
+
   return patterns;
 }
 
