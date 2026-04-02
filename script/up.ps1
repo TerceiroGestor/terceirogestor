@@ -12,8 +12,7 @@ Set-Location $rootDir
 
 Write-Host "== terceirogestor up =="
 
-Ensure-ComposeEnv -ProjectRoot $rootDir
-Ensure-BackupDirectory -ProjectRoot $rootDir
+Initialize-ComposeEnvironment -ProjectRoot $rootDir
 
 Write-Host "[1/6] build images"
 Invoke-Compose build --pull
@@ -23,14 +22,14 @@ Invoke-Compose up -d mysql
 Wait-ForComposeServiceHealth -Service "mysql"
 
 Write-Host "[3/6] apply migrations"
-Invoke-Compose run --rm --no-deps backend npm run db:migrate:deploy
+Invoke-Compose run --rm --no-deps backend node_modules/.bin/prisma migrate deploy
 
 Write-Host "[4/6] backfill core permissions"
-Invoke-Compose run --rm --no-deps backend npm run permissions:backfill
+Invoke-Compose run --rm --no-deps backend node scripts/backfill-core-permissions.js
 
 if ($SeedDemoData) {
   Write-Host "[5/6] seed demo data"
-  Invoke-Compose run --rm --no-deps backend npm run db:seed
+  Invoke-Compose run --rm --no-deps backend node prisma/seed.js
 }
 else {
   Write-Host "[5/6] seed demo data (skipped)"

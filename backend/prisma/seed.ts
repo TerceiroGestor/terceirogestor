@@ -1,14 +1,8 @@
 ﻿import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '../src/generated/prisma';
-import { createPrismaAdapter } from '../src/core/prisma/prisma-adapter';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createPrismaClientFromEnv } = require('../scripts/prisma-runtime');
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error('DATABASE_URL is not set');
-}
-
-const adapter = createPrismaAdapter(databaseUrl);
-const prisma = new PrismaClient({ adapter });
+const prisma = createPrismaClientFromEnv();
 
 const ids = {
   tenant: '11111111-1111-4111-8111-111111111111',

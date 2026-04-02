@@ -34,14 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const bcrypt = __importStar(require("bcrypt"));
-const prisma_1 = require("../src/generated/prisma");
-const prisma_adapter_1 = require("../src/core/prisma/prisma-adapter");
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set');
-}
-const adapter = (0, prisma_adapter_1.createPrismaAdapter)(databaseUrl);
-const prisma = new prisma_1.PrismaClient({ adapter });
+const prisma_runtime_1 = require("../scripts/prisma-runtime");
+const prisma = (0, prisma_runtime_1.createPrismaClientFromEnv)();
 async function main() {
     const tenantId = '2fad98c9-5d6c-4f76-8c46-00fb80d0509b';
     const roleIds = {

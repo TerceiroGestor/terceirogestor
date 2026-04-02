@@ -17,8 +17,7 @@ Set-Location $rootDir
 
 Write-Host "== terceirogestor restore =="
 
-Ensure-ComposeEnv -ProjectRoot $rootDir
-Ensure-BackupDirectory -ProjectRoot $rootDir
+Initialize-ComposeEnvironment -ProjectRoot $rootDir
 
 Write-Host "[1/3] build backup helper"
 Invoke-Compose build backup

@@ -50,6 +50,12 @@ Copy-Item .env.example .env
 .\script\up.ps1
 ```
 
+O script valida automaticamente:
+
+- se o Docker Desktop esta em execucao
+- se `.env` tem as chaves minimas obrigatorias
+- se algum valor com `$` foi deixado sem aspas simples
+
 4. Acessar:
 
 ```text
@@ -217,6 +223,12 @@ Se o PowerShell bloquear execucao de script:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\script\up.ps1
 ```
+
+Se o script reclamar que o Docker nao esta pronto:
+
+- abra o Docker Desktop
+- espere o status ficar como ativo
+- rode o comando novamente
 
 Se quiser recriar tudo sem perder dados:
 

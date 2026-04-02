@@ -19,6 +19,41 @@ function Ensure-ComposeEnv {
   }
 }
 
+function Get-DotEnvEntries {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot
+  )
+
+  $envFile = Join-Path $ProjectRoot ".env"
+  if (-not (Test-Path $envFile)) {
+    return @()
+  }
+
+  $entries = @()
+  $lineNumber = 0
+  foreach ($line in Get-Content $envFile) {
+    $lineNumber += 1
+    if ([string]::IsNullOrWhiteSpace($line)) {
+      continue
+    }
+
+    $trimmed = $line.Trim()
+    if ($trimmed.StartsWith("#") -or -not $trimmed.Contains("=")) {
+      continue
+    }
+
+    $parts = $trimmed.Split("=", 2)
+    $entries += [PSCustomObject]@{
+      Name = $parts[0].Trim()
+      RawValue = $parts[1].Trim()
+      LineNumber = $lineNumber
+    }
+  }
+
+  return $entries
+}
+
 function Get-DotEnvValue {
   param(
     [Parameter(Mandatory = $true)]
@@ -82,6 +117,74 @@ function Ensure-BackupDirectory {
   if (-not (Test-Path $targetPath)) {
     New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
   }
+}
+
+function Assert-DockerAvailable {
+  if (-not (Get-Command "docker" -ErrorAction SilentlyContinue)) {
+    throw "Docker CLI not found. Install Docker Desktop before running this script."
+  }
+
+  & docker info *> $null
+  if ($LASTEXITCODE -ne 0) {
+    throw "Docker Desktop is not running. Open Docker Desktop and wait until it is ready, then run the script again."
+  }
+}
+
+function Assert-RequiredDotEnvValues {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot,
+
+    [Parameter(Mandatory = $true)]
+    [string[]]$Names
+  )
+
+  foreach ($name in $Names) {
+    $value = Get-DotEnvValue -ProjectRoot $ProjectRoot -Name $name
+    if ([string]::IsNullOrWhiteSpace($value)) {
+      throw "Missing required value '$name' in .env."
+    }
+
+    if ($name -in @("MYSQL_ROOT_PASSWORD", "JWT_SECRET") -and $value -eq "change-me-now") {
+      throw "The value '$name' in .env is still using the example placeholder. Update it before running this script."
+    }
+  }
+}
+
+function Assert-SafeComposeEnvValues {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot
+  )
+
+  foreach ($entry in Get-DotEnvEntries -ProjectRoot $ProjectRoot) {
+    $rawValue = [string]$entry.RawValue
+    if (-not $rawValue.Contains('$')) {
+      continue
+    }
+
+    $isSingleQuoted = $rawValue.StartsWith("'") -and $rawValue.EndsWith("'")
+    if (-not $isSingleQuoted) {
+      throw "The value '$($entry.Name)' in .env contains '$' on line $($entry.LineNumber). Wrap the value in single quotes to avoid Docker Compose interpolation."
+    }
+  }
+}
+
+function Initialize-ComposeEnvironment {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot
+  )
+
+  Ensure-ComposeEnv -ProjectRoot $ProjectRoot
+  Assert-RequiredDotEnvValues -ProjectRoot $ProjectRoot -Names @(
+    "MYSQL_ROOT_PASSWORD",
+    "MYSQL_DATABASE",
+    "JWT_SECRET"
+  )
+  Assert-SafeComposeEnvValues -ProjectRoot $ProjectRoot
+  Ensure-BackupDirectory -ProjectRoot $ProjectRoot
+  Assert-DockerAvailable
 }
 
 function Invoke-NativeCommand {

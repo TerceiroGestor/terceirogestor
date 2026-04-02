@@ -14,7 +14,7 @@
     "db:migrate:status": "prisma migrate status",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "db:seed": "prisma db seed",
+    "db:seed": "node prisma/seed.js",
     "permissions:backfill": "node scripts/backfill-core-permissions.js",
     "people:backfill-sensitive-docs": "node scripts/backfill-person-sensitive-documents.js",
     "build": "nest build",
@@ -100,6 +100,6 @@
     "testEnvironment": "node"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node prisma/seed.js"
   }
 }
