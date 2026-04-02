@@ -1,45 +1,45 @@
 -- DropForeignKey
-ALTER TABLE `projectaction` DROP FOREIGN KEY `ProjectAction_cycleId_fkey`;
+ALTER TABLE `ProjectAction` DROP FOREIGN KEY `ProjectAction_cycleId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectactionattendance` DROP FOREIGN KEY `ProjectActionAttendance_cycleParticipationId_fkey`;
+ALTER TABLE `ProjectActionAttendance` DROP FOREIGN KEY `ProjectActionAttendance_cycleParticipationId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectcycle` DROP FOREIGN KEY `ProjectCycle_segmentId_fkey`;
+ALTER TABLE `ProjectCycle` DROP FOREIGN KEY `ProjectCycle_segmentId_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentcycleparticipation` DROP FOREIGN KEY `PECP_cycle_fkey`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` DROP FOREIGN KEY `PECP_cycle_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentcycleparticipation` DROP FOREIGN KEY `PECP_enrollment_fkey`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` DROP FOREIGN KEY `PECP_enrollment_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentcycleparticipation` DROP FOREIGN KEY `PECP_tenant_fkey`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` DROP FOREIGN KEY `PECP_tenant_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentgroupmembership` DROP FOREIGN KEY `PEGM_enrollment_fkey`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` DROP FOREIGN KEY `PEGM_enrollment_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentgroupmembership` DROP FOREIGN KEY `PEGM_group_fkey`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` DROP FOREIGN KEY `PEGM_group_fkey`;
 
 -- DropForeignKey
-ALTER TABLE `projectenrollmentgroupmembership` DROP FOREIGN KEY `PEGM_tenant_fkey`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` DROP FOREIGN KEY `PEGM_tenant_fkey`;
 
 -- DropIndex
-DROP INDEX `ProjectActionAttendance_isHighlight_idx` ON `projectactionattendance`;
+DROP INDEX `ProjectActionAttendance_isHighlight_idx` ON `ProjectActionAttendance`;
 
 -- AlterTable
-ALTER TABLE `program` MODIFY `internalNotes` TEXT NULL;
+ALTER TABLE `Program` MODIFY `internalNotes` TEXT NULL;
 
 -- AlterTable
-ALTER TABLE `projectactionpeopleparticipation` ADD COLUMN `participationKind` ENUM('PARTICIPANT', 'TEAM') NOT NULL DEFAULT 'TEAM';
+ALTER TABLE `ProjectActionPeopleParticipation` ADD COLUMN `participationKind` ENUM('PARTICIPANT', 'TEAM') NOT NULL DEFAULT 'TEAM';
 
 -- AlterTable
-ALTER TABLE `projectenrollment` ADD COLUMN `participationKind` ENUM('PARTICIPANT', 'TEAM') NOT NULL DEFAULT 'PARTICIPANT',
+ALTER TABLE `ProjectEnrollment` ADD COLUMN `participationKind` ENUM('PARTICIPANT', 'TEAM') NOT NULL DEFAULT 'PARTICIPANT',
     MODIFY `role` ENUM('PUBLICO_ATENDIDO', 'FAMILIAR', 'VOLUNTARIO', 'EQUIPE_TECNICA', 'FUNCIONARIO', 'OFICINEIRO', 'PARCEIRO', 'DOADOR', 'PATROCINADOR') NOT NULL DEFAULT 'PUBLICO_ATENDIDO';
 
 -- DropTable
-DROP TABLE `_actionpeopleparticipationrole`;
+DROP TABLE `_ActionPeopleParticipationRole`;
 
 -- CreateTable
 CREATE TABLE `PeopleGroup` (
@@ -189,37 +189,37 @@ ALTER TABLE `ActionPeopleGroup` ADD CONSTRAINT `ActionPeopleGroup_peopleGroupId_
 ALTER TABLE `ProjectActionAttendance` ADD CONSTRAINT `ProjectActionAttendance_cycleParticipationId_fkey` FOREIGN KEY (`cycleParticipationId`) REFERENCES `ProjectEnrollmentCycleParticipation`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_activeKey_idx` TO `ProjectEnrollmentCycleParticipation_activeKey_idx`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_activeKey_idx` TO `ProjectEnrollmentCycleParticipation_activeKey_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_active_idx` TO `ProjectEnrollmentCycleParticipation_isActive_idx`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_active_idx` TO `ProjectEnrollmentCycleParticipation_isActive_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_cycle_idx` TO `ProjectEnrollmentCycleParticipation_cycleId_idx`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_cycle_idx` TO `ProjectEnrollmentCycleParticipation_cycleId_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_enrollment_idx` TO `ProjectEnrollmentCycleParticipation_enrollmentId_idx`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_enrollment_idx` TO `ProjectEnrollmentCycleParticipation_enrollmentId_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_tenant_activeKey_key` TO `ProjectEnrollmentCycleParticipation_tenantId_activeKey_key`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_tenant_activeKey_key` TO `ProjectEnrollmentCycleParticipation_tenantId_activeKey_key`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentcycleparticipation` RENAME INDEX `PECP_tenant_idx` TO `ProjectEnrollmentCycleParticipation_tenantId_idx`;
+ALTER TABLE `ProjectEnrollmentCycleParticipation` RENAME INDEX `PECP_tenant_idx` TO `ProjectEnrollmentCycleParticipation_tenantId_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_activeKey_idx` TO `ProjectEnrollmentGroupMembership_activeKey_idx`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_activeKey_idx` TO `ProjectEnrollmentGroupMembership_activeKey_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_active_idx` TO `ProjectEnrollmentGroupMembership_isActive_idx`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_active_idx` TO `ProjectEnrollmentGroupMembership_isActive_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_enrollment_idx` TO `ProjectEnrollmentGroupMembership_enrollmentId_idx`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_enrollment_idx` TO `ProjectEnrollmentGroupMembership_enrollmentId_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_group_idx` TO `ProjectEnrollmentGroupMembership_groupId_idx`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_group_idx` TO `ProjectEnrollmentGroupMembership_groupId_idx`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_tenant_activeKey_key` TO `ProjectEnrollmentGroupMembership_tenantId_activeKey_key`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_tenant_activeKey_key` TO `ProjectEnrollmentGroupMembership_tenantId_activeKey_key`;
 
 -- RenameIndex
-ALTER TABLE `projectenrollmentgroupmembership` RENAME INDEX `PEGM_tenant_idx` TO `ProjectEnrollmentGroupMembership_tenantId_idx`;
+ALTER TABLE `ProjectEnrollmentGroupMembership` RENAME INDEX `PEGM_tenant_idx` TO `ProjectEnrollmentGroupMembership_tenantId_idx`;
