@@ -1,4 +1,4 @@
-# Terceiro Gestor
+# Terceiro Gestor t
 
 Este projeto foi reorganizado para rodar direto no Docker, com acesso unico em `http://localhost`, persistencia de dados, backup automatico e atualizacao simplificada por PowerShell.
 
