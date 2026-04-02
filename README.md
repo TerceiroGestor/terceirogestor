@@ -41,6 +41,7 @@ Copy-Item .env.example .env
 - `MYSQL_ROOT_PASSWORD`
 - `JWT_SECRET`
 - `DATABASE_URL` se for rodar backend fora do Docker
+- `MYSQL_BIND_ADDRESS` e `MYSQL_HOST_PORT` se quiser acessar o MySQL pela maquina host
 - `TOTP_ENCRYPTION_KEY` e `PII_MASTER_KEY` se quiser deixar a seguranca pronta desde o inicio
 - `BACKUP_PATH` se quiser salvar backups fora do repositorio
 
@@ -148,6 +149,39 @@ BACKUP_SCHEDULE=0 3 * * *
 BACKUP_KEEP_DAYS=14
 TZ=America/Sao_Paulo
 ```
+
+## Acesso ao MySQL
+
+O servico `mysql` pode ser acessado pela maquina host com estas variaveis no `.env`:
+
+- `MYSQL_BIND_ADDRESS`: IP de bind da porta publicada. Padrao seguro: `127.0.0.1`
+- `MYSQL_HOST_PORT`: porta publicada no host. Padrao: `3307`
+
+Exemplo padrao para testes locais:
+
+```text
+MYSQL_BIND_ADDRESS=127.0.0.1
+MYSQL_HOST_PORT=3307
+```
+
+String de conexao a partir do host:
+
+```text
+mysql://root:SUA_SENHA@127.0.0.1:3307/terceirogestor?allowPublicKeyRetrieval=true&ssl=false
+```
+
+Se precisar acessar de outra maquina da rede, troque por algo como:
+
+```text
+MYSQL_BIND_ADDRESS=0.0.0.0
+MYSQL_HOST_PORT=3306
+```
+
+Atencao:
+
+- isso expõe o banco para a rede e deve ser combinado com firewall ou rede privada
+- se ja existir outro MySQL usando a mesma porta no host, altere `MYSQL_HOST_PORT`
+- depois de mudar o `.env`, reaplique a stack com `.\script\up.ps1`
 
 Para rodar um backup manual agora:
 
