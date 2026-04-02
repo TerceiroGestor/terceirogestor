@@ -19,6 +19,7 @@ export const TASKS_ACTION_IDS = {
 export const tasksListAction = createModuleWindowAction({
   id: TASKS_ACTION_IDS.list,
   moduleDefinition: tasksListModuleDefinition,
+  modulePermissionKey: "canRead",
   titleVariant: "list",
   breadcrumbs: [{ label: "Tarefas", href: TASKS_ROUTES.list }],
   render: () => <TasksListModuleClientPage />,

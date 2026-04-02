@@ -110,6 +110,12 @@ const PROJECTS_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Novo projeto",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Salvar alteracoes",

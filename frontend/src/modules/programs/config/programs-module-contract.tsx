@@ -110,6 +110,12 @@ const PROGRAMS_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Novo programa",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Salvar alteracoes",

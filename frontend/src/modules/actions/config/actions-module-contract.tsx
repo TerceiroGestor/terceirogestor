@@ -115,6 +115,12 @@ const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Nova aÃ§Ã£o",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   audit: {
     key: "audit",
     label: "Auditoria",

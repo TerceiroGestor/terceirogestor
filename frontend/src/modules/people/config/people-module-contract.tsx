@@ -96,6 +96,12 @@ const PEOPLE_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Nova pessoa",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Editar cadastro",

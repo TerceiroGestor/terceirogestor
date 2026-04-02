@@ -88,6 +88,12 @@ const PEOPLE_SEGMENTS_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Novo grupo de pessoas",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Salvar alteracoes",

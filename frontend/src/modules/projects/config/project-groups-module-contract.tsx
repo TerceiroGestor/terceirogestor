@@ -83,6 +83,12 @@ const PROJECT_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Novo grupo",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Salvar alterações",

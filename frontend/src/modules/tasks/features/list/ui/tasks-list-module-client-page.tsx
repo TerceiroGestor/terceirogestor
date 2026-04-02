@@ -47,6 +47,7 @@ import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
   canUseModuleAction,
   getModuleGraphBuilderConfig,
+  hasModulePermission,
 } from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
@@ -237,6 +238,11 @@ export function TasksListModuleClientPage() {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
+  const canRead = hasModulePermission(
+    tasksListModuleDefinition,
+    "canRead",
+    permissions,
+  );
   const canCreate = canUseModuleAction(
     tasksListModuleDefinition,
     "create",
@@ -358,7 +364,7 @@ export function TasksListModuleClientPage() {
       return;
     }
 
-    if (!token) {
+    if (!token || !canRead) {
       setRows([]);
       setLoading(false);
       return;
@@ -388,7 +394,16 @@ export function TasksListModuleClientPage() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, dataProvider, state.domain, state.groupBy, state.searchText, token, userLoading]);
+  }, [
+    authLoading,
+    canRead,
+    dataProvider,
+    state.domain,
+    state.groupBy,
+    state.searchText,
+    token,
+    userLoading,
+  ]);
 
   React.useEffect(() => {
     void loadRows();
@@ -970,6 +985,18 @@ export function TasksListModuleClientPage() {
     state.timelineSortDirection,
     state.view,
   ]);
+
+  if (authLoading || userLoading) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Carregando tarefas...</div>;
+  }
+
+  if (!canRead) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        Voce nao tem permissao para acessar esta area.
+      </div>
+    );
+  }
 
   return (
     <EntityModuleShell<TasksListQueryState, TasksFavoriteState>

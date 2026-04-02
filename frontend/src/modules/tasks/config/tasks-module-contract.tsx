@@ -106,6 +106,12 @@ const TASKS_ACTIONS_DETAIL: RecordModuleActionMap = {
     permissionKey: "canRead",
     scope: "detail",
   },
+  create: {
+    key: "create",
+    label: "Nova tarefa",
+    permissionKey: "canCreate",
+    scope: "detail",
+  },
   edit: {
     key: "edit",
     label: "Salvar alteracoes",
