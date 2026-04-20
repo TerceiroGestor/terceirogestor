@@ -102,6 +102,7 @@ echo -n "YOUR_MICROSOFT_CLIENT_SECRET" | \
 ```
 
 **Listar secrets criados**:
+
 ```bash
 gcloud secrets list
 ```
@@ -148,6 +149,7 @@ gcloud run deploy terceirogestor-backend \
 ```
 
 **Parâmetros Explicados**:
+
 - `--memory 512Mi`: 512MB de RAM (ajustar conforme necessário)
 - `--cpu 1`: 1 CPU
 - `--timeout 3600`: timeout de 1h (para migrations)
@@ -156,6 +158,7 @@ gcloud run deploy terceirogestor-backend \
 - `--no-allow-unauthenticated`: público (mude para `--allow-unauthenticated` apenas se necessário)
 
 **Verificar deployment**:
+
 ```bash
 gcloud run services list
 gcloud run services describe terceirogestor-backend --region us-central1
@@ -183,6 +186,7 @@ gcloud run deploy terceirogestor-frontend \
 ```
 
 **Nota**: `API_INTERNAL_URL` deve apontar para backend Cloud Run
+
 ```bash
 # Obter URL do backend
 BACKEND_URL=$(gcloud run services describe terceirogestor-backend --format='value(status.url)' --region us-central1)

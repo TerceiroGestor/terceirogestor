@@ -9,6 +9,7 @@
 ## 1. Motivação
 
 ### Problema Atual
+
 - **Filesystem local**: Arquivos em `/uploads/[tipo]/[arquivo]`
 - **Sem controle de acesso**: Qualquer pessoa com URL conhecida acessa
 - **Dados sensíveis públicos**: Documentos de saúde, RG, diagnósticos expostos
@@ -16,6 +17,7 @@
 - **Backup manual**: Serviço separado no docker-compose
 
 ### Solução
+
 - **Cloud Storage Bucket**: Privado, com controle de acesso
 - **Signed URLs**: Links autenticados com TTL curto (5-10 min para sensíveis)
 - **Gerenciamento centralizado**: GCP cuida de backups, versionamento, PITR
@@ -62,6 +64,7 @@ gs://terceirogestor/
 ```
 
 **Padrão**: `{TIPO}/{ENTIDADE_ID}/{FILENAME}`
+
 - Isola por tenant automaticamente
 - Facilita limpeza (delete todas as pastas de um tenant)
 - Agrupa por contexto (health/people para PII)
@@ -131,14 +134,14 @@ gs://terceirogestor/
 
 Conforme sensibilidade do documento:
 
-| Tipo | Pasta | TTL | Razão |
-|------|-------|-----|-------|
-| **Alto** | `health/` | 5 min | Laudos, diagnósticos, prescrições |
-| **Alto** | `people/` | 10 min | RG, CPF, certidão, comprovante |
+| Tipo      | Pasta       | TTL    | Razão                             |
+| --------- | ----------- | ------ | --------------------------------- |
+| **Alto**  | `health/`   | 5 min  | Laudos, diagnósticos, prescrições |
+| **Alto**  | `people/`   | 10 min | RG, CPF, certidão, comprovante    |
 | **Médio** | `programs/` | 30 min | Planos de atendimento, relatórios |
-| **Médio** | `projects/` | 30 min | Documentos de projeto |
-| **Médio** | `actions/` | 30 min | Fotos de ações, relatórios |
-| **Baixo** | `avatars/` | 1 hora | Fotos de perfil |
+| **Médio** | `projects/` | 30 min | Documentos de projeto             |
+| **Médio** | `actions/`  | 30 min | Fotos de ações, relatórios        |
+| **Baixo** | `avatars/`  | 1 hora | Fotos de perfil                   |
 
 ---
 
@@ -227,23 +230,27 @@ resource "google_storage_bucket_iam_member" "backend" {
 ## 9. Plano de Implementação (Fases)
 
 ### Fase 1: Setup (1-2 dias)
+
 - [ ] Criar bucket GCS no GCP
 - [ ] Configurar Service Account
 - [ ] Adicionar permissões
 - [ ] Instalar `@google-cloud/storage`
 
 ### Fase 2: Refactor Backend (3-4 dias)
+
 - [ ] Criar `cloud-storage.service.ts`
 - [ ] Refatorar `FilesController` para usar GCS SDK
 - [ ] Ajustar tipos TypeScript
 - [ ] Testes unitários
 
 ### Fase 3: Migração de Dados (1-2 dias)
+
 - [ ] Criar script de migração (filesystem → GCS)
 - [ ] Atualizar `filePath` no banco
 - [ ] Validação de integridade
 
 ### Fase 4: QA & Deploy (1 semana)
+
 - [ ] Testes de upload/download em staging
 - [ ] Testes de performance
 - [ ] Testes de segurança (signed URLs)
@@ -253,13 +260,13 @@ resource "google_storage_bucket_iam_member" "backend" {
 
 ## 10. Riscos & Mitigações
 
-| Risco | Impacto | Mitigação |
-|-------|---------|-----------|
-| **Arquivos órfãos** | Espaço/$ gasto | Script de limpeza de arquivos sem referência no DB |
-| **Integridade de filePath** | 404 ao acessar | Testes automatizados + audit log |
-| **Assinatura inválida** | Download quebrado | Centralizar geração de URL em 1 método |
-| **TTL muito curto** | UX ruim (URL expirada) | Ajustar per-tipo, implementar refresh |
-| **Performance** | Múltiplos GETs/POST | Implementar cache na aplicação para URLs |
+| Risco                       | Impacto                | Mitigação                                          |
+| --------------------------- | ---------------------- | -------------------------------------------------- |
+| **Arquivos órfãos**         | Espaço/$ gasto         | Script de limpeza de arquivos sem referência no DB |
+| **Integridade de filePath** | 404 ao acessar         | Testes automatizados + audit log                   |
+| **Assinatura inválida**     | Download quebrado      | Centralizar geração de URL em 1 método             |
+| **TTL muito curto**         | UX ruim (URL expirada) | Ajustar per-tipo, implementar refresh              |
+| **Performance**             | Múltiplos GETs/POST    | Implementar cache na aplicação para URLs           |
 
 ---
 

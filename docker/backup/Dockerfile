@@ -1,6 +1,6 @@
 FROM alpine:3.20
 
-RUN apk add --no-cache mariadb-client tzdata tar gzip coreutils
+RUN apk add --no-cache postgresql-client tzdata tar gzip coreutils
 
 COPY backup.sh /usr/local/bin/backup.sh
 COPY restore-db.sh /usr/local/bin/restore-db.sh

@@ -32,7 +32,7 @@
 
 ```sql
 -- Contar arquivos por tipo
-SELECT 
+SELECT
   SUBSTRING_INDEX(filePath, '/', 1) AS tipo,
   COUNT(*) AS total,
   SUM(fileSizeBytes) / 1024 / 1024 AS size_mb
@@ -58,21 +58,21 @@ LIMIT 10;
 #!/usr/bin/env node
 /**
  * Script de migração: filesystem → Google Cloud Storage
- * 
+ *
  * Uso:
  *   node scripts/migrate-uploads-to-gcs.js --dry-run
  *   node scripts/migrate-uploads-to-gcs.js --execute
  *   node scripts/migrate-uploads-to-gcs.js --validate
  */
 
-const fs = require('fs');
-const path = require('path');
-const { Storage } = require('@google-cloud/storage');
-const { PrismaClient } = require('@prisma/client');
+const fs = require("fs");
+const path = require("path");
+const { Storage } = require("@google-cloud/storage");
+const { PrismaClient } = require("@prisma/client");
 
-const dryRun = process.argv.includes('--dry-run');
-const execute = process.argv.includes('--execute');
-const validate = process.argv.includes('--validate');
+const dryRun = process.argv.includes("--dry-run");
+const execute = process.argv.includes("--execute");
+const validate = process.argv.includes("--validate");
 
 if (!dryRun && !execute && !validate) {
   console.log(`
@@ -92,27 +92,27 @@ const storage = new Storage({
 });
 const bucket = storage.bucket(process.env.GCP_BUCKET_NAME);
 
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
 // ============ DRY RUN ============
 async function dryRun_() {
-  console.log('🔍 DRY RUN: Analisando arquivos para migração...\n');
+  console.log("🔍 DRY RUN: Analisando arquivos para migração...\n");
 
   const attachmentTypes = [
-    'PersonAttachment',
-    'PersonRecordAttachment',
-    'ProgramAttachment',
-    'ProjectAttachment',
-    'ProjectActionAttachment',
-    'PantryItemAttachment',
-    'PantryDonorAttachment',
-    'PantryEntryAttachment',
-    'PantryExitAttachment',
-    'DepositItemAttachment',
-    'DepositDonorAttachment',
-    'DepositEntryAttachment',
-    'DepositExitAttachment',
-    'TaskOrganizerAttachment',
+    "PersonAttachment",
+    "PersonRecordAttachment",
+    "ProgramAttachment",
+    "ProjectAttachment",
+    "ProjectActionAttachment",
+    "PantryItemAttachment",
+    "PantryDonorAttachment",
+    "PantryEntryAttachment",
+    "PantryExitAttachment",
+    "DepositItemAttachment",
+    "DepositDonorAttachment",
+    "DepositEntryAttachment",
+    "DepositExitAttachment",
+    "TaskOrganizerAttachment",
   ];
 
   let totalFiles = 0;
@@ -128,7 +128,10 @@ async function dryRun_() {
     console.log(`📋 ${modelName}: ${records.length} arquivos`);
 
     for (const record of records) {
-      const localPath = path.join(UPLOADS_DIR, record.filePath.replace(/^\/uploads\//, ''));
+      const localPath = path.join(
+        UPLOADS_DIR,
+        record.filePath.replace(/^\/uploads\//, ""),
+      );
       const exists = fs.existsSync(localPath);
 
       if (!exists) {
@@ -137,11 +140,13 @@ async function dryRun_() {
       }
 
       const stat = fs.statSync(localPath);
-      const documentType = record.filePath.split('/')[1]; // health, people, etc
+      const documentType = record.filePath.split("/")[1]; // health, people, etc
       const filename = path.basename(record.filePath);
       const newPath = `${record.tenantId}/${documentType}/${record.id}/${filename}`;
 
-      console.log(`  ✓ ${record.filePath} → ${newPath} (${(stat.size / 1024 / 1024).toFixed(2)}MB)`);
+      console.log(
+        `  ✓ ${record.filePath} → ${newPath} (${(stat.size / 1024 / 1024).toFixed(2)}MB)`,
+      );
 
       totalFiles++;
       totalSize += stat.size;
@@ -149,29 +154,33 @@ async function dryRun_() {
   }
 
   console.log(`\n📊 Resumo:`);
-  console.log(`  Total: ${totalFiles} arquivos, ${(totalSize / 1024 / 1024 / 1024).toFixed(2)}GB`);
-  console.log(`  Tempo estimado: ${Math.ceil(totalFiles / 100)} min @ 100 files/min`);
+  console.log(
+    `  Total: ${totalFiles} arquivos, ${(totalSize / 1024 / 1024 / 1024).toFixed(2)}GB`,
+  );
+  console.log(
+    `  Tempo estimado: ${Math.ceil(totalFiles / 100)} min @ 100 files/min`,
+  );
 }
 
 // ============ EXECUTE ============
 async function execute_() {
-  console.log('📤 EXECUTANDO migração para Cloud Storage...\n');
+  console.log("📤 EXECUTANDO migração para Cloud Storage...\n");
 
   const attachmentTypes = [
-    'PersonAttachment',
-    'PersonRecordAttachment',
-    'ProgramAttachment',
-    'ProjectAttachment',
-    'ProjectActionAttachment',
-    'PantryItemAttachment',
-    'PantryDonorAttachment',
-    'PantryEntryAttachment',
-    'PantryExitAttachment',
-    'DepositItemAttachment',
-    'DepositDonorAttachment',
-    'DepositEntryAttachment',
-    'DepositExitAttachment',
-    'TaskOrganizerAttachment',
+    "PersonAttachment",
+    "PersonRecordAttachment",
+    "ProgramAttachment",
+    "ProjectAttachment",
+    "ProjectActionAttachment",
+    "PantryItemAttachment",
+    "PantryDonorAttachment",
+    "PantryEntryAttachment",
+    "PantryExitAttachment",
+    "DepositItemAttachment",
+    "DepositDonorAttachment",
+    "DepositEntryAttachment",
+    "DepositExitAttachment",
+    "TaskOrganizerAttachment",
   ];
 
   let uploaded = 0;
@@ -181,12 +190,21 @@ async function execute_() {
   // Transaction para manter consistência
   for (const modelName of attachmentTypes) {
     const records = await prisma[modelName].findMany({
-      select: { id: true, filePath: true, fileSizeBytes: true, tenantId: true, mimeType: true },
+      select: {
+        id: true,
+        filePath: true,
+        fileSizeBytes: true,
+        tenantId: true,
+        mimeType: true,
+      },
     });
 
     for (const record of records) {
       try {
-        const localPath = path.join(UPLOADS_DIR, record.filePath.replace(/^\/uploads\//, ''));
+        const localPath = path.join(
+          UPLOADS_DIR,
+          record.filePath.replace(/^\/uploads\//, ""),
+        );
 
         if (!fs.existsSync(localPath)) {
           console.log(`⏭️  SKIP: Arquivo não existe: ${record.filePath}`);
@@ -196,7 +214,7 @@ async function execute_() {
 
         const fileContent = fs.readFileSync(localPath);
         const filename = path.basename(record.filePath);
-        const documentType = record.filePath.split('/')[1];
+        const documentType = record.filePath.split("/")[1];
 
         // Novo path: {TENANT_ID}/{TIPO}/{ATTACHMENT_ID}/{FILENAME}
         const newPath = `${record.tenantId}/${documentType}/${record.id}/${filename}`;
@@ -206,7 +224,7 @@ async function execute_() {
         await new Promise((resolve, reject) => {
           const stream = gcsFile.createWriteStream({
             metadata: {
-              contentType: record.mimeType || 'application/octet-stream',
+              contentType: record.mimeType || "application/octet-stream",
               metadata: {
                 originalPath: record.filePath,
                 attachmentId: record.id,
@@ -215,8 +233,8 @@ async function execute_() {
             },
           });
 
-          stream.on('error', reject);
-          stream.on('finish', resolve);
+          stream.on("error", reject);
+          stream.on("finish", resolve);
           stream.end(fileContent);
         });
 
@@ -249,23 +267,23 @@ async function execute_() {
 
 // ============ VALIDATE ============
 async function validate_() {
-  console.log('✅ VALIDANDO migração...\n');
+  console.log("✅ VALIDANDO migração...\n");
 
   const attachmentTypes = [
-    'PersonAttachment',
-    'PersonRecordAttachment',
-    'ProgramAttachment',
-    'ProjectAttachment',
-    'ProjectActionAttachment',
-    'PantryItemAttachment',
-    'PantryDonorAttachment',
-    'PantryEntryAttachment',
-    'PantryExitAttachment',
-    'DepositItemAttachment',
-    'DepositDonorAttachment',
-    'DepositEntryAttachment',
-    'DepositExitAttachment',
-    'TaskOrganizerAttachment',
+    "PersonAttachment",
+    "PersonRecordAttachment",
+    "ProgramAttachment",
+    "ProjectAttachment",
+    "ProjectActionAttachment",
+    "PantryItemAttachment",
+    "PantryDonorAttachment",
+    "PantryEntryAttachment",
+    "PantryExitAttachment",
+    "DepositItemAttachment",
+    "DepositDonorAttachment",
+    "DepositEntryAttachment",
+    "DepositExitAttachment",
+    "TaskOrganizerAttachment",
   ];
 
   let found = 0;
@@ -296,7 +314,9 @@ async function validate_() {
   console.log(`  ✗ Não encontrados: ${notFound}`);
 
   if (notFound > 0) {
-    console.log('\n⚠️  Alguns arquivos não foram migrados! Investigar antes de prosseguir.');
+    console.log(
+      "\n⚠️  Alguns arquivos não foram migrados! Investigar antes de prosseguir.",
+    );
     process.exit(1);
   }
 
@@ -314,7 +334,7 @@ async function main() {
       await validate_();
     }
   } catch (error) {
-    console.error('❌ Erro:', error);
+    console.error("❌ Erro:", error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();
@@ -412,7 +432,7 @@ Assunto: [Manutenção] Otimização de Armazenamento - 2h Downtime
 
 Prezados,
 
-Realizaremos uma manutenção na data [X] das [HH]h às [HH+2]h para otimizar 
+Realizaremos uma manutenção na data [X] das [HH]h às [HH+2]h para otimizar
 nosso sistema de armazenamento de arquivos.
 
 Durante este período:

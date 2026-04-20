@@ -1,25 +1,37 @@
-const mariadb = require("mariadb");
-const { loadRootEnv } = require("./env-file");
+const { Client } = require('pg');
+const { loadRootEnv } = require('./env-file');
 
 async function ensureDatabase(databaseUrl) {
   const url = new URL(databaseUrl);
-  const dbName = url.pathname.replace(/^\//, "");
-  if (!dbName) throw new Error("DATABASE_URL must include a database name");
+  const dbName = url.pathname.replace(/^\//, '');
+  if (!dbName) throw new Error('DATABASE_URL must include a database name');
 
-  const connection = await mariadb.createConnection({
+  // Connect to default postgres database to create new database
+  const client = new Client({
     host: url.hostname,
-    port: Number(url.port || 3306),
+    port: Number(url.port || 5432),
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
-    database: "mysql",
+    database: 'postgres', // Connect to system database
   });
 
   try {
-    await connection.query(
-      `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+    await client.connect();
+
+    // Check if database exists and create if not
+    const result = await client.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [dbName],
     );
+
+    if (result.rows.length === 0) {
+      await client.query(`CREATE DATABASE "${dbName}"`);
+      console.log(`[ensure-db] Created database: ${dbName}`);
+    } else {
+      console.log(`[ensure-db] Database already exists: ${dbName}`);
+    }
   } finally {
-    await connection.end();
+    await client.end();
   }
 
   console.log(`[ensure-db] Ensured database: ${dbName}`);
@@ -29,7 +41,7 @@ async function main() {
   loadRootEnv();
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set");
+    throw new Error('DATABASE_URL is not set');
   }
   await ensureDatabase(databaseUrl);
 }

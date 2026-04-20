@@ -11,12 +11,14 @@
 ### 1. ✅ Atualizar Dockerfiles
 
 **backend/Dockerfile**:
+
 - ❌ Removido: `RUN mkdir -p /app/uploads` (não precisa mais)
 - ✅ Adicionado: Health check `HEALTHCHECK` (Cloud Run monitora)
 - ✅ Mantido: Multi-stage build (optimize)
 - ✅ Mantido: PORT 8080 (Cloud Run padrão)
 
 **frontend/Dockerfile**:
+
 - ✅ Sem mudanças (já perfeito)
 - ✅ NEXT_PUBLIC_API_URL como ARG
 - ✅ NODE_ENV=production
@@ -24,6 +26,7 @@
 ### 2. ✅ Atualizar .env.example
 
 Adicionadas variáveis GCP:
+
 - `GCP_PROJECT_ID` - ID do projeto GCP
 - `GCP_BUCKET_NAME` - Bucket para uploads
 - `GCS_SIGNED_URL_TTL_*` - TTL das signed URLs
@@ -32,6 +35,7 @@ Adicionadas variáveis GCP:
 ### 3. ✅ Criar .env.production
 
 Template com comentários explicando:
+
 - Quais variáveis vêm do Secret Manager
 - Qual é o formato correto de DATABASE_URL
 - Como fazer deploy
@@ -39,6 +43,7 @@ Template com comentários explicando:
 ### 4. ✅ Criar Documentação
 
 **02-DEPLOYMENT.md** (Guia Prático):
+
 - Pré-requisitos
 - 12 passos para Cloud Run
 - Build via Cloud Build ou Docker local
@@ -50,10 +55,12 @@ Template com comentários explicando:
 - Troubleshooting
 
 **01-CHECKLIST.md** (Checklist Prática):
+
 - 6 fases de 30 min cada
 - Cada tarefa é concreta e testável
 
 **scripts/cloud-run-build.sh** (Script Automático):
+
 - One-liner para fazer build + deploy
 - Uso: `./scripts/cloud-run-build.sh PROJECT_ID`
 
@@ -107,37 +114,42 @@ Template com comentários explicando:
 ✅ **Docker Images**: Prontas para build/push  
 ✅ **Variáveis de Ambiente**: Documentadas  
 ✅ **Documentação**: Completa  
-✅ **Scripts**: Automáticos  
+✅ **Scripts**: Automáticos
 
 ❌ **Cloud SQL**: Ainda precisa criar (próxima tarefa)  
 ❌ **Cloud Storage**: Ainda precisa criar (próxima tarefa)  
 ❌ **HTTPS Load Balancer**: Ainda precisa (próxima tarefa)  
-❌ **Refactor de Uploads**: Será feito depois que Cloud Storage está pronto  
+❌ **Refactor de Uploads**: Será feito depois que Cloud Storage está pronto
 
 ---
 
 ## 🎯 Próximas Etapas
 
 ### Etapa 1: Deploy Inicial no Cloud Run (Esta semana)
+
 1. Setup GCP (Project, APIs, Secrets Manager)
 2. Build Docker images
 3. Deploy Backend + Frontend em Cloud Run (sem LB ainda)
 
 ### Etapa 2: Database (Setup)
+
 1. Criar Cloud SQL instance
 2. Rodar `prisma migrate deploy` via Cloud Run Job
 3. Seed dados se necessário
 
 ### Etapa 3: Cloud Storage (Setup)
+
 1. Criar bucket
 2. Configurar permissions
 3. Depois refactoru uploads
 
 ### Etapa 4: HTTPS Load Balancer
+
 1. Configurar roteamento / vs /api/
 2. Apex domain + SSL certificate
 
 ### Etapa 5: Refactor Uploads
+
 1. Implementar CloudStorageService
 2. Refactor FilesController
 3. Testes + deploy
@@ -146,13 +158,13 @@ Template com comentários explicando:
 
 ## 📊 Timeline Estimado
 
-| Tarefa | Tempo | Status |
-|--------|-------|--------|
-| Docker + Env (esta fase) | ~4h | ✅ Completo |
-| GCP Setup + Deploy | ~4h | ⏳ Próxima |
-| Cloud SQL Setup | ~2h | ⏳ Depois |
-| HTTPS Load Balancer | ~3h | ⏳ Depois |
-| Cloud Storage + Refactor | ~1-2 semanas | ⏳ Fase 4 |
+| Tarefa                   | Tempo        | Status      |
+| ------------------------ | ------------ | ----------- |
+| Docker + Env (esta fase) | ~4h          | ✅ Completo |
+| GCP Setup + Deploy       | ~4h          | ⏳ Próxima  |
+| Cloud SQL Setup          | ~2h          | ⏳ Depois   |
+| HTTPS Load Balancer      | ~3h          | ⏳ Depois   |
+| Cloud Storage + Refactor | ~1-2 semanas | ⏳ Fase 4   |
 
 **Total para MVP**: ~2-3 semanas
 
@@ -161,12 +173,14 @@ Template com comentários explicando:
 ## 🚀 Como Começar (Próximo Passo)
 
 1. **Ler documentação**:
+
    ```bash
    # Comece por aqui
    cat docs/gcp/01-CHECKLIST.md
    ```
 
 2. **Setup local**:
+
    ```bash
    gcloud auth login
    gcloud config set project YOUR_PROJECT_ID
@@ -185,16 +199,19 @@ Template com comentários explicando:
 ## 🔗 Links Rápidos
 
 **Documentação**:
+
 - [02-DEPLOYMENT.md](02-DEPLOYMENT.md) - Guia detalhado (12 passos)
 - [01-CHECKLIST.md](01-CHECKLIST.md) - Checklist prática (6 fases)
 - [../.env.production](../../.env.production) - Template com comentários
 
 **Código**:
+
 - [../../backend/Dockerfile](../../backend/Dockerfile) - Updated
 - [../../frontend/Dockerfile](../../frontend/Dockerfile) - Sem mudanças
 - [../../.env.example](../../.env.example) - Updated com GCP vars
 
 **Scripts**:
+
 - [../../scripts/cloud-run-build.sh](../../scripts/cloud-run-build.sh) - Build automático
 
 ---
@@ -226,4 +243,4 @@ Fase 1 completa! Projeto está **100% pronto para Cloud Run** em termos de confi
 
 ---
 
-*Documentado em Abril 2026*
+_Documentado em Abril 2026_

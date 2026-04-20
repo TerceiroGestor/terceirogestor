@@ -13,12 +13,12 @@ Do mais simples para o mais complexo.
 ✅ .env.production - Template novo para Cloud Run
 
 [x] Troca de Motor (PostgreSQL): Trocar de MySQL para PostgreSQL
-    ✅ docker-compose.yml - Removido MySQL, adicionado PostgreSQL 16
-    ✅ backend/package.json - Removido mariadb, adicionado pg driver
-    ✅ backend/prisma/schema.prisma - Provider alterado para postgresql
-    ✅ .env.example - Variáveis POSTGRES_* adicionadas
-    ✅ .env.production - Formato DATABASE_URL atualizado
-    ✅ Backup service - Removido (PostgreSQL backups via pg_dump)
+✅ docker-compose.yml - Removido MySQL, adicionado PostgreSQL 16
+✅ backend/package.json - Removido mariadb, adicionado pg driver
+✅ backend/prisma/schema.prisma - Provider alterado para postgresql
+✅ .env.example - Variáveis POSTGRES\_\* adicionadas
+✅ .env.production - Formato DATABASE_URL atualizado
+✅ Backup service - Removido (PostgreSQL backups via pg_dump)
 [ ] Habilitar versionamento
 [ ] Configurar permissões
 

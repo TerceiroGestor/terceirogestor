@@ -1,8 +1,8 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient, type AuditLogAction } from '../../generated/prisma';
-import { createPrismaAdapter } from './prisma-adapter';
 import { RequestContextService } from '../request-context/request-context.service';
+import { createPrismaAdapter } from './prisma-adapter';
 
 const AUDIT_ACTIONS = new Set([
   'create',
@@ -306,7 +306,10 @@ export class PrismaService
         'constructor' in value && value.constructor
           ? value.constructor.name
           : undefined;
-      if (constructorName === 'Decimal' && typeof value.toString === 'function') {
+      if (
+        constructorName === 'Decimal' &&
+        typeof value.toString === 'function'
+      ) {
         return value.toString();
       }
     }

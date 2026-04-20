@@ -42,11 +42,13 @@ docs/
 **Objetivo**: Preparar Docker e variáveis de ambiente para Cloud Run
 
 **Leia nesta ordem**:
+
 1. [README.md](README.md) - 5 min - Visão geral
 2. [00-PRONTO.md](00-PRONTO.md) - 10 min - O que foi feito
 3. [01-CHECKLIST.md](01-CHECKLIST.md) - 20 min - Tarefas a executar
 
 **Arquivos modificados**:
+
 - `backend/Dockerfile` - Health check adicionado, /app/uploads removido
 - `.env.example` - Variáveis GCP adicionadas
 - `.env.production` - Template novo para Cloud Run
@@ -63,6 +65,7 @@ docs/
 **Objetivo**: Setup GCP, Cloud SQL, Cloud Storage, Secrets Manager, Deploy
 
 **Leia**:
+
 1. [02-DEPLOYMENT.md](02-DEPLOYMENT.md) - Guia técnico com todos os comandos
 2. [01-CHECKLIST.md](01-CHECKLIST.md#fase-4-gcp-setup-1-2-horas) - Fase 4 do Checklist
 
@@ -89,6 +92,7 @@ docs/
 **Objetivo**: Refactor FilesController para usar Cloud Storage SDK + Signed URLs
 
 **Leia em ordem**:
+
 1. [../refactor/README.md](../refactor/README.md) - Visão geral
 2. [../refactor/00-cloud-storage-overview.md](../refactor/00-cloud-storage-overview.md) - Arquitetura
 3. [../refactor/01-files-controller-refactor.md](../refactor/01-files-controller-refactor.md) - Implementação
@@ -107,6 +111,7 @@ docs/
 **Objetivo**: Setup monitoring, alertas, otimizar performance
 
 **Referências**:
+
 - Cloud Run Metrics: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#9-monitoramento--logs) - Seção 9
 - Cloud SQL Performance: https://cloud.google.com/sql/docs/mysql/best-practices
 - Cloud Storage Optimization: https://cloud.google.com/storage/docs/best-practices
@@ -116,18 +121,19 @@ docs/
 ## 🎯 Quick Navigation
 
 ### Preciso...
-| Tarefa | Ir Para |
-|--------|---------|
-| Entender o projeto | [README.md](README.md) |
-| Saber o que foi feito em Fase 1 | [00-PRONTO.md](00-PRONTO.md) |
-| Ver as tarefas que preciso executar | [01-CHECKLIST.md](01-CHECKLIST.md) |
-| Fazer build e deploy | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#1-build-das-imagens-docker) |
-| Setup Cloud SQL | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#5-setup-cloud-sql-database) |
-| Setup Cloud Storage | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#6-setup-cloud-storage-bucket) |
-| Troubleshoot erro | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#11-troubleshooting) |
-| Refactor FilesController | [../refactor/01-files-controller-refactor.md](../refactor/01-files-controller-refactor.md) |
-| Escrever testes | [../refactor/03-testing.md](../refactor/03-testing.md) |
-| Fazer migração de dados | [../refactor/02-data-migration.md](../refactor/02-data-migration.md) |
+
+| Tarefa                              | Ir Para                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| Entender o projeto                  | [README.md](README.md)                                                                     |
+| Saber o que foi feito em Fase 1     | [00-PRONTO.md](00-PRONTO.md)                                                               |
+| Ver as tarefas que preciso executar | [01-CHECKLIST.md](01-CHECKLIST.md)                                                         |
+| Fazer build e deploy                | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#1-build-das-imagens-docker)                            |
+| Setup Cloud SQL                     | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#5-setup-cloud-sql-database)                            |
+| Setup Cloud Storage                 | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#6-setup-cloud-storage-bucket)                          |
+| Troubleshoot erro                   | [02-DEPLOYMENT.md](02-DEPLOYMENT.md#11-troubleshooting)                                    |
+| Refactor FilesController            | [../refactor/01-files-controller-refactor.md](../refactor/01-files-controller-refactor.md) |
+| Escrever testes                     | [../refactor/03-testing.md](../refactor/03-testing.md)                                     |
+| Fazer migração de dados             | [../refactor/02-data-migration.md](../refactor/02-data-migration.md)                       |
 
 ---
 
@@ -156,29 +162,34 @@ Semana 5:
 ## 🔑 Conceitos Principais
 
 ### Cloud Run
+
 - Serverless container orchestration (pay-per-use)
 - Auto-scaling automático
 - HTTPS + domain gratuito
 - Ver: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#prerequisites)
 
 ### Cloud SQL
+
 - Managed MySQL database com backups automáticos
 - High availability (replicação)
 - Ver: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#5-setup-cloud-sql-database)
 
 ### Cloud Storage
+
 - Bucket privado para uploads
 - Signed URLs (acesso temporário)
 - Versionamento automático
 - Ver: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#6-setup-cloud-storage-bucket)
 
 ### Secret Manager
+
 - Armazen seguro de senhas, chaves, credenciais
 - Integração nativa com Cloud Run
 - Auditoria de cada acesso
 - Ver: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#2-setup-secrets-em-secret-manager)
 
 ### HTTPS Load Balancer
+
 - Distribui tráfego entre Frontend e Backend
 - SSL/TLS termination
 - Routing por path: `/` → Frontend, `/api/*` → Backend
@@ -189,6 +200,7 @@ Semana 5:
 ## 📝 Exemplos de Uso
 
 ### Build & Deploy (1 comando)
+
 ```bash
 ./scripts/cloud-run-build.sh YOUR_PROJECT_ID us-central1 v1.0.0 your-domain.com
 ```
@@ -196,6 +208,7 @@ Semana 5:
 Ver: [scripts/cloud-run-build.sh](../../scripts/cloud-run-build.sh)
 
 ### Verificar Saúde
+
 ```bash
 BACKEND_URL=$(gcloud run services describe terceirogestor-backend \
   --format='value(status.url)' --region us-central1)
@@ -205,6 +218,7 @@ curl $BACKEND_URL/health
 Ver: [02-DEPLOYMENT.md](02-DEPLOYMENT.md#8-testar-deployment)
 
 ### Ver Logs em Tempo Real
+
 ```bash
 gcloud run logs read terceirogestor-backend --region us-central1 --follow
 ```
@@ -235,6 +249,7 @@ R: Ver `package.json` (backend) e `package.json` (frontend)
 ## 🔗 Links Externos
 
 **GCP Documentation**:
+
 - [Cloud Run](https://cloud.google.com/run/docs)
 - [Cloud SQL](https://cloud.google.com/sql/docs/mysql)
 - [Cloud Storage](https://cloud.google.com/storage/docs)
@@ -242,6 +257,7 @@ R: Ver `package.json` (backend) e `package.json` (frontend)
 - [Load Balancing](https://cloud.google.com/load-balancing/docs)
 
 **Terceiro Gestor Docs**:
+
 - [Canonical Business Structure](../canonical-business-structure.md)
 - [Web Client Standard](../canonical-web-client-standard.md)
 - [Marco Zero 1.0](../marco-zero-1.0.md)
@@ -261,6 +277,7 @@ R: Ver `package.json` (backend) e `package.json` (frontend)
 ## 📧 Suporte
 
 Se tiver dúvidas:
+
 1. Buscar em "Erros Comuns" de cada documento
 2. Ver logs: `gcloud run logs read SERVICE_NAME --limit 50`
 3. Consultar documentação GCP oficial (links acima)

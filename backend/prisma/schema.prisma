@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum TenantStatus {
@@ -616,9 +616,9 @@ model PersonSensitiveDocument {
   tenantId      String   @db.Char(36)
   personId      String   @unique @db.Char(36)
   schemaVersion Int      @default(1)
-  dataEnc       Bytes    @db.LongBlob
-  iv            Bytes    @db.VarBinary(12)
-  tag           Bytes    @db.VarBinary(16)
+  dataEnc       Bytes
+  iv            Bytes
+  tag           Bytes
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -1,5 +1,5 @@
 const path = require('path');
-const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { PrismaPg } = require('@prisma/adapter-pg');
 const { loadRootEnv, readEnvFileValue } = require('./env-file');
 
 function parseDatabaseUrl(databaseUrl) {
@@ -10,8 +10,10 @@ function parseDatabaseUrl(databaseUrl) {
     throw new Error('DATABASE_URL is not a valid URL');
   }
 
-  if (url.protocol !== 'mysql:') {
-    throw new Error('DATABASE_URL must start with mysql://');
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+    throw new Error(
+      'DATABASE_URL must start with postgresql:// or postgres://',
+    );
   }
 
   const database = url.pathname.replace(/^\//, '');
@@ -19,23 +21,9 @@ function parseDatabaseUrl(databaseUrl) {
     throw new Error('DATABASE_URL must include a database name');
   }
 
-  const allowPublicKeyRetrievalParam = url.searchParams.get(
-    'allowPublicKeyRetrieval',
-  );
-  const allowPublicKeyRetrieval =
-    allowPublicKeyRetrievalParam !== null
-      ? allowPublicKeyRetrievalParam === 'true'
-      : ['localhost', '127.0.0.1'].includes(url.hostname);
-  const cachingRsaPublicKey = url.searchParams.get('cachingRsaPublicKey');
-
   return {
-    host: url.hostname,
-    port: url.port ? Number(url.port) : 3306,
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
+    connectionString: databaseUrl,
     database,
-    allowPublicKeyRetrieval,
-    ...(cachingRsaPublicKey ? { cachingRsaPublicKey } : {}),
   };
 }
 
@@ -53,13 +41,11 @@ function getDatabaseUrlFromEnv() {
 
 function createPrismaClientFromEnv() {
   const databaseUrl = getDatabaseUrlFromEnv();
-  const adapter = new PrismaMariaDb(parseDatabaseUrl(databaseUrl));
+  const adapter = new PrismaPg(parseDatabaseUrl(databaseUrl));
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { PrismaClient } = require(path.join(
-    __dirname,
-    '..',
-    'src/generated/prisma',
-  ));
+  const { PrismaClient } = require(
+    path.join(__dirname, '..', 'src/generated/prisma'),
+  );
   return new PrismaClient({ adapter });
 }
 

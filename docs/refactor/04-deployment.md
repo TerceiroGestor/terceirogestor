@@ -111,7 +111,7 @@ echo "✓ GREEN stack running"
 **Arquivo**: `docker-compose.green.yml` (novo)
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   mysql-green:
@@ -123,7 +123,7 @@ services:
     volumes:
       - mysql_data_green:/var/lib/mysql
     ports:
-      - "3308:3306"  # Porta diferente de BLUE
+      - "3308:3306" # Porta diferente de BLUE
     healthcheck:
       test: ["CMD-SHELL", "mysqldump ping"]
       interval: 10s
@@ -138,7 +138,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: "3002"  # Porta diferente de BLUE :3001
+      PORT: "3002" # Porta diferente de BLUE :3001
       DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql-green:3306/${MYSQL_DATABASE}
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
       GCP_BUCKET_NAME: ${GCP_BUCKET_NAME}
@@ -159,7 +159,7 @@ services:
       NEXT_PUBLIC_API_URL: "http://localhost/api"
       API_INTERNAL_URL: "http://backend-green:3002"
     ports:
-      - "3001:3001"  # Porta diferente de BLUE :3000
+      - "3001:3001" # Porta diferente de BLUE :3000
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
       interval: 15s
@@ -171,6 +171,7 @@ volumes:
 ```
 
 **Notas**:
+
 - Portas diferentes (3001/3002) para rodar em paralelo
 - Banco separado temporário (ou compartilhado se usar read replica)
 - Frontend aponta internamente para backend-green
@@ -216,12 +217,12 @@ UPLOAD=$(curl -s -X POST $BASE_URL/api/files/health-documents \
 if echo "$UPLOAD" | grep -q "id"; then
   ATTACHMENT_ID=$(echo "$UPLOAD" | jq -r '.id')
   echo "✓ Upload working (attachment: $ATTACHMENT_ID)"
-  
+
   # 4. Test signed URL generation
   echo "Testing signed URL..."
   URL_RESPONSE=$(curl -s -X GET "$BASE_URL/api/files/$ATTACHMENT_ID" \
     -H "Authorization: Bearer $TOKEN")
-  
+
   if echo "$URL_RESPONSE" | grep -q "signedUrl"; then
     echo "✓ Signed URL generation working"
   else

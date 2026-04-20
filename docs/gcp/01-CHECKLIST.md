@@ -20,7 +20,7 @@
 - [ ] ✅ `.env.production` - Template para Cloud Run
 - [ ] Copiar `.env.production` para `.env.production.local` (never commit!)
 - [ ] Preencher valores sensíveis em `.env.production.local`:
-  - [ ] `JWT_SECRET` 
+  - [ ] `JWT_SECRET`
   - [ ] `GCP_PROJECT_ID`
   - [ ] `GCP_BUCKET_NAME`
   - [ ] `PII_MASTER_KEY`
@@ -41,6 +41,7 @@
     -t terceirogestor-frontend:test
   ```
 - [ ] Testar run local:
+
   ```bash
   # Backend (precisa de DATABASE_URL)
   docker run \
@@ -48,7 +49,7 @@
     -e DATABASE_URL="..." \
     -p 8080:8080 \
     terceirogestor-backend:test
-  
+
   # Frontend
   docker run \
     -e NODE_ENV=production \
@@ -98,7 +99,7 @@ echo -n "YOUR_JWT_SECRET" | \
 
 ### Fase 5: Deploy (30 min)
 
-- [ ] Build backend: 
+- [ ] Build backend:
   ```bash
   gcloud builds submit backend \
     --tag gcr.io/YOUR_PROJECT_ID/terceirogestor-backend:v1.0.0
@@ -115,7 +116,7 @@ echo -n "YOUR_JWT_SECRET" | \
 
 - [ ] Backend healthcheck: `curl $BACKEND_URL/health`
 - [ ] Frontend loads: Acessar $FRONTEND_URL no browser
-- [ ] Verificar logs: 
+- [ ] Verificar logs:
   ```bash
   gcloud run logs read terceirogestor-backend --limit 50
   gcloud run logs read terceirogestor-frontend --limit 50
@@ -131,15 +132,15 @@ Internet
 Frontend Cloud Run (3000)
   ├─ NEXT_PUBLIC_API_URL=/api
   └─ API_INTERNAL_URL=http://localhost:8080 (server-side)
-  
+
   ↓ (calls /api/*)
-  
+
 Backend Cloud Run (8080)
   ├─ DATABASE_URL=mysql://user:pass@cloudsql-instance/db
   ├─ GCP_PROJECT_ID=meu-projeto
   ├─ GCP_BUCKET_NAME=terceirogestor-uploads-prod
   └─ JWT_SECRET=xxx (from Secret Manager)
-  
+
   ↓
 Cloud SQL (MySQL)
 Cloud Storage (Bucket privado)
@@ -159,13 +160,13 @@ Secret Manager (Secrets)
 
 ## 🚨 Erros Comuns
 
-| Erro | Solução |
-|------|---------|
-| "Dockerfile COPY ./src/generated" | Ver backend/Dockerfile linha 31 - prisma gerado |
-| "Cloud SQL connection failed" | Verificar DATABASE_URL, permissões de service account, Cloud SQL Proxy |
-| "GCS permission denied" | Dar role `roles/storage.objectAdmin` ao backend service account |
-| "Port 8080 not responding" | Backend deve usar PORT=8080 (não 3001), Cloud Run injeta via ENV |
-| "NEXT_PUBLIC_* variável não existe" | Frontend precisa ser built COM `NEXT_PUBLIC_API_URL=/api` |
+| Erro                                 | Solução                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| "Dockerfile COPY ./src/generated"    | Ver backend/Dockerfile linha 31 - prisma gerado                        |
+| "Cloud SQL connection failed"        | Verificar DATABASE_URL, permissões de service account, Cloud SQL Proxy |
+| "GCS permission denied"              | Dar role `roles/storage.objectAdmin` ao backend service account        |
+| "Port 8080 not responding"           | Backend deve usar PORT=8080 (não 3001), Cloud Run injeta via ENV       |
+| "NEXT*PUBLIC*\* variável não existe" | Frontend precisa ser built COM `NEXT_PUBLIC_API_URL=/api`              |
 
 ---
 

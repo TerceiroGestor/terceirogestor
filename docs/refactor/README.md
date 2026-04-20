@@ -11,12 +11,12 @@ Migração de upload de arquivos de filesystem local (`/app/uploads`) para **Goo
 
 ### Benefícios
 
-| Antes | Depois |
-|-------|--------|
-| Filesystem efêmero (perda em redeploy) | Persistência automática em GCS |
-| Sem controle de acesso (público) | Private bucket + Signed URLs (5-10 min TTL) |
-| Backup manual (serviço docker) | Cloud SQL nativo + Cloud Storage versioning |
-| Não escala (disco cheio) | Escalável infinito |
+| Antes                                  | Depois                                      |
+| -------------------------------------- | ------------------------------------------- |
+| Filesystem efêmero (perda em redeploy) | Persistência automática em GCS              |
+| Sem controle de acesso (público)       | Private bucket + Signed URLs (5-10 min TTL) |
+| Backup manual (serviço docker)         | Cloud SQL nativo + Cloud Storage versioning |
+| Não escala (disco cheio)               | Escalável infinito                          |
 
 ---
 
@@ -28,20 +28,20 @@ Cliente (Browser)
 Frontend (Cloud Run)
     ├─ Faz request: POST /api/files/health-documents
     └─ Recebe: { signedUrl: "https://..." }
-    
+
     ↓ Upload de arquivo
-    
+
 Backend (Cloud Run)
     ├─ Valida JWT + autenticação
     ├─ Valida arquivo (size, type, ext)
     ├─ Gera path: health/{person_id}/{uuid}.pdf
     ├─ Upload para GCS
     └─ Salva path no banco (Prisma)
-    
+
     ↓
 Banco (Cloud SQL)
     └─ PersonAttachment { filePath: "health/{...}" }
-    
+
     ↓
 Cloud Storage (Bucket Privado)
     └─ gs://terceirogestor/tenant_id/health/{...}/file.pdf
@@ -97,12 +97,12 @@ gs://terceirogestor/
 
 ### TTL por Tipo
 
-| Tipo | TTL | Razão |
-|------|-----|-------|
-| `health/` | 5 min | Documentos de saúde muito sensíveis |
-| `people/` | 10 min | Documentos pessoais sensíveis |
-| `programs/` | 30 min | Relatórios moderadamente sensíveis |
-| `avatars/` | 1 hora | Fotos público-friendly |
+| Tipo        | TTL    | Razão                               |
+| ----------- | ------ | ----------------------------------- |
+| `health/`   | 5 min  | Documentos de saúde muito sensíveis |
+| `people/`   | 10 min | Documentos pessoais sensíveis       |
+| `programs/` | 30 min | Relatórios moderadamente sensíveis  |
+| `avatars/`  | 1 hora | Fotos público-friendly              |
 
 ---
 
@@ -218,7 +218,7 @@ async uploadHealthDocument(
   // 1. Validar arquivo
   const { personId } = req.body;
   this.filesService.validateFile(file, DocumentType.HEALTH);
-  
+
   // 2. Upload para GCS
   const result = await this.filesService.uploadFile(
     file,
@@ -226,7 +226,7 @@ async uploadHealthDocument(
     personId,
     req.tenantId,
   );
-  
+
   // 3. Salvar no banco
   const attachment = await this.prisma.personAttachment.create({
     data: {
@@ -238,7 +238,7 @@ async uploadHealthDocument(
       uploadedByUserId: req.user.id,
     },
   });
-  
+
   return { id: attachment.id, path: result.path };
 }
 
@@ -248,7 +248,7 @@ async getFile(@Param('attachmentId') id: string, @Req() req) {
   const attachment = await this.prisma.personAttachment.findUnique({
     where: { id },
   });
-  
+
   return this.filesService.generateAccessUrl(
     attachment.filePath,
     DocumentType.HEALTH,
@@ -281,12 +281,12 @@ GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
 
 ### Cálculo Base (1 ONG, 1000 usuários, 500MB/mês uploads)
 
-| Serviço | Uso | Custo/mês |
-|---------|-----|-----------|
-| Cloud Storage (storage) | 500MB | $0.02 |
-| Cloud Storage (API) | 10k requests | $0.10 |
-| Egress | 100GB/mês | $20.00 |
-| **Total** | | **~$20/mês** |
+| Serviço                 | Uso          | Custo/mês    |
+| ----------------------- | ------------ | ------------ |
+| Cloud Storage (storage) | 500MB        | $0.02        |
+| Cloud Storage (API)     | 10k requests | $0.10        |
+| Egress                  | 100GB/mês    | $20.00       |
+| **Total**               |              | **~$20/mês** |
 
 **Nota**: Egress é caro. Se possível, usar assinadas URLs com `signedUrl` + browser download = menos egress.
 
@@ -294,13 +294,13 @@ GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
 
 ## ⚠️ Riscos & Mitigações
 
-| Risco | Mitigação |
-|-------|-----------|
+| Risco                                | Mitigação                                        |
+| ------------------------------------ | ------------------------------------------------ |
 | Arquivo órfão (no GCS, não no banco) | Limpeza automática via lifecycle rules (90 dias) |
-| 404 ao acessar | Testes de integridade pós-migração |
-| URL expirada muy rápido | Refresh de URL no frontend (`<a>` com XHR) |
-| Performance degradada | Caching de Signed URLs (5 min) no frontend |
-| Segurança: signed URL leakada | TTL curto (5 min) + audit logging |
+| 404 ao acessar                       | Testes de integridade pós-migração               |
+| URL expirada muy rápido              | Refresh de URL no frontend (`<a>` com XHR)       |
+| Performance degradada                | Caching de Signed URLs (5 min) no frontend       |
+| Segurança: signed URL leakada        | TTL curto (5 min) + audit logging                |
 
 ---
 
@@ -344,16 +344,21 @@ Se algo der errado durante deploy:
 ## Dúvidas Comuns
 
 ### P: E se o usuário estiver offline quando URL expirar?
+
 **R**: A URL expira em 5-10 min. Se o usuário clicar depois, o frontend faz novo GET `/api/files/{id}` e obtém nova URL.
 
 ### P: Quanto custa o download de arquivo grande?
+
 **R**: Apenas o egress (transferência de dados) é cobrado. Internamente no GCP é grátis.
 
 ### P: Como limpar arquivos órfãos?
+
 **R**: Cloud Storage `lifecycle_rule` com `age: 90` delete automaticamente.
 
 ### P: Posso manter backup do filesystem?
+
 **R**: Sim. Script de migração mantém backups em `/backups/blue-uploads-*.tar.gz` por 7 dias.
 
 ### P: E se a migração de dados falhar?
+
 **R**: Rollback instantâneo: `docker-compose down`) e rodoar com banco backup (Cloud SQL PITR).

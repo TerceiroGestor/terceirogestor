@@ -7,6 +7,7 @@ Bem-vindo ao guia de migração do **Terceiro Gestor** para Google Cloud Platfor
 ## 🎯 Objetivo
 
 Migrar aplicação de `docker-compose` local para **Cloud Run** com:
+
 - ✅ Docker images otimizadas
 - ✅ Variáveis de ambiente documentadas
 - ✅ Cloud SQL para database
@@ -18,12 +19,15 @@ Migrar aplicação de `docker-compose` local para **Cloud Run** com:
 ## 📖 Como Usar Este Guia
 
 ### 1️⃣ **Começar aqui**: [00-PRONTO.md](00-PRONTO.md)
+
 Resumo do que foi preparado e o status atual.
 
 ### 2️⃣ **Checklist prática**: [01-CHECKLIST.md](01-CHECKLIST.md)
+
 6 fases à executar, cada uma com suas tarefas específicas.
 
 ### 3️⃣ **Guia técnico detalhado**: [02-DEPLOYMENT.md](02-DEPLOYMENT.md)
+
 Todos os comandos e explicações para fazer build, deploy e configurar GCP.
 
 ---
@@ -55,13 +59,13 @@ gcloud run deploy terceirogestor-backend \
 
 ## 📊 Timeline
 
-| Fase | Tarefa | Tempo | Status |
-|------|--------|-------|--------|
-| **1** | Docker + Env | 4-5h | ✅ Completo |
-| **2** | GCP Setup (SQL, Storage, Secrets) | 1-2h | ⏳ Próxima |
-| **3** | HTTPS Load Balancer + Domain | 3h | ⏳ Depois |
-| **4** | Refactor Uploads para Cloud Storage | 1-2w | ⏳ Fase 4 |
-| **5** | Performance + Monitoring | 1w | ⏳ Contínuo |
+| Fase  | Tarefa                              | Tempo | Status      |
+| ----- | ----------------------------------- | ----- | ----------- |
+| **1** | Docker + Env                        | 4-5h  | ✅ Completo |
+| **2** | GCP Setup (SQL, Storage, Secrets)   | 1-2h  | ⏳ Próxima  |
+| **3** | HTTPS Load Balancer + Domain        | 3h    | ⏳ Depois   |
+| **4** | Refactor Uploads para Cloud Storage | 1-2w  | ⏳ Fase 4   |
+| **5** | Performance + Monitoring            | 1w    | ⏳ Contínuo |
 
 **Total MVP**: ~2-3 semanas
 
@@ -82,24 +86,28 @@ gcloud run deploy terceirogestor-backend \
 ## 🎓 Conceitos-Chave
 
 ### Cloud Run
+
 - Serverless container orchestration
 - Pay-per-use (free tier: 2M requests/mês)
 - Auto-scaling baseado em demanda
 - HTTPS + domain automático
 
 ### Cloud SQL
+
 - Managed MySQL database
 - Backups automáticos
 - High availability (replicação)
 - Conexão via Cloud SQL Proxy
 
 ### Cloud Storage
+
 - Bucket privado para uploads
 - Signed URLs (acesso temporário)
 - Versionlog automático
 - Replicação geo-redundante
 
 ### Secret Manager
+
 - Armazena senhas, chaves, credenciais
 - Integração com Cloud Run
 - Auditoria de acesso
@@ -147,6 +155,7 @@ Antes de começar, você deve ter:
 ## 📞 Suporte
 
 Se tiver dúvidas:
+
 1. Buscar na seção "Common Errors" de cada arquivo
 2. Verificar logs: `gcloud run logs read SERVICE_NAME --region us-central1 --limit 50`
 3. Consultar documentação oficial:

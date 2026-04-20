@@ -1,2 +1,0 @@
-ALTER TABLE `PantryDonor`
-ADD COLUMN `avatarUrl` VARCHAR(191) NULL;

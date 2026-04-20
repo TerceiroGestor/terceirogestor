@@ -4,30 +4,39 @@ import { isTokenExpired } from "@/lib/auth-utils";
 import { getTenantSlug, withTenantApiPath } from "@/lib/tenant-path";
 
 const DEFAULT_API_URL = "http://localhost:3001";
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ?? "";
-const fallbackApiUrl =
-  typeof window !== "undefined"
-    ? ["", "80", "443"].includes(window.location.port)
-      ? `${window.location.origin}/api`
-      : `${window.location.protocol}//${window.location.hostname}:3001`
-    : DEFAULT_API_URL;
-const isLocalEnv =
-  envApiUrl.includes("localhost") || envApiUrl.includes("127.0.0.1");
-const isRemoteBrowser =
-  typeof window !== "undefined" &&
-  !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
-export const API_URL =
-  (envApiUrl && (!isLocalEnv || !isRemoteBrowser) ? envApiUrl : fallbackApiUrl)
-    .replace(/\/+$/, "");
+function normalizeApiUrl(url: string) {
+  return url.replace(/\/+$/, "");
+}
+
+function resolveBrowserApiUrl() {
+  if (envApiUrl) {
+    return normalizeApiUrl(envApiUrl);
+  }
+
+  if (typeof window === "undefined") {
+    return DEFAULT_API_URL;
+  }
+
+  if (LOCAL_HOSTNAMES.has(window.location.hostname)) {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+
+  // Outside localhost, default to same-origin /api to avoid coupling browser
+  // traffic to a Docker-only host/port convention.
+  return `${window.location.origin}/api`;
+}
+
+export const API_URL = resolveBrowserApiUrl();
 
 function normalizeLegacyMediaUrl(url: string) {
   try {
     const parsed = new URL(url);
     const isLegacyLocalBackend =
-      ["localhost", "127.0.0.1"].includes(parsed.hostname) &&
-      parsed.port === "3001";
+      LOCAL_HOSTNAMES.has(parsed.hostname) && parsed.port === "3001";
 
     if (isLegacyLocalBackend && parsed.pathname.startsWith("/uploads/")) {
       return `${API_URL}${parsed.pathname}${parsed.search}${parsed.hash}`;
@@ -76,9 +85,10 @@ export type ApiError = {
 };
 
 function extractApiErrorMessage(payload: unknown, status: number) {
-  const record = payload && typeof payload === "object"
-    ? (payload as Record<string, unknown>)
-    : null;
+  const record =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
   const message = record?.message;
   if (typeof message === "string" && message.trim()) return message;
   if (Array.isArray(message) && message.length) {

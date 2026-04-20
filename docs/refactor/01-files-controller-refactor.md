@@ -36,6 +36,7 @@ uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
 ```
 
 **Problemas**:
+
 - Arquivo fica em `/app/uploads/` (efêmero em Cloud Run)
 - `diskStorage` bloqueia requisição enquanto salva
 - Path público sim, mas sem controle de acesso
@@ -66,6 +67,7 @@ async uploadHealthDocument(
 ```
 
 **Vantagens**:
+
 - `memoryStorage` (buffer em RAM) → direto para GCS
 - Arquivo nunca toca filesystem local
 - Control de acesso via Signed URLs
@@ -96,18 +98,18 @@ backend/src/core/files/
 ### 3.1 Arquivo: `files.module.ts` (Atualizado)
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { FilesController } from './files.controller';
-import { FilesService } from './files.service';  // Nova
-import { CloudStorageService } from './cloud-storage.service';  // Nova
-import { PrismaModule } from '../prisma/prisma.module';
-import { RequestContextModule } from '../request-context/request-context.module';
+import { Module } from "@nestjs/common";
+import { FilesController } from "./files.controller";
+import { FilesService } from "./files.service"; // Nova
+import { CloudStorageService } from "./cloud-storage.service"; // Nova
+import { PrismaModule } from "../prisma/prisma.module";
+import { RequestContextModule } from "../request-context/request-context.module";
 
 @Module({
   imports: [PrismaModule, RequestContextModule],
   controllers: [FilesController],
   providers: [FilesService, CloudStorageService],
-  exports: [FilesService, CloudStorageService],  // Para usar em outros módulos
+  exports: [FilesService, CloudStorageService], // Para usar em outros módulos
 })
 export class FilesModule {}
 ```
@@ -118,25 +120,28 @@ export class FilesModule {}
 
 ```typescript
 export enum DocumentType {
-  AVATAR = 'avatars',
-  HEALTH = 'health',
-  PEOPLE = 'people',
-  PROGRAMS = 'programs',
-  PROJECTS = 'projects',
-  ACTIONS = 'actions',
-  PANTRY = 'pantry',
-  DEPOSIT = 'deposit',
-  TASKS = 'tasks',
-  TENANT_LOGO = 'tenant-logos',
+  AVATAR = "avatars",
+  HEALTH = "health",
+  PEOPLE = "people",
+  PROGRAMS = "programs",
+  PROJECTS = "projects",
+  ACTIONS = "actions",
+  PANTRY = "pantry",
+  DEPOSIT = "deposit",
+  TASKS = "tasks",
+  TENANT_LOGO = "tenant-logos",
 }
 
 export enum DocumentSensitivity {
-  HIGH = 'HIGH',       // health, people
-  MEDIUM = 'MEDIUM',   // programs, projects, actions
-  LOW = 'LOW',         // avatars, tenant-logos
+  HIGH = "HIGH", // health, people
+  MEDIUM = "MEDIUM", // programs, projects, actions
+  LOW = "LOW", // avatars, tenant-logos
 }
 
-export const DOCUMENT_TYPE_TO_SENSITIVITY: Record<DocumentType, DocumentSensitivity> = {
+export const DOCUMENT_TYPE_TO_SENSITIVITY: Record<
+  DocumentType,
+  DocumentSensitivity
+> = {
   [DocumentType.AVATAR]: DocumentSensitivity.LOW,
   [DocumentType.HEALTH]: DocumentSensitivity.HIGH,
   [DocumentType.PEOPLE]: DocumentSensitivity.HIGH,
@@ -150,115 +155,219 @@ export const DOCUMENT_TYPE_TO_SENSITIVITY: Record<DocumentType, DocumentSensitiv
 };
 
 export const SIGNED_URL_TTL_SECONDS: Record<DocumentSensitivity, number> = {
-  [DocumentSensitivity.HIGH]: 5 * 60,       // 5 minutos
-  [DocumentSensitivity.MEDIUM]: 30 * 60,    // 30 minutos
-  [DocumentSensitivity.LOW]: 60 * 60,       // 1 hora
+  [DocumentSensitivity.HIGH]: 5 * 60, // 5 minutos
+  [DocumentSensitivity.MEDIUM]: 30 * 60, // 30 minutos
+  [DocumentSensitivity.LOW]: 60 * 60, // 1 hora
 };
 
 export const MAX_FILE_SIZES: Record<DocumentType, number> = {
-  [DocumentType.AVATAR]: 2 * 1024 * 1024,              // 2MB
-  [DocumentType.HEALTH]: 6 * 1024 * 1024,              // 6MB
-  [DocumentType.PEOPLE]: 10 * 1024 * 1024,             // 10MB
-  [DocumentType.PROGRAMS]: 10 * 1024 * 1024,           // 10MB
-  [DocumentType.PROJECTS]: 10 * 1024 * 1024,           // 10MB
-  [DocumentType.ACTIONS]: 6 * 1024 * 1024,             // 6MB
-  [DocumentType.PANTRY]: 10 * 1024 * 1024,             // 10MB
-  [DocumentType.DEPOSIT]: 10 * 1024 * 1024,            // 10MB
-  [DocumentType.TASKS]: 10 * 1024 * 1024,              // 10MB
-  [DocumentType.TENANT_LOGO]: 3 * 1024 * 1024,         // 3MB
+  [DocumentType.AVATAR]: 2 * 1024 * 1024, // 2MB
+  [DocumentType.HEALTH]: 6 * 1024 * 1024, // 6MB
+  [DocumentType.PEOPLE]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.PROGRAMS]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.PROJECTS]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.ACTIONS]: 6 * 1024 * 1024, // 6MB
+  [DocumentType.PANTRY]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.DEPOSIT]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.TASKS]: 10 * 1024 * 1024, // 10MB
+  [DocumentType.TENANT_LOGO]: 3 * 1024 * 1024, // 3MB
 };
 
 export const ALLOWED_EXTENSIONS: Record<DocumentType, Set<string>> = {
-  [DocumentType.AVATAR]: new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']),
+  [DocumentType.AVATAR]: new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]),
   [DocumentType.HEALTH]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
   ]),
   [DocumentType.PEOPLE]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.PROGRAMS]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.PROJECTS]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.ACTIONS]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.PANTRY]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.DEPOSIT]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.TASKS]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
-    '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".txt",
+    ".csv",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".zip",
   ]),
   [DocumentType.TENANT_LOGO]: new Set([
-    '.jpg', '.jpeg', '.png', '.webp', '.gif',
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
   ]),
 };
 
-export const ALLOWED_MIMETYPES: Record<DocumentType, (mime: string) => boolean> = {
-  [DocumentType.AVATAR]: (mime) => mime.startsWith('image/'),
-  [DocumentType.HEALTH]: (mime) => mime.startsWith('image/') || mime === 'application/pdf',
+export const ALLOWED_MIMETYPES: Record<
+  DocumentType,
+  (mime: string) => boolean
+> = {
+  [DocumentType.AVATAR]: (mime) => mime.startsWith("image/"),
+  [DocumentType.HEALTH]: (mime) =>
+    mime.startsWith("image/") || mime === "application/pdf",
   [DocumentType.PEOPLE]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
   [DocumentType.PROGRAMS]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
   [DocumentType.PROJECTS]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
-  [DocumentType.ACTIONS]: (mime) => mime.startsWith('image/'),
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
+  [DocumentType.ACTIONS]: (mime) => mime.startsWith("image/"),
   [DocumentType.PANTRY]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
   [DocumentType.DEPOSIT]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
   [DocumentType.TASKS]: (mime) =>
-    mime.startsWith('image/') ||
-    mime === 'application/pdf' ||
-    mime.includes('word') ||
-    mime.includes('excel') ||
-    mime === 'text/plain' ||
-    mime === 'text/csv' ||
-    mime === 'application/zip',
-  [DocumentType.TENANT_LOGO]: (mime) => mime.startsWith('image/'),
+    mime.startsWith("image/") ||
+    mime === "application/pdf" ||
+    mime.includes("word") ||
+    mime.includes("excel") ||
+    mime === "text/plain" ||
+    mime === "text/csv" ||
+    mime === "application/zip",
+  [DocumentType.TENANT_LOGO]: (mime) => mime.startsWith("image/"),
 };
 ```
 
@@ -267,10 +376,10 @@ export const ALLOWED_MIMETYPES: Record<DocumentType, (mime: string) => boolean> 
 ### 3.3 Arquivo: `cloud-storage.service.ts` (Novo)
 
 ```typescript
-import { Injectable, Logger } from '@nestjs/common';
-import { Storage, Bucket } from '@google-cloud/storage';
-import { ConfigService } from '@nestjs/config';
-import { Readable } from 'stream';
+import { Injectable, Logger } from "@nestjs/common";
+import { Storage, Bucket } from "@google-cloud/storage";
+import { ConfigService } from "@nestjs/config";
+import { Readable } from "stream";
 
 @Injectable()
 export class CloudStorageService {
@@ -283,18 +392,20 @@ export class CloudStorageService {
   }
 
   private initializeStorage() {
-    const projectId = this.configService.get<string>('GCP_PROJECT_ID');
-    const bucketName = this.configService.get<string>('GCP_BUCKET_NAME');
+    const projectId = this.configService.get<string>("GCP_PROJECT_ID");
+    const bucketName = this.configService.get<string>("GCP_BUCKET_NAME");
 
     if (!projectId || !bucketName) {
-      throw new Error('GCP_PROJECT_ID e GCP_BUCKET_NAME não configuradas');
+      throw new Error("GCP_PROJECT_ID e GCP_BUCKET_NAME não configuradas");
     }
 
     // Application Default Credentials (via GOOGLE_APPLICATION_CREDENTIALS env var)
     this.storage = new Storage({ projectId });
     this.bucket = this.storage.bucket(bucketName);
 
-    this.logger.debug(`Cloud Storage inicializado: ${bucketName} (${projectId})`);
+    this.logger.debug(
+      `Cloud Storage inicializado: ${bucketName} (${projectId})`,
+    );
   }
 
   /**
@@ -313,13 +424,13 @@ export class CloudStorageService {
     // Metadados customizados
     const metadata = {
       contentType: mimeType,
-      cacheControl: 'private, max-age=3600',
+      cacheControl: "private, max-age=3600",
     };
 
     await new Promise<void>((resolve, reject) => {
       const stream = file.createWriteStream({ metadata });
-      stream.on('error', reject);
-      stream.on('finish', resolve);
+      stream.on("error", reject);
+      stream.on("finish", resolve);
       stream.end(buffer);
     });
 
@@ -344,8 +455,8 @@ export class CloudStorageService {
     const file = this.bucket.file(path);
 
     const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
+      version: "v4",
+      action: "read",
       expires: Date.now() + expiresIn * 1000,
     });
 
@@ -401,10 +512,14 @@ export class CloudStorageService {
 ### 3.4 Arquivo: `files.service.ts` (Novo)
 
 ```typescript
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { CloudStorageService } from './cloud-storage.service';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../prisma/prisma.service";
+import { CloudStorageService } from "./cloud-storage.service";
 import {
   DocumentType,
   DocumentSensitivity,
@@ -413,12 +528,12 @@ import {
   MAX_FILE_SIZES,
   ALLOWED_EXTENSIONS,
   ALLOWED_MIMETYPES,
-} from './constants/file-types';
-import { extname } from 'path';
-import { randomUUID } from 'crypto';
+} from "./constants/file-types";
+import { extname } from "path";
+import { randomUUID } from "crypto";
 
 export interface UploadFileResult {
-  id?: string;  // Attachment ID
+  id?: string; // Attachment ID
   path: string; // GCS path (salvo no banco)
   size: number;
   mimeType: string;
@@ -441,12 +556,9 @@ export class FilesService {
   /**
    * Validar arquivo antes do upload
    */
-  validateFile(
-    file: Express.Multer.File,
-    documentType: DocumentType,
-  ): void {
+  validateFile(file: Express.Multer.File, documentType: DocumentType): void {
     if (!file) {
-      throw new BadRequestException('Arquivo obrigatório.');
+      throw new BadRequestException("Arquivo obrigatório.");
     }
 
     const maxSize = MAX_FILE_SIZES[documentType];
@@ -458,14 +570,16 @@ export class FilesService {
 
     const mimeValidator = ALLOWED_MIMETYPES[documentType];
     if (!mimeValidator(file.mimetype)) {
-      throw new BadRequestException(`Tipo de arquivo não permitido: ${file.mimetype}`);
+      throw new BadRequestException(
+        `Tipo de arquivo não permitido: ${file.mimetype}`,
+      );
     }
 
     const ext = extname(file.originalname).toLowerCase();
     const allowedExts = ALLOWED_EXTENSIONS[documentType];
     if (!allowedExts.has(ext)) {
       throw new BadRequestException(
-        `Extensão não permitida: ${ext}. Permitidas: ${Array.from(allowedExts).join(', ')}`,
+        `Extensão não permitida: ${ext}. Permitidas: ${Array.from(allowedExts).join(", ")}`,
       );
     }
   }
@@ -497,7 +611,11 @@ export class FilesService {
     this.validateFile(file, documentType);
 
     // 2. Gerar path
-    const relativePath = this.generateGcsPath(documentType, entityId, file.originalname);
+    const relativePath = this.generateGcsPath(
+      documentType,
+      entityId,
+      file.originalname,
+    );
     const gcpPath = `${tenantId}/${relativePath}`; // Isolar por tenant
 
     // 3. Upload para GCS
@@ -527,7 +645,7 @@ export class FilesService {
     // Verificar se existe
     const exists = await this.cloudStorage.fileExists(gcpPath);
     if (!exists) {
-      throw new NotFoundException('Arquivo não encontrado.');
+      throw new NotFoundException("Arquivo não encontrado.");
     }
 
     // Determinar TTL
@@ -535,7 +653,10 @@ export class FilesService {
     const ttlSeconds = SIGNED_URL_TTL_SECONDS[sensitivity];
 
     // Gerar signed URL
-    const signedUrl = await this.cloudStorage.generateSignedUrl(gcpPath, ttlSeconds);
+    const signedUrl = await this.cloudStorage.generateSignedUrl(
+      gcpPath,
+      ttlSeconds,
+    );
 
     // Obter mimetype
     const metadata = await this.cloudStorage.getFileMetadata(gcpPath);
@@ -543,7 +664,7 @@ export class FilesService {
     return {
       signedUrl,
       expiresIn: ttlSeconds,
-      mimeType: metadata.contentType || 'application/octet-stream',
+      mimeType: metadata.contentType || "application/octet-stream",
     };
   }
 
@@ -572,20 +693,24 @@ import {
   UseInterceptors,
   BadRequestException,
   Req,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';  // ← Mudou de diskStorage
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { FilesService, UploadFileResult, FileAccessResult } from './files.service';
-import { DocumentType } from './constants/file-types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer"; // ← Mudou de diskStorage
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import {
+  FilesService,
+  UploadFileResult,
+  FileAccessResult,
+} from "./files.service";
+import { DocumentType } from "./constants/file-types";
+import { PrismaService } from "../prisma/prisma.service";
 
 interface AuthenticatedRequest extends Request {
   user: { id: string };
   tenantId?: string;
 }
 
-@Controller('files')
+@Controller("files")
 export class FilesController {
   constructor(
     private readonly filesService: FilesService,
@@ -593,11 +718,11 @@ export class FilesController {
   ) {}
 
   // ===== AVATARS =====
-  @Post('avatars')
+  @Post("avatars")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),  // ← Buffer em RAM
+    FileInterceptor("file", {
+      storage: memoryStorage(), // ← Buffer em RAM
       limits: { fileSize: 2 * 1024 * 1024 },
     }),
   )
@@ -634,10 +759,10 @@ export class FilesController {
   }
 
   // ===== HEALTH DOCUMENTS =====
-  @Post('health-documents')
+  @Post("health-documents")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: memoryStorage(),
       limits: { fileSize: 6 * 1024 * 1024 },
     }),
@@ -649,7 +774,7 @@ export class FilesController {
     const { personId } = req.body as { personId: string };
 
     if (!personId) {
-      throw new BadRequestException('personId obrigatório.');
+      throw new BadRequestException("personId obrigatório.");
     }
 
     // Validar que person pertence ao tenant
@@ -659,7 +784,7 @@ export class FilesController {
     });
 
     if (!person || person.tenantId !== req.tenantId) {
-      throw new BadRequestException('Pessoa não encontrada ou sem permissão.');
+      throw new BadRequestException("Pessoa não encontrada ou sem permissão.");
     }
 
     // Upload
@@ -692,10 +817,10 @@ export class FilesController {
   }
 
   // ===== GET FILE (Signed URL) =====
-  @Get(':attachmentId')
+  @Get(":attachmentId")
   @UseGuards(JwtAuthGuard)
   async getFile(
-    @Param('attachmentId') attachmentId: string,
+    @Param("attachmentId") attachmentId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<FileAccessResult> {
     // Buscar attachment no banco
@@ -705,11 +830,13 @@ export class FilesController {
     });
 
     if (!attachment || attachment.tenantId !== req.tenantId) {
-      throw new BadRequestException('Attachment não encontrado ou sem permissão.');
+      throw new BadRequestException(
+        "Attachment não encontrado ou sem permissão.",
+      );
     }
 
     // Determinar tipo de documento pelo path
-    const [documentType] = attachment.filePath.split('/') as [DocumentType];
+    const [documentType] = attachment.filePath.split("/") as [DocumentType];
 
     // Gerar signed URL
     return this.filesService.generateAccessUrl(
@@ -731,11 +858,13 @@ export class FilesController {
 Nenhuma migração Prisma necessária! Apenas mudar o que é **armazenado** em `filePath`:
 
 **Antes**:
+
 ```
 filePath: "/uploads/health/3fa85f64-5717-4562-b3fc-2c963f66afa6.pdf"
 ```
 
 **Depois**:
+
 ```
 filePath: "health/112e8400-e29b-41d4-a716-446655440111/3fa85f64-5717-4562-b3fc-2c963f66afa6.pdf"
 ```
@@ -753,21 +882,23 @@ export class GcsErrorFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
 
-    if (exception.message.includes('ENOENT')) {
-      return response.status(404).json({ message: 'Arquivo não encontrado' });
+    if (exception.message.includes("ENOENT")) {
+      return response.status(404).json({ message: "Arquivo não encontrado" });
     }
 
-    if (exception.message.includes('Permission Denied')) {
-      return response.status(403).json({ message: 'Sem permissão para acessar arquivo' });
+    if (exception.message.includes("Permission Denied")) {
+      return response
+        .status(403)
+        .json({ message: "Sem permissão para acessar arquivo" });
     }
 
     // Google Cloud Storage erros
-    if (exception.message.includes('InvalidArgument')) {
-      return response.status(400).json({ message: 'Parâmetros inválidos' });
+    if (exception.message.includes("InvalidArgument")) {
+      return response.status(400).json({ message: "Parâmetros inválidos" });
     }
 
     // Erro genérico
-    return response.status(500).json({ message: 'Erro ao processar arquivo' });
+    return response.status(500).json({ message: "Erro ao processar arquivo" });
   }
 }
 ```
