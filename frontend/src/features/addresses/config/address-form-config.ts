@@ -1,4 +1,4 @@
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import type { AddressFormData } from "../domain/types";
 
 export const addressFormFields: FormField<AddressFormData>[] = [

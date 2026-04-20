@@ -66,7 +66,6 @@ export function ProjectEnrollmentPickerDialog({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
-  const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
@@ -210,7 +209,6 @@ export function ProjectEnrollmentPickerDialog({
         limit: pagination.pageSize,
       });
       setRows(response.data);
-      setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
     } catch (nextError) {
       const message =
@@ -220,7 +218,6 @@ export function ProjectEnrollmentPickerDialog({
       setError(message);
       setRows([]);
       setPageCount(0);
-      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -283,37 +280,6 @@ export function ProjectEnrollmentPickerDialog({
       setSaving(false);
     }
   }, [onBulkPick, onPick, selectedRows]);
-
-  const handleSelectFiltered = React.useCallback(async () => {
-    setSaving(true);
-    try {
-      const firstPage = await listProjectEnrollments(token, projectId, {
-        status: "ACTIVE",
-        excludeGroupId,
-        excludePeopleGroupId,
-        q: searchText.trim() || undefined,
-        filters: domain,
-        page: 1,
-        limit: 200,
-      });
-      let allRows = [...firstPage.data];
-      for (let page = 2; page <= firstPage.pagination.pages; page += 1) {
-        const response = await listProjectEnrollments(token, projectId, {
-          status: "ACTIVE",
-          excludeGroupId,
-          excludePeopleGroupId,
-          q: searchText.trim() || undefined,
-          filters: domain,
-          page,
-          limit: 200,
-        });
-        allRows = mergeUniqueEnrollments(allRows, response.data);
-      }
-      setSelectedRows((previous) => mergeUniqueEnrollments(previous, allRows));
-    } finally {
-      setSaving(false);
-    }
-  }, [token, projectId, excludeGroupId, excludePeopleGroupId, searchText, domain]);
 
   return (
     <SectionDialog

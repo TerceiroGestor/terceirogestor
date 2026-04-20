@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { AttendanceFormData } from "@/features/attendances/domain/types";
 import {
   attendanceFormFields,
@@ -21,7 +21,7 @@ export function AttendanceForm({
   submitLabel = "Salvar",
 }: AttendanceFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={attendanceFormFields}
       steps={attendanceFormSteps}
       initialValues={initialValues}

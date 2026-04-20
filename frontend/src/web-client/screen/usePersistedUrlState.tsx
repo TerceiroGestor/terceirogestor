@@ -127,7 +127,7 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
     }
 
     setIsReadyToWrite(true);
-  }, [currentQuery, isEqual, parsedFromUrl, storageKey, trackedKeysKey]);
+  }, [currentQuery, isEqual, parsedFromUrl, storageKey, trackedKeys, trackedKeysKey]);
 
   React.useEffect(() => {
     if (!isReadyToWrite) return;
@@ -165,7 +165,7 @@ export function usePersistedUrlState<TState extends Record<string, unknown>>({
         // ignore quota errors
       }
     }
-  }, [currentQuery, isReadyToWrite, pathname, router, serialize, state, storageKey, trackedKeysKey]);
+  }, [currentQuery, isReadyToWrite, pathname, router, serialize, state, storageKey, trackedKeys, trackedKeysKey]);
 
   return [state, setState] as const;
 }

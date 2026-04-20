@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { EDUCATION_STATUS_OPTIONS, EDUCATION_TEXT } from "../config/education.constants";
 
 export type EducationFormValues = {
@@ -93,7 +93,7 @@ export function EducationForm({
   );
 
   return (
-    <FormEngine<EducationFormValues>
+    <RecordForm<EducationFormValues>
       appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}

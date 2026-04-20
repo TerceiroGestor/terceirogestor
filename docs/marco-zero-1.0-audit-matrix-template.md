@@ -53,7 +53,7 @@ A matriz inclui tres escopos:
 - `isolar_legado`
 - `pos_1_0` (permitido apenas sem impacto no contrato canonico)
 
-6. Qualquer uso ativo de `DataTable`, `FormEngine` ou modulo removido do canonico deve ser marcado como `FALHA`.
+6. Qualquer uso ativo de `grade tabular legada`, `renderizador legado de formularios` ou modulo removido do canonico deve ser marcado como `FALHA`.
 
 7. Qualquer `relation operacional` fora do `ListView` deve ser marcada como `FALHA`.
 
@@ -91,6 +91,10 @@ Ordem obrigatoria de revisao:
 2. `Onda B` (modulos intermediarios)
 3. `Onda C` (modulos com regra de negocio complexa)
 4. `Onda D` (legados para remover/isolar)
+5. `Onda E` (relation operacional e padrao de actions)
+6. `Onda F` (residuos ativos de list/detail legados)
+7. `Onda G` (fluxos publicos/core e features historicas)
+8. `Onda H` (gates finais de qualidade e liberacao)
 
 Fluxo de execucao:
 
@@ -102,8 +106,8 @@ Fluxo de execucao:
 
 Triagem obrigatoria adicional por tela:
 
-- existe `DataTable` no fluxo canonico ativo?
-- existe `FormEngine` no fluxo canonico ativo?
+- existe `grade tabular legada` no fluxo canonico ativo?
+- existe `renderizador legado de formularios` no fluxo canonico ativo?
 - existe modulo removido ou rota legada visivel no fluxo ativo?
 - relation operacional usa `ListView` com filtros, selecao e acoes no proprio slot?
 
@@ -119,7 +123,7 @@ Regra operacional:
 - nao marcar onda como fechada com `FALHA` aberta
 - registrar no fechamento da onda quais itens impedem avancar com seguranca
 - manter a proxima onda em `PENDENTE` ate a decisao da onda atual
-- nao considerar encerrada uma onda que ainda exponha `DataTable`, `FormEngine` ou modulo removido no fluxo canonico ativo
+- nao considerar encerrada uma onda que ainda exponha `grade tabular legada`, `renderizador legado de formularios` ou modulo removido no fluxo canonico ativo
 
 ## Definicao de pronto da auditoria
 
@@ -128,3 +132,5 @@ A auditoria e considerada pronta quando:
 - 100% das linhas estao com `status`
 - 100% das `FALHA` tem `owner`, `due_date`, `decision`
 - matriz esta alinhada com checklist 1.0 e plano de implementacao
+- backlog transversal marcado como `pos_1_0` aparece apenas em linha de `quality`, com justificativa explicita e sem impacto no contrato canonico ativo
+

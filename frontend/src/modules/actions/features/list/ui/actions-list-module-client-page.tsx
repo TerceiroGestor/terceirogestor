@@ -344,7 +344,7 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
     },
     {
       accessorKey: "plannedStartAt",
-      header: "InÃ­cio",
+      header: "Inicio",
       cell: ({ row }) => (
         <span className="text-foreground">
           {row.original.plannedStartAt
@@ -697,9 +697,9 @@ export function ActionsListModuleClientPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="plannedStartAt">InÃ­cio planejado</SelectItem>
+              <SelectItem value="plannedStartAt">Inicio planejado</SelectItem>
               <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
-              <SelectItem value="executedStartAt">InÃ­cio executado</SelectItem>
+              <SelectItem value="executedStartAt">Inicio executado</SelectItem>
               <SelectItem value="executedEndAt">Fim executado</SelectItem>
             </SelectContent>
           </Select>
@@ -741,9 +741,9 @@ export function ActionsListModuleClientPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="plannedStartAt">InÃ­cio planejado</SelectItem>
+              <SelectItem value="plannedStartAt">Inicio planejado</SelectItem>
               <SelectItem value="plannedEndAt">Fim planejado</SelectItem>
-              <SelectItem value="executedStartAt">InÃ­cio executado</SelectItem>
+              <SelectItem value="executedStartAt">Inicio executado</SelectItem>
               <SelectItem value="executedEndAt">Fim executado</SelectItem>
             </SelectContent>
           </Select>
@@ -881,7 +881,7 @@ export function ActionsListModuleClientPage() {
     if (state.view === "calendar") {
       facets.push({
         key: "analysis:calendarField",
-        label: `CalendÃ¡rio: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.calendarField]?.label ?? state.calendarField}`,
+        label: `Calendario: ${actionsListModuleDefinition.domainAdapter?.fields?.[state.calendarField]?.label ?? state.calendarField}`,
         tone: "analysis" as const,
         analysisKind: "time" as const,
         icon: <CalendarDays className="size-3.5" />,
@@ -1027,9 +1027,9 @@ export function ActionsListModuleClientPage() {
             </button>
           )}
           dateFieldOptions={[
-            { value: "plannedStartAt", label: "InÃ­cio planejado" },
+            { value: "plannedStartAt", label: "Inicio planejado" },
             { value: "plannedEndAt", label: "Fim planejado" },
-            { value: "executedStartAt", label: "InÃ­cio executado" },
+            { value: "executedStartAt", label: "Inicio executado" },
             { value: "executedEndAt", label: "Fim executado" },
           ]}
           activeDateField={state.calendarField}

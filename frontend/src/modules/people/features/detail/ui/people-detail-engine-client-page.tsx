@@ -364,7 +364,7 @@ export function PeopleDetailEngineClientPage({
       setError(message);
     },
   });
-  const { replaceSavedDraft, commitField, commitDraft } = autoSave;
+  const { replaceSavedDraft, commitDraft } = autoSave;
 
   const loadPerson = React.useCallback(async () => {
     if (!enabled) {

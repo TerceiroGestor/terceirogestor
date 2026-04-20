@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import {
   formationFormFields,
   formationFormSteps,
@@ -21,7 +21,7 @@ export function FormationForm({
   submitLabel = "Salvar",
 }: FormationFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={formationFormFields}
       steps={formationFormSteps}
       initialValues={initialValues}

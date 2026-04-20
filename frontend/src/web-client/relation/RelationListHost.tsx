@@ -7,7 +7,6 @@ import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
-import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import type { Domain } from "@/web-client/domain/types";
 import type {
   SearchFieldDefinition,
@@ -28,7 +27,6 @@ type RelationListHostProps<TData> = {
   buildSearchRecord?: (row: TData) => Record<string, unknown>;
   searchActionId?: string;
   searchPlaceholder?: string;
-  filterRow?: (row: TData, query: string) => boolean;
   filteredCount: number;
   addHref?: string;
   addLabel?: string;
@@ -50,7 +48,6 @@ export function RelationListHost<TData>({
   buildSearchRecord,
   searchActionId,
   searchPlaceholder = "Pesquisar registros",
-  filterRow,
   filteredCount,
   addHref,
   addLabel = "Novo registro",

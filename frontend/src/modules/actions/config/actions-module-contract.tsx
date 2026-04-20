@@ -117,7 +117,7 @@ const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   create: {
     key: "create",
-    label: "Nova aÃ§Ã£o",
+    label: "Nova acao",
     permissionKey: "canCreate",
     scope: "detail",
   },

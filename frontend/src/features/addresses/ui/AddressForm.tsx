@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { AddressFormData } from "../domain/types";
 import { addressFormFields, addressFormSteps } from "../config/address-form-config";
 
@@ -18,7 +18,7 @@ export function AddressForm({
   submitLabel = "Salvar",
 }: AddressFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={addressFormFields}
       steps={addressFormSteps}
       initialValues={initialValues}

@@ -42,6 +42,7 @@ import { PeopleDetailSidebar } from "@/modules/people/shared/ui/people-detail-si
 import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs";
 import { DetailFormSteps, type DetailFormStep } from "@/web-client/detail/DetailFormSteps";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
+import { areTagsEqual } from "@/web-client/detail/tag-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
@@ -107,6 +108,24 @@ const AUTO_EDITING = {
     trigger: "field-commit",
   },
 } as const;
+
+function areMentionableUsersEqual(
+  left: PersonMentionableUser[],
+  right: PersonMentionableUser[],
+) {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+
+  return left.every((entry, index) => {
+    const candidate = right[index];
+    return (
+      candidate?.id === entry.id &&
+      candidate?.name === entry.name &&
+      candidate?.email === entry.email &&
+      candidate?.avatarUrl === entry.avatarUrl
+    );
+  });
+}
 
 function SectionField({
   label,
@@ -486,7 +505,7 @@ function PeopleDetailMain({
           className="flex flex-col gap-4"
         >
           <div className="shrink-0">
-            <PeopleDetailTabs value={tabValue} onValueChange={onTabChange} />
+            <PeopleDetailTabs onValueChange={onTabChange} />
           </div>
           <PeopleDetailContent person={person} />
         </Tabs>
@@ -498,15 +517,18 @@ function PeopleDetailMain({
 function PeopleDetailSide({
   mode,
   person,
-  draft,
   readOnly,
-  onDraftChange,
-  onCommitField,
   canAudit,
   mentionableUsers,
   detailAudit,
   auditVisibleCount,
   onAuditVisibleCountChange,
+  notesValue,
+  onNotesChange,
+  onNotesCommit,
+  tagsValue,
+  onTagsChange,
+  onTagsCommit,
   commentDraft,
   commentSubmitting,
   attachmentUploading,
@@ -518,15 +540,18 @@ function PeopleDetailSide({
 }: {
   mode: "create" | "edit";
   person: Person;
-  draft: PersonFormData;
   readOnly: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
-  onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   canAudit: boolean;
   mentionableUsers: PersonMentionableUser[];
   detailAudit?: DetailShellAuditContext["detailAudit"];
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
+  notesValue: string | null | undefined;
+  onNotesChange: (next: string | null) => void;
+  onNotesCommit: () => void;
+  tagsValue: string[];
+  onTagsChange: (next: string[]) => void;
+  onTagsCommit: (next: string[]) => void;
   commentDraft: {
     body: string;
     mentionUserIds: string[];
@@ -636,17 +661,15 @@ function PeopleDetailSide({
             : "Nenhum comentário.",
       }}
       notes={{
-        value: draft.notes,
-        onChange: (next) =>
-          onDraftChange((previous) => ({ ...previous, notes: next })),
-        onBlur: () => onCommitField?.("notes", draft.notes ?? null),
+        value: notesValue,
+        onChange: onNotesChange,
+        onBlur: onNotesCommit,
         readOnly,
       }}
       tags={{
-        value: draft.tags ?? [],
-        onChange: (nextTags) =>
-          onDraftChange((previous) => ({ ...previous, tags: nextTags })),
-        onCommit: (nextTags) => onCommitField?.("tags", nextTags),
+        value: tagsValue,
+        onChange: onTagsChange,
+        onCommit: onTagsCommit,
         readOnly,
         emptyLabel: mode === "create" ? "Indisponível." : "Nenhuma tag.",
       }}
@@ -705,12 +728,35 @@ function PeopleDetailSide({
         { key: "phone", label: "Telefone", value: person.phone ?? "-" },
         { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
         { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
-        { key: "tags", label: "Tags", value: (draft.tags ?? []).length },
+        { key: "tags", label: "Tags", value: tagsValue.length },
       ]}
       defaultTab="activity"
     />
   );
 }
+
+const MemoizedPeopleDetailSide = React.memo(
+  PeopleDetailSide,
+  (previous, next) =>
+    previous.mode === next.mode &&
+    previous.person === next.person &&
+    previous.readOnly === next.readOnly &&
+    previous.canAudit === next.canAudit &&
+    previous.detailAudit === next.detailAudit &&
+    previous.auditVisibleCount === next.auditVisibleCount &&
+    previous.onAuditVisibleCountChange === next.onAuditVisibleCountChange &&
+    previous.notesValue === next.notesValue &&
+    areTagsEqual(previous.tagsValue, next.tagsValue) &&
+    areMentionableUsersEqual(previous.mentionableUsers, next.mentionableUsers) &&
+    previous.commentDraft === next.commentDraft &&
+    previous.commentSubmitting === next.commentSubmitting &&
+    previous.attachmentUploading === next.attachmentUploading &&
+    previous.onCommentDraftChange === next.onCommentDraftChange &&
+    previous.onSubmitComment === next.onSubmitComment &&
+    previous.onDeleteComment === next.onDeleteComment &&
+    previous.onUploadAttachment === next.onUploadAttachment &&
+    previous.onDeleteAttachment === next.onDeleteAttachment,
+);
 
 export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
   fullName: "Nome completo",
@@ -813,18 +859,25 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     onUploadAttachment,
     onDeleteAttachment,
   }) => (
-    <PeopleDetailSide
+    <MemoizedPeopleDetailSide
       mode={mode}
       person={person}
-      draft={draft}
       readOnly={readOnly}
-      onDraftChange={onDraftChange}
-      onCommitField={onCommitField}
       canAudit={canAudit}
       mentionableUsers={mentionableUsers}
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      notesValue={draft.notes}
+      onNotesChange={(next) => {
+        onDraftChange((previous) => ({ ...previous, notes: next }));
+      }}
+      onNotesCommit={() => onCommitField?.("notes", draft.notes ?? null)}
+      tagsValue={draft.tags ?? []}
+      onTagsChange={(nextTags) => {
+        onDraftChange((previous) => ({ ...previous, tags: nextTags }));
+      }}
+      onTagsCommit={(nextTags) => onCommitField?.("tags", nextTags)}
       commentDraft={commentDraft}
       commentSubmitting={commentSubmitting}
       attachmentUploading={attachmentUploading}

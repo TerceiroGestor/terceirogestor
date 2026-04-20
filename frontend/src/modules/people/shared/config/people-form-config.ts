@@ -1,4 +1,4 @@
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import type { PersonFormData } from "../domain/types";
 import {
   GENDER_OPTIONS,

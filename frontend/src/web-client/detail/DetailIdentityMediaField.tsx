@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { resolveMediaUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -114,11 +115,14 @@ export function DetailIdentityMediaField({
       data-slot="avatar"
     >
       {previewUrl ? (
-        <img
+        <Image
           key={previewUrl}
           src={previewUrl}
           alt={name}
-          className="aspect-square h-full w-full object-cover"
+          fill
+          unoptimized
+          sizes={variant === "header" ? "56px" : "80px"}
+          className="object-cover"
           data-slot="avatar-image"
         />
       ) : (

@@ -30,10 +30,6 @@ export function DetailSideTabs({
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-  if (!resolvedDefaultValue) {
-    return null;
-  }
-
   const updateScrollState = React.useCallback(() => {
     const node = scrollRef.current;
     if (!node) return;
@@ -85,6 +81,10 @@ export function DetailSideTabs({
       behavior: "smooth",
     });
   }, []);
+
+  if (!resolvedDefaultValue) {
+    return null;
+  }
 
   return (
     <Tabs

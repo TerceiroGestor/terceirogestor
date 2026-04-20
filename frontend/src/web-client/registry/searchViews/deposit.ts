@@ -5,7 +5,7 @@ import type { SearchViewDefinition } from "@/web-client/search/types";
 export const depositHistorySearchView: SearchViewDefinition = {
   id: "deposit.history.search",
   model: "deposit.history",
-  searchPlaceholder: "Pesquisar movimentos, itens, origemes ou eventos",
+  searchPlaceholder: "Pesquisar movimentos, itens, origens ou eventos",
   features: {
     favorites: true,
     presets: false,
@@ -21,7 +21,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
       type: "select",
       options: [
         { value: "ENTRY", label: "Entrada" },
-        { value: "EXIT", label: "Sa�da" },
+        { value: "EXIT", label: "Saida" },
       ],
       operators: ["="],
     },
@@ -39,14 +39,14 @@ export const depositHistorySearchView: SearchViewDefinition = {
     },
     {
       name: "type",
-      label: "Tipo de sa�da",
+      label: "Tipo de saida",
       type: "select",
       options: [
         { value: "ATTENDED", label: "Atendidos" },
-        { value: "DONATION", label: "Doa��o" },
+        { value: "DONATION", label: "Doacao" },
         { value: "EVENT", label: "Evento" },
         { value: "PARTY", label: "Festa" },
-        { value: "CORRECTION", label: "Corre��o" },
+        { value: "CORRECTION", label: "Correcao" },
       ],
       operators: ["="],
     },
@@ -82,7 +82,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
     },
     {
       name: "actor",
-      label: "Usu�rio",
+      label: "Usuario",
       type: "text",
       operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
     },
@@ -100,9 +100,9 @@ export const depositHistorySearchView: SearchViewDefinition = {
     },
   ],
   groupBy: [
-    { field: "kind", label: "Tipo (Entrada/Sa�da)" },
+    { field: "kind", label: "Tipo (Entrada/Saida)" },
     { field: "sector", label: "Setor" },
-    { field: "type", label: "Tipo de sa�da" },
+    { field: "type", label: "Tipo de saida" },
     { field: "itemId", label: "Objeto" },
     { field: "itemGroup", label: "Grupo" },
     { field: "eventName", label: "Evento" },
@@ -111,7 +111,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
     { field: "unit", label: "Un." },
     { field: "movementDate", label: "Data" },
     { field: "expiryDate", label: "Validade" },
-    { field: "actor", label: "Usu�rio" },
+    { field: "actor", label: "Usuario" },
     { field: "notes", label: "Notas" },
   ],
 };
@@ -119,7 +119,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
 export const depositDonorsSearchView: SearchViewDefinition = {
   id: "deposit.donors.search",
   model: "deposit.donors",
-  searchPlaceholder: "Pesquisar origemes por nome, tipo ou contato",
+  searchPlaceholder: "Pesquisar origens por nome, tipo ou contato",
   features: {
     favorites: true,
     presets: false,
@@ -209,7 +209,7 @@ export const depositEntriesSearchView: SearchViewDefinition = {
 export const depositExitsSearchView: SearchViewDefinition = {
   id: "deposit.exits.search",
   model: "deposit.exits",
-  searchPlaceholder: "Pesquisar sa�das por setor, tipo ou evento",
+  searchPlaceholder: "Pesquisar saidas por setor, tipo ou evento",
   features: {
     favorites: true,
     presets: false,
@@ -228,21 +228,21 @@ export const depositExitsSearchView: SearchViewDefinition = {
       type: "select",
       options: [
         { value: "ATTENDED", label: "Atendido" },
-        { value: "DONATION", label: "Doa��o" },
+        { value: "DONATION", label: "Doacao" },
         { value: "EVENT", label: "Evento" },
         { value: "PARTY", label: "Festa" },
-        { value: "CORRECTION", label: "Corre��o" },
+        { value: "CORRECTION", label: "Correcao" },
       ],
       operators: ["="],
     },
-    { name: "exitDate", label: "Data da sa�da", type: "date", operators: ["between", ">=", "<=", "="] },
+    { name: "exitDate", label: "Data da saida", type: "date", operators: ["between", ">=", "<=", "="] },
     { name: "eventName", label: "Evento", type: "text", operators: ["ilike", "contains", "="] },
     { name: "notes", label: "Notas", type: "text", operators: ["ilike", "contains", "="] },
   ],
   groupBy: [
     { field: "sector", label: "Setor" },
     { field: "type", label: "Tipo" },
-    { field: "exitDate", label: "Data da sa�da" },
+    { field: "exitDate", label: "Data da saida" },
   ],
 };
 
@@ -260,7 +260,7 @@ export const depositStockSearchView: SearchViewDefinition = {
   presets: [
     {
       id: "below-min",
-      label: "Abaixo do m�nimo",
+      label: "Abaixo do minimo",
       domain: { type: "condition", field: "isBelowMin", operator: "=", value: "true" },
     },
     {
@@ -297,7 +297,7 @@ export const depositStockSearchView: SearchViewDefinition = {
     },
     {
       name: "isBelowMin",
-      label: "Abaixo do m�nimo",
+      label: "Abaixo do minimo",
       type: "boolean",
     },
     {
@@ -306,7 +306,7 @@ export const depositStockSearchView: SearchViewDefinition = {
       type: "select",
       options: [
         { value: "Normal", label: "Normal" },
-        { value: "Atencao", label: "Aten��o" },
+        { value: "Atencao", label: "Atencao" },
         { value: "Alerta", label: "Alerta" },
         { value: "Urgente", label: "Urgente" },
         { value: "Vencido", label: "Vencido" },
@@ -315,7 +315,7 @@ export const depositStockSearchView: SearchViewDefinition = {
     },
     {
       name: "nextExpiryDate",
-      label: "Pr�x. validade",
+      label: "Prox. validade",
       type: "date",
     },
     {
@@ -332,10 +332,10 @@ export const depositStockSearchView: SearchViewDefinition = {
     { field: "sectorStock", label: "Saldo (setor)" },
     { field: "itemStock", label: "Saldo (total)" },
     { field: "unit", label: "Un." },
-    { field: "minStock", label: "M�nimo" },
+    { field: "minStock", label: "M?nimo" },
     { field: "validityStatus", label: "Validade" },
-    { field: "isBelowMin", label: "Abaixo do m�nimo" },
-    { field: "nextExpiryDate", label: "Pr�x. validade" },
+    { field: "isBelowMin", label: "Abaixo do minimo" },
+    { field: "nextExpiryDate", label: "Prox. validade" },
     { field: "daysToExpire", label: "Dias" },
   ],
 };

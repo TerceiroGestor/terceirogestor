@@ -627,7 +627,7 @@ export function GanttView<TItem, TChild = unknown>({
     const validKeys = new Set(groups.flatMap((group) => group.rows.map((row) => row.rowKey)));
     setWindowOverrides((previous) => {
       let next: Record<string, GanttWindow> | null = null;
-      Object.entries(previous).forEach(([key, value]) => {
+      Object.keys(previous).forEach((key) => {
         if (!validKeys.has(key)) {
           next ??= { ...previous };
           delete next[key];

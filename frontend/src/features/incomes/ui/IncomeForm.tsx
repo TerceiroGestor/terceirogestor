@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { IncomeProfileFormData } from "@/features/incomes/domain/types";
 import { incomeFormFields, incomeFormSteps } from "@/features/incomes/config/income-form-config";
 
@@ -18,7 +18,7 @@ export function IncomeForm({
   submitLabel = "Salvar",
 }: IncomeFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={incomeFormFields}
       steps={incomeFormSteps}
       initialValues={initialValues}

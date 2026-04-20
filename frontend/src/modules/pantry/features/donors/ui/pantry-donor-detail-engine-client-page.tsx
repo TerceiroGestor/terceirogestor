@@ -195,7 +195,6 @@ export function PantryDonorDetailEngineClientPage({
     saving: autoSaving,
     replaceSavedDraft,
     commitField,
-    commitDraft,
   } = autoSave;
   const saving = busy || autoSaving;
 
@@ -599,6 +598,7 @@ export function PantryDonorDetailEngineClientPage({
       persistMetadata,
       readOnly,
       setDraft,
+      saving,
       submitComment,
       tags,
       uploadAttachment,

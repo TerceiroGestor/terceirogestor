@@ -1,19 +1,19 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronDown, ListChecks, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/DataTable";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { Input } from "@/components/ui/input";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { useConfirm } from "@/components/confirm/use-confirm";
@@ -43,6 +43,7 @@ import {
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { ListView } from "@/web-client/views/ListView";
 
 type EnrollmentFormValues = {
   status: EnrollmentStatus;
@@ -92,8 +93,8 @@ const ENROLLMENT_FIELDS: FormField<EnrollmentFormValues>[] = [
     options: PROJECT_PARTICIPATION_ROLE_OPTIONS,
     required: true,
   },
-  { name: "startsAt", label: "Início", type: "date" },
-  { name: "endsAt", label: "Término", type: "date" },
+  { name: "startsAt", label: "Inicio", type: "date" },
+  { name: "endsAt", label: "Termino", type: "date" },
 ];
 
 type ProjectEnrollmentsCardProps = {
@@ -207,7 +208,7 @@ export function ProjectEnrollmentsCard({
             },
             {
               id: "gender",
-              header: "Gênero",
+              header: "Genero",
               accessorFn: (item) => item.person.gender ?? null,
               meta: { valueMap: GENDER_LABELS },
               cell: ({ row }) => (
@@ -221,7 +222,7 @@ export function ProjectEnrollmentsCard({
             },
             {
               id: "raceColor",
-              header: "Raça/Cor",
+              header: "Raca/Cor",
               accessorFn: (item) => item.person.raceColor ?? null,
               meta: { valueMap: RACE_COLOR_LABELS },
               cell: ({ row }) => (
@@ -285,10 +286,10 @@ export function ProjectEnrollmentsCard({
               {resolveStatusBadge(row.original.status)}
               <p className="text-[11px] text-muted-foreground">
                 {row.original.startsAt || row.original.endsAt
-                  ? `${formatDate(row.original.startsAt)} — ${formatDate(
+                  ? `${formatDate(row.original.startsAt)} - ${formatDate(
                       row.original.endsAt,
                     )}`
-                  : "Período não informado"}
+                  : "Periodo nao informado"}
               </p>
             </div>
           ),
@@ -413,7 +414,7 @@ export function ProjectEnrollmentsCard({
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
-          : "Falha ao salvar vínculo.";
+          : "Falha ao salvar vinculo.";
       setFormError(message);
     } finally {
       setSaving(false);
@@ -454,8 +455,8 @@ export function ProjectEnrollmentsCard({
     if (selectedRows.length === 0) return;
 
     const confirmed = await confirm({
-      title: "Encerrar matrículas",
-      description: `Encerrar ${selectedRows.length} matrículas selecionadas?`,
+      title: "Encerrar matriculas",
+      description: `Encerrar ${selectedRows.length} matriculas selecionadas?`,
       confirmLabel: "Encerrar",
       cancelLabel: "Cancelar",
     });
@@ -484,8 +485,8 @@ export function ProjectEnrollmentsCard({
       });
 
       toast({
-        title: "Ação em massa concluída",
-        description: `Encerradas: ${ended} • Erros: ${failed}`,
+        title: "Acao em massa concluida",
+        description: `Encerradas: ${ended} - Erros: ${failed}`,
         variant: failed > 0 ? "destructive" : "default",
       });
 
@@ -514,8 +515,8 @@ export function ProjectEnrollmentsCard({
     if (selectedRows.length === 0) return;
 
     const confirmed = await confirm({
-      title: "Encerrar matrículas",
-      description: `Encerrar ${selectedRows.length} matrículas selecionadas preservando o histórico?`,
+      title: "Encerrar matriculas",
+      description: `Encerrar ${selectedRows.length} matriculas selecionadas preservando o historico?`,
       confirmLabel: "Encerrar",
       cancelLabel: "Cancelar",
       confirmVariant: "destructive",
@@ -543,8 +544,8 @@ export function ProjectEnrollmentsCard({
       });
 
       toast({
-        title: "Ação em massa concluída",
-        description: `Encerradas: ${removed} • Erros: ${failed}`,
+        title: "Acao em massa concluida",
+        description: `Encerradas: ${removed} - Erros: ${failed}`,
         variant: failed > 0 ? "destructive" : "default",
       });
 
@@ -572,8 +573,8 @@ export function ProjectEnrollmentsCard({
     async (item: ApiProjectEnrollment) => {
       if (!canUpdate) return;
       const confirmed = await confirm({
-        title: "Encerrar matrícula",
-        description: `Encerrar a matrícula de "${item.person.fullName}"?`,
+        title: "Encerrar matricula",
+        description: `Encerrar a matricula de "${item.person.fullName}"?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
       });
@@ -582,7 +583,7 @@ export function ProjectEnrollmentsCard({
         await updateProjectEnrollment(token, projectId, item.id, {
           status: "ENDED",
         });
-        toast({ title: "Matrícula encerrada" });
+        toast({ title: "Matricula encerrada" });
         loadEnrollments();
       } catch (err) {
         toast({
@@ -598,11 +599,65 @@ export function ProjectEnrollmentsCard({
     [token, projectId, canUpdate, confirm, toast, loadEnrollments],
   );
 
+  const listColumns = React.useMemo<ColumnDef<ApiProjectEnrollment>[]>(
+    () => {
+      if (!canUpdate && !canDelete) {
+        return columns;
+      }
+
+      return [
+        ...columns,
+        {
+          id: "actions",
+          header: "Acoes",
+          cell: ({ row }) => (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                  >
+                    Acoes
+                    <ChevronDown className="ml-2 size-4 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canUpdate ? (
+                    <>
+                      <DropdownMenuItem onSelect={() => openEdit(row.original)}>
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleQuickEnd(row.original)}>
+                        Encerrar
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                  {canDelete ? (
+                    <DropdownMenuItem
+                      onSelect={() => handleDelete(row.original)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Encerrar
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ),
+        },
+      ];
+    },
+    [canDelete, canUpdate, columns, handleDelete, handleQuickEnd, openEdit],
+  );
+
   if (!canRead) {
     return (
       <SectionCard
         title="Participantes"
-        subtitle="Você não tem permissão para visualizar matrículas."
+        subtitle="Voce nao tem permissao para visualizar matriculas."
       >
         <p className="text-xs text-muted-foreground">
           Solicite acesso ao administrador do sistema.
@@ -622,7 +677,7 @@ export function ProjectEnrollmentsCard({
               type="button"
               variant="secondary"
               onClick={() => setBulkOpen(true)}
-              title="Selecionar várias pessoas e vincular de uma vez."
+              title="Selecionar varias pessoas e vincular de uma vez."
             >
               <Plus className="mr-2 size-4" />
               Adicionar participantes
@@ -637,113 +692,148 @@ export function ProjectEnrollmentsCard({
         </div>
       ) : null}
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        manualPagination
-        pageCount={pageCount}
-        pagination={pagination}
-        onPaginationChange={(next) => setPagination(next)}
-        totalCount={totalCount}
-        onGlobalFilterChange={setSearch}
-        searchPlaceholder="Pesquisar participantes"
-        showExportMenu={false}
-        enableRowSelection={selectionMode}
-        onSelectedRowsChange={setSelectedRows}
-        actions={() => (
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[240px] flex-1 space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Busca
+            </div>
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Pesquisar participantes"
+            />
+          </div>
+
+          {canUpdate || canDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={selectionMode ? "secondary" : "outline"}
+                disabled={bulkActionLoading}
+                onClick={() => {
+                  setSelectionMode((prev) => {
+                    const next = !prev;
+                    if (!next) setSelectedRows([]);
+                    return next;
+                  });
+                }}
+                title={
+                  selectionMode
+                    ? "Desativar selecao de linhas"
+                    : "Ativar selecao de linhas"
+                }
+              >
+                <ListChecks className="mr-2 size-4" />
+                {selectionMode ? "Cancelar selecao" : "Selecionar"}
+              </Button>
+
+              {selectionMode ? (
+                <>
+                  <span className="text-xs text-muted-foreground">
+                    Selecionados: <strong>{selectedRows.length}</strong>
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={bulkActionLoading || selectedRows.length === 0}
+                      >
+                        Acoes <ChevronDown className="ml-2 size-4 opacity-70" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {canUpdate ? (
+                        <DropdownMenuItem onSelect={handleBulkEnd}>
+                          Encerrar selecionados
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canDelete ? (
+                        <DropdownMenuItem
+                          onSelect={handleBulkDelete}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          Encerrar selecionados
+                        </DropdownMenuItem>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Total
+            </div>
+            <div className="mt-1 text-lg font-semibold text-foreground">
+              {totalCount}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Filtrados
+            </div>
+            <div className="mt-1 text-lg font-semibold text-foreground">
+              {rows.length}
+            </div>
+          </div>
+        </div>
+
+        <ListView<ApiProjectEnrollment>
+          data={rows}
+          columns={listColumns}
+          className="min-h-[420px]"
+          getRowId={(row) => row.id}
+          enableRowSelection={selectionMode}
+          onSelectionChange={setSelectedRows}
+          onRowClick={selectionMode || !canUpdate ? undefined : (row) => openEdit(row)}
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+          <div className="text-xs text-muted-foreground">
+            Pagina {Math.min(pagination.pageIndex + 1, Math.max(pageCount, 1))} de{' '}
+            {Math.max(pageCount, 1)}
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant={selectionMode ? "secondary" : "outline"}
-              disabled={bulkActionLoading}
-              onClick={() => {
-                setSelectionMode((prev) => {
-                  const next = !prev;
-                  if (!next) setSelectedRows([]);
-                  return next;
-                });
-              }}
-              title={
-                selectionMode
-                  ? "Desativar seleção de linhas"
-                  : "Ativar seleção de linhas"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setPagination((previous) => ({
+                  ...previous,
+                  pageIndex: Math.max(previous.pageIndex - 1, 0),
+                }))
               }
+              disabled={loading || pagination.pageIndex === 0}
             >
-              <ListChecks className="mr-2 size-4" />
-              {selectionMode ? "Cancelar seleção" : "Selecionar"}
+              Anterior
             </Button>
-
-            {selectionMode ? (
-              <>
-                <span className="text-xs text-muted-foreground">
-                  Selecionados: <strong>{selectedRows.length}</strong>
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={bulkActionLoading || selectedRows.length === 0}
-                    >
-                      Ações <ChevronDown className="ml-2 size-4 opacity-70" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {canUpdate ? (
-                      <DropdownMenuItem onSelect={handleBulkEnd}>
-                        Encerrar selecionados
-                      </DropdownMenuItem>
-                    ) : null}
-                    {canDelete ? (
-                      <DropdownMenuItem
-                        onSelect={handleBulkDelete}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        Encerrar selecionados
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setPagination((previous) => ({
+                  ...previous,
+                  pageIndex:
+                    previous.pageIndex + 1 >= pageCount
+                      ? previous.pageIndex
+                      : previous.pageIndex + 1,
+                }))
+              }
+              disabled={loading || pageCount <= 1 || pagination.pageIndex + 1 >= pageCount}
+            >
+              Proxima
+            </Button>
           </div>
-        )}
-        onRowClick={
-          selectionMode
-            ? undefined
-            : (row) => openEdit(row as ApiProjectEnrollment)
-        }
-        rowActions={[
-          ...(canUpdate
-            ? [
-                {
-                  id: "edit",
-                  label: "Editar",
-                  onSelect: (row: ApiProjectEnrollment) => openEdit(row),
-                },
-                {
-                  id: "end",
-                  label: "Encerrar",
-                  onSelect: (row: ApiProjectEnrollment) => handleQuickEnd(row),
-                },
-              ]
-            : []),
-          ...(canDelete
-            ? [
-                {
-                  id: "delete",
-                  label: "Encerrar",
-                  destructive: true,
-                  onSelect: (row: ApiProjectEnrollment) => handleDelete(row),
-                },
-              ]
-            : []),
-        ]}
-        summaryCards={{
-          totalLabel: "Total",
-          filteredLabel: "Filtrados",
-        }}
-      />
+        </div>
+      </div>
 
       {loading ? (
         <p className="text-xs text-muted-foreground">Carregando...</p>
@@ -768,7 +858,7 @@ export function ProjectEnrollmentsCard({
           }
         }}
         title="Editar participante"
-        description="Atualize status e período da matrícula."
+        description="Atualize status e periodo da matricula."
         contentClassName="max-w-[780px]"
       >
         {formError ? (
@@ -777,7 +867,7 @@ export function ProjectEnrollmentsCard({
           </div>
         ) : null}
 
-        <FormEngine<EnrollmentFormValues>
+        <RecordForm<EnrollmentFormValues>
           fields={fields}
           initialValues={initialValues}
           onSubmit={handleSubmit}
@@ -798,6 +888,7 @@ export function ProjectEnrollmentsCard({
     </SectionCard>
   );
 }
+
 
 
 

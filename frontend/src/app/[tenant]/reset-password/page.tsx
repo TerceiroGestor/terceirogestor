@@ -5,8 +5,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { resetPassword } from "@/features/auth/api";
 import { withTenantPath } from "@/lib/tenant-path";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 
 type ResetPasswordValues = {
   password: string;
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
         </p>
 
         <div className="mt-6">
-          <FormEngine<ResetPasswordValues>
+          <RecordForm<ResetPasswordValues>
             fields={fields}
             initialValues={{ password: "", confirm: "" }}
             onSubmit={onSubmit}

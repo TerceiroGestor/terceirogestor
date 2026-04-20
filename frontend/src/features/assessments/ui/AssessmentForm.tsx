@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { AssessmentFormData } from "@/features/assessments/domain/types";
 import {
   assessmentFormFields,
@@ -21,7 +21,7 @@ export function AssessmentForm({
   submitLabel = "Salvar",
 }: AssessmentFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={assessmentFormFields}
       steps={assessmentFormSteps}
       initialValues={initialValues}

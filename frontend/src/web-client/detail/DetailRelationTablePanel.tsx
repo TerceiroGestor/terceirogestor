@@ -91,7 +91,6 @@ export function DetailRelationTablePanel<TData>({
       buildSearchRecord={buildSearchRecord}
       searchActionId={searchActionId}
       searchPlaceholder={searchPlaceholder}
-      filterRow={filterRow}
       filteredCount={filteredRows.length}
       addHref={addHref}
       addLabel={addLabel}

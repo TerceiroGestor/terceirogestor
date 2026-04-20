@@ -1,4 +1,4 @@
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import type { PresenceFormData } from "@/features/presences/domain/types";
 
 export const presenceFormFields: FormField<PresenceFormData>[] = [

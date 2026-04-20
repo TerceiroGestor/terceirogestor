@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { ContactFormData } from "../domain/types";
 import { contactFormFields, contactFormSteps } from "../config/contact-form-config";
 
@@ -18,7 +18,7 @@ export function ContactForm({
   submitLabel = "Salvar",
 }: ContactFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={contactFormFields}
       steps={contactFormSteps}
       initialValues={initialValues}

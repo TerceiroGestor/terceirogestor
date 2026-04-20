@@ -156,12 +156,12 @@ export function DetailAuditFeed({
   maxHeightClassName = "h-full min-h-0",
 }: DetailAuditFeedProps) {
   const auditLoading = auditState?.loading ?? false;
-  const auditLogs = auditState?.logs ?? [];
+  const auditLogs = auditState?.logs;
   const auditError = auditState?.error ?? null;
   const [selectedGroup, setSelectedGroup] = React.useState<GroupedAuditFeedItem | null>(null);
 
   const auditGroups = React.useMemo(
-    () => buildGroupedAuditFeed(auditLogs, { getSourcePriority }),
+    () => buildGroupedAuditFeed(auditLogs ?? [], { getSourcePriority }),
     [auditLogs, getSourcePriority],
   );
   const visibleGroups = auditGroups.slice(0, Math.min(auditVisibleCount, auditGroups.length));

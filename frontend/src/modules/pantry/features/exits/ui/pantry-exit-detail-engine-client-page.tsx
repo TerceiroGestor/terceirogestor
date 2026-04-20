@@ -657,8 +657,8 @@ export function PantryExitDetailEngineClientPage({
         ? `Nova saida de ${item.name}`
         : "Nova saida"
       : exit
-        ? `SaÃ­da - ${formatDateOnlyPtBR(exit.exitDate)}`
-        : "SaÃ­da";
+        ? `Saida - ${formatDateOnlyPtBR(exit.exitDate)}`
+        : "Saida";
 
   const context = React.useMemo<PantryExitDetailLayoutContext>(
     () => ({
@@ -744,7 +744,7 @@ export function PantryExitDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissÃƒÆ’Ã‚Â£o.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
   }
 
   if (mode === "create" && !itemIdFromQuery) {
@@ -776,7 +776,7 @@ export function PantryExitDetailEngineClientPage({
             : mode === "create" && item?.name
               ? [{ label: item.name, href: `${PANTRY_ROUTES.items}/${item.id}` }]
               : []),
-          ...(mode === "edit" ? [{ label: "SaÃ­da" }] : []),
+          ...(mode === "edit" ? [{ label: "Saida" }] : []),
         ]}
         headerActionsSlot={
           mode === "edit" && canDeleteAction ? (

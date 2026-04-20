@@ -1,4 +1,4 @@
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import type { DiaryEntryFormData } from "@/features/diaries/domain/types";
 
 export const diaryFormFields: FormField<DiaryEntryFormData>[] = [

@@ -15,7 +15,7 @@ import type {
   GraphMetricOp,
   GraphTimeBucket,
 } from "@/web-client/registry/types";
-import type { SearchFieldDefinition, SearchFieldOption } from "@/web-client/search/types";
+import type { SearchFieldDefinition } from "@/web-client/search/types";
 import type { GraphChartType, GraphSeries } from "./types";
 
 const NONE_QUERY_VALUE = "__none__";
@@ -183,7 +183,6 @@ export function normalizeGraphBuilderState(
   const defaultState = builder.defaultState;
   const groupFields = getGraphBuilderGroupFields(builder);
   const metricOp = normalizeGraphMetricOp(state?.metric?.op, defaultState.metric.op);
-  const metricFields = getGraphBuilderMetricFields(builder, metricOp);
   const nextMetricField = resolveMetricField(builder, metricOp, state?.metric?.field);
   const nextTimeField = resolveTimeField(builder, state?.timeField ?? defaultState.timeField);
   const nextChartType = normalizeGraphChartType(

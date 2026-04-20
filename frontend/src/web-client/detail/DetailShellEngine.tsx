@@ -18,14 +18,14 @@ import {
   getModuleDetailShellText,
   getModuleDetailTitleFallback,
 } from "@/web-client/registry/module-utils";
-import type { RecordModuleDefinition } from "@/web-client/registry/types";
+import type { RecordModuleDefinition, RecordQueryState } from "@/web-client/registry/types";
 
 export type DetailShellAuditContext = {
   detailAudit?: DetailAuditFeedState;
 };
 
 type DetailShellEngineProps<TContext extends Record<string, unknown>> = {
-  moduleDefinition: RecordModuleDefinition<any, TContext>;
+  moduleDefinition: RecordModuleDefinition<RecordQueryState, TContext>;
   context: TContext;
   dataProvider?: DataProvider;
   auditEnabled?: boolean;

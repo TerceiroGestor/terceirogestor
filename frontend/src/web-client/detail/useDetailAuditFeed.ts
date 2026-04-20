@@ -132,37 +132,6 @@ function buildSourceMap<TContext extends Record<string, unknown>>(
   return sourceMap;
 }
 
-function buildAuditSourceContext<TContext extends Record<string, unknown>>(
-  auditConfig: AuditFeedConfig<TContext> | undefined,
-  context: TContext,
-) {
-  if (!auditConfig) return [];
-
-  return [auditConfig.primaryEntity, ...(auditConfig.relatedEntities ?? [])]
-    .map((source) => ({
-      key: source.key,
-      entity: source.entity,
-      ids: normalizeResolvedEntityIds([
-        source.resolveEntityId?.(context),
-        ...(source.resolveEntityIds?.(context) ?? []),
-      ]),
-    }))
-    .filter((source) => source.ids.length > 0);
-}
-
-function resolveAuditFilters<TContext extends Record<string, unknown>>(
-  auditConfig: AuditFeedConfig<TContext> | undefined,
-  context: TContext,
-) {
-  if (!auditConfig?.filters) {
-    return {};
-  }
-
-  return typeof auditConfig.filters === "function"
-    ? auditConfig.filters(context)
-    : auditConfig.filters;
-}
-
 type UseDetailAuditFeedArgs<TContext extends Record<string, unknown>> = {
   dataProvider?: DataProvider;
   auditAdapter?: RecordQueryAdapter;
@@ -182,14 +151,23 @@ export function useDetailAuditFeed<TContext extends Record<string, unknown>>({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [totalCount, setTotalCount] = React.useState(0);
+  const contextRef = React.useRef(context);
 
-  const sourceMap = React.useMemo(
-    () => buildSourceMap(auditConfig, context),
-    [auditConfig, context],
-  );
+  React.useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+
   const requestKey = React.useMemo(
     () => buildAuditRequestKey(auditConfig, context),
     [auditConfig, context],
+  );
+  const sourceMap = React.useMemo(
+    () => {
+      // Rebind audit formatters only when the audit request identity changes.
+      void requestKey;
+      return buildSourceMap(auditConfig, contextRef.current);
+    },
+    [auditConfig, requestKey],
   );
   const requestState = React.useMemo(() => {
     if (!requestKey) {
@@ -293,7 +271,6 @@ export function useDetailAuditFeed<TContext extends Record<string, unknown>>({
     dataProvider,
     enabled,
     pageSize,
-    requestKey,
     requestState,
   ]);
 

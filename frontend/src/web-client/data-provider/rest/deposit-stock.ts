@@ -249,7 +249,7 @@ export async function searchDepositStock(
         String(row.sectorStock),
         String(row.itemStock),
         String(row.minStock),
-        row.isBelowMin ? "abaixo do m�nimo" : "ok",
+        row.isBelowMin ? "abaixo do minimo" : "ok",
       ];
 
       return tokens.join(" ").toLowerCase().includes(needle);

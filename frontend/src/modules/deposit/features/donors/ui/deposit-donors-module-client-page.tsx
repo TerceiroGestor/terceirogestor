@@ -24,7 +24,6 @@ import { DEPOSIT_ROUTES } from "@/modules/deposit/shared/domain/deposit.constant
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
-import type { Domain } from "@/web-client/domain/types";
 import { parseDomain, serializeDomain } from "@/web-client/domain/serialize";
 import { EntityModuleShell } from "@/web-client/record/RecordListHost";
 import {
@@ -287,7 +286,7 @@ export function DepositDonorsModuleClientPage() {
         header: "Tags",
         cell: ({ row }) => (
           <div className="text-sm text-muted-foreground">
-            {row.original.tags?.length ? row.original.tags.slice(0, 3).join(", ") : "—"}
+            {row.original.tags?.length ? row.original.tags.slice(0, 3).join(", ") : "-"}
           </div>
         ),
       },
@@ -310,7 +309,7 @@ export function DepositDonorsModuleClientPage() {
         cell: () => <div className="text-sm text-muted-foreground">Ativo</div>,
       },
     ],
-    [],
+    [contactEmptyLabel],
   );
 
   if (!canRead) {

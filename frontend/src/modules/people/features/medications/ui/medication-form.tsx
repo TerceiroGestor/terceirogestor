@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import {
   medicationFormFields,
   medicationFormSteps,
@@ -94,7 +94,7 @@ export function MedicationForm({
   };
 
   return (
-    <FormEngine
+    <RecordForm
       appearance="inline-detail"
       fields={buildFields()}
       steps={buildSteps()}

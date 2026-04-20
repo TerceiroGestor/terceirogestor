@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { SchoolHistoryFormData } from "@/features/school-histories/domain/types";
 import {
   schoolHistoryFormFields,
@@ -21,7 +21,7 @@ export function SchoolHistoryForm({
   submitLabel = "Salvar",
 }: SchoolHistoryFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={schoolHistoryFormFields}
       steps={schoolHistoryFormSteps}
       initialValues={initialValues}

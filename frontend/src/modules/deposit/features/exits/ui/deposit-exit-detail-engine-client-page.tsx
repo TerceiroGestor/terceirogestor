@@ -677,8 +677,8 @@ export function DepositExitDetailEngineClientPage({
         ? `Nova saida de ${item.name}`
         : "Nova saida"
       : exit
-        ? `SaÃ­da - ${formatDateOnlyPtBR(exit.exitDate)}`
-        : "SaÃ­da";
+        ? `Saida - ${formatDateOnlyPtBR(exit.exitDate)}`
+        : "Saida";
 
   const context = React.useMemo<DepositExitDetailLayoutContext>(
     () => ({
@@ -764,7 +764,7 @@ export function DepositExitDetailEngineClientPage({
   );
 
   if (!canAccessPage) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissÃƒÆ’Ã‚Â£o.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Sem permissao.</div>;
   }
 
   if (mode === "create" && !itemIdFromQuery) {
@@ -790,13 +790,13 @@ export function DepositExitDetailEngineClientPage({
         onClose={close}
         breadcrumbTitle={headerTitle}
         breadcrumbItems={[
-          { label: "DepÃƒÆ’Ã‚Â³sito", href: DEPOSIT_ROUTES.stock },
+          { label: "Deposito", href: DEPOSIT_ROUTES.stock },
           ...(mode === "edit" && exit?.item?.name
             ? [{ label: exit.item.name, href: `${DEPOSIT_ROUTES.items}/${exit.itemId}` }]
             : mode === "create" && item?.name
               ? [{ label: item.name, href: `${DEPOSIT_ROUTES.items}/${item.id}` }]
               : []),
-          ...(mode === "edit" ? [{ label: "SaÃ­da" }] : []),
+          ...(mode === "edit" ? [{ label: "Saida" }] : []),
         ]}
         headerActionsSlot={
           mode === "edit" && canDeleteAction ? (

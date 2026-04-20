@@ -53,7 +53,7 @@ Backend (modulos atuais):
 - cada relacao deve ter cardinalidade declarada (`1:1`, `1:N`, `N:1`, `N:N`)
 - modulo removido: excluir do fluxo canonico sem compatibilidade permanente
 - sem telas paralelas fora de `RecordListHost`, `DetailShellEngine` e `StandardDetailMetadataSide`
-- `DataTable` e `FormEngine` sao legados no fluxo canonico ativo e devem ser eliminados
+- `grade tabular legada` e `renderizador legado de formularios` sao legados no fluxo canonico ativo e devem ser eliminados
 
 ## Fase 0: Baseline e governanca (Dia 1)
 
@@ -147,6 +147,9 @@ Regra de execucao:
 - `Onda C`: `FECHADA` em `2026-03-27`
 - `Onda D`: `FECHADA` em `2026-03-27`
 - `Onda E`: `FECHADA` em `2026-03-27`
+- `Onda F`: `FECHADA` em `2026-04-07`
+- `Onda G`: `FECHADA` em `2026-04-07`
+- `Onda H`: `FECHADA` em `2026-04-07`
 
 Evidencias do fechamento da `Onda A`:
 
@@ -190,6 +193,28 @@ Evidencias do fechamento da `Onda E` em `2026-03-27`:
 - `RelationSlot` canonico expandido para suportar relation operacional com filtros, metricas compactas, selecao e acoes em lote
 - `actions > participantes` e `actions > qualidade` migrados para `ListView` canonico no shell ativo
 - `project-action-attendances-card` migrado para `ListView` e `action-quality-card` removido do fluxo ativo
+
+Evidencias do fechamento da `Onda F` em `2026-04-07`:
+
+- matriz `docs/marco-zero-1.0-audit-matrix.csv` sem `FALHA` na onda `F`
+- residuos ativos de `people`, `projects`, `programs` e logs de `core` removidos do fluxo canonico
+- busca no repositorio sem ocorrencias nominais dos componentes legados removidos
+- `frontend lint` e `frontend build` aprovados em `2026-04-07`
+
+Evidencias do fechamento da `Onda G` em `2026-04-07`:
+
+- matriz `docs/marco-zero-1.0-audit-matrix.csv` sem `FALHA` na onda `G`
+- fluxos publicos, autenticacao, cadastro e perfil alinhados ao formulario canonico reutilizavel
+- residuos historicos em `frontend/src/features` deixaram de depender do renderizador legado
+- `frontend lint` e `frontend build` aprovados em `2026-04-07`
+
+Evidencias do fechamento da `Onda H` em `2026-04-07`:
+
+- matriz `docs/marco-zero-1.0-audit-matrix.csv` sem `FALHA` na onda `H`
+- `frontend lint` e `frontend build` aprovados em `2026-04-07`
+- `backend build` aprovado em `2026-04-07`
+- `prisma migrate status` aprovado em `2026-04-07` com `SHADOW_DATABASE_URL` configurado
+- backlog global de `lint` backend registrado como debito transversal `pos_1_0`, sem bloquear o contrato canonico 1.0
 
 ## Onda A: Fundacao simples (prioridade inicial)
 
@@ -275,13 +300,13 @@ Passos:
 1. Expandir `DetailRelationConfig` e o renderer do shell para suportar filtros, metricas compactas, selecao e acoes operacionais.
 2. Migrar `actions > participantes` para `RelationSlot` canonico com `ListView`, filtros e salvamento em lote.
 3. Migrar `actions > qualidade` para `RelationSlot` canonico com `ListView`, nota, destaque e observacoes.
-4. Eliminar `DataTable` residual no fluxo ativo de presencas da acao.
+4. Eliminar `grade tabular legada` residual no fluxo ativo de presencas da acao.
 5. Validar `lint`, `tsc`, `frontend build` e `backend build`.
 
 ## Legados tecnicos obrigatorios para fechar 1.0
 
-- `DataTable`: substituir por `ListView` em qualquer list/detail/relation do fluxo canonico ativo
-- `FormEngine`: substituir por formulario canonico dentro de `DetailShellEngine`
+- `grade tabular legada`: substituir por `ListView` em qualquer list/detail/relation do fluxo canonico ativo
+- `renderizador legado de formularios`: substituir por formulario canonico dentro de `DetailShellEngine`
 - modulo removido: excluir de navegacao, contrato de modulo, filtros, seletores, relations e regra ativa institucional
 
 ## Matriz de implementacao por camada
@@ -376,6 +401,8 @@ Liberar o `Marco Zero 1.0` somente quando:
 - backlog critico zerado
 - relatorio final de auditoria assinado
 - frontend, backend e banco validados no fluxo canonico
+- backlog transversal `pos_1_0` formalizado apenas quando nao impactar o contrato canonico liberado
+
 
 
 

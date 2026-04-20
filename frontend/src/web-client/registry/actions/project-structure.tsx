@@ -40,7 +40,7 @@ export const projectGroupsCreateAction = createModuleWindowAction({
   title: "Novo grupo de participantes",
   breadcrumbs: [{ label: "Grupos", href: PROJECT_GROUPS_ROUTES.list }],
   hideBreadcrumb: true,
-  render: () => <ProjectGroupsCreateStandalonePage tenantSlug="" />,
+  render: () => <ProjectGroupsCreateStandalonePage />,
 });
 
 export const projectGroupsDetailAction = createModuleWindowAction({

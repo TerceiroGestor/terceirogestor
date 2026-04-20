@@ -97,7 +97,6 @@ export function BulkEnrollmentDialog({
   const [peopleLoading, setPeopleLoading] = React.useState(true);
   const [peopleError, setPeopleError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
-  const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
@@ -118,7 +117,6 @@ export function BulkEnrollmentDialog({
       setPeopleLoading(false);
       setPeopleError("Voce nao tem permissao para listar people.");
       setPeopleRows([]);
-      setTotalCount(0);
       setPageCount(0);
       return;
     }
@@ -135,12 +133,10 @@ export function BulkEnrollmentDialog({
         limit: pagination.pageSize,
       });
       setPeopleRows(response.data);
-      setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
     } catch (err) {
       setPeopleError(resolveErrorMessage(err, "Falha ao carregar people."));
       setPeopleRows([]);
-      setTotalCount(0);
       setPageCount(0);
     } finally {
       setPeopleLoading(false);
@@ -263,41 +259,6 @@ export function BulkEnrollmentDialog({
     },
     [loadPeople, onCompleted, projectId, selectedRole, toast, token],
   );
-
-  const handleSelectFiltered = React.useCallback(async () => {
-    if (!canReadPeople) return;
-
-    setSaving(true);
-    setFormError(null);
-
-    try {
-      const firstPage = await listEligibleProjectPeople(token, projectId, {
-        q: searchText.trim() || undefined,
-        filters: domain,
-        peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
-        page: 1,
-        limit: 200,
-      });
-
-      let allRows = [...firstPage.data];
-      for (let page = 2; page <= firstPage.pagination.pages; page += 1) {
-        const response = await listEligibleProjectPeople(token, projectId, {
-          q: searchText.trim() || undefined,
-          filters: domain,
-          peopleGroupId: peopleGroupFilter === "__all__" ? undefined : peopleGroupFilter,
-          page,
-          limit: 200,
-        });
-        allRows = mergeUniquePeople(allRows, response.data);
-      }
-
-      setSelectedPeople((previous) => mergeUniquePeople(previous, allRows));
-    } catch (err) {
-      setFormError(resolveErrorMessage(err, "Falha ao selecionar people filtradas."));
-    } finally {
-      setSaving(false);
-    }
-  }, [canReadPeople, projectId, searchText, domain, peopleGroupFilter, token]);
 
   const removeDomainCondition = React.useCallback((index: number) => {
     setDomain((previous) => removeConditionAtIndex(previous, "and", index));

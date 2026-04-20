@@ -22,7 +22,7 @@ import {
   resolvePersonDisplayNames,
 } from "@/modules/people/shared/domain/utils";
 import { useAuth } from "@/features/auth/auth-context";
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 
 function toFilterValue(value: DomainValue | undefined) {
   if (value === undefined || value === null) return "";
@@ -112,7 +112,6 @@ export function PeopleSegmentPeoplePickerDialog({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
-  const [totalCount, setTotalCount] = React.useState(0);
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
@@ -140,7 +139,7 @@ export function PeopleSegmentPeoplePickerDialog({
                     : previous.filter((person) => !rows.some((row) => row.id === person.id)),
                 );
               }}
-              aria-label="Selecionar pessoas da página"
+              aria-label="Selecionar pessoas da pagina"
             />
           );
         },
@@ -229,7 +228,7 @@ export function PeopleSegmentPeoplePickerDialog({
         ),
       },
     ],
-    [actionLabel, onPick, tenantSlug],
+    [actionLabel, onPick, rows, selectedPeople, tenantSlug],
   );
 
   const load = React.useCallback(async () => {
@@ -244,7 +243,6 @@ export function PeopleSegmentPeoplePickerDialog({
         limit: pagination.pageSize,
       });
       setRows(response.data);
-      setTotalCount(response.pagination.total);
       setPageCount(response.pagination.pages);
     } catch (err) {
       const message =
@@ -253,7 +251,6 @@ export function PeopleSegmentPeoplePickerDialog({
           : "Falha ao carregar people.";
       setError(message);
       setRows([]);
-      setTotalCount(0);
       setPageCount(0);
     } finally {
       setLoading(false);
@@ -307,36 +304,6 @@ export function PeopleSegmentPeoplePickerDialog({
       setSaving(false);
     }
   }, [onBulkPick, onPick, selectedPeople]);
-
-  const handleSelectFiltered = React.useCallback(async () => {
-    if (!token) return;
-    setSaving(true);
-    try {
-      const firstPage = await listPeople(token, {
-        q: searchText.trim() || undefined,
-        filters: serializePeopleDomain(domain),
-        page: 1,
-        limit: 200,
-      });
-      let allRows = [...firstPage.data];
-      for (let page = 2; page <= firstPage.pagination.pages; page += 1) {
-        const response = await listPeople(token, {
-          q: searchText.trim() || undefined,
-          filters: serializePeopleDomain(domain),
-          page,
-          limit: 200,
-        });
-        allRows = Array.from(
-          new Map([...allRows, ...response.data].map((item) => [item.id, item])).values(),
-        );
-      }
-      setSelectedPeople((previous) =>
-        Array.from(new Map([...previous, ...allRows].map((item) => [item.id, item])).values()),
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [token, searchText, domain]);
 
   return (
     <SectionDialog

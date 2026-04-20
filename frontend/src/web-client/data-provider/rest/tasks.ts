@@ -1,7 +1,7 @@
 "use client";
 
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 import type {
   TaskAssignableUser,
   TaskAttachmentMutationInput,
@@ -88,7 +88,7 @@ function serializeTasksDomain(domain: Domain) {
 export async function searchTasks(
   token: string,
   args: SearchArgs,
-): Promise<SearchResult<any>> {
+): Promise<SearchResult<TaskRecord>> {
   const query = buildQuery({
     q: args.searchText?.trim() || undefined,
     page: args.all ? undefined : (args.pagination?.pageIndex ?? 0) + 1,
@@ -98,7 +98,7 @@ export async function searchTasks(
     groupBy: args.groupBy?.length ? JSON.stringify(args.groupBy) : undefined,
   });
 
-  return apiRequest<SearchResult<any>>(`/tasks${query}`, {}, token);
+  return apiRequest<SearchResult<TaskRecord>>(`/tasks${query}`, {}, token);
 }
 
 export async function readTask(token: string, id: string) {

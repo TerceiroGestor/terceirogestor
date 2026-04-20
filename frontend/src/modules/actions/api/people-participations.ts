@@ -1,7 +1,7 @@
 "use client";
 
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 import { collectAndConditions } from "@/web-client/domain/conditions";
 import type { Domain, DomainValue } from "@/web-client/domain/types";
 import type {

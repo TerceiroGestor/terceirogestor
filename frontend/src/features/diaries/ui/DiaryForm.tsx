@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { DiaryEntryFormData } from "@/features/diaries/domain/types";
 import {
   diaryFormFields,
@@ -21,7 +21,7 @@ export function DiaryForm({
   submitLabel = "Salvar",
 }: DiaryFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={diaryFormFields}
       steps={diaryFormSteps}
       initialValues={initialValues}

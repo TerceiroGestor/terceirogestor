@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { PresenceFormData } from "@/features/presences/domain/types";
 import {
   presenceFormFields,
@@ -21,7 +21,7 @@ export function PresenceForm({
   submitLabel = "Salvar",
 }: PresenceFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={presenceFormFields}
       steps={presenceFormSteps}
       initialValues={initialValues}

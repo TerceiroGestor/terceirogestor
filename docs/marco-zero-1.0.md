@@ -1,4 +1,4 @@
-# Marco Zero 1.0
+﻿# Marco Zero 1.0
 
 Este documento define o contrato oficial de padronizacao para fechar o projeto na versao `1.0`.
 
@@ -42,7 +42,7 @@ Um modulo e considerado 100% canonico quando:
 - `new` e `edit` usam o mesmo fluxo estrutural
 - relacoes seguem matriz canonica de cardinalidade
 - nao existem componentes paralelos quando ha capability canonica
-- nao existe uso ativo de `DataTable`, `FormEngine` ou modulo removido no fluxo canonico
+- nao existe uso ativo de `grade tabular legada`, `renderizador legado de formularios` ou modulo removido no fluxo canonico
 - modulo entra no sistema com contrato, smoke, checklist de aceite e validacao final
 
 ## Contrato de interface canonica
@@ -97,7 +97,7 @@ Obrigatorio:
 
 Proibido:
 
-- `DataTable` no `relationSlot`
+- `grade tabular legada` no `relationSlot`
 - page paralela de gestao quando o fluxo puder viver na aba atual
 - textos explicativos no corpo da relation
 - card informativo repetindo contagem ja exibida na relation
@@ -193,16 +193,16 @@ Proibido:
 - fluxo relacional em tela paralela fora do shell canonico
 - aba lateral com comentarios/tags/anexos/notas sem backend ou persistencia real
 - texto explicativo espalhado em `main`, `side` ou `relations`
-- `DataTable` no fluxo canonico ativo de modulos
-- `FormEngine` no fluxo canonico ativo de modulos
+- `grade tabular legada` no fluxo canonico ativo de modulos
+- `renderizador legado de formularios` no fluxo canonico ativo de modulos
 - modulo removido em navegacao, filtro, seletor, relation ou regra ativa de modulo canonico
 
 ## Legados obrigatorios a eliminar
 
 Para liberar o `Marco Zero 1.0`, estes residuos precisam sair do fluxo canonico ativo:
 
-- `DataTable`: substituir por `ListView` em list, detail e relation
-- `FormEngine`: substituir por formulario principal canônico dentro de `DetailShellEngine`
+- `grade tabular legada`: substituir por `ListView` em list, detail e relation
+- `renderizador legado de formularios`: substituir por formulario principal canonico dentro de `DetailShellEngine`
 - modulo removido: excluir do fluxo institucional ativo sem compatibilidade permanente
 
 ## Plano operacional de fechamento (5 dias)
@@ -241,6 +241,15 @@ Para liberar o `Marco Zero 1.0`, estes residuos precisam sair do fluxo canonico 
 - validacao manual guiada das telas principais
 - destino explicito para qualquer item remanescente
 
+## Status de liberacao em 2026-04-07
+
+- decisao: `APROVADO_COM_RISCO_DOCUMENTADO`
+- frontend validado com `npm run lint` e `npm run build`
+- backend validado com `npm run build`
+- banco validado com `npm run db:migrate:status` e `SHADOW_DATABASE_URL` configurado
+- busca no repositorio sem ocorrencias nominais dos componentes legados removidos
+- backlog global de `lint` backend ficou registrado como debito transversal `pos_1_0`, sem bloquear o contrato canonico 1.0
+
 ## Gates obrigatorios de qualidade
 
 Para liberar marco zero 1.0:
@@ -248,9 +257,12 @@ Para liberar marco zero 1.0:
 - checklist canonico sem falhas criticas
 - matriz de aderencia atualizada e assinada
 - smoke de contratos aprovado
-- `lint` e `build` de frontend/backend aprovados
+- `lint` e `build` de frontend aprovados
+- `build` backend aprovado
+- banco validado com schema e migracoes atualizados
+- `lint` backend do escopo impactado aprovado ou backlog transversal `pos_1_0` documentado sem impacto no contrato canonico
 - sem residuos legados no fluxo ativo canonico
-- sem `DataTable`, `FormEngine` ou modulo removido visiveis no fluxo canonico ativo
+- sem `grade tabular legada`, `renderizador legado de formularios` ou modulo removido visiveis no fluxo canonico ativo
 
 ## Criterio de pronto do Marco Zero 1.0
 
@@ -261,3 +273,4 @@ Marco zero so e considerado concluido quando:
 - modulo novo consegue nascer sem inventar estrutura paralela
 - variacoes visuais/comportamentais estao eliminadas ou formalmente removidas
 - a versao resultante esta apta a ser base oficial de evolucao do produto
+

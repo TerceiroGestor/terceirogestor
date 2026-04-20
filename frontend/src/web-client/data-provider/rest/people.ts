@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 import { collectAndConditions } from "@/web-client/domain/conditions";
 import type { Domain, DomainValue } from "@/web-client/domain/types";
 import type { SearchArgs, SearchResult } from "@/web-client/data-provider/types";

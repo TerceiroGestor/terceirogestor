@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import type { PersonSummary } from "@/modules/people/shared/domain/types";
 
 export type FamilyRelationFormValues = {
@@ -130,7 +130,7 @@ export function FamilyRelationForm({
   );
 
   return (
-    <FormEngine<FamilyRelationFormValues>
+    <RecordForm<FamilyRelationFormValues>
       appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}

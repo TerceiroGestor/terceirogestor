@@ -1,4 +1,4 @@
-import type { SelectOption } from "@/components/FormEngine/types";
+import type { SelectOption } from "@/web-client/forms/types";
 import type { UsageDocumentationSection } from "@/components/UsageDocumentation/usage-documentation.helpers";
 
 export const PEOPLE_SEGMENT_AUDIT_FIELD_LABELS = {

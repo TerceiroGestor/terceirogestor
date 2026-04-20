@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { ActivityFormData } from "@/features/activities/domain/types";
 import {
   activityFormFields,
@@ -21,7 +21,7 @@ export function ActivityForm({
   submitLabel = "Salvar",
 }: ActivityFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={activityFormFields}
       steps={activityFormSteps}
       initialValues={initialValues}

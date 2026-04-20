@@ -1,4 +1,4 @@
-import type { SelectOption } from "@/components/FormEngine/types";
+import type { SelectOption } from "@/web-client/forms/types";
 import type {
   EnrollmentStatus,
   ProjectParticipationRole,

@@ -7,8 +7,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { requestPasswordReset } from "@/features/auth/api";
 import { API_URL, resolveMediaUrl } from "@/lib/api";
 import { withTenantPath } from "@/lib/tenant-path";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 
 type TenantPreview = {
   id: string;
@@ -156,7 +156,7 @@ export default function ForgotPasswordPage() {
               <p className="mb-3 text-xs text-red-600">{tenantError}</p>
             ) : null}
 
-            <FormEngine<ForgotPasswordValues>
+            <RecordForm<ForgotPasswordValues>
               fields={fields}
               initialValues={{ email: "" }}
               onSubmit={onSubmit}

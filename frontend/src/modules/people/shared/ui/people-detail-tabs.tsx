@@ -16,7 +16,6 @@ import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
 
 type PeopleDetailTabsProps = {
-  value: PeopleDetailTabValue;
   onValueChange: (value: PeopleDetailTabValue) => void;
 };
 
@@ -37,7 +36,7 @@ const tabItems: TabItem[] = [
   { value: "atendimentos", label: "Atendimentos", icon: ClipboardList, disabled: true },
 ];
 
-export function PeopleDetailTabs({ value, onValueChange }: PeopleDetailTabsProps) {
+export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
 

@@ -10,14 +10,14 @@ import {
 import type {
   ModulePermissionKey,
   PermissionRequirement,
-  RecordModuleDefinition,
+  WindowActionModuleDefinition,
   WindowAction,
 } from "@/web-client/registry/types";
 
 export type ModuleWindowTitleVariant = "list" | "create" | "detail";
 
 type ResolveModuleWindowActionTitleOptions = {
-  moduleDefinition: RecordModuleDefinition<any, any>;
+  moduleDefinition: WindowActionModuleDefinition;
   title?: string;
   titleVariant?: ModuleWindowTitleVariant;
   titleFallback?: string;
@@ -25,7 +25,7 @@ type ResolveModuleWindowActionTitleOptions = {
 
 type CreateModuleWindowActionOptions = {
   id: string;
-  moduleDefinition: RecordModuleDefinition<any, any>;
+  moduleDefinition: WindowActionModuleDefinition;
   breadcrumbs: BreadcrumbItem[];
   render: () => React.ReactNode;
   title?: string;

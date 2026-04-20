@@ -1,9 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getAccessLogs, type AccessLog, type AccessLogAction } from "@/features/auth/api";
+import { ListView } from "@/web-client/views/ListView";
 
 type AccessLogRow = AccessLog & {
   actionLabel: string;
@@ -32,7 +34,7 @@ export function AccessLogsPanel({ token }: { token: string }) {
     () => [
       {
         accessorKey: "actionLabel",
-        header: "Ação",
+        header: "Acao",
         cell: ({ row }) => (
           <span className="text-sm font-medium text-foreground">
             {row.original.actionLabel}
@@ -117,22 +119,72 @@ export function AccessLogsPanel({ token }: { token: string }) {
         </div>
       ) : null}
 
-      <DataTable
-        columns={columns}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[240px] flex-1 space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Busca
+          </div>
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Pesquisar acessos"
+          />
+        </div>
+        <div className="min-w-[180px] space-y-2 text-right">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Resumo
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Total: <span className="font-semibold text-foreground">{totalCount}</span>
+          </div>
+        </div>
+      </div>
+
+      <ListView<AccessLogRow>
         data={rows}
-        manualPagination
-        pageCount={pageCount}
-        pagination={pagination}
-        onPaginationChange={(next) => setPagination(next)}
-        totalCount={totalCount}
-        onGlobalFilterChange={setSearch}
-        searchPlaceholder="Pesquisar acessos"
-        summaryCards={{
-          totalLabel: "Total",
-          filteredLabel: "Filtrados",
-        }}
-        showExportMenu={false}
+        columns={columns}
+        className="min-h-[320px]"
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="text-xs text-muted-foreground">
+          Pagina {Math.min(pagination.pageIndex + 1, Math.max(pageCount, 1))} de{" "}
+          {Math.max(pageCount, 1)}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setPagination((previous) => ({
+                ...previous,
+                pageIndex: Math.max(previous.pageIndex - 1, 0),
+              }))
+            }
+            disabled={loading || pagination.pageIndex === 0}
+          >
+            Anterior
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setPagination((previous) => ({
+                ...previous,
+                pageIndex:
+                  previous.pageIndex + 1 >= pageCount
+                    ? previous.pageIndex
+                    : previous.pageIndex + 1,
+              }))
+            }
+            disabled={loading || pageCount <= 1 || pagination.pageIndex + 1 >= pageCount}
+          >
+            Proxima
+          </Button>
+        </div>
+      </div>
 
       {loading ? (
         <p className="text-xs text-muted-foreground">Carregando acessos...</p>

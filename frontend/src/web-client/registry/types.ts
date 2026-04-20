@@ -38,6 +38,17 @@ export type WindowActionView = {
   icon?: LucideIcon;
 };
 
+export type WindowActionModuleDefinition = {
+  defaultView?: string;
+  permissions?: ModulePermissionMap;
+  actions?: RecordModuleActionMap;
+  domainAdapter?: RecordDomainAdapter;
+  detailLayout?: {
+    editing?: DetailEditingConfig;
+  };
+  views: ViewConfig[];
+};
+
 export type WindowAction = {
   id: string;
   title: string;
@@ -49,7 +60,7 @@ export type WindowAction = {
   views?: WindowActionView[];
   actionSlot?: React.ReactNode;
   render: () => React.ReactNode;
-  moduleDefinition?: RecordModuleDefinition;
+  moduleDefinition?: WindowActionModuleDefinition;
   hideBreadcrumb?: boolean;
 };
 

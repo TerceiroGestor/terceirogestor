@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import type { GroupFormData } from "../domain/types";
 import { groupFormFields, groupFormSteps } from "../config/group-form-config";
 
@@ -18,7 +18,7 @@ export function GroupForm({
   submitLabel = "Salvar",
 }: GroupFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={groupFormFields}
       steps={groupFormSteps}
       initialValues={initialValues}

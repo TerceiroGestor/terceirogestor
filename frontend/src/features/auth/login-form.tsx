@@ -5,8 +5,8 @@ import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { useAuth } from "@/features/auth/auth-context";
 import { API_URL, resolveMediaUrl } from "@/lib/api";
 import {
@@ -242,7 +242,7 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
 
             {step === "credentials" ? (
               <>
-                <FormEngine<CredentialsValues>
+                <RecordForm<CredentialsValues>
                   fields={credentialFields}
                   initialValues={{ email: "admin@exemplo.com", password: "Admin@123" }}
                   onSubmit={handleCredentialsSubmit}
@@ -271,7 +271,7 @@ export function LoginForm({ tenantSlug }: LoginFormProps) {
                 </div>
               </>
             ) : (
-              <FormEngine<MfaValues>
+              <RecordForm<MfaValues>
                 fields={mfaFields}
                 initialValues={{ code: "", rememberDevice: true }}
                 onSubmit={handleMfaSubmit}

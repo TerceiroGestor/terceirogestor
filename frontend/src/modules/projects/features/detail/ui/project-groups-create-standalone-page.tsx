@@ -2,6 +2,6 @@
 
 import { ProjectGroupsDetailEngineClientPage } from "@/modules/projects/features/detail/ui/project-groups-detail-engine-client-page";
 
-export function ProjectGroupsCreateStandalonePage(_: { tenantSlug?: string }) {
+export function ProjectGroupsCreateStandalonePage() {
   return <ProjectGroupsDetailEngineClientPage />;
 }

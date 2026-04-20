@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { SectionDialog } from "@/components/section-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -172,7 +172,7 @@ export function ProjectEnrollmentManageDialog({
         </div>
       ) : null}
 
-      <FormEngine<EnrollmentDialogValues>
+      <RecordForm<EnrollmentDialogValues>
         fields={ENROLLMENT_FIELDS}
         initialValues={initialValues}
         onSubmit={handleSubmit}

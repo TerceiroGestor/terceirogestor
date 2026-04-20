@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { useToast } from "@/components/ui/use-toast";
 import { storeTenantSlug, withTenantPath } from "@/lib/tenant-path";
 import {
@@ -47,7 +47,7 @@ export function RegisterConfirmClientPage() {
         toast({
           variant: "destructive",
           title: "Erro",
-          description: safeErrorMessage(error, "Registro invÃ¡lido."),
+          description: safeErrorMessage(error, "Registro invalido."),
         });
       } finally {
         if (active) setIsLoading(false);
@@ -61,7 +61,7 @@ export function RegisterConfirmClientPage() {
 
   const fields = React.useMemo<FormField<ConfirmValues>[]>(() => {
     const base: FormField<ConfirmValues>[] = [
-      { name: "code", label: "CÃ³digo", type: "text", required: true },
+      { name: "code", label: "Codigo", type: "text", required: true },
     ];
     if (info?.passwordRequired) {
       base.push({
@@ -88,7 +88,7 @@ export function RegisterConfirmClientPage() {
       toast({
         variant: "destructive",
         title: "Senha",
-        description: "As senhas nÃ£o conferem.",
+        description: "As senhas nao conferem.",
       });
       return;
     }
@@ -118,7 +118,7 @@ export function RegisterConfirmClientPage() {
   };
 
   if (!registrationId) {
-    return <div className="p-6">Registro nÃ£o informado.</div>;
+    return <div className="p-6">Registro nao informado.</div>;
   }
 
   if (isLoading) {
@@ -132,12 +132,12 @@ export function RegisterConfirmClientPage() {
           <h1 className="text-xl font-semibold">Confirmar cadastro</h1>
           <p className="text-sm text-muted-foreground">
             {info?.adminEmail
-              ? `Enviamos um cÃ³digo para ${info.adminEmail}.`
-              : "Enviamos um cÃ³digo para seu email."}
+              ? `Enviamos um codigo para ${info.adminEmail}.`
+              : "Enviamos um codigo para seu email."}
           </p>
         </div>
 
-        <FormEngine<ConfirmValues>
+        <RecordForm<ConfirmValues>
           fields={fields}
           initialValues={initialValues}
           onSubmit={handleSubmit}
@@ -153,4 +153,5 @@ export function RegisterConfirmClientPage() {
     </div>
   );
 }
+
 

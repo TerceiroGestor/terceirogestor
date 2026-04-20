@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import {
   FINANCIAL_CATEGORY_OPTIONS,
   FINANCIAL_CONTRACT_TYPE_OPTIONS,
@@ -148,7 +148,7 @@ export function FinancialEntryForm({
   }, [householdOptions]);
 
   return (
-    <FormEngine<FinancialEntryFormValues>
+    <RecordForm<FinancialEntryFormValues>
       appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}

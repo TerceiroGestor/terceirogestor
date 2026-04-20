@@ -569,7 +569,7 @@ export function hasActiveAnalysis<TState extends AdminCollectionQueryState<strin
 export function buildGraphModel(
   rows: Array<Record<string, unknown>>,
   state: AdminCollectionQueryState<string>,
-  moduleDefinition: RecordModuleDefinition<any>,
+  moduleDefinition: RecordModuleDefinition,
 ): ReturnType<typeof buildGraphViewModel> | null {
   const graphBuilder = getModuleGraphBuilderConfig(moduleDefinition);
   return graphBuilder ? buildGraphViewModel(rows, state.graph, graphBuilder) : null;

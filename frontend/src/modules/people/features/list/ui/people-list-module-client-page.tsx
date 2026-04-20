@@ -345,14 +345,6 @@ export function PeopleListModuleClientPage() {
     };
   }, [rows]);
 
-  if (!canRead) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        Voce nao tem permissao para acessar esta area.
-      </div>
-    );
-  }
-
   const analysisSlot = React.useMemo(
     () =>
       buildAnalysisSlot({
@@ -383,6 +375,14 @@ export function PeopleListModuleClientPage() {
       ),
     [rows, state],
   );
+
+  if (!canRead) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        Voce nao tem permissao para acessar esta area.
+      </div>
+    );
+  }
 
   return (
     <EntityModuleShell<PeopleListQueryState, AdminFavoriteState<PeopleListQueryState["view"]>>

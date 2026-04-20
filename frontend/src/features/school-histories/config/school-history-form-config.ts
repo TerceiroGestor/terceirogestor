@@ -1,4 +1,4 @@
-import type { FormField, FormStep } from "@/components/FormEngine/types";
+import type { FormField, FormStep } from "@/web-client/forms/types";
 import type { SchoolHistoryFormData } from "@/features/school-histories/domain/types";
 
 export const schoolHistoryFormFields: FormField<SchoolHistoryFormData>[] = [

@@ -1,14 +1,15 @@
-"use client";
+﻿"use client";
 
 import type {
   DetailEditingConfig,
   GraphBuilderConfig,
   ModuleFeatureFlagMap,
   ModuleActionDefinition,
+  RecordModuleActionMap,
   ModulePermissionKey,
   ModulePermissionMap,
   PermissionRequirement,
-  RecordModuleDefinition,
+  RecordDomainAdapter,
   ViewConfig,
 } from "@/web-client/registry/types";
 
@@ -22,6 +23,20 @@ const ACTION_PERMISSION_FALLBACK: Partial<Record<string, ModulePermissionKey>> =
   audit: "canAudit",
   export: "canExport",
   refresh: "canRead",
+};
+
+type ModuleDefinition = {
+  featureFlags?: ModuleFeatureFlagMap;
+  permissions?: ModulePermissionMap;
+  actions?: RecordModuleActionMap;
+  searchConfig?: {
+    searchPlaceholder?: string;
+  };
+  domainAdapter?: RecordDomainAdapter;
+  detailLayout?: {
+    editing?: DetailEditingConfig;
+  };
+  views: ViewConfig[];
 };
 
 function matchesRequirementObject(
@@ -59,11 +74,8 @@ export function getModulePermissionRequirement(
   return permissionMap?.[permissionKey];
 }
 
-export function hasModulePermission<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function hasModulePermission(
+  moduleDefinition: ModuleDefinition,
   permissionKey: ModulePermissionKey,
   grantedPermissions: string[],
   fallback = false,
@@ -75,11 +87,8 @@ export function hasModulePermission<
   );
 }
 
-export function getModuleAction<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleAction(
+  moduleDefinition: ModuleDefinition,
   actionKey: string,
 ): ModuleActionDefinition | undefined {
   return moduleDefinition.actions?.[actionKey];
@@ -97,7 +106,7 @@ export function isModuleFeatureEnabled(
 }
 
 export function isModuleViewEnabled(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+  moduleDefinition: ModuleDefinition,
   view: ViewConfig,
 ) {
   return isModuleFeatureEnabled(
@@ -107,22 +116,16 @@ export function isModuleViewEnabled(
   );
 }
 
-export function getModuleActionLabel<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleActionLabel(
+  moduleDefinition: ModuleDefinition,
   actionKey: string,
   fallback = "",
 ) {
   return getModuleAction(moduleDefinition, actionKey)?.label ?? fallback;
 }
 
-export function getModuleActionRequirement<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleActionRequirement(
+  moduleDefinition: ModuleDefinition,
   actionKey: string,
 ) {
   const action = getModuleAction(moduleDefinition, actionKey);
@@ -136,11 +139,8 @@ export function getModuleActionRequirement<
   return moduleDefinition.permissions?.[mappedPermissionKey];
 }
 
-export function canUseModuleAction<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function canUseModuleAction(
+  moduleDefinition: ModuleDefinition,
   actionKey: string,
   grantedPermissions: string[],
   fallback = false,
@@ -152,55 +152,40 @@ export function canUseModuleAction<
   );
 }
 
-export function getModuleSearchPlaceholder<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleSearchPlaceholder(
+  moduleDefinition: ModuleDefinition,
   fallback = "Pesquisar",
 ) {
   return (
-    moduleDefinition.searchConfig.searchPlaceholder ??
+    moduleDefinition.searchConfig?.searchPlaceholder ??
     moduleDefinition.domainAdapter?.list?.searchPlaceholder ??
     fallback
   );
 }
 
-export function getModuleEntitySingular<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleEntitySingular(
+  moduleDefinition: ModuleDefinition,
   fallback = "Registro",
 ) {
   return moduleDefinition.domainAdapter?.entity.singular ?? fallback;
 }
 
-export function getModuleEntityPlural<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleEntityPlural(
+  moduleDefinition: ModuleDefinition,
   fallback = "Registros",
 ) {
   return moduleDefinition.domainAdapter?.entity.plural ?? fallback;
 }
 
-export function getModuleListTitle<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleListTitle(
+  moduleDefinition: ModuleDefinition,
   fallback = "Registros",
 ) {
   return getModuleEntityPlural(moduleDefinition, fallback);
 }
 
-export function getModuleCreateActionLabel<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleCreateActionLabel(
+  moduleDefinition: ModuleDefinition,
   fallback = "Novo",
 ) {
   return (
@@ -210,11 +195,8 @@ export function getModuleCreateActionLabel<
   );
 }
 
-export function getModuleCreateTitle<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleCreateTitle(
+  moduleDefinition: ModuleDefinition,
   fallback = "Novo registro",
 ) {
   return (
@@ -223,21 +205,15 @@ export function getModuleCreateTitle<
   );
 }
 
-export function getModuleTotalLabel<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleTotalLabel(
+  moduleDefinition: ModuleDefinition,
   fallback = "Total",
 ) {
   return moduleDefinition.domainAdapter?.list?.totalLabel ?? fallback;
 }
 
-export function getModuleDetailTitleFallback<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleDetailTitleFallback(
+  moduleDefinition: ModuleDefinition,
   fallback = "Detalhe",
 ) {
   return (
@@ -247,34 +223,25 @@ export function getModuleDetailTitleFallback<
   );
 }
 
-export function getModuleFieldAdapter<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleFieldAdapter(
+  moduleDefinition: ModuleDefinition,
   fieldName: string,
 ) {
   return moduleDefinition.domainAdapter?.fields?.[fieldName];
 }
 
-export function getModuleFieldLabel<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleFieldLabel(
+  moduleDefinition: ModuleDefinition,
   fieldName: string,
   fallback: string,
 ) {
   return getModuleFieldAdapter(moduleDefinition, fieldName)?.label ?? fallback;
 }
 
-export function getModuleFieldEmptyValueLabel<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleFieldEmptyValueLabel(
+  moduleDefinition: ModuleDefinition,
   fieldName: string,
-  fallback = "—",
+  fallback = "-",
 ) {
   return (
     getModuleFieldAdapter(moduleDefinition, fieldName)?.emptyValueLabel ??
@@ -282,29 +249,20 @@ export function getModuleFieldEmptyValueLabel<
   );
 }
 
-export function getModuleDetailShellText<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleDetailShellText(
+  moduleDefinition: ModuleDefinition,
 ) {
   return moduleDefinition.domainAdapter?.detail?.shellLabels;
 }
 
-export function getModuleDetailEditingConfig<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleDetailEditingConfig(
+  moduleDefinition: ModuleDefinition,
 ): DetailEditingConfig | undefined {
   return moduleDefinition.detailLayout?.editing;
 }
 
-export function getModuleGraphBuilderConfig<
-  TState extends Record<string, unknown>,
-  TContext extends Record<string, unknown>,
->(
-  moduleDefinition: RecordModuleDefinition<any, any>,
+export function getModuleGraphBuilderConfig(
+  moduleDefinition: ModuleDefinition,
   viewId = "graph",
 ): GraphBuilderConfig | undefined {
   const graphView = moduleDefinition.views.find(

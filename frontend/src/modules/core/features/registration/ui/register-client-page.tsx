@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -95,7 +95,7 @@ export function RegisterClientPage() {
           </p>
         </div>
 
-        <FormEngine<RegisterValues>
+        <RecordForm<RegisterValues>
           fields={fields}
           initialValues={initialValues}
           onValuesChange={(values) => setTenantName(values.tenantName ?? "")}

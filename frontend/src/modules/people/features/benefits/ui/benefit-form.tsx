@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import {
   BENEFIT_TYPE_OPTIONS,
   BENEFIT_FREQUENCY_OPTIONS,
@@ -115,7 +115,7 @@ export function BenefitForm({
   );
 
   return (
-    <FormEngine<BenefitEngineValues>
+    <RecordForm<BenefitEngineValues>
       appearance="inline-detail"
       initialValues={engineInitialValues}
       fields={fields}

@@ -93,7 +93,7 @@ export const MARITAL_STATUS_OPTIONS = [
   { label: "Solteiro(a)", value: "Solteiro(a)" },
   { label: "Casado(a)", value: "Casado(a)" },
   { label: "Divorciado(a)", value: "Divorciado(a)" },
-  { label: "Viúvo(a)", value: "ViÃºvo(a)" },
+  { label: "Viúvo(a)", value: "Viuvo(a)" },
 ] as const;
 
 export const PEOPLE_FORM_TEXT = {

@@ -9,8 +9,8 @@ import {
   storeTenantSlug,
   withTenantPath,
 } from "@/lib/tenant-path";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 
 type TenantSlugValues = {
   tenantSlug: string;
@@ -48,7 +48,7 @@ export default function RootPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
           {/* Coluna 1 - Formulário */}
           <div className="w-full max-w-md mx-auto">
-            <FormEngine<TenantSlugValues>
+            <RecordForm<TenantSlugValues>
               fields={fields}
               onSubmit={(values) => {
                 const slug = values.tenantSlug.trim();

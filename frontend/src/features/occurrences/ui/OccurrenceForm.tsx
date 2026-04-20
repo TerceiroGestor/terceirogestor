@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEngine } from "@/components/FormEngine/FormEngine";
+import { RecordForm } from "@/web-client/forms";
 import {
   occurrenceFormFields,
   occurrenceFormSteps,
@@ -21,7 +21,7 @@ export function OccurrenceForm({
   submitLabel = "Salvar",
 }: OccurrenceFormProps) {
   return (
-    <FormEngine
+    <RecordForm
       fields={occurrenceFormFields}
       steps={occurrenceFormSteps}
       initialValues={initialValues}

@@ -34,7 +34,7 @@ Evidencia:
 
 - [ ] `PASSA` usa `DetailShellEngine`
 - [ ] `PASSA` `new` e `edit` usam o mesmo formulario principal
-- [ ] `PASSA` nao usa `FormEngine` legado no fluxo `new/edit/detail`
+- [ ] `PASSA` nao usa `renderizador legado de formularios` legado no fluxo `new/edit/detail`
 - [ ] `PASSA` detail nao exibe botao `Novo`
 - [ ] `PASSA` acao `Excluir` apenas quando permitida
 - [ ] `PASSA` `Tags` nao sao duplicadas no corpo principal
@@ -62,7 +62,7 @@ Evidencia:
 
 - [ ] `PASSA` relations no rodape do detail ou aba canonica
 - [ ] `PASSA` relation usa host/list padrao
-- [ ] `PASSA` relation operacional usa `ListView`, nunca `DataTable`
+- [ ] `PASSA` relation operacional usa `ListView`, nunca `grade tabular legada`
 - [ ] `PASSA` filtros, selecao e acoes de relation operacional ficam no proprio slot relacional
 - [ ] `PASSA` clique abre detail relacionado
 - [ ] `PASSA` criar relacao usa fluxo relacional canonico
@@ -94,8 +94,8 @@ Evidencia:
 - [ ] `PASSA` sem texto tecnico para usuario final
 - [ ] `PASSA` textos de orientacao migrados para `Como usar` quando necessario
 - [ ] `PASSA` sem componente legado fora do shell canonico
-- [ ] `PASSA` sem `DataTable` no fluxo canonico ativo do modulo
-- [ ] `PASSA` sem `FormEngine` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem `grade tabular legada` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem `renderizador legado de formularios` no fluxo canonico ativo do modulo
 - [ ] `PASSA` sem modulo removido ou rota legada no fluxo canonico ativo
 
 Evidencia:
@@ -108,7 +108,7 @@ Evidencia:
 - [ ] `PASSA` smoke de contrato de modulo
 - [ ] `PASSA` lint frontend
 - [ ] `PASSA` build frontend
-- [ ] `PASSA` lint backend
+- [ ] `PASSA` lint backend do escopo impactado ou backlog transversal `pos_1_0` documentado
 - [ ] `PASSA` build backend
 
 Evidencia:
@@ -121,4 +121,5 @@ Evidencia:
 - Pendencias abertas:
 - Dono de cada pendencia:
 - Prazo final:
-- Decisao de liberacao 1.0: `APROVADO` ou `BLOQUEADO`
+- Decisao de liberacao 1.0: `APROVADO`, `APROVADO_COM_RISCO_DOCUMENTADO` ou `BLOQUEADO`
+

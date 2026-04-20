@@ -25,7 +25,7 @@ import {
   createStandardListQueryState,
   createStandardListView,
 } from "@/web-client/starter";
-import { ADMIN_ACTION_IDS, ADMIN_ROUTES } from "@/modules/core/admin/admin.constants";
+import { ADMIN_ROUTES } from "@/modules/core/admin/admin.constants";
 import { ADMIN_SETTINGS_PERMISSIONS } from "@/modules/core/features/settings/domain/admin-settings-access";
 import {
   adminOverviewLayout,

@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { FormEngine } from "@/components/FormEngine";
-import type { FormField } from "@/components/FormEngine/types";
+import { RecordForm } from "@/web-client/forms";
+import type { FormField } from "@/web-client/forms/types";
 import { DETENTIONS_TEXT } from "../config/detentions.constants";
 
 export type DetentionFormValues = {
@@ -67,7 +67,7 @@ export function DetentionForm({
   );
 
   return (
-    <FormEngine<DetentionFormValues>
+    <RecordForm<DetentionFormValues>
       appearance="inline-detail"
       initialValues={initialValues}
       fields={fields}

@@ -1,6 +1,5 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
-  ApiEligibleProjectPerson,
   ApiProjectEnrollment,
   ApiProjectGroup,
   ApiProjectPeopleGroup,
@@ -12,7 +11,7 @@ import type {
   ProjectGroupInput,
   ProjectPeopleGroupInput,
 } from "./types";
-import type { AdvancedFilter } from "@/components/DataTable/DataTableFilterSheetFilters";
+import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 import { collectAndConditions } from "@/web-client/domain/conditions";
 import type { Domain, DomainValue } from "@/web-client/domain/types";
 

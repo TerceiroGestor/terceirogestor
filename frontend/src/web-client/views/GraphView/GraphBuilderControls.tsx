@@ -43,7 +43,7 @@ const METRIC_OP_OPTIONS: Array<{ value: GraphMetricOp; label: string }> = [
 ];
 
 type GraphBuilderControlsProps = {
-  moduleDefinition: RecordModuleDefinition<any, any>;
+  moduleDefinition: RecordModuleDefinition;
   builder: GraphBuilderConfig;
   state: GraphBuilderState;
   onChange: (updater: (previous: GraphBuilderState) => GraphBuilderState) => void;
@@ -302,7 +302,7 @@ function renderGraphFilterControl({
 }: {
   filter: GraphBuilderFilterConfig;
   builder: GraphBuilderConfig;
-  moduleDefinition: RecordModuleDefinition<any, any>;
+  moduleDefinition: RecordModuleDefinition;
   searchField?: SearchFieldDefinition;
   rows: Array<Record<string, unknown>>;
   state: GraphBuilderState;
