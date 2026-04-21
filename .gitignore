@@ -11,3 +11,4 @@ tmp-playwright-local/
 test-results/
 frontend/*.log
 backend/*.log
+infra
