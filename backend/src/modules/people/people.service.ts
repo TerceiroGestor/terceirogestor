@@ -21,6 +21,7 @@ import {
   resolvePagination,
 } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { isUploadPathAllowed } from '../../core/files/upload-path.utils';
 import { CreateHouseholdAssetDto } from './dto/create-household-asset.dto';
 import { CreatePersonAssetDto } from './dto/create-person-asset.dto';
 import { CreatePersonAttachmentDto } from './dto/create-person-attachment.dto';
@@ -1124,7 +1125,7 @@ export class PeopleService {
       throw new BadRequestException('Informe um nome para o anexo.');
     }
 
-    if (!filePath.startsWith('/uploads/people/')) {
+    if (!isUploadPathAllowed(filePath, '/uploads/people/')) {
       throw new BadRequestException('Caminho de anexo invalido.');
     }
 
@@ -1288,7 +1289,7 @@ export class PeopleService {
       throw new BadRequestException('Informe um nome para o anexo.');
     }
 
-    if (!filePath.startsWith('/uploads/people/')) {
+    if (!isUploadPathAllowed(filePath, '/uploads/people/')) {
       throw new BadRequestException('Caminho de anexo invalido.');
     }
 

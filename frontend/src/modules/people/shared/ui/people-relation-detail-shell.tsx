@@ -242,7 +242,7 @@ export function PeopleRelationDetailShell({
       setAttachmentUploading(true);
       setMetadataError(null);
       try {
-        const uploaded = await uploadPeopleAttachment(token, file);
+        const uploaded = await uploadPeopleAttachment(token, file, relationId);
         const response = await addPeopleRecordAttachment(
           token,
           personId,

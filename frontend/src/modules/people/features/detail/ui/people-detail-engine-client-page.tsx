@@ -652,7 +652,7 @@ export function PeopleDetailEngineClientPage({
       setAttachmentUploading(true);
       setError(null);
       try {
-        const uploaded = await uploadPeopleAttachment(token, file);
+        const uploaded = await uploadPeopleAttachment(token, file, person.id);
         const updated = await addPersonAttachment(token, person.id, {
           label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
           filePath: uploaded.path,

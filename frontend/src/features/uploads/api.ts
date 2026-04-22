@@ -160,16 +160,25 @@ export async function uploadActionPhoto(
 export async function uploadPeopleAttachment(
   token: string,
   file: File,
+  entityId?: string,
 ): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  const normalizedEntityId = typeof entityId === "string" ? entityId.trim() : "";
+  if (normalizedEntityId) {
+    formData.append("entityId", normalizedEntityId);
+  }
 
   const headers = new Headers();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}/files/people-attachments`, {
+  const uploadUrl = normalizedEntityId
+    ? `${API_URL}/files/people-attachments?entityId=${encodeURIComponent(normalizedEntityId)}`
+    : `${API_URL}/files/people-attachments`;
+
+  const response = await fetch(uploadUrl, {
     method: "POST",
     headers,
     body: formData,

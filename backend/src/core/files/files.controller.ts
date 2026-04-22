@@ -8,22 +8,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
+import { extname } from 'path';
 import { randomUUID } from 'crypto';
-import * as fs from 'fs';
+import { CloudStorageService } from './cloud-storage.service';
 
-const AVATAR_DIR = join(process.cwd(), 'uploads', 'avatars');
-const HEALTH_DOC_DIR = join(process.cwd(), 'uploads', 'health');
-const TENANT_LOGO_DIR = join(process.cwd(), 'uploads', 'tenants');
-const ACTION_PHOTO_DIR = join(process.cwd(), 'uploads', 'actions');
-const PEOPLE_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'people');
-const PANTRY_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'pantry');
-const DEPOSIT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'deposit');
-const PROGRAM_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'programs');
-const PROJECT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'projects');
-const ACTION_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'action-attachments');
-const TASK_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'tasks');
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_HEALTH_FILE_SIZE = 6 * 1024 * 1024;
 const MAX_TENANT_LOGO_SIZE = 3 * 1024 * 1024;
@@ -172,68 +161,39 @@ const ALLOWED_TASK_ATTACHMENT_EXTENSIONS = new Set([
   '.zip',
 ]);
 
-function ensureAvatarDir() {
-  fs.mkdirSync(AVATAR_DIR, { recursive: true });
-}
-
-function ensureHealthDocDir() {
-  fs.mkdirSync(HEALTH_DOC_DIR, { recursive: true });
-}
-
-function ensureTenantLogoDir() {
-  fs.mkdirSync(TENANT_LOGO_DIR, { recursive: true });
-}
-
-function ensureActionPhotoDir() {
-  fs.mkdirSync(ACTION_PHOTO_DIR, { recursive: true });
-}
-
-function ensurePeopleAttachmentDir() {
-  fs.mkdirSync(PEOPLE_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensurePantryAttachmentDir() {
-  fs.mkdirSync(PANTRY_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureDepositAttachmentDir() {
-  fs.mkdirSync(DEPOSIT_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureProgramAttachmentDir() {
-  fs.mkdirSync(PROGRAM_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureProjectAttachmentDir() {
-  fs.mkdirSync(PROJECT_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureActionAttachmentDir() {
-  fs.mkdirSync(ACTION_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureTaskAttachmentDir() {
-  fs.mkdirSync(TASK_ATTACHMENT_DIR, { recursive: true });
-}
-
 @Controller('files')
 export class FilesController {
+  constructor(private readonly cloudStorage: CloudStorageService) {}
+
+  private async uploadToPublicBucket(
+    file: Express.Multer.File,
+    folder: string,
+    allowedExtensions: Set<string>,
+  ) {
+    const ext = extname(file.originalname).toLowerCase();
+    const safeExt = allowedExtensions.has(ext) ? ext : '';
+    const filename = `${randomUUID()}${safeExt}`;
+    const objectPath = `uploads/${folder}/${filename}`;
+
+    const uploaded = await this.cloudStorage.uploadPublicObject({
+      objectPath,
+      data: file.buffer,
+      contentType: file.mimetype || undefined,
+    });
+
+    return {
+      path: uploaded.publicUrl,
+      mimeType: file.mimetype || null,
+      size: file.size ?? null,
+      originalName: file.originalname || filename,
+    };
+  }
+
   @Post('avatars')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureAvatarDir();
-          cb(null, AVATAR_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_AVATAR_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_AVATAR_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
@@ -249,27 +209,16 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/avatars/${file.filename}`,
-    };
+    return this.uploadToPublicBucket(file, 'avatars', ALLOWED_AVATAR_EXTENSIONS).then(
+      (uploaded) => ({ path: uploaded.path }),
+    );
   }
 
   @Post('health-documents')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureHealthDocDir();
-          cb(null, HEALTH_DOC_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_HEALTH_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_HEALTH_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (
@@ -283,32 +232,24 @@ export class FilesController {
       },
     }),
   )
-  uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
+  async uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/health/${file.filename}`,
-    };
+    const uploaded = await this.uploadToPublicBucket(
+      file,
+      'health',
+      ALLOWED_HEALTH_EXTENSIONS,
+    );
+    return { path: uploaded.path };
   }
 
   @Post('tenant-logos')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureTenantLogoDir();
-          cb(null, TENANT_LOGO_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_TENANT_LOGO_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_TENANT_LOGO_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
@@ -319,32 +260,24 @@ export class FilesController {
       },
     }),
   )
-  uploadTenantLogo(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTenantLogo(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/tenants/${file.filename}`,
-    };
+    const uploaded = await this.uploadToPublicBucket(
+      file,
+      'tenants',
+      ALLOWED_TENANT_LOGO_EXTENSIONS,
+    );
+    return { path: uploaded.path };
   }
 
   @Post('action-photos')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureActionPhotoDir();
-          cb(null, ACTION_PHOTO_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_ACTION_PHOTO_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ACTION_PHOTO_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
@@ -355,32 +288,24 @@ export class FilesController {
       },
     }),
   )
-  uploadActionPhoto(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionPhoto(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/actions/${file.filename}`,
-    };
+    const uploaded = await this.uploadToPublicBucket(
+      file,
+      'actions',
+      ALLOWED_ACTION_PHOTO_EXTENSIONS,
+    );
+    return { path: uploaded.path };
   }
 
   @Post('people-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensurePeopleAttachmentDir();
-          cb(null, PEOPLE_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PEOPLE_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -392,35 +317,19 @@ export class FilesController {
       },
     }),
   )
-  uploadPeopleAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPeopleAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/people/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'people', ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS);
   }
 
   @Post('pantry-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensurePantryAttachmentDir();
-          cb(null, PANTRY_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PANTRY_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -432,35 +341,19 @@ export class FilesController {
       },
     }),
   )
-  uploadPantryAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPantryAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/pantry/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'pantry', ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS);
   }
 
   @Post('deposit-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureDepositAttachmentDir();
-          cb(null, DEPOSIT_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_DEPOSIT_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -472,35 +365,19 @@ export class FilesController {
       },
     }),
   )
-  uploadDepositAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadDepositAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/deposit/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'deposit', ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS);
   }
 
   @Post('program-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureProgramAttachmentDir();
-          cb(null, PROGRAM_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PROGRAM_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -512,35 +389,19 @@ export class FilesController {
       },
     }),
   )
-  uploadProgramAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProgramAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/programs/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'programs', ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS);
   }
 
   @Post('project-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureProjectAttachmentDir();
-          cb(null, PROJECT_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PROJECT_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -552,35 +413,19 @@ export class FilesController {
       },
     }),
   )
-  uploadProjectAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProjectAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/projects/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'projects', ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS);
   }
 
   @Post('action-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureActionAttachmentDir();
-          cb(null, ACTION_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_ACTION_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ACTION_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -592,35 +437,23 @@ export class FilesController {
       },
     }),
   )
-  uploadActionAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/action-attachments/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(
+      file,
+      'action-attachments',
+      ALLOWED_ACTION_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('task-attachments')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureTaskAttachmentDir();
-          cb(null, TASK_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_TASK_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_TASK_ATTACHMENT_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
@@ -632,16 +465,11 @@ export class FilesController {
       },
     }),
   )
-  uploadTaskAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTaskAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return {
-      path: `/uploads/tasks/${file.filename}`,
-      mimeType: file.mimetype || null,
-      size: file.size ?? null,
-      originalName: file.originalname || file.filename,
-    };
+    return this.uploadToPublicBucket(file, 'tasks', ALLOWED_TASK_ATTACHMENT_EXTENSIONS);
   }
 }

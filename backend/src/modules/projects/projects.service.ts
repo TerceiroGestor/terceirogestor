@@ -4,6 +4,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { isUploadPathAllowed } from '../../core/files/upload-path.utils';
 import { CreateProjectAttachmentDto } from './dto/create-project-attachment.dto';
 import { CreateProjectCommentDto } from './dto/create-project-comment.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -497,7 +498,7 @@ export class ProjectsService {
       throw new BadRequestException('Informe um nome para o anexo.');
     }
 
-    if (!filePath.startsWith('/uploads/projects/')) {
+    if (!isUploadPathAllowed(filePath, '/uploads/projects/')) {
       throw new BadRequestException('Caminho de anexo invalido.');
     }
 

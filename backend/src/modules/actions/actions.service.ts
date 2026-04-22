@@ -17,6 +17,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
 import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { isUploadPathAllowed } from '../../core/files/upload-path.utils';
 import { buildPeopleWhere, parseAdvancedFilters } from '../people/people.filters';
 import { CreateActionTypeDto } from './dto/create-action-type.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
@@ -1032,7 +1033,7 @@ export class ActionsService {
       throw new BadRequestException('Informe um nome para o anexo.');
     }
 
-    if (!filePath.startsWith('/uploads/action-attachments/')) {
+    if (!isUploadPathAllowed(filePath, '/uploads/action-attachments/')) {
       throw new BadRequestException('Caminho de anexo invalido.');
     }
 

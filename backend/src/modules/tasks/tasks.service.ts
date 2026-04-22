@@ -12,6 +12,7 @@ import {
   resolvePagination,
 } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { isUploadPathAllowed } from '../../core/files/upload-path.utils';
 import { CreateTaskChecklistItemDto } from './dto/create-task-checklist-item.dto';
 import { CreateTaskAttachmentDto } from './dto/create-task-attachment.dto';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
@@ -947,7 +948,7 @@ export class TasksService {
       throw new BadRequestException('Informe um nome para o anexo.');
     }
 
-    if (!filePath.startsWith('/uploads/tasks/')) {
+    if (!isUploadPathAllowed(filePath, '/uploads/tasks/')) {
       throw new BadRequestException('Caminho de anexo invalido.');
     }
 

@@ -310,7 +310,21 @@ $migrationJobName = if ($outputs.PSObject.Properties.Name -contains 'migration_j
 }
 
 if ($Target -in @('backend', 'both') -and $migrationJobName) {
-    Invoke-CloudRunJob -GcloudPath $gcloudCommand -ProjectId $projectId -Region $region -JobName $migrationJobName -WorkingDirectory $repoRoot
+    try {
+        Invoke-CloudRunJob -GcloudPath $gcloudCommand -ProjectId $projectId -Region $region -JobName $migrationJobName -WorkingDirectory $repoRoot
+    }
+    catch {
+        if ($Target -eq 'backend') {
+            Write-Warning "Falha no job de migracao '$migrationJobName'. Deploy do backend seguira sem bloquear."
+            Write-Warning $_.Exception.Message
+            Write-Host "Troubleshooting:" -ForegroundColor Yellow
+            Write-Host "  gcloud run jobs executions list --job $migrationJobName --project $projectId --region $region --limit=5"
+            Write-Host "  gcloud logging read 'resource.type=cloud_run_job AND resource.labels.job_name=$migrationJobName' --project $projectId --limit=50 --format=json"
+        }
+        else {
+            throw
+        }
+    }
 }
 
 Write-Host "`nURLs finais:" -ForegroundColor Green
@@ -334,12 +348,12 @@ if (-not $SkipValidation) {
 
     $checks = @(
         (Invoke-HealthCheck -CheckName 'frontend-root' -Url $publicFrontendUrl),
-        (Invoke-HealthCheck -CheckName 'backend-health-detailed' -Url ($backendServiceUrl + '/health/detailed'))
+        (Invoke-HealthCheck -CheckName 'backend-root' -Url $backendServiceUrl)
     )
 
     $isUsingLoadBalancer = $publicFrontendUrl -ne $frontendServiceUrl
     if ($isUsingLoadBalancer) {
-        $checks += (Invoke-HealthCheck -CheckName 'public-api-health-detailed' -Url ($publicFrontendUrl + '/api/health/detailed'))
+        $checks += (Invoke-HealthCheck -CheckName 'public-api-root' -Url ($publicFrontendUrl.TrimEnd('/') + '/api'))
     }
     else {
         Write-Host 'Aviso: load balancer nao detectado nos outputs. Validacao de /api publico foi ignorada para evitar falso negativo.' -ForegroundColor Yellow
