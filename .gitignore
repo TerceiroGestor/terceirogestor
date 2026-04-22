@@ -11,6 +11,19 @@ tmp-playwright-local/
 test-results/
 frontend/*.log
 backend/*.log
-infra
-script
-scripts
+
+# Keep infra/scripts source tracked; ignore only Terraform runtime artifacts.
+infra/environments/**/.terraform/
+infra/environments/**/terraform.tfstate
+infra/environments/**/terraform.tfstate.*
+infra/environments/**/terraform.tfvars
+infra/environments/**/tfplan
+infra/environments/**/tfplan.*
+infra/environments/**/plan-*.log
+infra/environments/**/apply-*.log
+
+# Local troubleshooting/output artifacts.
+tfplan-output.txt
+
+# Local backup datasets moved under docker/scripts.
+docker/scripts/backup/

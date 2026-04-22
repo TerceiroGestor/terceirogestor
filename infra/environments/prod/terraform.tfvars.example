@@ -1,0 +1,59 @@
+project_id         = "your-gcp-project-id"
+region             = "us-central1"
+environment        = "prod"
+
+artifact_registry_repository_id          = "terceirogestor"
+artifact_registry_repository_description = "Terceiro Gestor application images"
+
+cloud_sql_instance_name                  = "terceirogestor-prod"
+cloud_sql_database_name                  = "terceirogestor"
+cloud_sql_database_version               = "POSTGRES_16"
+cloud_sql_edition                        = "ENTERPRISE"
+cloud_sql_tier                           = "db-custom-1-3840"
+cloud_sql_disk_type                      = "PD_HDD"
+cloud_sql_disk_size_gb                   = 20
+cloud_sql_availability_type              = "ZONAL"
+cloud_sql_ipv4_enabled                   = true
+cloud_sql_backup_enabled                 = true
+cloud_sql_point_in_time_recovery_enabled = true
+cloud_sql_deletion_protection            = true
+backend_allow_unauthenticated            = true
+migration_job_enabled                    = true
+migration_job_name                       = "terceirogestor-db-migrate"
+migration_job_timeout_seconds            = 1800
+load_balancer_enabled                    = false
+load_balancer_name                       = "terceirogestor"
+load_balancer_domains                    = []
+
+backend_service_name                     = "terceirogestor-backend"
+frontend_service_name                    = "terceirogestor-frontend"
+frontend_service_account_id              = "terceirogestor-frontend"
+frontend_service_account_display_name    = "Terceiro Gestor Frontend"
+backend_image_tag                        = "latest"
+frontend_image_tag                       = "latest"
+web_url                                  = "https://terceirogestor.com.br"
+frontend_public_api_url                  = ""
+gcs_public_base_url                      = ""
+timezone                                 = "America/Sao_Paulo"
+gcs_signed_url_ttl_sensitive             = 300
+gcs_signed_url_ttl_medium                = 1800
+gcs_signed_url_ttl_low                   = 3600
+
+backend_service_account_id           = "terceirogestor-backend"
+backend_service_account_display_name = "Terceiro Gestor Backend"
+
+public_bucket_name  = "your-project-public-bucket-name"
+private_bucket_name = "your-project-private-bucket-name"
+
+public_bucket_location  = "US-CENTRAL1"
+private_bucket_location = "US-CENTRAL1"
+
+secret_names = [
+  "jwt-secret",
+  "database-url",
+  "pii-master-key",
+  "totp-encryption-key",
+  "smtp-password",
+  "google-oauth-client-secret",
+  "microsoft-oauth-client-secret"
+]
