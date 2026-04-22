@@ -80,7 +80,7 @@ function resolveImageRemotePatterns() {
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactCompiler: true,
+  reactCompiler: process.env.NODE_ENV === 'production',
   images: {
     remotePatterns: resolveImageRemotePatterns(),
   },

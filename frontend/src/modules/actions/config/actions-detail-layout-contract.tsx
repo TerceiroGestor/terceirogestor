@@ -41,6 +41,7 @@ import {
 } from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import type { ColumnDef } from "@tanstack/react-table";
 
 const AUTO_SAVE_EDITING = {
   saveMode: "auto",
@@ -174,13 +175,13 @@ function teamParticipationColumns({
 }: {
   canUpdate: boolean;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
-}): import("@tanstack/react-table").ColumnDef<ApiProjectActionPeopleParticipation>[] {
+}): ColumnDef<ApiProjectActionPeopleParticipation>[] {
   return [
     {
       id: "person",
       header: "Pessoa",
-      accessorFn: (row) => row.person.fullName,
-      cell: ({ row }) => (
+      accessorFn: (row: ApiProjectActionPeopleParticipation) => row.person.fullName,
+      cell: ({ row }: { row: { original: ApiProjectActionPeopleParticipation } }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.person.fullName}</div>
           <div className="text-xs text-muted-foreground">{row.original.person.status ?? "-"}</div>
@@ -190,8 +191,8 @@ function teamParticipationColumns({
     {
       id: "role",
       header: "Papel",
-      accessorFn: (row) => ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.role],
-      cell: ({ row }) => (
+      accessorFn: (row: ApiProjectActionPeopleParticipation) => ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.role],
+      cell: ({ row }: { row: { original: ApiProjectActionPeopleParticipation } }) => (
         <span className="text-xs text-muted-foreground">
           {ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.original.role]}
         </span>
@@ -200,8 +201,8 @@ function teamParticipationColumns({
     {
       id: "source",
       header: "Origem",
-      accessorFn: (row) => row.enrollment?.role ?? "",
-      cell: ({ row }) => (
+      accessorFn: (row: ApiProjectActionPeopleParticipation) => row.enrollment?.role ?? "",
+      cell: ({ row }: { row: { original: ApiProjectActionPeopleParticipation } }) => (
         <span className="text-xs text-muted-foreground">
           {row.original.enrollment?.role ?? "Sem participação ativa no projeto"}
         </span>
@@ -210,7 +211,7 @@ function teamParticipationColumns({
     {
       id: "actions",
       header: "",
-      cell: ({ row }) =>
+      cell: ({ row }: { row: { original: ApiProjectActionPeopleParticipation } }) =>
         canUpdate ? (
           <div className="flex justify-end">
             <Button

@@ -126,7 +126,7 @@ export function DetailShell({
       lastViewportModeRef.current === null ||
       lastViewportModeRef.current !== isMobile
     ) {
-      setSideOpen(!isMobile);
+      setSideOpen(false);
       lastViewportModeRef.current = isMobile;
     }
   }, [hasSideSlot, isMobile]);

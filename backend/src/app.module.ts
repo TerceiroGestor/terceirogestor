@@ -40,6 +40,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 
 const rootEnvFilePaths = [
+  resolve(__dirname, '..', '.env.local'),
+  resolve(__dirname, '..', '.env'),
   resolve(__dirname, '..', '..', '.env.local'),
   resolve(__dirname, '..', '..', '.env'),
 ].filter((filepath) => existsSync(filepath));

@@ -13,7 +13,7 @@ export const peopleSearchView: SearchViewDefinition = {
   id: "people.search",
   model: "people.list",
   searchPlaceholder:
-    "Pesquisar pessoas em qualquer campo relevante do cadastro",
+    "Pesquisar pessoas por nome, documento, telefone, email e outros atributos...",
   features: {
     favorites: true,
     presets: true,
