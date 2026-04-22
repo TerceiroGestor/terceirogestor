@@ -21,12 +21,11 @@ Toda a configuracao do projeto agora fica centralizada no `.env` da raiz. Isso v
 
 ## Arquivos importantes
 
-- `docker-compose.yml`: stack oficial de producao/local
-- `.env.example`: modelo unico de configuracao do Docker
-- `script/up.ps1`: primeira subida e reexecucao da stack
-- `script/update.ps1`: atualizacao do projeto com backup de seguranca
-- `script/backup-now.ps1`: backup manual
-- `script/restore.ps1`: restauracao de backup
+- `docker/compose.full.yml`: ambiente completo em Docker (database + backend + frontend)
+- `docker/compose.dev.yml`: ambiente de desenvolvimento com somente database
+- `.env.example`: modelo unico de configuracao local
+- `docker.ps1`: operacao de ambientes Docker
+- `infra/scripts/gcp`: scripts de deploy e manutencao GCP (uso local, fora do Git)
 
 ## Primeira subida
 
@@ -45,10 +44,10 @@ Copy-Item .env.example .env
 - `TOTP_ENCRYPTION_KEY` e `PII_MASTER_KEY` se quiser deixar a seguranca pronta desde o inicio
 - `BACKUP_PATH` se quiser salvar backups fora do repositorio
 
-3. Subir o projeto:
+3. Subir o ambiente completo em Docker:
 
 ```powershell
-.\script\up.ps1
+.\docker.ps1 up -Environment full
 ```
 
 O script valida automaticamente:
@@ -68,10 +67,12 @@ O script valida automaticamente:
 URL definida em WEB_URL
 ```
 
-Se quiser subir com dados de demonstracao na primeira vez:
+Opcao para desenvolvimento com hot reload (somente banco em Docker):
 
 ```powershell
-.\script\up.ps1 -SeedDemoData
+.\docker.ps1 up -Environment dev
+cd backend; npm run start:dev
+cd ../frontend; npm run dev
 ```
 
 Importante:
@@ -101,10 +102,16 @@ Isso significa:
 
 ## Operacao do dia a dia
 
-Subir ou religar a stack:
+Subir ou religar a stack completa:
 
 ```powershell
-.\script\up.ps1
+.\docker.ps1 up -Environment full
+```
+
+Subir somente database para desenvolvimento local:
+
+```powershell
+.\docker.ps1 up -Environment dev
 ```
 
 Ver status:
@@ -183,41 +190,29 @@ Atencao:
 - se ja existir outro MySQL usando a mesma porta no host, altere `MYSQL_HOST_PORT`
 - depois de mudar o `.env`, reaplique a stack com `.\script\up.ps1`
 
-Para rodar um backup manual agora:
-
-```powershell
-.\script\backup-now.ps1
-```
+Para operacoes de backup/restore legadas, use os scripts movidos para `docker/scripts`.
 
 ## Atualizacao do projeto
 
-Para atualizar a partir do GitHub:
+Atualize o codigo com Git e reaplique o ambiente Docker:
 
 ```powershell
-.\script\update.ps1
+git pull --ff-only
+.\docker.ps1 up -Environment full -Build
 ```
 
-Esse script faz, nesta ordem:
+Fluxo recomendado:
 
-1. garante que o MySQL esta de pe
-2. cria um backup de seguranca antes da atualizacao
-3. executa `git pull --ff-only`
-4. rebuilda as imagens
-5. aplica migrations
-6. executa o backfill de permissoes
-7. recria backend, frontend, nginx e backup
+1. garantir backup de seguranca
+2. executar `git pull --ff-only`
+3. rebuildar imagens com `.\docker.ps1 up -Environment full -Build`
+4. validar migrations/backfills conforme necessidade
 
-Se voce quiser atualizar e tambem carregar os dados de demonstracao:
-
-```powershell
-.\script\update.ps1 -SeedDemoData
-```
-
-Use isso com cuidado. O seed deste projeto e destrutivo e serve para ambiente de demonstracao, nao para restaurar producao.
+Use seeds destrutivos somente em ambiente de desenvolvimento controlado.
 
 ## Restauracao
 
-Restaurar o banco usando o ultimo backup:
+Scripts legados de restore estao em `docker/scripts`.
 
 ```powershell
 .\script\restore.ps1

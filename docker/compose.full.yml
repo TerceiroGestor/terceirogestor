@@ -114,9 +114,6 @@ services:
       start_period: 30s
     logging: *default-logging
 
-# ============================================================
-# VOLUMES
-# ============================================================
 volumes:
   postgres_data:
     name: terceirogestor_postgres_data
