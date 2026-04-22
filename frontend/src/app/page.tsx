@@ -60,7 +60,7 @@ export default function RootPage() {
             />
 
             <p className="text-xs text-gray-500 text-center mt-4">
-              Exemplo: instituicao-exemplo
+              Exemplo: terceiro-gestor
             </p>
           </div>
 

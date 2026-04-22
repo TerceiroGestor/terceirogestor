@@ -19,9 +19,9 @@ function Invoke-DockerCompose {
         [string[]]$Arguments
     )
 
-    & docker compose -f $ComposeFile @Arguments
+    & docker compose --env-file './.env' -f $ComposeFile @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "docker compose failed: -f $ComposeFile $($Arguments -join ' ')"
+        throw "docker compose failed: --env-file ./.env -f $ComposeFile $($Arguments -join ' ')"
     }
 }
 
