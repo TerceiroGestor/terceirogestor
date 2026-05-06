@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -149,16 +147,6 @@ export function PantryItemDetailEngineClientPage({
   const [historyRows, setHistoryRows] = React.useState<ApiPantryHistoryMovement[]>(
     [],
   );
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("pantry-items-detail", PANTRY_USAGE_TEXT.items.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: PANTRY_USAGE_TEXT.items.title,
-    items: usageItems,
-  });
 
   const persistItemDraft = React.useCallback(
     async (nextDraft: ItemDraft) => {

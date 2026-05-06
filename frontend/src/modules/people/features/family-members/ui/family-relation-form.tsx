@@ -118,13 +118,6 @@ export function FamilyRelationForm({
         type: "boolean",
         visibleWhen: (values) => values.livesTogether,
       },
-      {
-        name: "notes",
-        label: "Notas",
-        type: "textarea",
-        rows: 4,
-        placeholder: "Observacoes sobre o vinculo",
-      },
     ],
     [disableRelatedPerson, peopleOptions],
   );

@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "next dev --turbo",
     "dev:webpack": "next dev --webpack",
-    "build": "next build --webpack",
+    "build": "node scripts/safe-next-build.js",
+    "build:raw": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },

@@ -290,8 +290,8 @@ export class PrismaService
     }
 
     if (value && typeof value === 'object') {
-      if (typeof (value as any).toJSON === 'function') {
-        const jsonValue = (value as any).toJSON();
+      if (typeof value.toJSON === 'function') {
+        const jsonValue = value.toJSON();
         if (
           jsonValue === null ||
           typeof jsonValue === 'string' ||

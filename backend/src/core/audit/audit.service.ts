@@ -13,7 +13,9 @@ export class AuditService {
         tenantId,
       },
       include: {
-        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        user: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
       },
     });
   }
@@ -54,9 +56,7 @@ export class AuditService {
     const where = {
       tenantId,
       ...(action ? { action } : {}),
-      ...(entity
-        ? { entity: { contains: entity } }
-        : {}),
+      ...(entity ? { entity: { contains: entity } } : {}),
       ...(entityId ? { entityId } : {}),
       ...(userId ? { userId } : {}),
       ...(from || to
@@ -96,7 +96,9 @@ export class AuditService {
         skip,
         take: limit,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
         },
       }),
       this.prisma.auditLog.count({ where }),

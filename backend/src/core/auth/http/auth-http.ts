@@ -45,4 +45,3 @@ export function getRequestMeta(req: Request): AuthRequestMeta {
     userAgent: req.headers['user-agent'],
   };
 }
-

@@ -29,7 +29,10 @@ export class ProgramsController {
 
   @Get()
   @Permissions('programs.read')
-  async list(@CurrentUser() user: JwtUser, @Query() query: ListProgramsQueryDto) {
+  async list(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListProgramsQueryDto,
+  ) {
     return this.programs.listPrograms(user.tenantId, query);
   }
 
@@ -83,7 +86,8 @@ export class ProgramsController {
   async deleteAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
     return this.programs.deleteAttachment(user.tenantId, id, attachmentId);
   }
@@ -107,4 +111,3 @@ export class ProgramsController {
     return this.programs.deleteProgram(user.tenantId, id);
   }
 }
-

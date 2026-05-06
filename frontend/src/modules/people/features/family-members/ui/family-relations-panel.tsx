@@ -168,6 +168,7 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!window.confirm("Excluir este vinculo familiar?")) return;
                 void (async () => {
                   await remove(row.original.relation.id);
                   await refresh();

@@ -30,7 +30,10 @@ export class PeopleGroupsController {
 
   @Get()
   @Permissions('people.read')
-  async list(@CurrentUser() user: JwtUser, @Query() query: ListPeopleGroupsQueryDto) {
+  async list(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListPeopleGroupsQueryDto,
+  ) {
     return this.peopleGroups.listPeopleGroups(user.tenantId, query);
   }
 
@@ -45,7 +48,10 @@ export class PeopleGroupsController {
 
   @Post()
   @Permissions('people.create')
-  async create(@CurrentUser() user: JwtUser, @Body() dto: CreatePeopleGroupDto) {
+  async create(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: CreatePeopleGroupDto,
+  ) {
     return this.peopleGroups.createPeopleGroup(user.tenantId, dto);
   }
 
@@ -75,7 +81,11 @@ export class PeopleGroupsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query() query: ListPeopleGroupParticipationsQueryDto,
   ) {
-    return this.peopleGroups.listPeopleGroupParticipations(user.tenantId, id, query);
+    return this.peopleGroups.listPeopleGroupParticipations(
+      user.tenantId,
+      id,
+      query,
+    );
   }
 
   @Post(':id/participations')
@@ -85,7 +95,11 @@ export class PeopleGroupsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePeopleGroupParticipationDto,
   ) {
-    return this.peopleGroups.createPeopleGroupParticipation(user.tenantId, id, dto);
+    return this.peopleGroups.createPeopleGroupParticipation(
+      user.tenantId,
+      id,
+      dto,
+    );
   }
 
   @Patch(':id/participations/:participationId/end')
@@ -93,7 +107,8 @@ export class PeopleGroupsController {
   async endParticipation(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('participationId', new ParseUUIDPipe({ version: '4' })) participationId: string,
+    @Param('participationId', new ParseUUIDPipe({ version: '4' }))
+    participationId: string,
     @Body() dto: EndPeopleGroupParticipationDto,
   ) {
     return this.peopleGroups.endPeopleGroupParticipation(

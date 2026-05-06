@@ -202,6 +202,7 @@ export function StandardDetailMetadataSide({
   tags,
   contextItems = [],
   contextPanel,
+  context,
   history,
   attachments,
   defaultTab = "activity",
@@ -227,11 +228,15 @@ export function StandardDetailMetadataSide({
   notes?: {
     value: string | null | undefined;
     onChange: (next: string | null) => void;
-    onBlur: () => void;
+    onBlur: (next?: string | null) => void;
+    users?: DetailCommentUser[];
     readOnly?: boolean;
     hidden?: boolean;
+    itemLabel?: string;
     label?: string;
     placeholder?: string;
+    intro?: string;
+    footer?: string;
   };
   tags?: {
     value: string[];
@@ -246,6 +251,10 @@ export function StandardDetailMetadataSide({
   };
   contextItems?: DetailContextItem[];
   contextPanel?: React.ReactNode;
+  context?: {
+    hidden?: boolean;
+    emptyLabel?: string;
+  };
   history?: {
     items: DetailHistoryItem[];
     hidden?: boolean;
@@ -265,28 +274,84 @@ export function StandardDetailMetadataSide({
   const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
 
   const tabs = React.useMemo<DetailSideTabItem[]>(() => {
-    const nextTabs: DetailSideTabItem[] = [
-      {
-        value: "activity",
-        label: "Auditoria",
-        badge: canAudit && auditCount ? auditCount : undefined,
-        content:
-          mode === "edit" && canAudit && detailAudit && onAuditVisibleCountChange ? (
-            <DetailAuditFeed
-              mode="edit"
-              auditState={detailAudit}
-              auditVisibleCount={auditVisibleCount ?? 24}
-              onAuditVisibleCountChange={onAuditVisibleCountChange}
-            />
-          ) : (
-            <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-              {mode === "create"
-                ? "A auditoria aparece apos salvar o registro."
-                : "Nenhum evento de auditoria registrado."}
-            </div>
-          ),
-      },
-    ];
+    const nextTabs: DetailSideTabItem[] = [];
+
+    if (tags && !tags.hidden) {
+      nextTabs.push({
+        value: "tags",
+        label: tags.label ?? "Tags",
+        badge: tags.value.length || undefined,
+        content: (
+          <DetailTagsField
+            value={tags.value}
+            onChange={tags.onChange}
+            onCommit={tags.onCommit}
+            readOnly={tags.readOnly ?? readOnly}
+            label={tags.label ?? "Tags"}
+            placeholder={tags.placeholder}
+            helperText={tags.helperText}
+            emptyLabel={tags.emptyLabel}
+          />
+        ),
+      });
+    }
+
+    if (notes && !notes.hidden) {
+      nextTabs.push({
+        value: "notes",
+        label: notes.label ?? "Notas internas",
+        content: (
+          <DetailNotesPanel
+            value={notes.value}
+            onChange={notes.onChange}
+            onBlur={notes.onBlur}
+            users={notes.users}
+            readOnly={notes.readOnly ?? readOnly}
+            itemLabel={notes.itemLabel}
+            placeholder={notes.placeholder}
+          />
+        ),
+      });
+    }
+
+    if (attachments && !attachments.hidden) {
+      nextTabs.push({
+        value: "attachments",
+        label: "Anexos",
+        badge: attachments.items.length || undefined,
+        content: (
+          <StandardDetailAttachmentsPanel
+            items={attachments.items}
+            onOpen={attachments.onOpen}
+            onUpload={attachments.onUpload}
+            onDelete={attachments.onDelete}
+            readOnly={attachments.readOnly ?? readOnly}
+            emptyLabel={attachments.emptyLabel}
+          />
+        ),
+      });
+    }
+
+    nextTabs.push({
+      value: "activity",
+      label: "Auditoria",
+      badge: canAudit && auditCount ? auditCount : undefined,
+      content:
+        mode === "edit" && canAudit && detailAudit && onAuditVisibleCountChange ? (
+          <DetailAuditFeed
+            mode="edit"
+            auditState={detailAudit}
+            auditVisibleCount={auditVisibleCount ?? 24}
+            onAuditVisibleCountChange={onAuditVisibleCountChange}
+          />
+        ) : (
+          <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
+            {mode === "create"
+              ? "A auditoria aparece apos salvar o registro."
+              : "Nenhum evento de auditoria registrado."}
+          </div>
+        ),
+    });
 
     if (comments && !comments.hidden) {
       nextTabs.push({
@@ -318,60 +383,6 @@ export function StandardDetailMetadataSide({
       });
     }
 
-    if (notes && !notes.hidden) {
-      nextTabs.push({
-        value: "notes",
-        label: notes.label ?? "Notas internas",
-        content: (
-          <DetailNotesPanel
-            value={notes.value}
-            onChange={notes.onChange}
-            onBlur={notes.onBlur}
-            readOnly={notes.readOnly ?? readOnly}
-            placeholder={notes.placeholder}
-          />
-        ),
-      });
-    }
-
-    if (tags && !tags.hidden) {
-      nextTabs.push({
-        value: "tags",
-        label: tags.label ?? "Tags",
-        badge: tags.value.length || undefined,
-        content: (
-          <DetailTagsField
-            value={tags.value}
-            onChange={tags.onChange}
-            onCommit={tags.onCommit}
-            readOnly={tags.readOnly ?? readOnly}
-            label={tags.label ?? "Tags"}
-            placeholder={tags.placeholder}
-            helperText={tags.helperText}
-            emptyLabel={tags.emptyLabel}
-          />
-        ),
-      });
-    }
-
-    if (attachments && !attachments.hidden) {
-      nextTabs.push({
-        value: "attachments",
-        label: "Anexos",
-        badge: attachments.items.length || undefined,
-        content: (
-          <StandardDetailAttachmentsPanel
-            items={attachments.items}
-            onOpen={attachments.onOpen}
-            onUpload={attachments.onUpload}
-            onDelete={attachments.onDelete}
-            readOnly={attachments.readOnly ?? readOnly}
-            emptyLabel={attachments.emptyLabel}
-          />
-        ),
-      });
-    }
-
     if (history && !history.hidden) {
       nextTabs.push({
         value: "history",
@@ -386,12 +397,19 @@ export function StandardDetailMetadataSide({
       });
     }
 
-    nextTabs.push({
-      value: "context",
-      label: "Contexto",
-      content:
-        contextPanel ?? <StandardDetailContextPanel items={contextItems} />,
-    });
+    if (!context?.hidden) {
+      nextTabs.push({
+        value: "context",
+        label: "Contexto",
+        content:
+          contextPanel ?? (
+            <StandardDetailContextPanel
+              items={contextItems}
+              emptyLabel={context?.emptyLabel}
+            />
+          ),
+      });
+    }
 
     return nextTabs;
   }, [
@@ -400,6 +418,7 @@ export function StandardDetailMetadataSide({
     auditVisibleCount,
     canAudit,
     comments,
+    context,
     contextPanel,
     contextItems,
     detailAudit,

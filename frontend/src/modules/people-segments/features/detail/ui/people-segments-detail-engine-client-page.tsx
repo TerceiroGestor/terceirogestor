@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useConfirm } from "@/components/confirm/use-confirm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
@@ -109,16 +107,6 @@ export function PeopleSegmentsDetailEngineClientPage() {
   const [busy, setBusy] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("people-segments-detail", PEOPLE_SEGMENT_USAGE_TEXT.detail.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: PEOPLE_SEGMENT_USAGE_TEXT.detail.title,
-    items: usageItems,
-  });
 
   const loadMemberships = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {

@@ -1,5 +1,11 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
+import { mkdir, writeFile } from 'fs/promises';
+import { dirname, resolve } from 'path';
 
 type UploadPublicObjectArgs = {
   objectPath: string;
@@ -11,13 +17,26 @@ type UploadPublicObjectArgs = {
 export class CloudStorageService {
   private readonly logger = new Logger(CloudStorageService.name);
   private readonly storage = new Storage();
+  private readonly storageDriver =
+    process.env.FILE_STORAGE_DRIVER?.trim().toLowerCase() || 'gcs';
 
   private readonly publicBucketName =
     process.env.GCS_PUBLIC_BUCKET_NAME?.trim() ?? '';
 
   private readonly publicBaseUrl = this.resolvePublicBaseUrl();
+  private readonly localUploadsRoot = resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'uploads',
+  );
 
   async uploadPublicObject(args: UploadPublicObjectArgs) {
+    if (this.storageDriver === 'local') {
+      return this.uploadPublicObjectLocally(args);
+    }
+
     const bucketName = this.publicBucketName;
     if (!bucketName) {
       throw new InternalServerErrorException(
@@ -34,7 +53,9 @@ export class CloudStorageService {
       validation: 'crc32c',
     });
 
-    this.logger.log(`Upload concluido no GCS: gs://${bucketName}/${objectPath}`);
+    this.logger.log(
+      `Upload concluido no GCS: gs://${bucketName}/${objectPath}`,
+    );
 
     return {
       objectPath,
@@ -42,7 +63,29 @@ export class CloudStorageService {
     };
   }
 
+  private async uploadPublicObjectLocally(args: UploadPublicObjectArgs) {
+    const objectPath = this.normalizeObjectPath(args.objectPath);
+    const targetPath = resolve(
+      this.localUploadsRoot,
+      objectPath.replace(/^uploads\//, ''),
+    );
+
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, args.data);
+
+    this.logger.log(`Upload concluido em storage local: ${targetPath}`);
+
+    return {
+      objectPath,
+      publicUrl: `/${objectPath}`,
+    };
+  }
+
   private resolvePublicBaseUrl() {
+    if (this.storageDriver === 'local') {
+      return '/uploads';
+    }
+
     const configured = process.env.GCS_PUBLIC_BASE_URL?.trim() ?? '';
     if (configured) {
       return configured.replace(/\/+$/, '');

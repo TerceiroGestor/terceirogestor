@@ -9,4 +9,3 @@ export class ReversePantryMovementDto {
   @IsString()
   notes?: string;
 }
-

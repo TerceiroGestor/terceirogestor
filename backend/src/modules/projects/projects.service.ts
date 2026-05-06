@@ -1,8 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma, ProgramType, ProjectStatus } from '../../generated/prisma';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type {
+  Prisma,
+  ProgramType,
+  ProjectStatus,
+} from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { isUploadPathAllowed } from '../../core/files/upload-path.utils';
 import { CreateProjectAttachmentDto } from './dto/create-project-attachment.dto';
@@ -81,21 +92,19 @@ const mapCommentAuthor = (
   avatarUrl: user?.avatarUrl ?? null,
 });
 
-const mapProjectCommentItem = (
-  comment: {
+const mapProjectCommentItem = (comment: {
+  id: string;
+  body: string;
+  mentionUserIds: Prisma.JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+  authorUser?: {
     id: string;
-    body: string;
-    mentionUserIds: Prisma.JsonValue | null;
-    createdAt: Date;
-    updatedAt: Date;
-    authorUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+}) => ({
   id: comment.id,
   body: comment.body,
   mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
@@ -104,23 +113,21 @@ const mapProjectCommentItem = (
   updatedAt: comment.updatedAt,
 });
 
-const mapProjectAttachmentItem = (
-  attachment: {
+const mapProjectAttachmentItem = (attachment: {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  uploadedByUser?: {
     id: string;
-    label: string;
-    filePath: string;
-    mimeType: string | null;
-    fileSizeBytes: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-    uploadedByUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+}) => ({
   id: attachment.id,
   label: attachment.label,
   filePath: attachment.filePath,
@@ -210,7 +217,10 @@ function resolveMatchingProgramTypes(query: string): ProgramType[] {
   return Array.from(matches);
 }
 
-function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | null }) {
+function ensureValidPeriod(params: {
+  startsAt?: Date | null;
+  endsAt?: Date | null;
+}) {
   const startsAt = params.startsAt ?? null;
   const endsAt = params.endsAt ?? null;
   if (startsAt && endsAt && startsAt > endsAt) {
@@ -259,7 +269,10 @@ export class ProjectsService {
               { internalNotes: { contains: q } },
               { status: { in: matchingStatuses } },
               ...(searchedDate
-                ? [{ startsAt: { equals: searchedDate } }, { endsAt: { equals: searchedDate } }]
+                ? [
+                    { startsAt: { equals: searchedDate } },
+                    { endsAt: { equals: searchedDate } },
+                  ]
                 : []),
               { program: { name: { contains: q } } },
               { program: { type: { in: matchingProgramTypes } } },
@@ -274,7 +287,9 @@ export class ProjectsService {
       this.prisma.project.findMany({
         where,
         include: {
-          program: { select: { id: true, name: true, type: true, status: true } },
+          program: {
+            select: { id: true, name: true, type: true, status: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         ...(isAll ? {} : { skip, take }),
@@ -328,7 +343,10 @@ export class ProjectsService {
     return project;
   }
 
-  private async ensureProgramBelongsToTenant(tenantId: string, programId: string) {
+  private async ensureProgramBelongsToTenant(
+    tenantId: string,
+    programId: string,
+  ) {
     const program = await this.prisma.program.findFirst({
       where: { id: programId, tenantId },
       select: { id: true },
@@ -353,7 +371,9 @@ export class ProjectsService {
         name,
         description: dto.description?.trim() ? dto.description.trim() : null,
         tags: normalizeTags(dto.tags),
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
         status: dto.status ?? 'PLANNED',
         startsAt,
         endsAt,
@@ -376,14 +396,15 @@ export class ProjectsService {
       await this.ensureProgramBelongsToTenant(tenantId, dto.programId);
     }
 
-    const name =
-      dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
+    const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
     if (name !== undefined && !name) {
       throw new BadRequestException('Nome é obrigatório');
     }
 
     const startsAt =
-      dto.startsAt !== undefined ? parseDateInput(dto.startsAt) : existing.startsAt;
+      dto.startsAt !== undefined
+        ? parseDateInput(dto.startsAt)
+        : existing.startsAt;
     const endsAt =
       dto.endsAt !== undefined ? parseDateInput(dto.endsAt) : existing.endsAt;
     ensureValidPeriod({ startsAt, endsAt });
@@ -394,7 +415,11 @@ export class ProjectsService {
         ...(dto.programId !== undefined ? { programId: dto.programId } : {}),
         ...(name !== undefined ? { name } : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.tags !== undefined ? { tags: normalizeTags(dto.tags) } : {}),
         ...(dto.internalNotes !== undefined
@@ -423,15 +448,14 @@ export class ProjectsService {
     });
     if (!existing) throw new NotFoundException('Projeto não encontrado');
 
-    const [groupsCount, enrollmentsCount] =
-      await this.prisma.$transaction([
-        this.prisma.projectGroup.count({
-          where: { tenantId, projectId: existing.id },
-        }),
-        this.prisma.projectEnrollment.count({
-          where: { tenantId, projectId: existing.id },
-        }),
-      ]);
+    const [groupsCount, enrollmentsCount] = await this.prisma.$transaction([
+      this.prisma.projectGroup.count({
+        where: { tenantId, projectId: existing.id },
+      }),
+      this.prisma.projectEnrollment.count({
+        where: { tenantId, projectId: existing.id },
+      }),
+    ]);
 
     if (groupsCount > 0 || enrollmentsCount > 0) {
       throw new BadRequestException(
@@ -455,7 +479,10 @@ export class ProjectsService {
       throw new BadRequestException('Informe um comentario.');
     }
 
-    const mentionUserIds = await this.resolveMentionUserIds(tenantId, dto.mentionUserIds);
+    const mentionUserIds = await this.resolveMentionUserIds(
+      tenantId,
+      dto.mentionUserIds,
+    );
 
     await this.prisma.projectComment.create({
       data: {
@@ -531,7 +558,9 @@ export class ProjectsService {
       throw new NotFoundException('Anexo nao encontrado');
     }
 
-    await this.prisma.projectAttachment.delete({ where: { id: attachment.id } });
+    await this.prisma.projectAttachment.delete({
+      where: { id: attachment.id },
+    });
     return this.findById(tenantId, projectId);
   }
 
@@ -540,7 +569,9 @@ export class ProjectsService {
     mentionUserIds?: string[] | null,
   ) {
     const normalized = Array.from(
-      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+      new Set(
+        (mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean),
+      ),
     );
 
     if (!normalized.length) {

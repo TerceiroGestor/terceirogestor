@@ -27,7 +27,10 @@ export class ActionTypesController {
 
   @Get()
   @Permissions('actions.read')
-  async list(@CurrentUser() user: JwtUser, @Query() query: ListActionTypesQueryDto) {
+  async list(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListActionTypesQueryDto,
+  ) {
     return this.service.listActionTypes(user.tenantId, query);
   }
 
@@ -56,4 +59,3 @@ export class ActionTypesController {
     return this.service.deleteActionType(user.tenantId, id);
   }
 }
-

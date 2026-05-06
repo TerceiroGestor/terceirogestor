@@ -9,7 +9,7 @@ export const actionsManifest: ModuleManifest = {
   groupLabel: NAV_GROUPS.OPERACOES,
   navItems: [
     {
-      title: "Ações",
+      title: "Oficinas",
       href: "/actions",
       icon: ClipboardList,
       permissions: ["actions.read"],

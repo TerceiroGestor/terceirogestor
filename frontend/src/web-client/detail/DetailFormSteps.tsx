@@ -7,6 +7,8 @@ export type DetailFormStep = {
   key: string;
   title: string;
   description?: React.ReactNode;
+  disabled?: boolean;
+  badge?: string;
 };
 
 export function DetailFormSteps({
@@ -20,24 +22,31 @@ export function DetailFormSteps({
   onValueChange: (value: string) => void;
   className?: string;
 }) {
+  const activeStep = steps.find((step) => step.key === value) ?? steps[0] ?? null;
+
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border/60">
+    <div className={cn("space-y-3", className)}>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/10 p-2">
         {steps.map((step, index) => {
           const isActive = step.key === value;
           return (
             <button
               key={step.key}
               type="button"
-              onClick={() => onValueChange(step.key)}
+              onClick={() => !step.disabled && onValueChange(step.key)}
+              disabled={step.disabled}
+              aria-current={isActive ? "step" : undefined}
               className={cn(
-                "group relative -mb-px rounded-none border-b-2 px-1 py-3 text-left transition-colors sm:px-3",
+                "group relative flex min-w-[190px] flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors sm:min-w-[210px]",
                 isActive
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:border-border/80 hover:text-foreground",
+                  ? "border-primary/60 bg-background text-foreground shadow-sm"
+                  : "border-transparent bg-background/60 text-muted-foreground hover:border-border/80 hover:text-foreground",
+                step.disabled
+                  ? "cursor-not-allowed opacity-60 hover:border-transparent hover:text-muted-foreground"
+                  : null,
               )}
             >
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
                 <span
                   className={cn(
                     "inline-flex size-5 items-center justify-center rounded-full text-[10px]",
@@ -48,15 +57,20 @@ export function DetailFormSteps({
                 >
                   {index + 1}
                 </span>
-                {step.title}
+                <span>{step.title}</span>
+                {step.badge ? (
+                  <span className="rounded-full border border-border/80 px-1.5 py-0.5 text-[9px] tracking-[0.08em] text-muted-foreground">
+                    {step.badge}
+                  </span>
+                ) : null}
               </div>
             </button>
           );
         })}
       </div>
-      {steps.find((step) => step.key === value)?.description ? (
-        <div className="text-xs text-muted-foreground">
-          {steps.find((step) => step.key === value)?.description}
+      {activeStep?.description ? (
+        <div className="rounded-lg border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
+          {activeStep.description}
         </div>
       ) : null}
     </div>

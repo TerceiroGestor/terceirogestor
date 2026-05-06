@@ -38,4 +38,3 @@ export class CreatePersonContactDto {
   @IsString()
   notes?: string;
 }
-

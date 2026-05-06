@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -107,16 +105,6 @@ export function ProgramsDetailEngineClientPage() {
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("programs-detail", PROGRAM_USAGE_TEXT.detail.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: PROGRAM_USAGE_TEXT.detail.title,
-    items: usageItems,
-  });
 
   const persistDraft = React.useCallback(
     async (nextDraft: ProgramDetailDraft) => {

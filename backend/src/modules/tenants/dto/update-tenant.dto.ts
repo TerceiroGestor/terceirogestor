@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsDateString,
   IsInt,
   IsOptional,
   IsString,
@@ -39,4 +40,8 @@ export class UpdateTenantDto {
   @IsString()
   @MaxLength(20000)
   description?: string;
+
+  @IsOptional()
+  @IsDateString()
+  onboardingCompletedAt?: string;
 }

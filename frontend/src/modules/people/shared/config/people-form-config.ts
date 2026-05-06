@@ -96,11 +96,6 @@ export const personFormFields: FormField<PersonFormData>[] = [
     placeholder: PEOPLE_FORM_TEXT.fields.tags.placeholder,
   },
   {
-    name: "profileSummary",
-    label: PEOPLE_FORM_TEXT.fields.profileSummary.label,
-    type: "richtext",
-  },
-  {
     name: "status",
     label: PEOPLE_FORM_TEXT.fields.status.label,
     type: "select",
@@ -139,9 +134,5 @@ export const personFormSteps: FormStep[] = [
   {
     title: PEOPLE_FORM_TEXT.steps.organization.title,
     fields: ["tags", "status", "departureReason"],
-  },
-  {
-    title: PEOPLE_FORM_TEXT.steps.notes.title,
-    fields: ["profileSummary"],
   },
 ];

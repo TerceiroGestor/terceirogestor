@@ -8,14 +8,16 @@ import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UsageDocumentationProvider } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { ControlPanelShell } from "@/web-client/control-panel/ControlPanelShell";
+import { InAppGuidedTour } from "@/modules/onboarding/ui/in-app-guided-tour";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
-const PUBLIC_ROUTES = ["/register"];
+const PUBLIC_ROUTES = ["/register", "/iniciar"];
 const TENANT_AUTH_SEGMENTS = new Set([
   "login",
   "register",
   "forgot-password",
   "reset-password",
+  "onboarding",
 ]);
 const RESERVED_SEGMENTS = new Set([
   "",
@@ -39,11 +41,11 @@ const RESERVED_SEGMENTS = new Set([
 ]);
 
 function isTenantAuthRoute(pathname: string) {
-  if (/^\/t\/[^/]+\/(login|register|forgot-password|reset-password)/.test(pathname)) {
+  if (/^\/t\/[^/]+\/(login|register|forgot-password|reset-password|onboarding)/.test(pathname)) {
     return true;
   }
   const match = pathname.match(
-    /^\/([^/]+)\/(login|register|forgot-password|reset-password)/,
+    /^\/([^/]+)\/(login|register|forgot-password|reset-password|onboarding)/,
   );
   if (!match) return false;
   const slug = match[1];
@@ -62,7 +64,7 @@ export function AppShell({ children }: AppShellProps) {
     AUTH_ROUTES.some((route) => pathname?.startsWith(route)) ||
     PUBLIC_ROUTES.some((route) => pathname?.startsWith(route)) ||
     (pathname ? isTenantAuthRoute(pathname) : false);
-  const shouldRenderBareLayout = !pathname || isAuthRoute || pathname === "/";
+  const shouldRenderBareLayout = !pathname || isAuthRoute || pathname === "/" || pathname === "/iniciar";
 
   React.useEffect(() => {
     if (shouldRenderBareLayout) return;
@@ -89,21 +91,24 @@ export function AppShell({ children }: AppShellProps) {
   }, [shouldRenderBareLayout]);
 
   if (shouldRenderBareLayout) {
-    return <>{children}</>;
+    return <UsageDocumentationProvider>{children}</UsageDocumentationProvider>;
   }
 
   return (
-    <>
-      <AppSidebar />
-      <SidebarInset>
-        <div ref={stickyHeaderRef} className="sticky top-0 z-30">
-          <AppHeader />
-          <ControlPanelShell />
-        </div>
-        <UsageDocumentationProvider>
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
-        </UsageDocumentationProvider>
-      </SidebarInset>
-    </>
+    <UsageDocumentationProvider>
+      <>
+        <AppSidebar />
+        <SidebarInset>
+          <div ref={stickyHeaderRef} className="sticky top-0 z-30">
+            <AppHeader />
+            <ControlPanelShell />
+          </div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-tour-target="page-main-content">
+            {children}
+          </div>
+          <InAppGuidedTour />
+        </SidebarInset>
+      </>
+    </UsageDocumentationProvider>
   );
 }

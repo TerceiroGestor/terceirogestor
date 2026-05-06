@@ -1,11 +1,12 @@
 export const PEOPLE_DETAIL_TAB_VALUES = [
   "familia",
+  "endereco",
+  "contatos",
   "financeiro",
   "saude",
   "medicacoes",
   "escolaridade",
   "reclusao",
-  "atendimentos",
 ] as const;
 
 export type PeopleDetailTabValue = (typeof PEOPLE_DETAIL_TAB_VALUES)[number];
@@ -18,7 +19,7 @@ export function isPeopleDetailTabValue(
 
 export function buildPeopleDetailTabPath(
   personId: string,
-  tab: Exclude<PeopleDetailTabValue, "atendimentos" | "resumo">,
+  tab: Exclude<PeopleDetailTabValue, "resumo">,
 ) {
   return tab === "familia" ? `/people/${personId}` : `/people/${personId}?tab=${tab}`;
 }
@@ -75,4 +76,22 @@ export function buildPeopleFinancialEntryPath(
   return entryId
     ? `/people/${personId}/financial/${entryId}`
     : `/people/${personId}/financial/new`;
+}
+
+export function buildPeopleContactPath(
+  personId: string,
+  contactId?: string,
+) {
+  return contactId
+    ? `/people/${personId}/contacts/${contactId}`
+    : `/people/${personId}/contacts/new`;
+}
+
+export function buildPeopleAddressPath(
+  personId: string,
+  addressId?: string,
+) {
+  return addressId
+    ? `/people/${personId}/address/${addressId}`
+    : `/people/${personId}/address/new`;
 }

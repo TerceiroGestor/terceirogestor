@@ -7,7 +7,7 @@ export const peopleManifest: ModuleManifest = {
   groupLabel: NAV_GROUPS.GESTAO,
   navItems: [
     {
-      title: "Pessoas",
+      title: "Beneficiários",
       href: "/people",
       icon: Users,
       permissions: ["people.read"],

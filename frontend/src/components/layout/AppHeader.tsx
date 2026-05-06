@@ -3,8 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Compass } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
+import { Button } from "@/components/ui/button";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import {
   Breadcrumb,
@@ -39,6 +41,10 @@ export function AppHeader() {
   const forceInstallButton =
     process.env.NODE_ENV !== "production" ||
     process.env.NEXT_PUBLIC_PWA_FORCE_INSTALL === "1";
+
+  const openGuidedTour = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent("tg:tour:open", { detail: { tourId: "onboarding" } }));
+  }, []);
 
   return (
     <header className="flex min-w-0 items-center gap-2 border-b border-border bg-card/95 px-3 py-2 backdrop-blur">
@@ -84,10 +90,22 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center justify-end gap-2">
+          {/* <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="hidden md:inline-flex"
+            data-tour-target="header-tour-trigger"
+            onClick={openGuidedTour}
+          >
+            <Compass className="mr-1.5 h-4 w-4" />
+            Tour guiado
+          </Button>
           <PWAInstallButton
+            data-tour-target="header-pwa-install"
             forceDisplay={forceInstallButton}
             className={forceInstallButton ? "animate-pulse" : undefined}
-          />
+          /> */}
         </div>
       </div>
     </header>

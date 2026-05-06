@@ -20,10 +20,7 @@ export class AuditController {
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('audit.read')
-  async getAuditLogById(
-    @CurrentUser() user: JwtUser,
-    @Param('id') id: string,
-  ) {
+  async getAuditLogById(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.auditService.getAuditLogById(user.tenantId, id);
   }
 

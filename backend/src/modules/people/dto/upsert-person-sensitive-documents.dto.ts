@@ -17,4 +17,3 @@ export class UpsertPersonSensitiveDocumentsDto {
   @IsString()
   cns?: string;
 }
-

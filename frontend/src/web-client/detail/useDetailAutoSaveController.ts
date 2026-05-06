@@ -21,6 +21,11 @@ type CommitField<TDraft extends Record<string, unknown>> = <
   nextValue?: TDraft[K],
 ) => void;
 
+type QueuedDraft<TDraft extends Record<string, unknown>> = {
+  draft: TDraft;
+  force: boolean;
+};
+
 function defaultAreEqual<TDraft extends Record<string, unknown>>(
   left: TDraft | null,
   right: TDraft | null,
@@ -44,7 +49,7 @@ export function useDetailAutoSaveController<
 }: UseDetailAutoSaveControllerOptions<TDraft>) {
   const [saving, setSaving] = React.useState(false);
   const lastSavedRef = React.useRef<TDraft | null>(null);
-  const queuedDraftRef = React.useRef<TDraft | null>(null);
+  const queuedDraftRef = React.useRef<QueuedDraft<TDraft> | null>(null);
   const savingRef = React.useRef(false);
   const draftRef = React.useRef<TDraft | null>(draft);
   const autoSaveEnabledRef = React.useRef(false);
@@ -105,9 +110,9 @@ export function useDetailAutoSaveController<
   );
 
   const commitDraftAsync = React.useCallback(
-    async (nextDraft?: TDraft | null) => {
+    async (nextDraft?: TDraft | null, force = false) => {
       const candidate = nextDraft ?? draftRef.current;
-      if (!autoSaveEnabledRef.current || !candidate) {
+      if ((!autoSaveEnabledRef.current && !force) || !candidate) {
         return;
       }
 
@@ -117,12 +122,12 @@ export function useDetailAutoSaveController<
       }
 
       if (isDetailAutoSaveSuspended()) {
-        queuedDraftRef.current = normalizedDraft;
+        queuedDraftRef.current = { draft: normalizedDraft, force };
         return;
       }
 
       if (savingRef.current) {
-        queuedDraftRef.current = normalizedDraft;
+        queuedDraftRef.current = { draft: normalizedDraft, force };
         return;
       }
 
@@ -150,7 +155,7 @@ export function useDetailAutoSaveController<
 
     const nextDraft = queuedDraftRef.current;
     queuedDraftRef.current = null;
-    void commitDraftAsync(nextDraft);
+    void commitDraftAsync(nextDraft.draft, nextDraft.force);
   }, [commitDraftAsync, saving]);
 
   React.useEffect(() => {
@@ -161,7 +166,7 @@ export function useDetailAutoSaveController<
 
       const nextDraft = queuedDraftRef.current;
       queuedDraftRef.current = null;
-      void commitDraftAsync(nextDraft);
+      void commitDraftAsync(nextDraft.draft, nextDraft.force);
     };
 
     window.addEventListener(
@@ -179,7 +184,7 @@ export function useDetailAutoSaveController<
 
   const commitDraft = React.useCallback(
     (nextDraft?: TDraft | null) => {
-      void commitDraftAsync(nextDraft);
+      void commitDraftAsync(nextDraft, true);
     },
     [commitDraftAsync],
   );
@@ -196,9 +201,9 @@ export function useDetailAutoSaveController<
           ? currentDraft
           : ({ ...currentDraft, [field]: nextValue } as TDraft);
 
-      commitDraft(nextDraft);
+      void commitDraftAsync(nextDraft, false);
     },
-    [commitDraft],
+    [commitDraftAsync],
   );
 
   return {

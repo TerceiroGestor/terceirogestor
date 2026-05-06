@@ -1,4 +1,10 @@
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { DepositExitType } from '../../../generated/prisma';
 import { PaginationQueryDto } from '../../../core/dto/pagination-query.dto';
 

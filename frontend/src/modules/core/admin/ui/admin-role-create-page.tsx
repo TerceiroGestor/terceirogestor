@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -74,28 +73,6 @@ export function AdminRoleCreatePage() {
   const [error, setError] = React.useState<string | null>(null);
   const [permissionPickerOpen, setPermissionPickerOpen] = React.useState(false);
   const [permissionPickerSelection, setPermissionPickerSelection] = React.useState<string[]>([]);
-
-  const usageItems = React.useMemo(
-    () =>
-      ADMIN_USAGE_TEXT.roles.sections.map((section, index) => ({
-        id: `admin-roles-create-${index}`,
-        title: section.title,
-        searchText: section.items.join(" "),
-        content: (
-          <ul className="list-disc space-y-1 pl-5">
-            {section.items.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        ),
-      })),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: ADMIN_USAGE_TEXT.roles.title,
-    items: usageItems,
-  });
 
   React.useEffect(() => {
     if (authLoading || userLoading) {

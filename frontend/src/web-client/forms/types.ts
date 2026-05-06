@@ -29,6 +29,7 @@ export interface BaseField<
   name: keyof TValues & string;
   label: string;
   type: FieldType;
+  columnSpan?: 1 | 2;
   disabled?: boolean;
   defaultValue?: unknown;
   required?: boolean;

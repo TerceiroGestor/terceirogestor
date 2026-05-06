@@ -94,11 +94,12 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
   const createInitialValues = React.useMemo(() => initialFormValues(), []);
 
   const [draft, setDraft] = React.useState<FamilyRelationFormValues>(createInitialValues);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(relationId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(relationId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
-    enabled: true,
+    enabled: mode === "edit",
     config: AUTO_EDITING,
     normalizeDraft: (values) => ({
       ...values,
@@ -134,6 +135,13 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       const updated = await update(relationIdRef.current, payload);
       return initialFormValues(updated ?? current, currentMember);
     },
+    onError: (error) => {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao salvar vinculo familiar.";
+      setSaveError(message);
+    },
   });
 
   React.useEffect(() => {
@@ -147,27 +155,31 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
 
   const handleValuesChange = React.useCallback((values: FamilyRelationFormValues) => {
     setDraft(values);
-  }, []);
+  }, [setDraft]);
 
   const handleFieldCommit = React.useCallback(
     (values: FamilyRelationFormValues) => {
       setDraft(values);
-      commitDraft(values);
+      if (mode === "edit") {
+        commitDraft(values);
+      }
     },
-    [commitDraft],
+    [commitDraft, mode, setDraft],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
     setDraft((previous) => ({ ...previous, notes: next ?? "" }));
-  }, []);
+  }, [setDraft]);
 
   const handleNotesCommit = React.useCallback(
     (next: string | null) => {
       const nextDraft = { ...draft, notes: next ?? "" };
       setDraft(nextDraft);
-      commitDraft(nextDraft);
+      if (mode === "edit") {
+        commitDraft(nextDraft);
+      }
     },
-    [commitDraft, draft],
+    [commitDraft, draft, mode, setDraft],
   );
 
   const relatedPerson = current?.relatedPerson ?? null;
@@ -187,6 +199,17 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       }
       mode={mode}
       saving={saving}
+      onPrimarySave={
+        mode === "create"
+          ? async () => {
+              setSaveError(null);
+              await commitDraft(draft);
+            }
+          : undefined
+      }
+      primarySaveDisabled={
+        mode === "create" && (!draft.relatedPersonId || !draft.type.trim())
+      }
       headerActionsSlot={
         relatedPersonHref ? (
           <Button variant="outline" size="sm" asChild>
@@ -203,6 +226,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       onNotesChange={handleNotesChange}
       onNotesCommit={handleNotesCommit}
     >
+      {saveError ? <div className="text-sm text-destructive">{saveError}</div> : null}
       {detailedError ? <div className="text-sm text-destructive">{detailedError}</div> : null}
       {mode === "edit" && detailedLoading && !current ? (
         <div className="text-sm text-muted-foreground">Carregando vínculo...</div>
@@ -217,7 +241,11 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
           disableRelatedPerson={mode === "edit"}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
-          onSubmit={() => undefined}
+          onSubmit={async (values) => {
+            setDraft(values);
+            setSaveError(null);
+            await commitDraft(values);
+          }}
         />
       ) : null}
     </PeopleRelationDetailShell>

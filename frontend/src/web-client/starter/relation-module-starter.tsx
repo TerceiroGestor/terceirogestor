@@ -59,5 +59,6 @@ export function defineRelationDetailModule<
     views: [createStandardDetailView()],
     defaultView: "detail" as TState["view"],
     defaultQueryState: createStandardDetailQueryState<TState>(),
+    detailLayout: {},
   });
 }

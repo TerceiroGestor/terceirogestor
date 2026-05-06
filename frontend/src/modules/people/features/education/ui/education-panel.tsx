@@ -87,6 +87,7 @@ export function EducationPanel({ personId }: { personId: string }) {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!window.confirm("Excluir este registro escolar?")) return;
                 void remove(row.original.id);
               }}
             >

@@ -4,4 +4,3 @@ export class CreatePantrySectorDto {
   @IsString()
   name: string;
 }
-

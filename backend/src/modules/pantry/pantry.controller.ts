@@ -189,7 +189,10 @@ export class PantryController {
 
   @Post('items')
   @Permissions('pantry.create')
-  async createItem(@CurrentUser() user: JwtUser, @Body() dto: CreatePantryItemDto) {
+  async createItem(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: CreatePantryItemDto,
+  ) {
     return this.pantryService.createItem(user.tenantId, dto);
   }
 
@@ -200,7 +203,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryItemCommentDto,
   ) {
-    return this.pantryService.addItemComment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addItemComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('items/:id/comments/:commentId')
@@ -220,7 +228,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryItemAttachmentDto,
   ) {
-    return this.pantryService.addItemAttachment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addItemAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('items/:id/attachments/:attachmentId')
@@ -228,9 +241,14 @@ export class PantryController {
   async deleteItemAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.pantryService.deleteItemAttachment(user.tenantId, id, attachmentId);
+    return this.pantryService.deleteItemAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('items/:id')
@@ -282,7 +300,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryDonorCommentDto,
   ) {
-    return this.pantryService.addDonorComment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addDonorComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('donors/:id/comments/:commentId')
@@ -302,7 +325,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryDonorAttachmentDto,
   ) {
-    return this.pantryService.addDonorAttachment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addDonorAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('donors/:id/attachments/:attachmentId')
@@ -310,9 +338,14 @@ export class PantryController {
   async deleteDonorAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.pantryService.deleteDonorAttachment(user.tenantId, id, attachmentId);
+    return this.pantryService.deleteDonorAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Get('donors/:id')
@@ -413,7 +446,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryEntryCommentDto,
   ) {
-    return this.pantryService.addEntryComment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addEntryComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('entries/:id/comments/:commentId')
@@ -433,7 +471,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryEntryAttachmentDto,
   ) {
-    return this.pantryService.addEntryAttachment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addEntryAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('entries/:id/attachments/:attachmentId')
@@ -441,9 +484,14 @@ export class PantryController {
   async deleteEntryAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.pantryService.deleteEntryAttachment(user.tenantId, id, attachmentId);
+    return this.pantryService.deleteEntryAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('entries/:id')
@@ -521,7 +569,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryExitCommentDto,
   ) {
-    return this.pantryService.addExitComment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addExitComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('exits/:id/comments/:commentId')
@@ -541,7 +594,12 @@ export class PantryController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePantryExitAttachmentDto,
   ) {
-    return this.pantryService.addExitAttachment(user.tenantId, id, dto, user.userId);
+    return this.pantryService.addExitAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('exits/:id/attachments/:attachmentId')
@@ -549,9 +607,14 @@ export class PantryController {
   async deleteExitAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.pantryService.deleteExitAttachment(user.tenantId, id, attachmentId);
+    return this.pantryService.deleteExitAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('exits/:id')

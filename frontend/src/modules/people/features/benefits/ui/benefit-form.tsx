@@ -103,13 +103,6 @@ export function BenefitForm({
       },
       { name: "startDate", label: BENEFITS_TEXT.form.startDateLabel, type: "date" },
       { name: "endDate", label: BENEFITS_TEXT.form.endDateLabel, type: "date" },
-      {
-        name: "notes",
-        label: BENEFITS_TEXT.form.notesLabel,
-        type: "textarea",
-        placeholder: BENEFITS_TEXT.form.notesPlaceholder,
-        rows: 4,
-      },
     ],
     [],
   );

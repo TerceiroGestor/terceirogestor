@@ -197,6 +197,7 @@ const PEOPLE_RECORD_TYPES = [
   'detention',
   'financial-entry',
   'family-relation',
+  'contact',
 ] as const;
 
 type PeopleRecordType = (typeof PEOPLE_RECORD_TYPES)[number];
@@ -241,9 +242,7 @@ const parseTags = (raw?: string | null) => {
 const parseMentionUserIds = (value: Prisma.JsonValue | null | undefined) => {
   if (!Array.isArray(value)) return [];
   return Array.from(
-    new Set(
-      value.map((entry) => String(entry ?? '').trim()).filter(Boolean),
-    ),
+    new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)),
   );
 };
 
@@ -328,24 +327,19 @@ const mapPersonAttachmentItem = (
   updatedAt: attachment.updatedAt,
 });
 
-const mapPerson = (person: PersonWithHealthCounts | PersonWithDetailRelations) => {
-  const {
-    _count,
-    tags,
-    comments,
-    attachments,
-    ...rest
-  } = person as PersonWithDetailRelations & PersonWithHealthCounts;
+const mapPerson = (
+  person: PersonWithHealthCounts | PersonWithDetailRelations,
+) => {
+  const { _count, tags, comments, attachments, ...rest } =
+    person as PersonWithDetailRelations & PersonWithHealthCounts;
   return {
     ...rest,
     document: null,
     rg: null,
     nis: null,
     tags: parseTags(tags),
-    comments:
-      comments?.map(mapPersonCommentItem) ?? [],
-    attachments:
-      attachments?.map(mapPersonAttachmentItem) ?? [],
+    comments: comments?.map(mapPersonCommentItem) ?? [],
+    attachments: attachments?.map(mapPersonAttachmentItem) ?? [],
     hasHealthCondition: _count.healthConditions > 0,
     hasMedication: _count.medications > 0,
     hasHealthIssue: _count.healthConditions + _count.medications > 0,
@@ -1483,6 +1477,12 @@ export class PeopleService {
           select: { id: true },
         });
         break;
+      case 'contact':
+        record = await this.prisma.personContact.findFirst({
+          where: { tenantId, personId, id: recordId },
+          select: { id: true },
+        });
+        break;
     }
 
     if (!record) {
@@ -1535,7 +1535,9 @@ export class PeopleService {
     mentionUserIds?: string[] | null,
   ) {
     const normalized = Array.from(
-      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+      new Set(
+        (mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean),
+      ),
     );
 
     if (!normalized.length) {
@@ -1626,20 +1628,21 @@ export class PeopleService {
           iv: existing.iv,
           tag: existing.tag,
         })
-      : ({ cpf: null, rg: null, nis: null, cns: null } satisfies SensitiveDocumentsPayloadV1);
+      : ({
+          cpf: null,
+          rg: null,
+          nis: null,
+          cns: null,
+        } satisfies SensitiveDocumentsPayloadV1);
 
     const next: SensitiveDocumentsPayloadV1 = {
       cpf:
         dto.cpf !== undefined ? normalizeCpfDigitsOrNull(dto.cpf) : current.cpf,
       rg: dto.rg !== undefined ? normalizeRgOrNull(dto.rg) : current.rg,
       nis:
-        dto.nis !== undefined
-          ? normalizeNisDigitsOrNull(dto.nis)
-          : current.nis,
+        dto.nis !== undefined ? normalizeNisDigitsOrNull(dto.nis) : current.nis,
       cns:
-        dto.cns !== undefined
-          ? normalizeCnsDigitsOrNull(dto.cns)
-          : current.cns,
+        dto.cns !== undefined ? normalizeCnsDigitsOrNull(dto.cns) : current.cns,
     };
 
     const encrypted = this.pii.encryptForTenant(tenantId, next);
@@ -1802,7 +1805,10 @@ export class PeopleService {
           data: { isPrimary: false },
         });
       }
-      return tx.personContact.update({ where: { id: contactId }, data: updateData });
+      return tx.personContact.update({
+        where: { id: contactId },
+        data: updateData,
+      });
     });
 
     return mapPersonContact(updated);
@@ -1845,6 +1851,11 @@ export class PeopleService {
   ) {
     await this.findById(tenantId, personId);
 
+    const category = normalizeString(dto.category);
+    if (!category) {
+      throw new BadRequestException('Categoria financeira invalida.');
+    }
+
     const householdId = await this.resolveHouseholdId(
       tenantId,
       personId,
@@ -1855,7 +1866,7 @@ export class PeopleService {
         tenantId,
         personId,
         entryType: resolveFinancialEntryType(dto.entryType),
-        category: normalizeString(dto.category) ?? 'Registro financeiro',
+        category,
         subcategory: normalizeString(dto.subcategory),
         status: normalizeString(dto.status),
         amount:
@@ -1866,7 +1877,9 @@ export class PeopleService {
         fromHouseholdId: normalizeString(dto.fromHouseholdId),
         toHouseholdId: normalizeString(dto.toHouseholdId),
         includeInHouseholdBudget: dto.includeInHouseholdBudget ?? true,
-        startDate: dto.startDate ? (parseDateInput(dto.startDate) ?? null) : null,
+        startDate: dto.startDate
+          ? (parseDateInput(dto.startDate) ?? null)
+          : null,
         endDate: dto.endDate ? (parseDateInput(dto.endDate) ?? null) : null,
         notes: normalizeString(dto.notes),
       },
@@ -1893,6 +1906,14 @@ export class PeopleService {
         ? await this.resolveHouseholdId(tenantId, personId, dto.householdId)
         : undefined;
 
+    const category =
+      dto.category !== undefined
+        ? (normalizeString(dto.category) ?? undefined)
+        : undefined;
+    if (dto.category !== undefined && category === undefined) {
+      throw new BadRequestException('Categoria financeira invalida.');
+    }
+
     const entry = await this.prisma.personFinancialEntry.update({
       where: { id: entryId },
       data: {
@@ -1900,10 +1921,7 @@ export class PeopleService {
           dto.entryType !== undefined
             ? resolveFinancialEntryType(dto.entryType)
             : undefined,
-        category:
-          dto.category !== undefined
-            ? normalizeString(dto.category) ?? 'Registro financeiro'
-            : undefined,
+        category,
         subcategory:
           dto.subcategory !== undefined
             ? normalizeString(dto.subcategory)
@@ -1949,15 +1967,18 @@ export class PeopleService {
               ? (parseDateInput(dto.endDate) ?? null)
               : null
             : undefined,
-        notes:
-          dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
       },
     });
 
     return mapFinancialEntry(entry);
   }
 
-  async removeFinancialEntry(tenantId: string, personId: string, entryId: string) {
+  async removeFinancialEntry(
+    tenantId: string,
+    personId: string,
+    entryId: string,
+  ) {
     const existing = await this.prisma.personFinancialEntry.findFirst({
       where: { id: entryId, tenantId, personId },
     });
@@ -2182,12 +2203,16 @@ export class PeopleService {
     dto: CreatePersonHealthConditionDto,
   ) {
     await this.findById(tenantId, personId);
+    const type = normalizeString(dto.type);
+    if (!type) {
+      throw new BadRequestException('Condicao de saude invalida.');
+    }
     return this.prisma.$transaction(async (tx) => {
       const condition = await tx.personHealthCondition.create({
         data: {
           tenantId,
           personId,
-          type: normalizeString(dto.type) ?? dto.type,
+          type,
           description:
             dto.description !== undefined
               ? normalizeString(dto.description)
@@ -2220,13 +2245,18 @@ export class PeopleService {
     if (!condition) {
       throw new NotFoundException('Condicao de saude nao encontrada.');
     }
+    const type =
+      dto.type !== undefined
+        ? (normalizeString(dto.type) ?? undefined)
+        : undefined;
+    if (dto.type !== undefined && type === undefined) {
+      throw new BadRequestException('Condicao de saude invalida.');
+    }
+
     const updated = await this.prisma.personHealthCondition.update({
       where: { id: conditionId },
       data: {
-        type:
-          dto.type !== undefined
-            ? (normalizeString(dto.type) ?? undefined)
-            : undefined,
+        type,
         description:
           dto.description !== undefined
             ? normalizeString(dto.description)
@@ -2280,13 +2310,17 @@ export class PeopleService {
     dto: CreatePersonMedicationDto,
   ) {
     await this.findById(tenantId, personId);
+    const medicationName = normalizeString(dto.medication);
+    if (!medicationName) {
+      throw new BadRequestException('Medicacao invalida.');
+    }
     return this.prisma.$transaction(async (tx) => {
       const medication = await tx.personMedication.create({
         data: {
           tenantId,
           personId,
           reason: dto.reason !== undefined ? normalizeString(dto.reason) : null,
-          medication: normalizeString(dto.medication) ?? dto.medication,
+          medication: medicationName,
           dosage: dto.dosage !== undefined ? normalizeString(dto.dosage) : null,
           schedule:
             dto.schedule !== undefined ? normalizeString(dto.schedule) : null,
@@ -2323,15 +2357,20 @@ export class PeopleService {
     if (!medication) {
       throw new NotFoundException('Medicacao nao encontrada.');
     }
+    const medicationName =
+      dto.medication !== undefined
+        ? (normalizeString(dto.medication) ?? undefined)
+        : undefined;
+    if (dto.medication !== undefined && medicationName === undefined) {
+      throw new BadRequestException('Medicacao invalida.');
+    }
+
     const updated = await this.prisma.personMedication.update({
       where: { id: medicationId },
       data: {
         reason:
           dto.reason !== undefined ? normalizeString(dto.reason) : undefined,
-        medication:
-          dto.medication !== undefined
-            ? (normalizeString(dto.medication) ?? undefined)
-            : undefined,
+        medication: medicationName,
         dosage:
           dto.dosage !== undefined ? normalizeString(dto.dosage) : undefined,
         schedule:
@@ -2383,7 +2422,11 @@ export class PeopleService {
     await this.findById(tenantId, personId);
     const educations = await this.prisma.personEducation.findMany({
       where: { tenantId, personId },
-      orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [
+        { isCurrent: 'desc' },
+        { startDate: 'desc' },
+        { createdAt: 'desc' },
+      ],
     });
     return educations.map(mapEducation);
   }
@@ -2416,10 +2459,14 @@ export class PeopleService {
           level,
           status: dto.status !== undefined ? normalizeString(dto.status) : null,
           institution:
-            dto.institution !== undefined ? normalizeString(dto.institution) : null,
+            dto.institution !== undefined
+              ? normalizeString(dto.institution)
+              : null,
           grade: dto.grade !== undefined ? normalizeString(dto.grade) : null,
           schoolYear:
-            dto.schoolYear !== undefined ? normalizeString(dto.schoolYear) : null,
+            dto.schoolYear !== undefined
+              ? normalizeString(dto.schoolYear)
+              : null,
           isCurrent,
           startDate: dto.startDate ? parseDateInput(dto.startDate) : null,
           endDate: dto.endDate ? parseDateInput(dto.endDate) : null,
@@ -2461,7 +2508,9 @@ export class PeopleService {
       }
 
       const level =
-        dto.level !== undefined ? normalizeString(dto.level) ?? undefined : undefined;
+        dto.level !== undefined
+          ? (normalizeString(dto.level) ?? undefined)
+          : undefined;
       if (dto.level !== undefined && !level) {
         throw new BadRequestException('Escolaridade invalida.');
       }
@@ -2470,14 +2519,18 @@ export class PeopleService {
         where: { id: educationId },
         data: {
           level,
-          status: dto.status !== undefined ? normalizeString(dto.status) : undefined,
+          status:
+            dto.status !== undefined ? normalizeString(dto.status) : undefined,
           institution:
             dto.institution !== undefined
               ? normalizeString(dto.institution)
               : undefined,
-          grade: dto.grade !== undefined ? normalizeString(dto.grade) : undefined,
+          grade:
+            dto.grade !== undefined ? normalizeString(dto.grade) : undefined,
           schoolYear:
-            dto.schoolYear !== undefined ? normalizeString(dto.schoolYear) : undefined,
+            dto.schoolYear !== undefined
+              ? normalizeString(dto.schoolYear)
+              : undefined,
           isCurrent: dto.isCurrent !== undefined ? dto.isCurrent : undefined,
           startDate:
             dto.startDate !== undefined
@@ -2491,7 +2544,8 @@ export class PeopleService {
                 ? parseDateInput(dto.endDate)
                 : null
               : undefined,
-          notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
+          notes:
+            dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
         },
       });
     });
@@ -2570,7 +2624,9 @@ export class PeopleService {
     }
 
     const type =
-      dto.type !== undefined ? normalizeString(dto.type) ?? undefined : undefined;
+      dto.type !== undefined
+        ? (normalizeString(dto.type) ?? undefined)
+        : undefined;
     if (dto.type !== undefined && !type) {
       throw new BadRequestException('Beneficio invalido.');
     }
@@ -2583,7 +2639,8 @@ export class PeopleService {
             ? await this.resolveHouseholdId(tenantId, personId, dto.householdId)
             : undefined,
         type,
-        status: dto.status !== undefined ? normalizeString(dto.status) : undefined,
+        status:
+          dto.status !== undefined ? normalizeString(dto.status) : undefined,
         amount: dto.amount !== undefined ? dto.amount : undefined,
         frequency:
           dto.frequency !== undefined
@@ -2667,7 +2724,9 @@ export class PeopleService {
     }
 
     const status =
-      dto.status !== undefined ? normalizeString(dto.status) ?? undefined : undefined;
+      dto.status !== undefined
+        ? (normalizeString(dto.status) ?? undefined)
+        : undefined;
     if (dto.status !== undefined && !status) {
       throw new BadRequestException('Reclusao invalida.');
     }
@@ -2697,7 +2756,11 @@ export class PeopleService {
     return mapDetention(updated);
   }
 
-  async removeDetention(tenantId: string, personId: string, detentionId: string) {
+  async removeDetention(
+    tenantId: string,
+    personId: string,
+    detentionId: string,
+  ) {
     const existing = await this.prisma.personDetention.findFirst({
       where: { id: detentionId, tenantId, personId },
     });
@@ -3130,21 +3193,28 @@ export class PeopleService {
           ...(dto.cep !== undefined
             ? {
                 cep: cepDigits ?? null,
-                street: cepDigits ? cepInfo?.street ?? null : null,
-                neighborhood: cepDigits ? cepInfo?.neighborhood ?? null : null,
-                city: cepDigits ? cepInfo?.city ?? null : null,
-                state: cepDigits ? cepInfo?.state ?? null : null,
-                ibge: cepDigits ? cepInfo?.ibge ?? null : null,
-                gia: cepDigits ? cepInfo?.gia ?? null : null,
-                ddd: cepDigits ? cepInfo?.ddd ?? null : null,
-                siafi: cepDigits ? cepInfo?.siafi ?? null : null,
+                street: cepDigits ? (cepInfo?.street ?? null) : null,
+                neighborhood: cepDigits
+                  ? (cepInfo?.neighborhood ?? null)
+                  : null,
+                city: cepDigits ? (cepInfo?.city ?? null) : null,
+                state: cepDigits ? (cepInfo?.state ?? null) : null,
+                ibge: cepDigits ? (cepInfo?.ibge ?? null) : null,
+                gia: cepDigits ? (cepInfo?.gia ?? null) : null,
+                ddd: cepDigits ? (cepInfo?.ddd ?? null) : null,
+                siafi: cepDigits ? (cepInfo?.siafi ?? null) : null,
               }
             : {}),
-          number: dto.number !== undefined ? normalizeString(dto.number) : undefined,
+          number:
+            dto.number !== undefined ? normalizeString(dto.number) : undefined,
           complement:
-            dto.complement !== undefined ? normalizeString(dto.complement) : undefined,
+            dto.complement !== undefined
+              ? normalizeString(dto.complement)
+              : undefined,
           reference:
-            dto.reference !== undefined ? normalizeString(dto.reference) : undefined,
+            dto.reference !== undefined
+              ? normalizeString(dto.reference)
+              : undefined,
           notes:
             dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
         },
@@ -3218,8 +3288,12 @@ export class PeopleService {
       );
     };
 
-    const regularIncomes = incomes.filter((income) => !isBenefitIncome(income.category));
-    const benefitIncomes = incomes.filter((income) => isBenefitIncome(income.category));
+    const regularIncomes = incomes.filter(
+      (income) => !isBenefitIncome(income.category),
+    );
+    const benefitIncomes = incomes.filter((income) =>
+      isBenefitIncome(income.category),
+    );
 
     const now = new Date();
     const activeBenefitsWithAmount = benefits.filter((benefit) => {
@@ -3237,31 +3311,48 @@ export class PeopleService {
       0,
     );
     const hasBenefitAmounts = activeBenefitsWithAmount.length > 0;
-    const benefitsTotal = hasBenefitAmounts ? benefitsTotalFromBenefits : benefitsTotalFromIncomes;
+    const benefitsTotal = hasBenefitAmounts
+      ? benefitsTotalFromBenefits
+      : benefitsTotalFromIncomes;
 
     const contributionMap = new Map<string, number>();
     regularIncomes.forEach((income) => {
       const current = contributionMap.get(income.personId) ?? 0;
-      contributionMap.set(income.personId, current + Number(income.amount ?? 0));
+      contributionMap.set(
+        income.personId,
+        current + Number(income.amount ?? 0),
+      );
     });
     incomingTransfers.forEach((transfer) => {
       const current = contributionMap.get(transfer.personId) ?? 0;
-      contributionMap.set(transfer.personId, current + Number(transfer.amount ?? 0));
+      contributionMap.set(
+        transfer.personId,
+        current + Number(transfer.amount ?? 0),
+      );
     });
     if (hasBenefitAmounts) {
       activeBenefitsWithAmount.forEach((benefit) => {
         const current = contributionMap.get(benefit.personId) ?? 0;
-        contributionMap.set(benefit.personId, current + Number(benefit.amount ?? 0));
+        contributionMap.set(
+          benefit.personId,
+          current + Number(benefit.amount ?? 0),
+        );
       });
     } else {
       benefitIncomes.forEach((income) => {
         const current = contributionMap.get(income.personId) ?? 0;
-        contributionMap.set(income.personId, current + Number(income.amount ?? 0));
+        contributionMap.set(
+          income.personId,
+          current + Number(income.amount ?? 0),
+        );
       });
     }
 
     const totalIncome =
-      regularIncomes.reduce((sum, income) => sum + Number(income.amount ?? 0), 0) +
+      regularIncomes.reduce(
+        (sum, income) => sum + Number(income.amount ?? 0),
+        0,
+      ) +
       benefitsTotal +
       incomingTransfers.reduce(
         (sum, transfer) => sum + Number(transfer.amount ?? 0),
@@ -3563,7 +3654,9 @@ export class PeopleService {
                 socialName: true,
                 birthDate: true,
                 avatarUrl: true,
-                _count: { select: { healthConditions: true, medications: true } },
+                _count: {
+                  select: { healthConditions: true, medications: true },
+                },
               },
             },
           },
@@ -3743,7 +3836,10 @@ export class PeopleService {
     await this.findById(tenantId, personId);
     await this.findById(tenantId, dto.relatedPersonId);
 
-    const type = normalizeString(dto.type) ?? 'Outro';
+    const type = normalizeString(dto.type);
+    if (!type) {
+      throw new BadRequestException('Tipo de relacionamento invalido.');
+    }
     const livesTogether = dto.livesTogether ?? false;
     const isLegalGuardian = dto.isLegalGuardian ?? false;
 
@@ -3822,9 +3918,12 @@ export class PeopleService {
       throw new NotFoundException('Relacionamento nao encontrado.');
     }
 
-    const nextType = dto.type
-      ? (normalizeString(dto.type) ?? relation.type)
-      : relation.type;
+    const nextTypeNormalized =
+      dto.type !== undefined ? normalizeString(dto.type) : undefined;
+    if (dto.type !== undefined && !nextTypeNormalized) {
+      throw new BadRequestException('Tipo de relacionamento invalido.');
+    }
+    const nextType = nextTypeNormalized ?? relation.type;
     const nextLivesTogether =
       dto.livesTogether !== undefined
         ? dto.livesTogether
@@ -3835,7 +3934,7 @@ export class PeopleService {
         : relation.isLegalGuardian;
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (dto.type) {
+      if (dto.type !== undefined) {
         const duplicate = await tx.personRelation.findFirst({
           where: {
             tenantId,

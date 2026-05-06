@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
-import { uploadHealthDocument } from "@/features/uploads/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { HealthConditionForm } from "@/modules/people/features/health-conditions/ui/health-condition-form";
 import type { HealthConditionFormValues } from "@/modules/people/features/health-conditions/config/health-condition-form-config";
@@ -23,8 +22,6 @@ function initialFormValues(item?: HealthCondition): HealthConditionFormValues {
     description: item?.description ?? "",
     severity: item?.severity ?? "",
     diagnosisDate: item?.diagnosisDate?.slice(0, 10) ?? "",
-    documentFile: null,
-    removeDocument: false,
     notes: item?.notes ?? "",
   };
 }
@@ -60,15 +57,6 @@ const HEALTH_CONDITION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
 };
 
 function normalizeDraft(values: HealthConditionFormValues): HealthConditionFormValues {
-  const normalizeFile = (file: File | null) =>
-    file
-      ? ({
-          name: file.name,
-          size: file.size,
-          lastModified: file.lastModified,
-        } as unknown as File)
-      : null;
-
   return {
     ...values,
     type: values.type.trim(),
@@ -76,8 +64,6 @@ function normalizeDraft(values: HealthConditionFormValues): HealthConditionFormV
     severity: (values.severity ?? "").trim(),
     diagnosisDate: values.diagnosisDate || "",
     notes: (values.notes ?? "").trim(),
-    documentFile: normalizeFile(values.documentFile instanceof File ? values.documentFile : null),
-    removeDocument: Boolean(values.removeDocument),
   };
 }
 
@@ -104,12 +90,13 @@ export function HealthConditionDetailPage({
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "saude"), tenantSlug);
   const [draft, setDraft] = React.useState<HealthConditionFormValues>(createInitialValues);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(conditionId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(conditionId || null);
 
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
-    enabled: Boolean(token),
+    enabled: mode === "edit" && Boolean(token),
     config: AUTO_EDITING,
     normalizeDraft,
     onSave: async (values) => {
@@ -119,21 +106,13 @@ export function HealthConditionDetailPage({
         return values;
       }
 
-      let documentUrl = current?.documentUrl ?? null;
-      if (values.documentFile instanceof File) {
-        documentUrl = (await uploadHealthDocument(token, values.documentFile)).path;
-      } else if (values.removeDocument) {
-        documentUrl = null;
-      }
-
-        const payload = {
-          type: requiredType,
-          description: (values.description ?? "").trim() || null,
-          severity: (values.severity ?? "").trim() || null,
-          diagnosisDate: values.diagnosisDate || null,
-          notes: (values.notes ?? "").trim() || null,
-          documentUrl,
-        };
+      const payload = {
+        type: requiredType,
+        description: (values.description ?? "").trim() || null,
+        severity: (values.severity ?? "").trim() || null,
+        diagnosisDate: values.diagnosisDate || null,
+        notes: (values.notes ?? "").trim() || null,
+      };
 
       if (!relationIdRef.current) {
         const created = await create(payload);
@@ -148,7 +127,13 @@ export function HealthConditionDetailPage({
       const updated = await update(relationIdRef.current, payload);
       return initialFormValues(updated ?? current ?? undefined);
     },
-    onError: () => undefined,
+    onError: (nextError) => {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao salvar condicao de saude.";
+      setSaveError(message);
+    },
   });
 
   React.useEffect(() => {
@@ -170,9 +155,11 @@ export function HealthConditionDetailPage({
   const handleFieldCommit = React.useCallback(
     (values: HealthConditionFormValues) => {
       setDraft(values);
-      commitDraft(values);
+      if (mode === "edit") {
+        commitDraft(values);
+      }
     },
-    [commitDraft],
+    [commitDraft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -183,9 +170,11 @@ export function HealthConditionDetailPage({
     (next: string | null) => {
       const nextDraft = { ...draft, notes: next ?? "" };
       setDraft(nextDraft);
-      commitDraft(nextDraft);
+      if (mode === "edit") {
+        commitDraft(nextDraft);
+      }
     },
-    [commitDraft, draft],
+    [commitDraft, draft, mode],
   );
 
   return (
@@ -196,12 +185,25 @@ export function HealthConditionDetailPage({
       title={mode === "create" ? "Nova condição de saúde" : current?.type ?? "Condição de saúde"}
       mode={mode}
       saving={saving}
+      onPrimarySave={
+        mode === "create"
+          ? async () => {
+              setSaveError(null);
+              await commitDraft(draft);
+            }
+          : undefined
+      }
+      primarySaveDisabled={mode === "create" && !draft.type.trim()}
       relationId={activeRelationId}
       auditConfig={HEALTH_CONDITION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
       onNotesCommit={handleNotesCommit}
     >
+      {saveError ? <div className="text-sm text-destructive">{saveError}</div> : null}
+      <div className="rounded-xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+        Para anexar laudos e comprovantes, use o bloco de Anexos no SideShell desta tela.
+      </div>
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (
         <div className="text-sm text-muted-foreground">Carregando condição...</div>
@@ -215,10 +217,13 @@ export function HealthConditionDetailPage({
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
-          showRemoveDocument={Boolean(current?.documentUrl)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
-          onSubmit={() => undefined}
+          onSubmit={async (values) => {
+            setDraft(values);
+            setSaveError(null);
+            await commitDraft(values);
+          }}
         />
       ) : null}
     </PeopleRelationDetailShell>

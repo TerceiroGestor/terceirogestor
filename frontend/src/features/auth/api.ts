@@ -47,6 +47,7 @@ export type TenantProfile = {
   startYear?: number | null;
   description?: string | null;
   status?: string;
+  onboardingCompletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

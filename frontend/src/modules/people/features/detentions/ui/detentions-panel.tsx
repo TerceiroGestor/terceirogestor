@@ -74,6 +74,7 @@ export function DetentionsPanel({ personId }: { personId: string }) {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!window.confirm("Excluir este registro de reclusao?")) return;
                 void remove(row.original.id);
               }}
             >

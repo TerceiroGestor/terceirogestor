@@ -1,4 +1,11 @@
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { ProjectStatus } from '../../../generated/prisma';
 
 export class CreateProjectDto {
@@ -33,4 +40,3 @@ export class CreateProjectDto {
   @IsDateString()
   endsAt?: string;
 }
-

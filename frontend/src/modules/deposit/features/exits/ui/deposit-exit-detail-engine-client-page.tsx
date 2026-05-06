@@ -7,8 +7,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -171,16 +169,6 @@ export function DepositExitDetailEngineClientPage({
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [tags, setTags] = React.useState<string[]>([]);
   const [internalNotes, setInternalNotes] = React.useState<string | null>(null);
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("deposit-exits-detail", DEPOSIT_USAGE_TEXT.exits.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: DEPOSIT_USAGE_TEXT.exits.title,
-    items: usageItems,
-  });
 
   const persistExitDraft = React.useCallback(
     async (nextDraft: DepositExitDraft) => {

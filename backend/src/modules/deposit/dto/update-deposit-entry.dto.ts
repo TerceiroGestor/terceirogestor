@@ -1,5 +1,11 @@
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class UpdateDepositEntryDto {
   @IsOptional()

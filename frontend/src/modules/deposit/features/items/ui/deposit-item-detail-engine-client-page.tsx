@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -149,16 +147,6 @@ export function DepositItemDetailEngineClientPage({
   const [historyRows, setHistoryRows] = React.useState<ApiDepositHistoryMovement[]>(
     [],
   );
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("deposit-items-detail", DEPOSIT_USAGE_TEXT.items.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: DEPOSIT_USAGE_TEXT.items.title,
-    items: usageItems,
-  });
 
   const persistItemDraft = React.useCallback(
     async (nextDraft: ItemDraft) => {

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichText } from "@/components/ui/richtext/RichText";
@@ -325,28 +324,6 @@ export function ActionCreateFormSection({
       setSaving(false);
     }
   };
-
-  const usageItems = React.useMemo(
-    () =>
-      ACTION_CREATE_TEXT.usage.sections.map((section, index) => ({
-        id: `actions-create-${index}`,
-        title: section.title,
-        searchText: section.items.join(" "),
-        content: (
-          <ul className="list-disc space-y-1 pl-5">
-            {section.items.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        ),
-      })),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: ACTION_CREATE_TEXT.usage.title,
-    items: usageItems,
-  });
 
   if (!isAuthenticated || authLoading) return null;
 

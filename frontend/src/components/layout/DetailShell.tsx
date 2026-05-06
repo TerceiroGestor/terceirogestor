@@ -143,6 +143,7 @@ export function DetailShell({
       size="icon"
       variant="outline"
       className="h-9 w-9"
+      data-tour-target="detail-side-toggle"
       onClick={() => setSideOpen((previous) => !previous)}
       aria-label={sideOpen ? "Ocultar lateral" : "Mostrar lateral"}
       title={sideOpen ? "Ocultar lateral" : "Mostrar lateral"}
@@ -171,6 +172,7 @@ export function DetailShell({
               onSave ? (
                 <Button
                   size="sm"
+                  data-tour-target="detail-save-button"
                   onClick={onSave}
                   disabled={saving || readOnly}
                 >
@@ -178,7 +180,10 @@ export function DetailShell({
                 </Button>
               ) : null
             ) : (
-              <div className="border-b border-border/50 px-0 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <div
+                className="border-b border-border/50 px-0 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                data-tour-target="detail-autosave-status"
+              >
                 {statusText}
               </div>
             )}
@@ -263,6 +268,7 @@ export function DetailShell({
                     ? "lg:grid lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden"
                     : "lg:overflow-y-auto",
                 )}
+                data-tour-target="detail-main-content"
               >
                 {mainSlot ? (
                   <div
@@ -296,6 +302,7 @@ export function DetailShell({
                   "min-w-0 lg:flex lg:min-h-0 lg:h-full lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:pl-8",
                   sideClassName,
                 )}
+                data-tour-target="detail-side-panel"
               >
                 {sideSlot}
               </div>
@@ -314,6 +321,7 @@ export function DetailShell({
           <SheetContent
             side="right"
             className="w-[min(88vw,24rem)] max-w-[24rem] p-0"
+            data-tour-target="detail-side-panel"
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Painel lateral</SheetTitle>

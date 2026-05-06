@@ -66,7 +66,10 @@ export type ApiPeopleRecordType =
   | "medication"
   | "detention"
   | "financial-entry"
-  | "family-relation";
+  | "family-relation"
+  | "attendance"
+  | "referral"
+  | "contact";
 
 export type ApiPeopleRecordMetadata = {
   comments: ApiPersonComment[];

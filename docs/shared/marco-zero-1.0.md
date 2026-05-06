@@ -13,9 +13,9 @@ Objetivo do marco zero:
 
 Este contrato se apoia em:
 
-- `docs/canonical-web-client-standard.md`
-- `docs/canonical-business-structure.md`
-- `docs/module-canonical-checklist.md`
+- `docs/shared/conventions.md`
+- `docs/shared/decisions.md`
+- `docs/shared/marco-zero-1.0-audit-matrix.csv`
 
 O `Marco Zero 1.0` prevalece em caso de ambiguidade operacional e detalha como executar e validar o fechamento.
 
@@ -274,3 +274,157 @@ Marco zero so e considerado concluido quando:
 - variacoes visuais/comportamentais estao eliminadas ou formalmente removidas
 - a versao resultante esta apta a ser base oficial de evolucao do produto
 
+## Checklist oficial de aceite por modulo
+
+Regra:
+
+- cada item deve ser marcado como `PASSA` ou `FALHA`
+- cada falha deve ter dono e prazo
+- cada item deve ter evidencia objetiva (arquivo, rota, print, log de build)
+
+### Cabecalho de auditoria
+
+- Modulo:
+- Responsavel:
+- Data:
+- Versao alvo:
+- Status geral: `PASSA` ou `FALHA`
+
+### 1. Estrutura de list
+
+- [ ] `PASSA` usa `RecordListHost`
+- [ ] `PASSA` possui acao `Novo` quando permitido
+- [ ] `PASSA` usa `SearchPanel` padrao (sem barra paralela)
+- [ ] `PASSA` `Filter` e `Group` operacionais
+- [ ] `PASSA` typeviews no conjunto canonico quando aplicavel
+- [ ] `PASSA` colunas base (`Tags`, `Cadastro`, `Status`) quando aplicavel
+
+### 2. Estrutura de detail
+
+- [ ] `PASSA` usa `DetailShellEngine`
+- [ ] `PASSA` `new` e `edit` usam o mesmo formulario principal
+- [ ] `PASSA` nao usa `renderizador legado de formularios` no fluxo `new/edit/detail`
+- [ ] `PASSA` detail nao exibe botao `Novo`
+- [ ] `PASSA` acao `Excluir` apenas quando permitida
+- [ ] `PASSA` `Tags` nao sao duplicadas no corpo principal
+- [ ] `PASSA` relations nao duplicam card de contagem/resumo no corpo principal
+
+### 3. Side padrao
+
+- [ ] `PASSA` usa `StandardDetailMetadataSide`
+- [ ] `PASSA` nenhuma aba visivel fica sem operacao real
+- [ ] `PASSA` `Comentarios`, `Notas internas`, `Tags` e `Anexos` so aparecem quando houver suporte funcional completo
+- [ ] `PASSA` `Auditoria`, `Historico` e `Contexto` seguem comportamento canonico
+- [ ] `PASSA` side nao usa texto explicativo de ajuda dentro da tela
+
+### 4. Relations canonicas
+
+- [ ] `PASSA` relations no rodape do detail ou aba canonica
+- [ ] `PASSA` relation usa host/list padrao
+- [ ] `PASSA` relation operacional usa `ListView`, nunca `grade tabular legada`
+- [ ] `PASSA` filtros, selecao e acoes da relation operacional ficam no proprio slot relacional
+- [ ] `PASSA` clique abre detail relacionado
+- [ ] `PASSA` criar relacao usa fluxo relacional canonico
+- [ ] `PASSA` nao depende de tela legada
+- [ ] `PASSA` relation nao usa texto explicativo ou card de resumo duplicado
+
+### 5. Matriz de cardinalidade
+
+- [ ] `PASSA` cada relacao declara cardinalidade (`1:1`, `1:N`, `N:1`, `N:N`)
+- [ ] `PASSA` `1:1` com FK unica (`@unique`) no lado dependente
+- [ ] `PASSA` `1:N` e `N:1` com FK indexada
+- [ ] `PASSA` `N:N` com entidade associativa explicita e `@@unique` composto
+- [ ] `PASSA` sem N:N implicito quando ha estado de negocio
+
+### 6. Consistencia funcional
+
+- [ ] `PASSA` labels visiveis em portugues
+- [ ] `PASSA` sem erro de acentuacao ou texto corrompido
+- [ ] `PASSA` sem texto tecnico para usuario final
+- [ ] `PASSA` textos de orientacao migrados para `Como usar` quando necessario
+- [ ] `PASSA` sem componente legado fora do shell canonico
+- [ ] `PASSA` sem `grade tabular legada` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem `renderizador legado de formularios` no fluxo canonico ativo do modulo
+- [ ] `PASSA` sem modulo removido ou rota legada no fluxo canonico ativo
+
+### 7. Gates tecnicos
+
+- [ ] `PASSA` smoke de contrato de modulo
+- [ ] `PASSA` lint frontend
+- [ ] `PASSA` build frontend
+- [ ] `PASSA` lint backend do escopo impactado ou backlog transversal `pos_1_0` documentado
+- [ ] `PASSA` build backend
+
+### Fechamento
+
+- Pendencias abertas:
+- Dono de cada pendencia:
+- Prazo final:
+- Decisao de liberacao 1.0: `APROVADO`, `APROVADO_COM_RISCO_DOCUMENTADO` ou `BLOQUEADO`
+
+## Operacao da matriz de auditoria
+
+Arquivo operacional:
+
+- `docs/shared/marco-zero-1.0-audit-matrix.csv`
+
+Escopos oficiais da matriz:
+
+- `frontend_screen`
+- `backend_module`
+- `database_domain`
+
+Campos obrigatorios:
+
+- `scope`, `wave`, `module`, `feature`, `item_id`, `route_or_target`, `canonical_area`
+- `status`, `severity`, `owner`, `due_date`, `evidence`, `notes`, `decision`
+
+Regras de preenchimento:
+
+1. `status` deve ser `PASSA`, `FALHA` ou `NA`.
+1. Toda `FALHA` deve ter `severity`, `owner` e `due_date`.
+1. `evidence` deve apontar evidencia objetiva (arquivo/rota/comando/PR).
+1. `decision` deve ser: `corrigir_1_0`, `remover_1_0`, `isolar_legado` ou `pos_1_0`.
+1. Uso ativo de `grade tabular legada`, `renderizador legado de formularios` ou modulo removido implica `FALHA`.
+1. `relation operacional` fora de `ListView` implica `FALHA`.
+
+Politica de bloqueio:
+
+- qualquer `FALHA` critica bloqueia liberacao
+- item sem `owner`, `due_date` ou `decision` bloqueia liberacao
+- modulo sem checklist final bloqueia liberacao
+
+## Plano detalhado de implementacao
+
+### Escopo total
+
+Frontend (modulos):
+
+- `actions`, `core`, `deposit`, `nav`, `organization`, `pantry`, `people`, `people-groups`, `people-segments`, `person`, `programs`, `projects`, `tasks`
+
+Backend (modulos):
+
+- `actions`, `dashboard`, `deposit`, `pantry`, `people`, `people-groups`, `people-segments`, `permissions`, `programs`, `project-structure`, `projects`, `registration`, `roles`, `tasks`, `tenants`, `users`
+
+### Fases de execucao
+
+- Fase 0: baseline e governanca
+- Fase 1: auditoria tecnica 100%
+- Fase 2: endurecimento da plataforma canonica
+- Fase 3: canonizacao por ondas
+
+### Ondas oficiais
+
+- `Onda A` (fundacao simples): `core`, `users`, `roles`, `permissions`, `tenants`, `registration`, `dashboard`, `tasks`
+- `Onda B` (fluxo intermediario): `people-segments`, `pantry`, `deposit`, `programs`
+- `Onda C` (fluxo institucional): `people`, `people-groups`, `projects`, `project-structure`, `actions`
+- `Onda D` (legados e consolidacao): `person`, `organization`, `nav`
+- `Onda E`: relation operacional e padrao de `actions`
+- `Onda F`: residuos ativos de list/detail legados
+- `Onda G`: fluxos publicos/core e features historicas
+- `Onda H`: gates finais de qualidade e liberacao
+
+Status consolidado:
+
+- `A`, `B`, `C`, `D`, `E` fechadas em `2026-03-27`
+- `F`, `G`, `H` fechadas em `2026-04-07`

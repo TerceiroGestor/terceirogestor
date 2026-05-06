@@ -15,7 +15,7 @@ export async function generateMetadata(props: {
       default: tenantName,
       template: `%s | ${tenantName}`,
     },
-    manifest: "/manifest.webmanifest",
+    manifest: `/${encodeURIComponent(tenantSlug)}/manifest.webmanifest`,
     icons: {
       icon: `/${encodeURIComponent(tenantSlug)}/favicon.ico?v=${FAVICON_VERSION}`,
     },

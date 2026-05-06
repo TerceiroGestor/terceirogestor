@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -10,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RichText } from "@/components/ui/richtext/RichText";
 import { Tabs } from "@/components/ui/tabs";
 import { resolveMediaUrl } from "@/lib/api";
 import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
@@ -34,8 +34,8 @@ import type {
   PersonFormData,
   PersonMentionableUser,
 } from "@/modules/people/shared/domain/types";
-import { getAgeFromBirthDate, isBirthdayToday, resolvePersonDisplayNames } from "@/modules/people/shared/domain/utils";
-import { personFormSteps } from "@/modules/people/shared/config/people-form-config";
+import { formatDate, getAgeFromBirthDate, isBirthdayToday, resolvePersonDisplayNames } from "@/modules/people/shared/domain/utils";
+import { PersonSensitiveDocumentsInlineForm } from "@/modules/people/features/sensitive-documents/ui/person-sensitive-documents-inline-form";
 import type { PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
 import { PeopleDetailContent } from "@/modules/people/shared/ui/people-detail-content";
 import { PeopleDetailSidebar } from "@/modules/people/shared/ui/people-detail-sidebar";
@@ -57,6 +57,8 @@ export type PeopleDetailLayoutContext = DetailShellAuditContext & {
   readOnly: boolean;
   avatarUploading: boolean;
   canAudit: boolean;
+  canReadSensitiveDocuments: boolean;
+  canUpdateSensitiveDocuments: boolean;
   mentionableUsers: PersonMentionableUser[];
   relatedAuditEntityIds: {
     financialEntryIds: string[];
@@ -328,120 +330,110 @@ function IdentificationStep({
           readOnly={readOnly}
         />
       </SectionField>
-    </div>
-  );
-}
 
-function OrganizationStep({
-  draft,
-  readOnly,
-  onDraftChange,
-  onCommitField,
-}: {
-  draft: PersonFormData;
-  readOnly: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
-  onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionField label="Status">
-          <Select
-            value={draft.status ?? "__empty__"}
-            onValueChange={(next) => {
-              const nextValue = next === "__empty__" ? null : (next as PersonFormData["status"]);
-              onDraftChange((previous) => ({ ...previous, status: nextValue }));
-              onCommitField?.("status", nextValue);
-            }}
-            disabled={readOnly}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__empty__">Sem status</SelectItem>
-              {STATUS_OPTIONS.filter((option) => option !== "Em analise").map((option) => (
-                <SelectItem key={option} value={option}>
-                  {STATUS_LABELS[option] ?? option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
-      </div>
+      <SectionField label="Status">
+        <Select
+          value={draft.status ?? "__empty__"}
+          onValueChange={(next) => {
+            const nextValue = next === "__empty__" ? null : (next as PersonFormData["status"]);
+            onDraftChange((previous) => ({ ...previous, status: nextValue }));
+            onCommitField?.("status", nextValue);
+          }}
+          disabled={readOnly}
+        >
+          <SelectTrigger className={lineInputClassName}>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__empty__">Sem status</SelectItem>
+            {STATUS_OPTIONS.filter((option) => option !== "Em analise").map((option) => (
+              <SelectItem key={option} value={option}>
+                {STATUS_LABELS[option] ?? option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SectionField>
 
       {draft.status === "Desligado" ? (
-        <SectionField label="Motivo do desligamento">
-          <Textarea
-            value={draft.departureReason ?? ""}
-            onChange={(event) => onDraftChange((previous) => ({ ...previous, departureReason: event.target.value }))}
-            onBlur={(event) => onCommitField?.("departureReason", event.target.value || null)}
-            className={lineTextareaClassName}
-            readOnly={readOnly}
-          />
-        </SectionField>
+        <div className="xl:col-span-2">
+          <SectionField label="Motivo do desligamento">
+            <Textarea
+              value={draft.departureReason ?? ""}
+              onChange={(event) => onDraftChange((previous) => ({ ...previous, departureReason: event.target.value }))}
+              onBlur={(event) => onCommitField?.("departureReason", event.target.value || null)}
+              className={lineTextareaClassName}
+              readOnly={readOnly}
+            />
+          </SectionField>
+        </div>
       ) : null}
     </div>
   );
 }
 
-function NotesStep({
-  draft,
+function SensitiveDocumentsStep({
+  mode,
+  personId,
   readOnly,
-  onDraftChange,
-  onCommitDraft,
+  canReadSensitiveDocuments,
+  canUpdateSensitiveDocuments,
 }: {
-  draft: PersonFormData;
+  mode: "create" | "edit";
+  personId: string;
   readOnly: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
+  canReadSensitiveDocuments: boolean;
+  canUpdateSensitiveDocuments: boolean;
 }) {
+  if (mode === "create") {
+    return (
+      <div className="rounded-xl border border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
+        Salve o cadastro inicial para liberar o gerenciamento de documentos sensíveis.
+      </div>
+    );
+  }
+
   return (
-    <SectionField label="Resumo">
-      <RichText
-        value={draft.profileSummary ?? ""}
-        disabled={readOnly}
-        onChange={(value) => onDraftChange((previous) => ({ ...previous, profileSummary: value }))}
-        onBlur={() => onCommitDraft?.({ ...draft })}
-      />
-    </SectionField>
+    <PersonSensitiveDocumentsInlineForm
+      personId={personId}
+      canRead={canReadSensitiveDocuments}
+      canUpdate={canUpdateSensitiveDocuments}
+      readOnly={readOnly}
+    />
   );
 }
 
 function PeopleInlineForm({
   step,
+  mode,
+  personId,
   draft,
   readOnly,
+  canReadSensitiveDocuments,
+  canUpdateSensitiveDocuments,
   onDraftChange,
   onCommitField,
   onCommitDraft,
 }: {
   step: string;
+  mode: "create" | "edit";
+  personId: string;
   draft: PersonFormData;
   readOnly: boolean;
+  canReadSensitiveDocuments: boolean;
+  canUpdateSensitiveDocuments: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   onCommitDraft?: (nextDraft: PersonFormData) => void;
 }) {
-  if (step === "organization") {
+  if (step === "sensitive") {
     return (
-      <OrganizationStep
-        draft={draft}
+      <SensitiveDocumentsStep
+        mode={mode}
+        personId={personId}
         readOnly={readOnly}
-        onDraftChange={onDraftChange}
-        onCommitField={onCommitField}
-      />
-    );
-  }
-
-  if (step === "notes") {
-    return (
-      <NotesStep
-        draft={draft}
-        readOnly={readOnly}
-        onDraftChange={onDraftChange}
-        onCommitDraft={onCommitDraft}
+        canReadSensitiveDocuments={canReadSensitiveDocuments}
+        canUpdateSensitiveDocuments={canUpdateSensitiveDocuments}
       />
     );
   }
@@ -457,18 +449,24 @@ function PeopleInlineForm({
 }
 
 function PeopleDetailMain({
+  mode,
   person,
   draft,
   readOnly,
+  canReadSensitiveDocuments,
+  canUpdateSensitiveDocuments,
   onDraftChange,
   onCommitField,
   onCommitDraft,
   tabValue,
   onTabChange,
 }: {
+  mode: "create" | "edit";
   person: Person;
   draft: PersonFormData;
   readOnly: boolean;
+  canReadSensitiveDocuments: boolean;
+  canUpdateSensitiveDocuments: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   onCommitDraft?: (nextDraft: PersonFormData) => void;
@@ -476,14 +474,44 @@ function PeopleDetailMain({
   onTabChange: (value: PeopleDetailTabValue) => void;
 }) {
   const steps = React.useMemo<DetailFormStep[]>(
-    () =>
-      personFormSteps.map((step, index) => ({
-        key: index === 0 ? "identification" : index === 1 ? "organization" : "notes",
-        title: step.title,
-      })),
-    [],
+    () => [
+      {
+        key: "identification",
+        title: "Visão geral",
+        description: "Identificação, status e dados essenciais do beneficiário.",
+      },
+      ...(canReadSensitiveDocuments
+        ? [
+            {
+              key: "sensitive",
+              title: "Documentos",
+              badge: "LGPD",
+              description:
+                mode === "create"
+                  ? "Disponível após salvar o cadastro inicial."
+                  : "Visualize e edite CPF, RG, NIS e CNS com trilha de auditoria.",
+            },
+          ]
+        : []),
+    ],
+    [
+      mode,
+      canReadSensitiveDocuments,
+      canUpdateSensitiveDocuments,
+    ],
   );
   const [formStep, setFormStep] = React.useState<string>("identification");
+
+  React.useEffect(() => {
+    const selected = steps.find((step) => step.key === formStep);
+    if (selected && !selected.disabled) {
+      return;
+    }
+    const firstAvailable = steps.find((step) => !step.disabled);
+    if (firstAvailable && firstAvailable.key !== formStep) {
+      setFormStep(firstAvailable.key);
+    }
+  }, [formStep, steps]);
 
   return (
     <FamilyRelationsProvider personId={person.id} initialMode="summary">
@@ -492,8 +520,12 @@ function PeopleDetailMain({
 
         <PeopleInlineForm
           step={formStep}
+          mode={mode}
+          personId={person.id}
           draft={draft}
           readOnly={readOnly}
+          canReadSensitiveDocuments={canReadSensitiveDocuments}
+          canUpdateSensitiveDocuments={canUpdateSensitiveDocuments}
           onDraftChange={onDraftChange}
           onCommitField={onCommitField}
           onCommitDraft={onCommitDraft}
@@ -548,7 +580,7 @@ function PeopleDetailSide({
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
   notesValue: string | null | undefined;
   onNotesChange: (next: string | null) => void;
-  onNotesCommit: () => void;
+  onNotesCommit: (next?: string | null) => void;
   tagsValue: string[];
   onTagsChange: (next: string[]) => void;
   onTagsCommit: (next: string[]) => void;
@@ -572,6 +604,11 @@ function PeopleDetailSide({
   const ageValue = getAgeFromBirthDate(person.birthDate);
   const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
   const isTodayBirthdayValue = isBirthdayToday(person.birthDate);
+  const { users: liveMentionableUsers } = useMentionableUsers("people.read");
+  const resolvedMentionableUsers = React.useMemo(
+    () => (liveMentionableUsers.length ? liveMentionableUsers : mentionableUsers),
+    [liveMentionableUsers, mentionableUsers],
+  );
   const historyItems = React.useMemo(
     () => buildAuditHistoryItems(detailAudit?.logs ?? []),
     [detailAudit?.logs],
@@ -596,7 +633,7 @@ function PeopleDetailSide({
       <div className="space-y-4 border border-border/60 bg-background px-4 py-4">
         <div className="space-y-1 border-b border-border/50 pb-3">
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Resumo
+            Visao geral
           </div>
           <div className="text-sm font-medium text-foreground">
             {resolvePersonDisplayNames(person.fullName, person.socialName).primary}
@@ -617,7 +654,7 @@ function PeopleDetailSide({
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Nascimento</span>
-            <span className="text-foreground">{person.birthDate ?? "-"}</span>
+            <span className="text-foreground">{formatDate(person.birthDate) ?? "-"}</span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">Email</span>
@@ -642,7 +679,7 @@ function PeopleDetailSide({
       comments={{
         items: person.comments ?? [],
         draft: commentDraft,
-        users: mentionableUsers,
+        users: resolvedMentionableUsers,
         onDraftChange: onCommentDraftChange,
         onSubmit: onSubmitComment,
         onDelete: readOnly
@@ -659,12 +696,15 @@ function PeopleDetailSide({
           mode === "create"
             ? "Indisponível."
             : "Nenhum comentário.",
+        hidden: true,
       }}
       notes={{
         value: notesValue,
         onChange: onNotesChange,
         onBlur: onNotesCommit,
         readOnly,
+        users: resolvedMentionableUsers,
+        itemLabel: resolvePersonDisplayNames(person.fullName, person.socialName).primary,
       }}
       tags={{
         value: tagsValue,
@@ -717,20 +757,20 @@ function PeopleDetailSide({
           mode === "create"
             ? "Sem histórico."
             : "Nenhum histórico.",
+        hidden: true,
       }}
+      context={{ hidden: true }}
       contextPanel={contextPanel}
       contextItems={[
         { key: "status", label: "Status", value: person.status ?? "Sem status" },
         { key: "type", label: "Tipo", value: person.personType ?? "Sem tipo" },
-        { key: "birthDate", label: "Nascimento", value: person.birthDate ?? "-" },
+        { key: "birthDate", label: "Nascimento", value: formatDate(person.birthDate) ?? "-" },
         { key: "age", label: "Idade", value: ageLabel },
-        { key: "email", label: "Email", value: person.email ?? "-" },
-        { key: "phone", label: "Telefone", value: person.phone ?? "-" },
         { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
         { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
         { key: "tags", label: "Tags", value: tagsValue.length },
       ]}
-      defaultTab="activity"
+      defaultTab="tags"
     />
   );
 }
@@ -774,7 +814,6 @@ export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
   departureReason: "Motivo do desligamento",
   notes: "Notas",
   tags: "Tags",
-  profileSummary: "Resumo",
   avatarUrl: "Foto",
 };
 
@@ -807,20 +846,23 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Nascimento</div>
-            <div className="font-medium text-foreground">{person.birthDate ?? "-"}</div>
+            <div className="font-medium text-foreground">{formatDate(person.birthDate) ?? "-"}</div>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Cadastro</div>
-            <div className="font-medium text-foreground">{person.createdAt ?? "-"}</div>
+            <div className="font-medium text-foreground">{formatDate(person.createdAt) ?? "-"}</div>
           </div>
         </div>
       </div>
     ),
   },
   main: ({
+    mode,
     person,
     draft,
     readOnly,
+    canReadSensitiveDocuments,
+    canUpdateSensitiveDocuments,
     onDraftChange,
     onCommitField,
     onCommitDraft,
@@ -828,9 +870,12 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     onTabChange,
   }) => (
     <PeopleDetailMain
+      mode={mode}
       person={person}
       draft={draft}
       readOnly={readOnly}
+      canReadSensitiveDocuments={canReadSensitiveDocuments}
+      canUpdateSensitiveDocuments={canUpdateSensitiveDocuments}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
       onCommitDraft={onCommitDraft}
@@ -872,7 +917,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       onNotesChange={(next) => {
         onDraftChange((previous) => ({ ...previous, notes: next }));
       }}
-      onNotesCommit={() => onCommitField?.("notes", draft.notes ?? null)}
+      onNotesCommit={(next) => onCommitField?.("notes", next ?? draft.notes ?? null)}
       tagsValue={draft.tags ?? []}
       onTagsChange={(nextTags) => {
         onDraftChange((previous) => ({ ...previous, tags: nextTags }));

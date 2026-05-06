@@ -13,4 +13,3 @@ export class UpdateProjectGroupDto {
   @IsString()
   internalNotes?: string;
 }
-

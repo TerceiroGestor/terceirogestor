@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { uploadPeopleAttachment } from "@/features/uploads/api";
@@ -30,9 +31,6 @@ import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
-  buildAuditHistoryItems,
-} from "@/web-client/detail/audit-feed-utils";
-import {
   resumeDetailAutoSave,
   suspendDetailAutoSave,
 } from "@/web-client/detail/detail-media-autosave-guard";
@@ -44,12 +42,14 @@ import { resolveMediaUrl } from "@/lib/api";
 type PeopleRelationDetailShellProps = {
   personId: string;
   recordType: PeopleRecordType;
-  tab: Exclude<PeopleDetailTabValue, "atendimentos" | "resumo">;
+  tab: Exclude<PeopleDetailTabValue, "resumo">;
   title: string;
   subtitle?: string;
   mode?: "create" | "edit";
   saving?: boolean;
   headerActionsSlot?: React.ReactNode;
+  onPrimarySave?: () => void | Promise<void>;
+  primarySaveDisabled?: boolean;
   notes?: string | null;
   onNotesChange?: (next: string | null) => void;
   onNotesCommit?: (next: string | null) => void;
@@ -82,6 +82,8 @@ export function PeopleRelationDetailShell({
   mode = "edit",
   saving = false,
   headerActionsSlot,
+  onPrimarySave,
+  primarySaveDisabled = false,
   notes,
   onNotesChange,
   onNotesCommit,
@@ -95,6 +97,7 @@ export function PeopleRelationDetailShell({
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
+  const auditAdapter = React.useMemo(() => ({ model: "audit.logs" }), []);
   const [personName, setPersonName] = React.useState("Pessoa");
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [commentDraft, setCommentDraft] = React.useState({
@@ -158,17 +161,21 @@ export function PeopleRelationDetailShell({
   }, [refreshMetadata]);
 
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, tab), tenantSlug);
+  const breadcrumbItems = React.useMemo(
+    () => [
+      { label: "Pessoas", href: "/people" },
+      { label: personName, href: buildPeopleDetailTabPath(personId, tab) },
+      { label: title },
+    ],
+    [personId, personName, tab, title],
+  );
   const detailAudit = useDetailAuditFeed({
     dataProvider,
-    auditAdapter: { model: "audit.logs" },
+    auditAdapter,
     auditConfig,
     context: { relationId: relationId ?? "" },
     enabled: Boolean(relationId && auditConfig && token),
   });
-  const historyItems = React.useMemo(
-    () => buildAuditHistoryItems(detailAudit?.logs ?? []),
-    [detailAudit?.logs],
-  );
   const relationNotesReadOnly = !onNotesChange || !onNotesCommit;
 
   const handleSubmitComment = React.useCallback(async () => {
@@ -334,17 +341,31 @@ export function PeopleRelationDetailShell({
         moduleDefinition={peopleRelationDetailModuleDefinition}
         context={{ relationId }}
         breadcrumbTitle={title}
-        breadcrumbItems={[
-          { label: "Pessoas", href: "/people" },
-          { label: personName, href: buildPeopleDetailTabPath(personId, tab) },
-          { label: title },
-        ]}
+        breadcrumbItems={breadcrumbItems}
         mode={mode}
         headerTitle={title}
         saving={saving || commentSubmitting || attachmentUploading}
         readOnly={false}
         loading={false}
-        headerActionsSlot={headerActionsSlot}
+        headerActionsSlot={
+          mode === "create" ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void onPrimarySave?.();
+                }}
+                disabled={primarySaveDisabled}
+              >
+                Salvar
+              </Button>
+              {headerActionsSlot}
+            </div>
+          ) : (
+            headerActionsSlot
+          )
+        }
         onClose={() => router.push(backHref)}
         fallbackSideSlot={
           <StandardDetailMetadataSide
@@ -369,12 +390,15 @@ export function PeopleRelationDetailShell({
                   : metadataLoading
                     ? "Carregando..."
                     : "Nenhum comentário.",
+              hidden: true,
             }}
             notes={{
               value: notes,
               onChange: (next) => onNotesChange?.(next),
-              onBlur: () => onNotesCommit?.(notes ?? null),
+              onBlur: (next) => onNotesCommit?.(next ?? notes ?? null),
+              users: mentionableUsers,
               readOnly: relationNotesReadOnly,
+              itemLabel: title,
             }}
             tags={{
               value: metadata.tags,
@@ -418,13 +442,8 @@ export function PeopleRelationDetailShell({
                     ? "Enviando..."
                     : "Nenhum anexo.",
             }}
-            history={{
-              items: historyItems,
-              emptyLabel:
-                mode === "create"
-                  ? "Sem histórico."
-                  : "Nenhum histórico.",
-            }}
+            history={{ items: [], hidden: true }}
+            context={{ hidden: true }}
             contextItems={[
               { key: "person", label: "Pessoa", value: personName },
               { key: "type", label: "Registro", value: title },
@@ -433,7 +452,7 @@ export function PeopleRelationDetailShell({
               { key: "attachments", label: "Anexos", value: metadata.attachments.length },
               { key: "tags", label: "Tags", value: metadata.tags.length },
             ]}
-            defaultTab="activity"
+            defaultTab="tags"
           />
         }
         fallbackMainSlot={

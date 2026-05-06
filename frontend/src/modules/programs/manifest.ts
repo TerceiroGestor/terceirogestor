@@ -9,7 +9,7 @@ export const programsManifest: ModuleManifest = {
   groupLabel: NAV_GROUPS.GESTAO,
   navItems: [
     {
-      title: "Programas",
+      title: "Programas SCFV",
       href: "/programs",
       icon: Layers,
       permissions: ["programs.read"],

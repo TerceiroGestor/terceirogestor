@@ -7,4 +7,3 @@ export const parseJsonArray = <T>(raw?: string): T[] => {
     return [];
   }
 };
-

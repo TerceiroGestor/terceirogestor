@@ -109,7 +109,12 @@ export class PeopleController {
     @Body() dto: CreatePersonCommentDto,
   ) {
     const authUser = this.assertUser(user);
-    return this.peopleService.addComment(authUser.tenantId, authUser.userId, id, dto);
+    return this.peopleService.addComment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      dto,
+    );
   }
 
   @Delete(':id/comments/:commentId')
@@ -119,7 +124,11 @@ export class PeopleController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
   ) {
-    return this.peopleService.deleteComment(this.getTenantId(user), id, commentId);
+    return this.peopleService.deleteComment(
+      this.getTenantId(user),
+      id,
+      commentId,
+    );
   }
 
   @Post(':id/attachments')
@@ -130,7 +139,12 @@ export class PeopleController {
     @Body() dto: CreatePersonAttachmentDto,
   ) {
     const authUser = this.assertUser(user);
-    return this.peopleService.addAttachment(authUser.tenantId, authUser.userId, id, dto);
+    return this.peopleService.addAttachment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      dto,
+    );
   }
 
   @Delete(':id/attachments/:attachmentId')
@@ -138,9 +152,14 @@ export class PeopleController {
   async deleteAttachment(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.peopleService.deleteAttachment(this.getTenantId(user), id, attachmentId);
+    return this.peopleService.deleteAttachment(
+      this.getTenantId(user),
+      id,
+      attachmentId,
+    );
   }
 
   @Get(':id/records/:recordType/:recordId/metadata')
@@ -224,7 +243,8 @@ export class PeopleController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('recordType') recordType: string,
     @Param('recordId', new ParseUUIDPipe({ version: '4' })) recordId: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
     return this.peopleService.deleteRecordAttachment(
       this.getTenantId(user),
@@ -538,12 +558,7 @@ export class PeopleController {
     @Body() dto: UpdatePersonMedicationDto,
   ) {
     const tenantId = this.getTenantId(user);
-    return this.peopleService.updateMedication(
-      tenantId,
-      id,
-      medicationId,
-      dto,
-    );
+    return this.peopleService.updateMedication(tenantId, id, medicationId, dto);
   }
 
   @Delete(':id/medications/:medicationId')
@@ -772,12 +787,7 @@ export class PeopleController {
     @Body() dto: UpdateHouseholdAssetDto,
   ) {
     const tenantId = this.getTenantId(user);
-    return this.peopleService.updateHouseholdAsset(
-      tenantId,
-      id,
-      assetId,
-      dto,
-    );
+    return this.peopleService.updateHouseholdAsset(tenantId, id, assetId, dto);
   }
 
   @Delete(':id/household-assets/:assetId')
@@ -980,4 +990,3 @@ export class PeopleController {
     return user;
   }
 }
-

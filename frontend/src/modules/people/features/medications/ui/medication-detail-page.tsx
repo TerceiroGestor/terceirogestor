@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
-import { uploadHealthDocument } from "@/features/uploads/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useMedications } from "@/modules/people/features/medications/data/use-medications";
 import { MedicationForm } from "@/modules/people/features/medications/ui/medication-form";
@@ -26,10 +25,6 @@ function initialValues(item?: Medication): MedicationFormValues {
     startDate: item?.startDate?.slice(0, 10) ?? "",
     endDate: item?.endDate?.slice(0, 10) ?? "",
     prescribingDoctor: item?.prescribingDoctor ?? "",
-    permissionDocumentFile: null,
-    removePermissionDocument: false,
-    documentFile: null,
-    removeDocument: false,
     notes: item?.notes ?? "",
   };
 }
@@ -73,15 +68,6 @@ const MEDICATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
 };
 
 function normalizeDraft(values: MedicationFormValues): MedicationFormValues {
-  const normalizeFile = (file: File | null) =>
-    file
-      ? ({
-          name: file.name,
-          size: file.size,
-          lastModified: file.lastModified,
-        } as unknown as File)
-      : null;
-
   return {
     ...values,
     reason: (values.reason ?? "").trim(),
@@ -91,12 +77,6 @@ function normalizeDraft(values: MedicationFormValues): MedicationFormValues {
     startDate: values.startDate || "",
     endDate: values.endDate || "",
     prescribingDoctor: (values.prescribingDoctor ?? "").trim(),
-    documentFile: normalizeFile(values.documentFile instanceof File ? values.documentFile : null),
-    permissionDocumentFile: normalizeFile(
-      values.permissionDocumentFile instanceof File ? values.permissionDocumentFile : null,
-    ),
-    removeDocument: Boolean(values.removeDocument),
-    removePermissionDocument: Boolean(values.removePermissionDocument),
     notes: (values.notes ?? "").trim(),
   };
 }
@@ -120,12 +100,13 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "medicacoes"), tenantSlug);
   const [draft, setDraft] = React.useState<MedicationFormValues>(createInitialValues);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(medicationId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(medicationId || null);
 
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
-    enabled: Boolean(token),
+    enabled: mode === "edit" && Boolean(token),
     config: AUTO_EDITING,
     normalizeDraft,
     onSave: async (values) => {
@@ -135,20 +116,6 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
         return values;
       }
 
-      let documentUrl = current?.documentUrl ?? null;
-      let permissionDocumentUrl = current?.permissionDocumentUrl ?? null;
-      if (values.documentFile instanceof File) {
-        documentUrl = (await uploadHealthDocument(token, values.documentFile)).path;
-      } else if (values.removeDocument) {
-        documentUrl = null;
-      }
-      if (values.permissionDocumentFile instanceof File) {
-        permissionDocumentUrl = (
-          await uploadHealthDocument(token, values.permissionDocumentFile)
-        ).path;
-      } else if (values.removePermissionDocument) {
-        permissionDocumentUrl = null;
-      }
       const payload = {
         reason: (values.reason ?? "").trim() || null,
         medication: requiredMedication,
@@ -158,8 +125,6 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
         endDate: values.endDate || null,
         prescribingDoctor: (values.prescribingDoctor ?? "").trim() || null,
         notes: (values.notes ?? "").trim() || null,
-        documentUrl,
-        permissionDocumentUrl,
       };
       if (!relationIdRef.current) {
         const created = await create(payload);
@@ -171,6 +136,13 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
       }
       const updated = await update(relationIdRef.current, payload);
       return initialValues(updated ?? current ?? undefined);
+    },
+    onError: (nextError) => {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao salvar medicacao.";
+      setSaveError(message);
     },
   });
 
@@ -193,9 +165,11 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
   const handleFieldCommit = React.useCallback(
     (values: MedicationFormValues) => {
       setDraft(values);
-      commitDraft(values);
+      if (mode === "edit") {
+        commitDraft(values);
+      }
     },
-    [commitDraft],
+    [commitDraft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -206,9 +180,11 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
     (next: string | null) => {
       const nextDraft = { ...draft, notes: next ?? "" };
       setDraft(nextDraft);
-      commitDraft(nextDraft);
+      if (mode === "edit") {
+        commitDraft(nextDraft);
+      }
     },
-    [commitDraft, draft],
+    [commitDraft, draft, mode],
   );
 
   return (
@@ -219,12 +195,25 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
       title={mode === "create" ? "Nova medicação" : current?.medication ?? "Medicação"}
       mode={mode}
       saving={saving}
+      onPrimarySave={
+        mode === "create"
+          ? async () => {
+              setSaveError(null);
+              await commitDraft(draft);
+            }
+          : undefined
+      }
+      primarySaveDisabled={mode === "create" && !draft.medication.trim()}
       relationId={activeRelationId}
       auditConfig={MEDICATION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
       onNotesCommit={handleNotesCommit}
     >
+      {saveError ? <div className="text-sm text-destructive">{saveError}</div> : null}
+      <div className="rounded-xl border border-border/60 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+        Para anexar receitas e documentos, use o bloco de Anexos no SideShell desta tela.
+      </div>
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (
         <div className="text-sm text-muted-foreground">Carregando medicação...</div>
@@ -238,11 +227,13 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
-          showRemoveDocument={Boolean(current?.documentUrl)}
-          showRemovePermissionDocument={Boolean(current?.permissionDocumentUrl)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
-          onSubmit={() => undefined}
+          onSubmit={async (values) => {
+            setDraft(values);
+            setSaveError(null);
+            await commitDraft(values);
+          }}
         />
       ) : null}
     </PeopleRelationDetailShell>

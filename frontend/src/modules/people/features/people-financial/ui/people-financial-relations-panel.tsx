@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
+import { FINANCIAL_FREQUENCY_OPTIONS } from "@/modules/people/features/people-financial/config/people-financial.constants";
 import { usePeopleFinancial } from "@/modules/people/features/people-financial/data/use-people-financial";
 import { buildPeopleFinancialEntryPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { PersonFinancialEntry } from "@/modules/people/shared/domain/types";
@@ -18,6 +19,10 @@ const ENTRY_TYPE_LABELS: Record<PersonFinancialEntry["entryType"], string> = {
   TRANSFER: "Transferencia",
   BENEFIT: "Beneficio",
 };
+
+const FREQUENCY_LABELS = Object.fromEntries(
+  FINANCIAL_FREQUENCY_OPTIONS.map((item) => [item.value, item.label]),
+) as Record<string, string>;
 
 function truncate(value: string | number | null | undefined, size = 36) {
   const text = String(value ?? "").trim();
@@ -86,6 +91,7 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
       {
         accessorKey: "frequency",
         header: "Frequencia",
+        cell: ({ row }) => FREQUENCY_LABELS[row.original.frequency ?? ""] ?? row.original.frequency ?? "-",
       },
       {
         id: "flow",
@@ -136,6 +142,7 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
             variant="ghost"
             onClick={(event) => {
               event.stopPropagation();
+              if (!window.confirm("Excluir este registro financeiro?")) return;
               void (async () => {
                 await remove(row.original.id);
                 await refreshFamily();
@@ -157,6 +164,7 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
       row.subcategory,
       row.status,
       row.frequency,
+      FREQUENCY_LABELS[row.frequency ?? ""],
       row.notes,
     ];
     return values.some((value) =>
@@ -198,7 +206,7 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
         categoria: row.category ?? null,
         subcategoria: row.subcategory ?? null,
         valor: row.amount ?? null,
-        frequencia: row.frequency ?? null,
+        frequencia: FREQUENCY_LABELS[row.frequency ?? ""] ?? row.frequency ?? null,
         fluxo:
           row.entryType === "TRANSFER"
             ? `${householdLabelById.get(row.fromHouseholdId ?? "") ?? "-"} -> ${

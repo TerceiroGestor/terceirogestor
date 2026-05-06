@@ -232,9 +232,10 @@ export function useDetailAuditFeed<TContext extends Record<string, unknown>>({
       !enabled ||
       (!requestState.entityId && requestState.sourceContext.length === 0)
     ) {
-      setRawLogs([]);
-      setError(null);
-      setTotalCount(0);
+      setRawLogs((previous) => (previous.length > 0 ? [] : previous));
+      setError((previous) => (previous === null ? previous : null));
+      setTotalCount((previous) => (previous === 0 ? previous : 0));
+      setLoading((previous) => (previous ? false : previous));
       return;
     }
 

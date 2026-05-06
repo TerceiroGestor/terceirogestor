@@ -85,11 +85,12 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "reclusao"), tenantSlug);
 
   const [draft, setDraft] = React.useState<DetentionFormValues>(createInitialValues);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(detentionId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(detentionId || null);
   const { saving, replaceSavedDraft, commitDraft } = useDetailAutoSaveController({
     draft,
-    enabled: true,
+    enabled: mode === "edit",
     config: AUTO_EDITING,
     normalizeDraft,
     onSave: async (values) => {
@@ -116,6 +117,13 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
       const updated = await update(relationIdRef.current, payload);
       return initialFormValues(updated ?? current ?? undefined);
     },
+    onError: (nextError) => {
+      const message =
+        nextError && typeof nextError === "object" && "message" in nextError
+          ? String((nextError as { message?: string }).message)
+          : "Falha ao salvar reclusao.";
+      setSaveError(message);
+    },
   });
 
   React.useEffect(() => {
@@ -137,9 +145,11 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
   const handleFieldCommit = React.useCallback(
     (values: DetentionFormValues) => {
       setDraft(values);
-      commitDraft(values);
+      if (mode === "edit") {
+        commitDraft(values);
+      }
     },
-    [commitDraft],
+    [commitDraft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -150,9 +160,11 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
     (next: string | null) => {
       const nextDraft = { ...draft, notes: next ?? "" };
       setDraft(nextDraft);
-      commitDraft(nextDraft);
+      if (mode === "edit") {
+        commitDraft(nextDraft);
+      }
     },
-    [commitDraft, draft],
+    [commitDraft, draft, mode],
   );
 
   return (
@@ -163,12 +175,22 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
       title={mode === "create" ? "Novo registro de reclusão" : current?.status ?? "Reclusão"}
       mode={mode}
       saving={saving}
+      onPrimarySave={
+        mode === "create"
+          ? async () => {
+              setSaveError(null);
+              await commitDraft(draft);
+            }
+          : undefined
+      }
+      primarySaveDisabled={mode === "create" && !draft.status.trim()}
       relationId={activeRelationId}
       auditConfig={DETENTION_AUDIT_CONFIG}
       notes={draft.notes}
       onNotesChange={handleNotesChange}
       onNotesCommit={handleNotesCommit}
     >
+      {saveError ? <div className="text-sm text-destructive">{saveError}</div> : null}
       {error ? <div className="text-sm text-destructive">{error}</div> : null}
       {mode === "edit" && isLoading && !current ? (
         <div className="text-sm text-muted-foreground">Carregando registro...</div>
@@ -184,7 +206,11 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
-          onSubmit={() => undefined}
+          onSubmit={async (values) => {
+            setDraft(values);
+            setSaveError(null);
+            await commitDraft(values);
+          }}
         />
       ) : null}
     </PeopleRelationDetailShell>

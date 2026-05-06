@@ -29,6 +29,21 @@ function SidebarSubBadgePill({ children }: { children: string }) {
   );
 }
 
+function getTourTargetForHref(href: string) {
+  switch (href) {
+    case "/admin/tenant":
+      return "sidebar-admin-tenant";
+    case "/programs":
+      return "sidebar-programs";
+    case "/admin/users":
+      return "sidebar-admin-users";
+    case "/people":
+      return "sidebar-people";
+    default:
+      return undefined;
+  }
+}
+
 function GroupItem(props: {
   item: ModuleNavItem;
   pathname: string;
@@ -62,6 +77,7 @@ function GroupItem(props: {
       : false;
 
   const disabled = !!props.item.disabled;
+  const itemTourTarget = getTourTargetForHref(props.item.href);
 
   return (
     <SidebarMenuSubItem key={props.item.href} className="relative">
@@ -73,7 +89,10 @@ function GroupItem(props: {
         </SidebarMenuSubButton>
       ) : (
         <SidebarMenuSubButton asChild isActive={active} onClick={closeSidebarOnNavigate}>
-          <Link href={withTenantPath(props.item.href, props.tenantSlug)}>
+          <Link
+            href={withTenantPath(props.item.href, props.tenantSlug)}
+            data-tour-target={itemTourTarget}
+          >
             <props.item.icon />
             <span>{props.item.title}</span>
             {props.item.badge ? <SidebarSubBadgePill>{props.item.badge}</SidebarSubBadgePill> : null}
@@ -119,6 +138,7 @@ function GroupItem(props: {
                   itemHref: child.href,
                   exact: child.exact,
                 });
+            const childTourTarget = getTourTargetForHref(child.href);
 
             return (
               <SidebarMenuSubItem key={`${props.item.href}:${child.href}`}>
@@ -134,7 +154,10 @@ function GroupItem(props: {
                     isActive={childActive}
                     onClick={closeSidebarOnNavigate}
                   >
-                    <Link href={withTenantPath(child.href, props.tenantSlug)}>
+                    <Link
+                      href={withTenantPath(child.href, props.tenantSlug)}
+                      data-tour-target={childTourTarget}
+                    >
                       <child.icon />
                       <span>{child.title}</span>
                       {child.badge ? <SidebarSubBadgePill>{child.badge}</SidebarSubBadgePill> : null}

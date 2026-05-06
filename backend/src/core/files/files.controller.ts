@@ -24,7 +24,13 @@ const MAX_PROGRAM_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROJECT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_ACTION_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_AVATAR_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_AVATAR_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+]);
 const ALLOWED_HEALTH_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
@@ -40,7 +46,13 @@ const ALLOWED_TENANT_LOGO_EXTENSIONS = new Set([
   '.webp',
   '.gif',
 ]);
-const ALLOWED_ACTION_PHOTO_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_ACTION_PHOTO_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+]);
 const ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
@@ -209,9 +221,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'avatars', ALLOWED_AVATAR_EXTENSIONS).then(
-      (uploaded) => ({ path: uploaded.path }),
-    );
+    return this.uploadToPublicBucket(
+      file,
+      'avatars',
+      ALLOWED_AVATAR_EXTENSIONS,
+    ).then((uploaded) => ({ path: uploaded.path }));
   }
 
   @Post('health-documents')
@@ -322,7 +336,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'people', ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'people',
+      ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('pantry-attachments')
@@ -346,7 +364,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'pantry', ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'pantry',
+      ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('deposit-attachments')
@@ -370,7 +392,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'deposit', ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'deposit',
+      ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('program-attachments')
@@ -394,7 +420,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'programs', ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'programs',
+      ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('project-attachments')
@@ -418,7 +448,11 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'projects', ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'projects',
+      ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS,
+    );
   }
 
   @Post('action-attachments')
@@ -470,6 +504,10 @@ export class FilesController {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
 
-    return this.uploadToPublicBucket(file, 'tasks', ALLOWED_TASK_ATTACHMENT_EXTENSIONS);
+    return this.uploadToPublicBucket(
+      file,
+      'tasks',
+      ALLOWED_TASK_ATTACHMENT_EXTENSIONS,
+    );
   }
 }

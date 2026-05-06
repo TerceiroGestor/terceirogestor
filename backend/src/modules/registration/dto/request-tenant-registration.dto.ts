@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RequestTenantRegistrationDto {
   @IsString()
@@ -20,4 +26,3 @@ export class RequestTenantRegistrationDto {
   @IsString()
   tenantSlug?: string;
 }
-

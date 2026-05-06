@@ -107,6 +107,7 @@ export function MedicationsPanel({ personId }: { personId: string }) {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!window.confirm("Excluir esta medicacao?")) return;
                 void remove(row.original.id);
               }}
             >

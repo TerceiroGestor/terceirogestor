@@ -9,7 +9,7 @@ export const projectsManifest: ModuleManifest = {
   groupLabel: NAV_GROUPS.GESTAO,
   navItems: [
     {
-      title: "Projetos",
+      title: "Turmas e Ciclos",
       href: "/projects",
       icon: FolderKanban,
       permissions: ["projects.read"],

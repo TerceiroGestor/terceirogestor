@@ -10,4 +10,3 @@ export class ListPantryDonorsQueryDto extends PaginationQueryDto {
   @IsString()
   search?: string;
 }
-

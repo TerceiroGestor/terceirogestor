@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -212,6 +214,8 @@ export function PeopleDetailEngineClientPage({
     "audit",
     permissions,
   );
+  const canReadSensitiveDocuments = permissions.includes("people.sensitive.read");
+  const canUpdateSensitiveDocuments = permissions.includes("people.sensitive.update");
   const { users: mentionableUsers } = useMentionableUsers("people.read");
 
   const id = params?.id ? String(params.id) : "";
@@ -234,7 +238,7 @@ export function PeopleDetailEngineClientPage({
   const [error, setError] = React.useState<string | null>(null);
   const initialTab = React.useMemo<PeopleDetailTabValue>(() => {
     const tab = searchParams.get("tab");
-    return isPeopleDetailTabValue(tab) && tab !== "atendimentos"
+    return isPeopleDetailTabValue(tab)
       ? tab
       : "familia";
   }, [searchParams]);
@@ -342,12 +346,17 @@ export function PeopleDetailEngineClientPage({
             ? String((nextError as { message?: string }).message)
             : "Falha ao salvar pessoa.";
         setError(message);
+        toast({
+          variant: "destructive",
+          title: "Falha ao salvar",
+          description: message,
+        });
         throw nextError;
       } finally {
         setSaving(false);
       }
     },
-    [canUpdate, dataProvider, person, token],
+    [canUpdate, dataProvider, person, toast, token],
   );
 
   const autoSave = useDetailAutoSaveController<PersonFormData>({
@@ -362,6 +371,11 @@ export function PeopleDetailEngineClientPage({
           ? String((nextError as { message?: string }).message)
           : "Falha ao salvar pessoa.";
       setError(message);
+      toast({
+        variant: "destructive",
+        title: "Falha ao salvar",
+        description: message,
+      });
     },
   });
   const { replaceSavedDraft, commitDraft } = autoSave;
@@ -487,6 +501,10 @@ export function PeopleDetailEngineClientPage({
         : { primary: "Pessoa", secondary: null },
     [person],
   );
+  const familyTreeHref = React.useMemo(
+    () => withTenantPath(`/people/${person?.id ?? ""}/tree`, tenantSlug),
+    [person?.id, tenantSlug],
+  );
 
   const handleDraftChange = React.useCallback<
     React.Dispatch<React.SetStateAction<PersonFormData>>
@@ -520,18 +538,28 @@ export function PeopleDetailEngineClientPage({
           : ({ ...currentDraft, [field]: nextValue } as PersonFormData);
       setDraft(nextDraft);
       draftStateRef.current = nextDraft;
+      if (!isEdit) {
+        setPerson(buildDraftPerson(nextDraft));
+        return;
+      }
+      if (!canUpdate) return;
       commitDraft(nextDraft);
     },
-    [commitDraft],
+    [canUpdate, commitDraft, isEdit],
   );
 
   const handleCommitDraft = React.useCallback(
     (nextDraft: PersonFormData) => {
       setDraft(nextDraft);
       draftStateRef.current = nextDraft;
+      if (!isEdit) {
+        setPerson(buildDraftPerson(nextDraft));
+        return;
+      }
+      if (!canUpdate) return;
       commitDraft(nextDraft);
     },
-    [commitDraft],
+    [canUpdate, commitDraft, isEdit],
   );
 
   const handleCreate = React.useCallback(async () => {
@@ -706,6 +734,8 @@ export function PeopleDetailEngineClientPage({
             readOnly: mode === "create" ? !canCreate : !canUpdate,
             avatarUploading,
             canAudit: mode === "edit" && canAudit,
+            canReadSensitiveDocuments,
+            canUpdateSensitiveDocuments,
             mentionableUsers,
             relatedAuditEntityIds,
             tagSuggestions,
@@ -744,6 +774,8 @@ export function PeopleDetailEngineClientPage({
       canUpdate,
       avatarUploading,
       canAudit,
+      canReadSensitiveDocuments,
+      canUpdateSensitiveDocuments,
       mentionableUsers,
       relatedAuditEntityIds,
       tagSuggestions,
@@ -820,7 +852,13 @@ export function PeopleDetailEngineClientPage({
           { label: "Pessoas", href: PEOPLE_ROUTES.list },
           ...(mode === "edit" ? [{ label: displayNames.primary }] : []),
         ]}
-        headerActionsSlot={null}
+        headerActionsSlot={
+          mode === "edit" && canRead ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={familyTreeHref}>Arvore genealogica</Link>
+            </Button>
+          ) : null
+        }
       />
     </>
   );

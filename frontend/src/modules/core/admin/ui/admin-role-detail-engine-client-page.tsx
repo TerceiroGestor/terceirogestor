@@ -4,7 +4,6 @@ import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { listPermissions } from "@/features/admin/api";
@@ -86,28 +85,6 @@ export function AdminRoleDetailEngineClientPage() {
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [permissionPickerOpen, setPermissionPickerOpen] = React.useState(false);
   const [permissionPickerSelection, setPermissionPickerSelection] = React.useState<string[]>([]);
-
-  const usageItems = React.useMemo(
-    () =>
-      ADMIN_USAGE_TEXT.roles.sections.map((section, index) => ({
-        id: `admin-roles-detail-${index}`,
-        title: section.title,
-        searchText: section.items.join(" "),
-        content: (
-          <ul className="list-disc space-y-1 pl-5">
-            {section.items.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        ),
-      })),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: ADMIN_USAGE_TEXT.roles.title,
-    items: usageItems,
-  });
 
   const selectedPermissionRecords = React.useMemo(
     () =>

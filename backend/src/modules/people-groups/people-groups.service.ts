@@ -1,7 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreatePeopleGroupParticipationDto } from './dto/create-people-group-participation.dto';
 import { CreatePeopleGroupDto } from './dto/create-people-group.dto';
@@ -13,11 +20,16 @@ import { UpdatePeopleGroupDto } from './dto/update-people-group.dto';
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
 
-function ensureValidAgeRange(params: { ageMin?: number | null; ageMax?: number | null }) {
+function ensureValidAgeRange(params: {
+  ageMin?: number | null;
+  ageMax?: number | null;
+}) {
   const ageMin = params.ageMin ?? null;
   const ageMax = params.ageMax ?? null;
   if (ageMin !== null && ageMax !== null && ageMin > ageMax) {
-    throw new BadRequestException('Faixa etaria invalida: minima maior que maxima');
+    throw new BadRequestException(
+      'Faixa etaria invalida: minima maior que maxima',
+    );
   }
 }
 
@@ -50,7 +62,9 @@ export class PeopleGroupsService {
               { category: { contains: q } },
               { description: { contains: q } },
               { internalNotes: { contains: q } },
-              ...(numericQ === null ? [] : [{ ageMin: numericQ }, { ageMax: numericQ }]),
+              ...(numericQ === null
+                ? []
+                : [{ ageMin: numericQ }, { ageMax: numericQ }]),
             ],
           }
         : {}),
@@ -117,13 +131,16 @@ export class PeopleGroupsService {
         tenantId,
         name,
         groupType: dto.groupType ?? 'SEGMENT',
-        purpose: dto.purpose ?? (dto.groupType === 'TEAM_POOL' ? 'EQUIPE' : 'PUBLICO'),
+        purpose:
+          dto.purpose ?? (dto.groupType === 'TEAM_POOL' ? 'EQUIPE' : 'PUBLICO'),
         category: dto.category?.trim() ? dto.category.trim() : null,
         description: dto.description?.trim() ? dto.description.trim() : null,
         ageMin: dto.ageMin ?? null,
         ageMax: dto.ageMax ?? null,
         isActive: dto.isActive ?? true,
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
       },
       include: {
         _count: {
@@ -140,11 +157,16 @@ export class PeopleGroupsService {
     });
   }
 
-  async updatePeopleGroup(tenantId: string, id: string, dto: UpdatePeopleGroupDto) {
+  async updatePeopleGroup(
+    tenantId: string,
+    id: string,
+    dto: UpdatePeopleGroupDto,
+  ) {
     const existing = await this.prisma.peopleGroup.findFirst({
       where: { id, tenantId },
     });
-    if (!existing) throw new NotFoundException('Grupo de pessoas nao encontrado');
+    if (!existing)
+      throw new NotFoundException('Grupo de pessoas nao encontrado');
 
     const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
     if (name !== undefined && !name) {
@@ -166,13 +188,21 @@ export class PeopleGroupsService {
           ? { category: dto.category?.trim() ? dto.category.trim() : null }
           : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.ageMin !== undefined ? { ageMin: dto.ageMin ?? null } : {}),
         ...(dto.ageMax !== undefined ? { ageMax: dto.ageMax ?? null } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.internalNotes !== undefined
-          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
+          ? {
+              internalNotes: dto.internalNotes?.trim()
+                ? dto.internalNotes.trim()
+                : null,
+            }
           : {}),
       },
       include: {
@@ -195,15 +225,26 @@ export class PeopleGroupsService {
       where: { id, tenantId },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Grupo de pessoas nao encontrado');
+    if (!existing)
+      throw new NotFoundException('Grupo de pessoas nao encontrado');
 
-    const [activeParticipations, projectUses, actionUses] = await this.prisma.$transaction([
-      this.prisma.peopleGroupParticipation.count({
-        where: { tenantId, peopleGroupId: existing.id, isActive: true, deletedAt: null },
-      }),
-      this.prisma.projectPeopleGroup.count({ where: { tenantId, peopleGroupId: existing.id } }),
-      this.prisma.actionPeopleGroup.count({ where: { tenantId, peopleGroupId: existing.id } }),
-    ]);
+    const [activeParticipations, projectUses, actionUses] =
+      await this.prisma.$transaction([
+        this.prisma.peopleGroupParticipation.count({
+          where: {
+            tenantId,
+            peopleGroupId: existing.id,
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+        this.prisma.projectPeopleGroup.count({
+          where: { tenantId, peopleGroupId: existing.id },
+        }),
+        this.prisma.actionPeopleGroup.count({
+          where: { tenantId, peopleGroupId: existing.id },
+        }),
+      ]);
 
     if (activeParticipations > 0 || projectUses > 0 || actionUses > 0) {
       throw new BadRequestException(
@@ -256,7 +297,11 @@ export class PeopleGroupsService {
       this.prisma.peopleGroupParticipation.findMany({
         where,
         include: { person: true },
-        orderBy: [{ isActive: 'desc' }, { startsAt: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { isActive: 'desc' },
+          { startsAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
         ...(isAll ? {} : { skip, take }),
       }),
       this.prisma.peopleGroupParticipation.count({ where }),
@@ -287,10 +332,12 @@ export class PeopleGroupsService {
     if (!person) throw new NotFoundException('Pessoa nao encontrada');
 
     const activeKey = buildActiveParticipationKey(peopleGroupId, personId);
-    const existingActive = await this.prisma.peopleGroupParticipation.findFirst({
-      where: { tenantId, activeKey, isActive: true, deletedAt: null },
-      select: { id: true },
-    });
+    const existingActive = await this.prisma.peopleGroupParticipation.findFirst(
+      {
+        where: { tenantId, activeKey, isActive: true, deletedAt: null },
+        select: { id: true },
+      },
+    );
     if (existingActive) {
       throw new BadRequestException('A pessoa ja participa deste grupo');
     }
@@ -303,7 +350,9 @@ export class PeopleGroupsService {
         activeKey,
         isActive: true,
         startsAt: dto.startsAt ? new Date(dto.startsAt) : new Date(),
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
       },
       include: { person: true },
     });
@@ -319,7 +368,8 @@ export class PeopleGroupsService {
       where: { id: participationId, tenantId, peopleGroupId },
       include: { person: true },
     });
-    if (!participation) throw new NotFoundException('Participacao do grupo nao encontrada');
+    if (!participation)
+      throw new NotFoundException('Participacao do grupo nao encontrada');
 
     if (!participation.isActive || participation.deletedAt) {
       return participation;
@@ -344,12 +394,16 @@ export class PeopleGroupsService {
     });
   }
 
-  private async assertPeopleGroupExists(tenantId: string, peopleGroupId: string) {
+  private async assertPeopleGroupExists(
+    tenantId: string,
+    peopleGroupId: string,
+  ) {
     const peopleGroup = await this.prisma.peopleGroup.findFirst({
       where: { id: peopleGroupId, tenantId },
       select: { id: true },
     });
-    if (!peopleGroup) throw new NotFoundException('Grupo de pessoas nao encontrado');
+    if (!peopleGroup)
+      throw new NotFoundException('Grupo de pessoas nao encontrado');
     return peopleGroup;
   }
 }

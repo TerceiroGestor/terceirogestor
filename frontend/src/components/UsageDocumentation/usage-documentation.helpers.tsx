@@ -3,12 +3,12 @@ import type { UsageDocumentationItem } from "@/components/UsageDocumentation/Usa
 
 export type UsageDocumentationSection = {
   title: string;
-  items: string[];
+  items: readonly string[];
 };
 
 export function buildUsageDocumentationItems(
   prefix: string,
-  sections: UsageDocumentationSection[],
+  sections: readonly UsageDocumentationSection[],
 ): UsageDocumentationItem[] {
   return sections.map((section, index) => ({
     id: `${prefix}-${index}`,

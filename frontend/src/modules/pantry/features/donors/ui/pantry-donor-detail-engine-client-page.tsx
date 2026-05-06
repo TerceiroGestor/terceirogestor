@@ -7,8 +7,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
-import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
@@ -137,16 +135,6 @@ export function PantryDonorDetailEngineClientPage({
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entries, setEntries] = React.useState<ApiPantryEntry[]>([]);
   const [donors, setDonors] = React.useState<ApiPantryDonor[]>([]);
-
-  const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("pantry-donors-detail", PANTRY_USAGE_TEXT.donors.sections),
-    [],
-  );
-
-  useRegisterUsageDocumentation({
-    title: PANTRY_USAGE_TEXT.donors.title,
-    items: usageItems,
-  });
 
   const persistDonorDraft = React.useCallback(
     async (nextDraft: PantryDonorDraft) => {

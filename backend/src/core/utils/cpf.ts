@@ -29,4 +29,3 @@ export function isValidCpfDigits(cpfDigits: string) {
   const d2 = calc(10);
   return nums[9] === d1 && nums[10] === d2;
 }
-

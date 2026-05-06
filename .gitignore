@@ -22,6 +22,8 @@ infra/environments/**/tfplan.*
 infra/environments/**/plan-*.log
 infra/environments/**/apply-*.log
 
+/planejamento
+
 # Local troubleshooting/output artifacts.
 tfplan-output.txt
 

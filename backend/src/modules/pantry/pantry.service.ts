@@ -1,8 +1,15 @@
-﻿import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreatePantryDonorDto } from './dto/create-pantry-donor.dto';
 import { CreatePantryDonorAttachmentDto } from './dto/create-pantry-donor-attachment.dto';
@@ -84,7 +91,9 @@ const resolveExitTypeLabel = (type: string) => {
 
 const normalizeTags = (tags?: string[] | null) => {
   const normalized = Array.from(
-    new Set((tags ?? []).map((entry) => normalizeString(entry)).filter(Boolean)),
+    new Set(
+      (tags ?? []).map((entry) => normalizeString(entry)).filter(Boolean),
+    ),
   );
   return normalized.length ? normalized : [];
 };
@@ -130,7 +139,12 @@ export class PantryService {
   constructor(private readonly prisma: PrismaService) {}
 
   private serializeCommentAuthor(
-    authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null,
+    authorUser?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+    } | null,
   ) {
     return {
       id: authorUser?.id ?? null,
@@ -183,7 +197,12 @@ export class PantryService {
         mentionUserIds: Prisma.JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+        authorUser?: {
+          id: string;
+          name: string | null;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
       }>;
       attachments?: Array<{
         id: string;
@@ -219,8 +238,9 @@ export class PantryService {
           author: this.serializeCommentAuthor(comment.authorUser),
         })) ?? [],
       attachments:
-        item.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
-        [],
+        item.attachments
+          ?.map((attachment) => this.serializeAttachment(attachment))
+          .filter(Boolean) ?? [],
       ...(extra ?? {}),
     };
   }
@@ -241,7 +261,12 @@ export class PantryService {
       mentionUserIds: Prisma.JsonValue | null;
       createdAt: Date;
       updatedAt: Date;
-      authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+      authorUser?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        avatarUrl: string | null;
+      } | null;
     }>;
     attachments?: Array<{
       id: string;
@@ -272,14 +297,20 @@ export class PantryService {
           author: this.serializeCommentAuthor(comment.authorUser),
         })) ?? [],
       attachments:
-        donor.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
-        [],
+        donor.attachments
+          ?.map((attachment) => this.serializeAttachment(attachment))
+          .filter(Boolean) ?? [],
     };
   }
 
-  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[] | null) {
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[] | null,
+  ) {
     const normalized = Array.from(
-      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+      new Set(
+        (mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean),
+      ),
     );
 
     if (!normalized.length) return [];
@@ -308,14 +339,24 @@ export class PantryService {
       createdAt: Date;
       updatedAt: Date;
       item: { id: string; name: string; unit: string; group?: string | null };
-      donor: { id: string; name: string; type: string; contact: string | null } | null;
+      donor: {
+        id: string;
+        name: string;
+        type: string;
+        contact: string | null;
+      } | null;
       comments?: Array<{
         id: string;
         body: string;
         mentionUserIds: Prisma.JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+        authorUser?: {
+          id: string;
+          name: string | null;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
       }>;
       attachments?: Array<{
         id: string;
@@ -354,8 +395,9 @@ export class PantryService {
           author: this.serializeCommentAuthor(comment.authorUser),
         })) ?? [],
       attachments:
-        entry.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
-        [],
+        entry.attachments
+          ?.map((attachment) => this.serializeAttachment(attachment))
+          .filter(Boolean) ?? [],
       ...(extras ?? {}),
     };
   }
@@ -379,7 +421,11 @@ export class PantryService {
       allocations?: Array<{
         entryId: string;
         quantity: Prisma.Decimal | number;
-        entry: { expiryDate: Date | null; sector: string; entryDate?: Date | null };
+        entry: {
+          expiryDate: Date | null;
+          sector: string;
+          entryDate?: Date | null;
+        };
       }>;
       comments?: Array<{
         id: string;
@@ -387,7 +433,12 @@ export class PantryService {
         mentionUserIds: Prisma.JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        authorUser?: { id: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
+        authorUser?: {
+          id: string;
+          name: string | null;
+          email: string | null;
+          avatarUrl: string | null;
+        } | null;
       }>;
       attachments?: Array<{
         id: string;
@@ -410,7 +461,9 @@ export class PantryService {
           quantity: toNumber(allocation.quantity),
           expiryDate: allocation.entry.expiryDate,
           sector: normalizeSector(allocation.entry.sector),
-          ...(allocation.entry.entryDate ? { entryDate: allocation.entry.entryDate } : {}),
+          ...(allocation.entry.entryDate
+            ? { entryDate: allocation.entry.entryDate }
+            : {}),
         })) ?? [],
       sector: normalizeSector(exit.sector),
       quantity: toNumber(exit.quantity),
@@ -434,8 +487,9 @@ export class PantryService {
           author: this.serializeCommentAuthor(comment.authorUser),
         })) ?? [],
       attachments:
-        exit.attachments?.map((attachment) => this.serializeAttachment(attachment)).filter(Boolean) ??
-        [],
+        exit.attachments
+          ?.map((attachment) => this.serializeAttachment(attachment))
+          .filter(Boolean) ?? [],
       ...(extras ?? {}),
     };
   }
@@ -489,9 +543,7 @@ export class PantryService {
 
     if (search) {
       const like = `%${search}%`;
-      entryWhere.push(
-        Prisma.sql`(i.name LIKE ${like} OR d.name LIKE ${like})`,
-      );
+      entryWhere.push(Prisma.sql`(i.name LIKE ${like} OR d.name LIKE ${like})`);
       exitWhere.push(Prisma.sql`i.name LIKE ${like}`);
     }
 
@@ -553,7 +605,8 @@ export class PantryService {
     if (kind === 'ALL' || kind === 'ENTRY') unions.push(entrySelect);
     if (kind === 'ALL' || kind === 'EXIT') unions.push(exitSelect);
 
-    const unionSql = unions.length === 1 ? unions[0] : Prisma.join(unions, ' UNION ALL ');
+    const unionSql =
+      unions.length === 1 ? unions[0] : Prisma.join(unions, ' UNION ALL ');
 
     type CountRow = { total: bigint | number };
 
@@ -563,7 +616,8 @@ export class PantryService {
     `);
 
     const totalRaw = countRows[0]?.total ?? 0;
-    const total = typeof totalRaw === 'bigint' ? Number(totalRaw) : Number(totalRaw);
+    const total =
+      typeof totalRaw === 'bigint' ? Number(totalRaw) : Number(totalRaw);
 
     type HistoryRow = {
       kind: 'ENTRY' | 'EXIT';
@@ -610,8 +664,8 @@ export class PantryService {
       data: rows.map((row) => {
         const actor =
           row.kind === 'ENTRY'
-            ? createdByMap.get(row.movementId) ?? 'Sistema'
-            : removedByMap.get(row.movementId) ?? 'Sistema';
+            ? (createdByMap.get(row.movementId) ?? 'Sistema')
+            : (removedByMap.get(row.movementId) ?? 'Sistema');
 
         return {
           id: row.movementId,
@@ -916,7 +970,11 @@ export class PantryService {
     const allocatedTotal = allocatedMap.get(id) ?? 0;
     const remaining = toNumber(entry.quantity) - allocatedTotal;
 
-    const createdByMap = await this.resolveAuditUserLabels(tenantId, 'PantryEntry', [id]);
+    const createdByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryEntry',
+      [id],
+    );
 
     return this.serializeEntry(entry, {
       allocatedTotal,
@@ -1008,7 +1066,9 @@ export class PantryService {
         skip,
         take: limit,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
         },
       }),
       this.prisma.auditLog.count({ where }),
@@ -1026,7 +1086,10 @@ export class PantryService {
   }
 
   async createItem(tenantId: string, dto: CreatePantryItemDto) {
-    const defaultSector = await this.ensureSector(tenantId, dto.defaultSector ?? 'Geral');
+    const defaultSector = await this.ensureSector(
+      tenantId,
+      dto.defaultSector ?? 'Geral',
+    );
     const item = await this.prisma.pantryItem.create({
       data: {
         tenantId,
@@ -1042,7 +1105,11 @@ export class PantryService {
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1071,12 +1138,18 @@ export class PantryService {
         notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
         tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
         internalNotes:
-          dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
+          dto.internalNotes !== undefined
+            ? normalizeString(dto.internalNotes)
+            : undefined,
       },
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1089,8 +1162,12 @@ export class PantryService {
   async deleteItem(tenantId: string, id: string) {
     await this.getItem(tenantId, id);
     await this.prisma.$transaction([
-      this.prisma.pantryItemComment.deleteMany({ where: { tenantId, itemId: id } }),
-      this.prisma.pantryItemAttachment.deleteMany({ where: { tenantId, itemId: id } }),
+      this.prisma.pantryItemComment.deleteMany({
+        where: { tenantId, itemId: id },
+      }),
+      this.prisma.pantryItemAttachment.deleteMany({
+        where: { tenantId, itemId: id },
+      }),
       this.prisma.pantryItem.delete({ where: { id } }),
     ]);
     return { ok: true };
@@ -1129,7 +1206,11 @@ export class PantryService {
         include: {
           comments: {
             orderBy: { createdAt: 'desc' },
-            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+            include: {
+              authorUser: {
+                select: { id: true, name: true, email: true, avatarUrl: true },
+              },
+            },
           },
           attachments: { orderBy: { createdAt: 'desc' } },
         },
@@ -1143,7 +1224,11 @@ export class PantryService {
         page: isAll ? 1 : page,
         limit: isAll ? total : limit,
         total,
-        pages: isAll ? (total === 0 ? 0 : 1) : Math.max(1, Math.ceil(total / limit)),
+        pages: isAll
+          ? total === 0
+            ? 0
+            : 1
+          : Math.max(1, Math.ceil(total / limit)),
       },
     };
   }
@@ -1162,7 +1247,11 @@ export class PantryService {
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1176,7 +1265,11 @@ export class PantryService {
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1232,7 +1325,9 @@ export class PantryService {
         skip,
         take: limit,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
         },
       }),
       this.prisma.auditLog.count({ where }),
@@ -1266,7 +1361,9 @@ export class PantryService {
       select: { exitId: true },
     });
 
-    const exitIds = Array.from(new Set(allocationRows.map((row) => row.exitId)));
+    const exitIds = Array.from(
+      new Set(allocationRows.map((row) => row.exitId)),
+    );
 
     const where: Prisma.AuditLogWhereInput = {
       tenantId,
@@ -1293,7 +1390,9 @@ export class PantryService {
         skip,
         take: limit,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
         },
       }),
       this.prisma.auditLog.count({ where }),
@@ -1355,7 +1454,9 @@ export class PantryService {
         skip,
         take: limit,
         include: {
-          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+          user: {
+            select: { id: true, name: true, email: true, avatarUrl: true },
+          },
         },
       }),
       this.prisma.auditLog.count({ where }),
@@ -1397,7 +1498,11 @@ export class PantryService {
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1414,8 +1519,12 @@ export class PantryService {
     }
 
     await this.prisma.$transaction([
-      this.prisma.pantryDonorComment.deleteMany({ where: { tenantId, donorId: id } }),
-      this.prisma.pantryDonorAttachment.deleteMany({ where: { tenantId, donorId: id } }),
+      this.prisma.pantryDonorComment.deleteMany({
+        where: { tenantId, donorId: id },
+      }),
+      this.prisma.pantryDonorAttachment.deleteMany({
+        where: { tenantId, donorId: id },
+      }),
       this.prisma.pantryDonor.delete({ where: { id } }),
     ]);
     return { ok: true };
@@ -1477,7 +1586,11 @@ export class PantryService {
           donor: true,
           comments: {
             orderBy: { createdAt: 'desc' },
-            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+            include: {
+              authorUser: {
+                select: { id: true, name: true, email: true, avatarUrl: true },
+              },
+            },
           },
           attachments: { orderBy: { createdAt: 'desc' } },
         },
@@ -1500,8 +1613,10 @@ export class PantryService {
       data: data.map((entry) =>
         this.serializeEntry(entry, {
           allocatedTotal: allocationMap.get(entry.id) ?? 0,
-          remaining: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
-          isClosed: toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0) <= 0,
+          remaining:
+            toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0),
+          isClosed:
+            toNumber(entry.quantity) - (allocationMap.get(entry.id) ?? 0) <= 0,
           createdBy: createdByMap.get(entry.id) ?? 'Sistema',
         }),
       ),
@@ -1541,7 +1656,11 @@ export class PantryService {
         donor: true,
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1583,7 +1702,9 @@ export class PantryService {
     }
 
     const sector =
-      dto.sector !== undefined ? await this.ensureSector(tenantId, dto.sector) : undefined;
+      dto.sector !== undefined
+        ? await this.ensureSector(tenantId, dto.sector)
+        : undefined;
 
     const updated = await this.prisma.pantryEntry.update({
       where: { id },
@@ -1603,14 +1724,20 @@ export class PantryService {
         notes: dto.notes ?? undefined,
         tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
         internalNotes:
-          dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
+          dto.internalNotes !== undefined
+            ? normalizeString(dto.internalNotes)
+            : undefined,
       },
       include: {
         item: true,
         donor: true,
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1636,8 +1763,12 @@ export class PantryService {
     }
 
     await this.prisma.$transaction([
-      this.prisma.pantryEntryComment.deleteMany({ where: { tenantId, entryId: id } }),
-      this.prisma.pantryEntryAttachment.deleteMany({ where: { tenantId, entryId: id } }),
+      this.prisma.pantryEntryComment.deleteMany({
+        where: { tenantId, entryId: id },
+      }),
+      this.prisma.pantryEntryAttachment.deleteMany({
+        where: { tenantId, entryId: id },
+      }),
       this.prisma.pantryEntry.delete({ where: { id } }),
     ]);
     return { ok: true };
@@ -1702,7 +1833,11 @@ export class PantryService {
           },
           comments: {
             orderBy: { createdAt: 'desc' },
-            include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+            include: {
+              authorUser: {
+                select: { id: true, name: true, email: true, avatarUrl: true },
+              },
+            },
           },
           attachments: { orderBy: { createdAt: 'desc' } },
         },
@@ -1739,13 +1874,22 @@ export class PantryService {
         allocations: {
           include: {
             entry: {
-              select: { id: true, expiryDate: true, sector: true, entryDate: true },
+              select: {
+                id: true,
+                expiryDate: true,
+                sector: true,
+                entryDate: true,
+              },
             },
           },
         },
         comments: {
           orderBy: { createdAt: 'desc' },
-          include: { authorUser: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+          include: {
+            authorUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
       },
@@ -1754,7 +1898,11 @@ export class PantryService {
       throw new NotFoundException('Saida nao encontrada');
     }
 
-    const removedByMap = await this.resolveAuditUserLabels(tenantId, 'PantryExit', [id]);
+    const removedByMap = await this.resolveAuditUserLabels(
+      tenantId,
+      'PantryExit',
+      [id],
+    );
 
     return this.serializeExit(exit, {
       removedBy: removedByMap.get(exit.id) ?? 'Sistema',
@@ -1854,9 +2002,11 @@ export class PantryService {
           );
         }
 
-        const allocatedMap = await this.sumExitAllocationsByEntry(tenantId, [
-          entry.id,
-        ], { client: trx });
+        const allocatedMap = await this.sumExitAllocationsByEntry(
+          tenantId,
+          [entry.id],
+          { client: trx },
+        );
         const remaining =
           toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
         if (dto.quantity > remaining) {
@@ -1950,7 +2100,8 @@ export class PantryService {
         where: { id },
         data: {
           itemId: dto.itemId,
-          sector: dto.sector !== undefined ? normalizeSector(dto.sector) : undefined,
+          sector:
+            dto.sector !== undefined ? normalizeSector(dto.sector) : undefined,
           quantity: dto.quantity,
           unit: dto.unit,
           exitDate: dto.exitDate ? parseDateInput(dto.exitDate) : undefined,
@@ -1959,7 +2110,9 @@ export class PantryService {
           notes: dto.notes ?? undefined,
           tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
           internalNotes:
-            dto.internalNotes !== undefined ? normalizeString(dto.internalNotes) : undefined,
+            dto.internalNotes !== undefined
+              ? normalizeString(dto.internalNotes)
+              : undefined,
         },
         include: { item: true },
       });
@@ -1980,9 +2133,11 @@ export class PantryService {
           );
         }
 
-        const allocatedMap = await this.sumExitAllocationsByEntry(tenantId, [
-          entry.id,
-        ], { client: trx });
+        const allocatedMap = await this.sumExitAllocationsByEntry(
+          tenantId,
+          [entry.id],
+          { client: trx },
+        );
         const remaining =
           toNumber(entry.quantity) - (allocatedMap.get(entry.id) ?? 0);
         if (nextQuantity > remaining) {
@@ -2054,9 +2209,15 @@ export class PantryService {
     }
 
     await this.prisma.$transaction([
-      this.prisma.pantryExitComment.deleteMany({ where: { tenantId, exitId: id } }),
-      this.prisma.pantryExitAttachment.deleteMany({ where: { tenantId, exitId: id } }),
-      this.prisma.pantryExitAllocation.deleteMany({ where: { tenantId, exitId: id } }),
+      this.prisma.pantryExitComment.deleteMany({
+        where: { tenantId, exitId: id },
+      }),
+      this.prisma.pantryExitAttachment.deleteMany({
+        where: { tenantId, exitId: id },
+      }),
+      this.prisma.pantryExitAllocation.deleteMany({
+        where: { tenantId, exitId: id },
+      }),
       this.prisma.pantryExit.delete({ where: { id } }),
     ]);
     return { ok: true };
@@ -2075,7 +2236,10 @@ export class PantryService {
         itemId,
         authorUserId: actorUserId ?? null,
         body: dto.body.trim(),
-        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+        mentionUserIds: await this.resolveMentionUserIds(
+          tenantId,
+          dto.mentionUserIds,
+        ),
       },
     });
     return this.getItem(tenantId, itemId);
@@ -2083,7 +2247,9 @@ export class PantryService {
 
   async deleteItemComment(tenantId: string, itemId: string, commentId: string) {
     await this.getItem(tenantId, itemId);
-    await this.prisma.pantryItemComment.deleteMany({ where: { tenantId, itemId, id: commentId } });
+    await this.prisma.pantryItemComment.deleteMany({
+      where: { tenantId, itemId, id: commentId },
+    });
     return this.getItem(tenantId, itemId);
   }
 
@@ -2108,7 +2274,11 @@ export class PantryService {
     return this.getItem(tenantId, itemId);
   }
 
-  async deleteItemAttachment(tenantId: string, itemId: string, attachmentId: string) {
+  async deleteItemAttachment(
+    tenantId: string,
+    itemId: string,
+    attachmentId: string,
+  ) {
     await this.getItem(tenantId, itemId);
     await this.prisma.pantryItemAttachment.deleteMany({
       where: { tenantId, itemId, id: attachmentId },
@@ -2129,15 +2299,24 @@ export class PantryService {
         donorId,
         authorUserId: actorUserId ?? null,
         body: dto.body.trim(),
-        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+        mentionUserIds: await this.resolveMentionUserIds(
+          tenantId,
+          dto.mentionUserIds,
+        ),
       },
     });
     return this.getDonor(tenantId, donorId);
   }
 
-  async deleteDonorComment(tenantId: string, donorId: string, commentId: string) {
+  async deleteDonorComment(
+    tenantId: string,
+    donorId: string,
+    commentId: string,
+  ) {
     await this.getDonor(tenantId, donorId);
-    await this.prisma.pantryDonorComment.deleteMany({ where: { tenantId, donorId, id: commentId } });
+    await this.prisma.pantryDonorComment.deleteMany({
+      where: { tenantId, donorId, id: commentId },
+    });
     return this.getDonor(tenantId, donorId);
   }
 
@@ -2162,7 +2341,11 @@ export class PantryService {
     return this.getDonor(tenantId, donorId);
   }
 
-  async deleteDonorAttachment(tenantId: string, donorId: string, attachmentId: string) {
+  async deleteDonorAttachment(
+    tenantId: string,
+    donorId: string,
+    attachmentId: string,
+  ) {
     await this.getDonor(tenantId, donorId);
     await this.prisma.pantryDonorAttachment.deleteMany({
       where: { tenantId, donorId, id: attachmentId },
@@ -2183,15 +2366,24 @@ export class PantryService {
         entryId,
         authorUserId: actorUserId ?? null,
         body: dto.body.trim(),
-        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+        mentionUserIds: await this.resolveMentionUserIds(
+          tenantId,
+          dto.mentionUserIds,
+        ),
       },
     });
     return this.getEntry(tenantId, entryId);
   }
 
-  async deleteEntryComment(tenantId: string, entryId: string, commentId: string) {
+  async deleteEntryComment(
+    tenantId: string,
+    entryId: string,
+    commentId: string,
+  ) {
     await this.getEntry(tenantId, entryId);
-    await this.prisma.pantryEntryComment.deleteMany({ where: { tenantId, entryId, id: commentId } });
+    await this.prisma.pantryEntryComment.deleteMany({
+      where: { tenantId, entryId, id: commentId },
+    });
     return this.getEntry(tenantId, entryId);
   }
 
@@ -2216,7 +2408,11 @@ export class PantryService {
     return this.getEntry(tenantId, entryId);
   }
 
-  async deleteEntryAttachment(tenantId: string, entryId: string, attachmentId: string) {
+  async deleteEntryAttachment(
+    tenantId: string,
+    entryId: string,
+    attachmentId: string,
+  ) {
     await this.getEntry(tenantId, entryId);
     await this.prisma.pantryEntryAttachment.deleteMany({
       where: { tenantId, entryId, id: attachmentId },
@@ -2237,7 +2433,10 @@ export class PantryService {
         exitId,
         authorUserId: actorUserId ?? null,
         body: dto.body.trim(),
-        mentionUserIds: await this.resolveMentionUserIds(tenantId, dto.mentionUserIds),
+        mentionUserIds: await this.resolveMentionUserIds(
+          tenantId,
+          dto.mentionUserIds,
+        ),
       },
     });
     return this.getExit(tenantId, exitId);
@@ -2245,7 +2444,9 @@ export class PantryService {
 
   async deleteExitComment(tenantId: string, exitId: string, commentId: string) {
     await this.getExit(tenantId, exitId);
-    await this.prisma.pantryExitComment.deleteMany({ where: { tenantId, exitId, id: commentId } });
+    await this.prisma.pantryExitComment.deleteMany({
+      where: { tenantId, exitId, id: commentId },
+    });
     return this.getExit(tenantId, exitId);
   }
 
@@ -2270,7 +2471,11 @@ export class PantryService {
     return this.getExit(tenantId, exitId);
   }
 
-  async deleteExitAttachment(tenantId: string, exitId: string, attachmentId: string) {
+  async deleteExitAttachment(
+    tenantId: string,
+    exitId: string,
+    attachmentId: string,
+  ) {
     await this.getExit(tenantId, exitId);
     await this.prisma.pantryExitAttachment.deleteMany({
       where: { tenantId, exitId, id: attachmentId },
@@ -2279,21 +2484,22 @@ export class PantryService {
   }
 
   async getSummary(tenantId: string) {
-    const [items, donors, entryTotals, exitTotals] = await this.prisma.$transaction([
-      this.prisma.pantryItem.findMany({
-        where: { tenantId },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.pantryDonor.count({ where: { tenantId } }),
-      this.prisma.pantryEntry.aggregate({
-        where: { tenantId },
-        _sum: { quantity: true },
-      }),
-      this.prisma.pantryExit.aggregate({
-        where: { tenantId },
-        _sum: { quantity: true },
-      }),
-    ]);
+    const [items, donors, entryTotals, exitTotals] =
+      await this.prisma.$transaction([
+        this.prisma.pantryItem.findMany({
+          where: { tenantId },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.pantryDonor.count({ where: { tenantId } }),
+        this.prisma.pantryEntry.aggregate({
+          where: { tenantId },
+          _sum: { quantity: true },
+        }),
+        this.prisma.pantryExit.aggregate({
+          where: { tenantId },
+          _sum: { quantity: true },
+        }),
+      ]);
 
     const itemsWithStats = await this.enrichItems(tenantId, items);
     const totalStock = itemsWithStats.reduce(
@@ -2351,10 +2557,16 @@ export class PantryService {
     const months: { key: string; label: string }[] = [];
     for (let i = 11; i >= 0; i -= 1) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ key: resolveMonthKey(date), label: resolveMonthLabel(date) });
+      months.push({
+        key: resolveMonthKey(date),
+        label: resolveMonthLabel(date),
+      });
     }
 
-    const monthTotals = new Map<string, { entries: number; exits: number; label: string }>();
+    const monthTotals = new Map<
+      string,
+      { entries: number; exits: number; label: string }
+    >();
     months.forEach((month) => {
       monthTotals.set(month.key, { entries: 0, exits: 0, label: month.label });
     });
@@ -2382,26 +2594,27 @@ export class PantryService {
       exits: monthTotals.get(month.key)?.exits ?? 0,
     }));
 
-    const [exitByItem, exitByType, entryByDonor] = await this.prisma.$transaction([
-      this.prisma.pantryExit.groupBy({
-        by: ['itemId'],
-        where: { tenantId },
-        orderBy: { itemId: 'asc' },
-        _sum: { quantity: true },
-      }),
-      this.prisma.pantryExit.groupBy({
-        by: ['type'],
-        where: { tenantId },
-        orderBy: { type: 'asc' },
-        _sum: { quantity: true },
-      }),
-      this.prisma.pantryEntry.groupBy({
-        by: ['donorId'],
-        where: { tenantId, donorId: { not: null } },
-        orderBy: { donorId: 'asc' },
-        _sum: { quantity: true },
-      }),
-    ]);
+    const [exitByItem, exitByType, entryByDonor] =
+      await this.prisma.$transaction([
+        this.prisma.pantryExit.groupBy({
+          by: ['itemId'],
+          where: { tenantId },
+          orderBy: { itemId: 'asc' },
+          _sum: { quantity: true },
+        }),
+        this.prisma.pantryExit.groupBy({
+          by: ['type'],
+          where: { tenantId },
+          orderBy: { type: 'asc' },
+          _sum: { quantity: true },
+        }),
+        this.prisma.pantryEntry.groupBy({
+          by: ['donorId'],
+          where: { tenantId, donorId: { not: null } },
+          orderBy: { donorId: 'asc' },
+          _sum: { quantity: true },
+        }),
+      ]);
 
     const itemIds = exitByItem.map((item) => item.itemId);
     const donorIds = entryByDonor
@@ -2414,7 +2627,9 @@ export class PantryService {
             where: { tenantId, id: { in: itemIds } },
             select: { id: true, name: true, unit: true },
           })
-        : Promise.resolve([] as Array<{ id: string; name: string; unit: string }>),
+        : Promise.resolve(
+            [] as Array<{ id: string; name: string; unit: string }>,
+          ),
       donorIds.length
         ? this.prisma.pantryDonor.findMany({
             where: { tenantId, id: { in: donorIds } },
@@ -2513,8 +2728,18 @@ export class PantryService {
           _max: { exitDate: true },
         }),
         this.prisma.pantryEntry.findMany({
-          where: { tenantId, itemId: { in: itemIds }, expiryDate: { not: null } },
-          select: { id: true, itemId: true, sector: true, expiryDate: true, quantity: true },
+          where: {
+            tenantId,
+            itemId: { in: itemIds },
+            expiryDate: { not: null },
+          },
+          select: {
+            id: true,
+            itemId: true,
+            sector: true,
+            expiryDate: true,
+            quantity: true,
+          },
         }),
       ]);
 
@@ -2827,7 +3052,8 @@ export class PantryService {
 
     const now = new Date();
     const fromDate =
-      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      parseDateInput(query.from) ??
+      new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
 
     const exits = await this.prisma.pantryExit.findMany({
@@ -2835,7 +3061,9 @@ export class PantryService {
         tenantId,
         exitDate: { gte: fromDate, lte: toDate },
         ...(query.itemId ? { itemId: query.itemId } : {}),
-        ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+        ...(query.type
+          ? { type: query.type }
+          : { type: { not: 'CORRECTION' } }),
         ...(eventName ? { eventName: { contains: eventName } } : {}),
         ...(view === 'group' && query.group
           ? { item: { group: query.group } }
@@ -2931,7 +3159,8 @@ export class PantryService {
 
     const now = new Date();
     const fromDate =
-      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      parseDateInput(query.from) ??
+      new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
 
     const itemFilter = query.itemId ? { itemId: query.itemId } : {};
@@ -2954,7 +3183,9 @@ export class PantryService {
           exitDate: { gte: fromDate, lte: toDate },
           ...itemFilter,
           ...groupFilter,
-          ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+          ...(query.type
+            ? { type: query.type }
+            : { type: { not: 'CORRECTION' } }),
           ...(eventName ? { eventName: { contains: eventName } } : {}),
         },
         select: { exitDate: true, quantity: true },
@@ -3019,7 +3250,8 @@ export class PantryService {
 
     const now = new Date();
     const fromDate =
-      parseDateInput(query.from) ?? new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      parseDateInput(query.from) ??
+      new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const toDate = parseDateInput(query.to, { endOfDay: true }) ?? now;
 
     const itemFilter = query.itemId ? { itemId: query.itemId } : {};
@@ -3033,7 +3265,9 @@ export class PantryService {
         exitDate: { gte: fromDate, lte: toDate },
         ...itemFilter,
         ...groupFilter,
-        ...(query.type ? { type: query.type } : { type: { not: 'CORRECTION' } }),
+        ...(query.type
+          ? { type: query.type }
+          : { type: { not: 'CORRECTION' } }),
         ...(eventName ? { eventName: { contains: eventName } } : {}),
       },
       _sum: { quantity: true },
@@ -3158,7 +3392,10 @@ export class PantryService {
         },
       });
 
-      const groups = new Map<string, { sector: string; expiry: Date | null; qty: number }>();
+      const groups = new Map<
+        string,
+        { sector: string; expiry: Date | null; qty: number }
+      >();
 
       if (!allocations.length) {
         const key = `${normalizeSector(exit.sector)}::`;
@@ -3211,31 +3448,45 @@ export class PantryService {
     });
   }
 
-  private async enrichItems(tenantId: string, items: Prisma.PantryItemGetPayload<{}>[]) {
+  private async enrichItems(
+    tenantId: string,
+    items: Prisma.PantryItemGetPayload<{}>[],
+  ) {
     if (!items.length) return [];
 
     const itemIds = items.map((item) => item.id);
 
-    const [entryGroups, exitGroups, entriesWithExpiry] = await this.prisma.$transaction([
-      this.prisma.pantryEntry.groupBy({
-        by: ['itemId'],
-        where: { tenantId, itemId: { in: itemIds } },
-        orderBy: { itemId: 'asc' },
-        _sum: { quantity: true },
-        _max: { entryDate: true },
-      }),
-      this.prisma.pantryExit.groupBy({
-        by: ['itemId'],
-        where: { tenantId, itemId: { in: itemIds } },
-        orderBy: { itemId: 'asc' },
-        _sum: { quantity: true },
-        _max: { exitDate: true },
-      }),
-      this.prisma.pantryEntry.findMany({
-        where: { tenantId, itemId: { in: itemIds }, expiryDate: { not: null } },
-        select: { id: true, itemId: true, sector: true, expiryDate: true, quantity: true },
-      }),
-    ]);
+    const [entryGroups, exitGroups, entriesWithExpiry] =
+      await this.prisma.$transaction([
+        this.prisma.pantryEntry.groupBy({
+          by: ['itemId'],
+          where: { tenantId, itemId: { in: itemIds } },
+          orderBy: { itemId: 'asc' },
+          _sum: { quantity: true },
+          _max: { entryDate: true },
+        }),
+        this.prisma.pantryExit.groupBy({
+          by: ['itemId'],
+          where: { tenantId, itemId: { in: itemIds } },
+          orderBy: { itemId: 'asc' },
+          _sum: { quantity: true },
+          _max: { exitDate: true },
+        }),
+        this.prisma.pantryEntry.findMany({
+          where: {
+            tenantId,
+            itemId: { in: itemIds },
+            expiryDate: { not: null },
+          },
+          select: {
+            id: true,
+            itemId: true,
+            sector: true,
+            expiryDate: true,
+            quantity: true,
+          },
+        }),
+      ]);
 
     const entryMap = new Map<string, { total: number; last: Date | null }>();
     entryGroups.forEach((entry) => {
@@ -3282,7 +3533,7 @@ export class PantryService {
           ? lastEntryDate > lastExitDate
             ? lastEntryDate
             : lastExitDate
-          : lastEntryDate ?? lastExitDate ?? null;
+          : (lastEntryDate ?? lastExitDate ?? null);
       const validityStatus = resolveValidityStatus(nextExpiryDate);
       const minStock = toNumber(item.minStock);
 
@@ -3296,7 +3547,8 @@ export class PantryService {
         minStock,
         notes: item.notes ?? null,
         tags: parseTags((item as { tags?: string | null }).tags ?? null),
-        internalNotes: (item as { internalNotes?: string | null }).internalNotes ?? null,
+        internalNotes:
+          (item as { internalNotes?: string | null }).internalNotes ?? null,
         stock,
         entriesTotal,
         exitsTotal,

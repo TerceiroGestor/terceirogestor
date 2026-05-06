@@ -131,8 +131,13 @@ export const buildPeopleOrderBy = (
   grouping
     .filter((field, index, arr) => arr.indexOf(field) === index)
     .forEach((field) => {
-      if (ALLOWED_FILTER_FIELDS.has(field) && !VIRTUAL_FILTER_FIELDS.has(field)) {
-        orderBy.push({ [field]: 'asc' } as Prisma.PersonOrderByWithRelationInput);
+      if (
+        ALLOWED_FILTER_FIELDS.has(field) &&
+        !VIRTUAL_FILTER_FIELDS.has(field)
+      ) {
+        orderBy.push({
+          [field]: 'asc',
+        } as Prisma.PersonOrderByWithRelationInput);
       }
     });
 
@@ -255,7 +260,11 @@ const buildAdvancedFilter = (
     }
     if (filter.operator === 'isNotEmpty') {
       return {
-        AND: [{ NOT: { tags: null } }, { NOT: { tags: '' } }, { NOT: { tags: '[]' } }],
+        AND: [
+          { NOT: { tags: null } },
+          { NOT: { tags: '' } },
+          { NOT: { tags: '[]' } },
+        ],
       } as Prisma.PersonWhereInput;
     }
     if (!rawValue) return null;
@@ -298,7 +307,9 @@ const buildAdvancedFilter = (
 
   switch (filter.operator) {
     case 'contains':
-      return { [field]: { contains: String(rawValue) } } as Prisma.PersonWhereInput;
+      return {
+        [field]: { contains: String(rawValue) },
+      } as Prisma.PersonWhereInput;
     case 'equals':
       return { [field]: { equals: rawValue } } as Prisma.PersonWhereInput;
     case 'in': {

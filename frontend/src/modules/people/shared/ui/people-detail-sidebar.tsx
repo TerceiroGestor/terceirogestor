@@ -20,7 +20,6 @@ import {
   ExternalLink,
   HeartPulse,
   MapPin,
-  MessageCircle,
   Pill,
 } from "lucide-react";
 import { SectionDivider } from "./people-detail-section-divider";
@@ -28,13 +27,8 @@ import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-i
 import { usePathname } from "next/navigation";
 import { getTenantSlugFromPath } from "@/lib/tenant-path";
 import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
-import { PersonContactsDialog } from "@/modules/people/features/contacts/ui/person-contacts-dialog";
-import { PersonSensitiveDocumentsDialog } from "@/modules/people/features/sensitive-documents/ui/person-sensitive-documents-dialog";
-import { useCurrentUser } from "@/features/auth/current-user-context";
 import {
   getPersonEducations,
-  listPersonContacts,
-  type ApiPersonContact,
   type ApiPersonEducation,
 } from "@/modules/people/api";
 import { useAuth } from "@/features/auth/auth-context";
@@ -81,13 +75,8 @@ export function PeopleDetailSidebar({
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { householdProfile, summaryLoading } = useFamilyRelationsContext();
   const { token } = useAuth();
-  const { permissions } = useCurrentUser();
-  const [contactsVersion, setContactsVersion] = React.useState(0);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const [showScrollHint, setShowScrollHint] = React.useState(false);
-  const [contacts, setContacts] = React.useState<ApiPersonContact[] | null>(
-    null,
-  );
   const [educations, setEducations] = React.useState<ApiPersonEducation[] | null>(
     null,
   );
@@ -125,20 +114,6 @@ export function PeopleDetailSidebar({
       )}&output=embed`
     : null;
 
-  const canReadSensitiveDocuments = permissions.includes("people.sensitive.read");
-  const canUpdateSensitiveDocuments = permissions.includes(
-    "people.sensitive.update",
-  );
-  const canAccessSensitiveDocuments =
-    canReadSensitiveDocuments || canUpdateSensitiveDocuments;
-
-  React.useEffect(() => {
-    if (!token) return;
-    listPersonContacts(token, person.id)
-      .then((data) => setContacts(data))
-      .catch(() => setContacts(null));
-  }, [contactsVersion, person.id, token]);
-
   const updateScrollHint = React.useCallback(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -156,7 +131,7 @@ export function PeopleDetailSidebar({
 
   React.useEffect(() => {
     updateScrollHint();
-  }, [updateScrollHint, contacts, educations, summaryLoading]);
+  }, [updateScrollHint, educations, summaryLoading]);
 
   React.useEffect(() => {
     const handler = () => updateScrollHint();
@@ -164,23 +139,6 @@ export function PeopleDetailSidebar({
     return () => window.removeEventListener("resize", handler);
   }, [updateScrollHint]);
 
-  const primaryEmail =
-    contacts?.find(
-      (contact) =>
-        contact.role === "SELF" &&
-        contact.type === "EMAIL" &&
-        contact.isPrimary,
-    )?.value ?? person.email;
-  const primaryPhoneContact =
-    contacts?.find(
-      (contact) =>
-        contact.role === "SELF" &&
-        contact.type === "PHONE" &&
-        contact.isPrimary,
-    ) ?? null;
-  const primaryPhone = primaryPhoneContact?.value ?? person.phone;
-  const phoneDigits = primaryPhone ? primaryPhone.replace(/\D/g, "") : "";
-  const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}` : null;
   const currentGrade =
     educations?.find((education) => education.isCurrent)?.grade ?? null;
   const sexLabel = normalizeRowValue(resolveLabel(person.sex, SEX_LABELS));
@@ -275,59 +233,8 @@ export function PeopleDetailSidebar({
         ) : null}
         <SectionDivider />
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-xs">Contatos</CardTitle>
-            <PersonContactsDialog
-              personId={person.id}
-              seedEmail={primaryEmail ?? null}
-              seedPhone={primaryPhone ?? null}
-              onChanged={() => setContactsVersion((prev) => prev + 1)}
-            />
-          </div>
+          <CardTitle className="text-xs">Endereço</CardTitle>
           <div className="space-y-2 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground">Email</span>
-              {primaryEmail ? (
-                <a
-                  href={`mailto:${primaryEmail}`}
-                  className="text-xs font-medium text-foreground hover:text-foreground/80"
-                >
-                  {primaryEmail}
-                </a>
-              ) : (
-                <span className="text-xs text-muted-foreground">-</span>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground">
-                Telefone
-              </span>
-              <div className="flex items-center gap-2">
-                {primaryPhone ? (
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-foreground hover:text-foreground/80"
-                    onClick={() => onCopy(primaryPhone ?? "")}
-                    title="Copiar telefone"
-                  >
-                    {primaryPhone}
-                  </button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">-</span>
-                )}
-                {whatsappUrl ? (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    aria-label="Abrir WhatsApp"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                  </a>
-                ) : null}
-              </div>
-            </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] text-muted-foreground">
                 Endereço
@@ -394,27 +301,6 @@ export function PeopleDetailSidebar({
               )}
             </div>
           </div>
-        </div>
-        <SectionDivider />
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-xs">Documentos sensíveis</CardTitle>
-            <PersonSensitiveDocumentsDialog personId={person.id} />
-          </div>
-          {canAccessSensitiveDocuments ? (
-            <>
-              <p className="text-[11px] text-muted-foreground">
-                Clique em &quot;Gerenciar&quot; para visualizar/editar.
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Acesso e alterações são auditados (LGPD).
-              </p>
-            </>
-          ) : (
-            <p className="text-[11px] text-muted-foreground">
-              Você não tem permissão para acessar documentos sensíveis.
-            </p>
-          )}
         </div>
       </CardContent>
     </Card>

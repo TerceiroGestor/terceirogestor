@@ -8,10 +8,6 @@ export type MedicationFormValues = {
   startDate?: string;
   endDate?: string;
   prescribingDoctor?: string;
-  permissionDocumentFile?: File | null;
-  removePermissionDocument?: boolean;
-  documentFile?: File | null;
-  removeDocument?: boolean;
   notes?: string;
 };
 
@@ -50,26 +46,6 @@ export const medicationFormFields: FormField<MedicationFormValues>[] = [
     label: "Profissional responsavel",
     type: "text",
   },
-  {
-    name: "permissionDocumentFile",
-    label: "Upload autorizacao",
-    type: "file",
-    accept: ".pdf,image/*",
-    helperText: "PDF ou imagem. Opcional.",
-  },
-  {
-    name: "documentFile",
-    label: "Upload documento medico",
-    type: "file",
-    accept: ".pdf,image/*",
-    helperText: "PDF ou imagem. Opcional.",
-  },
-  {
-    name: "notes",
-    label: "Observacoes",
-    type: "textarea",
-    rows: 3,
-  },
 ];
 
 export const medicationFormSteps: FormStep[] = [
@@ -83,9 +59,6 @@ export const medicationFormSteps: FormStep[] = [
       "startDate",
       "endDate",
       "prescribingDoctor",
-      "permissionDocumentFile",
-      "documentFile",
-      "notes",
     ],
   },
 ];

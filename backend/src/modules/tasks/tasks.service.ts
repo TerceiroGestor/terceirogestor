@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type {
   Prisma,
   TaskOrganizerKind,
@@ -244,18 +248,18 @@ const parseTags = (value: Prisma.JsonValue | null | undefined) => {
 const parseMentionUserIds = (value: Prisma.JsonValue | null | undefined) => {
   if (!Array.isArray(value)) return [];
   return Array.from(
-    new Set(
-      value
-        .map((entry) => String(entry ?? '').trim())
-        .filter(Boolean),
-    ),
+    new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)),
   );
 };
 
 const resolveOwnerLabel = (task: {
   owner?: string | null;
   ownerUser?: { name?: string | null; email?: string | null } | null;
-}) => task.ownerUser?.name?.trim() || task.ownerUser?.email?.trim() || task.owner || null;
+}) =>
+  task.ownerUser?.name?.trim() ||
+  task.ownerUser?.email?.trim() ||
+  task.owner ||
+  null;
 
 const resolveDueMetrics = (task: {
   dueDate?: Date | null;
@@ -270,9 +274,15 @@ const resolveDueMetrics = (task: {
   }
 
   const today = new Date();
-  const todayOnly = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const todayOnly = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
   const dueOnly = new Date(
-    Date.UTC(task.dueDate.getUTCFullYear(), task.dueDate.getUTCMonth(), task.dueDate.getUTCDate()),
+    Date.UTC(
+      task.dueDate.getUTCFullYear(),
+      task.dueDate.getUTCMonth(),
+      task.dueDate.getUTCDate(),
+    ),
   );
   const diff = Math.round((dueOnly.getTime() - todayOnly.getTime()) / 86400000);
 
@@ -305,9 +315,7 @@ const mapChecklistItem = (
   updatedAt: toIsoString(item.updatedAt),
 });
 
-const mapSubtask = (
-  item: TaskDetailEntity['subtasks'][number],
-) => ({
+const mapSubtask = (item: TaskDetailEntity['subtasks'][number]) => ({
   id: item.id,
   title: item.title,
   status: TASK_STATUS_FROM_DB[item.status],
@@ -534,9 +542,9 @@ export class TasksService {
     const isMilestone = dto.isMilestone ?? false;
     const milestoneDate = dueDate ?? startDate ?? null;
     const normalizedStartDate =
-      isMilestone && milestoneDate ? milestoneDate : startDate ?? null;
+      isMilestone && milestoneDate ? milestoneDate : (startDate ?? null);
     const normalizedDueDate =
-      isMilestone && milestoneDate ? milestoneDate : dueDate ?? null;
+      isMilestone && milestoneDate ? milestoneDate : (dueDate ?? null);
     this.validateTaskWindow(normalizedStartDate, normalizedDueDate);
 
     const created = await this.prisma.taskOrganizerTask.create({
@@ -612,7 +620,8 @@ export class TasksService {
 
     this.validateTaskWindow(nextStartDate ?? null, nextDueDate ?? null);
     if (dto.progress !== undefined) data.progress = dto.progress;
-    if (dto.effortPoints !== undefined) data.effortPoints = dto.effortPoints ?? null;
+    if (dto.effortPoints !== undefined)
+      data.effortPoints = dto.effortPoints ?? null;
     if (dto.tags !== undefined) data.tags = normalizeTags(dto.tags);
     if (dto.internalNotes !== undefined) {
       data.internalNotes = normalizeString(dto.internalNotes);
@@ -774,7 +783,11 @@ export class TasksService {
     return this.getTask(tenantId, taskId);
   }
 
-  async addSubtask(tenantId: string, taskId: string, dto: CreateTaskSubtaskDto) {
+  async addSubtask(
+    tenantId: string,
+    taskId: string,
+    dto: CreateTaskSubtaskDto,
+  ) {
     const task = await this.findTaskEntity(tenantId, taskId);
     const title = dto.title.trim();
     if (!title) {
@@ -787,7 +800,8 @@ export class TasksService {
       dto.owner ?? task.owner,
     );
 
-    const startDate = this.parseTaskDate(dto.startDate) ?? task.startDate ?? null;
+    const startDate =
+      this.parseTaskDate(dto.startDate) ?? task.startDate ?? null;
     const dueDate = this.parseTaskDate(dto.dueDate) ?? task.dueDate ?? null;
     this.validateSubtaskWindow(task, startDate, dueDate);
 
@@ -908,7 +922,10 @@ export class TasksService {
       throw new BadRequestException('Informe um comentario.');
     }
 
-    const mentionUserIds = await this.resolveMentionUserIds(tenantId, dto.mentionUserIds);
+    const mentionUserIds = await this.resolveMentionUserIds(
+      tenantId,
+      dto.mentionUserIds,
+    );
 
     await this.prisma.taskOrganizerComment.create({
       data: {
@@ -967,9 +984,17 @@ export class TasksService {
     return this.getTask(tenantId, taskId);
   }
 
-  async deleteAttachment(tenantId: string, taskId: string, attachmentId: string) {
+  async deleteAttachment(
+    tenantId: string,
+    taskId: string,
+    attachmentId: string,
+  ) {
     await this.findTaskEntity(tenantId, taskId);
-    const attachment = await this.findAttachment(tenantId, taskId, attachmentId);
+    const attachment = await this.findAttachment(
+      tenantId,
+      taskId,
+      attachmentId,
+    );
 
     await this.prisma.taskOrganizerAttachment.delete({
       where: { id: attachment.id },
@@ -1011,9 +1036,17 @@ export class TasksService {
     return this.getTask(tenantId, taskId);
   }
 
-  async deleteDependency(tenantId: string, taskId: string, dependencyId: string) {
+  async deleteDependency(
+    tenantId: string,
+    taskId: string,
+    dependencyId: string,
+  ) {
     await this.findTaskEntity(tenantId, taskId);
-    const dependency = await this.findDependency(tenantId, taskId, dependencyId);
+    const dependency = await this.findDependency(
+      tenantId,
+      taskId,
+      dependencyId,
+    );
 
     await this.prisma.taskOrganizerTaskDependency.delete({
       where: { id: dependency.id },
@@ -1131,7 +1164,11 @@ export class TasksService {
     return task;
   }
 
-  private async findChecklistItem(tenantId: string, taskId: string, itemId: string) {
+  private async findChecklistItem(
+    tenantId: string,
+    taskId: string,
+    itemId: string,
+  ) {
     const item = await this.prisma.taskOrganizerChecklistItem.findFirst({
       where: { id: itemId, taskId, tenantId },
     });
@@ -1143,7 +1180,11 @@ export class TasksService {
     return item;
   }
 
-  private async findSubtask(tenantId: string, taskId: string, subtaskId: string) {
+  private async findSubtask(
+    tenantId: string,
+    taskId: string,
+    subtaskId: string,
+  ) {
     const subtask = await this.prisma.taskOrganizerSubtask.findFirst({
       where: { id: subtaskId, taskId, tenantId },
     });
@@ -1155,7 +1196,11 @@ export class TasksService {
     return subtask;
   }
 
-  private async findComment(tenantId: string, taskId: string, commentId: string) {
+  private async findComment(
+    tenantId: string,
+    taskId: string,
+    commentId: string,
+  ) {
     const comment = await this.prisma.taskOrganizerComment.findFirst({
       where: { id: commentId, taskId, tenantId },
     });
@@ -1167,7 +1212,11 @@ export class TasksService {
     return comment;
   }
 
-  private async findAttachment(tenantId: string, taskId: string, attachmentId: string) {
+  private async findAttachment(
+    tenantId: string,
+    taskId: string,
+    attachmentId: string,
+  ) {
     const attachment = await this.prisma.taskOrganizerAttachment.findFirst({
       where: { id: attachmentId, taskId, tenantId },
     });
@@ -1179,7 +1228,11 @@ export class TasksService {
     return attachment;
   }
 
-  private async findDependency(tenantId: string, taskId: string, dependencyId: string) {
+  private async findDependency(
+    tenantId: string,
+    taskId: string,
+    dependencyId: string,
+  ) {
     const dependency = await this.prisma.taskOrganizerTaskDependency.findFirst({
       where: { id: dependencyId, taskId, tenantId },
     });
@@ -1226,11 +1279,7 @@ export class TasksService {
   }
 
   private validateTaskWindow(startDate?: Date | null, dueDate?: Date | null) {
-    if (
-      startDate &&
-      dueDate &&
-      startDate.getTime() > dueDate.getTime()
-    ) {
+    if (startDate && dueDate && startDate.getTime() > dueDate.getTime()) {
       throw new BadRequestException(
         'A data de inicio nao pode ser maior que a data de entrega.',
       );
@@ -1314,8 +1363,15 @@ export class TasksService {
     };
   }
 
-  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[]) {
-    const uniqueIds = Array.from(new Set((mentionUserIds ?? []).map((item) => item.trim()).filter(Boolean)));
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[],
+  ) {
+    const uniqueIds = Array.from(
+      new Set(
+        (mentionUserIds ?? []).map((item) => item.trim()).filter(Boolean),
+      ),
+    );
     if (!uniqueIds.length) {
       return [];
     }

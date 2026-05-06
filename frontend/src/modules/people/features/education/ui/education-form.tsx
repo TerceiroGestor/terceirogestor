@@ -3,7 +3,12 @@
 import * as React from "react";
 import { RecordForm } from "@/web-client/forms";
 import type { FormField } from "@/web-client/forms/types";
-import { EDUCATION_STATUS_OPTIONS, EDUCATION_TEXT } from "../config/education.constants";
+import {
+  EDUCATION_GRADE_OPTIONS,
+  EDUCATION_LEVEL_SUGGESTIONS,
+  EDUCATION_STATUS_OPTIONS,
+  EDUCATION_TEXT,
+} from "../config/education.constants";
 
 export type EducationFormValues = {
   level: string;
@@ -41,8 +46,8 @@ export function EducationForm({
       {
         name: "level",
         label: EDUCATION_TEXT.form.levelLabel,
-        type: "text",
-        placeholder: EDUCATION_TEXT.form.levelPlaceholder,
+        type: "select",
+        options: EDUCATION_LEVEL_SUGGESTIONS.map((value) => ({ value, label: value })),
       },
       {
         name: "status",
@@ -59,8 +64,8 @@ export function EducationForm({
       {
         name: "grade",
         label: EDUCATION_TEXT.form.gradeLabel,
-        type: "text",
-        placeholder: EDUCATION_TEXT.form.gradePlaceholder,
+        type: "select",
+        options: EDUCATION_GRADE_OPTIONS.map((value) => ({ value, label: value })),
       },
       {
         name: "schoolYear",
@@ -80,13 +85,6 @@ export function EducationForm({
         label: EDUCATION_TEXT.form.endDateLabel,
         type: "date",
         visibleWhen: (values) => !values.isCurrent,
-      },
-      {
-        name: "notes",
-        label: EDUCATION_TEXT.form.notesLabel,
-        type: "textarea",
-        placeholder: EDUCATION_TEXT.form.notesPlaceholder,
-        rows: 4,
       },
     ],
     [],

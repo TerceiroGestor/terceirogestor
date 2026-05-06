@@ -100,12 +100,11 @@ export const PEOPLE_FORM_TEXT = {
   steps: {
     identification: {
       title: "Identificação",
-      description:
-        "Dados básicos da pessoa. Contatos e documentos sensíveis são gerenciados no detalhe.",
+      description: "Dados básicos e de identificação da pessoa.",
     },
     organization: {
       title: "Organização",
-      description: "Tags e status do acompanhamento.",
+      description: "Status e organização do acompanhamento.",
     },
     notes: {
       title: "Observações",

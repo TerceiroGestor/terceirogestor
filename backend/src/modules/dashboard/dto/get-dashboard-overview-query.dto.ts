@@ -9,4 +9,3 @@ export class GetDashboardOverviewQueryDto {
   @IsString()
   to?: string;
 }
-

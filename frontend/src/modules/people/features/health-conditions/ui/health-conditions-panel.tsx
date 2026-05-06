@@ -100,6 +100,7 @@ export function HealthConditionsPanel({ personId }: { personId: string }) {
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!window.confirm("Excluir esta condicao de saude?")) return;
                 void remove(row.original.id);
               }}
             >

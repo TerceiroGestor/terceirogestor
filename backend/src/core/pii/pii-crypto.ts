@@ -1,4 +1,9 @@
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  hkdfSync,
+  randomBytes,
+} from 'crypto';
 
 export type EncryptedPayload = {
   dataEnc: Uint8Array<ArrayBuffer>;
@@ -42,11 +47,12 @@ export function encryptJson(key: Buffer, payload: unknown): EncryptedPayload {
   };
 }
 
-export function decryptJson<T>(
-  key: Buffer,
-  encrypted: EncryptedPayload,
-): T {
-  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(encrypted.iv));
+export function decryptJson<T>(key: Buffer, encrypted: EncryptedPayload): T {
+  const decipher = createDecipheriv(
+    'aes-256-gcm',
+    key,
+    Buffer.from(encrypted.iv),
+  );
   decipher.setAuthTag(Buffer.from(encrypted.tag));
   const plain = Buffer.concat([
     decipher.update(Buffer.from(encrypted.dataEnc)),

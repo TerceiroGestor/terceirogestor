@@ -17,6 +17,23 @@ export const EDUCATION_LEVEL_SUGGESTIONS = [
   "Pós-graduação",
 ] as const;
 
+export const EDUCATION_GRADE_OPTIONS = [
+  "Creche",
+  "Pre-escola",
+  "1 ano",
+  "2 ano",
+  "3 ano",
+  "4 ano",
+  "5 ano",
+  "6 ano",
+  "7 ano",
+  "8 ano",
+  "9 ano",
+  "1 serie",
+  "2 serie",
+  "3 serie",
+] as const;
+
 export const EDUCATION_TEXT = {
   cardTitle: "Educação",
   cardSubtitle: "Escolaridade e histórico escolar",

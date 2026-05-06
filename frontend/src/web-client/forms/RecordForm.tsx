@@ -209,6 +209,27 @@ function RecordFormInner<TValues extends Record<string, unknown>>({
       return isFieldFilled(field, values[field.name]);
     });
 
+  const resolveInlineFieldSpanClass = React.useCallback(
+    (field: FormField<TValues>) => {
+      if (!isInlineDetail) return "";
+      if (field.columnSpan === 2) return "xl:col-span-2";
+      if (field.columnSpan === 1) return "xl:col-span-1";
+
+      if (
+        field.type === "textarea" ||
+        field.type === "richtext" ||
+        field.type === "file" ||
+        field.type === "image" ||
+        field.type === "tags"
+      ) {
+        return "xl:col-span-2";
+      }
+
+      return "xl:col-span-1";
+    },
+    [isInlineDetail],
+  );
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -481,18 +502,21 @@ function RecordFormInner<TValues extends Record<string, unknown>>({
           </div>
 
           <div className={isInlineDetail ? "space-y-5" : "space-y-5 px-4 py-5 sm:px-6 sm:py-6"}>
-            {visibleFields.map((field) => (
-              <FieldRenderer
-                key={field.name}
-                field={field}
-                value={values[field.name]}
-                disabled={disabled}
-                required={isFieldRequired(field)}
-                appearance={appearance}
-                onChange={(value) => handleChange(field.name, value)}
-                onCommit={(value) => handleCommit(field.name, value)}
-              />
-            ))}
+            <div className={isInlineDetail ? "grid gap-4 xl:grid-cols-2 xl:gap-6" : "space-y-5"}>
+              {visibleFields.map((field) => (
+                <div key={field.name} className={resolveInlineFieldSpanClass(field)}>
+                  <FieldRenderer
+                    field={field}
+                    value={values[field.name]}
+                    disabled={disabled}
+                    required={isFieldRequired(field)}
+                    appearance={appearance}
+                    onChange={(value) => handleChange(field.name, value)}
+                    onCommit={(value) => handleCommit(field.name, value)}
+                  />
+                </div>
+              ))}
+            </div>
 
             {!(isInlineDetail && !actions) ? (
               <div className="border-t border-border/60 pt-4">
@@ -549,18 +573,21 @@ function RecordFormInner<TValues extends Record<string, unknown>>({
               : "space-y-5 rounded-lg border bg-card/70 p-6 shadow-sm"
           }
         >
-          {visibleFields.map((field) => (
-            <FieldRenderer
-              key={field.name}
-              field={field}
-              value={values[field.name]}
-              disabled={disabled}
-              required={isFieldRequired(field)}
-              appearance={appearance}
-              onChange={(value) => handleChange(field.name, value)}
-              onCommit={(value) => handleCommit(field.name, value)}
-            />
-          ))}
+          <div className={isInlineDetail ? "grid gap-4 xl:grid-cols-2 xl:gap-6" : "space-y-5"}>
+            {visibleFields.map((field) => (
+              <div key={field.name} className={resolveInlineFieldSpanClass(field)}>
+                <FieldRenderer
+                  field={field}
+                  value={values[field.name]}
+                  disabled={disabled}
+                  required={isFieldRequired(field)}
+                  appearance={appearance}
+                  onChange={(value) => handleChange(field.name, value)}
+                  onCommit={(value) => handleCommit(field.name, value)}
+                />
+              </div>
+            ))}
+          </div>
 
           <div className="border-t border-border/60 pt-4">
             {actions ? (

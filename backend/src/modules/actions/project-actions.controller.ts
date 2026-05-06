@@ -85,7 +85,12 @@ export class ProjectActionsController {
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
     @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
   ) {
-    return this.service.deleteProjectActionComment(user, projectId, actionId, commentId);
+    return this.service.deleteProjectActionComment(
+      user,
+      projectId,
+      actionId,
+      commentId,
+    );
   }
 
   @Post(':projectId/actions/:actionId/attachments')
@@ -96,7 +101,12 @@ export class ProjectActionsController {
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
     @Body() dto: CreateProjectActionAttachmentDto,
   ) {
-    return this.service.addProjectActionAttachment(user, projectId, actionId, dto);
+    return this.service.addProjectActionAttachment(
+      user,
+      projectId,
+      actionId,
+      dto,
+    );
   }
 
   @Delete(':projectId/actions/:actionId/attachments/:attachmentId')
@@ -105,7 +115,8 @@ export class ProjectActionsController {
     @CurrentUser() user: JwtUser,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
     return this.service.deleteProjectActionAttachment(
       user,
@@ -192,7 +203,12 @@ export class ProjectActionsController {
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
     @Query() query: ListEligibleProjectActionPeopleQueryDto,
   ) {
-    return this.service.listEligibleProjectActionPeople(user, projectId, actionId, query);
+    return this.service.listEligibleProjectActionPeople(
+      user,
+      projectId,
+      actionId,
+      query,
+    );
   }
 
   @Get(':projectId/actions/:actionId/people-groups')
@@ -203,7 +219,12 @@ export class ProjectActionsController {
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
     @Query() query: ListActionPeopleGroupsQueryDto,
   ) {
-    return this.service.listActionPeopleGroups(user, projectId, actionId, query);
+    return this.service.listActionPeopleGroups(
+      user,
+      projectId,
+      actionId,
+      query,
+    );
   }
 
   @Post(':projectId/actions/:actionId/people-groups')
@@ -223,7 +244,8 @@ export class ProjectActionsController {
     @CurrentUser() user: JwtUser,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
-    @Param('actionPeopleGroupId', new ParseUUIDPipe({ version: '4' })) actionPeopleGroupId: string,
+    @Param('actionPeopleGroupId', new ParseUUIDPipe({ version: '4' }))
+    actionPeopleGroupId: string,
   ) {
     return this.service.deleteActionPeopleGroup(
       user,
@@ -249,13 +271,16 @@ export class ProjectActionsController {
     );
   }
 
-  @Patch(':projectId/actions/:actionId/people-participations/:participationId/end')
+  @Patch(
+    ':projectId/actions/:actionId/people-participations/:participationId/end',
+  )
   @Permissions('actions.update')
   async endPeopleParticipation(
     @CurrentUser() user: JwtUser,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
-    @Param('participationId', new ParseUUIDPipe({ version: '4' })) participationId: string,
+    @Param('participationId', new ParseUUIDPipe({ version: '4' }))
+    participationId: string,
     @Body() dto: EndProjectActionPeopleParticipationDto,
   ) {
     return this.service.endProjectActionPeopleParticipation(

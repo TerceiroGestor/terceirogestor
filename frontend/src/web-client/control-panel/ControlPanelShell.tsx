@@ -16,7 +16,9 @@ export function ControlPanelShell() {
 
   const actionSlot = breadcrumb.actionSlot;
   const primaryAction = controlPanel.primaryAction ?? breadcrumb.action;
-  const primaryActionSlot = controlPanel.primaryActionSlot;
+  const primaryActionSlot = controlPanel.primaryActionSlot
+    ? <div data-tour-target="control-primary-action">{controlPanel.primaryActionSlot}</div>
+    : null;
 
   const createButtonNode =
     primaryActionSlot ??
@@ -28,7 +30,10 @@ export function ControlPanelShell() {
           asChild
           className="h-8"
         >
-          <Link href={withTenantPath(primaryAction.href, tenantSlug)}>
+          <Link
+            href={withTenantPath(primaryAction.href, tenantSlug)}
+            data-tour-target="control-primary-action"
+          >
             {primaryAction.label}
           </Link>
         </Button>
@@ -38,6 +43,7 @@ export function ControlPanelShell() {
           variant={primaryAction.variant ?? "default"}
           onClick={primaryAction.onClick}
           className="h-8"
+          data-tour-target="control-primary-action"
         >
           {primaryAction.label}
         </Button>

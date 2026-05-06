@@ -11,4 +11,3 @@ export class VerifyMfaDto {
   @IsBoolean()
   rememberDevice?: boolean;
 }
-

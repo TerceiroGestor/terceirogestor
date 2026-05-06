@@ -138,12 +138,6 @@ export function FinancialEntryForm({
         type: "date",
         visibleWhen: (values) => values.entryType === "BENEFIT",
       },
-      {
-        name: "notes",
-        label: "Notas",
-        type: "textarea",
-        rows: 4,
-      },
     ];
   }, [householdOptions]);
 

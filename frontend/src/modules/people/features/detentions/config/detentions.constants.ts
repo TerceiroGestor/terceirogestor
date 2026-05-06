@@ -26,3 +26,18 @@ export const DETENTIONS_TEXT = {
   },
 } as const;
 
+export const DETENTION_STATUS_OPTIONS = [
+  { value: "Em reclusao", label: "Em reclusao" },
+  { value: "Medida socioeducativa", label: "Medida socioeducativa" },
+  { value: "Egresso", label: "Egresso" },
+  { value: "Sem informacao", label: "Sem informacao" },
+] as const;
+
+export const DETENTION_TYPE_OPTIONS = [
+  { value: "Fechado", label: "Fechado" },
+  { value: "Semiaberto", label: "Semiaberto" },
+  { value: "Aberto", label: "Aberto" },
+  { value: "Internacao", label: "Internacao" },
+  { value: "Outro", label: "Outro" },
+] as const;
+

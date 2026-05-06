@@ -22,6 +22,7 @@ export class TenantsService {
       startYear: tenant.startYear,
       description: tenant.description,
       status: tenant.status,
+      onboardingCompletedAt: tenant.onboardingCompletedAt,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
@@ -44,6 +45,10 @@ export class TenantsService {
         cnpj: dto.cnpj ?? existing.cnpj,
         startYear: dto.startYear ?? existing.startYear,
         description: dto.description ?? existing.description,
+        onboardingCompletedAt:
+          dto.onboardingCompletedAt !== undefined
+            ? new Date(dto.onboardingCompletedAt)
+            : existing.onboardingCompletedAt,
       },
     });
 
@@ -56,6 +61,7 @@ export class TenantsService {
       startYear: updated.startYear,
       description: updated.description,
       status: updated.status,
+      onboardingCompletedAt: updated.onboardingCompletedAt,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     };

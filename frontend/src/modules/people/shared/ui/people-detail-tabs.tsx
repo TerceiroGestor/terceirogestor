@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import {
-  ClipboardList,
+  BookUser,
   ChevronRight,
   GraduationCap,
   HeartPulse,
   Lock,
+  MapPin,
   Pill,
   Users,
   Wallet,
@@ -28,12 +29,13 @@ type TabItem = {
 
 const tabItems: TabItem[] = [
   { value: "familia", label: "Familia", icon: Users },
+  { value: "endereco", label: "Endereco", icon: MapPin },
+  { value: "contatos", label: "Contatos", icon: BookUser },
   { value: "financeiro", label: "Financeiro", icon: Wallet },
-  { value: "saude", label: "Condicoes", icon: HeartPulse },
+  { value: "saude", label: "Saude", icon: HeartPulse },
   { value: "medicacoes", label: "Medicacoes", icon: Pill },
   { value: "escolaridade", label: "Escolaridade", icon: GraduationCap },
   { value: "reclusao", label: "Reclusao", icon: Lock },
-  { value: "atendimentos", label: "Atendimentos", icon: ClipboardList, disabled: true },
 ];
 
 export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {

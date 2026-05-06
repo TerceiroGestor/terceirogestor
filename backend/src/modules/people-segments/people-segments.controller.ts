@@ -81,7 +81,11 @@ export class PeopleSegmentsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query() query: ListPeopleSegmentMembershipsQueryDto,
   ) {
-    return this.peopleSegments.listPeopleSegmentMemberships(user.tenantId, id, query);
+    return this.peopleSegments.listPeopleSegmentMemberships(
+      user.tenantId,
+      id,
+      query,
+    );
   }
 
   @Post(':id/memberships')
@@ -91,7 +95,11 @@ export class PeopleSegmentsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreatePeopleSegmentMembershipDto,
   ) {
-    return this.peopleSegments.createPeopleSegmentMembership(user.tenantId, id, dto);
+    return this.peopleSegments.createPeopleSegmentMembership(
+      user.tenantId,
+      id,
+      dto,
+    );
   }
 
   @Patch(':id/memberships/:membershipId/end')
@@ -99,7 +107,8 @@ export class PeopleSegmentsController {
   async endMembership(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('membershipId', new ParseUUIDPipe({ version: '4' })) membershipId: string,
+    @Param('membershipId', new ParseUUIDPipe({ version: '4' }))
+    membershipId: string,
     @Body() dto: EndPeopleSegmentMembershipDto,
   ) {
     return this.peopleSegments.endPeopleSegmentMembership(

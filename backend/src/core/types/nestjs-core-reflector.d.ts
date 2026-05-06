@@ -7,10 +7,7 @@ declare module '@nestjs/core' {
       target: any,
     ): R | undefined;
 
-    getAll<T = any, R = T>(
-      metadataKeyOrDecorator: any,
-      targets: any[],
-    ): R[];
+    getAll<T = any, R = T>(metadataKeyOrDecorator: any, targets: any[]): R[];
 
     getAllAndMerge<T = any, R = T>(
       metadataKeyOrDecorator: any,

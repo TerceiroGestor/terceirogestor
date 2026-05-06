@@ -23,7 +23,7 @@ export function AppSidebarHeader() {
 
   return (
     <SidebarHeader className="gap-3 px-4 py-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" data-tour-target="sidebar-tenant-header">
         {logoSrc ? (
           <Image
             src={logoSrc}

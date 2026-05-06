@@ -106,13 +106,19 @@ export class MfaTotpService {
     code: string;
   }) {
     const setup = await this.prisma.userMfaTotpSetup.findFirst({
-      where: { id: params.setupId, tenantId: params.tenantId, userId: params.userId },
+      where: {
+        id: params.setupId,
+        tenantId: params.tenantId,
+        userId: params.userId,
+      },
     });
     if (!setup) {
       throw new BadRequestException('Configuração de 2FA não encontrada');
     }
     if (setup.expiresAt <= new Date()) {
-      throw new BadRequestException('Configuração de 2FA expirada. Gere um novo QR.');
+      throw new BadRequestException(
+        'Configuração de 2FA expirada. Gere um novo QR.',
+      );
     }
 
     const secret = this.crypto.decryptFromString(setup.secretEnc);
@@ -152,7 +158,11 @@ export class MfaTotpService {
     return { recoveryCodes };
   }
 
-  async disableTotp(params: { tenantId: string; userId: string; code: string }) {
+  async disableTotp(params: {
+    tenantId: string;
+    userId: string;
+    code: string;
+  }) {
     const user = await this.prisma.user.findFirst({
       where: { id: params.userId, tenantId: params.tenantId },
       select: { mfaTotpEnabled: true, mfaTotpSecretEnc: true },
@@ -179,7 +189,11 @@ export class MfaTotpService {
         where: { tenantId: params.tenantId, userId: params.userId },
       }),
       this.prisma.userTrustedDevice.updateMany({
-        where: { tenantId: params.tenantId, userId: params.userId, revokedAt: null },
+        where: {
+          tenantId: params.tenantId,
+          userId: params.userId,
+          revokedAt: null,
+        },
         data: { revokedAt: new Date() },
       }),
       this.prisma.userMfaChallenge.deleteMany({
@@ -251,12 +265,19 @@ export class MfaTotpService {
       throw new BadRequestException('Desafio expirado. Faça login novamente.');
     }
     if (challenge.attempts >= MFA_MAX_ATTEMPTS) {
-      throw new UnauthorizedException('Muitas tentativas. Faça login novamente.');
+      throw new UnauthorizedException(
+        'Muitas tentativas. Faça login novamente.',
+      );
     }
 
     const user = await this.prisma.user.findFirst({
       where: { id: challenge.userId, tenantId: params.tenantId },
-      select: { id: true, tenantId: true, mfaTotpEnabled: true, mfaTotpSecretEnc: true },
+      select: {
+        id: true,
+        tenantId: true,
+        mfaTotpEnabled: true,
+        mfaTotpSecretEnc: true,
+      },
     });
     if (!user || !user.mfaTotpEnabled || !user.mfaTotpSecretEnc) {
       throw new UnauthorizedException('2FA não está configurado');
