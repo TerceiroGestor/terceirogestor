@@ -48,6 +48,7 @@ export type DetailShellProps = {
   headerActionsSlot?: React.ReactNode;
   headerTitleSlot?: React.ReactNode;
   headerInfoSlot?: React.ReactNode;
+  headerInfoInline?: boolean;
   headerInfoClassName?: string;
   viewControlsSlot?: React.ReactNode;
   viewControlsClassName?: string;
@@ -91,6 +92,7 @@ export function DetailShell({
   headerActionsSlot,
   headerTitleSlot,
   headerInfoSlot,
+  headerInfoInline = false,
   headerInfoClassName,
   viewControlsSlot,
   viewControlsClassName,
@@ -159,7 +161,12 @@ export function DetailShell({
   const headerBlock = (
     <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-border/60 bg-background/95 px-4 pb-2 pt-0 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div
+          className={cn(
+            "flex flex-wrap justify-between gap-2",
+            headerInfoInline ? "items-center" : "items-start",
+          )}
+        >
           <div className="flex min-w-0 flex-wrap items-center gap-2.5">
             {headerTitleSlot ? (
               <div className="shrink-0">{headerTitleSlot}</div>
@@ -200,15 +207,20 @@ export function DetailShell({
             </Button>
           </div>
 
-          {sideToggleButton || headerActionsSlot ? (
-            <div className="flex items-center gap-2 pt-1">
+          {headerInfoInline || sideToggleButton || headerActionsSlot ? (
+            <div className={cn("flex items-center gap-2", headerInfoInline ? null : "pt-1")}>
+              {headerInfoInline && headerInfoSlot ? (
+                <div className={cn("min-w-0", headerInfoClassName)}>
+                  {headerInfoSlot}
+                </div>
+              ) : null}
               {headerActionsSlot}
               {sideToggleButton}
             </div>
           ) : null}
         </div>
 
-        {headerInfoSlot ? (
+        {!headerInfoInline && headerInfoSlot ? (
           <div className={cn("mt-2 min-w-0", headerInfoClassName)}>
             {headerInfoSlot}
           </div>

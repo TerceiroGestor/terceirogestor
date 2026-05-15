@@ -10,12 +10,14 @@ import ListItem from "@tiptap/extension-list-item";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import Document from "@tiptap/extension-document";
-import { Eye } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -157,6 +159,8 @@ export function DetailNotesPanel({
     start: number;
     end: number;
   } | null>(null);
+  const [isEditorFocused, setIsEditorFocused] = React.useState(false);
+  const openButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const refreshEditorDerivedState = React.useCallback(
     (currentEditor: Editor) => {
@@ -196,7 +200,11 @@ export function DetailNotesPanel({
     onSelectionUpdate({ editor: currentEditor }) {
       refreshEditorDerivedState(currentEditor);
     },
+    onFocus() {
+      setIsEditorFocused(true);
+    },
     onBlur({ editor: currentEditor }) {
+      setIsEditorFocused(false);
       onBlur(currentEditor.getHTML());
     },
   });
@@ -254,13 +262,36 @@ export function DetailNotesPanel({
     setSlashIndex(0);
   }, [activeSlash?.query]);
 
-  const showMentionSuggestions =
-    !readOnly && Boolean(activeMention) && mentionSuggestions.length > 0;
-  const showSlashSuggestions =
+  const showMentionSuggestionsSide =
     !readOnly &&
-    !showMentionSuggestions &&
+    !readerOpen &&
+    isEditorFocused &&
+    Boolean(activeMention) &&
+    mentionSuggestions.length > 0;
+  const showSlashSuggestionsSide =
+    !readOnly &&
+    !readerOpen &&
+    isEditorFocused &&
+    !showMentionSuggestionsSide &&
     Boolean(activeSlash) &&
     slashSuggestions.length > 0;
+
+  const showMentionSuggestionsReader =
+    !readOnly &&
+    readerOpen &&
+    Boolean(activeMention) &&
+    mentionSuggestions.length > 0;
+  const showSlashSuggestionsReader =
+    !readOnly &&
+    readerOpen &&
+    !showMentionSuggestionsReader &&
+    Boolean(activeSlash) &&
+    slashSuggestions.length > 0;
+
+  const showMentionSuggestions =
+    showMentionSuggestionsSide || showMentionSuggestionsReader;
+  const showSlashSuggestions =
+    showSlashSuggestionsSide || showSlashSuggestionsReader;
 
   const applyMention = React.useCallback(
     (user: NoteMentionUser) => {
@@ -402,51 +433,76 @@ export function DetailNotesPanel({
     [mentionUserIds, users],
   );
 
+  const sidePreviewContent = React.useMemo(
+    () => (editor ? editor.getHTML() : normalizeInitialContent(value)),
+    [editor, value],
+  );
+
+  const handleReaderOpenChange = React.useCallback(
+    (open: boolean) => {
+      setReaderOpen(open);
+      if (open) {
+        setIsEditorFocused(false);
+      }
+      if (!open) {
+        setIsEditorFocused(false);
+        setActiveMention(null);
+        setActiveSlash(null);
+      }
+      if (!open && editor) {
+        requestAnimationFrame(() => {
+          editor.commands.focus("end");
+          refreshEditorDerivedState(editor);
+        });
+      }
+    },
+    [editor, refreshEditorDerivedState],
+  );
+
   return (
     <div className="space-y-3">
       <div className="relative">
-        <div className="flex items-center justify-between gap-3 rounded-t-lg border border-b-0 border-border/60 bg-gradient-to-r from-muted/35 via-background to-muted/20 px-3 py-2">
-          <div />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1.5 px-2.5 text-xs"
-            onClick={() => setReaderOpen(true)}
-            disabled={!editor}
-          >
-            <Eye className="size-3.5" />
-            Ampliar
-          </Button>
-        </div>
+        <Button
+          ref={openButtonRef}
+          type="button"
+          size="icon"
+          variant="outline"
+          className="absolute right-2 top-2 z-20 size-7 rounded-md bg-background/90"
+          onClick={() => handleReaderOpenChange(true)}
+          disabled={!editor}
+          aria-label="Ampliar notas"
+          title="Ampliar notas"
+        >
+          <Maximize2 className="size-3.5" />
+        </Button>
 
-        <div className="richtext-root rounded-t-none border-border/60 shadow-sm">
-          <div className="richtext-body max-h-[360px]">
+        <div className="richtext-root border-border/60 shadow-sm">
+          <div className="richtext-body min-h-[140px] max-h-[360px]">
             {editor && !readerOpen ? (
               <EditorContent
                 editor={editor}
-                className={cn("tiptap", readOnly ? "opacity-85" : undefined)}
+                className={cn("tiptap min-h-[140px]", readOnly ? "opacity-85" : undefined)}
               />
             ) : !editor ? (
               <div className="px-4 py-3 text-sm text-muted-foreground">{placeholder}</div>
             ) : (
-              <div className="h-[140px]" />
+              <div
+                className="tiptap min-h-[140px] px-4 py-3 text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: sidePreviewContent }}
+              />
             )}
           </div>
         </div>
 
-        {showMentionSuggestions && !readerOpen ? (
-          <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-md border border-border bg-background shadow-sm">
-            <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Mencionar pessoas
-            </div>
-            <div className="max-h-56 overflow-y-auto py-1">
+        {showMentionSuggestionsSide ? (
+          <div className="absolute bottom-2 left-2 right-2 z-20 rounded-md border border-border/60 bg-background shadow-sm">
+            <div className="max-h-44 overflow-y-auto py-1">
               {mentionSuggestions.map((user, index) => (
                 <button
                   key={user.id}
                   type="button"
                   className={cn(
-                    "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                    "flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left text-sm",
                     index === mentionIndex
                       ? "bg-primary/10 text-foreground"
                       : "text-foreground hover:bg-muted/60",
@@ -466,18 +522,15 @@ export function DetailNotesPanel({
           </div>
         ) : null}
 
-        {showSlashSuggestions && !readerOpen ? (
-          <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-md border border-border bg-background shadow-sm">
-            <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Comandos
-            </div>
-            <div className="max-h-56 overflow-y-auto py-1">
+        {showSlashSuggestionsSide ? (
+          <div className="absolute bottom-2 left-2 right-2 z-20 rounded-md border border-border/60 bg-background shadow-sm">
+            <div className="max-h-44 overflow-y-auto py-1">
               {slashSuggestions.map((command, index) => (
                 <button
                   key={command.id}
                   type="button"
                   className={cn(
-                    "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                    "flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left text-sm",
                     index === slashIndex
                       ? "bg-primary/10 text-foreground"
                       : "text-foreground hover:bg-muted/60",
@@ -508,12 +561,23 @@ export function DetailNotesPanel({
         </div>
       ) : null}
 
-      <div className="text-[11px] text-muted-foreground">
-        Dicas: use @ para mencionar pessoas e / para abrir comandos de formatação rápida.
-      </div>
-
-      <Dialog open={readerOpen} onOpenChange={setReaderOpen}>
-        <DialogContent className="max-w-[min(96vw,68rem)] p-0">
+      <Dialog open={readerOpen} onOpenChange={handleReaderOpenChange}>
+        <DialogContent
+          className="max-w-[min(96vw,68rem)] p-0"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (!editor || readOnly) {
+              openButtonRef.current?.focus();
+              return;
+            }
+            requestAnimationFrame(() => {
+              editor.commands.focus("end");
+            });
+          }}
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>{`Notas internas de ${itemLabel ?? "item"}`}</DialogTitle>
+          </DialogHeader>
           <div className="border-b border-border/60 px-6 py-4 text-sm font-medium text-foreground">
             {`Notas internas de ${itemLabel ?? "item"}`}
           </div>
@@ -523,25 +587,22 @@ export function DetailNotesPanel({
                 {editor ? (
                   <EditorContent
                     editor={editor}
-                    className={cn("tiptap", readOnly ? "opacity-85" : undefined)}
+                    className={cn("tiptap min-h-[240px]", readOnly ? "opacity-85" : undefined)}
                   />
                 ) : (
                   <div className="px-4 py-3 text-sm text-muted-foreground">{placeholder}</div>
                 )}
               </div>
 
-              {showMentionSuggestions && readerOpen ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-md border border-border bg-background shadow-sm">
-                  <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Mencionar pessoas
-                  </div>
+              {showMentionSuggestionsReader ? (
+                <div className="absolute bottom-2 left-2 right-2 z-20 rounded-md border border-border/60 bg-background shadow-sm">
                   <div className="max-h-56 overflow-y-auto py-1">
                     {mentionSuggestions.map((user, index) => (
                       <button
                         key={user.id}
                         type="button"
                         className={cn(
-                          "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                          "flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left text-sm",
                           index === mentionIndex
                             ? "bg-primary/10 text-foreground"
                             : "text-foreground hover:bg-muted/60",
@@ -561,18 +622,15 @@ export function DetailNotesPanel({
                 </div>
               ) : null}
 
-              {showSlashSuggestions && readerOpen ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-md border border-border bg-background shadow-sm">
-                  <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Comandos
-                  </div>
+              {showSlashSuggestionsReader ? (
+                <div className="absolute bottom-2 left-2 right-2 z-20 rounded-md border border-border/60 bg-background shadow-sm">
                   <div className="max-h-56 overflow-y-auto py-1">
                     {slashSuggestions.map((command, index) => (
                       <button
                         key={command.id}
                         type="button"
                         className={cn(
-                          "flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                          "flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left text-sm",
                           index === slashIndex
                             ? "bg-primary/10 text-foreground"
                             : "text-foreground hover:bg-muted/60",

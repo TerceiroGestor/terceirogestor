@@ -15,7 +15,6 @@ export type DetentionFormValues = {
   unit: string;
   startDate: string;
   endDate: string;
-  notes: string;
 };
 
 type DetentionFormProps = {

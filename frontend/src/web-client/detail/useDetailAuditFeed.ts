@@ -60,6 +60,16 @@ function buildAuditRequestKey<TContext extends Record<string, unknown>>(
 
   const sources = [auditConfig.primaryEntity, ...(auditConfig.relatedEntities ?? [])];
   const primaryEntityId = resolvePrimaryEntityId(auditConfig, context);
+  const resolvedSources = sources
+    .map((source) => ({
+      key: source.key,
+      entity: source.entity,
+      ids: normalizeResolvedEntityIds([
+        source.resolveEntityId?.(context),
+        ...(source.resolveEntityIds?.(context) ?? []),
+      ]),
+    }))
+    .filter((source) => source.ids.length > 0);
   const resolvedFilters =
     typeof auditConfig.filters === "function"
       ? auditConfig.filters(context)
@@ -67,14 +77,7 @@ function buildAuditRequestKey<TContext extends Record<string, unknown>>(
   return JSON.stringify(
     {
       primaryEntityId,
-      sources: sources.map((source) => ({
-        key: source.key,
-        entity: source.entity,
-        ids: normalizeResolvedEntityIds([
-          source.resolveEntityId?.(context),
-          ...(source.resolveEntityIds?.(context) ?? []),
-        ]),
-      })),
+      sources: resolvedSources,
       filters: resolvedFilters,
     },
   );

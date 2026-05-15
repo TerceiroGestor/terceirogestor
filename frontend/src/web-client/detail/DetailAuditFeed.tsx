@@ -244,10 +244,12 @@ export function DetailAuditFeed({
                     const palette = pickAvatarPalette(primaryLog.userId ?? actor);
                     const avatarRaw = primaryLog.user?.avatarUrl ?? null;
                     const avatarSrc = avatarRaw ? resolveMediaUrl(avatarRaw) : "";
-                    const changedFields = resolveAuditChangedFieldsSummary(group.rows);
+                    const sourceLabel = group.sourceLabels[0] ?? "Registro";
+                    const groupedCount = group.logs.length > 1 ? group.logs.length - 1 : 0;
+                    const changedFieldsCount = group.rows.length;
 
                     return (
-                      <article key={group.id} className="border-b border-border/35 py-4">
+                      <article key={group.id} className="border-b border-border/35 py-3.5">
                         <div className="flex items-start gap-3">
                           <span className={cn("mt-3 size-2 rounded-full", tone.dotClass)} />
 
@@ -268,16 +270,7 @@ export function DetailAuditFeed({
                               </div>
                             </div>
 
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {group.sourceLabels.map((sourceLabel) => (
-                                <Badge
-                                  key={`${group.id}-${sourceLabel}`}
-                                  variant="outline"
-                                  className="h-5 rounded-full border-border/60 bg-transparent px-2 text-[9px] font-medium text-muted-foreground"
-                                >
-                                  {sourceLabel}
-                                </Badge>
-                              ))}
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
                               <Badge
                                 className={cn(
                                   "h-5 rounded-full px-2 text-[9px]",
@@ -286,49 +279,40 @@ export function DetailAuditFeed({
                               >
                                 {resolveAuditActionLabel(group.action)}
                               </Badge>
-                              {group.logs.length > 1 ? (
+                              <span className="text-[11px] text-muted-foreground">
+                                {sourceLabel}
+                              </span>
+                              {groupedCount ? (
                                 <span className="text-[10px] text-muted-foreground">
-                                  +{group.logs.length - 1} updates
+                                  +{groupedCount} eventos
                                 </span>
                               ) : null}
                             </div>
 
-                            <div className="mt-2 text-[13px] font-medium leading-5 text-foreground">
+                            <div className="mt-1.5 text-[13px] font-medium leading-5 text-foreground">
                               {resolveGroupedAuditHeadline(group)}
                             </div>
 
                             {group.rows.length ? (
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                {changedFields.labels.map((label) => (
-                                  <span
-                                    key={`${group.id}-${label}`}
-                                    className="inline-flex items-center rounded-full bg-muted/35 px-2 py-0.5 text-[11px] text-muted-foreground"
-                                  >
-                                    {label}
-                                  </span>
-                                ))}
-                                {changedFields.hiddenCount ? (
-                                  <span className="inline-flex items-center rounded-full bg-muted/35 px-2 py-0.5 text-[11px] text-muted-foreground">
-                                    +{changedFields.hiddenCount}
-                                  </span>
-                                ) : null}
+                              <div className="mt-1.5 text-[12px] text-muted-foreground">
+                                {changedFieldsCount} campo(s) alterado(s)
                               </div>
                             ) : (
-                              <div className="mt-2 text-[12px] text-muted-foreground">
+                              <div className="mt-1.5 text-[12px] text-muted-foreground">
                                 {resolveAuditSummary(primaryLog)}
                               </div>
                             )}
 
                             {group.rows.length ? (
-                              <div className="mt-2">
+                              <div className="mt-1.5">
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 rounded-none border-b border-border/60 px-1 text-[11px]"
+                                  className="h-7 rounded-md px-2 text-[11px]"
                                   onClick={() => setSelectedGroup(group)}
                                 >
-                                  Ver alteracoes
+                                  Ver detalhes
                                 </Button>
                               </div>
                             ) : null}

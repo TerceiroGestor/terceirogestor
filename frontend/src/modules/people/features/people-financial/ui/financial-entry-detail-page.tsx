@@ -15,6 +15,10 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type FinancialEntryDraftValues = FinancialEntryFormValues & {
+  notes: string;
+};
+
 function initialFormValues(item?: PersonFinancialEntry): FinancialEntryFormValues {
   return {
     entryType: item?.entryType ?? "INCOME",
@@ -33,6 +37,12 @@ function initialFormValues(item?: PersonFinancialEntry): FinancialEntryFormValue
     includeInHouseholdBudget: item?.includeInHouseholdBudget ?? true,
     startDate: item?.startDate?.slice(0, 10) ?? "",
     endDate: item?.endDate?.slice(0, 10) ?? "",
+  };
+}
+
+function initialDraftValues(item?: PersonFinancialEntry): FinancialEntryDraftValues {
+  return {
+    ...initialFormValues(item),
     notes: item?.notes ?? "",
   };
 }
@@ -121,7 +131,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
     () => entries.find((item) => item.id === entryId) ?? null,
     [entries, entryId],
   );
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   React.useEffect(() => {
     if (!familyData) void loadDetailed();
@@ -151,7 +161,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
     });
   }, [familyData]);
 
-  const [draft, setDraft] = React.useState<FinancialEntryFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<FinancialEntryDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(entryId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(entryId || null);
@@ -194,10 +204,10 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
         relationIdRef.current = created.id;
         setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleFinancialEntryPath(personId, created.id), tenantSlug));
-        return initialFormValues(created);
+        return initialDraftValues(created);
       }
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (nextError) => {
       const message =
@@ -210,7 +220,7 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -265,19 +275,27 @@ export function FinancialEntryDetailPage({ mode }: { mode: "create" | "edit" }) 
       ) : null}
       {mode === "create" || current ? (
         <FinancialEntryForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current ?? undefined)
+          }
           householdOptions={householdOptions}
-          onValuesChange={setDraft}
+          onValuesChange={(values) => {
+            setDraft((previous) => ({ ...previous, ...values }));
+          }}
           onFieldCommit={(values) => {
-            setDraft(values);
+            const nextDraft: FinancialEntryDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             if (mode === "edit") {
-              commitDraft(values);
+              commitDraft(nextDraft);
             }
           }}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: FinancialEntryDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

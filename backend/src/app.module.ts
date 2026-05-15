@@ -39,6 +39,24 @@ import { CepModule } from './core/cep/cep.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 
+// People First: desativa bootstrap de modulos congelados por padrao.
+const PEOPLE_FIRST_MODE = (process.env.PEOPLE_FIRST_MODE ?? 'true').toLowerCase() !== 'false';
+
+const FROZEN_DOMAIN_MODULES = [
+  PantryModule,
+  DepositModule,
+  ProgramsModule,
+  PeopleSegmentsModule,
+  PeopleGroupsModule,
+  ProjectsModule,
+  ProjectStructureModule,
+  ActionsModule,
+  DashboardModule,
+  TasksModule,
+] as const;
+
+const ACTIVE_DOMAIN_MODULES = PEOPLE_FIRST_MODE ? [] : FROZEN_DOMAIN_MODULES;
+
 const rootEnvFilePaths = [
   resolve(__dirname, '..', '.env.local'),
   resolve(__dirname, '..', '.env'),
@@ -64,17 +82,8 @@ const rootEnvFilePaths = [
     PermissionsModule,
     TenantsModule,
     PeopleModule,
-    PantryModule,
-    DepositModule,
-    ProgramsModule,
-    PeopleSegmentsModule,
-    PeopleGroupsModule,
-    ProjectsModule,
-    ProjectStructureModule,
-    ActionsModule,
     RegistrationModule,
-    DashboardModule,
-    TasksModule,
+    ...ACTIVE_DOMAIN_MODULES,
     FilesModule,
     AuditModule,
     RequestContextModule,

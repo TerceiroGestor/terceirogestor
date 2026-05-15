@@ -14,7 +14,11 @@ import {
 } from "@/modules/people/shared/domain/people-relation-routes";
 import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-relation-detail-shell";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
-import type { DetailEditingConfig } from "@/web-client/registry/types";
+import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
+
+type ContactDraftValues = ContactFormValues & {
+  notes: string;
+};
 
 function initialFormValues(item?: ApiPersonContact): ContactFormValues {
   return {
@@ -24,9 +28,15 @@ function initialFormValues(item?: ApiPersonContact): ContactFormValues {
     label: item?.label ?? "",
     name: item?.name ?? "",
     relationship: item?.relationship ?? "",
-    notes: item?.notes ?? "",
     isPrimary: Boolean(item?.isPrimary),
     isWhatsapp: Boolean(item?.isWhatsapp),
+  };
+}
+
+function initialDraftValues(item?: ApiPersonContact): ContactDraftValues {
+  return {
+    ...initialFormValues(item),
+    notes: item?.notes ?? "",
   };
 }
 
@@ -35,7 +45,35 @@ const AUTO_EDITING: DetailEditingConfig = {
   autoSave: { trigger: "field-commit" },
 };
 
-function normalizeDraft(values: ContactFormValues): ContactFormValues {
+const CONTACT_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
+  primaryEntity: {
+    key: "contact",
+    entity: "PersonContact",
+    model: "audit.logs",
+    label: "Contato",
+    fieldLabels: {
+      role: "Categoria",
+      type: "Tipo",
+      value: "Valor",
+      label: "Rótulo",
+      name: "Nome",
+      relationship: "Parentesco",
+      isPrimary: "Contato principal",
+      isWhatsapp: "WhatsApp",
+      notes: "Notas",
+    },
+    valueFormatters: {
+      isPrimary: (value) => (value ? "Sim" : "Nao"),
+      isWhatsapp: (value) => (value ? "Sim" : "Nao"),
+    },
+    resolveEntityId: ({ relationId }) => relationId,
+  },
+  filters: { entity: "PersonContact" },
+  sort: [{ field: "createdAt", direction: "desc" }],
+  pagination: { limit: 120 },
+};
+
+function normalizeDraft(values: ContactDraftValues): ContactDraftValues {
   return {
     ...values,
     value: (values.value ?? "").trim(),
@@ -57,14 +95,14 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { contacts, isLoading, create, update } = useContacts(personId);
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   const current = React.useMemo(
     () => contacts.find((item) => item.id === contactId) ?? null,
     [contactId, contacts],
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "contatos"), tenantSlug);
-  const [draft, setDraft] = React.useState<ContactFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<ContactDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(contactId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(contactId || null);
@@ -101,11 +139,11 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
           tenantSlug,
         );
         router.replace(nextPath);
-        return initialFormValues(created);
+        return initialDraftValues(created);
       }
 
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (error) => {
       const message =
@@ -118,7 +156,7 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -126,17 +164,33 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
   }, [current, mode, replaceSavedDraft]);
 
   const handleValuesChange = React.useCallback((values: ContactFormValues) => {
-    setDraft(values);
+    setDraft((previous) => ({ ...previous, ...values }));
   }, []);
 
   const handleFieldCommit = React.useCallback(
     (values: ContactFormValues) => {
-      setDraft(values);
+      const nextDraft: ContactDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode],
+    [commitDraft, draft, mode],
+  );
+
+  const handleNotesChange = React.useCallback((next: string | null) => {
+    setDraft((previous) => ({ ...previous, notes: next ?? "" }));
+  }, []);
+
+  const handleNotesCommit = React.useCallback(
+    (next: string | null) => {
+      const nextDraft = { ...draft, notes: next ?? "" };
+      setDraft(nextDraft);
+      if (mode === "edit") {
+        commitDraft(nextDraft);
+      }
+    },
+    [commitDraft, draft, mode],
   );
 
   return (
@@ -161,6 +215,10 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
           (draft.role !== "SELF" && !(draft.name ?? "").trim()))
       }
       relationId={activeRelationId}
+      auditConfig={CONTACT_AUDIT_CONFIG}
+      notes={draft.notes}
+      onNotesChange={handleNotesChange}
+      onNotesCommit={handleNotesCommit}
     >
       {saveError ? <div className="text-sm text-destructive">{saveError}</div> : null}
       {mode === "edit" && isLoading && !current ? (
@@ -171,16 +229,21 @@ export function ContactDetailPage({ mode }: { mode: "create" | "edit" }) {
       ) : null}
       {mode === "create" || current ? (
         <ContactForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current ?? undefined)
+          }
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: ContactDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

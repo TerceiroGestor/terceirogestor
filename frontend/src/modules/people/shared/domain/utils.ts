@@ -1,5 +1,6 @@
 export {
   formatDate,
+  formatInstantDate,
   getAgeFromBirthDate,
   getInitials,
   isBirthdayInCurrentMonth,

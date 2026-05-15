@@ -16,6 +16,10 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type MedicationDraftValues = MedicationFormValues & {
+  notes: string;
+};
+
 function initialValues(item?: Medication): MedicationFormValues {
   return {
     reason: item?.reason ?? "",
@@ -25,6 +29,12 @@ function initialValues(item?: Medication): MedicationFormValues {
     startDate: item?.startDate?.slice(0, 10) ?? "",
     endDate: item?.endDate?.slice(0, 10) ?? "",
     prescribingDoctor: item?.prescribingDoctor ?? "",
+  };
+}
+
+function initialDraftValues(item?: Medication): MedicationDraftValues {
+  return {
+    ...initialValues(item),
     notes: item?.notes ?? "",
   };
 }
@@ -67,7 +77,7 @@ const MEDICATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
   pagination: { limit: 120 },
 };
 
-function normalizeDraft(values: MedicationFormValues): MedicationFormValues {
+function normalizeDraft(values: MedicationDraftValues): MedicationDraftValues {
   return {
     ...values,
     reason: (values.reason ?? "").trim(),
@@ -92,14 +102,14 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
   const { medications, isLoading, error, create, update } = useMedications(personId, {
     enabled: Boolean(personId),
   });
-  const createInitialValues = React.useMemo(() => initialValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   const current = React.useMemo(
     () => medications.find((item) => item.id === medicationId) ?? null,
     [medicationId, medications],
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "medicacoes"), tenantSlug);
-  const [draft, setDraft] = React.useState<MedicationFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<MedicationDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(medicationId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(medicationId || null);
@@ -132,10 +142,10 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
         relationIdRef.current = created.id;
         setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleMedicationPath(personId, created.id), tenantSlug));
-        return initialValues(created);
+        return initialDraftValues(created);
       }
       const updated = await update(relationIdRef.current, payload);
-      return initialValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (nextError) => {
       const message =
@@ -148,7 +158,7 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -157,19 +167,20 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   const handleValuesChange = React.useCallback(
     (values: MedicationFormValues) => {
-      setDraft(values);
+      setDraft((previous) => ({ ...previous, ...values }));
     },
     [],
   );
 
   const handleFieldCommit = React.useCallback(
     (values: MedicationFormValues) => {
-      setDraft(values);
+      const nextDraft: MedicationDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode],
+    [commitDraft, draft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -223,16 +234,21 @@ export function MedicationDetailPage({ mode }: { mode: "create" | "edit" }) {
       ) : null}
       {mode === "create" || current ? (
         <MedicationForm
-          initialValues={mode === "create" ? createInitialValues : initialValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialValues()
+              : initialValues(current ?? undefined)
+          }
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: MedicationDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

@@ -137,7 +137,6 @@ const PEOPLE_FIELDS = {
   personType: { label: "Tipo" },
   departureReason: { label: "Motivo do desligamento" },
   tags: { label: "Tags" },
-  profileSummary: { label: "Resumo" },
   avatarUrl: { label: "Foto", type: "image", emptyValueLabel: "Sem foto" },
   hasHealthCondition: { label: "Condicao de saude", type: "boolean" },
   hasMedication: { label: "Medicacao", type: "boolean" },

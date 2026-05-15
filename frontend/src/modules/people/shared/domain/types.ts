@@ -15,7 +15,6 @@ export type PersonFormData = {
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
-  profileSummary?: string | null;
 };
 
 export type Person = {
@@ -35,7 +34,6 @@ export type Person = {
   departureReason?: string | null;
   notes?: string | null;
   tags?: string[] | null;
-  profileSummary?: string | null;
   avatarUrl?: string | null;
   comments?: PersonComment[];
   attachments?: PersonAttachment[];
@@ -136,7 +134,6 @@ export type PeopleTableItem = {
   tags?: string[] | null;
   hasHealthCondition?: boolean | null;
   hasMedication?: boolean | null;
-  profileSummary?: string | null;
   birthDate?: string | null;
   age?: number | null;
   isBirthdayMonth?: boolean | null;

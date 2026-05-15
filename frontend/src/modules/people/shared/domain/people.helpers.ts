@@ -73,6 +73,15 @@ export const formatDate = (value?: string | null) => {
   return formatDateOnlyPtBR(value);
 };
 
+export const formatInstantDate = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return formatDateOnlyPtBR(value);
+  }
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(date);
+};
+
 export const toDateInputValue = (value?: string | null) => {
   if (!value) return "";
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {

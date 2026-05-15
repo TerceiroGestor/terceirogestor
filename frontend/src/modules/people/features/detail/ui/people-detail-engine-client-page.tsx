@@ -41,6 +41,7 @@ import {
   resolvePersonDisplayNames,
   toDateInputValue,
 } from "@/modules/people/shared/domain/utils";
+import { PEOPLE_FEEDBACK } from "@/modules/people/shared/domain/people-feedback";
 import {
   isPeopleDetailTabValue,
   type PeopleDetailTabValue,
@@ -90,7 +91,6 @@ function buildPersonDraft(person: Person): PersonFormData {
     departureReason: person.departureReason ?? "",
     notes: person.notes ?? "",
     tags: person.tags ?? [],
-    profileSummary: person.profileSummary ?? "",
     avatarUrl: person.avatarUrl ?? null,
   };
 }
@@ -112,7 +112,6 @@ function buildEmptyPersonDraft(): PersonFormData {
     departureReason: "",
     notes: "",
     tags: [],
-    profileSummary: "",
     avatarUrl: null,
   };
 }
@@ -136,7 +135,6 @@ function buildDraftPerson(draft: PersonFormData): Person {
     departureReason: normalized.departureReason ?? null,
     notes: normalized.notes ?? null,
     tags: normalized.tags ?? [],
-    profileSummary: normalized.profileSummary ?? null,
     avatarUrl:
       typeof normalized.avatarUrl === "string" ? normalized.avatarUrl : null,
     comments: [],
@@ -148,25 +146,42 @@ function buildDraftPerson(draft: PersonFormData): Person {
   };
 }
 
+function normalizeTextValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function normalizePersonDraft(draft: PersonFormData): PersonFormData {
+  const tags = Array.isArray(draft.tags)
+    ? draft.tags
+        .map((tag) => (typeof tag === "string" ? tag.trim() : ""))
+        .filter(Boolean)
+    : [];
+
+  const fullName = normalizeTextValue(draft.fullName);
+  const socialName = normalizeTextValue(draft.socialName);
+  const email = normalizeTextValue(draft.email);
+  const phone = normalizeTextValue(draft.phone);
+  const nationality = normalizeTextValue(draft.nationality);
+  const departureReason = normalizeTextValue(draft.departureReason);
+  const notes = normalizeTextValue(draft.notes);
+
   return {
     ...draft,
-    fullName: draft.fullName.trim(),
-    socialName: draft.socialName?.trim() || null,
-    email: draft.email?.trim() || null,
-    phone: draft.phone?.trim() || null,
-    birthDate: draft.birthDate || null,
+    fullName,
+    socialName: socialName || null,
+    email: email || null,
+    phone: phone || null,
+    birthDate: typeof draft.birthDate === "string" && draft.birthDate ? draft.birthDate : null,
     sex: draft.sex || null,
     personType: draft.personType || null,
     gender: draft.gender || null,
     raceColor: draft.raceColor || null,
     maritalStatus: draft.maritalStatus || null,
-    nationality: draft.nationality?.trim() || null,
+    nationality: nationality || null,
     status: draft.status || null,
-    departureReason: draft.departureReason?.trim() || null,
-    notes: draft.notes?.trim() || null,
-    tags: Array.from(new Set((draft.tags ?? []).map((tag) => tag.trim()).filter(Boolean))),
-    profileSummary: draft.profileSummary ?? "",
+    departureReason: departureReason || null,
+    notes: notes || null,
+    tags: Array.from(new Set(tags)),
     avatarUrl:
       draft.avatarUrl instanceof File
         ? draft.avatarUrl
@@ -330,7 +345,6 @@ export function PeopleDetailEngineClientPage({
             departureReason: normalized.departureReason,
             notes: normalized.notes,
             tags: normalized.tags ?? [],
-            profileSummary: normalized.profileSummary || null,
             avatarUrl,
           },
         );
@@ -344,7 +358,7 @@ export function PeopleDetailEngineClientPage({
         const message =
           nextError && typeof nextError === "object" && "message" in nextError
             ? String((nextError as { message?: string }).message)
-            : "Falha ao salvar pessoa.";
+            : PEOPLE_FEEDBACK.error.savePerson;
         setError(message);
         toast({
           variant: "destructive",
@@ -369,7 +383,7 @@ export function PeopleDetailEngineClientPage({
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao salvar pessoa.";
+          : PEOPLE_FEEDBACK.error.savePerson;
       setError(message);
       toast({
         variant: "destructive",
@@ -402,7 +416,7 @@ export function PeopleDetailEngineClientPage({
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao carregar pessoa.";
+          : PEOPLE_FEEDBACK.error.loadPerson;
       setPerson(null);
       setDraft(null);
       setError(message);
@@ -568,16 +582,16 @@ export function PeopleDetailEngineClientPage({
     if (!normalized.fullName) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
-        description: "Informe o nome da pessoa.",
+        title: PEOPLE_FEEDBACK.validation.invalidDataTitle,
+        description: PEOPLE_FEEDBACK.validation.fullNameRequired,
       });
       return;
     }
     if (normalized.status === "Desligado" && !normalized.departureReason?.trim()) {
       toast({
         variant: "destructive",
-        title: "Dados invalidos",
-        description: "Informe o motivo do desligamento.",
+        title: PEOPLE_FEEDBACK.validation.invalidDataTitle,
+        description: PEOPLE_FEEDBACK.validation.departureReasonRequired,
       });
       return;
     }
@@ -610,16 +624,15 @@ export function PeopleDetailEngineClientPage({
         departureReason: normalized.departureReason,
         notes: normalized.notes,
         tags: normalized.tags ?? [],
-        profileSummary: normalized.profileSummary || null,
         avatarUrl,
       });
-      toast({ variant: "success", title: "Pessoa criada" });
+      toast({ variant: "success", title: PEOPLE_FEEDBACK.success.personCreatedTitle });
       router.replace(withTenantPath(`${PEOPLE_ROUTES.detail}/${created.id}`, tenantSlug));
     } catch (nextError) {
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao criar pessoa.";
+          : PEOPLE_FEEDBACK.error.createPerson;
       setError(message);
       toast({ variant: "destructive", title: "Falha ao criar", description: message });
     } finally {
@@ -639,7 +652,7 @@ export function PeopleDetailEngineClientPage({
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao comentar na pessoa.";
+          : PEOPLE_FEEDBACK.error.commentCreate;
       setError(message);
     } finally {
       setCommentSubmitting(false);
@@ -659,7 +672,7 @@ export function PeopleDetailEngineClientPage({
         const message =
           nextError && typeof nextError === "object" && "message" in nextError
             ? String((nextError as { message?: string }).message)
-            : "Falha ao excluir comentario.";
+            : PEOPLE_FEEDBACK.error.commentDelete;
         setError(message);
       } finally {
         setCommentSubmitting(false);
@@ -692,7 +705,7 @@ export function PeopleDetailEngineClientPage({
         const message =
           nextError && typeof nextError === "object" && "message" in nextError
             ? String((nextError as { message?: string }).message)
-            : "Falha ao enviar anexo.";
+            : PEOPLE_FEEDBACK.error.attachmentUpload;
         setError(message);
       } finally {
         setAttachmentUploading(false);
@@ -715,7 +728,7 @@ export function PeopleDetailEngineClientPage({
         const message =
           nextError && typeof nextError === "object" && "message" in nextError
             ? String((nextError as { message?: string }).message)
-            : "Falha ao excluir anexo.";
+            : PEOPLE_FEEDBACK.error.attachmentDelete;
         setError(message);
       } finally {
         setAttachmentUploading(false);

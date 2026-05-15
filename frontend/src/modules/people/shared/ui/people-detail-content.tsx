@@ -14,40 +14,84 @@ import { DetentionsPanel } from "@/modules/people/features/detentions/ui/detenti
 
 type PeopleDetailContentProps = {
   person: Person;
+  relationsEnabled?: boolean;
 };
 
-export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
+function RelationUnavailableNotice() {
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+      Relacoes disponiveis apos salvar o cadastro da pessoa.
+    </div>
+  );
+}
+
+export function PeopleDetailContent({
+  person,
+  relationsEnabled = true,
+}: PeopleDetailContentProps) {
   return (
     <div className="flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       <TabsContent value="familia" className="space-y-6">
-        <FamilyRelationsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <FamilyRelationsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="endereco" className="space-y-6">
-        <HouseholdAddressListPanel personId={person.id} />
+        {relationsEnabled ? (
+          <HouseholdAddressListPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="contatos" className="space-y-6">
-        <ContactsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <ContactsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="financeiro" className="space-y-6">
-        <PeopleFinancialRelationsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <PeopleFinancialRelationsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="saude" className="space-y-6">
-        <HealthConditionsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <HealthConditionsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="medicacoes" className="space-y-6">
-        <MedicationsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <MedicationsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
 
       <TabsContent value="escolaridade" className="space-y-6">
-        <EducationPanel personId={person.id} />
+        {relationsEnabled ? (
+          <EducationPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
       <TabsContent value="reclusao" className="space-y-6">
-        <DetentionsPanel personId={person.id} />
+        {relationsEnabled ? (
+          <DetentionsPanel personId={person.id} />
+        ) : (
+          <RelationUnavailableNotice />
+        )}
       </TabsContent>
     </div>
   );

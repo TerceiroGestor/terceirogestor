@@ -19,6 +19,10 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type FamilyRelationDraftValues = FamilyRelationFormValues & {
+  notes: string;
+};
+
 function initialFormValues(
   relation?: PersonRelation | null,
   householdMember?: HouseholdMember | null,
@@ -34,6 +38,15 @@ function initialFormValues(
     isIncomeContributor: householdMember?.isIncomeContributor ?? false,
     isProvider: householdMember?.isProvider ?? false,
     isDependent: householdMember?.isDependent ?? false,
+  };
+}
+
+function initialDraftValues(
+  relation?: PersonRelation | null,
+  householdMember?: HouseholdMember | null,
+): FamilyRelationDraftValues {
+  return {
+    ...initialFormValues(relation, householdMember),
     notes: relation?.notes ?? "",
   };
 }
@@ -91,9 +104,9 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       ) ?? null,
     [current, data],
   );
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
-  const [draft, setDraft] = React.useState<FamilyRelationFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<FamilyRelationDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(relationId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(relationId || null);
@@ -130,10 +143,10 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
         router.replace(
           withTenantPath(buildPeopleFamilyRelationPath(personId, created.id), tenantSlug),
         );
-        return initialFormValues(created, null);
+        return initialDraftValues(created, null);
       }
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current, currentMember);
+      return initialDraftValues(updated ?? current, currentMember);
     },
     onError: (error) => {
       const message =
@@ -146,7 +159,7 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current, currentMember);
+    const nextDraft = initialDraftValues(current, currentMember);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -154,17 +167,18 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
   }, [current, currentMember, mode, replaceSavedDraft]);
 
   const handleValuesChange = React.useCallback((values: FamilyRelationFormValues) => {
-    setDraft(values);
+    setDraft((previous) => ({ ...previous, ...values }));
   }, [setDraft]);
 
   const handleFieldCommit = React.useCallback(
     (values: FamilyRelationFormValues) => {
-      setDraft(values);
+      const nextDraft: FamilyRelationDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode, setDraft],
+    [commitDraft, draft, mode, setDraft],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -236,15 +250,20 @@ export function FamilyRelationDetailPage({ mode }: { mode: "create" | "edit" }) 
       ) : null}
       {mode === "create" || current ? (
         <FamilyRelationForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current, currentMember)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current, currentMember)
+          }
           peopleOptions={peopleOptions}
           disableRelatedPerson={mode === "edit"}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: FamilyRelationDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

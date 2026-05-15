@@ -5,7 +5,6 @@ export type HealthConditionFormValues = {
   description?: string;
   severity?: string;
   diagnosisDate?: string;
-  notes?: string;
 };
 
 export const healthConditionTypeOptions = [
