@@ -200,35 +200,16 @@ Reduzir fragmentacao documental e facilitar auditoria de ownership por camada.
 
 Frontend:
 
-- actions
 - core
-- deposit
 - nav
-- onboarding
-- pantry
 - people
-- people-groups
-- people-segments
-- programs
-- projects
-- tasks
 
 Backend:
 
-- actions
-- dashboard
-- deposit
-- pantry
 - people
-- people-groups
-- people-segments
 - permissions
-- programs
-- project-structure
-- projects
 - registration
 - roles
-- tasks
 - tenants
 - users
 
@@ -236,21 +217,11 @@ Backend:
 
 Alinhamento direto:
 
-- actions -> actions
-- deposit -> deposit
-- pantry -> pantry
 - people -> people
-- people-groups -> people-groups
-- people-segments -> people-segments
-- programs -> programs
-- projects -> projects
-- tasks -> tasks
 
 Backend sem espelho direto no frontend:
 
-- dashboard
 - permissions
-- project-structure
 - registration
 - roles
 - tenants
@@ -260,7 +231,6 @@ Frontend sem espelho direto no backend:
 
 - core
 - nav
-- onboarding
 
 ### Regras de entrada de novo modulo
 

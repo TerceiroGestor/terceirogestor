@@ -14,15 +14,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { PeopleModule } from './modules/people/people.module';
-import { PantryModule } from './modules/pantry/pantry.module';
-import { DepositModule } from './modules/deposit/deposit.module';
-import { ProgramsModule } from './modules/programs/programs.module';
-import { PeopleSegmentsModule } from './modules/people-segments/people-segments.module';
-import { PeopleGroupsModule } from './modules/people-groups/people-groups.module';
-import { ProjectsModule } from './modules/projects/projects.module';
-import { ProjectStructureModule } from './modules/project-structure/project-structure.module';
 import { RegistrationModule } from './modules/registration/registration.module';
-import { ActionsModule } from './modules/actions/actions.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -36,26 +28,6 @@ import { RequestContextInterceptor } from './core/request-context/request-contex
 import { RateLimitModule } from './core/rate-limit/rate-limit.module';
 import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
 import { CepModule } from './core/cep/cep.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { TasksModule } from './modules/tasks/tasks.module';
-
-// People First: desativa bootstrap de modulos congelados por padrao.
-const PEOPLE_FIRST_MODE = (process.env.PEOPLE_FIRST_MODE ?? 'true').toLowerCase() !== 'false';
-
-const FROZEN_DOMAIN_MODULES = [
-  PantryModule,
-  DepositModule,
-  ProgramsModule,
-  PeopleSegmentsModule,
-  PeopleGroupsModule,
-  ProjectsModule,
-  ProjectStructureModule,
-  ActionsModule,
-  DashboardModule,
-  TasksModule,
-] as const;
-
-const ACTIVE_DOMAIN_MODULES = PEOPLE_FIRST_MODE ? [] : FROZEN_DOMAIN_MODULES;
 
 const rootEnvFilePaths = [
   resolve(__dirname, '..', '.env.local'),
@@ -83,7 +55,6 @@ const rootEnvFilePaths = [
     TenantsModule,
     PeopleModule,
     RegistrationModule,
-    ...ACTIVE_DOMAIN_MODULES,
     FilesModule,
     AuditModule,
     RequestContextModule,
