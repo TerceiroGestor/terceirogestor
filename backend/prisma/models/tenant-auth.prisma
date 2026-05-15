@@ -1,0 +1,144 @@
+model Tenant {
+  id                    String       @id @default(uuid()) @db.Char(36)
+  name                  String       @unique
+  slug                  String       @unique
+  logoUrl               String?
+  cnpj                  String?
+  startYear             Int?
+  description           String?      @db.Text
+  status                TenantStatus @default(ACTIVE)
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  users                     User[]
+  roles                     Role[]
+  mfaTotpSetups             UserMfaTotpSetup[]
+  mfaChallenges             UserMfaChallenge[]
+  trustedDevices            UserTrustedDevice[]
+  mfaRecoveryCodes          UserMfaRecoveryCode[]
+  people                    Person[]
+  personContacts            PersonContact[]
+  personComments            PersonComment[]
+  personAttachments         PersonAttachment[]
+  personRecordComments      PersonRecordComment[]
+  personRecordAttachments   PersonRecordAttachment[]
+  personRecordTags          PersonRecordTag[]
+  personSensitiveDocuments  PersonSensitiveDocument[]
+  personSensitiveAccessLogs PersonSensitiveAccessLog[]
+  rolePermissions           RolePermission[]
+  userRoles                 UserRole[]
+  households                Household[]
+  householdMembers          HouseholdMember[]
+  householdProfiles         HouseholdProfile[]
+  personRelations           PersonRelation[]
+  personFinancialEntries    PersonFinancialEntry[]
+  personIncomes             PersonIncome[]
+  personExpenses            PersonExpense[]
+  personBenefits            PersonBenefit[]
+  personDetentions          PersonDetention[]
+  householdAssets           HouseholdAsset[]
+  personAssets              PersonAsset[]
+  householdTransfers        HouseholdTransfer[]
+  personHealthConditions    PersonHealthCondition[]
+  personMedications         PersonMedication[]
+  personEducations          PersonEducation[]
+  userSessions              UserSession[]
+  passwordResetTokens       PasswordResetToken[]
+  accessLogs                AccessLog[]
+  auditLogs                 AuditLog[]
+
+  @@index([status])
+}
+
+model User {
+  id                String    @id @default(uuid()) @db.Char(36)
+  tenantId          String    @db.Char(36)
+  name              String?
+  email             String
+  phone             String?
+  bio               String?   @db.Text
+  passwordHash      String
+  avatarUrl         String?
+  isActive          Boolean   @default(true)
+  mfaTotpEnabled    Boolean   @default(false)
+  mfaTotpSecretEnc  String?   @db.Text
+  mfaTotpVerifiedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id])
+  roles                     UserRole[]
+  sessions                  UserSession[]
+  passwordResetTokens       PasswordResetToken[]
+  accessLogs                AccessLog[]
+  auditLogs                 AuditLog[]
+  mfaTotpSetups             UserMfaTotpSetup[]
+  mfaChallenges             UserMfaChallenge[]
+  trustedDevices            UserTrustedDevice[]
+  recoveryCodes             UserMfaRecoveryCode[]
+  personSensitiveAccessLogs PersonSensitiveAccessLog[]
+  personComments            PersonComment[]
+  personAttachments         PersonAttachment[]
+  personRecordComments      PersonRecordComment[]
+  personRecordAttachments   PersonRecordAttachment[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Char(36)
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Char(36)
+  tenantId     String   @db.Char(36)
+  roleId       String   @db.Char(36)
+  permissionId String   @db.Char(36)
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([tenantId, roleId, permissionId])
+  @@index([tenantId])
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  roleId    String   @db.Char(36)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([tenantId, userId, roleId])
+  @@index([tenantId])
+}

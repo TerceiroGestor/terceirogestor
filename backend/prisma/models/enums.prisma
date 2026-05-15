@@ -1,0 +1,65 @@
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IncomeFrequency {
+  MONTHLY
+  WEEKLY
+  BIWEEKLY
+  ANNUAL
+  ONCE
+}
+
+enum PersonFinancialEntryType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  BENEFIT
+}
+
+enum AccessLogAction {
+  LOGIN
+  REFRESH
+  LOGOUT
+}
+
+enum AuditLogAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum TenantRegistrationMethod {
+  EMAIL
+  GOOGLE
+  MICROSOFT
+}
+
+enum TenantRegistrationStatus {
+  PENDING_OAUTH
+  PENDING_VERIFICATION
+  CONFIRMED
+  EXPIRED
+}
+
+enum PersonContactType {
+  EMAIL
+  PHONE
+}
+
+enum PersonContactRole {
+  SELF
+  RESPONSIBLE
+  EMERGENCY
+}
+
+enum SensitiveAccessAction {
+  READ
+  UPDATE
+}
+
+enum HouseholdTransferType {
+  PENSION
+  TRANSFER
+}

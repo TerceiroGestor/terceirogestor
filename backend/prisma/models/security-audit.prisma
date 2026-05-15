@@ -1,0 +1,188 @@
+model UserSession {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
+  expiresAt  DateTime
+  ipAddress  String?
+  userAgent  String?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  revokedAt  DateTime?
+  ipAddress  String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AccessLog {
+  id        String          @id @default(uuid()) @db.Char(36)
+  tenantId  String          @db.Char(36)
+  userId    String          @db.Char(36)
+  action    AccessLogAction
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime        @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String         @id @default(uuid()) @db.Char(36)
+  tenantId  String         @db.Char(36)
+  userId    String?        @db.Char(36)
+  entity    String
+  entityId  String?        @db.Char(36)
+  action    AuditLogAction
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?
+  requestId String?
+  createdAt DateTime       @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+model TenantRegistration {
+  id     String                   @id @default(uuid()) @db.Char(36)
+  method TenantRegistrationMethod
+  status TenantRegistrationStatus @default(PENDING_VERIFICATION)
+
+  tenantName String
+  tenantSlug String
+
+  adminName         String?
+  adminEmail        String?
+  adminPasswordHash String?
+
+  oauthProviderSub String?
+  oauthStateHash   String?
+
+  verificationCodeHash      String?
+  verificationCodeExpiresAt DateTime?
+
+  tenantId    String?   @db.Char(36)
+  adminUserId String?   @db.Char(36)
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([adminEmail])
+  @@index([tenantSlug])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserMfaTotpSetup {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  userId    String   @db.Char(36)
+  secretEnc String   @db.Text
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserMfaChallenge {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  type       String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserTrustedDevice {
+  id         String    @id @default(uuid()) @db.Char(36)
+  tenantId   String    @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @db.VarChar(128)
+  label      String?
+  ipAddress  String?
+  userAgent  String?
+  lastUsedAt DateTime?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tokenHash])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserMfaRecoveryCode {
+  id        String    @id @default(uuid()) @db.Char(36)
+  tenantId  String    @db.Char(36)
+  userId    String    @db.Char(36)
+  codeHash  String    @db.VarChar(128)
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, codeHash])
+  @@index([tenantId])
+  @@index([userId])
+}

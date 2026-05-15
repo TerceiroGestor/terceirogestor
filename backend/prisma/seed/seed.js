@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const bcrypt = __importStar(require("bcrypt"));
-const prisma_runtime_1 = require("../scripts/prisma-runtime");
+const prisma_runtime_1 = require("../../scripts/prisma-runtime");
 const prisma = (0, prisma_runtime_1.createPrismaClientFromEnv)();
 async function main() {
     const tenantId = '2fad98c9-5d6c-4f76-8c46-00fb80d0509b';
