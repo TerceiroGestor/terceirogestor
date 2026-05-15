@@ -1,7 +1,7 @@
 # Baseline Onda 0 - People First
 
 Data de referencia: 2026-05-13
-Status: concluida tecnicamente
+Status: concluida e consolidada
 
 ## 1. Escopo do baseline
 
@@ -16,37 +16,18 @@ Este baseline cobre:
 
 ### Backend (`backend/src/modules`)
 
-- actions
-- dashboard
-- deposit
-- pantry
 - people
-- people-groups
-- people-segments
 - permissions
-- programs
-- project-structure
-- projects
 - registration
 - roles
-- tasks
 - tenants
 - users
 
 ### Frontend (`frontend/src/modules`)
 
-- actions
 - core
-- deposit
 - nav
-- onboarding
-- pantry
 - people
-- people-groups
-- people-segments
-- programs
-- projects
-- tasks
 
 ## 3. Contratos tecnicos validados para `people`
 
@@ -102,13 +83,13 @@ Cobertura de testes:
 
 ### Alta
 
-- remocao abrupta de modulos fora de `people` quebrar bootstrap do backend (`AppModule`) e navegacao global (`registry.ts`)
-- dependencias indiretas de componentes de `projects/actions` para utilitarios visuais de `people` (ex.: avatar/idade)
+- remocao fisica de modulos congelados exige limpeza consistente de schema, bootstrap e app router
+- dependencias indiretas residuais de modulos removidos podem manter imports quebrados se a exclusao nao for completa
 
 ### Media
 
-- desalinhamento entre tabs relacionais e rotas disponiveis no app router em futuras limpezas
-- perda de rastreabilidade caso exclusao de modulo ocorra sem fase de desacoplamento
+- desalinhamento documental entre catalogo oficial e estado real do repositorio apos a remocao
+- necessidade de migration destrutiva para alinhar banco ao baseline MVP
 
 ### Baixa
 
@@ -119,17 +100,15 @@ Cobertura de testes:
 Itens concluidos nesta onda:
 
 - inventario e baseline do dominio `people`
-- congelamento operacional frontend na navegacao
-- congelamento operacional backend no bootstrap (People First por flag)
-- gate automatizado de CI para bloquear alteracoes em modulos congelados
-- checklist de validacao versionado para frontend e backend/CI
+- congelamento operacional inicial para proteger a onda 0
+- remocao definitiva dos modulos congelados no backend, frontend e app router
+- simplificacao do bootstrap para o baseline MVP sem `People First` por flag
+- retirada do gate temporario de congelamento apos consolidacao da remocao
 
 Evidencias:
 
-- `frontend/src/modules/registry.ts`
 - `backend/src/app.module.ts`
-- `.github/workflows/frozen-modules-gate.yml`
-- `.github/scripts/check-frozen-modules.js`
+- `backend/prisma/schema.prisma`
 - `development/checklist-congelamento-operacional-frontend.md`
 - `development/checklist-congelamento-backend-ci-onda-0.md`
 
@@ -141,5 +120,5 @@ Evidencias:
 - [x] baseline salvo em documento versionado em `development/`
 - [x] congelamento operacional frontend aplicado
 - [x] congelamento operacional backend aplicado
-- [x] gate automatizado de CI aplicado
+- [x] remocao definitiva dos modulos congelados concluida para consolidar o MVP
 

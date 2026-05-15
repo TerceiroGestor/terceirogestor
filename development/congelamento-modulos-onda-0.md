@@ -1,21 +1,21 @@
 # Congelamento de Modulos - Onda 0
 
 Data: 2026-05-13
-Status: ativo
+Status: encerrado por remocao
 
 ## 1. Objetivo
 
-Congelar evolucao funcional de modulos fora do foco `people` para reduzir dispersao, preservar estabilidade e permitir refatoracao controlada.
+Congelar temporariamente a evolucao funcional de modulos fora do foco `people` para viabilizar a consolidacao do MVP e sua remocao definitiva.
 
-## 2. Regra de congelamento
+## 2. Resultado final da estrategia
 
-Enquanto o programa `People First` estiver ativo:
+O congelamento cumpriu seu papel como etapa de transicao. A decisao atual do projeto e:
 
-- nao iniciar novas features em modulos fora de `people`
-- nao executar refatoracao ampla fora de `people`
-- correcoes fora de `people` apenas se bloquearem operacao de `people` ou seguranca/compliance
+- manter apenas o nucleo MVP em execucao
+- remover fisicamente os modulos congelados
+- alinhar frontend, backend e banco ao mesmo escopo operacional
 
-## 3. Modulos congelados (backend)
+## 3. Modulos removidos (backend)
 
 - actions
 - dashboard
@@ -23,26 +23,15 @@ Enquanto o programa `People First` estiver ativo:
 - pantry
 - people-groups
 - people-segments
-- permissions
 - programs
 - project-structure
 - projects
-- registration
-- roles
 - tasks
-- tenants
-- users
 
-Excecao:
-
-- `permissions`, `registration`, `roles`, `tenants`, `users` podem receber ajustes minimos estritamente necessarios para seguranca/autenticacao/autorizacao do fluxo `people`.
-
-## 4. Modulos congelados (frontend)
+## 4. Modulos removidos (frontend)
 
 - actions
-- core (exceto o que impacta autenticacao/seguranca)
 - deposit
-- nav (exceto ajustes de ocultacao/control-plane)
 - onboarding
 - pantry
 - people-groups
@@ -51,7 +40,24 @@ Excecao:
 - projects
 - tasks
 
-## 5. Estrategia de transicao
+## 5. Modulos mantidos
+
+Backend:
+
+- people
+- permissions
+- registration
+- roles
+- tenants
+- users
+
+Frontend:
+
+- core
+- nav
+- people
+
+## 6. Estrategia de transicao executada
 
 ### Fase A - Congelar
 
@@ -65,24 +71,27 @@ Excecao:
 
 ### Fase C - Remover
 
-- excluir modulo apenas apos validacao de impacto e checklist de ruptura
+- excluir modulo apos validacao de impacto, limpeza de referencias e alinhamento documental
 
-## 6. Guardrails de engenharia
+## 7. Guardrails de engenharia
 
-- toda alteracao fora de `people` deve explicitar justificativa vinculada a seguranca, tenancy ou compliance
-- PR sem justificativa valida fora do escopo deve ser reprovado
-- qualquer ajuste fora de `people` deve ser o menor patch possivel
+- toda alteracao fora de `people` deve explicitar justificativa vinculada ao nucleo MVP
+- o catalogo oficial de modulos deve permanecer alinhado entre docs e codigo
+- qualquer reintroducao de modulo removido exige nova decisao arquitetural registrada
 
-## 7. Execucao tecnica aplicada
+## 8. Execucao tecnica aplicada
 
 Backend:
 
-- congelamento operacional aplicado no bootstrap em `backend/src/app.module.ts`
-- modulos congelados ficam desativados quando `PEOPLE_FIRST_MODE=true` (padrao)
-- rollback controlado disponivel com `PEOPLE_FIRST_MODE=false`
+- congelamento operacional aplicado inicialmente no bootstrap em `backend/src/app.module.ts`
+- bootstrap simplificado para manter apenas os modulos do MVP
+- schema Prisma em limpeza para remover os dominios congelados
+
+Frontend:
+
+- navegacao e registro institucional reduzidos ao escopo `people`
+- app router em limpeza para eliminar rotas de modulos removidos
 
 CI:
 
-- gate automatizado publicado em `.github/workflows/frozen-modules-gate.yml`
-- checagem de paths congelados publicada em `.github/scripts/check-frozen-modules.js`
-- PR/push com alteracao em modulo congelado passa a falhar automaticamente
+- gate temporario de congelamento removido por nao fazer mais sentido apos a exclusao fisica dos modulos

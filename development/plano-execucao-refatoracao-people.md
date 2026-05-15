@@ -280,9 +280,9 @@ Um item so e considerado concluido quando:
 - checklist frontend publicado em `development/checklist-congelamento-operacional-frontend.md`
 - checklist backend+ci publicado em `development/checklist-congelamento-backend-ci-onda-0.md`
 
-Status: concluida tecnicamente
+Status: concluida tecnicamente e em consolidacao final do baseline MVP
 
 Pendencias remanescentes (nao bloqueiam encerramento tecnico da Onda 0):
 
+- gerar e aplicar migration destrutiva para refletir a remocao no banco
 - aferir baseline de cobertura de testes para `people`
-- validar ruptura em ambiente homologado por etapa de desacoplamento
