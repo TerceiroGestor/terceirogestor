@@ -17,6 +17,10 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type EducationDraftValues = EducationFormValues & {
+  notes: string;
+};
+
 function initialFormValues(item?: EducationRecord): EducationFormValues {
   return {
     level: item?.level ?? "",
@@ -27,6 +31,12 @@ function initialFormValues(item?: EducationRecord): EducationFormValues {
     isCurrent: item?.isCurrent ?? true,
     startDate: item?.startDate?.slice(0, 10) ?? "",
     endDate: item?.endDate?.slice(0, 10) ?? "",
+  };
+}
+
+function initialDraftValues(item?: EducationRecord): EducationDraftValues {
+  return {
+    ...initialFormValues(item),
     notes: item?.notes ?? "",
   };
 }
@@ -63,7 +73,7 @@ const EDUCATION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
   pagination: { limit: 120 },
 };
 
-function normalizeDraft(values: EducationFormValues): EducationFormValues {
+function normalizeDraft(values: EducationDraftValues): EducationDraftValues {
   return {
     ...values,
     level: values.level.trim(),
@@ -87,7 +97,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
   const { educations, isLoading, error, create, update } = useEducation(personId, {
     enabled: Boolean(personId),
   });
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   const current = React.useMemo(
     () => educations.find((item) => item.id === educationId) ?? null,
@@ -98,7 +108,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
     tenantSlug,
   );
 
-  const [draft, setDraft] = React.useState<EducationFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<EducationDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(educationId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(educationId || null);
@@ -129,10 +139,10 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
         relationIdRef.current = created.id;
         setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleEducationPath(personId, created.id), tenantSlug));
-        return initialFormValues(created);
+        return initialDraftValues(created);
       }
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (nextError) => {
       const message =
@@ -145,7 +155,7 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -154,19 +164,20 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   const handleValuesChange = React.useCallback(
     (values: EducationFormValues) => {
-      setDraft(values);
+      setDraft((previous) => ({ ...previous, ...values }));
     },
     [],
   );
 
   const handleFieldCommit = React.useCallback(
     (values: EducationFormValues) => {
-      setDraft(values);
+      const nextDraft: EducationDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode],
+    [commitDraft, draft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -217,16 +228,21 @@ export function EducationDetailPage({ mode }: { mode: "create" | "edit" }) {
       ) : null}
       {mode === "create" || current ? (
         <EducationForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current ?? undefined)
+          }
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: EducationDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

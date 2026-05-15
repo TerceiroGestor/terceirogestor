@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { FileBadge2, UserRound } from "lucide-react";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +35,13 @@ import type {
   PersonFormData,
   PersonMentionableUser,
 } from "@/modules/people/shared/domain/types";
-import { formatDate, getAgeFromBirthDate, isBirthdayToday, resolvePersonDisplayNames } from "@/modules/people/shared/domain/utils";
+import {
+  formatDate,
+  formatInstantDate,
+  getAgeFromBirthDate,
+  isBirthdayToday,
+  resolvePersonDisplayNames,
+} from "@/modules/people/shared/domain/utils";
 import { PersonSensitiveDocumentsInlineForm } from "@/modules/people/features/sensitive-documents/ui/person-sensitive-documents-inline-form";
 import type { PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
 import { PeopleDetailContent } from "@/modules/people/shared/ui/people-detail-content";
@@ -110,6 +117,16 @@ const AUTO_EDITING = {
     trigger: "field-commit",
   },
 } as const;
+
+function resolveAuditIds(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
 function areMentionableUsersEqual(
   left: PersonMentionableUser[],
@@ -331,32 +348,32 @@ function IdentificationStep({
         />
       </SectionField>
 
-      <SectionField label="Status">
-        <Select
-          value={draft.status ?? "__empty__"}
-          onValueChange={(next) => {
-            const nextValue = next === "__empty__" ? null : (next as PersonFormData["status"]);
-            onDraftChange((previous) => ({ ...previous, status: nextValue }));
-            onCommitField?.("status", nextValue);
-          }}
-          disabled={readOnly}
-        >
-          <SelectTrigger className={lineInputClassName}>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__empty__">Sem status</SelectItem>
-            {STATUS_OPTIONS.filter((option) => option !== "Em analise").map((option) => (
-              <SelectItem key={option} value={option}>
-                {STATUS_LABELS[option] ?? option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SectionField>
+      <div className="xl:col-span-2 grid gap-6">
+        <SectionField label="Status">
+          <Select
+            value={draft.status ?? "__empty__"}
+            onValueChange={(next) => {
+              const nextValue = next === "__empty__" ? null : (next as PersonFormData["status"]);
+              onDraftChange((previous) => ({ ...previous, status: nextValue }));
+              onCommitField?.("status", nextValue);
+            }}
+            disabled={readOnly}
+          >
+            <SelectTrigger className={lineInputClassName}>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__empty__">Sem status</SelectItem>
+              {STATUS_OPTIONS.filter((option) => option !== "Em analise").map((option) => (
+                <SelectItem key={option} value={option}>
+                  {STATUS_LABELS[option] ?? option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SectionField>
 
-      {draft.status === "Desligado" ? (
-        <div className="xl:col-span-2">
+        {draft.status === "Desligado" ? (
           <SectionField label="Motivo do desligamento">
             <Textarea
               value={draft.departureReason ?? ""}
@@ -366,8 +383,8 @@ function IdentificationStep({
               readOnly={readOnly}
             />
           </SectionField>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -478,6 +495,7 @@ function PeopleDetailMain({
       {
         key: "identification",
         title: "Visão geral",
+        icon: <UserRound className="size-3.5" />,
         description: "Identificação, status e dados essenciais do beneficiário.",
       },
       ...(canReadSensitiveDocuments
@@ -485,6 +503,7 @@ function PeopleDetailMain({
             {
               key: "sensitive",
               title: "Documentos",
+              icon: <FileBadge2 className="size-3.5" />,
               badge: "LGPD",
               description:
                 mode === "create"
@@ -513,36 +532,51 @@ function PeopleDetailMain({
     }
   }, [formStep, steps]);
 
+  const relationsEnabled = mode === "edit";
+
+  const mainContent = (
+    <div className="space-y-6">
+      <DetailFormSteps
+        steps={steps}
+        value={formStep}
+        onValueChange={setFormStep}
+        showActiveDescription={false}
+      />
+
+      <PeopleInlineForm
+        step={formStep}
+        mode={mode}
+        personId={person.id}
+        draft={draft}
+        readOnly={readOnly}
+        canReadSensitiveDocuments={canReadSensitiveDocuments}
+        canUpdateSensitiveDocuments={canUpdateSensitiveDocuments}
+        onDraftChange={onDraftChange}
+        onCommitField={onCommitField}
+        onCommitDraft={onCommitDraft}
+      />
+
+      <Tabs
+        value={tabValue}
+        onValueChange={(value) => onTabChange(value as PeopleDetailTabValue)}
+        className="flex flex-col gap-4"
+      >
+        <div className="shrink-0">
+          <PeopleDetailTabs onValueChange={onTabChange} />
+        </div>
+        <PeopleDetailContent person={person} relationsEnabled={relationsEnabled} />
+      </Tabs>
+    </div>
+  );
+
   return (
-    <FamilyRelationsProvider personId={person.id} initialMode="summary">
-      <div className="space-y-6">
-        <DetailFormSteps steps={steps} value={formStep} onValueChange={setFormStep} />
-
-        <PeopleInlineForm
-          step={formStep}
-          mode={mode}
-          personId={person.id}
-          draft={draft}
-          readOnly={readOnly}
-          canReadSensitiveDocuments={canReadSensitiveDocuments}
-          canUpdateSensitiveDocuments={canUpdateSensitiveDocuments}
-          onDraftChange={onDraftChange}
-          onCommitField={onCommitField}
-          onCommitDraft={onCommitDraft}
-        />
-
-        <Tabs
-          value={tabValue}
-          onValueChange={(value) => onTabChange(value as PeopleDetailTabValue)}
-          className="flex flex-col gap-4"
-        >
-          <div className="shrink-0">
-            <PeopleDetailTabs onValueChange={onTabChange} />
-          </div>
-          <PeopleDetailContent person={person} />
-        </Tabs>
-      </div>
-    </FamilyRelationsProvider>
+    mode === "edit" ? (
+      <FamilyRelationsProvider personId={person.id} initialMode="summary">
+        {mainContent}
+      </FamilyRelationsProvider>
+    ) : (
+      mainContent
+    )
   );
 }
 
@@ -820,6 +854,7 @@ export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
 export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> = {
   editing: AUTO_EDITING,
   header: {
+    inlineInfo: true,
     title: ({ person }) => resolvePersonDisplayNames(person.fullName, person.socialName).primary,
     leadingSlot: ({ person, readOnly, avatarUploading, onAvatarFileSelect }) => (
       <div className="mt-2">
@@ -834,8 +869,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       </div>
     ),
     slot: ({ person }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+      <div className="inline-flex min-h-9 max-w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs">
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Status</div>
             <div className="font-medium text-foreground">{person.status ?? "Sem status"}</div>
@@ -850,9 +884,8 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
           </div>
           <div className="flex items-center gap-2">
             <div className="text-muted-foreground">Cadastro</div>
-            <div className="font-medium text-foreground">{formatDate(person.createdAt) ?? "-"}</div>
+            <div className="font-medium text-foreground">{formatInstantDate(person.createdAt) ?? "-"}</div>
           </div>
-        </div>
       </div>
     ),
   },
@@ -944,7 +977,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         avatarUrl: (value) =>
           typeof value === "string" && value.trim() ? "Foto definida" : "Sem foto",
       },
-      resolveEntityId: ({ person }) => person.id,
+      resolveEntityId: ({ person }) => person.id?.trim(),
     },
     relatedEntities: [
       {
@@ -952,56 +985,64 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         entity: "PersonComment",
         model: "audit.logs",
         label: "Comentario",
-        resolveEntityIds: ({ person }) => (person.comments ?? []).map((item) => item.id),
+        resolveEntityIds: ({ person }) =>
+          resolveAuditIds((person.comments ?? []).map((item) => item.id)),
       },
       {
         key: "attachment",
         entity: "PersonAttachment",
         model: "audit.logs",
         label: "Anexo",
-        resolveEntityIds: ({ person }) => (person.attachments ?? []).map((item) => item.id),
+        resolveEntityIds: ({ person }) =>
+          resolveAuditIds((person.attachments ?? []).map((item) => item.id)),
       },
       {
         key: "financialEntry",
         entity: "PersonFinancialEntry",
         model: "audit.logs",
         label: "Financeiro",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.financialEntryIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.financialEntryIds),
       },
       {
         key: "healthCondition",
         entity: "PersonHealthCondition",
         model: "audit.logs",
         label: "Saúde",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.healthConditionIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.healthConditionIds),
       },
       {
         key: "medication",
         entity: "PersonMedication",
         model: "audit.logs",
         label: "Medicação",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.medicationIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.medicationIds),
       },
       {
         key: "education",
         entity: "PersonEducation",
         model: "audit.logs",
         label: "Escolaridade",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.educationIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.educationIds),
       },
       {
         key: "detention",
         entity: "PersonDetention",
         model: "audit.logs",
         label: "Reclusão",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.detentionIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.detentionIds),
       },
       {
         key: "relation",
         entity: "PersonRelation",
         model: "audit.logs",
         label: "Familia",
-        resolveEntityIds: ({ relatedAuditEntityIds }) => relatedAuditEntityIds.relationIds,
+        resolveEntityIds: ({ relatedAuditEntityIds }) =>
+          resolveAuditIds(relatedAuditEntityIds.relationIds),
       },
     ],
     sort: [{ field: "createdAt", direction: "desc" }],

@@ -16,12 +16,22 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type HealthConditionDraftValues = HealthConditionFormValues & {
+  notes: string;
+};
+
 function initialFormValues(item?: HealthCondition): HealthConditionFormValues {
   return {
     type: item?.type ?? "",
     description: item?.description ?? "",
     severity: item?.severity ?? "",
     diagnosisDate: item?.diagnosisDate?.slice(0, 10) ?? "",
+  };
+}
+
+function initialDraftValues(item?: HealthCondition): HealthConditionDraftValues {
+  return {
+    ...initialFormValues(item),
     notes: item?.notes ?? "",
   };
 }
@@ -56,7 +66,7 @@ const HEALTH_CONDITION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
   pagination: { limit: 120 },
 };
 
-function normalizeDraft(values: HealthConditionFormValues): HealthConditionFormValues {
+function normalizeDraft(values: HealthConditionDraftValues): HealthConditionDraftValues {
   return {
     ...values,
     type: values.type.trim(),
@@ -82,14 +92,14 @@ export function HealthConditionDetailPage({
   const { conditions, isLoading, error, create, update } = useHealthConditions(personId, {
     enabled: Boolean(personId),
   });
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   const current = React.useMemo(
     () => conditions.find((item) => item.id === conditionId) ?? null,
     [conditionId, conditions],
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "saude"), tenantSlug);
-  const [draft, setDraft] = React.useState<HealthConditionFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<HealthConditionDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(conditionId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(conditionId || null);
@@ -121,11 +131,11 @@ export function HealthConditionDetailPage({
         setActiveRelationId(created.id);
         const nextPath = withTenantPath(buildPeopleHealthConditionPath(personId, created.id), tenantSlug);
         router.replace(nextPath);
-        return initialFormValues(created);
+        return initialDraftValues(created);
       }
 
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (nextError) => {
       const message =
@@ -138,7 +148,7 @@ export function HealthConditionDetailPage({
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -147,19 +157,20 @@ export function HealthConditionDetailPage({
 
   const handleValuesChange = React.useCallback(
     (values: HealthConditionFormValues) => {
-      setDraft(values);
+      setDraft((previous) => ({ ...previous, ...values }));
     },
     [],
   );
 
   const handleFieldCommit = React.useCallback(
     (values: HealthConditionFormValues) => {
-      setDraft(values);
+      const nextDraft: HealthConditionDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode],
+    [commitDraft, draft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -213,16 +224,21 @@ export function HealthConditionDetailPage({
       ) : null}
       {mode === "create" || current ? (
         <HealthConditionForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current ?? undefined)
+          }
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: HealthConditionDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

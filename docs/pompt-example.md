@@ -1,28 +1,19 @@
-@file:desenvolvimento-orientado-contratos.agent.md 
-
 CONTEXTO:
 docs/people/feature-beneficiario.md
 
 OBJETIVO DA FEATURE:
-Garantir o cadastro correto de beneficiários com fluxo consistente e previsível.
+Confirmar se todas as funcionalidades de beneficiario estão resolvidas e funcionando de acordor para validar se existem pendencias ou se já fechamos essa feature.
 
 TAREFA:
-Revisar a funcionalidade de criação de beneficiário considerando:
+Revisar a funcionalidade do beneficiario, criação, edição, relacionamentos e metadados.
 
 - O fluxo correto deve ser:
-  → criação apenas via clique no botão "Save"
-  → NÃO deve ocorrer autosave na criação
+  → Criar beneficiario
+  → Atualizar
+  → Relacionamentos todos funconando
+  → Metados funcionando
 
-VALIDAÇÕES:
-
-1. Verificar se existe qualquer lógica de autosave na criação
-2. Garantir que a persistência só ocorre após ação explícita do usuário
-3. Validar possíveis efeitos colaterais:
-   - criação parcial de registros
-   - múltiplas gravações
-   - inconsistência de estado
-
-4. Conferir aderência com:
+- Conferir aderência com:
    - conventions.md
    - patterns.md (ex: DataProvider, DetailShell)
    - decisions.md (fluxo de criação)

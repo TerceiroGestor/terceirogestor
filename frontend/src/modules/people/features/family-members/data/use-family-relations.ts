@@ -130,6 +130,12 @@ const mergeRelationsResponse = (
 });
 
 const shouldLogLoad = () => process.env.NODE_ENV !== "production";
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isPersistedPersonId(personId: string) {
+  return UUID_V4_REGEX.test(personId);
+}
 
 export function useFamilyRelations(
   personId: string,
@@ -138,6 +144,10 @@ export function useFamilyRelations(
   const { token } = useAuth();
   const autoLoad = options?.autoLoad ?? true;
   const initialMode: LoadMode = options?.initialMode ?? "summary";
+  const canLoadRelations = React.useMemo(
+    () => isPersistedPersonId(personId),
+    [personId],
+  );
 
   const [data, setData] = React.useState<PersonRelationsResponse | null>(null);
   const [peopleOptions, setPeopleOptions] = React.useState<PersonSummary[]>([]);
@@ -175,7 +185,7 @@ export function useFamilyRelations(
   }, []);
 
   const loadPeopleOptions = React.useCallback(async () => {
-    if (!token || peopleLoaded) return;
+    if (!token || peopleLoaded || !canLoadRelations) return;
     try {
       const response = await listPeople(token, { all: true });
       const index = buildPeopleIndex(response.data);
@@ -200,11 +210,11 @@ export function useFamilyRelations(
     } catch {
       setPeopleOptions([]);
     }
-  }, [token, peopleLoaded, personId]);
+  }, [token, peopleLoaded, personId, canLoadRelations]);
 
   const loadSummary = React.useCallback(
     async (force = false) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       if (summaryLoaded && !force) return;
       setSummaryLoading(true);
       setSummaryError(null);
@@ -227,12 +237,12 @@ export function useFamilyRelations(
         setSummaryLoaded(true);
       }
     },
-    [token, personId, summaryLoaded, logLoad],
+    [token, personId, summaryLoaded, logLoad, canLoadRelations],
   );
 
   const loadDetailed = React.useCallback(
     async (force = false) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       if (detailedLoaded && !force) return;
       setDetailedLoading(true);
       setDetailedError(null);
@@ -288,6 +298,7 @@ export function useFamilyRelations(
       token,
       personId,
       detailedLoaded,
+      canLoadRelations,
       incomeSummary,
       householdProfile,
       loadPeopleOptions,
@@ -296,17 +307,18 @@ export function useFamilyRelations(
   );
 
   const refresh = React.useCallback(async () => {
+    if (!canLoadRelations) return;
     await Promise.all([loadSummary(true), loadDetailed(true)]);
-  }, [loadSummary, loadDetailed]);
+  }, [loadSummary, loadDetailed, canLoadRelations]);
 
   React.useEffect(() => {
-    if (!autoLoad || !token) return;
+    if (!autoLoad || !token || !canLoadRelations) return;
     if (initialMode === "detailed") {
       loadDetailed();
     } else {
       loadSummary();
     }
-  }, [autoLoad, token, initialMode, loadDetailed, loadSummary]);
+  }, [autoLoad, token, initialMode, loadDetailed, loadSummary, canLoadRelations]);
 
   React.useEffect(() => {
     peopleIndexRef.current = peopleIndex;
@@ -321,7 +333,7 @@ export function useFamilyRelations(
 
   const create = React.useCallback(
     async (payload: PersonRelationInput) => {
-      if (!token) return null;
+      if (!token || !canLoadRelations) return null;
       const created = await createPersonRelation(token, personId, payload);
       setData((previous) =>
         previous
@@ -349,12 +361,12 @@ export function useFamilyRelations(
       );
       return created;
     },
-    [token, personId, peopleOptions],
+    [token, personId, peopleOptions, canLoadRelations],
   );
 
   const update = React.useCallback(
     async (relationId: string, payload: Partial<PersonRelationInput>) => {
-      if (!token) return null;
+      if (!token || !canLoadRelations) return null;
       const updated = await updatePersonRelation(token, personId, relationId, payload);
       setData((previous) =>
         previous
@@ -378,60 +390,60 @@ export function useFamilyRelations(
       );
       return updated;
     },
-    [token, personId, peopleOptions],
+    [token, personId, peopleOptions, canLoadRelations],
   );
 
   const remove = React.useCallback(
     async (relationId: string) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await deletePersonRelation(token, personId, relationId);
     },
-    [token, personId],
+    [token, personId, canLoadRelations],
   );
 
   const upsertHouseholdProfileHandler = React.useCallback(
     async (payload: Partial<HouseholdProfile>) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await upsertHouseholdProfile(token, personId, payload);
       await refresh();
     },
-    [token, personId, refresh],
+    [token, personId, refresh, canLoadRelations],
   );
 
   const createHouseholdAssetHandler = React.useCallback(
     async (payload: AssetInput) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await createHouseholdAsset(token, personId, payload);
       await refresh();
     },
-    [token, personId, refresh],
+    [token, personId, refresh, canLoadRelations],
   );
 
   const updateHouseholdAssetHandler = React.useCallback(
     async (assetId: string, payload: Partial<AssetInput>) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await updateHouseholdAsset(token, personId, assetId, payload);
       await refresh();
     },
-    [token, personId, refresh],
+    [token, personId, refresh, canLoadRelations],
   );
 
   const removeHouseholdAssetHandler = React.useCallback(
     async (assetId: string) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await deleteHouseholdAsset(token, personId, assetId);
       await refresh();
     },
-    [token, personId, refresh],
+    [token, personId, refresh, canLoadRelations],
   );
 
   const createPersonAssetHandler = React.useCallback(
     async (targetPersonId: string, payload: AssetInput) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await createPersonAsset(token, targetPersonId, payload);
       await refresh();
     },
-    [token, refresh],
+    [token, refresh, canLoadRelations],
   );
 
   const updatePersonAssetHandler = React.useCallback(
@@ -440,20 +452,20 @@ export function useFamilyRelations(
       assetId: string,
       payload: Partial<AssetInput>,
     ) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await updatePersonAsset(token, targetPersonId, assetId, payload);
       await refresh();
     },
-    [token, refresh],
+    [token, refresh, canLoadRelations],
   );
 
   const removePersonAssetHandler = React.useCallback(
     async (targetPersonId: string, assetId: string) => {
-      if (!token) return;
+      if (!token || !canLoadRelations) return;
       await deletePersonAsset(token, targetPersonId, assetId);
       await refresh();
     },
-    [token, refresh],
+    [token, refresh, canLoadRelations],
   );
 
   return {

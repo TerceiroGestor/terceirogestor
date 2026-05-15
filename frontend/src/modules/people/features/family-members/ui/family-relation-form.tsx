@@ -15,7 +15,6 @@ export type FamilyRelationFormValues = {
   isIncomeContributor: boolean;
   isProvider: boolean;
   isDependent: boolean;
-  notes: string;
 };
 
 type FamilyRelationFormProps = {

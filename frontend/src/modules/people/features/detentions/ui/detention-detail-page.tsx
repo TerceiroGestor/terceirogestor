@@ -17,6 +17,10 @@ import { PeopleRelationDetailShell } from "@/modules/people/shared/ui/people-rel
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import type { AuditFeedConfig, DetailEditingConfig } from "@/web-client/registry/types";
 
+type DetentionDraftValues = DetentionFormValues & {
+  notes: string;
+};
+
 function initialFormValues(item?: PersonDetention): DetentionFormValues {
   return {
     status: item?.status ?? "",
@@ -24,6 +28,12 @@ function initialFormValues(item?: PersonDetention): DetentionFormValues {
     unit: item?.unit ?? "",
     startDate: item?.startDate?.slice(0, 10) ?? "",
     endDate: item?.endDate?.slice(0, 10) ?? "",
+  };
+}
+
+function initialDraftValues(item?: PersonDetention): DetentionDraftValues {
+  return {
+    ...initialFormValues(item),
     notes: item?.notes ?? "",
   };
 }
@@ -54,7 +64,7 @@ const DETENTION_AUDIT_CONFIG: AuditFeedConfig<{ relationId: string }> = {
   pagination: { limit: 120 },
 };
 
-function normalizeDraft(values: DetentionFormValues): DetentionFormValues {
+function normalizeDraft(values: DetentionDraftValues): DetentionDraftValues {
   return {
     ...values,
     status: values.status.trim(),
@@ -76,7 +86,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
   const { detentions, isLoading, error, create, update } = useDetentions(personId, {
     enabled: Boolean(personId),
   });
-  const createInitialValues = React.useMemo(() => initialFormValues(), []);
+  const createInitialValues = React.useMemo(() => initialDraftValues(), []);
 
   const current = React.useMemo(
     () => detentions.find((item) => item.id === detentionId) ?? null,
@@ -84,7 +94,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
   );
   const backHref = withTenantPath(buildPeopleDetailTabPath(personId, "reclusao"), tenantSlug);
 
-  const [draft, setDraft] = React.useState<DetentionFormValues>(createInitialValues);
+  const [draft, setDraft] = React.useState<DetentionDraftValues>(createInitialValues);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const relationIdRef = React.useRef<string | null>(detentionId || null);
   const [activeRelationId, setActiveRelationId] = React.useState<string | null>(detentionId || null);
@@ -112,10 +122,10 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
         relationIdRef.current = created.id;
         setActiveRelationId(created.id);
         router.replace(withTenantPath(buildPeopleDetentionPath(personId, created.id), tenantSlug));
-        return initialFormValues(created);
+        return initialDraftValues(created);
       }
       const updated = await update(relationIdRef.current, payload);
-      return initialFormValues(updated ?? current ?? undefined);
+      return initialDraftValues(updated ?? current ?? undefined);
     },
     onError: (nextError) => {
       const message =
@@ -128,7 +138,7 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   React.useEffect(() => {
     if (mode !== "edit" || !current) return;
-    const nextDraft = initialFormValues(current);
+    const nextDraft = initialDraftValues(current);
     relationIdRef.current = current.id;
     setActiveRelationId(current.id);
     setDraft(nextDraft);
@@ -137,19 +147,20 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
 
   const handleValuesChange = React.useCallback(
     (values: DetentionFormValues) => {
-      setDraft(values);
+      setDraft((previous) => ({ ...previous, ...values }));
     },
     [],
   );
 
   const handleFieldCommit = React.useCallback(
     (values: DetentionFormValues) => {
-      setDraft(values);
+      const nextDraft: DetentionDraftValues = { ...draft, ...values };
+      setDraft(nextDraft);
       if (mode === "edit") {
-        commitDraft(values);
+        commitDraft(nextDraft);
       }
     },
-    [commitDraft, mode],
+    [commitDraft, draft, mode],
   );
 
   const handleNotesChange = React.useCallback((next: string | null) => {
@@ -200,16 +211,21 @@ export function DetentionDetailPage({ mode }: { mode: "create" | "edit" }) {
       ) : null}
       {mode === "create" || current ? (
         <DetentionForm
-          initialValues={mode === "create" ? createInitialValues : initialFormValues(current ?? undefined)}
+          initialValues={
+            mode === "create"
+              ? initialFormValues()
+              : initialFormValues(current ?? undefined)
+          }
           hideActions
           submitLabel="Salvar"
           onCancel={() => router.push(backHref)}
           onValuesChange={handleValuesChange}
           onFieldCommit={handleFieldCommit}
           onSubmit={async (values) => {
-            setDraft(values);
+            const nextDraft: DetentionDraftValues = { ...draft, ...values };
+            setDraft(nextDraft);
             setSaveError(null);
-            await commitDraft(values);
+            await commitDraft(nextDraft);
           }}
         />
       ) : null}

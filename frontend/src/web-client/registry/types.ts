@@ -721,6 +721,7 @@ export type DetailLayoutConfig<
     title?: (context: TContext) => string;
     leadingSlot?: (context: TContext) => React.ReactNode;
     slot?: (context: TContext) => React.ReactNode;
+    inlineInfo?: boolean;
   };
   headerSlot?: (context: TContext) => React.ReactNode;
   main?: (context: TContext) => React.ReactNode;

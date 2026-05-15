@@ -19,7 +19,6 @@ export type EducationFormValues = {
   isCurrent: boolean;
   startDate: string;
   endDate: string;
-  notes: string;
 };
 
 type EducationFormProps = {

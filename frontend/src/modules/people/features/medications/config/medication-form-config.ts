@@ -8,7 +8,6 @@ export type MedicationFormValues = {
   startDate?: string;
   endDate?: string;
   prescribingDoctor?: string;
-  notes?: string;
 };
 
 export const medicationReasonOptions = [

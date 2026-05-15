@@ -100,6 +100,7 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
     () => layout?.header?.leadingSlot?.(engineContext) ?? null,
     [engineContext, layout],
   );
+  const headerInlineInfo = layout?.header?.inlineInfo ?? false;
 
   const titleFromLayout = layout?.header?.title?.(engineContext);
 
@@ -187,6 +188,7 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
       headerActionsSlot={headerActionsSlot}
       headerTitleSlot={headerTitleSlot}
       headerInfoSlot={headerSlot}
+      headerInfoInline={headerInlineInfo}
       viewControlsSlot={viewControlsSlot}
       mainSlot={composedMainSlot}
       sideSlot={sideSlot}

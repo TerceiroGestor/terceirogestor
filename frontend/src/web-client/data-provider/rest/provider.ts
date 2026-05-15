@@ -347,18 +347,7 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
                 const requestEntity = source.entity ?? entity;
 
                 if (!source.ids.length) {
-                  return [
-                    listAuditLogs(authToken, {
-                      page,
-                      limit,
-                      action,
-                      entity: requestEntity,
-                      userId,
-                      from,
-                      to,
-                      search,
-                    }),
-                  ];
+                  return [];
                 }
 
                 return source.ids.map((sourceId) =>
@@ -375,6 +364,18 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
                   }),
                 );
               });
+
+              if (!requests.length) {
+                return {
+                  data: [],
+                  pagination: {
+                    page: page ?? 1,
+                    limit: limit ?? 1,
+                    total: 0,
+                    pages: 1,
+                  },
+                } as SearchResult<T>;
+              }
 
               const responses = await Promise.all(requests);
               const uniqueLogs = new Map<string, T>();

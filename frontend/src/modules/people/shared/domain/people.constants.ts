@@ -106,10 +106,6 @@ export const PEOPLE_FORM_TEXT = {
       title: "Organização",
       description: "Status e organização do acompanhamento.",
     },
-    notes: {
-      title: "Observações",
-      description: "Resumo do perfil e observações relevantes.",
-    },
   },
   fields: {
     avatarUrl: {
@@ -156,9 +152,6 @@ export const PEOPLE_FORM_TEXT = {
     tags: {
       label: "Tags",
       placeholder: "Digite uma tag e pressione Enter",
-    },
-    profileSummary: {
-      label: "Resumo dinâmico",
     },
     status: {
       label: "Status",

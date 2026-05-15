@@ -11,7 +11,6 @@ export type ContactFormValues = {
   label?: string;
   name?: string;
   relationship?: string;
-  notes?: string;
   isPrimary: boolean;
   isWhatsapp: boolean;
 };

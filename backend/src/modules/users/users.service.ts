@@ -288,6 +288,7 @@ export class UsersService {
         tenantId,
         name: dto.name,
         email: dto.email,
+        
         passwordHash,
         ...(dto.avatarUrl !== undefined
           ? { avatarUrl: dto.avatarUrl.trim() ? dto.avatarUrl : null }

@@ -26,7 +26,6 @@ export type FinancialEntryFormValues = {
   includeInHouseholdBudget: boolean;
   startDate: string;
   endDate: string;
-  notes: string;
 };
 
 type Props = {
