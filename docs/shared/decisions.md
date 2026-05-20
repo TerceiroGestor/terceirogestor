@@ -1,3 +1,20 @@
+## DEC-00X: Segregação de Subfluxos do PersonService
+
+**Data:** 2026-05-20  
+**Status:** Ativa
+
+**Contexto:**
+O crescimento do `PersonService` gerava acoplamento excessivo e dificultava manutenção.
+
+**Decisão:**
+Segregar fluxos patrimoniais, metadata e validação em services dedicados, eliminando helpers duplicados e mantendo o service raiz como fachada.
+
+**Motivo:**
+Facilitar manutenção, testes, evolução incremental e clareza de boundaries.
+
+**Consequências:**
+- Novos fluxos devem seguir o padrão de extração.
+- Redução de duplicidade e acoplamento.
 # shared/decisions.md
 
 ## Objetivo
@@ -206,7 +223,7 @@ Frontend:
 
 Backend:
 
-- people
+- person
 - permissions
 - registration
 - roles
@@ -215,9 +232,15 @@ Backend:
 
 ### Alinhamento de dominio (frontend x backend)
 
-Alinhamento direto:
+Alinhamento com compatibilidade controlada:
 
-- people -> people
+- frontend `people` -> backend `person`
+
+Compatibilidade temporaria obrigatoria:
+
+- rotas REST permanecem em `/people`
+- chaves de permissao permanecem em `people.*`
+- uploads publicos permanecem sob `/uploads/people/`
 
 Backend sem espelho direto no frontend:
 
@@ -250,3 +273,29 @@ Backend:
 Regra transversal:
 
 - modulo de dominio novo deve nascer em par frontend-backend quando expuser CRUD operacional
+
+---
+
+## DEC-009: Blueprint canonico de modulo backend
+
+**Data:** 2026-05-20  
+**Status:** Ativa
+
+**Contexto:**
+
+Refatoracoes recentes mostraram que services grandes em modulos backend estavam acumulando regras de dominio, montagem de payload Prisma, compatibilidades legadas e logica de listagem sem separacao suficiente.
+
+**Decisão:**
+
+Padronizar modulos backend com blueprint baseado em `presentation`, `application`, `domain` e `infrastructure`, conforme contrato em `docs/shared/backend-module-blueprint.md`.
+
+**Motivo:**
+
+Garantir previsibilidade estrutural, facilitar refatoracoes incrementais e permitir replicacao do mesmo padrao em todos os modulos sem criar variacoes locais.
+
+**Consequências:**
+
+- Novos modulos backend devem nascer aderentes ao blueprint.
+- Refatoracoes de modulos existentes devem extrair responsabilidades seguindo a ordem incremental definida no blueprint.
+- Compatibilidades legadas devem permanecer centralizadas e documentadas.
+- O modulo `person` passa a ser referencia inicial de adocao, mas nao substitui o contrato documental.

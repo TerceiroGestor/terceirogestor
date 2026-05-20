@@ -11,12 +11,7 @@ import {
   buildUsageDocumentationItems,
   type UsageDocumentationSection,
 } from "@/components/UsageDocumentation/usage-documentation.helpers";
-import { ACTION_CREATE_TEXT } from "@/modules/actions/features/create/config/action-create.constants";
 import { ADMIN_USAGE_TEXT } from "@/modules/core/admin/admin.constants";
-import { DEPOSIT_USAGE_TEXT } from "@/modules/deposit/shared/domain/deposit.constants";
-import { PANTRY_USAGE_TEXT } from "@/modules/pantry/shared/domain/pantry.constants";
-import { PEOPLE_SEGMENT_USAGE_TEXT } from "@/modules/people-segments/shared/domain/people-segments.constants";
-import { PROGRAM_USAGE_TEXT } from "@/modules/programs/shared/domain/programs.constants";
 
 export type UsageDocumentationConfig = {
   title: string;
@@ -37,9 +32,9 @@ const GLOBAL_HELP_FLOWS: UsageFlowItem[] = [
     id: "flow-onboarding-inicial",
     title: "Configuracao inicial da instituicao",
     description:
-      "Guia completo para configurar instituicao, programas, equipe e iniciar operacao.",
+      "Guia para configurar instituicao, usuarios, perfis e iniciar a operacao.",
     tourId: "onboarding",
-    searchText: "onboarding configuracao inicial instituicao programas equipe usuarios",
+    searchText: "onboarding configuracao inicial instituicao usuarios perfis auditoria",
   },
   {
     id: "flow-cadastro-pessoa",
@@ -74,86 +69,6 @@ function buildRouteFallback(
 
 const ROUTE_FALLBACKS: UsageDocumentationRouteRule[] = [
   {
-    pattern: /^\/(?:[^/]+\/)?programs\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "programs-detail",
-      PROGRAM_USAGE_TEXT.detail.title,
-      PROGRAM_USAGE_TEXT.detail.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?people-groups\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "people-segments-detail",
-      PEOPLE_SEGMENT_USAGE_TEXT.detail.title,
-      PEOPLE_SEGMENT_USAGE_TEXT.detail.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?deposit\/items\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "deposit-items-detail",
-      DEPOSIT_USAGE_TEXT.items.title,
-      DEPOSIT_USAGE_TEXT.items.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?deposit\/entries\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "deposit-entries-detail",
-      DEPOSIT_USAGE_TEXT.entries.title,
-      DEPOSIT_USAGE_TEXT.entries.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?deposit\/exits\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "deposit-exits-detail",
-      DEPOSIT_USAGE_TEXT.exits.title,
-      DEPOSIT_USAGE_TEXT.exits.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?deposit\/donors\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "deposit-donors-detail",
-      DEPOSIT_USAGE_TEXT.donors.title,
-      DEPOSIT_USAGE_TEXT.donors.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?pantry\/items\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "pantry-items-detail",
-      PANTRY_USAGE_TEXT.items.title,
-      PANTRY_USAGE_TEXT.items.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?pantry\/entries\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "pantry-entries-detail",
-      PANTRY_USAGE_TEXT.entries.title,
-      PANTRY_USAGE_TEXT.entries.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?pantry\/exits\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "pantry-exits-detail",
-      PANTRY_USAGE_TEXT.exits.title,
-      PANTRY_USAGE_TEXT.exits.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?pantry\/donors\/(?:new|[^/]+)\/?$/,
-    fallback: buildRouteFallback(
-      "pantry-donors-detail",
-      PANTRY_USAGE_TEXT.donors.title,
-      PANTRY_USAGE_TEXT.donors.sections,
-    ),
-  },
-  {
     pattern: /^\/(?:[^/]+\/)?admin\/users\/(?:new|[^/]+)\/?$/,
     fallback: buildRouteFallback(
       "admin-users",
@@ -167,30 +82,6 @@ const ROUTE_FALLBACKS: UsageDocumentationRouteRule[] = [
       "admin-roles",
       ADMIN_USAGE_TEXT.roles.title,
       ADMIN_USAGE_TEXT.roles.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?actions\/new\/?$/,
-    fallback: buildRouteFallback(
-      "actions-create",
-      ACTION_CREATE_TEXT.usage.title,
-      ACTION_CREATE_TEXT.usage.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?actions\/[^/]+\/?$/,
-    fallback: buildRouteFallback(
-      "actions-create",
-      ACTION_CREATE_TEXT.usage.title,
-      ACTION_CREATE_TEXT.usage.sections,
-    ),
-  },
-  {
-    pattern: /^\/(?:[^/]+\/)?projects\/[^/]+\/actions\/?$/,
-    fallback: buildRouteFallback(
-      "actions-create",
-      ACTION_CREATE_TEXT.usage.title,
-      ACTION_CREATE_TEXT.usage.sections,
     ),
   },
 ];

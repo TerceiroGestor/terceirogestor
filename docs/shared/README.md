@@ -19,6 +19,7 @@ Este diretorio e a fonte oficial de convencoes, decisoes e patterns do projeto.
 - `conventions.md`: convencoes obrigatorias do projeto.
 - `decisions.md`: decisoes tecnicas ativas e governanca de modulos.
 - `patterns.md`: patterns reutilizaveis implementados.
+- `backend-module-blueprint.md`: blueprint canonico de organizacao para modulos backend NestJS/Prisma.
 - `marco-zero-1.0.md`: contrato, checklist, plano e operacao de auditoria 1.0.
 - `marco-zero-1.0-audit-matrix.csv`: matriz operacional consolidada de auditoria.
 

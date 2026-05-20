@@ -6,6 +6,14 @@ import { EmailModule } from '../../core/email/email.module';
 import { RequestContextModule } from '../../core/request-context/request-context.module';
 import { RegistrationController } from './registration.controller';
 import { RegistrationService } from './registration.service';
+import { ConfirmRegistrationUseCase } from './application/use-cases/confirm-registration.use-case';
+import { GetRegistrationUseCase } from './application/use-cases/get-registration.use-case';
+import { HandleOAuthRegistrationCallbackUseCase } from './application/use-cases/handle-oauth-registration-callback.use-case';
+import { RequestEmailRegistrationUseCase } from './application/use-cases/request-email-registration.use-case';
+import { StartOAuthRegistrationUseCase } from './application/use-cases/start-oauth-registration.use-case';
+import { RegistrationSessionService } from './application/services/registration-session.service';
+import { RegistrationOAuthClient } from './infrastructure/integrations/registration-oauth.client';
+import { RegistrationRepository } from './infrastructure/repositories/registration.repository';
 
 @Module({
   imports: [
@@ -23,6 +31,16 @@ import { RegistrationService } from './registration.service';
     }),
   ],
   controllers: [RegistrationController],
-  providers: [RegistrationService],
+  providers: [
+    RegistrationService,
+    RegistrationRepository,
+    RegistrationOAuthClient,
+    RegistrationSessionService,
+    RequestEmailRegistrationUseCase,
+    GetRegistrationUseCase,
+    ConfirmRegistrationUseCase,
+    StartOAuthRegistrationUseCase,
+    HandleOAuthRegistrationCallbackUseCase,
+  ],
 })
 export class RegistrationModule {}

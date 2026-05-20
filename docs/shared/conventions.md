@@ -67,6 +67,17 @@ Definir convencoes obrigatorias para implementacao, operacao e documentacao do p
 - Modulos backend oficiais estao em `backend/src/modules`.
 - Divergencias entre nomes/escopo frontend-backend devem ser registradas em `docs/shared/decisions.md`.
 
+### Convencoes de arquitetura backend por modulo
+
+- Nome interno do dominio backend deve ser singular e explicito.
+- Modulo backend deve separar responsabilidades entre `presentation`, `application`, `domain` e `infrastructure` quando o dominio tiver complexidade suficiente.
+- `presentation` nao deve acessar Prisma diretamente.
+- `domain` nao deve depender de HTTP, controller ou request.
+- `application` concentra orquestracao, mapeamento e queries de listagem.
+- `infrastructure` concentra detalhes tecnicos de persistencia, storage e integracoes.
+- Compatibilidades legadas devem ficar centralizadas em poucos arquivos e documentadas no mesmo fluxo.
+- Blueprint oficial de referencia para backend fica em `docs/shared/backend-module-blueprint.md`.
+
 ---
 
 ## Contrato canonico de interface

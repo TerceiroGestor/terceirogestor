@@ -8,7 +8,6 @@ import { AppSidebar } from "@/components/Sidebar/AppSidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { UsageDocumentationProvider } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { ControlPanelShell } from "@/web-client/control-panel/ControlPanelShell";
-import { InAppGuidedTour } from "@/modules/onboarding/ui/in-app-guided-tour";
 
 const AUTH_ROUTES = ["/auth/login", "/auth/register"];
 const PUBLIC_ROUTES = ["/register", "/iniciar"];
@@ -106,7 +105,6 @@ export function AppShell({ children }: AppShellProps) {
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-tour-target="page-main-content">
             {children}
           </div>
-          <InAppGuidedTour />
         </SidebarInset>
       </>
     </UsageDocumentationProvider>

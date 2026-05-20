@@ -18,9 +18,18 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
+import { ListUsersQueryDto } from './presentation/dto/list-users-query.dto';
+import {
+  mapCreateUserDtoToInput,
+  mapListUsersQueryDtoToInput,
+  mapUpdateUserDtoToInput,
+} from './presentation/mappers/users-request.mapper';
 import { UsersService } from './users.service';
 
 @Controller('users')
+/**
+ * @deprecated Controller raiz mantido como ponte de compatibilidade durante a migracao do modulo users para o blueprint.
+ */
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -53,15 +62,12 @@ export class UsersController {
   @Permissions('users.read')
   async listUsers(
     @CurrentUser() user: JwtUser,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('search') search?: string,
+    @Query() query: ListUsersQueryDto,
   ) {
-    return this.usersService.listUsers(user.tenantId, {
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-      search,
-    });
+    return this.usersService.listUsers(
+      user.tenantId,
+      mapListUsersQueryDtoToInput(query),
+    );
   }
 
   @Get('mentionable')
@@ -109,7 +115,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('users.create')
   async createUser(@CurrentUser() user: JwtUser, @Body() dto: CreateUserDto) {
-    return this.usersService.createUser(user.tenantId, dto);
+    return this.usersService.createUser(
+      user.tenantId,
+      mapCreateUserDtoToInput(dto),
+    );
   }
 
   @Patch(':id')
@@ -120,7 +129,11 @@ export class UsersController {
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.updateUser(user.tenantId, id, dto);
+    return this.usersService.updateUser(
+      user.tenantId,
+      id,
+      mapUpdateUserDtoToInput(dto),
+    );
   }
 
   @Post(':id/mfa/reset')

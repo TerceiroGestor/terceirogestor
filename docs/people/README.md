@@ -1,3 +1,9 @@
+## Refatoração e Segregação de Subfluxos
+
+- Desde 2026-05, todos os fluxos patrimoniais/familiares, metadata (comentários/anexos) e validação de registros foram extraídos do service raiz (`PersonService`) para services dedicados.
+- O `PersonService` tornou-se uma fachada fina, delegando operações para os services de domínio conforme o blueprint do backend.
+- Helpers privados duplicados foram eliminados, centralizando lógica de validação e acesso em cada boundary.
+- O padrão de extração incremental e delegação deve ser seguido para novos subfluxos.
 # People - Documentacao por Feature
 
 Este diretorio concentra a documentacao operacional do modulo People em um arquivo por feature, usando o template padrao.

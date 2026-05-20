@@ -1,3 +1,15 @@
+## Pattern: Service de Subdomínio Dedicado
+
+**Problema:**
+Crescimento do service raiz com múltiplas responsabilidades, dificultando manutenção e evolução incremental.
+
+**Solução:**
+Extrair blocos de domínio (ex: patrimônio, metadata, benefícios, saúde) para services dedicados, mantendo o service raiz como fachada de delegação.
+
+**Onde aparece no código:**
+- backend/src/modules/person/application/services/person-asset-household.service.ts
+- backend/src/modules/person/application/services/person-record-metadata.service.ts
+- backend/src/modules/person/application/services/person-benefit-detention.service.ts
 # shared/patterns.md
 
 ## Objetivo
@@ -245,3 +257,54 @@ services: where: { tenantId, ... }
 - backend/prisma/schema.prisma
 - backend/src/modules/tasks/tasks.service.ts
 - backend/src/modules/users/users.service.ts
+
+---
+
+## Pattern: Modulo backend em camadas de dominio
+
+**Problema:**
+
+Services grandes em modulos NestJS tendem a misturar DTO, regra de negocio, normalizacao, Prisma, resposta HTTP e compatibilidades legadas no mesmo arquivo.
+
+**Solucao:**
+
+Organizar o modulo backend em quatro camadas objetivas:
+
+- `presentation`: controller e DTOs
+- `application`: use cases, queries e mappers
+- `domain`: constants, catalogs, normalizers, validators e policies
+- `infrastructure`: persistencia e detalhes tecnicos
+
+Extrair de forma incremental, mantendo o service principal apenas como fachada/orquestrador enquanto a transicao ainda existir.
+
+**Exemplo:**
+
+```text
+person.controller.ts
+  -> PersonService / UseCase
+
+application/queries/person-list.query.ts
+  -> buildPersonWhere
+  -> buildPersonOrderBy
+
+domain/validators/person-status.validator.ts
+  -> assertDepartureReasonForStatus
+
+application/mappers/person-persistence.mapper.ts
+  -> buildCreatePersonData
+  -> buildUpdatePersonData
+
+infrastructure/persistence/person-upload-path.policy.ts
+  -> centraliza compatibilidade tecnica de upload
+```
+
+**Onde aparece no codigo:**
+
+- backend/src/modules/person/application/queries/person-list.query.ts
+- backend/src/modules/person/application/mappers/person-persistence.mapper.ts
+- backend/src/modules/person/application/mappers/person-contact-persistence.mapper.ts
+- backend/src/modules/person/domain/validators/person-status.validator.ts
+- backend/src/modules/person/domain/validators/person-contact.validator.ts
+- backend/src/modules/person/domain/normalizers/person-field.normalizer.ts
+- backend/src/modules/person/domain/policies/person-relation.policy.ts
+- backend/src/modules/person/infrastructure/persistence/person-upload-path.policy.ts

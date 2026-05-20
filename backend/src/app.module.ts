@@ -4,7 +4,7 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,7 +13,7 @@ import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
-import { PeopleModule } from './modules/people/people.module';
+import { PersonModule } from './modules/person/person.module';
 import { RegistrationModule } from './modules/registration/registration.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
@@ -28,6 +28,7 @@ import { RequestContextInterceptor } from './core/request-context/request-contex
 import { RateLimitModule } from './core/rate-limit/rate-limit.module';
 import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
 import { CepModule } from './core/cep/cep.module';
+import { DomainExceptionFilter } from './core/errors/domain-exception.filter';
 
 const rootEnvFilePaths = [
   resolve(__dirname, '..', '.env.local'),
@@ -53,7 +54,7 @@ const rootEnvFilePaths = [
     RolesModule,
     PermissionsModule,
     TenantsModule,
-    PeopleModule,
+    PersonModule,
     RegistrationModule,
     FilesModule,
     AuditModule,
@@ -73,6 +74,10 @@ const rootEnvFilePaths = [
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestContextInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: DomainExceptionFilter,
     },
   ],
 })
