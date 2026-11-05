@@ -22,7 +22,11 @@ const PANTRY_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'pantry');
 const DEPOSIT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'deposit');
 const PROGRAM_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'programs');
 const PROJECT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'projects');
-const ACTION_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'action-attachments');
+const ACTION_ATTACHMENT_DIR = join(
+  process.cwd(),
+  'uploads',
+  'action-attachments',
+);
 const TASK_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'tasks');
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_HEALTH_FILE_SIZE = 6 * 1024 * 1024;
@@ -35,7 +39,13 @@ const MAX_PROGRAM_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROJECT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_ACTION_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_AVATAR_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_AVATAR_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+]);
 const ALLOWED_HEALTH_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
@@ -51,7 +61,13 @@ const ALLOWED_TENANT_LOGO_EXTENSIONS = new Set([
   '.webp',
   '.gif',
 ]);
-const ALLOWED_ACTION_PHOTO_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ALLOWED_ACTION_PHOTO_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+]);
 const ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
@@ -376,7 +392,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -416,7 +434,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -456,7 +476,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -496,7 +518,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -536,7 +560,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -576,7 +602,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_ACTION_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_ACTION_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },
@@ -616,7 +644,9 @@ export class FilesController {
         },
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_TASK_ATTACHMENT_EXTENSIONS.has(ext) ? ext : '';
+          const safeExt = ALLOWED_TASK_ATTACHMENT_EXTENSIONS.has(ext)
+            ? ext
+            : '';
           const filename = `${randomUUID()}${safeExt}`;
           cb(null, filename);
         },

@@ -37,7 +37,8 @@ export class TenancyMiddleware {
 
     req.tenantId = tenant.id;
     req.tenantSlug = tenant.slug;
-    req.url = tenantInfo.rest + (tenantInfo.query ? `?${tenantInfo.query}` : '');
+    req.url =
+      tenantInfo.rest + (tenantInfo.query ? `?${tenantInfo.query}` : '');
 
     return next();
   }

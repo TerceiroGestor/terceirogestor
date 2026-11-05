@@ -15,9 +15,15 @@ import type {
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
-import { buildPeopleWhere, parseAdvancedFilters } from '../people/people.filters';
+import {
+  buildPeopleWhere,
+  parseAdvancedFilters,
+} from '../people/people.filters';
 import { CreateActionTypeDto } from './dto/create-action-type.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
@@ -36,7 +42,10 @@ import { UpsertProjectActionAttendancesDto } from './dto/upsert-project-action-a
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
 
-function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | null }) {
+function ensureValidPeriod(params: {
+  startsAt?: Date | null;
+  endsAt?: Date | null;
+}) {
   const startsAt = params.startsAt ?? null;
   const endsAt = params.endsAt ?? null;
   if (startsAt && endsAt && startsAt > endsAt) {
@@ -63,7 +72,9 @@ function normalizePhotoPaths(value: string[] | null | undefined) {
 
 function normalizeTags(tags?: string[] | null) {
   if (!tags) return null;
-  const cleaned = Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+  const cleaned = Array.from(
+    new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
+  );
   return cleaned.length ? JSON.stringify(cleaned) : null;
 }
 
@@ -81,7 +92,9 @@ function parseTags(value: string | null | undefined) {
 
 function parseMentionUserIds(value: Prisma.JsonValue | null | undefined) {
   if (!Array.isArray(value)) return [];
-  return Array.from(new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)));
+  return Array.from(
+    new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)),
+  );
 }
 
 function resolvePrimaryActionPeopleGroup(action: {
@@ -100,7 +113,11 @@ function resolvePrimaryActionPeopleGroup(action: {
   }>;
 }) {
   const rows = action.peopleGroups ?? [];
-  return rows.find((row) => row.participationKind === 'PARTICIPANT') ?? rows[0] ?? null;
+  return (
+    rows.find((row) => row.participationKind === 'PARTICIPANT') ??
+    rows[0] ??
+    null
+  );
 }
 
 const mapCommentAuthor = (
@@ -120,21 +137,19 @@ const mapCommentAuthor = (
   avatarUrl: user?.avatarUrl ?? null,
 });
 
-const mapProjectActionCommentItem = (
-  comment: {
+const mapProjectActionCommentItem = (comment: {
+  id: string;
+  body: string;
+  mentionUserIds: Prisma.JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+  authorUser?: {
     id: string;
-    body: string;
-    mentionUserIds: Prisma.JsonValue | null;
-    createdAt: Date;
-    updatedAt: Date;
-    authorUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl?: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl?: string | null;
+  } | null;
+}) => ({
   id: comment.id,
   body: comment.body,
   mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
@@ -143,23 +158,21 @@ const mapProjectActionCommentItem = (
   updatedAt: comment.updatedAt,
 });
 
-const mapProjectActionAttachmentItem = (
-  attachment: {
+const mapProjectActionAttachmentItem = (attachment: {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  uploadedByUser?: {
     id: string;
-    label: string;
-    filePath: string;
-    mimeType: string | null;
-    fileSizeBytes: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-    uploadedByUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl?: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl?: string | null;
+  } | null;
+}) => ({
   id: attachment.id,
   label: attachment.label,
   filePath: attachment.filePath,
@@ -323,7 +336,11 @@ function buildProjectActionWhere(params: {
         { project: { name: { contains: q } } },
         { group: { name: { contains: q } } },
         { peopleGroups: { some: { peopleGroup: { name: { contains: q } } } } },
-        { peopleGroups: { some: { peopleGroup: { category: { contains: q } } } } },
+        {
+          peopleGroups: {
+            some: { peopleGroup: { category: { contains: q } } },
+          },
+        },
       ],
     });
   }
@@ -370,7 +387,8 @@ export class ActionsService {
       where: { id: projectGroupId, tenantId, projectId },
       select: { id: true },
     });
-    if (!projectGroup) throw new BadRequestException('Grupo de participantes invalido');
+    if (!projectGroup)
+      throw new BadRequestException('Grupo de participantes invalido');
   }
 
   private async ensurePeopleGroupBelongsToProject(
@@ -383,7 +401,8 @@ export class ActionsService {
       where: { tenantId, projectId, peopleGroupId, participationKind },
       select: { id: true },
     });
-    if (!peopleGroupLink) throw new BadRequestException('Grupo de pessoas invalido');
+    if (!peopleGroupLink)
+      throw new BadRequestException('Grupo de pessoas invalido');
   }
 
   private async ensureEnrollmentBelongsToProject(
@@ -398,11 +417,15 @@ export class ActionsService {
     if (!enrollment) throw new BadRequestException('Participante invalido');
   }
 
-  private serializeEnrollment<T extends { groupMemberships?: any[] }>(enrollment: T) {
+  private serializeEnrollment<T extends { groupMemberships?: any[] }>(
+    enrollment: T,
+  ) {
     const groups = (enrollment.groupMemberships ?? []).map((m) => m.group);
     const person = (enrollment as any).person;
     const peopleGroups = (person?.peopleGroupParticipations ?? [])
-      .map((participation: { peopleGroup?: unknown }) => participation.peopleGroup)
+      .map(
+        (participation: { peopleGroup?: unknown }) => participation.peopleGroup,
+      )
       .filter((peopleGroup: unknown) => Boolean(peopleGroup));
     const withPersonFlags =
       person && person._count
@@ -424,7 +447,11 @@ export class ActionsService {
     };
   }
 
-  private async ensureProjectActionExists(user: JwtUser, projectId: string, actionId: string) {
+  private async ensureProjectActionExists(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+  ) {
     const canReadAll = await this.hasPermission(
       user.tenantId,
       user.userId,
@@ -548,7 +575,9 @@ export class ActionsService {
     return this.prisma.actionType.findMany({
       where: {
         tenantId,
-        ...(query.isActiveValue === undefined ? {} : { isActive: query.isActiveValue }),
+        ...(query.isActiveValue === undefined
+          ? {}
+          : { isActive: query.isActiveValue }),
         ...(q ? { name: { contains: q } } : {}),
       },
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
@@ -569,21 +598,30 @@ export class ActionsService {
     });
   }
 
-  async updateActionType(tenantId: string, id: string, dto: UpdateActionTypeDto) {
+  async updateActionType(
+    tenantId: string,
+    id: string,
+    dto: UpdateActionTypeDto,
+  ) {
     const existing = await this.prisma.actionType.findFirst({
       where: { id, tenantId },
     });
     if (!existing) throw new NotFoundException('Tipo de acao nao encontrado');
 
     const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
-    if (name !== undefined && !name) throw new BadRequestException('Nome e obrigatorio');
+    if (name !== undefined && !name)
+      throw new BadRequestException('Nome e obrigatorio');
 
     return this.prisma.actionType.update({
       where: { id: existing.id },
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.target !== undefined ? { target: dto.target } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
@@ -602,14 +640,20 @@ export class ActionsService {
       where: { tenantId, actionTypeId: existing.id },
     });
     if (usage > 0) {
-      throw new BadRequestException('Nao e possivel excluir: tipo ja utilizado em acoes');
+      throw new BadRequestException(
+        'Nao e possivel excluir: tipo ja utilizado em acoes',
+      );
     }
 
     await this.prisma.actionType.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
 
-  async listProjectActions(user: JwtUser, projectId: string, query: ListProjectActionsQueryDto) {
+  async listProjectActions(
+    user: JwtUser,
+    projectId: string,
+    query: ListProjectActionsQueryDto,
+  ) {
     await this.ensureProjectExists(user.tenantId, projectId);
     const canReadAll = await this.hasPermission(
       user.tenantId,
@@ -694,7 +738,11 @@ export class ActionsService {
     return this.ensureProjectActionExists(user, projectId, actionId);
   }
 
-  async createProjectAction(user: JwtUser, projectId: string, dto: CreateProjectActionDto) {
+  async createProjectAction(
+    user: JwtUser,
+    projectId: string,
+    dto: CreateProjectActionDto,
+  ) {
     await this.ensureProjectExists(user.tenantId, projectId);
 
     const type = await this.prisma.actionType.findFirst({
@@ -751,11 +799,17 @@ export class ActionsService {
 
     const plannedStartAt = parseDateInput(dto.plannedStartAt);
     const plannedEndAt = parseDateInput(dto.plannedEndAt, { endOfDay: true });
-    ensureValidPeriod({ startsAt: plannedStartAt ?? null, endsAt: plannedEndAt ?? null });
+    ensureValidPeriod({
+      startsAt: plannedStartAt ?? null,
+      endsAt: plannedEndAt ?? null,
+    });
 
     const executedStartAt = parseDateInput(dto.executedStartAt);
     const executedEndAt = parseDateInput(dto.executedEndAt, { endOfDay: true });
-    ensureValidPeriod({ startsAt: executedStartAt ?? null, endsAt: executedEndAt ?? null });
+    ensureValidPeriod({
+      startsAt: executedStartAt ?? null,
+      endsAt: executedEndAt ?? null,
+    });
 
     const title = (dto.title ?? '').trim();
     if (!title) throw new BadRequestException('Titulo e obrigatorio');
@@ -771,7 +825,9 @@ export class ActionsService {
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
         tags: normalizeTags(dto.tags),
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
         planHtml: normalizeHtml(dto.planHtml) ?? null,
         executedHtml: normalizeHtml(dto.executedHtml) ?? null,
         conclusionHtml: normalizeHtml(dto.conclusionHtml) ?? null,
@@ -800,7 +856,11 @@ export class ActionsService {
     dto: UpdateProjectActionDto,
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
-    const existing = await this.ensureProjectActionExists(user, projectId, actionId);
+    const existing = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
 
     const resolvedActionTypeId = dto.actionTypeId ?? existing.actionTypeId;
     const type = await this.prisma.actionType.findFirst({
@@ -811,13 +871,17 @@ export class ActionsService {
     if (!type.isActive) throw new BadRequestException('Tipo de acao inativo');
 
     const groupIdInput =
-      dto.projectGroupId === undefined ? (existing.groupId ?? null) : dto.projectGroupId ?? null;
+      dto.projectGroupId === undefined
+        ? (existing.groupId ?? null)
+        : (dto.projectGroupId ?? null);
     const peopleGroupIdInput =
-      dto.peopleGroupId === undefined ? (existing.peopleGroupId ?? null) : dto.peopleGroupId ?? null;
+      dto.peopleGroupId === undefined
+        ? (existing.peopleGroupId ?? null)
+        : (dto.peopleGroupId ?? null);
     const targetEnrollmentIdInput =
       dto.targetEnrollmentId === undefined
         ? ((existing as any).targetEnrollmentId ?? null)
-        : dto.targetEnrollmentId ?? null;
+        : (dto.targetEnrollmentId ?? null);
     const scope = resolveScopeFromTarget({
       target: type.target,
       groupId: groupIdInput,
@@ -875,7 +939,10 @@ export class ActionsService {
         : dto.plannedEndAt === null
           ? null
           : (parseDateInput(dto.plannedEndAt, { endOfDay: true }) ?? null);
-    ensureValidPeriod({ startsAt: plannedStartAt ?? null, endsAt: plannedEndAt ?? null });
+    ensureValidPeriod({
+      startsAt: plannedStartAt ?? null,
+      endsAt: plannedEndAt ?? null,
+    });
 
     const executedStartAt =
       dto.executedStartAt === undefined
@@ -889,30 +956,48 @@ export class ActionsService {
         : dto.executedEndAt === null
           ? null
           : (parseDateInput(dto.executedEndAt, { endOfDay: true }) ?? null);
-    ensureValidPeriod({ startsAt: executedStartAt ?? null, endsAt: executedEndAt ?? null });
+    ensureValidPeriod({
+      startsAt: executedStartAt ?? null,
+      endsAt: executedEndAt ?? null,
+    });
 
-    const title = dto.title !== undefined ? (dto.title ?? '').trim() : undefined;
-    if (title !== undefined && !title) throw new BadRequestException('Titulo e obrigatorio');
+    const title =
+      dto.title !== undefined ? (dto.title ?? '').trim() : undefined;
+    if (title !== undefined && !title)
+      throw new BadRequestException('Titulo e obrigatorio');
 
     const planHtml = normalizeHtml(dto.planHtml);
     const executedHtml = normalizeHtml(dto.executedHtml);
     const conclusionHtml = normalizeHtml(dto.conclusionHtml);
     const photoPaths = normalizePhotoPaths(dto.photoPaths);
-    const normalizedTags = dto.tags !== undefined ? normalizeTags(dto.tags) : undefined;
+    const normalizedTags =
+      dto.tags !== undefined ? normalizeTags(dto.tags) : undefined;
 
     await this.prisma.projectAction.update({
       where: { id: existing.id },
       data: {
         ...(title !== undefined ? { title } : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.tags !== undefined ? { tags: normalizedTags } : {}),
         ...(dto.internalNotes !== undefined
-          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
+          ? {
+              internalNotes: dto.internalNotes?.trim()
+                ? dto.internalNotes.trim()
+                : null,
+            }
           : {}),
-        ...(dto.status !== undefined ? { status: dto.status as ActionStatus } : {}),
-        ...(dto.actionTypeId !== undefined ? { actionTypeId: resolvedActionTypeId } : {}),
+        ...(dto.status !== undefined
+          ? { status: dto.status as ActionStatus }
+          : {}),
+        ...(dto.actionTypeId !== undefined
+          ? { actionTypeId: resolvedActionTypeId }
+          : {}),
         ...(dto.actionTypeId !== undefined ||
         dto.projectGroupId !== undefined ||
         dto.peopleGroupId !== undefined ||
@@ -928,7 +1013,9 @@ export class ActionsService {
         ...(dto.completionPercent !== undefined
           ? { completionPercent: dto.completionPercent ?? null }
           : {}),
-        ...(photoPaths !== undefined ? { photoPaths: (photoPaths as any) ?? null } : {}),
+        ...(photoPaths !== undefined
+          ? { photoPaths: (photoPaths as any) ?? null }
+          : {}),
         ...(dto.plannedStartAt !== undefined ? { plannedStartAt } : {}),
         ...(dto.plannedEndAt !== undefined ? { plannedEndAt } : {}),
         ...(dto.executedStartAt !== undefined ? { executedStartAt } : {}),
@@ -951,9 +1038,17 @@ export class ActionsService {
     return this.getProjectAction(user, projectId, existing.id);
   }
 
-  async deleteProjectAction(user: JwtUser, projectId: string, actionId: string) {
+  async deleteProjectAction(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+  ) {
     await this.ensureProjectExists(user.tenantId, projectId);
-    const existing = await this.ensureProjectActionExists(user, projectId, actionId);
+    const existing = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
 
     await this.prisma.projectActionAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
@@ -978,13 +1073,20 @@ export class ActionsService {
     actionId: string,
     dto: { body: string; mentionUserIds?: string[] | null },
   ) {
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
     const body = dto.body.trim();
     if (!body) {
       throw new BadRequestException('Informe um comentario.');
     }
 
-    const mentionUserIds = await this.resolveMentionUserIds(user.tenantId, dto.mentionUserIds);
+    const mentionUserIds = await this.resolveMentionUserIds(
+      user.tenantId,
+      dto.mentionUserIds,
+    );
 
     await this.prisma.projectActionComment.create({
       data: {
@@ -1005,7 +1107,11 @@ export class ActionsService {
     actionId: string,
     commentId: string,
   ) {
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
     const comment = await this.prisma.projectActionComment.findFirst({
       where: { id: commentId, tenantId: user.tenantId, actionId: action.id },
       select: { id: true },
@@ -1014,7 +1120,9 @@ export class ActionsService {
       throw new NotFoundException('Comentario nao encontrado');
     }
 
-    await this.prisma.projectActionComment.delete({ where: { id: comment.id } });
+    await this.prisma.projectActionComment.delete({
+      where: { id: comment.id },
+    });
     return this.getProjectAction(user, projectId, action.id);
   }
 
@@ -1022,9 +1130,18 @@ export class ActionsService {
     user: JwtUser,
     projectId: string,
     actionId: string,
-    dto: { label: string; filePath: string; mimeType?: string | null; fileSizeBytes?: number | null },
+    dto: {
+      label: string;
+      filePath: string;
+      mimeType?: string | null;
+      fileSizeBytes?: number | null;
+    },
   ) {
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
     const label = dto.label.trim();
     const filePath = dto.filePath.trim();
 
@@ -1057,7 +1174,11 @@ export class ActionsService {
     actionId: string,
     attachmentId: string,
   ) {
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
     const attachment = await this.prisma.projectActionAttachment.findFirst({
       where: { id: attachmentId, tenantId: user.tenantId, actionId: action.id },
       select: { id: true },
@@ -1066,7 +1187,9 @@ export class ActionsService {
       throw new NotFoundException('Anexo nao encontrado');
     }
 
-    await this.prisma.projectActionAttachment.delete({ where: { id: attachment.id } });
+    await this.prisma.projectActionAttachment.delete({
+      where: { id: attachment.id },
+    });
     return this.getProjectAction(user, projectId, action.id);
   }
 
@@ -1083,7 +1206,9 @@ export class ActionsService {
       where: {
         tenantId: user.tenantId,
         actionId,
-        ...(query.participationKind ? { participationKind: query.participationKind } : {}),
+        ...(query.participationKind
+          ? { participationKind: query.participationKind }
+          : {}),
       },
       include: {
         peopleGroup: true,
@@ -1136,7 +1261,8 @@ export class ActionsService {
       },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
+    if (!existing)
+      throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
 
     await this.prisma.actionPeopleGroup.delete({ where: { id: existing.id } });
     return { ok: true as const };
@@ -1165,7 +1291,9 @@ export class ActionsService {
       actionId,
       isActive: true,
       deletedAt: null,
-      ...(query.role ? { role: query.role as ActionPeopleParticipationRole } : {}),
+      ...(query.role
+        ? { role: query.role as ActionPeopleParticipationRole }
+        : {}),
       ...(q
         ? {
             OR: [
@@ -1231,7 +1359,9 @@ export class ActionsService {
                       },
                     },
                   },
-                  _count: { select: { healthConditions: true, medications: true } },
+                  _count: {
+                    select: { healthConditions: true, medications: true },
+                  },
                 },
               },
               groupMemberships: {
@@ -1257,7 +1387,9 @@ export class ActionsService {
           hasMedication: (row.person._count.medications ?? 0) > 0,
           _count: undefined,
         },
-        enrollment: row.enrollment ? this.serializeEnrollment(row.enrollment as any) : null,
+        enrollment: row.enrollment
+          ? this.serializeEnrollment(row.enrollment as any)
+          : null,
       })),
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };
@@ -1282,7 +1414,8 @@ export class ActionsService {
 
     const q = normalizeString(query.q);
     const filters = parseAdvancedFilters(query.filters);
-    const participationKind: ParticipationKind = query.participationKind ?? 'TEAM';
+    const participationKind: ParticipationKind =
+      query.participationKind ?? 'TEAM';
     const actionPeopleGroups = await this.prisma.actionPeopleGroup.findMany({
       where: {
         tenantId: user.tenantId,
@@ -1292,36 +1425,43 @@ export class ActionsService {
       select: { peopleGroupId: true },
       distinct: ['peopleGroupId'],
     });
-    let scopedPeopleGroupIds = actionPeopleGroups.map((row) => row.peopleGroupId);
+    let scopedPeopleGroupIds = actionPeopleGroups.map(
+      (row) => row.peopleGroupId,
+    );
     if (!scopedPeopleGroupIds.length) {
-      const projectPeopleGroups = await this.prisma.projectPeopleGroup.findMany({
-        where: {
-          tenantId: user.tenantId,
-          projectId,
-          participationKind,
+      const projectPeopleGroups = await this.prisma.projectPeopleGroup.findMany(
+        {
+          where: {
+            tenantId: user.tenantId,
+            projectId,
+            participationKind,
+          },
+          select: { peopleGroupId: true },
+          distinct: ['peopleGroupId'],
         },
-        select: { peopleGroupId: true },
-        distinct: ['peopleGroupId'],
-      });
-      scopedPeopleGroupIds = projectPeopleGroups.map((row) => row.peopleGroupId);
+      );
+      scopedPeopleGroupIds = projectPeopleGroups.map(
+        (row) => row.peopleGroupId,
+      );
     }
     const personBaseWhere = buildPeopleWhere({
       tenantId: user.tenantId,
       query: q ?? undefined,
       filters,
     });
-    const peopleGroupScope: Prisma.PersonWhereInput | null = scopedPeopleGroupIds.length
-      ? {
-          peopleGroupParticipations: {
-            some: {
-              tenantId: user.tenantId,
-              peopleGroupId: { in: scopedPeopleGroupIds },
-              isActive: true,
-              deletedAt: null,
+    const peopleGroupScope: Prisma.PersonWhereInput | null =
+      scopedPeopleGroupIds.length
+        ? {
+            peopleGroupParticipations: {
+              some: {
+                tenantId: user.tenantId,
+                peopleGroupId: { in: scopedPeopleGroupIds },
+                isActive: true,
+                deletedAt: null,
+              },
             },
-          },
-        }
-      : null;
+          }
+        : null;
     const where: Prisma.ProjectEnrollmentWhereInput = {
       tenantId: user.tenantId,
       projectId,
@@ -1384,7 +1524,9 @@ export class ActionsService {
     ]);
 
     return {
-      data: data.map((enrollment) => this.serializeEnrollment(enrollment as any)),
+      data: data.map((enrollment) =>
+        this.serializeEnrollment(enrollment as any),
+      ),
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };
   }
@@ -1440,105 +1582,116 @@ export class ActionsService {
     const activeKey = `${actionId}:${dto.personId}:${role}`;
     const startsAt = parseDateInput(dto.startsAt) ?? new Date();
 
-    const existing = await this.prisma.projectActionPeopleParticipation.findFirst({
-      where: {
-        tenantId: user.tenantId,
-        actionId,
-        personId: dto.personId,
-        role,
-        isActive: true,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
+    const existing =
+      await this.prisma.projectActionPeopleParticipation.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          actionId,
+          personId: dto.personId,
+          role,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
     if (existing) {
-      throw new BadRequestException('Pessoa ja esta vinculada a esta acao com esse papel.');
+      throw new BadRequestException(
+        'Pessoa ja esta vinculada a esta acao com esse papel.',
+      );
     }
 
-    return this.prisma.projectActionPeopleParticipation.create({
-      data: {
-        tenantId: user.tenantId,
-        actionId,
-        personId: dto.personId,
-        enrollmentId,
-        participationKind: dto.participationKind ?? 'TEAM',
-        role,
-        activeKey,
-        isActive: true,
-        startsAt,
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
-      },
-      include: {
-        person: {
-          select: {
-            id: true,
-            fullName: true,
-            socialName: true,
-            birthDate: true,
-            status: true,
-            avatarUrl: true,
-            sex: true,
-            gender: true,
-            raceColor: true,
-            peopleGroupParticipations: {
-              where: { isActive: true, deletedAt: null },
-              select: {
-                peopleGroup: {
-                  select: {
-                    id: true,
-                    name: true,
-                    category: true,
-                  },
-                },
-              },
-            },
-            _count: { select: { healthConditions: true, medications: true } },
-          },
+    return this.prisma.projectActionPeopleParticipation
+      .create({
+        data: {
+          tenantId: user.tenantId,
+          actionId,
+          personId: dto.personId,
+          enrollmentId,
+          participationKind: dto.participationKind ?? 'TEAM',
+          role,
+          activeKey,
+          isActive: true,
+          startsAt,
+          internalNotes: dto.internalNotes?.trim()
+            ? dto.internalNotes.trim()
+            : null,
         },
-        enrollment: {
-          include: {
-            person: {
-              select: {
-                id: true,
-                fullName: true,
-                avatarUrl: true,
-                birthDate: true,
-                status: true,
-                sex: true,
-                gender: true,
-                raceColor: true,
-                peopleGroupParticipations: {
-                  where: { isActive: true, deletedAt: null },
-                  select: {
-                    peopleGroup: {
-                      select: {
-                        id: true,
-                        name: true,
-                        category: true,
-                      },
+        include: {
+          person: {
+            select: {
+              id: true,
+              fullName: true,
+              socialName: true,
+              birthDate: true,
+              status: true,
+              avatarUrl: true,
+              sex: true,
+              gender: true,
+              raceColor: true,
+              peopleGroupParticipations: {
+                where: { isActive: true, deletedAt: null },
+                select: {
+                  peopleGroup: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
                     },
                   },
                 },
-                _count: { select: { healthConditions: true, medications: true } },
               },
+              _count: { select: { healthConditions: true, medications: true } },
             },
-            groupMemberships: {
-              where: { isActive: true, deletedAt: null },
-              include: { group: { select: { id: true, name: true } } },
+          },
+          enrollment: {
+            include: {
+              person: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  avatarUrl: true,
+                  birthDate: true,
+                  status: true,
+                  sex: true,
+                  gender: true,
+                  raceColor: true,
+                  peopleGroupParticipations: {
+                    where: { isActive: true, deletedAt: null },
+                    select: {
+                      peopleGroup: {
+                        select: {
+                          id: true,
+                          name: true,
+                          category: true,
+                        },
+                      },
+                    },
+                  },
+                  _count: {
+                    select: { healthConditions: true, medications: true },
+                  },
+                },
+              },
+              groupMemberships: {
+                where: { isActive: true, deletedAt: null },
+                include: { group: { select: { id: true, name: true } } },
+              },
             },
           },
         },
-      },
-    }).then((row) => ({
-      ...row,
-      person: {
-        ...row.person,
-        hasHealthCondition: (row.person._count.healthConditions ?? 0) > 0,
-        hasMedication: (row.person._count.medications ?? 0) > 0,
-        _count: undefined,
-      },
-      enrollment: row.enrollment ? this.serializeEnrollment(row.enrollment as any) : null,
-    }));
+      })
+      .then((row) => ({
+        ...row,
+        person: {
+          ...row.person,
+          hasHealthCondition: (row.person._count.healthConditions ?? 0) > 0,
+          hasMedication: (row.person._count.medications ?? 0) > 0,
+          _count: undefined,
+        },
+        enrollment: row.enrollment
+          ? this.serializeEnrollment(row.enrollment as any)
+          : null,
+      }));
   }
 
   async endProjectActionPeopleParticipation(
@@ -1551,15 +1704,19 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    const existing = await this.prisma.projectActionPeopleParticipation.findFirst({
-      where: { id: participationId, tenantId: user.tenantId, actionId },
-      select: { id: true, internalNotes: true, deletedAt: true },
-    });
-    if (!existing) throw new NotFoundException('Participacao da acao nao encontrada');
+    const existing =
+      await this.prisma.projectActionPeopleParticipation.findFirst({
+        where: { id: participationId, tenantId: user.tenantId, actionId },
+        select: { id: true, internalNotes: true, deletedAt: true },
+      });
+    if (!existing)
+      throw new NotFoundException('Participacao da acao nao encontrada');
     if (existing.deletedAt) return { ok: true as const };
 
     const endsAt = parseDateInput(dto.endsAt, { endOfDay: true }) ?? new Date();
-    const noteSuffix = dto.internalNotes?.trim() ? dto.internalNotes.trim() : null;
+    const noteSuffix = dto.internalNotes?.trim()
+      ? dto.internalNotes.trim()
+      : null;
 
     await this.prisma.projectActionPeopleParticipation.update({
       where: { id: existing.id },
@@ -1569,7 +1726,9 @@ export class ActionsService {
         endsAt,
         deletedAt: new Date(),
         internalNotes: noteSuffix
-          ? [existing.internalNotes?.trim(), noteSuffix].filter(Boolean).join('\n\n')
+          ? [existing.internalNotes?.trim(), noteSuffix]
+              .filter(Boolean)
+              .join('\n\n')
           : existing.internalNotes,
       },
     });
@@ -1584,7 +1743,11 @@ export class ActionsService {
     query: ListProjectActionAttendancesQueryDto,
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
 
     const { page, limit, skip, take } = resolvePagination({
       page: query.page,
@@ -1604,7 +1767,11 @@ export class ActionsService {
       status: 'ACTIVE',
       ...(action.targetEnrollmentId ? { id: action.targetEnrollmentId } : {}),
       ...(scopedGroupId
-        ? { groupMemberships: { some: { isActive: true, groupId: scopedGroupId } } }
+        ? {
+            groupMemberships: {
+              some: { isActive: true, groupId: scopedGroupId },
+            },
+          }
         : {}),
       ...(q
         ? {
@@ -1706,7 +1873,9 @@ export class ActionsService {
       },
     });
 
-    const attendanceByEnrollment = new Map(attendanceRows.map((row) => [row.enrollmentId, row]));
+    const attendanceByEnrollment = new Map(
+      attendanceRows.map((row) => [row.enrollmentId, row]),
+    );
 
     const data = enrollments
       .map((enrollment) => {
@@ -1736,12 +1905,19 @@ export class ActionsService {
     dto: UpsertProjectActionAttendancesDto,
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
-    const action = await this.ensureProjectActionExists(user, projectId, actionId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
 
     const items = dto.items ?? [];
-    if (items.length === 0) return { ok: true as const, created: 0, updated: 0 };
+    if (items.length === 0)
+      return { ok: true as const, created: 0, updated: 0 };
 
-    const enrollmentIds = Array.from(new Set(items.map((item) => item.enrollmentId)));
+    const enrollmentIds = Array.from(
+      new Set(items.map((item) => item.enrollmentId)),
+    );
     const enrollments = await this.prisma.projectEnrollment.findMany({
       where: { tenantId: user.tenantId, projectId, id: { in: enrollmentIds } },
       select: { id: true },
@@ -1751,10 +1927,16 @@ export class ActionsService {
     }
 
     const existing = await this.prisma.projectActionAttendance.findMany({
-      where: { tenantId: user.tenantId, actionId, enrollmentId: { in: enrollmentIds } },
+      where: {
+        tenantId: user.tenantId,
+        actionId,
+        enrollmentId: { in: enrollmentIds },
+      },
       select: { id: true, enrollmentId: true },
     });
-    const existingByEnrollment = new Map(existing.map((row) => [row.enrollmentId, row.id]));
+    const existingByEnrollment = new Map(
+      existing.map((row) => [row.enrollmentId, row.id]),
+    );
 
     let created = 0;
     let updated = 0;
@@ -1781,7 +1963,8 @@ export class ActionsService {
                   ? item.qualityNotes.trim()
                   : null;
 
-          const existingId = existingByEnrollment.get(item.enrollmentId) ?? null;
+          const existingId =
+            existingByEnrollment.get(item.enrollmentId) ?? null;
 
           if (existingId) {
             await this.prisma.projectActionAttendance.update({
@@ -1789,9 +1972,13 @@ export class ActionsService {
               data: {
                 status: item.status,
                 ...(notes !== undefined ? { notes } : {}),
-                ...(item.qualityScore !== undefined ? { qualityScore: item.qualityScore ?? null } : {}),
+                ...(item.qualityScore !== undefined
+                  ? { qualityScore: item.qualityScore ?? null }
+                  : {}),
                 ...(qualityNotes !== undefined ? { qualityNotes } : {}),
-                ...(item.isHighlight !== undefined ? { isHighlight: item.isHighlight } : {}),
+                ...(item.isHighlight !== undefined
+                  ? { isHighlight: item.isHighlight }
+                  : {}),
               },
             });
             updated += 1;
@@ -1823,9 +2010,14 @@ export class ActionsService {
     return { ok: true as const, created, updated };
   }
 
-  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[] | null) {
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[] | null,
+  ) {
     const normalized = Array.from(
-      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+      new Set(
+        (mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean),
+      ),
     );
 
     if (!normalized.length) {

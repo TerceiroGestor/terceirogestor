@@ -14,4 +14,3 @@ export class ConfirmTenantRegistrationDto {
   @MinLength(8)
   password?: string;
 }
-

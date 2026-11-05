@@ -17,7 +17,9 @@ export class SetPersonRecordTagsDto {
   @IsString({ each: true })
   @MaxLength(120, { each: true })
   @Transform(({ value }) =>
-    Array.isArray(value) ? value.map((entry) => trimTag({ value: entry })) : value,
+    Array.isArray(value)
+      ? value.map((entry) => trimTag({ value: entry }))
+      : value,
   )
   tags?: string[];
 }

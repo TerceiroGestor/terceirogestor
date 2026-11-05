@@ -37,4 +37,3 @@ export class UpdatePersonEducationDto {
   @IsString()
   notes?: string;
 }
-

@@ -5,4 +5,3 @@ export class DisableTotpDto {
   @Matches(/^\d{6}$/, { message: 'Código inválido' })
   code: string;
 }
-

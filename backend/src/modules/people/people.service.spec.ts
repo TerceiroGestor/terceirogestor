@@ -15,7 +15,10 @@ describe('PeopleService', () => {
         { provide: PrismaService, useValue: {} as PrismaService },
         { provide: CepService, useValue: {} as CepService },
         { provide: PiiCryptoService, useValue: {} as PiiCryptoService },
-        { provide: RequestContextService, useValue: {} as RequestContextService },
+        {
+          provide: RequestContextService,
+          useValue: {} as RequestContextService,
+        },
       ],
     }).compile();
 

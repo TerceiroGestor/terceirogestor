@@ -1,4 +1,9 @@
-import { IsBooleanString, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBooleanString,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class ListActionTypesQueryDto {
   @IsOptional()
@@ -15,4 +20,3 @@ export class ListActionTypesQueryDto {
     return this.isActive === 'true';
   }
 }
-

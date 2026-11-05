@@ -14,7 +14,10 @@ export class ActionsListController {
 
   @Get()
   @Permissions('actions.read')
-  async list(@CurrentUser() user: JwtUser, @Query() query: ListProjectActionsQueryDto) {
+  async list(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListProjectActionsQueryDto,
+  ) {
     return this.service.listActions(user, query);
   }
 }

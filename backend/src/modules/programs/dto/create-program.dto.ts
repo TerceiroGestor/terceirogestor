@@ -1,4 +1,10 @@
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ProgramStatus, ProgramType } from '../../../generated/prisma';
 
 export class CreateProgramDto {
@@ -33,4 +39,3 @@ export class CreateProgramDto {
   @IsDateString()
   endsAt?: string;
 }
-

@@ -9,4 +9,3 @@ import { DepositService } from './deposit.service';
   providers: [DepositService],
 })
 export class DepositModule {}
-

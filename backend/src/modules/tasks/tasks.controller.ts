@@ -58,7 +58,11 @@ export class TasksController {
     @Body() dto: CreateTaskDto,
   ) {
     const authUser = this.assertUser(user);
-    return this.tasksService.createTask(authUser.tenantId, authUser.userId, dto);
+    return this.tasksService.createTask(
+      authUser.tenantId,
+      authUser.userId,
+      dto,
+    );
   }
 
   @Get(':id')
@@ -135,7 +139,12 @@ export class TasksController {
     @Param('itemId', new ParseUUIDPipe({ version: '4' })) itemId: string,
     @Body() dto: UpdateTaskChecklistItemDto,
   ) {
-    return this.tasksService.updateChecklistItem(this.getTenantId(user), id, itemId, dto);
+    return this.tasksService.updateChecklistItem(
+      this.getTenantId(user),
+      id,
+      itemId,
+      dto,
+    );
   }
 
   @Delete(':id/checklist/:itemId')
@@ -145,7 +154,11 @@ export class TasksController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('itemId', new ParseUUIDPipe({ version: '4' })) itemId: string,
   ) {
-    return this.tasksService.deleteChecklistItem(this.getTenantId(user), id, itemId);
+    return this.tasksService.deleteChecklistItem(
+      this.getTenantId(user),
+      id,
+      itemId,
+    );
   }
 
   @Post(':id/subtasks')
@@ -180,7 +193,12 @@ export class TasksController {
     @Param('subtaskId', new ParseUUIDPipe({ version: '4' })) subtaskId: string,
     @Body() dto: UpdateTaskSubtaskDto,
   ) {
-    return this.tasksService.updateSubtask(this.getTenantId(user), id, subtaskId, dto);
+    return this.tasksService.updateSubtask(
+      this.getTenantId(user),
+      id,
+      subtaskId,
+      dto,
+    );
   }
 
   @Delete(':id/subtasks/:subtaskId')
@@ -190,7 +208,11 @@ export class TasksController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('subtaskId', new ParseUUIDPipe({ version: '4' })) subtaskId: string,
   ) {
-    return this.tasksService.deleteSubtask(this.getTenantId(user), id, subtaskId);
+    return this.tasksService.deleteSubtask(
+      this.getTenantId(user),
+      id,
+      subtaskId,
+    );
   }
 
   @Post(':id/comments')
@@ -201,7 +223,12 @@ export class TasksController {
     @Body() dto: CreateTaskCommentDto,
   ) {
     const authUser = this.assertUser(user);
-    return this.tasksService.addComment(authUser.tenantId, authUser.userId, id, dto);
+    return this.tasksService.addComment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      dto,
+    );
   }
 
   @Delete(':id/comments/:commentId')
@@ -211,7 +238,11 @@ export class TasksController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('commentId', new ParseUUIDPipe({ version: '4' })) commentId: string,
   ) {
-    return this.tasksService.deleteComment(this.getTenantId(user), id, commentId);
+    return this.tasksService.deleteComment(
+      this.getTenantId(user),
+      id,
+      commentId,
+    );
   }
 
   @Post(':id/attachments')
@@ -222,7 +253,12 @@ export class TasksController {
     @Body() dto: CreateTaskAttachmentDto,
   ) {
     const authUser = this.assertUser(user);
-    return this.tasksService.addAttachment(authUser.tenantId, authUser.userId, id, dto);
+    return this.tasksService.addAttachment(
+      authUser.tenantId,
+      authUser.userId,
+      id,
+      dto,
+    );
   }
 
   @Delete(':id/attachments/:attachmentId')
@@ -230,9 +266,14 @@ export class TasksController {
   async deleteAttachment(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.tasksService.deleteAttachment(this.getTenantId(user), id, attachmentId);
+    return this.tasksService.deleteAttachment(
+      this.getTenantId(user),
+      id,
+      attachmentId,
+    );
   }
 
   @Post(':id/dependencies')
@@ -250,9 +291,14 @@ export class TasksController {
   async deleteDependency(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('dependencyId', new ParseUUIDPipe({ version: '4' })) dependencyId: string,
+    @Param('dependencyId', new ParseUUIDPipe({ version: '4' }))
+    dependencyId: string,
   ) {
-    return this.tasksService.deleteDependency(this.getTenantId(user), id, dependencyId);
+    return this.tasksService.deleteDependency(
+      this.getTenantId(user),
+      id,
+      dependencyId,
+    );
   }
 
   private getTenantId(user?: JwtUser) {

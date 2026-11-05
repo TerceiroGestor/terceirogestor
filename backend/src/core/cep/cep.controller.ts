@@ -17,4 +17,3 @@ export class CepController {
     return this.cep.lookup(cep);
   }
 }
-

@@ -1,8 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma, ProgramStatus, ProgramType } from '../../generated/prisma';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type {
+  Prisma,
+  ProgramStatus,
+  ProgramType,
+} from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { parseDateInput } from '../../core/utils/dates';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreateProgramAttachmentDto } from './dto/create-program-attachment.dto';
 import { CreateProgramCommentDto } from './dto/create-program-comment.dto';
@@ -12,15 +23,22 @@ import { UpdateProgramDto } from './dto/update-program.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
-const PROGRAM_TYPE_SEARCH_MAP: Array<{ value: ProgramType; tokens: string[] }> = [
-  { value: 'SCFV', tokens: ['scfv'] },
-  { value: 'PAIF', tokens: ['paif'] },
-  { value: 'PAEFI', tokens: ['paefi'] },
-  { value: 'CULTURAL', tokens: ['cultural', 'cultura'] },
-  { value: 'QUALIFICATION', tokens: ['qualification', 'qualificacao', 'qualificação'] },
-  { value: 'OTHER', tokens: ['other', 'outro'] },
-];
-const PROGRAM_STATUS_SEARCH_MAP: Array<{ value: ProgramStatus; tokens: string[] }> = [
+const PROGRAM_TYPE_SEARCH_MAP: Array<{ value: ProgramType; tokens: string[] }> =
+  [
+    { value: 'SCFV', tokens: ['scfv'] },
+    { value: 'PAIF', tokens: ['paif'] },
+    { value: 'PAEFI', tokens: ['paefi'] },
+    { value: 'CULTURAL', tokens: ['cultural', 'cultura'] },
+    {
+      value: 'QUALIFICATION',
+      tokens: ['qualification', 'qualificacao', 'qualificação'],
+    },
+    { value: 'OTHER', tokens: ['other', 'outro'] },
+  ];
+const PROGRAM_STATUS_SEARCH_MAP: Array<{
+  value: ProgramStatus;
+  tokens: string[];
+}> = [
   { value: 'PLANNED', tokens: ['planned', 'planejado'] },
   { value: 'ACTIVE', tokens: ['active', 'ativo'] },
   { value: 'CLOSED', tokens: ['closed', 'encerrado'] },
@@ -28,7 +46,9 @@ const PROGRAM_STATUS_SEARCH_MAP: Array<{ value: ProgramStatus; tokens: string[] 
 
 function normalizeTags(tags?: string[] | null) {
   if (!tags) return null;
-  const cleaned = Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+  const cleaned = Array.from(
+    new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
+  );
   return cleaned.length ? JSON.stringify(cleaned) : null;
 }
 
@@ -46,7 +66,9 @@ function parseTags(value: string | null | undefined) {
 
 function parseMentionUserIds(value: Prisma.JsonValue | null | undefined) {
   if (!Array.isArray(value)) return [];
-  return Array.from(new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)));
+  return Array.from(
+    new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean)),
+  );
 }
 
 const mapCommentAuthor = (
@@ -66,21 +88,19 @@ const mapCommentAuthor = (
   avatarUrl: user?.avatarUrl ?? null,
 });
 
-const mapProgramCommentItem = (
-  comment: {
+const mapProgramCommentItem = (comment: {
+  id: string;
+  body: string;
+  mentionUserIds: Prisma.JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+  authorUser?: {
     id: string;
-    body: string;
-    mentionUserIds: Prisma.JsonValue | null;
-    createdAt: Date;
-    updatedAt: Date;
-    authorUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+}) => ({
   id: comment.id,
   body: comment.body,
   mentionUserIds: parseMentionUserIds(comment.mentionUserIds),
@@ -89,23 +109,21 @@ const mapProgramCommentItem = (
   updatedAt: comment.updatedAt,
 });
 
-const mapProgramAttachmentItem = (
-  attachment: {
+const mapProgramAttachmentItem = (attachment: {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  uploadedByUser?: {
     id: string;
-    label: string;
-    filePath: string;
-    mimeType: string | null;
-    fileSizeBytes: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-    uploadedByUser?: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      avatarUrl: string | null;
-    } | null;
-  },
-) => ({
+    name: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+}) => ({
   id: attachment.id,
   label: attachment.label,
   filePath: attachment.filePath,
@@ -174,7 +192,10 @@ function resolveRangeDates(params: { from?: string; to?: string }) {
   return { from, to };
 }
 
-function ensureValidPeriod(params: { startsAt?: Date | null; endsAt?: Date | null }) {
+function ensureValidPeriod(params: {
+  startsAt?: Date | null;
+  endsAt?: Date | null;
+}) {
   const startsAt = params.startsAt ?? null;
   const endsAt = params.endsAt ?? null;
   if (startsAt && endsAt && startsAt > endsAt) {
@@ -187,7 +208,9 @@ function resolveMatchingProgramTypes(query: string) {
   if (!normalized) return [];
 
   return PROGRAM_TYPE_SEARCH_MAP.filter((entry) =>
-    entry.tokens.some((token) => token.includes(normalized) || normalized.includes(token)),
+    entry.tokens.some(
+      (token) => token.includes(normalized) || normalized.includes(token),
+    ),
   ).map((entry) => entry.value);
 }
 
@@ -196,7 +219,9 @@ function resolveMatchingProgramStatuses(query: string) {
   if (!normalized) return [];
 
   return PROGRAM_STATUS_SEARCH_MAP.filter((entry) =>
-    entry.tokens.some((token) => token.includes(normalized) || normalized.includes(token)),
+    entry.tokens.some(
+      (token) => token.includes(normalized) || normalized.includes(token),
+    ),
   ).map((entry) => entry.value);
 }
 
@@ -307,7 +332,9 @@ export class ProgramsService {
         type: dto.type,
         description: dto.description?.trim() ? dto.description.trim() : null,
         tags: normalizeTags(dto.tags),
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
         status: dto.status ?? 'PLANNED',
         startsAt,
         endsAt,
@@ -329,8 +356,11 @@ export class ProgramsService {
     }
 
     const startsAt =
-      dto.startsAt !== undefined ? parseDateInput(dto.startsAt) : existing.startsAt;
-    const endsAt = dto.endsAt !== undefined ? parseDateInput(dto.endsAt) : existing.endsAt;
+      dto.startsAt !== undefined
+        ? parseDateInput(dto.startsAt)
+        : existing.startsAt;
+    const endsAt =
+      dto.endsAt !== undefined ? parseDateInput(dto.endsAt) : existing.endsAt;
     ensureValidPeriod({ startsAt, endsAt });
 
     const updated = await this.prisma.program.update({
@@ -339,11 +369,19 @@ export class ProgramsService {
         ...(name !== undefined ? { name } : {}),
         ...(dto.type !== undefined ? { type: dto.type } : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.tags !== undefined ? { tags: normalizeTags(dto.tags) } : {}),
         ...(dto.internalNotes !== undefined
-          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
+          ? {
+              internalNotes: dto.internalNotes?.trim()
+                ? dto.internalNotes.trim()
+                : null,
+            }
           : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.startsAt !== undefined ? { startsAt } : {}),
@@ -386,7 +424,10 @@ export class ProgramsService {
       throw new BadRequestException('Informe um comentario.');
     }
 
-    const mentionUserIds = await this.resolveMentionUserIds(tenantId, dto.mentionUserIds);
+    const mentionUserIds = await this.resolveMentionUserIds(
+      tenantId,
+      dto.mentionUserIds,
+    );
 
     await this.prisma.programComment.create({
       data: {
@@ -448,7 +489,11 @@ export class ProgramsService {
     return this.findById(tenantId, programId);
   }
 
-  async deleteAttachment(tenantId: string, programId: string, attachmentId: string) {
+  async deleteAttachment(
+    tenantId: string,
+    programId: string,
+    attachmentId: string,
+  ) {
     await this.findProgramEntity(tenantId, programId);
     const attachment = await this.prisma.programAttachment.findFirst({
       where: { id: attachmentId, tenantId, programId },
@@ -458,13 +503,20 @@ export class ProgramsService {
       throw new NotFoundException('Anexo nao encontrado');
     }
 
-    await this.prisma.programAttachment.delete({ where: { id: attachment.id } });
+    await this.prisma.programAttachment.delete({
+      where: { id: attachment.id },
+    });
     return this.findById(tenantId, programId);
   }
 
-  private async resolveMentionUserIds(tenantId: string, mentionUserIds?: string[] | null) {
+  private async resolveMentionUserIds(
+    tenantId: string,
+    mentionUserIds?: string[] | null,
+  ) {
     const normalized = Array.from(
-      new Set((mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean)),
+      new Set(
+        (mentionUserIds ?? []).map((entry) => entry.trim()).filter(Boolean),
+      ),
     );
 
     if (!normalized.length) {

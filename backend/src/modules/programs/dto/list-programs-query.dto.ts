@@ -23,4 +23,3 @@ export class ListProgramsQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

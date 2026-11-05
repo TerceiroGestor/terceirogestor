@@ -10,4 +10,3 @@ export class ListDepositDonorsQueryDto extends PaginationQueryDto {
   @IsString()
   search?: string;
 }
-

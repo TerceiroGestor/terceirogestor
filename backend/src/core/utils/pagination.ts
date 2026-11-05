@@ -56,4 +56,3 @@ export const buildPaginationMeta = ({
     pages: total === 0 ? 0 : Math.ceil(total / limit),
   };
 };
-

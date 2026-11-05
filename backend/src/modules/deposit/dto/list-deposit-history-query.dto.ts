@@ -1,4 +1,11 @@
-import { IsDateString, IsEnum, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { DepositExitType } from '../../../generated/prisma';
 import { PaginationQueryDto } from '../../../core/dto/pagination-query.dto';
 
@@ -35,4 +42,3 @@ export class ListDepositHistoryQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

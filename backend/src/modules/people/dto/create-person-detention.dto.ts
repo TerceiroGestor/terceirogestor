@@ -24,4 +24,3 @@ export class CreatePersonDetentionDto {
   @IsString()
   notes?: string;
 }
-

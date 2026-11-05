@@ -8,4 +8,3 @@ export class ConfirmTotpDto {
   @Matches(/^\d{6}$/, { message: 'Código inválido' })
   code: string;
 }
-

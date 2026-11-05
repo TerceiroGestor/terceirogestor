@@ -40,4 +40,3 @@ export class UpdatePersonContactDto {
   @IsString()
   notes?: string;
 }
-
