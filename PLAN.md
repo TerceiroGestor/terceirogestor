@@ -35,9 +35,37 @@ Branch: `p1/baseline`. Ponto de retorno: tag `v0-baseline` (commit `962b91c`).
 - [x] `tsconfig.build.json` do backend **já excluía `test/`** (linha
       `"exclude": [..., "test", ...]`) — o erro TS6059 do plano não se
       reproduziu. Nenhuma mudança necessária
-- [ ] Criar `docs/backlog.md` (em andamento nesta mesma sessão)
+- [x] Criado `docs/backlog.md`
 - [x] `CLAUDE.md`/`AGENTS.md` criados com as regras do projeto
-- [ ] Atualizar `README.md` só com o necessário para rodar localmente
+- [x] `README.md` reescrito só com o necessário para rodar localmente
+      (a versão anterior descrevia MySQL e scripts `.ps1` que não existem
+      mais no repositório)
+
+### Checkpoint completo (2026-11-05, fim da sessão)
+
+```
+backend: tsc --noEmit -p tsconfig.build.json → 0 erros
+backend: npm test                            → 15 suites, 18 testes, ok
+frontend: tsc --noEmit                       → 0 erros
+frontend: npm run build                      → ok
+```
+
+**Único item aberto da Parte 1:** o teste manual de login + 9 módulos.
+Não deu para rodar nesta sessão (sem Docker no PATH deste ambiente e sem
+`.env` configurado, logo sem Postgres acessível). Rode na sua máquina:
+
+```powershell
+Copy-Item .env.example .env
+# editar POSTGRES_PASSWORD, JWT_SECRET, PII_MASTER_KEY, TOTP_ENCRYPTION_KEY
+.\docker.ps1 up -Environment dev
+cd backend; npm run start:dev
+cd ..\frontend; npm run dev
+```
+
+Depois de confirmar login e os 9 módulos (people, deposit, pantry,
+actions, tasks, projects, programs, people-segments, people-groups) sem
+quebrar nada, marque o item acima, crie a tag `v0.1-limpo` e abra o PR de
+`p1/baseline` para `main`.
 
 ### Linha de base (medida em 2026-11-05, Windows, node v26.1.0 — fora da
 faixa `>=22 <23` dos dois `package.json`, ver `docs/backlog.md`)
