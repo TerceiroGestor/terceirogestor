@@ -16,17 +16,45 @@ plano.
 ## Críticas
 
 ### 1. Download de arquivo sem autenticação (inclui documentos de saúde)
-- [ ] **Onde:** `backend/src/app.module.ts:54-57` (`ServeStaticModule`
-      serve `/uploads` publicamente); `backend/src/core/files/files.controller.ts`
-      só protege upload, não existe rota de download.
-- **O que fazer:** remover o `ServeStaticModule`; criar endpoint de
-  download que confere tenant + permissão antes de liberar o arquivo.
-- **Critério de aceite:** usuário do tenant A não baixa arquivo do tenant
-  B mesmo sabendo a chave (teste automatizado); toda URL de arquivo exige
-  JWT válido.
+
+- [x] **Feito em 2026-11-06**, branch `p3/01-uploads-sem-auth`. **Onde
+      estava:** `backend/src/app.module.ts:54-57` (`ServeStaticModule`
+      servia `/uploads` publicamente); `backend/src/core/files/files.controller.ts`
+      só protegia upload, não existia rota de download.
+- **O que foi feito:** `ServeStaticModule` removido. Novo
+  `UploadsController` (`backend/src/core/files/uploads.controller.ts`)
+  serve `GET /uploads/:category/:filename` exigindo um token `?sig=`
+  assinado (HMAC com `JWT_SECRET`, TTL de 5 min) — **não** `Authorization:
+  Bearer`, porque o frontend usa `<img src>`/`<a href>` puro para avatar,
+  anexos e documentos de saúde (token fica só em `sessionStorage`, nunca
+  em cookie, então não viaja automaticamente nessas tags). Em vez de
+  caçar cada lugar que devolve um `filePath`/`avatarUrl`/`documentUrl`,
+  um `SignUploadsInterceptor` global (via `APP_INTERCEPTOR`) reassina
+  automaticamente qualquer string `/uploads/<categoria>/<arquivo>` em
+  qualquer resposta JSON autenticada, usando o `tenantId` de quem fez a
+  requisição — a mesma lógica das URLs assinadas da R2 (Parte 4.2),
+  adiantada para o driver local. `StorageService` (`storage.service.ts`)
+  concentra `getSignedUrl`/`verifySignature`. Única exceção: categoria
+  `tenants` (logo) continua pública, porque `GET /tenants/slug/:slug` é
+  usado sem login para montar a tela de login (branding) —
+  `backend/src/modules/tenants/tenants.controller.ts:20-22`.
+- **Critério de aceite (ajustado):** nenhum arquivo é servido sem um
+  token válido e não-expirado emitido para aquele tenant/arquivo
+  específico (exceto o logo público); um `sig` reaproveitado para outro
+  arquivo falha. Confirmado por 19 testes automatizados
+  (`storage.service.spec.ts`, `uploads.controller.spec.ts`,
+  `sign-uploads.interceptor.spec.ts`) e por um teste manual de ponta a
+  ponta: login → criar `PersonHealthCondition.documentUrl` → a API já
+  devolve a URL assinada → baixar com `?sig=` funciona (200) → sem `sig`
+  falha (404) → reusar o `sig` para outro nome de arquivo falha (404).
+- **Pendente (não é parte deste item):** item 2 (auditoria no download de
+  documento de saúde) e a permissão por módulo no próprio download (hoje
+  a única porta é o `tenantId` do token; a permissão já foi checada
+  quando a URL foi emitida, mas não é checada de novo no download).
 - **Plano:** Parte 3.2.
 
 ### 2. Download de documento sensível não gera auditoria
+
 - [ ] **Onde:** `backend/src/modules/people/people.service.ts:1563-1579`
       (`logSensitiveAccess` só cobre leitura/edição do registro, não o
       arquivo em si).
@@ -39,6 +67,7 @@ plano.
   gera registro na auditoria").
 
 ### 3. Banco sem migrations versionadas
+
 - [ ] **Onde:** `backend/prisma/migrations/` só tem `migration_lock.toml`;
       `backend/scripts/docker-entrypoint.sh:8-14` cai em `prisma db push`.
 - **O que fazer:** gerar a migration `0_init` a partir do schema atual,
@@ -49,6 +78,7 @@ plano.
 - **Plano:** Parte 3.1.
 
 ### 4. CORS aberto para qualquer origem, com cookies habilitados
+
 - [ ] **Onde:** `backend/src/main.ts:24` —
       `app.enableCors({ origin: true, credentials: true })`.
 - **O que fazer:** restringir a `origin` à lista em `WEB_URL` (separada
@@ -60,6 +90,7 @@ plano.
 ## Altas
 
 ### 5. `TenantGuard` existe mas não é usado em nenhum lugar
+
 - [ ] **Onde:** `backend/src/core/auth/guards/tenant.guard.ts` (definido,
       zero imports em controllers/`app.module.ts`). O padrão real usado
       hoje (`tenantId` vindo do JWT via `getTenantId()`/`@CurrentUser()`)
@@ -73,6 +104,7 @@ plano.
 - **Plano:** Parte 3.3.
 
 ### 6. Isolamento entre tenants sem teste automatizado
+
 - [ ] **Onde:** ~64 ocorrências de `.update({ where: { id } })` /
       `.delete({ where: { id } })` fora de `updateMany`/`deleteMany` em
       `backend/src/modules/**/*.service.ts`. Amostra de 3 (`deposit.service.ts:1181`,
@@ -87,6 +119,7 @@ plano.
 - **Plano:** Parte 3.3.
 
 ### 7. Token de acesso dura 8 horas
+
 - [ ] **Onde:** `backend/src/core/auth/auth.module.ts:28` e
       `backend/src/modules/registration/registration.module.ts:21` —
       `signOptions: { expiresIn: '8h' }`.
@@ -100,12 +133,14 @@ plano.
 ## Médias
 
 ### 8. Sem `helmet` (headers de segurança)
+
 - [ ] **Onde:** `backend/src/main.ts` — nenhuma referência a `helmet` no
       backend inteiro.
 - **O que fazer:** adicionar `helmet()` no bootstrap.
 - **Plano:** Parte 2.
 
 ### 9. Variáveis de ambiente não são validadas no boot
+
 - [ ] **Onde:** `backend/src/app.module.ts:49-53` — `ConfigModule.forRoot`
       sem `validate`/`validationSchema`. O app sobe normalmente mesmo
       faltando `JWT_SECRET`/`PII_MASTER_KEY`/`DATABASE_URL`, e só quebra
@@ -116,6 +151,7 @@ plano.
 - **Plano:** Parte 2.
 
 ### 10. Não existe `GET /health`
+
 - [ ] **Onde:** `backend/src/app.controller.ts` só tem `GET /` (hello).
       Nenhuma rota testa a conexão com o banco.
 - **O que fazer:** criar `GET /health` que confere a conexão com o
@@ -123,6 +159,7 @@ plano.
 - **Plano:** Parte 2 e Parte 4.1.
 
 ### 11. IP do cliente pode se perder atrás de proxy (Cloudflare → Railway)
+
 - [ ] **Onde:** `backend/src/main.ts` — sem `app.set('trust proxy', ...)`.
       Audit log e rate-limit usam `req.ip`.
 - **O que fazer:** configurar `trust proxy` corretamente antes do go-live,
@@ -133,6 +170,7 @@ plano.
   (Cloudflare/Railway) ou revisar junto da 3.4.
 
 ### 12. Arquivos em disco do container (efêmero no Railway)
+
 - [ ] **Onde:** `backend/src/core/files/files.controller.ts:16-30` — 10
       pastas sob `uploads/` via `multer.diskStorage`. Nenhum código de
       S3/R2 ainda.
@@ -143,6 +181,7 @@ plano.
 ## Achados novos (fora da tabela original do plano)
 
 ### 13. `.gitignore` ignora silenciosamente pastas `scripts`/`script`/`infra`
+
 - [ ] **Onde:** `.gitignore` tem essas três entradas sem barra —
       qualquer arquivo **novo** criado em `backend/scripts/` ou
       `scripts/windows/` não aparece em `git status`.
@@ -151,6 +190,7 @@ plano.
 - Já registrado em `docs/backlog.md`.
 
 ### 14. `prisma/seed.js` sem build automatizado
+
 - [ ] **Onde:** nenhum script compila `seed.ts` → `seed.js`. Já ficou
       desatualizado uma vez (emails antigos) até ser corrigido em
       2026-11-05.
@@ -159,6 +199,7 @@ plano.
 - Já registrado em `docs/backlog.md`.
 
 ### 15. Vulnerabilidades de dependências não auditadas
+
 - [ ] **Onde:** `npm audit` (2026-11-05): 41 no backend (3 low/22
       moderate/14 high/2 critical), 27 no frontend (1 low/10 moderate/15
       high/1 critical).
@@ -167,6 +208,7 @@ plano.
 - **Plano:** Parte 2.
 
 ### 16. Node local fora da faixa declarada em `engines`
+
 - [ ] **Onde:** `package.json` (`"node": ">=22 <23"`) vs. Node v26.1.0
       rodando nesta máquina.
 - **O que fazer:** fixar a versão de Node do build (Railway/Dockerfile)

@@ -25,9 +25,8 @@ import { RegistrationModule } from './modules/registration/registration.module';
 import { ActionsModule } from './modules/actions/actions.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { existsSync } from 'fs';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import { TenancyMiddleware } from './core/tenancy/tenancy.middleware';
 import { AuditModule } from './core/audit/audit.module';
 import { RequestContextModule } from './core/request-context/request-context.module';
@@ -50,10 +49,6 @@ const rootEnvFilePaths = [
       isGlobal: true,
       envFilePath: rootEnvFilePaths,
       expandVariables: true,
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: resolve(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
     }),
     PrismaModule,
     AuthModule,
