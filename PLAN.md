@@ -1,7 +1,8 @@
 # PLAN.md — Terceiro Gestor
 
 Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
-Revisão e Produção.md`. Regras do projeto: `AGENTS.md`.
+Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
+(Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
 ## Parte atual: Parte 1 — Limpeza
 
