@@ -4,9 +4,24 @@ import { createHmac, timingSafeEqual } from 'crypto';
 
 interface SignedUploadPayload {
   tenantId: string;
+  userId: string;
   category: string;
   filename: string;
+  personId?: string;
   exp: number;
+}
+
+export interface SignedUploadUrlOptions {
+  ttlSeconds?: number;
+  /** Person the file belongs to - only set for sensitive categories, so a
+   * download can be written to PersonSensitiveAccessLog (item 2). */
+  personId?: string;
+}
+
+export interface VerifiedUploadSignature {
+  tenantId: string;
+  userId: string;
+  personId?: string;
 }
 
 const DEFAULT_TTL_SECONDS = 5 * 60;
@@ -34,13 +49,16 @@ export class StorageService {
     category: string,
     filename: string,
     tenantId: string,
-    ttlSeconds: number = DEFAULT_TTL_SECONDS,
+    userId: string,
+    options: SignedUploadUrlOptions = {},
   ): string {
     const payload: SignedUploadPayload = {
       tenantId,
+      userId,
       category,
       filename,
-      exp: Date.now() + ttlSeconds * 1000,
+      personId: options.personId,
+      exp: Date.now() + (options.ttlSeconds ?? DEFAULT_TTL_SECONDS) * 1000,
     };
     const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const mac = createHmac('sha256', this.secret())
@@ -53,7 +71,7 @@ export class StorageService {
     category: string,
     filename: string,
     sig: string | undefined,
-  ): { tenantId: string } | null {
+  ): VerifiedUploadSignature | null {
     if (!sig) return null;
     const [body, mac] = sig.split('.');
     if (!body || !mac) return null;
@@ -89,6 +107,10 @@ export class StorageService {
       return null;
     }
 
-    return { tenantId: payload.tenantId };
+    return {
+      tenantId: payload.tenantId,
+      userId: payload.userId,
+      personId: payload.personId,
+    };
   }
 }

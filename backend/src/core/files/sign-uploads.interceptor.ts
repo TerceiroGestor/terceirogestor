@@ -9,7 +9,19 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { JwtUser } from '../auth/strategies/jwt.strategy';
 import { StorageService } from './storage.service';
-import { PUBLIC_UPLOAD_CATEGORIES, UPLOAD_PATH_PATTERN } from './upload-paths';
+import {
+  PUBLIC_UPLOAD_CATEGORIES,
+  SENSITIVE_UPLOAD_CATEGORIES,
+  UPLOAD_PATH_PATTERN,
+} from './upload-paths';
+
+interface SignContext {
+  tenantId: string;
+  userId: string;
+  /** personId of the closest ancestor object that had its own `personId`
+   * field - e.g. a PersonHealthCondition row signing its documentUrl. */
+  personId?: string;
+}
 
 /**
  * Rewrites every raw `/uploads/<category>/<file>` string in a response
@@ -17,6 +29,12 @@ import { PUBLIC_UPLOAD_CATEGORIES, UPLOAD_PATH_PATTERN } from './upload-paths';
  * frontend's plain <img src>/<a href> usage keeps working without the
  * caller needing to attach an Authorization header. See
  * docs/auditoria-riscos.md item 1.
+ *
+ * For sensitive categories (health documents, item 2) it also carries the
+ * owning person's id in the token, read from a `personId` field on the
+ * same object as the path - every PersonHealthCondition/PersonMedication
+ * response already has one as a sibling of `documentUrl` - so the
+ * download endpoint can write the LGPD access log without a DB lookup.
  */
 @Injectable()
 export class SignUploadsInterceptor implements NestInterceptor {
@@ -26,23 +44,26 @@ export class SignUploadsInterceptor implements NestInterceptor {
     const request = context
       .switchToHttp()
       .getRequest<Request & { user?: JwtUser }>();
-    const tenantId = request.user?.tenantId;
+    const user = request.user;
 
-    return next
-      .handle()
-      .pipe(
-        map((data: unknown) =>
-          tenantId ? this.signDeep(data, tenantId) : data,
-        ),
-      );
+    return next.handle().pipe(
+      map((data: unknown) =>
+        user
+          ? this.signDeep(data, {
+              tenantId: user.tenantId,
+              userId: user.userId,
+            })
+          : data,
+      ),
+    );
   }
 
-  private signDeep(value: unknown, tenantId: string): unknown {
+  private signDeep(value: unknown, ctx: SignContext): unknown {
     if (typeof value === 'string') {
-      return this.signIfUploadPath(value, tenantId);
+      return this.signIfUploadPath(value, ctx);
     }
     if (Array.isArray(value)) {
-      return value.map((item) => this.signDeep(item, tenantId));
+      return value.map((item) => this.signDeep(item, ctx));
     }
     // Only recurse into plain objects - Decimal/Date/Buffer and other
     // class instances pass through untouched so their own serialization
@@ -52,22 +73,39 @@ export class SignUploadsInterceptor implements NestInterceptor {
       typeof value === 'object' &&
       value.constructor === Object
     ) {
+      const record = value as Record<string, unknown>;
+      const ownPersonId =
+        typeof record.personId === 'string' ? record.personId : undefined;
+      const childCtx: SignContext = ownPersonId
+        ? { ...ctx, personId: ownPersonId }
+        : ctx;
+
       const out: Record<string, unknown> = {};
-      for (const [key, entry] of Object.entries(
-        value as Record<string, unknown>,
-      )) {
-        out[key] = this.signDeep(entry, tenantId);
+      for (const [key, entry] of Object.entries(record)) {
+        out[key] = this.signDeep(entry, childCtx);
       }
       return out;
     }
     return value;
   }
 
-  private signIfUploadPath(value: string, tenantId: string): string {
+  private signIfUploadPath(value: string, ctx: SignContext): string {
     const match = UPLOAD_PATH_PATTERN.exec(value);
     if (!match) return value;
     const [, category, filename] = match;
     if (PUBLIC_UPLOAD_CATEGORIES.has(category)) return value;
-    return this.storage.getSignedUrl(category, filename, tenantId);
+
+    const personId = SENSITIVE_UPLOAD_CATEGORIES.has(category)
+      ? ctx.personId
+      : undefined;
+    return this.storage.getSignedUrl(
+      category,
+      filename,
+      ctx.tenantId,
+      ctx.userId,
+      {
+        personId,
+      },
+    );
   }
 }

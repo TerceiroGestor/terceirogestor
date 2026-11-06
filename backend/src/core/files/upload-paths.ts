@@ -25,6 +25,12 @@ export const UPLOAD_CATEGORY_DIRS: Record<string, string> = {
 // or at least tenant-private and requires one.
 export const PUBLIC_UPLOAD_CATEGORIES = new Set(['tenants']);
 
+// Downloads from these categories get a PersonSensitiveAccessLog row
+// (item 2 of docs/auditoria-riscos.md) - the signed URL carries the
+// personId the file belongs to precisely so the download endpoint can
+// log it without a DB lookup.
+export const SENSITIVE_UPLOAD_CATEGORIES = new Set(['health']);
+
 export const SAFE_UPLOAD_SEGMENT = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$/;
 
 export const UPLOAD_PATH_PATTERN = /^\/uploads\/([^/?]+)\/([^/?]+)$/;

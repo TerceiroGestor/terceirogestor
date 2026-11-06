@@ -47,22 +47,42 @@ plano.
   ponta: login → criar `PersonHealthCondition.documentUrl` → a API já
   devolve a URL assinada → baixar com `?sig=` funciona (200) → sem `sig`
   falha (404) → reusar o `sig` para outro nome de arquivo falha (404).
-- **Pendente (não é parte deste item):** item 2 (auditoria no download de
-  documento de saúde) e a permissão por módulo no próprio download (hoje
-  a única porta é o `tenantId` do token; a permissão já foi checada
-  quando a URL foi emitida, mas não é checada de novo no download).
+- **Pendente (não é parte deste item):** a permissão por módulo no
+  próprio download (hoje a única porta é o `tenantId` do token; a
+  permissão já foi checada quando a URL foi emitida, mas não é checada
+  de novo no download). Auditoria de download de documento de saúde
+  virou o item 2, abaixo — já feito.
 - **Plano:** Parte 3.2.
 
 ### 2. Download de documento sensível não gera auditoria
 
-- [ ] **Onde:** `backend/src/modules/people/people.service.ts:1563-1579`
-      (`logSensitiveAccess` só cobre leitura/edição do registro, não o
+- [x] **Feito em 2026-11-06**, branch `p3/01-uploads-sem-auth` (mesmo
+      branch do item 1 — são a mesma mudança de infraestrutura). **Onde
+      estava:** `backend/src/modules/people/people.service.ts:1563-1579`
+      (`logSensitiveAccess` só cobria leitura/edição do registro, não o
       arquivo em si).
-- **O que fazer:** ao implementar o endpoint de download do item 1,
-  registrar em `PersonSensitiveAccessLog` todo acesso a arquivo dentro de
-  `uploads/health/`.
-- **Critério de aceite:** baixar um documento de saúde gera uma linha de
-  auditoria com usuário, IP e timestamp.
+- **O que foi feito:** o token assinado do item 1 agora carrega também
+  `userId` (sempre) e `personId` (só para a categoria `health`) —
+  `StorageService.getSignedUrl`/`verifySignature`
+  (`storage.service.ts`). O `SignUploadsInterceptor` descobre o
+  `personId` olhando o campo `personId` já presente como irmão de
+  `documentUrl`/`permissionDocumentUrl` nas respostas de
+  `PersonHealthCondition`/`PersonMedication` (`sign-uploads.interceptor.ts`),
+  e propaga esse `personId` para objetos filhos também (não só o campo
+  direto). `UploadsController.download` (`uploads.controller.ts`), ao
+  validar um `sig` da categoria `health` que carrega `personId`, grava
+  em `PersonSensitiveAccessLog` antes de servir o arquivo — se a
+  escrita falhar, o download falha também (fail-closed, não existe
+  download de documento de saúde sem conseguir registrar).
+- **Critério de aceite:** confirmado por 6 testes novos (token carrega
+  `personId` só para `health`; propaga por objetos aninhados; não grava
+  nada em categorias não sensíveis mesmo com `personId` ao lado; não
+  grava nada se o token de um documento de saúde não tiver `personId`)
+  e por um teste manual real: criei uma `PersonHealthCondition` com
+  `documentUrl` apontando pro arquivo de teste, baixei pela URL assinada
+  que a própria API devolveu, e confirmei a linha nova em
+  `PersonSensitiveAccessLog` com o `userId` de quem baixou, `action:
+  READ`, IP (`::1`) e `userAgent` (`curl/8.19.0`) corretos.
 - **Plano:** Parte 3.5 ("confirmar que todo acesso a documentos de saúde
   gera registro na auditoria").
 

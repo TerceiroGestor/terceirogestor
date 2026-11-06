@@ -9,9 +9,12 @@ import {
 import type { Response } from 'express';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { PrismaService } from '../prisma/prisma.service';
+import { RequestContextService } from '../request-context/request-context.service';
 import {
   PUBLIC_UPLOAD_CATEGORIES,
   SAFE_UPLOAD_SEGMENT,
+  SENSITIVE_UPLOAD_CATEGORIES,
   UPLOAD_CATEGORY_DIRS,
 } from './upload-paths';
 import { StorageService } from './storage.service';
@@ -27,10 +30,14 @@ import { StorageService } from './storage.service';
  */
 @Controller('uploads')
 export class UploadsController {
-  constructor(private readonly storage: StorageService) {}
+  constructor(
+    private readonly storage: StorageService,
+    private readonly prisma: PrismaService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   @Get(':category/:filename')
-  download(
+  async download(
     @Param('category') category: string,
     @Param('filename') filename: string,
     @Query('sig') sig: string | undefined,
@@ -46,6 +53,14 @@ export class UploadsController {
       if (!payload) {
         throw new NotFoundException();
       }
+
+      if (SENSITIVE_UPLOAD_CATEGORIES.has(category) && payload.personId) {
+        await this.logSensitiveDownload(
+          payload.tenantId,
+          payload.personId,
+          payload.userId,
+        );
+      }
     }
 
     const absolutePath = join(dir, filename);
@@ -54,5 +69,23 @@ export class UploadsController {
     }
 
     res.sendFile(absolutePath);
+  }
+
+  private async logSensitiveDownload(
+    tenantId: string,
+    personId: string,
+    userId: string,
+  ) {
+    const ctx = this.requestContext.get();
+    await this.prisma.personSensitiveAccessLog.create({
+      data: {
+        tenantId,
+        personId,
+        userId,
+        action: 'READ',
+        ipAddress: ctx?.ipAddress ?? null,
+        userAgent: ctx?.userAgent ?? null,
+      },
+    });
   }
 }
