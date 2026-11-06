@@ -42,6 +42,22 @@ adiado sem gatilho. Formato do Alicerce.
   gerado. Corrigir os erros que são bug real." Meta: não aumentar o total
   enquanto não for zerado.
 
+## Dados de teste
+
+- **`prisma/seed.js` é um artefato compilado manualmente, sem nenhum
+  script de build.** Já ficou desatualizado em relação ao `prisma/seed.ts`
+  uma vez (emails diferentes: `admin@exemplo.com` no `.js` vs
+  `admin@seed.local` no `.ts` corrigido em 2026-11-05). Continua sem
+  nenhuma automação: qualquer edição futura em `seed.ts` sem recompilar
+  manualmente (`npx tsc prisma/seed.ts --outDir prisma --module commonjs
+  --moduleResolution node --target es2023 --esModuleInterop --skipLibCheck
+  --declaration --sourceMap`) volta a divergir silenciosamente — `node
+  prisma/seed.js` não avisa, só roda a versão antiga.
+  **Gatilho:** Parte 2, ao criar o CI — adicionar um passo que recompila
+  e falha o PR se `git diff` mostrar `seed.js` diferente do que o
+  `seed.ts` geraria. Até lá, recompilar manualmente a cada edição de
+  `seed.ts`.
+
 ## Segurança / chaves
 
 - **Rotação de `PII_MASTER_KEY` e `TOTP_ENCRYPTION_KEY`.**

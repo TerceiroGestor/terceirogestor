@@ -11,9 +11,24 @@ Branch: `p1/baseline`. Ponto de retorno: tag `v0-baseline` (commit `962b91c`).
 
 - [x] Tag `v0-baseline` criada e enviada para `origin`
 - [x] Linha de base medida (evidência abaixo)
-- [ ] Teste manual (login + 9 módulos) — **bloqueado neste ambiente**: sem
-      Docker no PATH e sem `.env` configurado (nenhum Postgres local
-      acessível). Precisa rodar na sua máquina antes de fechar a Parte 1
+- [x] Teste manual de login (sem Docker, Postgres próprio do usuário) —
+      feito em 2026-11-05. No caminho, achamos e corrigimos 2 bugs reais
+      que bloqueavam qualquer subida local (ver commits `da39dee` e
+      `0409986`):
+      1. `prisma.config.ts` lia `backend/.env` em vez da raiz (só ele,
+         diferente de todo o resto do projeto) — corrigido para seguir a
+         mesma convenção.
+      2. `prisma/seed.ts` tentava limpar o banco com uma lista de
+         `deleteMany` manual que cobria só ~30 dos ~94 models; qualquer
+         dado de Household/PeopleGroup criado pelo uso manual do app
+         quebrava o reseed com erro de FK, silenciosamente (`node
+         prisma/seed.js` saía com `exit 0` sem imprimir nada). Troquei
+         por `TRUNCATE ... CASCADE` em todas as tabelas. `prisma/seed.js`
+         também estava desatualizado (emails antigos) — recompilado.
+      Login confirmado via `curl` em `/t/instituicao-exemplo/auth/login`
+      com `admin@seed.local` → `201` com `accessToken`.
+      **Falta:** clicar nos 9 módulos pela UI (só a API foi testada aqui,
+      sem browser disponível neste ambiente)
 - [x] Removidos `backend-start.err.log`, `backend-start.out.log`,
       `docker/test.txt`; `*.log` agora ignorado em qualquer profundidade
 - [x] `START.ps1` movido para `scripts/windows/` (não era referenciado em
