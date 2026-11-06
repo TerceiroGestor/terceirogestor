@@ -1,4 +1,9 @@
-import { decryptJson, deriveTenantKey, encryptJson, parseMasterKey } from './pii-crypto';
+import {
+  decryptJson,
+  deriveTenantKey,
+  encryptJson,
+  parseMasterKey,
+} from './pii-crypto';
 
 describe('pii-crypto', () => {
   it('encrypts and decrypts JSON payloads', () => {
@@ -24,4 +29,3 @@ describe('pii-crypto', () => {
     expect(() => decryptJson(key, encrypted)).toThrow();
   });
 });
-

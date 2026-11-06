@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
 
 function parseKey(value: string) {
   const trimmed = value.trim();
@@ -60,4 +65,3 @@ export class MfaCryptoService {
     return plain.toString('utf8');
   }
 }
-

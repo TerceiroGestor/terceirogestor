@@ -8,4 +8,3 @@ export function slugify(value: string) {
     .replace(/^-+|-+$/g, '');
   return base || 'tenant';
 }
-

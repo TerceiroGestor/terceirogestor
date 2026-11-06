@@ -1,7 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { buildPaginationMeta, resolvePagination } from '../../core/utils/pagination';
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
 import { CreatePeopleSegmentMembershipDto } from './dto/create-people-segment-membership.dto';
 import { CreatePeopleSegmentDto } from './dto/create-people-segment.dto';
@@ -13,11 +20,16 @@ import { UpdatePeopleSegmentDto } from './dto/update-people-segment.dto';
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
 
-function ensureValidAgeRange(params: { ageMin?: number | null; ageMax?: number | null }) {
+function ensureValidAgeRange(params: {
+  ageMin?: number | null;
+  ageMax?: number | null;
+}) {
   const ageMin = params.ageMin ?? null;
   const ageMax = params.ageMax ?? null;
   if (ageMin !== null && ageMax !== null && ageMin > ageMax) {
-    throw new BadRequestException('Faixa etaria invalida: minima maior que maxima');
+    throw new BadRequestException(
+      'Faixa etaria invalida: minima maior que maxima',
+    );
   }
 }
 
@@ -29,7 +41,10 @@ function buildActiveMembershipKey(segmentId: string, personId: string) {
 export class PeopleSegmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPeopleSegments(tenantId: string, query: ListPeopleSegmentsQueryDto) {
+  async listPeopleSegments(
+    tenantId: string,
+    query: ListPeopleSegmentsQueryDto,
+  ) {
     const { page, limit, skip, take, isAll } = resolvePagination({
       page: query.page,
       limit: query.limit,
@@ -50,7 +65,9 @@ export class PeopleSegmentsService {
               { category: { contains: q } },
               { description: { contains: q } },
               { internalNotes: { contains: q } },
-              ...(numericQ === null ? [] : [{ ageMin: numericQ }, { ageMax: numericQ }]),
+              ...(numericQ === null
+                ? []
+                : [{ ageMin: numericQ }, { ageMax: numericQ }]),
             ],
           }
         : {}),
@@ -126,7 +143,9 @@ export class PeopleSegmentsService {
         ageMin: dto.ageMin ?? null,
         ageMax: dto.ageMax ?? null,
         isActive: dto.isActive ?? true,
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
       },
       include: {
         _count: {
@@ -143,7 +162,11 @@ export class PeopleSegmentsService {
     });
   }
 
-  async updatePeopleSegment(tenantId: string, id: string, dto: UpdatePeopleSegmentDto) {
+  async updatePeopleSegment(
+    tenantId: string,
+    id: string,
+    dto: UpdatePeopleSegmentDto,
+  ) {
     const existing = await this.prisma.peopleSegment.findFirst({
       where: { id, tenantId },
     });
@@ -166,13 +189,21 @@ export class PeopleSegmentsService {
           ? { category: dto.category?.trim() ? dto.category.trim() : null }
           : {}),
         ...(dto.description !== undefined
-          ? { description: dto.description?.trim() ? dto.description.trim() : null }
+          ? {
+              description: dto.description?.trim()
+                ? dto.description.trim()
+                : null,
+            }
           : {}),
         ...(dto.ageMin !== undefined ? { ageMin: dto.ageMin ?? null } : {}),
         ...(dto.ageMax !== undefined ? { ageMax: dto.ageMax ?? null } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.internalNotes !== undefined
-          ? { internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null }
+          ? {
+              internalNotes: dto.internalNotes?.trim()
+                ? dto.internalNotes.trim()
+                : null,
+            }
           : {}),
       },
       include: {
@@ -198,7 +229,12 @@ export class PeopleSegmentsService {
     if (!existing) throw new NotFoundException('Segmento nao encontrado');
 
     const activeMemberships = await this.prisma.peopleSegmentMembership.count({
-      where: { tenantId, segmentId: existing.id, isActive: true, deletedAt: null },
+      where: {
+        tenantId,
+        segmentId: existing.id,
+        isActive: true,
+        deletedAt: null,
+      },
     });
     if (activeMemberships > 0) {
       throw new BadRequestException(
@@ -253,7 +289,11 @@ export class PeopleSegmentsService {
         include: {
           person: true,
         },
-        orderBy: [{ isActive: 'desc' }, { startsAt: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { isActive: 'desc' },
+          { startsAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
         ...(isAll ? {} : { skip, take }),
       }),
       this.prisma.peopleSegmentMembership.count({ where }),
@@ -300,7 +340,9 @@ export class PeopleSegmentsService {
         activeKey,
         isActive: true,
         startsAt: dto.startsAt ? new Date(dto.startsAt) : new Date(),
-        internalNotes: dto.internalNotes?.trim() ? dto.internalNotes.trim() : null,
+        internalNotes: dto.internalNotes?.trim()
+          ? dto.internalNotes.trim()
+          : null,
       },
       include: {
         person: true,
@@ -318,7 +360,8 @@ export class PeopleSegmentsService {
       where: { id: membershipId, tenantId, segmentId },
       include: { person: true },
     });
-    if (!membership) throw new NotFoundException('Vinculo do segmento nao encontrado');
+    if (!membership)
+      throw new NotFoundException('Vinculo do segmento nao encontrado');
 
     if (!membership.isActive || membership.deletedAt) {
       return membership;

@@ -8,4 +8,3 @@ import { CepService } from './cep.service';
   exports: [CepService],
 })
 export class CepModule {}
-

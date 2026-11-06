@@ -51,4 +51,3 @@ export function base32Decode(value: string) {
 
   return Buffer.from(output);
 }
-

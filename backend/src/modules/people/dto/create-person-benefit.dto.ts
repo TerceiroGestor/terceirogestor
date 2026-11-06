@@ -34,4 +34,3 @@ export class CreatePersonBenefitDto {
   @IsString()
   notes?: string;
 }
-

@@ -7,8 +7,11 @@ import { ActionsService } from './actions.service';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [ActionsListController, ActionTypesController, ProjectActionsController],
+  controllers: [
+    ActionsListController,
+    ActionTypesController,
+    ProjectActionsController,
+  ],
   providers: [ActionsService],
 })
 export class ActionsModule {}
-

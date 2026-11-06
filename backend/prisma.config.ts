@@ -4,8 +4,8 @@ import { defineConfig } from 'prisma/config';
 
 function loadRootEnv() {
   const envPaths = [
-    resolve(__dirname, '.env.local'),
-    resolve(__dirname, '.env'),
+    resolve(__dirname, '..', '.env.local'),
+    resolve(__dirname, '..', '.env'),
   ];
 
   for (const filepath of envPaths) {

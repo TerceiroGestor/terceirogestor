@@ -9,4 +9,3 @@ export class ReverseDepositMovementDto {
   @IsString()
   notes?: string;
 }
-

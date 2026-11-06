@@ -29,7 +29,10 @@ export class ProjectsController {
 
   @Get()
   @Permissions('projects.read')
-  async list(@CurrentUser() user: JwtUser, @Query() query: ListProjectsQueryDto) {
+  async list(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListProjectsQueryDto,
+  ) {
     return this.projects.listProjects(user.tenantId, query);
   }
 
@@ -93,7 +96,8 @@ export class ProjectsController {
   async deleteAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
     return this.projects.deleteAttachment(user.tenantId, id, attachmentId);
   }
@@ -107,4 +111,3 @@ export class ProjectsController {
     return this.projects.deleteProject(user.tenantId, id);
   }
 }
-

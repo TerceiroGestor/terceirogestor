@@ -9,4 +9,3 @@ import { PantryService } from './pantry.service';
   providers: [PantryService],
 })
 export class PantryModule {}
-

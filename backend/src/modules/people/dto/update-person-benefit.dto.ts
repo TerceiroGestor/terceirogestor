@@ -35,4 +35,3 @@ export class UpdatePersonBenefitDto {
   @IsString()
   notes?: string;
 }
-

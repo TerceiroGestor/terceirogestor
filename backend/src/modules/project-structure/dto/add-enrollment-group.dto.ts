@@ -4,4 +4,3 @@ export class AddEnrollmentGroupDto {
   @IsUUID('4')
   groupId: string;
 }
-

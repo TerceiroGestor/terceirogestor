@@ -68,7 +68,11 @@ export class ProjectStructureController {
     @Param('projectPeopleGroupId', new ParseUUIDPipe({ version: '4' }))
     projectPeopleGroupId: string,
   ) {
-    return this.service.deletePeopleGroup(user.tenantId, projectId, projectPeopleGroupId);
+    return this.service.deletePeopleGroup(
+      user.tenantId,
+      projectId,
+      projectPeopleGroupId,
+    );
   }
 
   @Post(':projectId/groups')
@@ -191,6 +195,10 @@ export class ProjectStructureController {
     @Param('enrollmentId', new ParseUUIDPipe({ version: '4' }))
     enrollmentId: string,
   ) {
-    return this.service.deleteEnrollment(user.tenantId, projectId, enrollmentId);
+    return this.service.deleteEnrollment(
+      user.tenantId,
+      projectId,
+      enrollmentId,
+    );
   }
 }

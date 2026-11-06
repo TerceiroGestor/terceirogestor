@@ -1,4 +1,10 @@
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../../core/dto/pagination-query.dto';
 import { ProjectStatus } from '../../../generated/prisma';
 
@@ -23,4 +29,3 @@ export class ListProjectsQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

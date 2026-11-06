@@ -93,7 +93,9 @@ const listIncludes = (actual: string, value: unknown, negate = false) => {
       ? parseList(value)
       : [];
   if (!values.length) return true;
-  const matched = values.some((entry) => normalizeStringValue(entry) === actual);
+  const matched = values.some(
+    (entry) => normalizeStringValue(entry) === actual,
+  );
   return negate ? !matched : matched;
 };
 
@@ -148,14 +150,18 @@ const matchesTagsCondition = (tags: string[], filter: AdvancedFilter) => {
   if (!rawValue) return true;
 
   if (filter.operator === 'in' || filter.operator === 'notIn') {
-    const values = parseList(rawValue).map((entry) => normalizeStringValue(entry));
+    const values = parseList(rawValue).map((entry) =>
+      normalizeStringValue(entry),
+    );
     if (!values.length) return true;
     const matched = values.some((entry) => normalizedTags.includes(entry));
     return filter.operator === 'notIn' ? !matched : matched;
   }
 
   if (filter.operator === 'contains') {
-    return normalizedTags.some((tag) => tag.includes(normalizeStringValue(rawValue)));
+    return normalizedTags.some((tag) =>
+      tag.includes(normalizeStringValue(rawValue)),
+    );
   }
 
   if (filter.operator === 'equals') {
@@ -175,11 +181,16 @@ const matchesTaskCondition = (row: TaskListRow, filter: AdvancedFilter) => {
     if (operator === 'isEmpty') return !String(actual ?? '').trim();
     if (operator === 'isNotEmpty') return Boolean(String(actual ?? '').trim());
     if (operator === 'equals') return String(actual ?? '') === value;
-    if (operator === 'contains') return matchesText(actual, normalizeStringValue(value));
-    if (operator === 'starts') return matchesStartsWith(actual, normalizeStringValue(value));
-    if (operator === 'ends') return matchesEndsWith(actual, normalizeStringValue(value));
-    if (operator === 'in') return listIncludes(normalizeStringValue(actual), value, false);
-    if (operator === 'notIn') return listIncludes(normalizeStringValue(actual), value, true);
+    if (operator === 'contains')
+      return matchesText(actual, normalizeStringValue(value));
+    if (operator === 'starts')
+      return matchesStartsWith(actual, normalizeStringValue(value));
+    if (operator === 'ends')
+      return matchesEndsWith(actual, normalizeStringValue(value));
+    if (operator === 'in')
+      return listIncludes(normalizeStringValue(actual), value, false);
+    if (operator === 'notIn')
+      return listIncludes(normalizeStringValue(actual), value, true);
     return true;
   }
 
@@ -188,8 +199,10 @@ const matchesTaskCondition = (row: TaskListRow, filter: AdvancedFilter) => {
     if (operator === 'isEmpty') return !actual;
     if (operator === 'isNotEmpty') return Boolean(actual);
     if (operator === 'equals') return actual === value;
-    if (operator === 'in') return listIncludes(normalizeStringValue(actual), value, false);
-    if (operator === 'notIn') return listIncludes(normalizeStringValue(actual), value, true);
+    if (operator === 'in')
+      return listIncludes(normalizeStringValue(actual), value, false);
+    if (operator === 'notIn')
+      return listIncludes(normalizeStringValue(actual), value, true);
     return true;
   }
 
@@ -227,10 +240,15 @@ const matchesTaskCondition = (row: TaskListRow, filter: AdvancedFilter) => {
 
   if (BOOLEAN_FIELDS.has(field)) {
     const actual = Boolean(row[field as keyof TaskListRow]);
-    const normalized = String(value ?? '').trim().toLowerCase();
+    const normalized = String(value ?? '')
+      .trim()
+      .toLowerCase();
     if (!normalized) return true;
     if (operator === 'equals') {
-      return actual === (normalized === 'true' || normalized === '1' || normalized === 'sim');
+      return (
+        actual ===
+        (normalized === 'true' || normalized === '1' || normalized === 'sim')
+      );
     }
     return true;
   }
@@ -273,9 +291,14 @@ export const applyTaskSearch = (rows: TaskListRow[], query?: string) => {
   );
 };
 
-export const applyTaskFilters = (rows: TaskListRow[], filters: AdvancedFilter[]) => {
+export const applyTaskFilters = (
+  rows: TaskListRow[],
+  filters: AdvancedFilter[],
+) => {
   if (!filters.length) return rows;
-  return rows.filter((row) => filters.every((filter) => matchesTaskCondition(row, filter)));
+  return rows.filter((row) =>
+    filters.every((filter) => matchesTaskCondition(row, filter)),
+  );
 };
 
 export const sortTaskRows = (rows: TaskListRow[], grouping: string[]) => {

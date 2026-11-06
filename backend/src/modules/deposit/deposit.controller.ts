@@ -189,7 +189,10 @@ export class DepositController {
 
   @Post('items')
   @Permissions('deposit.create')
-  async createItem(@CurrentUser() user: JwtUser, @Body() dto: CreateDepositItemDto) {
+  async createItem(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: CreateDepositItemDto,
+  ) {
     return this.depositService.createItem(user.tenantId, dto);
   }
 
@@ -200,7 +203,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositItemCommentDto,
   ) {
-    return this.depositService.addItemComment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addItemComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('items/:id/comments/:commentId')
@@ -220,7 +228,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositItemAttachmentDto,
   ) {
-    return this.depositService.addItemAttachment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addItemAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('items/:id/attachments/:attachmentId')
@@ -228,9 +241,14 @@ export class DepositController {
   async deleteItemAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.depositService.deleteItemAttachment(user.tenantId, id, attachmentId);
+    return this.depositService.deleteItemAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('items/:id')
@@ -282,7 +300,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositDonorCommentDto,
   ) {
-    return this.depositService.addDonorComment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addDonorComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('donors/:id/comments/:commentId')
@@ -302,7 +325,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositDonorAttachmentDto,
   ) {
-    return this.depositService.addDonorAttachment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addDonorAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('donors/:id/attachments/:attachmentId')
@@ -310,9 +338,14 @@ export class DepositController {
   async deleteDonorAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.depositService.deleteDonorAttachment(user.tenantId, id, attachmentId);
+    return this.depositService.deleteDonorAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Get('donors/:id')
@@ -413,7 +446,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositEntryCommentDto,
   ) {
-    return this.depositService.addEntryComment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addEntryComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('entries/:id/comments/:commentId')
@@ -433,7 +471,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositEntryAttachmentDto,
   ) {
-    return this.depositService.addEntryAttachment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addEntryAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('entries/:id/attachments/:attachmentId')
@@ -441,9 +484,14 @@ export class DepositController {
   async deleteEntryAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.depositService.deleteEntryAttachment(user.tenantId, id, attachmentId);
+    return this.depositService.deleteEntryAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('entries/:id')
@@ -521,7 +569,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositExitCommentDto,
   ) {
-    return this.depositService.addExitComment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addExitComment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('exits/:id/comments/:commentId')
@@ -541,7 +594,12 @@ export class DepositController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: CreateDepositExitAttachmentDto,
   ) {
-    return this.depositService.addExitAttachment(user.tenantId, id, dto, user.userId);
+    return this.depositService.addExitAttachment(
+      user.tenantId,
+      id,
+      dto,
+      user.userId,
+    );
   }
 
   @Delete('exits/:id/attachments/:attachmentId')
@@ -549,9 +607,14 @@ export class DepositController {
   async deleteExitAttachment(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Param('attachmentId', new ParseUUIDPipe({ version: '4' })) attachmentId: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
   ) {
-    return this.depositService.deleteExitAttachment(user.tenantId, id, attachmentId);
+    return this.depositService.deleteExitAttachment(
+      user.tenantId,
+      id,
+      attachmentId,
+    );
   }
 
   @Patch('exits/:id')

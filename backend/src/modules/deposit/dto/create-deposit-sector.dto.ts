@@ -4,4 +4,3 @@ export class CreateDepositSectorDto {
   @IsString()
   name: string;
 }
-

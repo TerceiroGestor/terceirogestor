@@ -1,4 +1,7 @@
-import { DEFAULT_PERMISSIONS, DEFAULT_ROLE_DEFINITIONS } from '../registration/registration.constants';
+import {
+  DEFAULT_PERMISSIONS,
+  DEFAULT_ROLE_DEFINITIONS,
+} from '../registration/registration.constants';
 import {
   CORE_PERMISSION_KEYS,
   CORE_PERMISSIONS,
@@ -13,7 +16,9 @@ describe('core permissions catalog', () => {
   });
 
   it('grants all core permissions to the default admin role', () => {
-    const adminRole = DEFAULT_ROLE_DEFINITIONS.find((role) => role.name === 'Admin');
+    const adminRole = DEFAULT_ROLE_DEFINITIONS.find(
+      (role) => role.name === 'Admin',
+    );
 
     expect(adminRole?.permissionKeys).toEqual(CORE_PERMISSION_KEYS);
   });

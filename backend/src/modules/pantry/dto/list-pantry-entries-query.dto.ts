@@ -26,4 +26,3 @@ export class ListPantryEntriesQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

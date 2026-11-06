@@ -58,7 +58,9 @@ function toMonthKey(date: Date) {
 
 function listMonthKeys(from: Date, to: Date) {
   const items: string[] = [];
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const cursor = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1),
+  );
   const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
   while (cursor.getTime() <= end.getTime()) {
     items.push(toMonthKey(cursor));
@@ -227,7 +229,10 @@ export class DashboardService {
         to: range.to.toISOString(),
       },
       totals: {
-        attendances: attendanceByAction.reduce((acc, row) => acc + row._count._all, 0),
+        attendances: attendanceByAction.reduce(
+          (acc, row) => acc + row._count._all,
+          0,
+        ),
         actionsExecuted: executedActions.length,
       },
       series,

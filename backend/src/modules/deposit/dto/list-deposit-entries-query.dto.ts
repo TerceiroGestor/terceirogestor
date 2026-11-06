@@ -26,4 +26,3 @@ export class ListDepositEntriesQueryDto extends PaginationQueryDto {
   @IsDateString()
   to?: string;
 }
-

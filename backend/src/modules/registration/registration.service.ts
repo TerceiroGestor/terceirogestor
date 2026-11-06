@@ -1,13 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, randomInt, createHash } from 'crypto';
-import type { AccessLogAction, Prisma, TenantRegistrationMethod } from '../../generated/prisma';
+import type {
+  AccessLogAction,
+  Prisma,
+  TenantRegistrationMethod,
+} from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EmailService } from '../../core/email/email.service';
 import { RequestContextService } from '../../core/request-context/request-context.service';
-import { DEFAULT_PERMISSIONS, DEFAULT_ROLE_DEFINITIONS, REGISTRATION_CODE_TTL_MINUTES } from './registration.constants';
+import {
+  DEFAULT_PERMISSIONS,
+  DEFAULT_ROLE_DEFINITIONS,
+  REGISTRATION_CODE_TTL_MINUTES,
+} from './registration.constants';
 import { slugify } from './registration.utils';
 import { RequestTenantRegistrationDto } from './dto/request-tenant-registration.dto';
 import { ConfirmTenantRegistrationDto } from './dto/confirm-tenant-registration.dto';
@@ -45,7 +57,9 @@ export class RegistrationService {
 
   async requestEmailRegistration(dto: RequestTenantRegistrationDto) {
     const tenantName = dto.tenantName.trim();
-    const tenantSlug = this.normalizeTenantSlug(dto.tenantSlug ?? slugify(tenantName));
+    const tenantSlug = this.normalizeTenantSlug(
+      dto.tenantSlug ?? slugify(tenantName),
+    );
     await this.ensureTenantNameIsFree(tenantName);
 
     const passwordHash = await bcrypt.hash(dto.adminPassword, 10);
@@ -102,8 +116,10 @@ export class RegistrationService {
     if (reg.status !== 'PENDING_VERIFICATION') {
       throw new BadRequestException('Registro nao esta aguardando confirmacao');
     }
-    if (!reg.adminEmail) throw new BadRequestException('Email do admin nao definido');
-    if (!reg.adminName) throw new BadRequestException('Nome do admin nao definido');
+    if (!reg.adminEmail)
+      throw new BadRequestException('Email do admin nao definido');
+    if (!reg.adminName)
+      throw new BadRequestException('Nome do admin nao definido');
     const adminEmail = reg.adminEmail;
     const adminName = reg.adminName;
     if (!reg.verificationCodeHash || !reg.verificationCodeExpiresAt) {
@@ -113,10 +129,15 @@ export class RegistrationService {
       throw new BadRequestException('Codigo expirado');
     }
 
-    const codeOk = await bcrypt.compare(dto.code.trim(), reg.verificationCodeHash);
+    const codeOk = await bcrypt.compare(
+      dto.code.trim(),
+      reg.verificationCodeHash,
+    );
     if (!codeOk) throw new BadRequestException('Codigo invalido');
 
-    const adminPasswordHash = reg.adminPasswordHash ?? (dto.password ? await bcrypt.hash(dto.password, 10) : null);
+    const adminPasswordHash =
+      reg.adminPasswordHash ??
+      (dto.password ? await bcrypt.hash(dto.password, 10) : null);
     if (!adminPasswordHash) {
       throw new BadRequestException('Defina uma senha para continuar');
     }
@@ -128,7 +149,11 @@ export class RegistrationService {
     const result = await this.prisma.$transaction(
       async (tx) => {
         await this.ensureCorePermissions(tx);
-        const tenant = await this.createTenantWithUniqueSlug(tx, reg.tenantName, reg.tenantSlug);
+        const tenant = await this.createTenantWithUniqueSlug(
+          tx,
+          reg.tenantName,
+          reg.tenantSlug,
+        );
         const { rolesByName } = await this.createDefaultRoles(tx, tenant.id);
         await this.createDefaultRolePermissions(tx, tenant.id, rolesByName);
 
@@ -146,7 +171,11 @@ export class RegistrationService {
         const adminRole = rolesByName.get('Admin');
         if (adminRole) {
           await tx.userRole.create({
-            data: { tenantId: tenant.id, userId: user.id, roleId: adminRole.id },
+            data: {
+              tenantId: tenant.id,
+              userId: user.id,
+              roleId: adminRole.id,
+            },
           });
         }
 
@@ -161,12 +190,20 @@ export class RegistrationService {
           },
         });
 
-        return { tenantId: tenant.id, tenantSlug: tenant.slug, userId: user.id };
+        return {
+          tenantId: tenant.id,
+          tenantSlug: tenant.slug,
+          userId: user.id,
+        };
       },
       { timeout: 60000, maxWait: 20000 },
     );
 
-    this.requestContext.update({ disableAudit: false, tenantId: result.tenantId, userId: result.userId });
+    this.requestContext.update({
+      disableAudit: false,
+      tenantId: result.tenantId,
+      userId: result.userId,
+    });
 
     const tokens = await this.issueTokensForUser(result.userId, meta);
     return { ...result, ...tokens };
@@ -180,7 +217,8 @@ export class RegistrationService {
     const stateSecret = randomBytes(16).toString('base64url');
     const stateHash = this.hashValue(stateSecret);
 
-    const method: TenantRegistrationMethod = provider === 'google' ? 'GOOGLE' : 'MICROSOFT';
+    const method: TenantRegistrationMethod =
+      provider === 'google' ? 'GOOGLE' : 'MICROSOFT';
     const registration = await this.prisma.tenantRegistration.create({
       data: {
         method,
@@ -234,7 +272,11 @@ export class RegistrationService {
         ? await this.fetchGoogleProfile(code)
         : await this.fetchMicrosoftProfile(code);
 
-    const { code: verifyCode, codeHash, expiresAt } = await this.buildVerificationCode();
+    const {
+      code: verifyCode,
+      codeHash,
+      expiresAt,
+    } = await this.buildVerificationCode();
     await this.prisma.tenantRegistration.update({
       where: { id: reg.id },
       data: {
@@ -269,7 +311,9 @@ export class RegistrationService {
   private async buildVerificationCode() {
     const code = String(randomInt(0, 1000000)).padStart(6, '0');
     const codeHash = await bcrypt.hash(code, 10);
-    const expiresAt = new Date(Date.now() + REGISTRATION_CODE_TTL_MINUTES * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + REGISTRATION_CODE_TTL_MINUTES * 60 * 1000,
+    );
     return { code, codeHash, expiresAt };
   }
 
@@ -316,14 +360,18 @@ export class RegistrationService {
         return tenant;
       } catch (error: any) {
         const isUniqueViolation =
-          typeof error?.code === 'string' && (error.code === 'P2002' || error.code === 'P2000');
+          typeof error?.code === 'string' &&
+          (error.code === 'P2002' || error.code === 'P2000');
         if (!isUniqueViolation) throw error;
       }
     }
     throw new BadRequestException('Nao foi possivel gerar um slug unico');
   }
 
-  private async createDefaultRoles(tx: Prisma.TransactionClient, tenantId: string) {
+  private async createDefaultRoles(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ) {
     const roles = new Map<string, { id: string; name: string }>();
     for (const roleDef of DEFAULT_ROLE_DEFINITIONS) {
       const role = await tx.role.create({
@@ -347,9 +395,15 @@ export class RegistrationService {
     const permissions = await tx.permission.findMany({
       select: { id: true, key: true },
     });
-    const permissionsByKey = new Map(permissions.map((permission) => [permission.key, permission.id]));
+    const permissionsByKey = new Map(
+      permissions.map((permission) => [permission.key, permission.id]),
+    );
 
-    const entries: Array<{ tenantId: string; roleId: string; permissionId: string }> = [];
+    const entries: Array<{
+      tenantId: string;
+      roleId: string;
+      permissionId: string;
+    }> = [];
     for (const roleDef of DEFAULT_ROLE_DEFINITIONS) {
       const role = rolesByName.get(roleDef.name);
       if (!role) continue;
@@ -366,7 +420,9 @@ export class RegistrationService {
 
   private buildGoogleAuthorizeUrl(state: string) {
     const clientId = this.config.get<string>('GOOGLE_OAUTH_CLIENT_ID')?.trim();
-    const redirectUri = this.config.get<string>('GOOGLE_OAUTH_REDIRECT_URI')?.trim();
+    const redirectUri = this.config
+      .get<string>('GOOGLE_OAUTH_REDIRECT_URI')
+      ?.trim();
     if (!clientId || !redirectUri) {
       throw new BadRequestException('Google OAuth nao configurado');
     }
@@ -383,8 +439,12 @@ export class RegistrationService {
   }
 
   private buildMicrosoftAuthorizeUrl(state: string) {
-    const clientId = this.config.get<string>('MICROSOFT_OAUTH_CLIENT_ID')?.trim();
-    const redirectUri = this.config.get<string>('MICROSOFT_OAUTH_REDIRECT_URI')?.trim();
+    const clientId = this.config
+      .get<string>('MICROSOFT_OAUTH_CLIENT_ID')
+      ?.trim();
+    const redirectUri = this.config
+      .get<string>('MICROSOFT_OAUTH_REDIRECT_URI')
+      ?.trim();
     if (!clientId || !redirectUri) {
       throw new BadRequestException('Microsoft OAuth nao configurado');
     }
@@ -401,8 +461,12 @@ export class RegistrationService {
 
   private async fetchGoogleProfile(code: string) {
     const clientId = this.config.get<string>('GOOGLE_OAUTH_CLIENT_ID')?.trim();
-    const clientSecret = this.config.get<string>('GOOGLE_OAUTH_CLIENT_SECRET')?.trim();
-    const redirectUri = this.config.get<string>('GOOGLE_OAUTH_REDIRECT_URI')?.trim();
+    const clientSecret = this.config
+      .get<string>('GOOGLE_OAUTH_CLIENT_SECRET')
+      ?.trim();
+    const redirectUri = this.config
+      .get<string>('GOOGLE_OAUTH_REDIRECT_URI')
+      ?.trim();
     if (!clientId || !clientSecret || !redirectUri) {
       throw new BadRequestException('Google OAuth nao configurado');
     }
@@ -420,7 +484,9 @@ export class RegistrationService {
     });
     const tokenPayload: any = await tokenResponse.json().catch(() => null);
     if (!tokenResponse.ok) {
-      throw new BadRequestException(tokenPayload?.error_description ?? 'Falha ao autenticar com Google');
+      throw new BadRequestException(
+        tokenPayload?.error_description ?? 'Falha ao autenticar com Google',
+      );
     }
 
     const accessToken = tokenPayload?.access_token;
@@ -428,15 +494,19 @@ export class RegistrationService {
       throw new BadRequestException('Falha ao autenticar com Google');
     }
 
-    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const profileResponse = await fetch(
+      'https://www.googleapis.com/oauth2/v3/userinfo',
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
     const profile: any = await profileResponse.json().catch(() => null);
     if (!profileResponse.ok) {
       throw new BadRequestException('Falha ao carregar perfil do Google');
     }
 
-    const email = typeof profile?.email === 'string' ? profile.email.toLowerCase() : null;
+    const email =
+      typeof profile?.email === 'string' ? profile.email.toLowerCase() : null;
     const name = typeof profile?.name === 'string' ? profile.name : null;
     const sub = typeof profile?.sub === 'string' ? profile.sub : null;
     if (!email || !sub) {
@@ -446,27 +516,38 @@ export class RegistrationService {
   }
 
   private async fetchMicrosoftProfile(code: string) {
-    const clientId = this.config.get<string>('MICROSOFT_OAUTH_CLIENT_ID')?.trim();
-    const clientSecret = this.config.get<string>('MICROSOFT_OAUTH_CLIENT_SECRET')?.trim();
-    const redirectUri = this.config.get<string>('MICROSOFT_OAUTH_REDIRECT_URI')?.trim();
+    const clientId = this.config
+      .get<string>('MICROSOFT_OAUTH_CLIENT_ID')
+      ?.trim();
+    const clientSecret = this.config
+      .get<string>('MICROSOFT_OAUTH_CLIENT_SECRET')
+      ?.trim();
+    const redirectUri = this.config
+      .get<string>('MICROSOFT_OAUTH_REDIRECT_URI')
+      ?.trim();
     if (!clientId || !clientSecret || !redirectUri) {
       throw new BadRequestException('Microsoft OAuth nao configurado');
     }
 
-    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
-    });
+    const tokenResponse = await fetch(
+      'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      },
+    );
     const tokenPayload: any = await tokenResponse.json().catch(() => null);
     if (!tokenResponse.ok) {
-      throw new BadRequestException(tokenPayload?.error_description ?? 'Falha ao autenticar com Microsoft');
+      throw new BadRequestException(
+        tokenPayload?.error_description ?? 'Falha ao autenticar com Microsoft',
+      );
     }
 
     const accessToken = tokenPayload?.access_token;
@@ -474,9 +555,12 @@ export class RegistrationService {
       throw new BadRequestException('Falha ao autenticar com Microsoft');
     }
 
-    const profileResponse = await fetch('https://graph.microsoft.com/oidc/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const profileResponse = await fetch(
+      'https://graph.microsoft.com/oidc/userinfo',
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
     const profile: any = await profileResponse.json().catch(() => null);
     if (!profileResponse.ok) {
       throw new BadRequestException('Falha ao carregar perfil do Microsoft');
@@ -484,7 +568,8 @@ export class RegistrationService {
 
     const emailRaw =
       (typeof profile?.email === 'string' && profile.email) ||
-      (typeof profile?.preferred_username === 'string' && profile.preferred_username) ||
+      (typeof profile?.preferred_username === 'string' &&
+        profile.preferred_username) ||
       null;
     const email = emailRaw ? emailRaw.toLowerCase() : null;
     const name = typeof profile?.name === 'string' ? profile.name : null;
@@ -501,7 +586,13 @@ export class RegistrationService {
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, tenantId: true, email: true, name: true, isActive: true },
+      select: {
+        id: true,
+        tenantId: true,
+        email: true,
+        name: true,
+        isActive: true,
+      },
     });
     if (!user || !user.isActive) {
       throw new BadRequestException('Usuario invalido');

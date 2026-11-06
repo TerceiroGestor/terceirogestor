@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateDepositEntryDto {
   @IsUUID()

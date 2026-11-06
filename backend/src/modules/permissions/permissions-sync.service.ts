@@ -24,4 +24,3 @@ export class PermissionsSyncService implements OnModuleInit {
     );
   }
 }
-

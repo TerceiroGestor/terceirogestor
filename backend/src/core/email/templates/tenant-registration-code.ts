@@ -59,4 +59,3 @@ function escapeHtml(value: string) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
-

@@ -66,4 +66,3 @@ export class TotpService {
     return String(code).padStart(digits, '0');
   }
 }
-
