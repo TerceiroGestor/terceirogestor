@@ -89,7 +89,13 @@ resultado no `PLAN.md`.
 
 ## Como trabalhar
 
-+ Um item do checklist = um branch (`p<parte>/<item>`) = commits pequenos.
++ **Branches:** `main` é só o que está em produção/estável. Todo o
+  desenvolvimento do dia a dia acontece em `develop` — commits pequenos,
+  um por item do checklist, direto nela. `main` só recebe `develop` por
+  merge, quando um conjunto de itens estiver pronto e testado (não é
+  obrigatório fechar uma Parte inteira pra isso). Não crie um branch novo
+  por item; isso só volta a valer se o projeto ganhar mais gente
+  trabalhando em paralelo.
 + Conventional Commits: `chore:` `fix:` `feat:` `refactor:` `test:` `docs:`.
 + Formatação em massa (prettier) sempre num commit isolado.
 + Correção de segurança ou de tenant vem com um teste que prova a correção.

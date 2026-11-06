@@ -6,7 +6,9 @@ Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 
 ## Parte atual: Parte 1 — Limpeza
 
-Branch: `p1/baseline`. Ponto de retorno: tag `v0-baseline` (commit `962b91c`).
+Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
+fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
+`962b91c`).
 
 ### Checklist
 
@@ -80,8 +82,10 @@ cd ..\frontend; npm run dev
 
 Depois de confirmar login e os 9 módulos (people, deposit, pantry,
 actions, tasks, projects, programs, people-segments, people-groups) sem
-quebrar nada, marque o item acima, crie a tag `v0.1-limpo` e abra o PR de
-`p1/baseline` para `main`.
+quebrar nada, marque o item acima e crie a tag `v0.1-limpo` em `develop`.
+`main` já recebeu todo o trabalho da Parte 1 e dos itens 1-3 da auditoria
+de riscos num merge único em 2026-11-06 — o fluxo normal daqui pra frente
+é `develop` → `main`, sem branch por item (ver AGENTS.md).
 
 ### Linha de base (medida em 2026-11-05, Windows, node v26.1.0 — fora da
 faixa `>=22 <23` dos dois `package.json`, ver `docs/backlog.md`)
