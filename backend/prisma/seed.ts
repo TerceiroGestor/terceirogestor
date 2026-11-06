@@ -554,41 +554,24 @@ async function createUsers(tenantId: string) {
   });
 }
 
+async function wipeDatabase() {
+  // Truncates every table instead of a hand-maintained ordered deleteMany
+  // list: the schema has ~94 models and most Person/Household/PeopleGroup
+  // relations are implicit RESTRICT, so any manual list drifts out of sync
+  // (it already had, causing re-seed to fail with FK errors once real
+  // records existed from prior app usage). TRUNCATE ... CASCADE clears
+  // every table regardless of schema growth.
+  const tables = await prisma.$queryRaw<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = 'public' AND tablename != '_prisma_migrations'
+  `;
+  if (tables.length === 0) return;
+  const tableList = tables.map((t) => `"${t.tablename}"`).join(', ');
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} CASCADE`);
+}
+
 async function main() {
-  await prisma.$transaction([
-    prisma.projectActionPeopleParticipation.deleteMany(),
-    prisma.projectActionAttendance.deleteMany(),
-    prisma.projectAction.deleteMany(),
-    prisma.actionType.deleteMany(),
-    prisma.projectEnrollmentGroupMembership.deleteMany(),
-    prisma.projectEnrollment.deleteMany(),
-    prisma.projectGroup.deleteMany(),
-    prisma.peopleSegmentMembership.deleteMany(),
-    prisma.peopleSegment.deleteMany(),
-    prisma.project.deleteMany(),
-    prisma.program.deleteMany(),
-    prisma.taskOrganizerComment.deleteMany(),
-    prisma.taskOrganizerTaskDependency.deleteMany(),
-    prisma.taskOrganizerSubtask.deleteMany(),
-    prisma.taskOrganizerChecklistItem.deleteMany(),
-    prisma.taskOrganizerTask.deleteMany(),
-    prisma.userMfaRecoveryCode.deleteMany(),
-    prisma.userTrustedDevice.deleteMany(),
-    prisma.userMfaChallenge.deleteMany(),
-    prisma.userMfaTotpSetup.deleteMany(),
-    prisma.passwordResetToken.deleteMany(),
-    prisma.userSession.deleteMany(),
-    prisma.personSensitiveAccessLog.deleteMany(),
-    prisma.auditLog.deleteMany(),
-    prisma.accessLog.deleteMany(),
-    prisma.userRole.deleteMany(),
-    prisma.rolePermission.deleteMany(),
-    prisma.role.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.permission.deleteMany(),
-    prisma.person.deleteMany(),
-    prisma.tenant.deleteMany(),
-  ]);
+  await wipeDatabase();
 
   await prisma.tenant.create({
     data: {
