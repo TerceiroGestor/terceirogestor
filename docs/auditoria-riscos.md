@@ -88,13 +88,33 @@ plano.
 
 ### 3. Banco sem migrations versionadas
 
-- [ ] **Onde:** `backend/prisma/migrations/` só tem `migration_lock.toml`;
-      `backend/scripts/docker-entrypoint.sh:8-14` cai em `prisma db push`.
-- **O que fazer:** gerar a migration `0_init` a partir do schema atual,
-  marcar bancos existentes como aplicados, remover o fallback `db push`
-  do entrypoint.
-- **Critério de aceite:** banco vazio → `migrate deploy` → seed → login
-  funciona; entrypoint falha (não improvisa) se não houver migrations.
+- [x] **Feito em 2026-11-06**, branch `p3/03-migrations-versionadas`.
+      **Onde estava:** `backend/prisma/migrations/` só tinha
+      `migration_lock.toml`; `backend/scripts/docker-entrypoint.sh:8-14`
+      caía em `prisma db push`.
+- **O que foi feito:** gerada `backend/prisma/migrations/0_init/migration.sql`
+  com `npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma
+  --script` (3361 linhas, todo o schema atual). Banco local marcado como já
+  aplicado com `npx prisma migrate resolve --applied 0_init` (ele já estava
+  em dia via `db push`, então não roda `migrate deploy` em cima dele — é só
+  o registro). `docker-entrypoint.sh` perdeu o `else` que caía pra
+  `db push`: agora é só `ensure-database.js` + `prisma migrate deploy`, sem
+  ambiente nenhum que mais sincroniza por `db push`.
+- **Critério de aceite:** confirmado dropando e recriando o banco local do
+  zero → `npx prisma migrate deploy` aplicou a `0_init` → `node
+  prisma/seed.js` rodou → login de `admin@seed.local` devolveu `201` com
+  token → os 9 módulos (people, deposit, pantry, programs, projects, tasks,
+  actions, people-segments, people-groups) responderam `200` nos
+  respectivos endpoints de listagem. `docker-entrypoint.sh` agora falha
+  (não improvisa) se não houver migration aplicável — não existe mais
+  caminho de código que chama `db push` fora do uso manual local.
+- **Pendente (não é parte deste item):** separar seed de produção
+  (permissões core, papéis padrão) do seed de desenvolvimento (dados
+  fictícios) — é um item citado na Parte 3.1 do plano principal, mas fora
+  do critério de aceite deste item da auditoria. Também pendente: mover
+  `prisma migrate deploy` para rodar como *pre-deploy command* do Railway
+  em vez de dentro do entrypoint (Parte 4.1 — só faz sentido configurar
+  quando o projeto Railway existir).
 - **Plano:** Parte 3.1.
 
 ### 4. CORS aberto para qualquer origem, com cookies habilitados
