@@ -119,12 +119,31 @@ plano.
 
 ### 4. CORS aberto para qualquer origem, com cookies habilitados
 
-- [ ] **Onde:** `backend/src/main.ts:24` —
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/main.ts:24` —
       `app.enableCors({ origin: true, credentials: true })`.
-- **O que fazer:** restringir a `origin` à lista em `WEB_URL` (separada
-  por vírgula), nunca `true`.
-- **Critério de aceite:** requisição de uma origem fora da lista não
-  recebe `Access-Control-Allow-Origin`.
+- **O que foi feito:** `WEB_URL` agora é a allowlist de CORS (uma ou mais
+  origens separadas por vírgula). `parseWebUrlList`/`isOriginAllowed`
+  (`backend/src/core/auth/http/auth-http.ts`) viram as funções puras
+  usadas por `main.ts` para montar o `origin` dinâmico do `enableCors`
+  (callback que só libera origem presente na lista, ou ausência de
+  `Origin` — chamada sem browser). Os três lugares que liam `WEB_URL`
+  como uma única URL (cookie de sessão em `auth-http.ts`, link de reset
+  de senha em `auth.service.ts`, callback de OAuth em
+  `registration.controller.ts`) passaram a usar `getPrimaryWebUrl`
+  (primeira entrada da lista), sem mudar o comportamento de quem só tem
+  uma origem configurada. `frontend/next.config.ts` também passou a
+  iterar a lista inteira ao montar os `remotePatterns` de imagem.
+- **Critério de aceite:** confirmado por 12 testes novos
+  (`backend/src/core/auth/http/auth-http.spec.ts`) e por teste manual
+  real: subi o backend local (`WEB_URL=http://localhost`) e comparei
+  `GET /tenants/slug/instituicao-exemplo` com `Origin: http://localhost`
+  (200, com `Access-Control-Allow-Origin: http://localhost`) contra o
+  mesmo request com `Origin: https://evil.example` (200, **sem** nenhum
+  header `Access-Control-Allow-*`) e sem header `Origin` nenhum (200,
+  `Access-Control-Allow-Credentials` presente mas sem
+  `Access-Control-Allow-Origin`, como esperado para chamada
+  servidor-a-servidor).
 - **Plano:** Parte 3.4.
 
 ## Altas

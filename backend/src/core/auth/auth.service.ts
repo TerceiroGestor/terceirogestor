@@ -13,7 +13,7 @@ import { UsersService } from '../../modules/users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthTokenPayload } from './types/auth-token-payload';
 import type { JwtUser } from './strategies/jwt.strategy';
-import type { AuthRequestMeta } from './http/auth-http';
+import { getPrimaryWebUrl, type AuthRequestMeta } from './http/auth-http';
 import { MfaTotpService } from './mfa/mfa-totp.service';
 import { EmailService } from '../email/email.service';
 import { buildPasswordResetEmail } from '../email/templates/password-reset';
@@ -392,7 +392,8 @@ export class AuthService {
     });
 
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
+      getPrimaryWebUrl(this.config.get<string>('WEB_URL')) ||
+      'http://localhost';
     const resetUrl = `${webUrl}/${encodeURIComponent(
       tenant.slug,
     )}/reset-password?token=${encodeURIComponent(token)}`;

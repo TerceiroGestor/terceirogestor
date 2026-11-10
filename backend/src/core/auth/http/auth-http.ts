@@ -11,8 +11,33 @@ export function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
 
+/**
+ * WEB_URL holds one or more allowed frontend origins, comma-separated
+ * (used as the CORS allowlist). Call sites that need a single URL — the
+ * cookie policy, password-reset/OAuth redirect links — use the first one.
+ */
+export function parseWebUrlList(raw: string | undefined | null): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((url) => url.trim())
+    .filter(Boolean);
+}
+
+export function getPrimaryWebUrl(
+  raw: string | undefined | null = process.env.WEB_URL,
+): string {
+  return parseWebUrlList(raw)[0] ?? '';
+}
+
+export function isOriginAllowed(
+  origin: string | undefined,
+  allowedOrigins: string[],
+): boolean {
+  return !origin || allowedOrigins.includes(origin);
+}
+
 export function isSecureCookiesEnabled() {
-  const webUrl = process.env.WEB_URL?.trim() ?? '';
+  const webUrl = getPrimaryWebUrl();
   if (webUrl.startsWith('https://')) {
     return true;
   }

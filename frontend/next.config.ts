@@ -60,8 +60,13 @@ function resolveImageRemotePatterns() {
     }
   }
 
-  const webUrl = (process.env.WEB_URL ?? "").trim();
-  if (webUrl.startsWith("http")) {
+  // WEB_URL may list more than one allowed origin, comma-separated (it
+  // doubles as the backend's CORS allowlist).
+  const webUrls = (process.env.WEB_URL ?? "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter((url) => url.startsWith("http"));
+  for (const webUrl of webUrls) {
     try {
       const parsed = new URL(webUrl);
       patterns.push({

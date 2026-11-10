@@ -14,7 +14,10 @@ import { ConfigService } from '@nestjs/config';
 import { RegistrationService } from './registration.service';
 import { RequestTenantRegistrationDto } from './dto/request-tenant-registration.dto';
 import { ConfirmTenantRegistrationDto } from './dto/confirm-tenant-registration.dto';
-import { getCookieOptions } from '../../core/auth/http/auth-http';
+import {
+  getCookieOptions,
+  getPrimaryWebUrl,
+} from '../../core/auth/http/auth-http';
 import { RateLimit } from '../../core/rate-limit/rate-limit.decorator';
 
 function getRequestMeta(req: Request) {
@@ -85,7 +88,8 @@ export class RegistrationController {
       },
     );
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
+      getPrimaryWebUrl(this.config.get<string>('WEB_URL')) ||
+      'http://localhost';
     return {
       url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
     };
@@ -114,7 +118,8 @@ export class RegistrationController {
       },
     );
     const webUrl =
-      this.config.get<string>('WEB_URL')?.trim() ?? 'http://localhost';
+      getPrimaryWebUrl(this.config.get<string>('WEB_URL')) ||
+      'http://localhost';
     return {
       url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
     };
