@@ -150,16 +150,33 @@ plano.
 
 ### 5. `TenantGuard` existe mas não é usado em nenhum lugar
 
-- [ ] **Onde:** `backend/src/core/auth/guards/tenant.guard.ts` (definido,
-      zero imports em controllers/`app.module.ts`). O padrão real usado
-      hoje (`tenantId` vindo do JWT via `getTenantId()`/`@CurrentUser()`)
-      está correto nos módulos amostrados (people, deposit, pantry,
-      tasks).
-- **O que fazer:** decidir um mecanismo único — aplicar o guard
-  globalmente ou apagá-lo e documentar que o padrão oficial é
-  `getTenantId()` a partir do JWT.
-- **Critério de aceite:** não sobra código morto nem dois padrões
-  coexistindo.
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/core/auth/guards/tenant.guard.ts` (definido, zero
+      imports em controllers/`app.module.ts`).
+- **O que foi feito:** apaguei o guard em vez de ligá-lo. Ele só
+  repetia uma checagem que já é feita antes de qualquer controller
+  rodar: `JwtStrategy.validate()`
+  (`backend/src/core/auth/strategies/jwt.strategy.ts:34-36`) já lança
+  `UnauthorizedException` se o token não tiver `tenantId`, então todo
+  `@UseGuards(JwtAuthGuard, ...)` garante um `tenantId` não-vazio em
+  `req.user` antes do handler. O isolamento por slug da URL
+  (`/t/:slug`) é tratado por um componente diferente, o
+  `TenancyMiddleware`
+  (`backend/src/core/tenancy/tenancy.middleware.ts`), que resolve o
+  slug só para popular `req.tenantId` nas rotas públicas (ex.: login) —
+  e a própria `JwtStrategy` confere que esse `req.tenantId` (quando
+  presente) bate com o `tenantId` do token, rejeitando token de um
+  tenant usado na URL de outro. Nenhum desses dois mecanismos usava ou
+  precisava do `TenantGuard`. O padrão oficial (`tenantId` vindo do JWT
+  via `getTenantId()`/`user.tenantId`, nunca do slug) já estava
+  documentado no `AGENTS.md` antes desta tarefa — não precisou de doc
+  nova.
+- **Critério de aceite:** confirmado — `grep -r TenantGuard
+  backend/src` não encontra mais nenhuma referência (nem definição, nem
+  uso); não existe segundo mecanismo de tenant concorrendo com o
+  padrão JWT. Checkpoint: `tsc --noEmit` (0 erros) e `npm test` (19
+  suítes, 55 testes, sem mudança de comportamento — a remoção não
+  afeta nenhum fluxo, já que o guard nunca era referenciado).
 - **Plano:** Parte 3.3.
 
 ### 6. Isolamento entre tenants sem teste automatizado
