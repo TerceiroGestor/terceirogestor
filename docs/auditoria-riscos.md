@@ -181,18 +181,50 @@ plano.
 
 ### 6. Isolamento entre tenants sem teste automatizado
 
-- [ ] **Onde:** ~64 ocorrências de `.update({ where: { id } })` /
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:** ~109
+      ocorrências de `.update({ where: { id } })` /
       `.delete({ where: { id } })` fora de `updateMany`/`deleteMany` em
-      `backend/src/modules/**/*.service.ts`. Amostra de 3 (`deposit.service.ts:1181`,
-      `people.service.ts:3486`, `tasks.service.ts:575`) segue o padrão
-      seguro (busca prévia filtrada por `tenantId` antes do `update`/`delete`
-      por `id` cru), mas isso não foi conferido um por um, e não há teste
-      que trave isso no CI.
-- **O que fazer:** revisar os ~109 casos do plano um por um; escrever um
-  teste e2e de vazamento por módulo (dois tenants, mesmo fluxo:
-  listar/ler/editar/excluir/anexar) — todos devem retornar 404 para o
-  tenant errado.
-- **Plano:** Parte 3.3.
+      `backend/src/modules/**/*.service.ts`, nunca conferidas uma a uma, e
+      sem nenhum teste automatizado que travasse vazamento entre tenants.
+- **O que foi feito (parte 1 — revisão estática):** revisei os 14
+  arquivos de serviço que tinham essas ocorrências (`deposit`, `pantry`,
+  `actions`, `programs`, `projects`, `people-segments`, `people`,
+  `tasks`, `people-groups`, `project-structure`, `users`, `roles`,
+  `tenants`, `registration`). **Nenhuma** das ~109 ocorrências estava
+  insegura: todo `update`/`delete` por `id` cru é precedido, na mesma
+  função (ou dentro da mesma `$transaction`), por um `findFirst`/helper
+  equivalente que já filtra por `tenantId` usando aquele mesmo id — e
+  todo `updateMany`/`deleteMany` já inclui `tenantId` no `where`. Os dois
+  casos fora do padrão comum são seguros por natureza diferente:
+  `tenants.service.ts#updateTenant` usa o próprio `tenantId` do contexto
+  como id (não é um id de sub-recurso de outro tenant), e os updates em
+  `tenantRegistration` (`registration.service.ts`) operam num registro
+  de onboarding que ainda não pertence a nenhum tenant, protegido por
+  hash de código de verificação em vez de `tenantId`.
+- **O que foi feito (parte 2 — teste e2e):** criei
+  `backend/test/tenant-isolation.e2e-spec.ts` +
+  `backend/test/support/tenant-isolation.setup.ts`. O teste sobe a
+  aplicação inteira contra um Postgres real (mesmo `DATABASE_URL` do
+  `start:dev`), cria dois tenants com usuário de acesso total cada
+  (via Prisma direto, sem passar pelo fluxo de registro), grava um
+  recurso só no Tenant A e, autenticado como Tenant B, confere que
+  listar/ler/editar/excluir/comentar **todos voltam 404** (nunca os
+  dados do tenant errado) — e que o recurso continua intacto no banco
+  depois da tentativa de exclusão. Cobre os 9 módulos do plano
+  (programs, projects, pantry, deposit, tasks, people, people-groups,
+  people-segments, actions) e mais um teste que confere que o slug
+  `/t/:slug` da URL nunca prevalece sobre o `tenantId` do JWT (token do
+  Tenant B contra a URL do Tenant A → 401, rejeitado pela
+  `JwtStrategy` antes de qualquer controller rodar). `afterAll` limpa
+  os dois tenants de teste do banco (incluindo o `AuditLog` que o
+  próprio `PrismaService` gera automaticamente pra cada escrita).
+- **Critério de aceite:** confirmado — `npm run test:e2e` (precisa de
+  Postgres real; não entra no `npm test` unitário): 2 suítes, 11
+  testes, todos passando. `npx tsc --noEmit -p tsconfig.build.json`: 0
+  erros. `npm test` (unitário): 19 suítes, 55 testes, sem regressão.
+- **Plano:** Parte 3.3 (revisão dos 109 casos + teste e2e por módulo).
+  O quarto item da seção 3.3 do plano ("conferir que o slug nunca
+  prevalece sobre o JWT") também ficou coberto pelo teste acima.
 
 ### 7. Token de acesso dura 8 horas
 
