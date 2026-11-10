@@ -228,14 +228,31 @@ plano.
 
 ### 7. Token de acesso dura 8 horas
 
-- [ ] **Onde:** `backend/src/core/auth/auth.module.ts:28` e
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/core/auth/auth.module.ts:28` e
       `backend/src/modules/registration/registration.module.ts:21` —
       `signOptions: { expiresIn: '8h' }`.
-- **O que fazer:** reduzir para 15–30 min. (O refresh token já está bem
-  implementado: hash armazenado, rotação, e detecção de reuso que revoga
-  todas as sessões — `auth.service.ts:171-177` — não precisa de ajuste.)
-- **Critério de aceite:** token expirado é rejeitado; refresh continua
-  renovando a sessão normalmente.
+- **O que foi feito:** `expiresIn` trocado para `'15m'` nos dois
+  arquivos (únicos dois lugares que configuram o `JwtModule`). O
+  refresh token não mudou (hash armazenado, rotação, detecção de reuso
+  já cobertos).
+- **Efeito colateral avaliado e aceito:** o frontend desloga o usuário
+  automaticamente no instante em que o access token expira
+  (`frontend/src/features/auth/auth-context.tsx:149-156`, timer
+  rearmado a cada renovação). Sem token de 8h, ficar parado (sem
+  nenhuma chamada de API) por mais de 15 min agora desloga — antes só
+  acontecia depois de 8h parado. Decisão: manter assim (15 min de
+  inatividade real é razoável num sistema com dados de saúde/CPF); não
+  é bug, é o comportamento esperado de uma sessão mais curta.
+- **Critério de aceite:** confirmado por
+  `backend/test/auth-token-expiry.e2e-spec.ts` (novo, e2e com Postgres
+  real): o access token assinado tem vida de ~15 min (não mais 8h); um
+  token expirado (assinado com `expiresIn: '-10s'`) é rejeitado com
+  `401` numa rota protegida; `POST /auth/refresh` com um refresh token
+  válido continua devolvendo um access token novo e funcional (`200`
+  na rota protegida com ele). `npm run test:e2e`: 3 suítes, 14 testes,
+  todos passando. `tsc --noEmit`: 0 erros. `npm test`: 19 suítes, 55
+  testes, sem regressão.
 - **Plano:** Parte 3.4.
 
 ## Médias

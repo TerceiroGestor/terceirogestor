@@ -14,9 +14,9 @@ export type TestTenantContext = {
 
 /**
  * Sobe a aplicação inteira (mesmo pipeline de main.ts) contra o banco real
- * apontado por DATABASE_URL, para testes e2e de isolamento entre tenants.
+ * apontado por DATABASE_URL, para testes e2e.
  */
-export async function createTenantIsolationTestApp(): Promise<{
+export async function createE2eTestApp(): Promise<{
   app: INestApplication<App>;
   prisma: PrismaService;
   jwtService: JwtService;
@@ -130,6 +130,8 @@ export async function cleanupTenant(prisma: PrismaService, tenantId: string) {
   await prisma.rolePermission.deleteMany({ where: { tenantId } });
   await prisma.userRole.deleteMany({ where: { tenantId } });
   await prisma.role.deleteMany({ where: { tenantId } });
+  await prisma.userSession.deleteMany({ where: { tenantId } });
+  await prisma.accessLog.deleteMany({ where: { tenantId } });
   await prisma.user.deleteMany({ where: { tenantId } });
   // PrismaService audita toda escrita de domínio automaticamente (ver
   // core/prisma/prisma.service.ts) — inclusive os deletes acima, que

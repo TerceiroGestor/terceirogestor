@@ -25,7 +25,7 @@ import { TotpService } from './mfa/totp.service';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '8h' },
+        signOptions: { expiresIn: '15m' },
       }),
     }),
   ],

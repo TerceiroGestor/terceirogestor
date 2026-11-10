@@ -7,7 +7,7 @@ import {
   TestTenantContext,
   bearer,
   cleanupTenant,
-  createTenantIsolationTestApp,
+  createE2eTestApp,
   provisionFullAccessTenant,
 } from './support/tenant-isolation.setup';
 
@@ -28,7 +28,7 @@ describe('Isolamento entre tenants (e2e)', () => {
   let tenantB: TestTenantContext;
 
   beforeAll(async () => {
-    const ctx = await createTenantIsolationTestApp();
+    const ctx = await createE2eTestApp();
     app = ctx.app;
     prisma = ctx.prisma;
     tenantA = await provisionFullAccessTenant(prisma, ctx.jwtService, 'A');
