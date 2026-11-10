@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { isOriginAllowed, parseWebUrlList } from './core/auth/http/auth-http';
 
@@ -10,6 +11,14 @@ async function bootstrap() {
     disable?: (key: string) => void;
   };
   instance.disable?.('etag');
+  app.use(
+    helmet({
+      // O frontend carrega avatares/anexos/logo direto via <img src> num
+      // domínio diferente do backend (ver item 1 da auditoria). O padrão
+      // do helmet ("same-origin") bloquearia esse carregamento.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Pragma', 'no-cache');

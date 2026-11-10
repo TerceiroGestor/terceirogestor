@@ -259,9 +259,27 @@ plano.
 
 ### 8. Sem `helmet` (headers de segurança)
 
-- [ ] **Onde:** `backend/src/main.ts` — nenhuma referência a `helmet` no
-      backend inteiro.
-- **O que fazer:** adicionar `helmet()` no bootstrap.
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/main.ts` — nenhuma referência a `helmet` no backend
+      inteiro.
+- **O que foi feito:** `helmet` adicionado às dependências (`^8.3.0`) e
+  `app.use(helmet(...))` logo no início do `bootstrap()`. Único ajuste
+  em relação ao padrão do helmet: `crossOriginResourcePolicy: { policy:
+  'cross-origin' }` — o padrão (`same-origin`) bloquearia o
+  `<img src>`/`<a href>` direto que o frontend usa pra avatar, anexos e
+  logo num domínio diferente do backend (ver item 1 desta auditoria;
+  em produção `WEB_URL` e a API ficam em domínios/subdomínios
+  diferentes).
+- **Critério de aceite:** confirmado por teste manual real — subi o
+  backend local e comparei os headers de `GET /` antes/depois:
+  `Content-Security-Policy`, `Cross-Origin-Opener-Policy`,
+  `Referrer-Policy: no-referrer`, `Strict-Transport-Security`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` e
+  `X-Powered-By` removido — todos presentes depois da mudança, nenhum
+  antes. Confirmei que o CORS do item 4 continua funcionando igual
+  (`Access-Control-Allow-Origin` presente pra origem permitida) e que
+  `GET /uploads/...` mantém `Cross-Origin-Resource-Policy: cross-origin`
+  mesmo com o helmet ativo.
 - **Plano:** Parte 2.
 
 ### 9. Variáveis de ambiente não são validadas no boot
