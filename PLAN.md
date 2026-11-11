@@ -65,11 +65,12 @@ Parte por Parte:
     (fora do escopo deste item).
   - [ ] Lint do backend medido (469 problemas, só em `src/`) mas não
     reduzido — meta é não aumentar, registrado em `docs/backlog.md`
-- **Parte 3 — Correções severas:** a maior parte feita via
+- **Parte 3 — Correções severas:** fechada, exceto uma ação
+  operacional do usuário (3.5, abaixo). Feita via
   `docs/auditoria-riscos.md` (itens 1–2 → 3.2/3.5, item 3 → 3.1, itens
-  4 → 3.4, 5–6 → 3.3, 7 → 3.4). Itens do checklist original da Parte 3
-  que ficaram de fora do critério de aceite da auditoria e **continuam
-  abertos**:
+  4 → 3.4, 5–6 → 3.3, 7 → 3.4) mais os itens do checklist original que
+  tinham ficado de fora do critério de aceite da auditoria, fechados
+  em 2026-11-11:
   - [x] **3.1 — separar seed de produção (permissões/papéis) do seed
     de dados fictícios** — feito em 2026-11-11, branch `develop`. Não
     existia uma separação de infraestrutura pra fazer: a produção já
@@ -258,7 +259,13 @@ Parte por Parte:
   acima) feitos. [ ] 16 (versão de Node) aberto, baixo risco, gatilho em
   `docs/backlog.md`.
 
-## Parte atual: Parte 2 — Pequenas correções (itens restantes acima) e fechamento dos itens da Parte 3 que ficaram pendentes
+## Parte atual: Partes 2 e 3 fechadas (exceto itens intencionalmente adiados), pronta para a Parte 4
+
+Fica aberto só o que foi adiado de propósito: a dívida de lint medida
+(não reduzida) e o item 3.5 (mover `PII_MASTER_KEY`/`TOTP_ENCRYPTION_KEY`
+para um gerenciador de senhas — ação operacional do usuário, não é
+código). Parte 4 (Railway/Cloudflare/R2) só começa quando o projeto
+Railway existir.
 
 Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
 fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
@@ -391,6 +398,10 @@ base real é 1614 (1145 de prettier). Depois do commit de formatação: 469.
 
 ## Próxima parte
 
-Ver "Estado real (sincronizado em 2026-11-11)" no topo deste arquivo para
-os itens abertos de Parte 2 e Parte 3. Detalhe item a item da Parte 3:
-`docs/auditoria-riscos.md`. Itens adiados com gatilho: `docs/backlog.md`.
+Partes 2 e 3 fechadas em 2026-11-11 (ver "Estado real" no topo) — só
+restam itens adiados de propósito (dívida de lint, 3.5 operacional).
+Ainda faltam criar as tags `v0.2-verde` e `v0.3-seguro` (não criadas
+nesta sessão — tag é uma decisão do usuário). Parte 4 (Railway/
+Cloudflare/R2) é a próxima, e só começa quando o projeto Railway
+existir. Detalhe item a item da Parte 3: `docs/auditoria-riscos.md`.
+Itens adiados com gatilho: `docs/backlog.md`.
