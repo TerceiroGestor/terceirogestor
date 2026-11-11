@@ -5,16 +5,6 @@ adiado sem gatilho. Formato do Alicerce.
 
 ## Infraestrutura / repositório
 
-- **`.gitignore` tem `scripts`, `script` e `infra` sem barra**, o que
-  ignora qualquer diretório com esses nomes em qualquer profundidade
-  (`backend/scripts/`, `scripts/windows/` incluídos). Os arquivos que já
-  existiam continuam rastreados, mas qualquer arquivo **novo** criado
-  nessas pastas não vai aparecer em `git status` nem entrar com
-  `git add .` — só com `git add -f`.
-  **Gatilho:** primeira vez que alguém notar um script novo "desaparecendo"
-  do `git status`, ou antes da Parte 2 (quando o CI entra e isso pode
-  mascarar um arquivo que devia estar versionado).
-
 - **Node local é v26.1.0**, fora da faixa `>=22 <23` dos dois
   `package.json` (`engines`). O frontend já avisa com `EBADENGINE` no
   `npm ci`. Tudo funcionou nesta sessão, mas não é a versão que vai rodar

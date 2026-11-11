@@ -12,6 +12,3 @@ test-results/
 frontend/*.log
 backend/*.log
 *.log
-infra
-script
-scripts

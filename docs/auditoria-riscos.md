@@ -443,12 +443,24 @@ plano.
 
 ### 13. `.gitignore` ignora silenciosamente pastas `scripts`/`script`/`infra`
 
-- [ ] **Onde:** `.gitignore` tem essas três entradas sem barra —
-      qualquer arquivo **novo** criado em `backend/scripts/` ou
-      `scripts/windows/` não aparece em `git status`.
-- **O que fazer:** ancorar as entradas (ex.: `/scripts` só na raiz, ou
-  remover as genéricas e listar exceções específicas).
-- Já registrado em `docs/backlog.md`.
+- [x] **Feito em 2026-11-11**, branch `develop`. **Onde estava:**
+      `.gitignore` tinha essas três entradas sem barra — qualquer
+      arquivo **novo** criado em `backend/scripts/` ou
+      `scripts/windows/` não aparecia em `git status`.
+- **O que foi feito:** removidas as três entradas genéricas
+  (`infra`/`script`/`scripts`). Confirmado que não existe hoje nenhuma
+  pasta `infra` ou `script` em lugar nenhum do repositório (tracked ou
+  não), e nenhum arquivo estava de fato escondido dentro de `scripts/`
+  ou `backend/scripts/` no momento da correção — não havia exceção
+  nenhuma a preservar, então remover foi mais seguro que ancorar
+  (ancorar `/scripts` continuaria escondendo arquivo novo dentro da
+  própria pasta raiz `scripts/windows/`, que é conteúdo versionado de
+  propósito).
+- **Critério de aceite:** confirmado — `git status --porcelain` antes e
+  depois da mudança não muda (nada estava escondido); `grep -n
+  'infra\|^script$\|^scripts$' .gitignore` não encontra mais nenhuma
+  das três entradas.
+- **Plano:** não estava na tabela original — achado novo, `docs/backlog.md`.
 
 ### 14. `prisma/seed.js` sem build automatizado
 
