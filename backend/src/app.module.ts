@@ -17,7 +17,6 @@ import { PeopleModule } from './modules/people/people.module';
 import { PantryModule } from './modules/pantry/pantry.module';
 import { DepositModule } from './modules/deposit/deposit.module';
 import { ProgramsModule } from './modules/programs/programs.module';
-import { PeopleSegmentsModule } from './modules/people-segments/people-segments.module';
 import { PeopleGroupsModule } from './modules/people-groups/people-groups.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ProjectStructureModule } from './modules/project-structure/project-structure.module';
@@ -62,7 +61,6 @@ const rootEnvFilePaths = [
     PantryModule,
     DepositModule,
     ProgramsModule,
-    PeopleSegmentsModule,
     PeopleGroupsModule,
     ProjectsModule,
     ProjectStructureModule,

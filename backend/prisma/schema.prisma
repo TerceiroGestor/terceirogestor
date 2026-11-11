@@ -221,8 +221,6 @@ model Tenant {
   people                               Person[]
   peopleGroups                         PeopleGroup[]
   peopleGroupParticipations            PeopleGroupParticipation[]
-  peopleSegments                       PeopleSegment[]
-  peopleSegmentMemberships             PeopleSegmentMembership[]
   personContacts                       PersonContact[]
   personComments                       PersonComment[]
   personAttachments                    PersonAttachment[]
@@ -477,7 +475,6 @@ model Person {
   sensitiveAccessLogs        PersonSensitiveAccessLog[]
   projectEnrollments         ProjectEnrollment[]
   peopleGroupParticipations  PeopleGroupParticipation[]
-  peopleSegmentMemberships   PeopleSegmentMembership[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([tenantId])
@@ -1284,55 +1281,6 @@ model PeopleGroupParticipation {
   @@unique([tenantId, activeKey])
   @@index([tenantId])
   @@index([peopleGroupId])
-  @@index([personId])
-  @@index([activeKey])
-  @@index([isActive])
-}
-
-model PeopleSegment {
-  id            String   @id @default(uuid()) @db.Char(36)
-  tenantId      String   @db.Char(36)
-  name          String
-  category      String?
-  description   String?  @db.Text
-  ageMin        Int?
-  ageMax        Int?
-  isActive      Boolean  @default(true)
-  internalNotes String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  tenant      Tenant                    @relation(fields: [tenantId], references: [id])
-  memberships PeopleSegmentMembership[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-  @@index([name])
-  @@index([category])
-  @@index([isActive])
-}
-
-model PeopleSegmentMembership {
-  id            String    @id @default(uuid()) @db.Char(36)
-  tenantId      String    @db.Char(36)
-  segmentId     String    @db.Char(36)
-  personId      String    @db.Char(36)
-  activeKey     String?   @db.VarChar(80)
-  isActive      Boolean   @default(true)
-  startsAt      DateTime  @default(now())
-  endsAt        DateTime?
-  deletedAt     DateTime?
-  internalNotes String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  tenant  Tenant        @relation(fields: [tenantId], references: [id])
-  segment PeopleSegment @relation(fields: [segmentId], references: [id])
-  person  Person        @relation(fields: [personId], references: [id])
-
-  @@unique([tenantId, activeKey])
-  @@index([tenantId])
-  @@index([segmentId])
   @@index([personId])
   @@index([activeKey])
   @@index([isActive])

@@ -235,32 +235,6 @@ describe('Isolamento entre tenants (e2e)', () => {
     expect(stillThere).not.toBeNull();
   });
 
-  it('people-segments: lista, leitura, edição e exclusão não vazam entre tenants', async () => {
-    const segment = await prisma.peopleSegment.create({
-      data: {
-        tenantId: tenantA.tenant.id,
-        name: `E2E Segment ${randomUUID()}`,
-      },
-    });
-
-    await expectListDoesNotContain('/people-segments', segment.id);
-    await expectNotFoundAsOtherTenant('get', `/people-segments/${segment.id}`);
-    await expectNotFoundAsOtherTenant(
-      'patch',
-      `/people-segments/${segment.id}`,
-      {},
-    );
-    await expectNotFoundAsOtherTenant(
-      'delete',
-      `/people-segments/${segment.id}`,
-    );
-
-    const stillThere = await prisma.peopleSegment.findUnique({
-      where: { id: segment.id },
-    });
-    expect(stillThere).not.toBeNull();
-  });
-
   it('actions (tipos de ação): lista, edição e exclusão não vazam entre tenants', async () => {
     const actionType = await prisma.actionType.create({
       data: {
