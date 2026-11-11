@@ -1,8 +1,25 @@
 ﻿import * as bcrypt from 'bcrypt';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createPrismaClientFromEnv } = require('../scripts/prisma-runtime');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { loadCorePermissionsModule } = require('../scripts/load-core-permissions');
 
 const prisma = createPrismaClientFromEnv();
+
+// Catalogo de permissoes/papeis padrao (producao): fonte unica em
+// src/modules/permissions/core-permissions.ts, a mesma usada pelo fluxo
+// real de cadastro de tenant (registration.service.ts) e pelo
+// permissions:backfill. O seed de dados ficticios abaixo so adiciona o
+// tenant/usuarios/pessoas de demonstracao por cima desse catalogo.
+const {
+  CORE_PERMISSIONS,
+  CORE_PERMISSION_KEYS,
+  DEFAULT_ROLE_DEFINITIONS,
+} = loadCorePermissionsModule() as {
+  CORE_PERMISSIONS: { key: string; description: string }[];
+  CORE_PERMISSION_KEYS: string[];
+  DEFAULT_ROLE_DEFINITIONS: { name: string; permissionKeys: string[] }[];
+};
 
 const ids = {
   tenant: '11111111-1111-4111-8111-111111111111',
@@ -61,57 +78,6 @@ const ids = {
     rodaFamilias: '11111111-1111-4111-8111-111111112004',
   },
 };
-
-const permissions = [
-  'audit.read',
-  'actions.read',
-  'actions.create',
-  'actions.update',
-  'actions.delete',
-  'actions.manage',
-  'programs.read',
-  'programs.create',
-  'programs.update',
-  'programs.delete',
-  'projects.read',
-  'projects.create',
-  'projects.update',
-  'projects.delete',
-  'project-structure.read',
-  'project-structure.create',
-  'project-structure.update',
-  'project-structure.delete',
-  'enrollments.read',
-  'enrollments.create',
-  'enrollments.update',
-  'enrollments.delete',
-  'people.read',
-  'people.create',
-  'people.update',
-  'people.delete',
-  'people.identity.read',
-  'people.sensitive.read',
-  'people.sensitive.update',
-  'users.read',
-  'users.create',
-  'users.update',
-  'users.delete',
-  'roles.manage',
-  'tenants.read',
-  'tenants.update',
-  'tasks.read',
-  'tasks.create',
-  'tasks.update',
-  'tasks.delete',
-  'pantry.read',
-  'pantry.create',
-  'pantry.update',
-  'pantry.delete',
-  'deposit.read',
-  'deposit.create',
-  'deposit.update',
-  'deposit.delete',
-] as const;
 
 const people = [
   {
@@ -384,9 +350,9 @@ const people = [
 
 async function createPermissionsAndRoles(tenantId: string) {
   await prisma.permission.createMany({
-    data: permissions.map((key) => ({
-      key,
-      description: `Permissao ${key}`,
+    data: CORE_PERMISSIONS.map((permission) => ({
+      key: permission.key,
+      description: permission.description,
     })),
     skipDuplicates: true,
   });
@@ -396,6 +362,10 @@ async function createPermissionsAndRoles(tenantId: string) {
       {
         id: ids.roles.admin,
         tenantId,
+        // 'Administrador' e um alias conhecido do papel 'Admin' do
+        // catalogo (ver CORE_ROLE_PERMISSION_TEMPLATES em
+        // core-permissions.ts) - mantido para nao mudar o nome do papel
+        // do tenant de demonstracao que ja existe.
         name: 'Administrador',
         description: 'Acesso completo ao ambiente de teste.',
       },
@@ -415,76 +385,28 @@ async function createPermissionsAndRoles(tenantId: string) {
   });
 
   const storedPermissions = await prisma.permission.findMany({
-    where: { key: { in: [...permissions] } },
+    where: { key: { in: CORE_PERMISSION_KEYS } },
   });
   const permissionIdByKey = new Map(
     storedPermissions.map((permission) => [permission.key, permission.id]),
   );
 
-  const gestorPermissions = [
-    'audit.read',
-    'actions.read',
-    'actions.create',
-    'actions.update',
-    'actions.delete',
-    'actions.manage',
-    'programs.read',
-    'programs.create',
-    'programs.update',
-    'projects.read',
-    'projects.create',
-    'projects.update',
-    'project-structure.read',
-    'project-structure.create',
-    'project-structure.update',
-    'enrollments.read',
-    'enrollments.create',
-    'enrollments.update',
-    'people.read',
-    'people.create',
-    'people.update',
-    'people.identity.read',
-    'people.sensitive.read',
-    'users.read',
-    'tenants.read',
-    'tasks.read',
-    'tasks.create',
-    'tasks.update',
-    'pantry.read',
-    'deposit.read',
-  ] as const;
-
-  const atendimentoPermissions = [
-    'actions.read',
-    'actions.create',
-    'actions.update',
-    'actions.manage',
-    'projects.read',
-    'project-structure.read',
-    'project-structure.create',
-    'project-structure.update',
-    'enrollments.read',
-    'enrollments.create',
-    'enrollments.update',
-    'people.read',
-    'people.create',
-    'people.update',
-    'people.identity.read',
-    'people.sensitive.read',
-  ] as const;
+  const permissionKeysByRoleName = (roleName: string): string[] =>
+    DEFAULT_ROLE_DEFINITIONS.find((role) => role.name === roleName)
+      ?.permissionKeys ?? [];
 
   const rolePermissions = [
-    ...permissions.map((key) => ({
+    ...CORE_PERMISSION_KEYS.map((key) => ({
       tenantId,
       roleId: ids.roles.admin,
       permissionId: permissionIdByKey.get(key)!,
     })),
-    ...gestorPermissions.map((key) => ({
+    ...permissionKeysByRoleName('Gestor').map((key) => ({
       tenantId,
       roleId: ids.roles.gestor,
       permissionId: permissionIdByKey.get(key)!,
     })),
-    ...atendimentoPermissions.map((key) => ({
+    ...permissionKeysByRoleName('Atendimento').map((key) => ({
       tenantId,
       roleId: ids.roles.atendimento,
       permissionId: permissionIdByKey.get(key)!,

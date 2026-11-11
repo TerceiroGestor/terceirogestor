@@ -1,55 +1,5 @@
-const fs = require('fs');
-const path = require('path');
 const { createPrismaClientFromEnv } = require('./prisma-runtime');
-
-function loadCorePermissionsModule() {
-  const distCandidates = [
-    path.join(
-      __dirname,
-      '..',
-      'dist',
-      'modules',
-      'permissions',
-      'core-permissions.js',
-    ),
-    path.join(
-      __dirname,
-      '..',
-      'dist',
-      'src',
-      'modules',
-      'permissions',
-      'core-permissions.js',
-    ),
-  ];
-
-  for (const candidate of distCandidates) {
-    if (fs.existsSync(candidate)) {
-      return require(candidate);
-    }
-  }
-
-  try {
-    require('ts-node/register/transpile-only');
-    const sourceCandidate = path.join(
-      __dirname,
-      '..',
-      'src',
-      'modules',
-      'permissions',
-      'core-permissions.ts',
-    );
-    if (fs.existsSync(sourceCandidate)) {
-      return require(sourceCandidate);
-    }
-  } catch {
-    // Ignore and fall through to the explicit error below.
-  }
-
-  throw new Error(
-    'Nao foi possivel carregar o catalogo de permissoes. Execute o build do backend antes do backfill.',
-  );
-}
+const { loadCorePermissionsModule } = require('./load-core-permissions');
 
 const {
   CORE_PERMISSIONS,

@@ -70,8 +70,41 @@ Parte por Parte:
   4 → 3.4, 5–6 → 3.3, 7 → 3.4). Itens do checklist original da Parte 3
   que ficaram de fora do critério de aceite da auditoria e **continuam
   abertos**:
-  - [ ] 3.1 — separar seed de produção (permissões/papéis) do seed de
-    dados fictícios (mencionado como pendente no item 3 da auditoria)
+  - [x] **3.1 — separar seed de produção (permissões/papéis) do seed
+    de dados fictícios** — feito em 2026-11-11, branch `develop`. Não
+    existia uma separação de infraestrutura pra fazer: a produção já
+    não chama o seed de dados fictícios (`docker-entrypoint.sh` só
+    roda migration + start, nunca `seed.js`) — quem cria papéis/
+    permissões num tenant real é o fluxo de registro
+    (`registration.service.ts`), e o catálogo "oficial" já vivia em
+    `backend/src/modules/permissions/core-permissions.ts`
+    (`CORE_PERMISSIONS`/`DEFAULT_ROLE_DEFINITIONS`), reexportado por
+    `registration.constants.ts`. O problema real: `prisma/seed.ts`
+    (dados fictícios) tinha sua **própria cópia hardcoded** dessa
+    mesma lista (permissões + papéis Gestor/Atendimento), sem nada
+    forçando as duas a ficarem iguais — risco de o tenant de
+    demonstração ficar com permissões diferentes do que um tenant real
+    ganha no cadastro. `prisma/seed.ts` agora importa o catálogo
+    (`CORE_PERMISSIONS`/`CORE_PERMISSION_KEYS`/
+    `DEFAULT_ROLE_DEFINITIONS`) via um loader novo e compartilhado
+    (`backend/scripts/load-core-permissions.js`, extraído do que já
+    existia dentro de `backfill-core-permissions.js` — que passou a
+    usar o mesmo loader) em vez de manter sua própria lista. O nome do
+    papel "Administrador" foi mantido (é um alias já conhecido de
+    "Admin" em `CORE_ROLE_PERMISSION_TEMPLATES`, coberto por
+    `core-permissions.spec.ts`).
+  - **Critério de aceite:** confirmado — diff do catálogo antigo
+    (hardcoded) contra `CORE_PERMISSION_KEYS` é vazio (as 48 chaves já
+    coincidiam hoje; o ganho é não poder mais divergir em silêncio).
+    `npm run db:seed` real contra o Postgres local: `Seed executado
+    com sucesso`; query direta no banco confirma `Administrador`
+    com 48 permissões (= todo o catálogo), `Gestor` com 31, `Atendimento`
+    com 9 — e o próprio Nest loga `Synced 48 required permissions` ao
+    subir. Teste manual real: login de `admin@seed.local` → `201` com
+    `accessToken`; `GET /people` com esse token → `200` com dados.
+    `npm run permissions:backfill` também testado, continua funcionando
+    com o loader compartilhado (`permissionsSynced=48`). `tsc --noEmit`:
+    0 erros. `npm test`: 22 suítes, 91 testes.
   - [ ] 3.2 — reorganizar a chave física do arquivo para
     `tenantId/modulo/uuid.ext` (adiado de propósito no item 1 da
     auditoria, pra não arriscar URL já salva no banco)
@@ -151,7 +184,7 @@ fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
 
 ### Checkpoint completo (2026-11-05, fim da sessão)
 
-```
+```bash
 backend: tsc --noEmit -p tsconfig.build.json → 0 erros
 backend: npm test                            → 15 suites, 18 testes, ok
 frontend: tsc --noEmit                       → 0 erros
@@ -178,6 +211,7 @@ de riscos num merge único em 2026-11-06 — o fluxo normal daqui pra frente
 é `develop` → `main`, sem branch por item (ver AGENTS.md).
 
 ### Linha de base (medida em 2026-11-05, Windows, node v26.1.0 — fora da
+
 faixa `>=22 <23` dos dois `package.json`, ver `docs/backlog.md`)
 
 **Backend**
