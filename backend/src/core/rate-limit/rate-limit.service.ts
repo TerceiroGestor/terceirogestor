@@ -16,8 +16,11 @@ export class RateLimitService {
     if (!existing || existing.resetAt <= now) {
       const next: Bucket = { count: 1, resetAt: now + windowMs };
       this.buckets.set(key, next);
+      // max <= 0 would otherwise slip through as allowed here, since a
+      // fresh bucket's first request never went through the count > max
+      // check below.
       return {
-        allowed: true,
+        allowed: max > 0,
         remaining: Math.max(0, max - 1),
         resetAt: next.resetAt,
       };

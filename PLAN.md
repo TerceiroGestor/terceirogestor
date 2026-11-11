@@ -211,12 +211,44 @@ Parte por Parte:
     endpoint com bytes JPEG reais (`FF D8 FF E0 ...`) → sucesso, com a
     URL assinada de volta. `tsc --noEmit`: 0 erros. `npm test`: 23
     suítes, 106 testes.
-  - [ ] 3.4 — confirmar rate limit e expiração do token de reset nos 4
-    fluxos (decorators já existem em `registration.controller.ts`, mas
-    não há uma confirmação dedicada registrada)
+  - [x] **3.4 — confirmar rate limit e expiração do token de reset nos
+    4 fluxos** — feito em 2026-11-11, branch `develop`. Os 4 decorators
+    (`auth.controller.ts`: `login` 20/10min, `forgot-password` 10/h,
+    `reset-password` 20/h; `registration.controller.ts`:
+    `tenant/request` 10/h) já existiam, mas nem `RateLimitGuard` nem
+    `RateLimitService` (`core/rate-limit/`) tinham teste próprio, e a
+    expiração do token de reset (`auth.service.ts#resetPassword`,
+    30 min) também não. Ao escrever os testes achei e corrigi um bug
+    real: `RateLimitService.consume()` liberava incondicionalmente a
+    **primeira** chamada de uma chave nova, mesmo com `max: 0` (o
+    branch de "bucket novo" nunca checava `max`) — não afeta nenhum
+    endpoint hoje (nenhum usa `max: 0`), mas é o tipo de bug que um
+    `max` configurado errado no futuro deixaria passar batido.
+    Corrigido: bucket novo com `max <= 0` já nasce bloqueado.
+  - **Critério de aceite:** confirmado por 13 testes unitários novos
+    (`rate-limit.service.spec.ts`: limite, reset de janela, chaves
+    independentes, o caso `max: 0` corrigido; `rate-limit.guard.spec.ts`:
+    sem metadata deixa passar, `429` com `retryAfterSeconds` ao
+    exceder, mensagem customizada, cada `keyPart` — `ip`/`tenantId`/
+    `bodyField` normalizado — gera buckets separados) e por um novo
+    `test/password-reset-and-rate-limit.e2e-spec.ts` (Postgres real, 9
+    testes): token de reset expirado/revogado/consumido → `400`;
+    token válido → `201` e troca a senha de verdade (login com a senha
+    nova confirmado); reusar o mesmo token depois → `400`; pedir um
+    novo reset revoga o token anterior ainda válido do mesmo usuário
+    (conferido direto no banco). Os 4 endpoints testados batendo
+    repetidamente até o limite configurado: `/auth/login` (20),
+    `/auth/forgot-password` (10), `/auth/reset-password` (20),
+    `/registration/tenant/request` (10) — todos liberam até o limite e
+    devolvem `429` exatamente na chamada seguinte. `tsc --noEmit`: 0
+    erros. `npm test`: 25 suítes, 123 testes. `npm run test:e2e`: 4
+    suítes, 23 testes.
   - [ ] 3.5 — mover `PII_MASTER_KEY`/`TOTP_ENCRYPTION_KEY` para um
-    gerenciador de senhas fora do Railway (ação operacional, não é
-    código)
+    gerenciador de senhas fora do Railway — **ação sua, não é código**:
+    eu não tenho acesso aos valores reais das chaves nem ao seu
+    gerenciador de senhas. A rotação dessas chaves já está registrada
+    em `docs/backlog.md` com gatilho ("primeiro incidente ou 12 meses
+    em produção").
 - **Parte 4 — Produção:** só preparação, nada do Railway/Cloudflare/R2
   real existe ainda. `GET /health` (pré-requisito 4.1) e a interface do
   `StorageService` (pré-requisito 4.2) já estão prontos; o resto depende
