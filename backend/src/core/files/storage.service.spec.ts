@@ -1,9 +1,29 @@
 import { ConfigService } from '@nestjs/config';
+import { join } from 'path';
 import { StorageService } from './storage.service';
+import { UPLOAD_CATEGORY_DIRS } from './upload-paths';
 
-function makeService(secret = 'test-secret') {
+jest.mock('fs', () => ({
+  ...jest.requireActual<Record<string, unknown>>('fs'),
+  writeFileSync: jest.fn(),
+  mkdirSync: jest.fn(),
+  rmSync: jest.fn(),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fs = require('fs') as {
+  writeFileSync: jest.Mock;
+  mkdirSync: jest.Mock;
+  rmSync: jest.Mock;
+};
+
+function makeService(configValues: Record<string, string> = {}) {
+  const values: Record<string, string> = {
+    JWT_SECRET: 'test-secret',
+    ...configValues,
+  };
   return new StorageService({
-    get: () => secret,
+    get: (key: string) => values[key],
   } as unknown as ConfigService);
 }
 
@@ -79,8 +99,8 @@ describe('StorageService', () => {
   });
 
   it('rejects a signature minted with a different secret', () => {
-    const issuer = makeService('secret-1');
-    const verifier = makeService('secret-2');
+    const issuer = makeService({ JWT_SECRET: 'secret-1' });
+    const verifier = makeService({ JWT_SECRET: 'secret-2' });
     const url = issuer.getSignedUrl('people', 'file.jpg', 'tenant-a', 'user-a');
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
@@ -114,5 +134,56 @@ describe('StorageService', () => {
     expect(
       service.verifySignature('people', 'file.jpg', 'not-a-valid-token'),
     ).toBeNull();
+  });
+
+  describe('put/delete (driver local)', () => {
+    beforeEach(() => {
+      fs.writeFileSync.mockReset();
+      fs.mkdirSync.mockReset();
+      fs.rmSync.mockReset();
+    });
+
+    it('put() grava no diretório da categoria (driver local, padrão)', async () => {
+      const service = makeService();
+      const data = Buffer.from('conteudo');
+
+      await service.put('people', 'arquivo.pdf', data);
+
+      expect(fs.mkdirSync).toHaveBeenCalledWith(
+        UPLOAD_CATEGORY_DIRS.people,
+        expect.objectContaining({ recursive: true }),
+      );
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        join(UPLOAD_CATEGORY_DIRS.people, 'arquivo.pdf'),
+        data,
+      );
+    });
+
+    it('delete() remove o arquivo do diretório da categoria', async () => {
+      const service = makeService();
+
+      await service.delete('avatars', 'foto.png');
+
+      expect(fs.rmSync).toHaveBeenCalledWith(
+        join(UPLOAD_CATEGORY_DIRS.avatars, 'foto.png'),
+        expect.objectContaining({ force: true }),
+      );
+    });
+
+    it('rejeita uma categoria desconhecida', async () => {
+      const service = makeService();
+
+      await expect(
+        service.put('categoria-que-nao-existe', 'x.txt', Buffer.from('a')),
+      ).rejects.toThrow(/Categoria de upload desconhecida/);
+    });
+
+    it('rejeita STORAGE_DRIVER diferente de "local" (R2 ainda não existe — Parte 4.2)', async () => {
+      const service = makeService({ STORAGE_DRIVER: 'r2' });
+
+      await expect(
+        service.put('people', 'x.txt', Buffer.from('a')),
+      ).rejects.toThrow(/não foi implementado/);
+    });
   });
 });

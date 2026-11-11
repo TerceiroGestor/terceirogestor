@@ -8,26 +8,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { memoryStorage } from 'multer';
+import { extname } from 'path';
 import { randomUUID } from 'crypto';
-import * as fs from 'fs';
+import { StorageService } from './storage.service';
 
-const AVATAR_DIR = join(process.cwd(), 'uploads', 'avatars');
-const HEALTH_DOC_DIR = join(process.cwd(), 'uploads', 'health');
-const TENANT_LOGO_DIR = join(process.cwd(), 'uploads', 'tenants');
-const ACTION_PHOTO_DIR = join(process.cwd(), 'uploads', 'actions');
-const PEOPLE_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'people');
-const PANTRY_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'pantry');
-const DEPOSIT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'deposit');
-const PROGRAM_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'programs');
-const PROJECT_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'projects');
-const ACTION_ATTACHMENT_DIR = join(
-  process.cwd(),
-  'uploads',
-  'action-attachments',
-);
-const TASK_ATTACHMENT_DIR = join(process.cwd(), 'uploads', 'tasks');
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_HEALTH_FILE_SIZE = 6 * 1024 * 1024;
 const MAX_TENANT_LOGO_SIZE = 3 * 1024 * 1024;
@@ -68,109 +53,7 @@ const ALLOWED_ACTION_PHOTO_EXTENSIONS = new Set([
   '.webp',
   '.gif',
 ]);
-const ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_ACTION_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
-  '.pdf',
-  '.txt',
-  '.csv',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.zip',
-]);
-const ALLOWED_TASK_ATTACHMENT_EXTENSIONS = new Set([
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
   '.png',
@@ -188,85 +71,64 @@ const ALLOWED_TASK_ATTACHMENT_EXTENSIONS = new Set([
   '.zip',
 ]);
 
-function ensureAvatarDir() {
-  fs.mkdirSync(AVATAR_DIR, { recursive: true });
+function buildFilename(originalname: string, allowedExtensions: Set<string>) {
+  const ext = extname(originalname).toLowerCase();
+  const safeExt = allowedExtensions.has(ext) ? ext : '';
+  return `${randomUUID()}${safeExt}`;
 }
 
-function ensureHealthDocDir() {
-  fs.mkdirSync(HEALTH_DOC_DIR, { recursive: true });
+function imageOnlyFilter(
+  _req: unknown,
+  file: Express.Multer.File,
+  cb: (error: Error | null, acceptFile: boolean) => void,
+) {
+  if (!file.mimetype.startsWith('image/')) {
+    cb(new BadRequestException('Formato de arquivo invalido.'), false);
+    return;
+  }
+  cb(null, true);
 }
 
-function ensureTenantLogoDir() {
-  fs.mkdirSync(TENANT_LOGO_DIR, { recursive: true });
-}
-
-function ensureActionPhotoDir() {
-  fs.mkdirSync(ACTION_PHOTO_DIR, { recursive: true });
-}
-
-function ensurePeopleAttachmentDir() {
-  fs.mkdirSync(PEOPLE_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensurePantryAttachmentDir() {
-  fs.mkdirSync(PANTRY_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureDepositAttachmentDir() {
-  fs.mkdirSync(DEPOSIT_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureProgramAttachmentDir() {
-  fs.mkdirSync(PROGRAM_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureProjectAttachmentDir() {
-  fs.mkdirSync(PROJECT_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureActionAttachmentDir() {
-  fs.mkdirSync(ACTION_ATTACHMENT_DIR, { recursive: true });
-}
-
-function ensureTaskAttachmentDir() {
-  fs.mkdirSync(TASK_ATTACHMENT_DIR, { recursive: true });
+function extensionAllowlistFilter(allowedExtensions: Set<string>) {
+  return (
+    _req: unknown,
+    file: Express.Multer.File,
+    cb: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    const ext = extname(file.originalname).toLowerCase();
+    if (!allowedExtensions.has(ext)) {
+      cb(new BadRequestException('Formato de arquivo invalido.'), false);
+      return;
+    }
+    cb(null, true);
+  };
 }
 
 @Controller('files')
 export class FilesController {
+  constructor(private readonly storage: StorageService) {}
+
   @Post('avatars')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureAvatarDir();
-          cb(null, AVATAR_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_AVATAR_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_AVATAR_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: imageOnlyFilter,
     }),
   )
-  uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
+  async uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_AVATAR_EXTENSIONS,
+    );
+    await this.storage.put('avatars', filename, file.buffer);
 
     return {
-      path: `/uploads/avatars/${file.filename}`,
+      path: `/uploads/avatars/${filename}`,
     };
   }
 
@@ -274,18 +136,7 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureHealthDocDir();
-          cb(null, HEALTH_DOC_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_HEALTH_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_HEALTH_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (
@@ -299,13 +150,18 @@ export class FilesController {
       },
     }),
   )
-  uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
+  async uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_HEALTH_EXTENSIONS,
+    );
+    await this.storage.put('health', filename, file.buffer);
 
     return {
-      path: `/uploads/health/${file.filename}`,
+      path: `/uploads/health/${filename}`,
     };
   }
 
@@ -313,35 +169,23 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureTenantLogoDir();
-          cb(null, TENANT_LOGO_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_TENANT_LOGO_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_TENANT_LOGO_SIZE },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: imageOnlyFilter,
     }),
   )
-  uploadTenantLogo(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTenantLogo(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_TENANT_LOGO_EXTENSIONS,
+    );
+    await this.storage.put('tenants', filename, file.buffer);
 
     return {
-      path: `/uploads/tenants/${file.filename}`,
+      path: `/uploads/tenants/${filename}`,
     };
   }
 
@@ -349,35 +193,23 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureActionPhotoDir();
-          cb(null, ACTION_PHOTO_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_ACTION_PHOTO_EXTENSIONS.has(ext) ? ext : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ACTION_PHOTO_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: imageOnlyFilter,
     }),
   )
-  uploadActionPhoto(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionPhoto(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ACTION_PHOTO_EXTENSIONS,
+    );
+    await this.storage.put('actions', filename, file.buffer);
 
     return {
-      path: `/uploads/actions/${file.filename}`,
+      path: `/uploads/actions/${filename}`,
     };
   }
 
@@ -385,41 +217,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensurePeopleAttachmentDir();
-          cb(null, PEOPLE_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PEOPLE_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_PEOPLE_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadPeopleAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPeopleAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('people', filename, file.buffer);
 
     return {
-      path: `/uploads/people/${file.filename}`,
+      path: `/uploads/people/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -427,41 +244,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensurePantryAttachmentDir();
-          cb(null, PANTRY_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PANTRY_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_PANTRY_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadPantryAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPantryAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('pantry', filename, file.buffer);
 
     return {
-      path: `/uploads/pantry/${file.filename}`,
+      path: `/uploads/pantry/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -469,41 +271,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureDepositAttachmentDir();
-          cb(null, DEPOSIT_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_DEPOSIT_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_DEPOSIT_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadDepositAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadDepositAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('deposit', filename, file.buffer);
 
     return {
-      path: `/uploads/deposit/${file.filename}`,
+      path: `/uploads/deposit/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -511,41 +298,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureProgramAttachmentDir();
-          cb(null, PROGRAM_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PROGRAM_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_PROGRAM_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadProgramAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProgramAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('programs', filename, file.buffer);
 
     return {
-      path: `/uploads/programs/${file.filename}`,
+      path: `/uploads/programs/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -553,41 +325,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureProjectAttachmentDir();
-          cb(null, PROJECT_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_PROJECT_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_PROJECT_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadProjectAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProjectAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('projects', filename, file.buffer);
 
     return {
-      path: `/uploads/projects/${file.filename}`,
+      path: `/uploads/projects/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -595,41 +352,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureActionAttachmentDir();
-          cb(null, ACTION_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_ACTION_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_ACTION_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_ACTION_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadActionAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('action-attachments', filename, file.buffer);
 
     return {
-      path: `/uploads/action-attachments/${file.filename}`,
+      path: `/uploads/action-attachments/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 
@@ -637,41 +379,26 @@ export class FilesController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureTaskAttachmentDir();
-          cb(null, TASK_ATTACHMENT_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          const safeExt = ALLOWED_TASK_ATTACHMENT_EXTENSIONS.has(ext)
-            ? ext
-            : '';
-          const filename = `${randomUUID()}${safeExt}`;
-          cb(null, filename);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_TASK_ATTACHMENT_FILE_SIZE },
-      fileFilter: (_req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_TASK_ATTACHMENT_EXTENSIONS.has(ext)) {
-          cb(new BadRequestException('Formato de arquivo invalido.'), false);
-          return;
-        }
-        cb(null, true);
-      },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  uploadTaskAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTaskAttachment(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('tasks', filename, file.buffer);
 
     return {
-      path: `/uploads/tasks/${file.filename}`,
+      path: `/uploads/tasks/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
-      originalName: file.originalname || file.filename,
+      originalName: file.originalname || filename,
     };
   }
 }

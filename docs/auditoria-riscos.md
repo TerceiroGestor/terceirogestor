@@ -388,12 +388,56 @@ plano.
 
 ### 12. Arquivos em disco do container (efêmero no Railway)
 
-- [ ] **Onde:** `backend/src/core/files/files.controller.ts:16-30` — 10
-      pastas sob `uploads/` via `multer.diskStorage`. Nenhum código de
-      S3/R2 ainda.
-- **O que fazer:** `StorageService` com driver `local` (dev) e `r2`
-  (produção).
-- **Plano:** Parte 3.2 (interface) e Parte 4.2 (driver R2).
+- [x] **Feito em 2026-11-10**, branch `develop` — **a parte que não
+      depende do R2 real** (ver abaixo). **Onde estava:**
+      `backend/src/core/files/files.controller.ts` — 10 endpoints, cada
+      um com seu próprio `multer.diskStorage` escrevendo direto em
+      `uploads/<categoria>/`, duplicando (e tendo que manter em
+      sincronia manual, veja o comentário que já existia em
+      `upload-paths.ts`) a lista de pastas que o download (item 1) já
+      conhecia.
+- **O que foi feito:** `StorageService` (já existia, do item 1, só com
+  `getSignedUrl`/`verifySignature`) ganhou `put`/`delete`, atrás de uma
+  interface `StorageDriver` com um driver `local` que escreve em
+  `UPLOAD_CATEGORY_DIRS` (reaproveitado de `upload-paths.ts` — agora é
+  a única lista de pastas, sem duplicação). `STORAGE_DRIVER` (env,
+  padrão `local`) escolhe o driver; qualquer valor diferente de
+  `local` falha com uma mensagem clara ("ainda não implementado —
+  Parte 4.2"), em vez de fingir que funciona. `files.controller.ts`
+  foi refeito: todos os 10 endpoints trocaram `diskStorage` por
+  `memoryStorage` (multer só valida e mantém o arquivo em memória) e
+  chamam `storage.put(categoria, nomeGerado, file.buffer)` — a escrita
+  em disco fica só dentro do driver, não mais espalhada pelo
+  controller. `fileFilter`/`limits`/nomes de categoria/formato de
+  resposta de cada endpoint não mudaram. As 7 listas de extensão
+  permitida para anexos, que eram cópias idênticas, viraram uma só
+  (`ALLOWED_ATTACHMENT_EXTENSIONS`).
+- **O que não foi feito (de propósito):** o driver `r2` de verdade —
+  precisa de um bucket R2 real (Parte 4.2, só faz sentido quando
+  existir). A reorganização da chave física pra `tenantId/modulo/uuid`
+  (outro item do plano, Parte 3.2) também não entrou — a chave
+  continua `categoria/uuid.ext`, idêntica à estrutura atual, pra essa
+  mudança não arriscar nenhuma URL já salva no banco. `delete()` existe
+  na interface mas não está plugado nos ~7 módulos que hoje só
+  removem a linha do banco (arquivo órfão) — registrado no backlog.
+- **Critério de aceite:** confirmado por 15 testes novos
+  (`storage.service.spec.ts`: `put`/`delete` gravam/removem no
+  diretório certo, categoria desconhecida e driver não-local falham
+  com mensagem clara; `files.controller.spec.ts`: os 10 endpoints
+  chamam `storage.put` com a categoria certa e devolvem o path
+  esperado, endpoint sem arquivo rejeita) e por teste manual real:
+  subi o backend, fiz login de verdade, enviei um arquivo por
+  `POST /files/avatars` — a resposta já veio com a URL assinada (a
+  mesma interceptação do item 1), o arquivo apareceu em
+  `uploads/avatars/` com o conteúdo exato enviado, e baixar pela URL
+  assinada devolveu esse mesmo conteúdo. Testei também
+  `POST /files/people-attachments` (campos extra `mimeType`/`size`/
+  `originalName` corretos) e uma extensão não permitida em
+  `/files/avatars` (continua `400`, o `fileFilter` funciona igual com
+  `memoryStorage`). `tsc --noEmit`: 0 erros. `npm test`: 22 suítes, 91
+  testes.
+- **Plano:** Parte 3.2 (interface — fechada) e Parte 4.2 (driver R2 —
+  aberta, depende do bucket existir).
 
 ## Achados novos (fora da tabela original do plano)
 

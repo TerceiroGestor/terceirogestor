@@ -73,6 +73,19 @@ adiado sem gatilho. Formato do Alicerce.
   `seed.ts` geraria. Até lá, recompilar manualmente a cada edição de
   `seed.ts`.
 
+## Arquivos
+
+- **Excluir um registro de anexo (`deletePersonAttachment`,
+  `deleteProgramAttachment`, etc., em pelo menos 7 módulos) só remove a
+  linha do banco — o arquivo físico em `uploads/<categoria>/` fica
+  órfão pra sempre.** `StorageService.delete(categoria, filename)`
+  já existe (item 12 de `docs/auditoria-riscos.md`), só não está
+  plugado nesses fluxos ainda; conectar os 7+ módulos é uma mudança
+  maior que o escopo desse item.
+  **Gatilho:** quando o espaço em disco dos uploads virar problema
+  perceptível, ou ao implementar o driver R2 (Parte 4.2) — nesse ponto
+  já vale revisar todos os pontos de exclusão de uma vez.
+
 ## Segurança / chaves
 
 - **Rotação de `PII_MASTER_KEY` e `TOTP_ENCRYPTION_KEY`.**

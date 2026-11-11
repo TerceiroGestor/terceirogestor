@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
+import * as fs from 'fs';
+import { dirname, join } from 'path';
+import { UPLOAD_CATEGORY_DIRS } from './upload-paths';
 
 interface SignedUploadPayload {
   tenantId: string;
@@ -27,15 +30,83 @@ export interface VerifiedUploadSignature {
 const DEFAULT_TTL_SECONDS = 5 * 60;
 
 /**
- * Minimal local-disk stand-in for the R2 StorageService planned for Parte
- * 4.2 (`getSignedUrl`). Signs short-lived download URLs so the browser can
- * keep using plain <img src>/<a href> (the access token lives only in
- * sessionStorage, never in a cookie, so it can't ride along automatically
- * on those requests) while still requiring proof of tenant ownership.
+ * Where `put`/`delete` actually write bytes. `local` writes straight to
+ * the container's disk (lost on every Railway redeploy — item 12 of
+ * docs/auditoria-riscos.md); swapping to R2 (Parte 4.2) only needs a new
+ * class here and `STORAGE_DRIVER=r2`, no caller changes.
+ */
+export interface StorageDriver {
+  put(category: string, filename: string, data: Buffer): Promise<void>;
+  delete(category: string, filename: string): Promise<void>;
+}
+
+class LocalStorageDriver implements StorageDriver {
+  // async on purpose: resolve() below can throw synchronously (unknown
+  // category) and async is what turns that into a rejected Promise,
+  // matching how a real (genuinely awaited) R2 driver will behave.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async put(category: string, filename: string, data: Buffer): Promise<void> {
+    const filePath = this.resolve(category, filename);
+    fs.mkdirSync(dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, data);
+  }
+
+  // see put() above
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async delete(category: string, filename: string): Promise<void> {
+    fs.rmSync(this.resolve(category, filename), { force: true });
+  }
+
+  private resolve(category: string, filename: string): string {
+    const dir = UPLOAD_CATEGORY_DIRS[category];
+    if (!dir) {
+      throw new Error(`Categoria de upload desconhecida: ${category}`);
+    }
+    return join(dir, filename);
+  }
+}
+
+/**
+ * Local-disk stand-in for the R2 StorageService planned for Parte 4.2.
+ * `getSignedUrl`/`verifySignature` sign short-lived download URLs so the
+ * browser can keep using plain <img src>/<a href> (the access token lives
+ * only in sessionStorage, never in a cookie, so it can't ride along
+ * automatically on those requests) while still requiring proof of tenant
+ * ownership. `put`/`delete` are the write side (item 12): every upload
+ * endpoint in `files.controller.ts` goes through them instead of touching
+ * the filesystem directly, so there's exactly one place to change when R2
+ * is ready.
  */
 @Injectable()
 export class StorageService {
+  private driver: StorageDriver | null = null;
+
   constructor(private readonly config: ConfigService) {}
+
+  // async on purpose: getDriver() can throw synchronously (unimplemented
+  // driver) and async is what turns that into a rejected Promise instead
+  // of a thrown error, so callers can just `await` + try/catch either way.
+  async put(category: string, filename: string, data: Buffer): Promise<void> {
+    return this.getDriver().put(category, filename, data);
+  }
+
+  // see put() above
+  async delete(category: string, filename: string): Promise<void> {
+    return this.getDriver().delete(category, filename);
+  }
+
+  private getDriver(): StorageDriver {
+    if (!this.driver) {
+      const name = this.config.get<string>('STORAGE_DRIVER')?.trim() || 'local';
+      if (name !== 'local') {
+        throw new Error(
+          `Storage driver "${name}" ainda não foi implementado (Parte 4.2 — R2). Use STORAGE_DRIVER=local.`,
+        );
+      }
+      this.driver = new LocalStorageDriver();
+    }
+    return this.driver;
+  }
 
   private secret(): string {
     const value = this.config.get<string>('JWT_SECRET');
