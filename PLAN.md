@@ -4,11 +4,63 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
-## Parte atual: Parte 1 — Limpeza
+## Estado real (sincronizado em 2026-11-11)
+
+Este documento tinha ficado parado em "Parte 1 em andamento" enquanto o
+trabalho real, registrado item a item em `docs/auditoria-riscos.md`,
+avançou até cobrir quase toda a Parte 2 e a Parte 3. Mapa atualizado,
+Parte por Parte:
+
+- **Parte 1 — Limpeza:** fechada na prática (checklist abaixo). Único
+  item sem evidência de ponta a ponta: clicar nos 9 módulos pela UI
+  (só API/backend foram exercitados via curl/testes automatizados nas
+  sessões seguintes). Não bloqueou o trabalho das Partes 2/3, que já
+  começou.
+- **Parte 2 — Pequenas correções:** parcialmente feita.
+  - [x] helmet (auditoria #8) · [x] validação de env vars no boot
+    (auditoria #9) · [x] `GET /health` (auditoria #10) · [x]
+    dependências patch/minor + `npm audit` (auditoria #15) · [x] 22
+    suítes/91 testes do backend passando
+  - [ ] CI no GitHub Actions — não existe (`.github/` só tem template
+    de issue)
+  - [ ] `frontend/middleware.ts` → `frontend/src/proxy.ts` (nome do
+    Next 16) — ainda na raiz, não confirmado se roda
+  - [ ] Separar `lint` (hoje roda com `--fix`) de um `lint:fix` —
+    `backend/package.json:29` ainda é só `--fix`
+  - [ ] Lint do backend medido (469 problemas) mas não reduzido — meta
+    é não aumentar, registrado em `docs/backlog.md`
+- **Parte 3 — Correções severas:** a maior parte feita via
+  `docs/auditoria-riscos.md` (itens 1–2 → 3.2/3.5, item 3 → 3.1, itens
+  4 → 3.4, 5–6 → 3.3, 7 → 3.4). Itens do checklist original da Parte 3
+  que ficaram de fora do critério de aceite da auditoria e **continuam
+  abertos**:
+  - [ ] 3.1 — separar seed de produção (permissões/papéis) do seed de
+    dados fictícios (mencionado como pendente no item 3 da auditoria)
+  - [ ] 3.2 — reorganizar a chave física do arquivo para
+    `tenantId/modulo/uuid.ext` (adiado de propósito no item 1 da
+    auditoria, pra não arriscar URL já salva no banco)
+  - [ ] 3.2 — validar o tipo real do arquivo pelos bytes (magic bytes),
+    não só pelo mime declarado — não encontrado no backend
+  - [ ] 3.4 — confirmar rate limit e expiração do token de reset nos 4
+    fluxos (decorators já existem em `registration.controller.ts`, mas
+    não há uma confirmação dedicada registrada)
+  - [ ] 3.5 — mover `PII_MASTER_KEY`/`TOTP_ENCRYPTION_KEY` para um
+    gerenciador de senhas fora do Railway (ação operacional, não é
+    código)
+- **Parte 4 — Produção:** só preparação, nada do Railway/Cloudflare/R2
+  real existe ainda. `GET /health` (pré-requisito 4.1) e a interface do
+  `StorageService` (pré-requisito 4.2) já estão prontos; o resto depende
+  do projeto Railway e do bucket R2 existirem.
+- **Achados novos da auditoria (13, 14, 16):** abertos, baixo risco,
+  todos com gatilho em `docs/backlog.md`.
+
+## Parte atual: Parte 2 — Pequenas correções (itens restantes acima) e fechamento dos itens da Parte 3 que ficaram pendentes
 
 Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
 fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
 `962b91c`).
+
+## Parte 1 — Limpeza (histórico, fechada na prática)
 
 ### Checklist
 
@@ -127,10 +179,13 @@ base real é 1614 (1145 de prettier). Depois do commit de formatação: 469.
 ## Tags desta parte
 
 - `v0-baseline` — ponto de partida, antes de qualquer mudança
-- `v0.1-limpo` — a aplicar quando o checklist acima fechar 100% (falta o
-  teste manual e o `README.md`)
+- `v0.1-limpo` — ainda não criada. Falta só o teste manual de login + 9
+  módulos pela UI (ver "Estado real" no topo) — na prática o trabalho já
+  avançou para a Parte 2/3 sem essa tag, registrado aqui como desvio do
+  processo, não como pendência bloqueante.
 
 ## Próxima parte
 
-Parte 2 — Pequenas correções (só começa com este checklist 100% fechado e
-`v0.1-limpo` criada).
+Ver "Estado real (sincronizado em 2026-11-11)" no topo deste arquivo para
+os itens abertos de Parte 2 e Parte 3. Detalhe item a item da Parte 3:
+`docs/auditoria-riscos.md`. Itens adiados com gatilho: `docs/backlog.md`.
