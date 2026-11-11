@@ -79,6 +79,25 @@ adiado sem gatilho. Formato do Alicerce.
   gerado. Corrigir os erros que são bug real." Meta: não aumentar o total
   enquanto não for zerado.
 
+- **`npm run lint` do backend tenta lintar `test/**/*.ts`, mas
+  `tsconfig.json` exclui `test` do projeto** (`exclude: [..., "test",
+  ...]`). Como o ESLint usa `projectService: true`
+  (`eslint.config.mjs:26`), qualquer arquivo em `test/` que não esteja
+  em nenhum tsconfig (hoje, os dois specs e2e criados pelo item 6 da
+  auditoria: `test/tenant-isolation.e2e-spec.ts`,
+  `test/support/tenant-isolation.setup.ts`) falha com "Parsing error:
+  ... was not found by the project service" em vez de ser lintado —
+  489 → 509 problemas reportados quando o `--fix` foi removido do
+  script (2026-11-11) e isso ficou visível por não travar mais
+  silenciosamente no fix automático. Achado durante a correção do item
+  "separar `lint`/`lint:fix`" da Parte 2; não é regressão dessa
+  correção, só ficou visível por ela.
+  **Gatilho:** Parte 2, junto da próxima medição de lint do backend —
+  decidir entre dar ao `test/` seu próprio tsconfig (como o
+  `tsconfig-eslint` de outros projetos Nest) ou tirar `test` do glob do
+  script `lint`, já que a cobertura real de `test/` hoje é só via
+  `test:e2e`/`tsc` do Jest, não do ESLint.
+
 ## Arquivos
 
 - **Excluir um registro de anexo (`deletePersonAttachment`,

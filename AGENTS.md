@@ -42,7 +42,7 @@ cd backend
 npm ci && npx prisma generate
 npx tsc --noEmit -p tsconfig.build.json
 npm test
-npx eslint "src/**/*.ts"        # medir (NÃO use `npm run lint`: ele aplica --fix)
+npx eslint "src/**/*.ts"        # medir; `npm run lint:fix` aplica correções automáticas
 npm run start:dev
 
 # frontend

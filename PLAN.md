@@ -34,10 +34,17 @@ Parte por Parte:
     Postgres real) fica de fora, como já previsto na auditoria.
   - [ ] `frontend/middleware.ts` → `frontend/src/proxy.ts` (nome do
     Next 16) — ainda na raiz, não confirmado se roda
-  - [ ] Separar `lint` (hoje roda com `--fix`) de um `lint:fix` —
-    `backend/package.json:29` ainda é só `--fix`
-  - [ ] Lint do backend medido (469 problemas) mas não reduzido — meta
-    é não aumentar, registrado em `docs/backlog.md`
+  - [x] **Separar `lint`/`lint:fix`** — feito em 2026-11-11, branch
+    `develop`. `backend/package.json`: `lint` não aplica mais `--fix`;
+    `lint:fix` novo, idêntico ao `lint` antigo. `AGENTS.md` atualizado
+    (o aviso "não use `npm run lint`" não vale mais). Ao rodar sem
+    `--fix`, apareceu um problema pré-existente e sem relação com esta
+    mudança: `test/**/*.ts` não está em nenhum tsconfig, então o
+    ESLint (`projectService: true`) falha com parsing error nos 2
+    specs e2e — registrado em `docs/backlog.md`, não corrigido aqui
+    (fora do escopo deste item).
+  - [ ] Lint do backend medido (469 problemas, só em `src/`) mas não
+    reduzido — meta é não aumentar, registrado em `docs/backlog.md`
 - **Parte 3 — Correções severas:** a maior parte feita via
   `docs/auditoria-riscos.md` (itens 1–2 → 3.2/3.5, item 3 → 3.1, itens
   4 → 3.4, 5–6 → 3.3, 7 → 3.4). Itens do checklist original da Parte 3
