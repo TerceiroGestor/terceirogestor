@@ -82,11 +82,6 @@ export type ApiEligibleProjectPerson = ApiEnrollmentPerson & {
     name: string;
     category?: string | null;
   }>;
-  eligibleSegments?: Array<{
-    id: string;
-    name: string;
-    category?: string | null;
-  }>;
 };
 
 export type ApiProjectEnrollment = {

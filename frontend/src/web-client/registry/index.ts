@@ -49,10 +49,10 @@ import {
   peopleListAction,
 } from "@/web-client/registry/actions/people";
 import {
-  peopleSegmentsCreateAction,
-  peopleSegmentsDetailAction,
-  peopleSegmentsListAction,
-} from "@/web-client/registry/actions/people-segments";
+  peopleGroupsCreateAction,
+  peopleGroupsDetailAction,
+  peopleGroupsListAction,
+} from "@/web-client/registry/actions/people-groups";
 import {
   projectsCreateAction,
   projectsDetailAction,
@@ -97,9 +97,9 @@ import {
 } from "@/web-client/registry/searchViews/deposit";
 import { peopleSearchView } from "@/web-client/registry/searchViews/people";
 import {
-  peopleSegmentsDetailSearchView,
-  peopleSegmentsSearchView,
-} from "@/web-client/registry/searchViews/people-segments";
+  peopleGroupsDetailSearchView,
+  peopleGroupsSearchView,
+} from "@/web-client/registry/searchViews/people-groups";
 import {
   projectsDetailSearchView,
   projectsSearchView,
@@ -165,9 +165,9 @@ const WINDOW_ACTIONS: WindowAction[] = [
   peopleListAction,
   peopleDetailAction,
   peopleCreateAction,
-  peopleSegmentsListAction,
-  peopleSegmentsDetailAction,
-  peopleSegmentsCreateAction,
+  peopleGroupsListAction,
+  peopleGroupsDetailAction,
+  peopleGroupsCreateAction,
   projectsListAction,
   projectsDetailAction,
   projectsCreateAction,
@@ -203,8 +203,8 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   depositHistorySearchView,
   depositStockSearchView,
   peopleSearchView,
-  peopleSegmentsSearchView,
-  peopleSegmentsDetailSearchView,
+  peopleGroupsSearchView,
+  peopleGroupsDetailSearchView,
   projectsSearchView,
   projectsDetailSearchView,
   projectGroupsSearchView,

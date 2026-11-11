@@ -2,7 +2,7 @@ import type { ModuleManifest, NavGroup } from "@/modules/types";
 import { coreManifest } from "@/modules/core/manifest";
 import { actionsManifest } from "@/modules/actions/manifest";
 import { peopleManifest } from "@/modules/people/manifest";
-import { peopleSegmentsManifest } from "@/modules/people-segments/manifest";
+import { peopleGroupsManifest } from "@/modules/people-groups/manifest";
 import { pantryManifest } from "@/modules/pantry/manifest";
 import { depositManifest } from "@/modules/deposit/manifest";
 import { programsManifest } from "@/modules/programs/manifest";
@@ -13,7 +13,7 @@ import { NAV_GROUP_ORDER } from "@/modules/nav/groups";
 export const moduleManifests: ModuleManifest[] = [
   coreManifest,
   peopleManifest,
-  peopleSegmentsManifest,
+  peopleGroupsManifest,
   programsManifest,
   projectsManifest,
   actionsManifest,

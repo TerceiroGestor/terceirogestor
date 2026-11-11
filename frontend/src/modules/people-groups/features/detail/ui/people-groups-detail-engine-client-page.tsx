@@ -10,24 +10,24 @@ import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type {
-  ApiPeopleSegment,
-  ApiPeopleSegmentMembership,
-} from "@/modules/people-segments/api";
+  ApiPeopleGroup,
+  ApiPeopleGroupParticipation,
+} from "@/modules/people-groups/api";
 import {
-  createPeopleSegmentMembership,
-  endPeopleSegmentMembership,
-  listPeopleSegmentMemberships,
-} from "@/modules/people-segments/api";
+  createPeopleGroupParticipation,
+  endPeopleGroupParticipation,
+  listPeopleGroupParticipations,
+} from "@/modules/people-groups/api";
 import {
-  PEOPLE_SEGMENTS_ROUTES,
-  peopleSegmentsDetailModuleDefinition,
-} from "@/modules/people-segments/config/people-segments-module-contract";
-import { PEOPLE_SEGMENT_USAGE_TEXT } from "@/modules/people-segments/shared/domain/people-segments.constants";
+  PEOPLE_GROUPS_ROUTES,
+  peopleGroupsDetailModuleDefinition,
+} from "@/modules/people-groups/config/people-groups-module-contract";
+import { PEOPLE_GROUP_USAGE_TEXT } from "@/modules/people-groups/shared/domain/people-groups.constants";
 import {
-  type PeopleSegmentDetailDraft,
-  type PeopleSegmentsDetailLayoutContext,
-} from "@/modules/people-segments/config/people-segments-detail-layout-contract";
-import { PeopleSegmentPeoplePickerDialog } from "@/modules/people-segments/features/detail/ui/people-segment-people-picker-dialog";
+  type PeopleGroupDetailDraft,
+  type PeopleGroupsDetailLayoutContext,
+} from "@/modules/people-groups/config/people-groups-detail-layout-contract";
+import { PeopleGroupPeoplePickerDialog } from "@/modules/people-groups/features/detail/ui/people-group-people-picker-dialog";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
@@ -37,22 +37,24 @@ import {
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 
-function buildDraft(segment?: ApiPeopleSegment | null): PeopleSegmentDetailDraft {
+function buildDraft(group?: ApiPeopleGroup | null): PeopleGroupDetailDraft {
   return {
-    name: segment?.name ?? "",
-    purpose: segment?.purpose ?? "PUBLICO",
-    category: segment?.category ?? "",
-    description: segment?.description ?? "",
-    ageMin: segment?.ageMin != null ? String(segment.ageMin) : "",
-    ageMax: segment?.ageMax != null ? String(segment.ageMax) : "",
-    isActive: segment?.isActive ?? true,
-    internalNotes: segment?.internalNotes ?? null,
+    name: group?.name ?? "",
+    groupType: group?.groupType ?? "SEGMENT",
+    purpose: group?.purpose ?? "PUBLICO",
+    category: group?.category ?? "",
+    description: group?.description ?? "",
+    ageMin: group?.ageMin != null ? String(group.ageMin) : "",
+    ageMax: group?.ageMax != null ? String(group.ageMax) : "",
+    isActive: group?.isActive ?? true,
+    internalNotes: group?.internalNotes ?? null,
   };
 }
 
-function normalizeDraft(draft: PeopleSegmentDetailDraft): PeopleSegmentDetailDraft {
+function normalizeDraft(draft: PeopleGroupDetailDraft): PeopleGroupDetailDraft {
   return {
     name: draft.name.trim(),
+    groupType: draft.groupType,
     purpose: draft.purpose,
     category: draft.category.trim(),
     description: draft.description.trim(),
@@ -63,10 +65,11 @@ function normalizeDraft(draft: PeopleSegmentDetailDraft): PeopleSegmentDetailDra
   };
 }
 
-function toPayload(draft: PeopleSegmentDetailDraft) {
+function toPayload(draft: PeopleGroupDetailDraft) {
   const normalized = normalizeDraft(draft);
   return {
     name: normalized.name,
+    groupType: normalized.groupType,
     purpose: normalized.purpose,
     category: normalized.category || null,
     description: normalized.description || null,
@@ -77,7 +80,7 @@ function toPayload(draft: PeopleSegmentDetailDraft) {
   };
 }
 
-export function PeopleSegmentsDetailEngineClientPage() {
+export function PeopleGroupsDetailEngineClientPage() {
   const params = useParams<{ id?: string }>();
   const { token } = useAuth();
   const { permissions } = useCurrentUser();
@@ -91,80 +94,80 @@ export function PeopleSegmentsDetailEngineClientPage() {
   const mode = id === "new" || pathname.endsWith("/people-groups/new") ? "create" : "edit";
   const isEdit = mode === "edit";
 
-  const canRead = hasModulePermission(peopleSegmentsDetailModuleDefinition, "canRead", permissions);
-  const canCreate = canUseModuleAction(peopleSegmentsDetailModuleDefinition, "create", permissions);
-  const canEdit = canUseModuleAction(peopleSegmentsDetailModuleDefinition, "edit", permissions);
-  const canAudit = canUseModuleAction(peopleSegmentsDetailModuleDefinition, "audit", permissions);
+  const canRead = hasModulePermission(peopleGroupsDetailModuleDefinition, "canRead", permissions);
+  const canCreate = canUseModuleAction(peopleGroupsDetailModuleDefinition, "create", permissions);
+  const canEdit = canUseModuleAction(peopleGroupsDetailModuleDefinition, "edit", permissions);
+  const canAudit = canUseModuleAction(peopleGroupsDetailModuleDefinition, "audit", permissions);
 
   const canAccessPage = mode === "create" ? canCreate : canRead;
-  const canManageMemberships = canEdit;
+  const canManageParticipations = canEdit;
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
-  const [segment, setSegment] = React.useState<ApiPeopleSegment | null>(null);
-  const [draft, setDraft] = React.useState<PeopleSegmentDetailDraft>(buildDraft());
-  const [memberships, setMemberships] = React.useState<ApiPeopleSegmentMembership[]>([]);
-  const [historyMemberships, setHistoryMemberships] = React.useState<ApiPeopleSegmentMembership[]>([]);
+  const [group, setGroup] = React.useState<ApiPeopleGroup | null>(null);
+  const [draft, setDraft] = React.useState<PeopleGroupDetailDraft>(buildDraft());
+  const [participations, setParticipations] = React.useState<ApiPeopleGroupParticipation[]>([]);
+  const [historyParticipations, setHistoryParticipations] = React.useState<ApiPeopleGroupParticipation[]>([]);
   const [loading, setLoading] = React.useState(isEdit);
-  const [membershipsLoading, setMembershipsLoading] = React.useState(false);
+  const [participationsLoading, setParticipationsLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
 
   const usageItems = React.useMemo(
-    () => buildUsageDocumentationItems("people-segments-detail", PEOPLE_SEGMENT_USAGE_TEXT.detail.sections),
+    () => buildUsageDocumentationItems("people-groups-detail", PEOPLE_GROUP_USAGE_TEXT.detail.sections),
     [],
   );
 
   useRegisterUsageDocumentation({
-    title: PEOPLE_SEGMENT_USAGE_TEXT.detail.title,
+    title: PEOPLE_GROUP_USAGE_TEXT.detail.title,
     items: usageItems,
   });
 
-  const loadMemberships = React.useCallback(async () => {
+  const loadParticipations = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
-      setMemberships([]);
-      setHistoryMemberships([]);
+      setParticipations([]);
+      setHistoryParticipations([]);
       return;
     }
-    setMembershipsLoading(true);
+    setParticipationsLoading(true);
     try {
-      const response = await listPeopleSegmentMemberships(token, id, {
+      const response = await listPeopleGroupParticipations(token, id, {
         page: 1,
         limit: 200,
         all: true,
       });
-      const active = response.data.filter((membership) => membership.isActive && !membership.deletedAt);
-      const history = response.data.filter((membership) => !membership.isActive || Boolean(membership.deletedAt));
-      setMemberships(active);
-      setHistoryMemberships(history);
+      const active = response.data.filter((participation) => participation.isActive && !participation.deletedAt);
+      const history = response.data.filter((participation) => !participation.isActive || Boolean(participation.deletedAt));
+      setParticipations(active);
+      setHistoryParticipations(history);
     } catch {
-      setMemberships([]);
-      setHistoryMemberships([]);
+      setParticipations([]);
+      setHistoryParticipations([]);
     } finally {
-      setMembershipsLoading(false);
+      setParticipationsLoading(false);
     }
   }, [canRead, id, isEdit, token]);
 
   const persistDraft = React.useCallback(
-    async (nextDraft: PeopleSegmentDetailDraft) => {
-      const updated = await dataProvider.update<ApiPeopleSegment>(
-        peopleSegmentsDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
-          "people-segments.detail",
+    async (nextDraft: PeopleGroupDetailDraft) => {
+      const updated = await dataProvider.update<ApiPeopleGroup>(
+        peopleGroupsDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
+          "people-groups.detail",
         id,
         toPayload(nextDraft),
       );
       const savedDraft = buildDraft(updated);
-      setSegment(updated);
+      setGroup(updated);
       setDraft(savedDraft);
       return savedDraft;
     },
     [dataProvider, id],
   );
 
-  const autoSave = useDetailAutoSaveController<PeopleSegmentDetailDraft>({
+  const autoSave = useDetailAutoSaveController<PeopleGroupDetailDraft>({
     draft,
     enabled: isEdit && canEdit,
-    config: getModuleDetailEditingConfig(peopleSegmentsDetailModuleDefinition),
+    config: getModuleDetailEditingConfig(peopleGroupsDetailModuleDefinition),
     normalizeDraft,
     onSave: persistDraft,
     onError: (error) => {
@@ -190,10 +193,10 @@ export function PeopleSegmentsDetailEngineClientPage() {
 
     setLoading(true);
     dataProvider
-      .read<ApiPeopleSegment>("people-segments.detail", id)
+      .read<ApiPeopleGroup>("people-groups.detail", id)
       .then((loaded) => {
         const nextDraft = buildDraft(loaded);
-        setSegment(loaded);
+        setGroup(loaded);
         setDraft(nextDraft);
         replaceSavedDraft(nextDraft);
       })
@@ -208,8 +211,8 @@ export function PeopleSegmentsDetailEngineClientPage() {
   }, [canAccessPage, dataProvider, id, isEdit, replaceSavedDraft, toast, token]);
 
   React.useEffect(() => {
-    void loadMemberships();
-  }, [loadMemberships]);
+    void loadParticipations();
+  }, [loadParticipations]);
 
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
@@ -225,12 +228,12 @@ export function PeopleSegmentsDetailEngineClientPage() {
 
     setBusy(true);
     try {
-      const created = await dataProvider.create<ApiPeopleSegment>(
-        "people-segments.detail",
+      const created = await dataProvider.create<ApiPeopleGroup>(
+        "people-groups.detail",
         payload,
       );
       toast({ variant: "success", title: "Grupo de pessoas criado" });
-      router.replace(withTenantPath(`${PEOPLE_SEGMENTS_ROUTES.detail}/${created.id}`, tenantSlug));
+      router.replace(withTenantPath(`${PEOPLE_GROUPS_ROUTES.detail}/${created.id}`, tenantSlug));
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
@@ -242,7 +245,7 @@ export function PeopleSegmentsDetailEngineClientPage() {
     }
   }, [canCreate, dataProvider, draft, router, tenantSlug, toast]);
 
-  const handleCreateMembership = React.useCallback(() => {
+  const handleCreateParticipation = React.useCallback(() => {
     setPickerOpen(true);
   }, []);
 
@@ -250,9 +253,9 @@ export function PeopleSegmentsDetailEngineClientPage() {
     async (person: { id: string; fullName: string }) => {
       if (!token || !id) return;
       try {
-        await createPeopleSegmentMembership(token, id, { personId: person.id });
+        await createPeopleGroupParticipation(token, id, { personId: person.id });
         toast({ title: "Participante adicionado" });
-        await loadMemberships();
+        await loadParticipations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -261,7 +264,7 @@ export function PeopleSegmentsDetailEngineClientPage() {
         toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
     },
-    [id, loadMemberships, toast, token],
+    [id, loadParticipations, toast, token],
   );
 
   const handleBulkPickPeople = React.useCallback(
@@ -274,7 +277,7 @@ export function PeopleSegmentsDetailEngineClientPage() {
 
       for (const person of people) {
         try {
-          await createPeopleSegmentMembership(token, id, { personId: person.id });
+          await createPeopleGroupParticipation(token, id, { personId: person.id });
           added += 1;
         } catch (error) {
           failed += 1;
@@ -305,26 +308,26 @@ export function PeopleSegmentsDetailEngineClientPage() {
         });
       }
 
-      await loadMemberships();
+      await loadParticipations();
     },
-    [id, loadMemberships, toast, token],
+    [id, loadParticipations, toast, token],
   );
 
-  const handleEndMembership = React.useCallback(
-    async (membership: ApiPeopleSegmentMembership) => {
-      if (!token || !id || !canManageMemberships) return;
+  const handleEndParticipation = React.useCallback(
+    async (participation: ApiPeopleGroupParticipation) => {
+      if (!token || !id || !canManageParticipations) return;
       const confirmed = await confirm({
         title: "Encerrar vínculo",
-        description: `Encerrar o vínculo de "${membership.person.fullName}" com este grupo de pessoas preservando o histórico?`,
+        description: `Encerrar o vínculo de "${participation.person.fullName}" com este grupo de pessoas preservando o histórico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
       });
       if (!confirmed) return;
       try {
-        await endPeopleSegmentMembership(token, id, membership.id);
+        await endPeopleGroupParticipation(token, id, participation.id);
         toast({ title: "Vínculo encerrado" });
-        await loadMemberships();
+        await loadParticipations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -333,29 +336,29 @@ export function PeopleSegmentsDetailEngineClientPage() {
         toast({ variant: "destructive", title: "Falha ao encerrar", description: message });
       }
     },
-    [canManageMemberships, confirm, id, loadMemberships, toast, token],
+    [canManageParticipations, confirm, id, loadParticipations, toast, token],
   );
 
-  const context = React.useMemo<PeopleSegmentsDetailLayoutContext>(
+  const context = React.useMemo<PeopleGroupsDetailLayoutContext>(
     () => ({
       mode,
       readOnly: mode === "create" ? !canCreate : !canEdit,
       canAudit,
       canEdit,
-      canManageMemberships,
+      canManageParticipations,
       tenantSlug,
-      segment,
+      group,
       draft,
       setDraft,
-      memberships,
-      historyMemberships,
-      membershipsLoading,
+      participations,
+      historyParticipations,
+      participationsLoading,
       onCommitField: (field, nextValue) => void commitField(field, nextValue),
       onNotesChange: (next) => setDraft((previous) => ({ ...previous, internalNotes: next })),
       onNotesBlur: () => void commitField("internalNotes"),
       onOpenPerson: (personId) => router.push(withTenantPath(`/people/${personId}`, tenantSlug)),
-      onCreateMembership: handleCreateMembership,
-      onEndMembership: handleEndMembership,
+      onCreateParticipation: handleCreateParticipation,
+      onEndParticipation: handleEndParticipation,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
     }),
@@ -364,17 +367,17 @@ export function PeopleSegmentsDetailEngineClientPage() {
       canAudit,
       canCreate,
       canEdit,
-      canManageMemberships,
+      canManageParticipations,
       commitField,
       draft,
-      handleCreateMembership,
-      handleEndMembership,
-      memberships,
-      historyMemberships,
-      membershipsLoading,
+      handleCreateParticipation,
+      handleEndParticipation,
+      participations,
+      historyParticipations,
+      participationsLoading,
       mode,
       router,
-      segment,
+      group,
       tenantSlug,
     ],
   );
@@ -386,12 +389,12 @@ export function PeopleSegmentsDetailEngineClientPage() {
   const headerTitle =
     mode === "create"
       ? "Novo grupo de pessoas"
-      : segment?.name || draft.name || "Grupo de Pessoas";
+      : group?.name || draft.name || "Grupo de Pessoas";
 
   return (
     <>
-      <DetailShellEngine<PeopleSegmentsDetailLayoutContext>
-        moduleDefinition={peopleSegmentsDetailModuleDefinition}
+      <DetailShellEngine<PeopleGroupsDetailLayoutContext>
+        moduleDefinition={peopleGroupsDetailModuleDefinition}
         context={context}
         dataProvider={dataProvider}
         auditEnabled={canAudit}
@@ -401,15 +404,15 @@ export function PeopleSegmentsDetailEngineClientPage() {
         loading={loading}
         readOnly={context.readOnly}
         onSave={mode === "create" ? handleCreate : undefined}
-        onClose={() => router.push(withTenantPath(PEOPLE_SEGMENTS_ROUTES.list, tenantSlug))}
+        onClose={() => router.push(withTenantPath(PEOPLE_GROUPS_ROUTES.list, tenantSlug))}
         breadcrumbTitle={headerTitle}
         breadcrumbItems={[
-          { label: "Grupos de Pessoas", href: PEOPLE_SEGMENTS_ROUTES.list },
+          { label: "Grupos de Pessoas", href: PEOPLE_GROUPS_ROUTES.list },
           ...(mode === "edit" ? [{ label: headerTitle }] : []),
         ]}
       />
       {mode === "edit" && token ? (
-        <PeopleSegmentPeoplePickerDialog
+        <PeopleGroupPeoplePickerDialog
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           onPick={handlePickPerson}

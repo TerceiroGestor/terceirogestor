@@ -1,10 +1,11 @@
 "use client";
 
 import type { SearchViewDefinition } from "@/web-client/search/types";
+import { PEOPLE_GROUP_TYPE_OPTIONS } from "@/modules/people-groups/shared/domain/people-groups.constants";
 
-export const peopleSegmentsSearchView: SearchViewDefinition = {
-  id: "people-segments.search",
-  model: "people-segments.list",
+export const peopleGroupsSearchView: SearchViewDefinition = {
+  id: "people-groups.search",
+  model: "people-groups.list",
   searchPlaceholder: "Pesquisar",
   features: {
     favorites: true,
@@ -14,6 +15,13 @@ export const peopleSegmentsSearchView: SearchViewDefinition = {
     clearAll: true,
   },
   fields: [
+    {
+      name: "groupType",
+      label: "Tipo do grupo",
+      type: "select",
+      operators: ["="],
+      options: PEOPLE_GROUP_TYPE_OPTIONS,
+    },
     {
       name: "purpose",
       label: "Finalidade",
@@ -44,6 +52,7 @@ export const peopleSegmentsSearchView: SearchViewDefinition = {
     },
   ],
   groupBy: [
+    { field: "groupType", label: "Tipo do grupo" },
     { field: "purpose", label: "Finalidade" },
     { field: "category", label: "Categoria" },
     { field: "createdAt", label: "Cadastro" },
@@ -58,9 +67,9 @@ export const peopleSegmentsSearchView: SearchViewDefinition = {
   ],
 };
 
-export const peopleSegmentsDetailSearchView: SearchViewDefinition = {
-  id: "people-segments.detail.search",
-  model: "people-segments.detail",
+export const peopleGroupsDetailSearchView: SearchViewDefinition = {
+  id: "people-groups.detail.search",
+  model: "people-groups.detail",
   searchPlaceholder: "",
   features: {
     favorites: false,

@@ -32,12 +32,12 @@ import {
   updateProgramRecord,
 } from "@/web-client/data-provider/rest/programs";
 import {
-  createPeopleSegmentRecord,
-  deletePeopleSegmentRecord,
-  readPeopleSegment,
-  searchPeopleSegments,
-  updatePeopleSegmentRecord,
-} from "@/web-client/data-provider/rest/people-segments";
+  createPeopleGroupRecord,
+  deletePeopleGroupRecord,
+  readPeopleGroup,
+  searchPeopleGroups,
+  updatePeopleGroupRecord,
+} from "@/web-client/data-provider/rest/people-groups";
 import {
   createProjectRecord,
   deleteProjectRecord,
@@ -309,8 +309,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await searchPeople(authToken, args)) as unknown as SearchResult<T>;
           case "programs.list":
             return (await searchPrograms(authToken, args)) as unknown as SearchResult<T>;
-          case "people-segments.list":
-            return (await searchPeopleSegments(authToken, args)) as unknown as SearchResult<T>;
+          case "people-groups.list":
+            return (await searchPeopleGroups(authToken, args)) as unknown as SearchResult<T>;
           case "projects.list":
             return (await searchProjects(authToken, args)) as unknown as SearchResult<T>;
           case "project-groups.list":
@@ -459,8 +459,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await readPerson(authToken, id)) as unknown as T;
           case "programs.detail":
             return (await readProgram(authToken, id)) as unknown as T;
-          case "people-segments.detail":
-            return (await readPeopleSegment(authToken, id)) as unknown as T;
+          case "people-groups.detail":
+            return (await readPeopleGroup(authToken, id)) as unknown as T;
           case "projects.detail":
             return (await readProject(authToken, id)) as unknown as T;
           case "tasks.detail":
@@ -497,8 +497,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await createPersonRecord(authToken, payload as never)) as unknown as T;
         case "programs.detail":
           return (await createProgramRecord(authToken, payload as never)) as unknown as T;
-        case "people-segments.detail":
-          return (await createPeopleSegmentRecord(authToken, payload as never)) as unknown as T;
+        case "people-groups.detail":
+          return (await createPeopleGroupRecord(authToken, payload as never)) as unknown as T;
         case "projects.detail":
           return (await createProjectRecord(authToken, payload as never)) as unknown as T;
         case "tasks.detail":
@@ -536,8 +536,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await updatePersonRecord(authToken, id, payload as never)) as unknown as T;
         case "programs.detail":
           return (await updateProgramRecord(authToken, id, payload as never)) as unknown as T;
-        case "people-segments.detail":
-          return (await updatePeopleSegmentRecord(authToken, id, payload as never)) as unknown as T;
+        case "people-groups.detail":
+          return (await updatePeopleGroupRecord(authToken, id, payload as never)) as unknown as T;
         case "projects.detail":
           return (await updateProjectRecord(authToken, id, payload as never)) as unknown as T;
         case "tasks.detail":
@@ -585,8 +585,8 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
         case "programs.detail":
           await deleteProgramRecord(authToken, id);
           return;
-        case "people-segments.detail":
-          await deletePeopleSegmentRecord(authToken, id);
+        case "people-groups.detail":
+          await deletePeopleGroupRecord(authToken, id);
           return;
         case "projects.detail":
           await deleteProjectRecord(authToken, id);

@@ -6,11 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import type { ApiPeopleSegment } from "@/modules/people-segments/api";
+import type { ApiPeopleGroup } from "@/modules/people-groups/api";
 import {
-  peopleSegmentsListModuleDefinition,
-  type PeopleSegmentsListQueryState,
-} from "@/modules/people-segments/config/people-segments-module-contract";
+  peopleGroupsListModuleDefinition,
+  type PeopleGroupsListQueryState,
+} from "@/modules/people-groups/config/people-groups-module-contract";
+import { PEOPLE_GROUP_TYPE_OPTIONS } from "@/modules/people-groups/shared/domain/people-groups.constants";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
@@ -30,20 +31,20 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
-function parseState(params: URLSearchParams): PeopleSegmentsListQueryState {
+function parseState(params: URLSearchParams): PeopleGroupsListQueryState {
   return {
-    ...peopleSegmentsListModuleDefinition.defaultQueryState,
-    view: (params.get("view") as PeopleSegmentsListQueryState["view"]) ?? "table",
+    ...peopleGroupsListModuleDefinition.defaultQueryState,
+    view: (params.get("view") as PeopleGroupsListQueryState["view"]) ?? "table",
     searchText: params.get("q") ?? "",
     domain: parseDomain(params.get("d")) ?? null,
     groupBy: (params.get("g") ?? "").split(",").map((item) => item.trim()).filter(Boolean),
     pageIndex: parsePositiveInt(params.get("page"), 1) - 1,
     pageSize: Math.min(Math.max(parsePositiveInt(params.get("limit"), 20), 1), 100),
-    graph: peopleSegmentsListModuleDefinition.defaultQueryState.graph,
+    graph: peopleGroupsListModuleDefinition.defaultQueryState.graph,
   };
 }
 
-function serializeState(state: PeopleSegmentsListQueryState) {
+function serializeState(state: PeopleGroupsListQueryState) {
   return {
     view: state.view === "table" ? undefined : state.view,
     q: state.searchText.trim() || undefined,
@@ -63,7 +64,11 @@ function formatAgeRange(ageMin: number | null | undefined, ageMax: number | null
   return `${ageMin ?? "-"} a ${ageMax ?? "-"}`;
 }
 
-function formatPurpose(purpose: ApiPeopleSegment["purpose"]) {
+function formatGroupType(groupType: ApiPeopleGroup["groupType"] | undefined) {
+  return PEOPLE_GROUP_TYPE_OPTIONS.find((option) => option.value === groupType)?.label ?? "-";
+}
+
+function formatPurpose(purpose: ApiPeopleGroup["purpose"]) {
   return purpose === "EQUIPE" ? "Equipe" : "Público";
 }
 
@@ -73,8 +78,11 @@ function formatCreatedAt(value: string | null | undefined) {
 }
 
 function resolveGroupLabel(field: string, value: unknown) {
+  if (field === "groupType") {
+    return formatGroupType(value as ApiPeopleGroup["groupType"]);
+  }
   if (field === "purpose") {
-    return formatPurpose(value as ApiPeopleSegment["purpose"]);
+    return formatPurpose(value as ApiPeopleGroup["purpose"]);
   }
   if (field === "isActive") {
     return value === false ? "Inativos" : "Ativos";
@@ -86,7 +94,7 @@ function resolveGroupLabel(field: string, value: unknown) {
   return label || "Sem valor";
 }
 
-function columns(): ColumnDef<ApiPeopleSegment>[] {
+function columns(): ColumnDef<ApiPeopleGroup>[] {
   return [
     {
       accessorKey: "name",
@@ -99,6 +107,11 @@ function columns(): ColumnDef<ApiPeopleSegment>[] {
           </div>
         </div>
       ),
+    },
+    {
+      accessorKey: "groupType",
+      header: "Tipo",
+      cell: ({ row }) => formatGroupType(row.original.groupType),
     },
     {
       accessorKey: "purpose",
@@ -116,11 +129,11 @@ function columns(): ColumnDef<ApiPeopleSegment>[] {
       cell: ({ row }) => formatCreatedAt(row.original.createdAt),
     },
     {
-      id: "memberships",
+      id: "participations",
       header: "Participantes",
-      accessorFn: (row) => row._count?.memberships ?? 0,
+      accessorFn: (row) => row._count?.participations ?? 0,
       meta: { dataType: "number" },
-      cell: ({ row }) => row.original._count?.memberships ?? 0,
+      cell: ({ row }) => row.original._count?.participations ?? 0,
     },
     {
       accessorKey: "isActive",
@@ -130,7 +143,7 @@ function columns(): ColumnDef<ApiPeopleSegment>[] {
   ];
 }
 
-export function PeopleSegmentsListModuleClientPage() {
+export function PeopleGroupsListModuleClientPage() {
   const { token, isLoading: authLoading } = useAuth();
   const { permissions, isLoading: userLoading } = useCurrentUser();
   const router = useRouter();
@@ -138,15 +151,15 @@ export function PeopleSegmentsListModuleClientPage() {
   const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
   const columnDefs = React.useMemo(() => columns(), []);
-  const canRead = hasModulePermission(peopleSegmentsListModuleDefinition, "canRead", permissions);
-  const canCreate = hasModulePermission(peopleSegmentsListModuleDefinition, "canCreate", permissions);
+  const canRead = hasModulePermission(peopleGroupsListModuleDefinition, "canRead", permissions);
+  const canCreate = hasModulePermission(peopleGroupsListModuleDefinition, "canCreate", permissions);
 
-  const [rows, setRows] = React.useState<ApiPeopleSegment[]>([]);
+  const [rows, setRows] = React.useState<ApiPeopleGroup[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [state, setState] = useModuleQueryState<PeopleSegmentsListQueryState>({
-    moduleDefinition: peopleSegmentsListModuleDefinition,
+  const [state, setState] = useModuleQueryState<PeopleGroupsListQueryState>({
+    moduleDefinition: peopleGroupsListModuleDefinition,
     trackedKeys: ["view", "q", "d", "g", "page", "limit"],
     parse: parseState,
     serialize: serializeState,
@@ -162,7 +175,7 @@ export function PeopleSegmentsListModuleClientPage() {
     setLoading(true);
     setError(null);
     dataProvider
-      .search<ApiPeopleSegment>("people-segments.list", {
+      .search<ApiPeopleGroup>("people-groups.list", {
         searchText: state.searchText,
         all: true,
       })
@@ -183,6 +196,7 @@ export function PeopleSegmentsListModuleClientPage() {
     return rows.filter((row) =>
       matchesDomainRecord(
         {
+          groupType: row.groupType ?? "SEGMENT",
           purpose: row.purpose ?? "PUBLICO",
           category: row.category ?? null,
           createdAt: row.createdAt?.slice(0, 10) ?? null,
@@ -201,8 +215,8 @@ export function PeopleSegmentsListModuleClientPage() {
   const pageCount = Math.max(Math.ceil(Math.max(filteredRows.length, 1) / state.pageSize), 1);
 
   const openDetail = React.useCallback(
-    (segment: ApiPeopleSegment) => {
-      router.push(withTenantPath(`/people-groups/${segment.id}`, tenantSlug));
+    (group: ApiPeopleGroup) => {
+      router.push(withTenantPath(`/people-groups/${group.id}`, tenantSlug));
     },
     [router, tenantSlug],
   );
@@ -223,7 +237,7 @@ export function PeopleSegmentsListModuleClientPage() {
       buildQueryFacets({
         domain: state.domain,
         groupBy: state.groupBy,
-        searchView: peopleSegmentsListModuleDefinition.searchConfig,
+        searchView: peopleGroupsListModuleDefinition.searchConfig,
         onClearGroupBy: () => setState((previous) => ({ ...previous, groupBy: [] })),
         onClearDomain: () => setState((previous) => ({ ...previous, domain: null, pageIndex: 0 })),
         onRemoveDomainCondition: removeDomainCondition,
@@ -243,10 +257,10 @@ export function PeopleSegmentsListModuleClientPage() {
   );
 
   const graphBuilder = React.useMemo(() => {
-    const graphoiew = peopleSegmentsListModuleDefinition.views.find(
+    const graphView = peopleGroupsListModuleDefinition.views.find(
       (view) => view.id === "graph" && view.viewType === "graph",
     );
-    return graphoiew?.viewType === "graph" ? graphoiew.params?.builder : undefined;
+    return graphView?.viewType === "graph" ? graphView.params?.builder : undefined;
   }, []);
 
   const graphModel = React.useMemo(
@@ -271,7 +285,7 @@ export function PeopleSegmentsListModuleClientPage() {
 
   return (
     <EntityModuleShell
-      moduleDefinition={peopleSegmentsListModuleDefinition}
+      moduleDefinition={peopleGroupsListModuleDefinition}
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}

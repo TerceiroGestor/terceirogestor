@@ -77,7 +77,7 @@ function mergeUniquePeople(
 }
 
 function resolveEligiblePeopleGroups(person: ApiEligibleProjectPerson) {
-  return person.eligiblePeopleGroups ?? person.eligibleSegments ?? [];
+  return person.eligiblePeopleGroups ?? [];
 }
 
 export function BulkEnrollmentDialog({

@@ -29,9 +29,9 @@ import {
   peopleListModuleDefinition,
 } from "@/modules/people/config/people-module-contract";
 import {
-  peopleSegmentsDetailModuleDefinition,
-  peopleSegmentsListModuleDefinition,
-} from "@/modules/people-segments/config/people-segments-module-contract";
+  peopleGroupsDetailModuleDefinition,
+  peopleGroupsListModuleDefinition,
+} from "@/modules/people-groups/config/people-groups-module-contract";
 import {
   programsDetailModuleDefinition,
   programsListModuleDefinition,
@@ -69,8 +69,8 @@ const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>>
   pantryExitDetailModuleDefinition,
   peopleListModuleDefinition,
   peopleDetailModuleDefinition,
-  peopleSegmentsListModuleDefinition,
-  peopleSegmentsDetailModuleDefinition,
+  peopleGroupsListModuleDefinition,
+  peopleGroupsDetailModuleDefinition,
   programsListModuleDefinition,
   programsDetailModuleDefinition,
   projectsListModuleDefinition,

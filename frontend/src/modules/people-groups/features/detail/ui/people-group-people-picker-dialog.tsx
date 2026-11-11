@@ -84,7 +84,7 @@ function serializePeopleDomain(domain: Domain | null | undefined) {
   return filters.length ? JSON.stringify(filters) : undefined;
 }
 
-type PeopleSegmentPeoplePickerDialogProps = {
+type PeopleGroupPeoplePickerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
@@ -94,7 +94,7 @@ type PeopleSegmentPeoplePickerDialogProps = {
   onBulkPick?: (people: ApiPerson[]) => void | Promise<void>;
 };
 
-export function PeopleSegmentPeoplePickerDialog({
+export function PeopleGroupPeoplePickerDialog({
   open,
   onOpenChange,
   title = "Adicionar participante",
@@ -102,7 +102,7 @@ export function PeopleSegmentPeoplePickerDialog({
   actionLabel = "Adicionar",
   onPick,
   onBulkPick,
-}: PeopleSegmentPeoplePickerDialogProps) {
+}: PeopleGroupPeoplePickerDialogProps) {
   const { token } = useAuth();
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
