@@ -3,14 +3,20 @@ import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { isOriginAllowed, parseWebUrlList } from './core/auth/http/auth-http';
+import { parseTrustProxyHops } from './core/config/trust-proxy';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const httpAdapter = app.getHttpAdapter();
   const instance = httpAdapter.getInstance() as {
     disable?: (key: string) => void;
+    set?: (key: string, value: unknown) => void;
   };
   instance.disable?.('etag');
+  instance.set?.(
+    'trust proxy',
+    parseTrustProxyHops(process.env.TRUST_PROXY_HOPS),
+  );
   app.use(
     helmet({
       // O frontend carrega avatares/anexos/logo direto via <img src> num

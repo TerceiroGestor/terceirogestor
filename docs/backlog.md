@@ -23,6 +23,21 @@ adiado sem gatilho. Formato do Alicerce.
   Node do build (nixpacks/Dockerfile) em 22.x e, se possível, alinhar o
   ambiente de desenvolvimento também.
 
+- **`TRUST_PROXY_HOPS` está em 0 (nenhum proxy confiável) em todo
+  lugar, inclusive nos `.env.example`.** Isso é seguro — ninguém
+  consegue falsificar o IP visto por `rate-limit`/audit log via
+  `X-Forwarded-For` —, mas também significa que todo IP registrado vai
+  ser o do proxy do Railway, não o do cliente real, até esse valor ser
+  ajustado. Confirmado manualmente (login real com `X-Forwarded-For`
+  forjado): com `hops=0` o header é ignorado; com `hops=1` é respeitado
+  — o mecanismo funciona, só falta saber o valor certo pra topologia
+  real.
+  **Gatilho:** quando o projeto Railway existir (Parte 4.1) e a
+  topologia atrás do Cloudflare estiver decidida (DNS puro ou
+  proxied/orange-cloud) — testar em staging com um cliente real e
+  ajustar `TRUST_PROXY_HOPS` (provavelmente `1`) nas variáveis do
+  Railway. Ver item 11 de `docs/auditoria-riscos.md`.
+
 - **41 vulnerabilidades no backend (`npm audit`: 3 low, 22 moderate, 14
   high, 2 critical) e 27 no frontend (1 low, 10 moderate, 15 high, 1
   critical)**, não investigadas ainda (rodar `npm audit` completo é item

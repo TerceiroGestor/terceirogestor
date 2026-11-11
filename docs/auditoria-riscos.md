@@ -345,14 +345,46 @@ plano.
 
 ### 11. IP do cliente pode se perder atrás de proxy (Cloudflare → Railway)
 
-- [ ] **Onde:** `backend/src/main.ts` — sem `app.set('trust proxy', ...)`.
-      Audit log e rate-limit usam `req.ip`.
-- **O que fazer:** configurar `trust proxy` corretamente antes do go-live,
-  para `ipAddress` registrar o IP real do cliente, não o do proxy.
-- **Critério de aceite:** em staging, atrás de Cloudflare+Railway, o IP
-  logado no audit confere com o IP real do cliente de teste.
-- **Plano:** não estava na tabela original — adicionar à Parte 4
-  (Cloudflare/Railway) ou revisar junto da 3.4.
+- [x] **Preparado em 2026-11-10**, branch `develop` — **parcial, de
+      propósito** (ver justificativa abaixo). **Onde estava:**
+      `backend/src/main.ts` — sem `app.set('trust proxy', ...)`. Audit
+      log e rate-limit usam `req.ip`.
+- **Por que não fechou 100%:** o critério de aceite original pede
+  confirmar em staging, atrás do Cloudflare+Railway reais, que o IP
+  logado bate com o IP do cliente de teste — essa infra não existe
+  ainda (o projeto Railway nem foi criado; é por isso que este item
+  nem estava na tabela original do plano). Fixar um número de hops
+  agora, sem saber a topologia real, é arriscado: errado pra menos
+  (0 quando devia ser 1) só perde precisão no IP registrado; errado
+  pra mais (1 quando na verdade não há proxy confiável) deixa
+  **qualquer cliente falsificar o próprio IP** via `X-Forwarded-For` e
+  furar o rate-limit ou poluir o audit log. Perguntei ao usuário como
+  proceder; a decisão foi deixar configurável e seguro por padrão, sem
+  travar um valor às cegas.
+- **O que foi feito:** `TRUST_PROXY_HOPS` (nova variável, padrão `0` —
+  mesmo comportamento de antes, nenhum proxy confiável) lida e
+  aplicada via `app.set('trust proxy', ...)` em `main.ts`
+  (`backend/src/core/config/trust-proxy.ts` faz o parse, com fallback
+  seguro para qualquer valor inválido/negativo/não-inteiro).
+  Documentado nos três `.env.example` com a mesma ressalva: não
+  aumentar sem confirmar a topologia real em staging primeiro.
+  Registrado em `docs/backlog.md` com o gatilho ("quando o projeto
+  Railway existir e a topologia atrás do Cloudflare estiver decidida").
+- **Critério de aceite (o que dá pra confirmar sem staging):**
+  confirmado por 4 testes novos (`trust-proxy.spec.ts`) e por teste
+  manual real — login de verdade (`admin@seed.local`) com
+  `X-Forwarded-For: 9.9.9.9` forjado: com `TRUST_PROXY_HOPS=0`
+  (padrão), o `AccessLog` registrou o IP real da conexão (`::1`),
+  ignorando o header forjado; reiniciando com `TRUST_PROXY_HOPS=1`, o
+  mesmo header forjado foi aceito e `AccessLog.ipAddress` ficou
+  `9.9.9.9` — prova que o mecanismo funciona nos dois sentidos, dado
+  o número de hops certo. `tsc --noEmit`: 0 erros. `npm test`: 21
+  suítes, 74 testes.
+- **Pendente (registrado no backlog):** confirmar `TRUST_PROXY_HOPS`
+  correto (provavelmente `1`) em staging real, atrás do Railway (e do
+  Cloudflare, se proxied) — só então o critério de aceite original
+  fecha de verdade.
+- **Plano:** não estava na tabela original — Parte 4 (Cloudflare/Railway).
 
 ### 12. Arquivos em disco do container (efêmero no Railway)
 
