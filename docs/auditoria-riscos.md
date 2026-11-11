@@ -321,11 +321,27 @@ plano.
 
 ### 10. Não existe `GET /health`
 
-- [ ] **Onde:** `backend/src/app.controller.ts` só tem `GET /` (hello).
-      Nenhuma rota testa a conexão com o banco.
-- **O que fazer:** criar `GET /health` que confere a conexão com o
-  Postgres, para o healthcheck do Railway.
-- **Plano:** Parte 2 e Parte 4.1.
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/app.controller.ts` só tinha `GET /` (hello).
+      Nenhuma rota testava a conexão com o banco.
+- **O que foi feito:** `GET /health` em `AppController` roda
+  `SELECT 1` via `PrismaService.$queryRaw`; devolve `200
+  {"status":"ok","database":"up"}` se o Postgres responde, ou `503
+  {"status":"error","database":"down"}`
+  (`ServiceUnavailableException`) se a query falhar. Rota pública
+  (sem `@UseGuards`), igual a `GET /`, e fora de qualquer
+  `@RateLimit` — Railway pode chamá-la com a frequência que quiser
+  sem ser bloqueada.
+- **Critério de aceite:** confirmado por 2 testes novos
+  (`app.controller.spec.ts`: `$queryRaw` resolve → `200 ok`;
+  `$queryRaw` rejeita → lança `ServiceUnavailableException`) e por
+  teste manual real: subi o backend local e `curl
+  http://localhost:3001/health` devolveu
+  `{"status":"ok","database":"up"}` com `200`.
+  `tsc --noEmit`: 0 erros. `npm test`: 20 suítes, 70 testes.
+- **Plano:** Parte 2 e Parte 4.1 (falta configurar esse endpoint como
+  healthcheck no `railway.json`/painel do Railway quando o projeto
+  existir — fora do escopo deste item).
 
 ### 11. IP do cliente pode se perder atrás de proxy (Cloudflare → Railway)
 
