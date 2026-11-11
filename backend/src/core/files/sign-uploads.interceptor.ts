@@ -24,8 +24,9 @@ interface SignContext {
 }
 
 /**
- * Rewrites every raw `/uploads/<category>/<file>` string in a response
- * body into a short-lived signed URL for the caller's own tenant, so the
+ * Rewrites every raw `/uploads/<category>/<tenantId>/<file>` string in a
+ * response body into a short-lived signed URL for the caller's own tenant,
+ * so the
  * frontend's plain <img src>/<a href> usage keeps working without the
  * caller needing to attach an Authorization header. See
  * docs/auditoria-riscos.md item 1.
@@ -92,8 +93,12 @@ export class SignUploadsInterceptor implements NestInterceptor {
   private signIfUploadPath(value: string, ctx: SignContext): string {
     const match = UPLOAD_PATH_PATTERN.exec(value);
     if (!match) return value;
-    const [, category, filename] = match;
+    const [, category, pathTenantId, filename] = match;
     if (PUBLIC_UPLOAD_CATEGORIES.has(category)) return value;
+    // Every value reaching here came from a tenant-scoped query, so this
+    // should never actually mismatch - failing closed (leave unsigned, so
+    // the download 404s) instead of signing a URL for the wrong tenant.
+    if (pathTenantId !== ctx.tenantId) return value;
 
     const personId = SENSITIVE_UPLOAD_CATEGORIES.has(category)
       ? ctx.personId

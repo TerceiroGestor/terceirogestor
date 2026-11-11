@@ -33,4 +33,9 @@ export const SENSITIVE_UPLOAD_CATEGORIES = new Set(['health']);
 
 export const SAFE_UPLOAD_SEGMENT = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$/;
 
-export const UPLOAD_PATH_PATTERN = /^\/uploads\/([^/?]+)\/([^/?]+)$/;
+// /uploads/<category>/<tenantId>/<filename> - tenantId keeps each
+// tenant's files physically separate on disk (and, later, under a
+// distinct R2 key prefix), instead of every tenant sharing one flat
+// per-category folder distinguished only by a random filename.
+export const UPLOAD_PATH_PATTERN =
+  /^\/uploads\/([^/?]+)\/([^/?]+)\/([^/?]+)$/;

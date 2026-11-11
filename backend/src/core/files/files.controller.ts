@@ -2,12 +2,15 @@ import {
   BadRequestException,
   Controller,
   Post,
+  UnauthorizedException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { JwtUser } from '../auth/strategies/jwt.strategy';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { randomUUID } from 'crypto';
@@ -128,6 +131,13 @@ function extensionAllowlistFilter(allowedExtensions: Set<string>) {
 export class FilesController {
   constructor(private readonly storage: StorageService) {}
 
+  private getTenantId(user?: JwtUser): string {
+    if (!user?.tenantId) {
+      throw new UnauthorizedException('Token invalid');
+    }
+    return user.tenantId;
+  }
+
   @Post('avatars')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
@@ -137,19 +147,23 @@ export class FilesController {
       fileFilter: imageOnlyFilter,
     }),
   )
-  async uploadAvatar(@UploadedFile() file?: Express.Multer.File) {
+  async uploadAvatar(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_AVATAR_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_AVATAR_EXTENSIONS,
     );
-    await this.storage.put('avatars', filename, file.buffer);
+    await this.storage.put('avatars', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/avatars/${filename}`,
+      path: `/uploads/avatars/${tenantId}/${filename}`,
     };
   }
 
@@ -171,19 +185,23 @@ export class FilesController {
       },
     }),
   )
-  async uploadHealthDocument(@UploadedFile() file?: Express.Multer.File) {
+  async uploadHealthDocument(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_HEALTH_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_HEALTH_EXTENSIONS,
     );
-    await this.storage.put('health', filename, file.buffer);
+    await this.storage.put('health', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/health/${filename}`,
+      path: `/uploads/health/${tenantId}/${filename}`,
     };
   }
 
@@ -196,19 +214,23 @@ export class FilesController {
       fileFilter: imageOnlyFilter,
     }),
   )
-  async uploadTenantLogo(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTenantLogo(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_TENANT_LOGO_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_TENANT_LOGO_EXTENSIONS,
     );
-    await this.storage.put('tenants', filename, file.buffer);
+    await this.storage.put('tenants', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/tenants/${filename}`,
+      path: `/uploads/tenants/${tenantId}/${filename}`,
     };
   }
 
@@ -221,19 +243,23 @@ export class FilesController {
       fileFilter: imageOnlyFilter,
     }),
   )
-  async uploadActionPhoto(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionPhoto(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ACTION_PHOTO_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ACTION_PHOTO_EXTENSIONS,
     );
-    await this.storage.put('actions', filename, file.buffer);
+    await this.storage.put('actions', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/actions/${filename}`,
+      path: `/uploads/actions/${tenantId}/${filename}`,
     };
   }
 
@@ -246,19 +272,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadPeopleAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPeopleAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('people', filename, file.buffer);
+    await this.storage.put('people', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/people/${filename}`,
+      path: `/uploads/people/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -274,19 +304,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadPantryAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadPantryAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('pantry', filename, file.buffer);
+    await this.storage.put('pantry', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/pantry/${filename}`,
+      path: `/uploads/pantry/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -302,19 +336,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadDepositAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadDepositAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('deposit', filename, file.buffer);
+    await this.storage.put('deposit', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/deposit/${filename}`,
+      path: `/uploads/deposit/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -330,19 +368,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadProgramAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProgramAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('programs', filename, file.buffer);
+    await this.storage.put('programs', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/programs/${filename}`,
+      path: `/uploads/programs/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -358,19 +400,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadProjectAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadProjectAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('projects', filename, file.buffer);
+    await this.storage.put('projects', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/projects/${filename}`,
+      path: `/uploads/projects/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -386,19 +432,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadActionAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadActionAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('action-attachments', filename, file.buffer);
+    await this.storage.put('action-attachments', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/action-attachments/${filename}`,
+      path: `/uploads/action-attachments/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,
@@ -414,19 +464,23 @@ export class FilesController {
       fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
     }),
   )
-  async uploadTaskAttachment(@UploadedFile() file?: Express.Multer.File) {
+  async uploadTaskAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    const tenantId = this.getTenantId(user);
     assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
     );
-    await this.storage.put('tasks', filename, file.buffer);
+    await this.storage.put('tasks', tenantId, filename, file.buffer);
 
     return {
-      path: `/uploads/tasks/${filename}`,
+      path: `/uploads/tasks/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,

@@ -1,7 +1,14 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FilesController } from './files.controller';
 import { StorageService } from './storage.service';
+import type { JwtUser } from '../auth/strategies/jwt.strategy';
+
+const USER: JwtUser = {
+  userId: 'user-a',
+  tenantId: 'tenant-a',
+  email: 'user-a@example.com',
+};
 
 type UploadMethod =
   | 'uploadAvatar'
@@ -39,12 +46,14 @@ function makeFile(
 
 describe('FilesController', () => {
   let controller: FilesController;
-  let storage: { put: jest.Mock<Promise<void>, [string, string, Buffer]> };
+  let storage: {
+    put: jest.Mock<Promise<void>, [string, string, string, Buffer]>;
+  };
 
   beforeEach(async () => {
     storage = {
       put: jest
-        .fn<Promise<void>, [string, string, Buffer]>()
+        .fn<Promise<void>, [string, string, string, Buffer]>()
         .mockResolvedValue(undefined),
     };
 
@@ -158,14 +167,20 @@ describe('FilesController', () => {
     async ({ method, category, pathPrefix, extraFields, fileOverrides }) => {
       const file = makeFile(fileOverrides);
 
-      const result: Record<string, unknown> = await controller[method](file);
+      const result: Record<string, unknown> = await controller[method](
+        file,
+        USER,
+      );
 
       expect(storage.put).toHaveBeenCalledTimes(1);
-      const [calledCategory, calledFilename, calledBuffer] =
+      const [calledCategory, calledTenantId, calledFilename, calledBuffer] =
         storage.put.mock.calls[0];
       expect(calledCategory).toBe(category);
+      expect(calledTenantId).toBe(USER.tenantId);
       expect(calledBuffer).toBe(file.buffer);
-      expect(result.path).toBe(`${pathPrefix}${calledFilename}`);
+      expect(result.path).toBe(
+        `${pathPrefix}${USER.tenantId}/${calledFilename}`,
+      );
 
       if (extraFields) {
         expect(result.mimeType).toBe(file.mimetype);
@@ -191,7 +206,7 @@ describe('FilesController', () => {
       size: PDF_BYTES.length,
     });
 
-    await expect(controller.uploadAvatar(file)).rejects.toThrow(
+    await expect(controller.uploadAvatar(file, USER)).rejects.toThrow(
       BadRequestException,
     );
     expect(storage.put).not.toHaveBeenCalled();
@@ -207,7 +222,7 @@ describe('FilesController', () => {
       size: JPEG_BYTES.length,
     });
 
-    await expect(controller.uploadAvatar(file)).rejects.toThrow(
+    await expect(controller.uploadAvatar(file, USER)).rejects.toThrow(
       BadRequestException,
     );
     expect(storage.put).not.toHaveBeenCalled();
@@ -221,9 +236,18 @@ describe('FilesController', () => {
     });
 
     const result: Record<string, unknown> =
-      await controller.uploadPeopleAttachment(file);
+      await controller.uploadPeopleAttachment(file, USER);
 
     expect(storage.put).toHaveBeenCalledTimes(1);
-    expect(result.path).toContain('/uploads/people/');
+    expect(result.path).toContain(`/uploads/people/${USER.tenantId}/`);
+  });
+
+  it('rejeita o upload quando o token nao tem tenantId', async () => {
+    const file = makeFile(jpegFile);
+
+    await expect(
+      controller.uploadAvatar(file, { ...USER, tenantId: '' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(storage.put).not.toHaveBeenCalled();
   });
 });

@@ -36,23 +36,37 @@ export class UploadsController {
     private readonly requestContext: RequestContextService,
   ) {}
 
-  @Get(':category/:filename')
+  @Get(':category/:tenantId/:filename')
   async download(
     @Param('category') category: string,
+    @Param('tenantId') tenantId: string,
     @Param('filename') filename: string,
     @Query('sig') sig: string | undefined,
     @Res() res: Response,
   ) {
     const dir = UPLOAD_CATEGORY_DIRS[category];
-    if (!dir || !SAFE_UPLOAD_SEGMENT.test(filename)) {
+    if (
+      !dir ||
+      !SAFE_UPLOAD_SEGMENT.test(tenantId) ||
+      !SAFE_UPLOAD_SEGMENT.test(filename)
+    ) {
       throw new NotFoundException();
     }
 
+    // For protected categories, the URL's tenantId segment is purely
+    // informational - the signature's own payload.tenantId is what the
+    // physical path actually resolves with below, so tampering with the
+    // segment alone can't redirect a valid signature to another tenant's
+    // folder. Still required to match, so a mismatched URL fails the same
+    // (404) way as every other invalid request here.
+    let resolvedTenantId = tenantId;
+
     if (!PUBLIC_UPLOAD_CATEGORIES.has(category)) {
       const payload = this.storage.verifySignature(category, filename, sig);
-      if (!payload) {
+      if (!payload || payload.tenantId !== tenantId) {
         throw new NotFoundException();
       }
+      resolvedTenantId = payload.tenantId;
 
       if (SENSITIVE_UPLOAD_CATEGORIES.has(category) && payload.personId) {
         await this.logSensitiveDownload(
@@ -63,7 +77,7 @@ export class UploadsController {
       }
     }
 
-    const absolutePath = join(dir, filename);
+    const absolutePath = join(dir, resolvedTenantId, filename);
     if (!existsSync(absolutePath)) {
       throw new NotFoundException();
     }

@@ -414,12 +414,14 @@ plano.
   (`ALLOWED_ATTACHMENT_EXTENSIONS`).
 - **O que não foi feito (de propósito):** o driver `r2` de verdade —
   precisa de um bucket R2 real (Parte 4.2, só faz sentido quando
-  existir). A reorganização da chave física pra `tenantId/modulo/uuid`
-  (outro item do plano, Parte 3.2) também não entrou — a chave
-  continua `categoria/uuid.ext`, idêntica à estrutura atual, pra essa
-  mudança não arriscar nenhuma URL já salva no banco. `delete()` existe
-  na interface mas não está plugado nos ~7 módulos que hoje só
-  removem a linha do banco (arquivo órfão) — registrado no backlog.
+  existir). `delete()` existe na interface mas não está plugado nos ~7
+  módulos que hoje só removem a linha do banco (arquivo órfão) —
+  registrado no backlog.
+  **Atualização 2026-11-11:** a reorganização da chave física pra
+  `tenantId/modulo/uuid`, que tinha ficado de fora aqui de propósito
+  (pra não arriscar URL já salva no banco sem uma migração pronta),
+  foi feita — ver `PLAN.md`, item 3.2. A chave agora é
+  `categoria/tenantId/uuid.ext`.
 - **Critério de aceite:** confirmado por 15 testes novos
   (`storage.service.spec.ts`: `put`/`delete` gravam/removem no
   diretório certo, categoria desconhecida e driver não-local falham

@@ -40,14 +40,14 @@ describe('UploadsController', () => {
 
   it('serves a public category (tenant logo) without any signature', async () => {
     const { res, sendFile } = makeRes();
-    await controller.download('tenants', 'logo.png', undefined, res);
+    await controller.download('tenants', 'tenant-a', 'logo.png', undefined, res);
     expect(sendFile).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a protected category with no signature', async () => {
     const { res, sendFile } = makeRes();
     await expect(
-      controller.download('health', 'doc.pdf', undefined, res),
+      controller.download('health', 'tenant-a', 'doc.pdf', undefined, res),
     ).rejects.toThrow(NotFoundException);
     expect(sendFile).not.toHaveBeenCalled();
   });
@@ -68,6 +68,7 @@ describe('UploadsController', () => {
     await expect(
       controller.download(
         'health',
+        'tenant-a',
         'other-doc.pdf',
         sigForOtherFile ?? undefined,
         res,
@@ -77,12 +78,23 @@ describe('UploadsController', () => {
     expect(createSensitiveLog).not.toHaveBeenCalled();
   });
 
+  it('rejects a valid signature when the URL tenantId segment does not match it', async () => {
+    const { res, sendFile } = makeRes();
+    const url = storage.getSignedUrl('health', 'doc.pdf', 'tenant-a', 'user-a');
+    const sig = new URL(url, 'http://local').searchParams.get('sig');
+
+    await expect(
+      controller.download('health', 'tenant-b', 'doc.pdf', sig ?? undefined, res),
+    ).rejects.toThrow(NotFoundException);
+    expect(sendFile).not.toHaveBeenCalled();
+  });
+
   it('serves a protected, non-sensitive category with a valid signature and does not audit-log it', async () => {
     const { res, sendFile } = makeRes();
     const url = storage.getSignedUrl('people', 'doc.pdf', 'tenant-a', 'user-a');
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
-    await controller.download('people', 'doc.pdf', sig ?? undefined, res);
+    await controller.download('people', 'tenant-a', 'doc.pdf', sig ?? undefined, res);
     expect(sendFile).toHaveBeenCalledTimes(1);
     expect(createSensitiveLog).not.toHaveBeenCalled();
   });
@@ -100,7 +112,7 @@ describe('UploadsController', () => {
     );
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
-    await controller.download('health', 'doc.pdf', sig ?? undefined, res);
+    await controller.download('health', 'tenant-a', 'doc.pdf', sig ?? undefined, res);
 
     expect(sendFile).toHaveBeenCalledTimes(1);
     expect(createSensitiveLog).toHaveBeenCalledTimes(1);
@@ -121,7 +133,7 @@ describe('UploadsController', () => {
     const url = storage.getSignedUrl('health', 'doc.pdf', 'tenant-a', 'user-a');
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
-    await controller.download('health', 'doc.pdf', sig ?? undefined, res);
+    await controller.download('health', 'tenant-a', 'doc.pdf', sig ?? undefined, res);
 
     expect(sendFile).toHaveBeenCalledTimes(1);
     expect(createSensitiveLog).not.toHaveBeenCalled();
@@ -130,17 +142,30 @@ describe('UploadsController', () => {
   it('rejects an unknown category', async () => {
     const { res } = makeRes();
     await expect(
-      controller.download('not-a-real-category', 'x.png', undefined, res),
+      controller.download('not-a-real-category', 'tenant-a', 'x.png', undefined, res),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('rejects a filename with path traversal characters', async () => {
     const { res } = makeRes();
     await expect(
-      controller.download('tenants', '..%2F..%2Fetc%2Fpasswd', undefined, res),
+      controller.download(
+        'tenants',
+        'tenant-a',
+        '..%2F..%2Fetc%2Fpasswd',
+        undefined,
+        res,
+      ),
     ).rejects.toThrow(NotFoundException);
     await expect(
-      controller.download('tenants', '../../etc/passwd', undefined, res),
+      controller.download('tenants', 'tenant-a', '../../etc/passwd', undefined, res),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects a tenantId segment with path traversal characters', async () => {
+    const { res } = makeRes();
+    await expect(
+      controller.download('tenants', '../../etc', 'logo.png', undefined, res),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -149,7 +174,7 @@ describe('UploadsController', () => {
     const { res } = makeRes();
 
     await expect(
-      controller.download('tenants', 'logo.png', undefined, res),
+      controller.download('tenants', 'tenant-a', 'logo.png', undefined, res),
     ).rejects.toThrow(NotFoundException);
   });
 });

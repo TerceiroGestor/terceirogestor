@@ -105,9 +105,78 @@ Parte por Parte:
     `npm run permissions:backfill` também testado, continua funcionando
     com o loader compartilhado (`permissionsSynced=48`). `tsc --noEmit`:
     0 erros. `npm test`: 22 suítes, 91 testes.
-  - [ ] 3.2 — reorganizar a chave física do arquivo para
-    `tenantId/modulo/uuid.ext` (adiado de propósito no item 1 da
-    auditoria, pra não arriscar URL já salva no banco)
+  - [x] **3.2 — reorganizar a chave física do arquivo para
+    `categoria/tenantId/uuid.ext`** — feito em 2026-11-11, branch
+    `develop`. Tinha ficado de fora de propósito no item 1/12 da
+    auditoria ("pra não arriscar URL já salva no banco sem uma
+    migração pronta"); decisão do usuário foi fazer agora, com
+    migração. **O que mudou:**
+    - `StorageService.put`/`delete`/`getSignedUrl` (`storage.service.ts`)
+      e o driver local passaram a receber `tenantId`; a URL assinada
+      virou `/uploads/<categoria>/<tenantId>/<arquivo>?sig=...`.
+    - `UPLOAD_PATH_PATTERN` (`upload-paths.ts`) passou de 2 pra 3
+      grupos; `SignUploadsInterceptor` (que assina qualquer
+      `/uploads/<categoria>/<tenantId>/<arquivo>` cru numa resposta)
+      agora também confere que o `tenantId` embutido no caminho bate
+      com o do usuário autenticado antes de assinar — nunca deveria
+      bater diferente (os dados já vêm de query filtrada por tenant),
+      mas falha fechado (não assina) em vez de confiar.
+    - `UploadsController.download` (`uploads.controller.ts`) ganhou o
+      parâmetro de rota `:tenantId`. Para categoria protegida, quem
+      decide o caminho físico é o `tenantId` **do `sig` já verificado**
+      (não o da URL) — então adulterar só o segmento da URL não
+      redireciona pra pasta de outro tenant; a rota ainda exige os dois
+      iguais, senão `404`. A categoria pública (`tenants`, logo) não
+      tem `sig`, então usa o `tenantId` da URL direto (dado não
+      sensível, já exposto sem login).
+    - Os 10 endpoints de `files.controller.ts` ganharam
+      `@CurrentUser()` e um `getTenantId()` (mesmo padrão de
+      `people.controller.ts`/`tasks.controller.ts`) pra montar o
+      caminho com o tenant de quem fez upload.
+    - **Migração dos dados existentes:** novo
+      `backend/scripts/migrate-upload-keys-to-tenant-scoped.js`
+      (`npm run migrate:upload-keys`) — percorre os 21 campos
+      `*Url`/`*Path` do schema que guardam caminho de upload (mapeados
+      um a um em `FIELD_MIGRATIONS`) mais `ProjectAction.photoPaths`
+      (array JSON, tratado separado), move o arquivo físico de
+      `categoria/arquivo` pra `categoria/tenantId/arquivo` e atualiza o
+      valor no banco. Idempotente (um valor já no formato novo tem `/`
+      no que sobra do prefixo e é ignorado); arquivo referenciado no
+      banco mas ausente em disco só avisa e segue (atualiza o caminho
+      mesmo assim, não bloqueia); arquivo órfão (sem nenhuma linha que
+      o referencie) fica onde está — ninguém vai servi-lo em nenhum
+      dos dois formatos, mesma situação de antes. Não toca em
+      `AuditLog.before`/`after` (são snapshots históricos, não é o
+      storage ativo).
+    - **Critério de aceite:** confirmado — 19 testes atualizados/novos
+      nas 4 suítes afetadas (`storage.service.spec.ts`,
+      `uploads.controller.spec.ts` — incluindo o caso novo "sig válido
+      mas segmento de `tenantId` da URL não bate" e "segmento de
+      `tenantId` com path traversal" —, `sign-uploads.interceptor.spec.ts`,
+      `files.controller.spec.ts` — incluindo "token sem `tenantId`
+      rejeita"). Teste manual real, backend de pé: login de verdade →
+      `POST /files/avatars` devolveu
+      `/uploads/avatars/<tenantId>/<uuid>.jpg?sig=...` → baixar com essa
+      URL exata → `200`; a mesma URL com o segmento `tenantId` trocado
+      por outro → `404` (a assinatura não cobre mais, resolve pelo
+      `tenantId` do `sig`, não da URL); rota antiga de 2 segmentos
+      (`/uploads/avatars/<arquivo>`) → `404` (não casa com a rota nova);
+      logo de tenant (categoria pública, sem `sig`) em
+      `/uploads/tenants/<tenantId>/<arquivo>` → `200` sem token nenhum.
+      **Migração testada com um arquivo órfão real** (sobra de upload
+      de uma sessão anterior, sem nenhuma linha do banco apontando pra
+      ele): apontei o `avatarUrl` de um usuário do seed pra esse
+      arquivo no formato antigo, roda `npm run migrate:upload-keys` →
+      arquivo moveu de `uploads/avatars/<uuid>.jpg` pra
+      `uploads/avatars/<tenantId>/<uuid>.jpg`, `avatarUrl` no banco
+      virou o caminho novo; rodei a migração de novo → `migrated=0`
+      (idempotente); testei também o caso de um valor antigo no banco
+      sem o arquivo físico correspondente → avisa (`missingOnDisk=1`) e
+      atualiza o caminho mesmo assim, sem travar. Banco local
+      restaurado com `npm run db:seed` depois do teste. `tsc --noEmit`:
+      0 erros. `npm test`: 23 suítes, 110 testes. `npm run test:e2e`: 3
+      suítes, 14 testes (sem regressão de isolamento entre tenants).
+
   - [x] **3.2 — validar o tipo real do arquivo pelos bytes** — feito em
     2026-11-11, branch `develop`. **Onde estava:** os 10 endpoints de
     upload (`backend/src/core/files/files.controller.ts`) só filtravam

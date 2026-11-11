@@ -102,14 +102,22 @@ adiado sem gatilho. Formato do Alicerce.
 
 - **Excluir um registro de anexo (`deletePersonAttachment`,
   `deleteProgramAttachment`, etc., em pelo menos 7 módulos) só remove a
-  linha do banco — o arquivo físico em `uploads/<categoria>/` fica
-  órfão pra sempre.** `StorageService.delete(categoria, filename)`
-  já existe (item 12 de `docs/auditoria-riscos.md`), só não está
-  plugado nesses fluxos ainda; conectar os 7+ módulos é uma mudança
-  maior que o escopo desse item.
+  linha do banco — o arquivo físico em `uploads/<categoria>/<tenantId>/`
+  fica órfão pra sempre.** `StorageService.delete(categoria, tenantId,
+  filename)` já existe (item 12 de `docs/auditoria-riscos.md`), só não
+  está plugado nesses fluxos ainda; conectar os 7+ módulos é uma
+  mudança maior que o escopo desse item.
   **Gatilho:** quando o espaço em disco dos uploads virar problema
   perceptível, ou ao implementar o driver R2 (Parte 4.2) — nesse ponto
   já vale revisar todos os pontos de exclusão de uma vez.
+
+- **`npm run migrate:upload-keys` precisa rodar uma vez em qualquer
+  ambiente que já tenha arquivos no formato antigo** (`categoria/arquivo`,
+  sem `tenantId`) antes/junto do deploy desta mudança — hoje só existe
+  localmente, nenhum ambiente real foi afetado. Depois de rodar uma vez
+  num ambiente, rodar de novo não faz nada (idempotente).
+  **Gatilho:** antes do primeiro deploy em staging/produção que inclua
+  o commit da reorganização da chave física (item 3.2 do `PLAN.md`).
 
 ## Segurança / chaves
 

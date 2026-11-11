@@ -36,13 +36,13 @@ describe('SignUploadsInterceptor', () => {
 
   it('signs a protected upload path nested inside an object, using the caller tenant/user', async () => {
     const result = (await run(
-      { id: '1', filePath: '/uploads/people/abc.pdf' },
+      { id: '1', filePath: '/uploads/people/tenant-a/abc.pdf' },
       USER,
     )) as { filePath: string };
 
-    expect(result.filePath.startsWith('/uploads/people/abc.pdf?sig=')).toBe(
-      true,
-    );
+    expect(
+      result.filePath.startsWith('/uploads/people/tenant-a/abc.pdf?sig='),
+    ).toBe(true);
     const sig = new URL(result.filePath, 'http://local').searchParams.get(
       'sig',
     );
@@ -57,23 +57,37 @@ describe('SignUploadsInterceptor', () => {
 
   it('signs upload paths inside arrays (e.g. ProjectAction.photoPaths)', async () => {
     const result = (await run(
-      { photoPaths: ['/uploads/actions/1.jpg', '/uploads/actions/2.jpg'] },
+      {
+        photoPaths: [
+          '/uploads/actions/tenant-a/1.jpg',
+          '/uploads/actions/tenant-a/2.jpg',
+        ],
+      },
       USER,
     )) as { photoPaths: string[] };
 
     expect(result.photoPaths).toHaveLength(2);
     for (const path of result.photoPaths) {
-      expect(path).toMatch(/^\/uploads\/actions\/\d\.jpg\?sig=/);
+      expect(path).toMatch(/^\/uploads\/actions\/tenant-a\/\d\.jpg\?sig=/);
     }
+  });
+
+  it('does not sign a path whose embedded tenantId does not match the caller', async () => {
+    const result = (await run(
+      { filePath: '/uploads/people/tenant-b/abc.pdf' },
+      USER,
+    )) as { filePath: string };
+
+    expect(result.filePath).toBe('/uploads/people/tenant-b/abc.pdf');
   });
 
   it('leaves public categories (tenant logo) unsigned', async () => {
     const result = (await run(
-      { logoUrl: '/uploads/tenants/logo.png' },
+      { logoUrl: '/uploads/tenants/tenant-a/logo.png' },
       USER,
     )) as { logoUrl: string };
 
-    expect(result.logoUrl).toBe('/uploads/tenants/logo.png');
+    expect(result.logoUrl).toBe('/uploads/tenants/tenant-a/logo.png');
   });
 
   it('leaves strings that are not upload paths untouched', async () => {
@@ -87,11 +101,11 @@ describe('SignUploadsInterceptor', () => {
 
   it('does not sign anything when the request has no authenticated user', async () => {
     const result = (await run(
-      { filePath: '/uploads/people/abc.pdf' },
+      { filePath: '/uploads/people/tenant-a/abc.pdf' },
       undefined,
     )) as { filePath: string };
 
-    expect(result.filePath).toBe('/uploads/people/abc.pdf');
+    expect(result.filePath).toBe('/uploads/people/tenant-a/abc.pdf');
   });
 
   it('does not choke on Date/Decimal-like class instances', async () => {
@@ -102,15 +116,15 @@ describe('SignUploadsInterceptor', () => {
     const createdAt = new Date('2026-01-01T00:00:00Z');
 
     const result = (await run(
-      { amount, createdAt, filePath: '/uploads/deposit/x.pdf' },
+      { amount, createdAt, filePath: '/uploads/deposit/tenant-a/x.pdf' },
       USER,
     )) as { amount: FakeDecimal; createdAt: Date; filePath: string };
 
     expect(result.amount).toBe(amount);
     expect(result.createdAt).toBe(createdAt);
-    expect(result.filePath.startsWith('/uploads/deposit/x.pdf?sig=')).toBe(
-      true,
-    );
+    expect(
+      result.filePath.startsWith('/uploads/deposit/tenant-a/x.pdf?sig='),
+    ).toBe(true);
   });
 
   it('carries personId into a sensitive (health) document URL signed as a sibling field', async () => {
@@ -118,7 +132,7 @@ describe('SignUploadsInterceptor', () => {
       {
         id: 'cond-1',
         personId: 'person-x',
-        documentUrl: '/uploads/health/doc.pdf',
+        documentUrl: '/uploads/health/tenant-a/doc.pdf',
       },
       USER,
     )) as { documentUrl: string };
@@ -136,7 +150,7 @@ describe('SignUploadsInterceptor', () => {
       {
         id: 'att-1',
         personId: 'person-x',
-        filePath: '/uploads/people/file.pdf',
+        filePath: '/uploads/people/tenant-a/file.pdf',
       },
       USER,
     )) as { filePath: string };
@@ -154,8 +168,8 @@ describe('SignUploadsInterceptor', () => {
       {
         personId: 'person-y',
         medication: {
-          documentUrl: '/uploads/health/med.pdf',
-          permissionDocumentUrl: '/uploads/health/perm.pdf',
+          documentUrl: '/uploads/health/tenant-a/med.pdf',
+          permissionDocumentUrl: '/uploads/health/tenant-a/perm.pdf',
         },
       },
       USER,

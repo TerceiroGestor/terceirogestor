@@ -33,7 +33,9 @@ describe('StorageService', () => {
     const url = service.getSignedUrl('health', 'doc.pdf', 'tenant-a', 'user-a');
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
-    expect(url.startsWith('/uploads/health/doc.pdf?sig=')).toBe(true);
+    expect(url.startsWith('/uploads/health/tenant-a/doc.pdf?sig=')).toBe(
+      true,
+    );
     expect(
       service.verifySignature('health', 'doc.pdf', sig ?? undefined),
     ).toEqual({
@@ -143,29 +145,29 @@ describe('StorageService', () => {
       fs.rmSync.mockReset();
     });
 
-    it('put() grava no diretório da categoria (driver local, padrão)', async () => {
+    it('put() grava no diretório da categoria+tenant (driver local, padrão)', async () => {
       const service = makeService();
       const data = Buffer.from('conteudo');
 
-      await service.put('people', 'arquivo.pdf', data);
+      await service.put('people', 'tenant-a', 'arquivo.pdf', data);
 
       expect(fs.mkdirSync).toHaveBeenCalledWith(
-        UPLOAD_CATEGORY_DIRS.people,
+        join(UPLOAD_CATEGORY_DIRS.people, 'tenant-a'),
         expect.objectContaining({ recursive: true }),
       );
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        join(UPLOAD_CATEGORY_DIRS.people, 'arquivo.pdf'),
+        join(UPLOAD_CATEGORY_DIRS.people, 'tenant-a', 'arquivo.pdf'),
         data,
       );
     });
 
-    it('delete() remove o arquivo do diretório da categoria', async () => {
+    it('delete() remove o arquivo do diretório da categoria+tenant', async () => {
       const service = makeService();
 
-      await service.delete('avatars', 'foto.png');
+      await service.delete('avatars', 'tenant-a', 'foto.png');
 
       expect(fs.rmSync).toHaveBeenCalledWith(
-        join(UPLOAD_CATEGORY_DIRS.avatars, 'foto.png'),
+        join(UPLOAD_CATEGORY_DIRS.avatars, 'tenant-a', 'foto.png'),
         expect.objectContaining({ force: true }),
       );
     });
@@ -174,7 +176,12 @@ describe('StorageService', () => {
       const service = makeService();
 
       await expect(
-        service.put('categoria-que-nao-existe', 'x.txt', Buffer.from('a')),
+        service.put(
+          'categoria-que-nao-existe',
+          'tenant-a',
+          'x.txt',
+          Buffer.from('a'),
+        ),
       ).rejects.toThrow(/Categoria de upload desconhecida/);
     });
 
@@ -182,7 +189,7 @@ describe('StorageService', () => {
       const service = makeService({ STORAGE_DRIVER: 'r2' });
 
       await expect(
-        service.put('people', 'x.txt', Buffer.from('a')),
+        service.put('people', 'tenant-a', 'x.txt', Buffer.from('a')),
       ).rejects.toThrow(/não foi implementado/);
     });
   });

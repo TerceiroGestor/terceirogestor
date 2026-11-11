@@ -36,8 +36,13 @@ const DEFAULT_TTL_SECONDS = 5 * 60;
  * class here and `STORAGE_DRIVER=r2`, no caller changes.
  */
 export interface StorageDriver {
-  put(category: string, filename: string, data: Buffer): Promise<void>;
-  delete(category: string, filename: string): Promise<void>;
+  put(
+    category: string,
+    tenantId: string,
+    filename: string,
+    data: Buffer,
+  ): Promise<void>;
+  delete(category: string, tenantId: string, filename: string): Promise<void>;
 }
 
 class LocalStorageDriver implements StorageDriver {
@@ -45,24 +50,33 @@ class LocalStorageDriver implements StorageDriver {
   // category) and async is what turns that into a rejected Promise,
   // matching how a real (genuinely awaited) R2 driver will behave.
   // eslint-disable-next-line @typescript-eslint/require-await
-  async put(category: string, filename: string, data: Buffer): Promise<void> {
-    const filePath = this.resolve(category, filename);
+  async put(
+    category: string,
+    tenantId: string,
+    filename: string,
+    data: Buffer,
+  ): Promise<void> {
+    const filePath = this.resolve(category, tenantId, filename);
     fs.mkdirSync(dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, data);
   }
 
   // see put() above
   // eslint-disable-next-line @typescript-eslint/require-await
-  async delete(category: string, filename: string): Promise<void> {
-    fs.rmSync(this.resolve(category, filename), { force: true });
+  async delete(
+    category: string,
+    tenantId: string,
+    filename: string,
+  ): Promise<void> {
+    fs.rmSync(this.resolve(category, tenantId, filename), { force: true });
   }
 
-  private resolve(category: string, filename: string): string {
+  private resolve(category: string, tenantId: string, filename: string): string {
     const dir = UPLOAD_CATEGORY_DIRS[category];
     if (!dir) {
       throw new Error(`Categoria de upload desconhecida: ${category}`);
     }
-    return join(dir, filename);
+    return join(dir, tenantId, filename);
   }
 }
 
@@ -86,13 +100,22 @@ export class StorageService {
   // async on purpose: getDriver() can throw synchronously (unimplemented
   // driver) and async is what turns that into a rejected Promise instead
   // of a thrown error, so callers can just `await` + try/catch either way.
-  async put(category: string, filename: string, data: Buffer): Promise<void> {
-    return this.getDriver().put(category, filename, data);
+  async put(
+    category: string,
+    tenantId: string,
+    filename: string,
+    data: Buffer,
+  ): Promise<void> {
+    return this.getDriver().put(category, tenantId, filename, data);
   }
 
   // see put() above
-  async delete(category: string, filename: string): Promise<void> {
-    return this.getDriver().delete(category, filename);
+  async delete(
+    category: string,
+    tenantId: string,
+    filename: string,
+  ): Promise<void> {
+    return this.getDriver().delete(category, tenantId, filename);
   }
 
   private getDriver(): StorageDriver {
@@ -135,7 +158,7 @@ export class StorageService {
     const mac = createHmac('sha256', this.secret())
       .update(body)
       .digest('base64url');
-    return `/uploads/${category}/${filename}?sig=${body}.${mac}`;
+    return `/uploads/${category}/${tenantId}/${filename}?sig=${body}.${mac}`;
   }
 
   verifySignature(
