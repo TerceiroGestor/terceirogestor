@@ -108,8 +108,40 @@ Parte por Parte:
   - [ ] 3.2 — reorganizar a chave física do arquivo para
     `tenantId/modulo/uuid.ext` (adiado de propósito no item 1 da
     auditoria, pra não arriscar URL já salva no banco)
-  - [ ] 3.2 — validar o tipo real do arquivo pelos bytes (magic bytes),
-    não só pelo mime declarado — não encontrado no backend
+  - [x] **3.2 — validar o tipo real do arquivo pelos bytes** — feito em
+    2026-11-11, branch `develop`. **Onde estava:** os 10 endpoints de
+    upload (`backend/src/core/files/files.controller.ts`) só filtravam
+    por `mimetype` declarado (`imageOnlyFilter`/filtro inline de
+    `health-documents`) ou por extensão do nome do arquivo
+    (`extensionAllowlistFilter`) — os dois são controlados pelo
+    cliente, nenhum inspeciona o conteúdo real. Um `.exe` renomeado
+    para `.jpg` com `Content-Type: image/jpeg` passava direto.
+    **O que foi feito:** novo `file-signature.ts` com
+    `matchesFileSignature(extensao, buffer)`, checando os bytes mágicos
+    reais (JPEG `FF D8 FF`, PNG, GIF, WEBP via `RIFF`/`WEBP`, PDF
+    `%PDF-`, ZIP `PK\x03\x04` — cobre `.zip`/`.docx`/`.xlsx`/`.pptx`
+    como família única, já que distinguir cada um exigiria abrir o
+    ZIP — e OLE Compound File — cobre `.doc`/`.xls`/`.ppt` do mesmo
+    jeito). `.txt`/`.csv` não têm assinatura binária confiável e
+    continuam validados só por extensão, como antes. Um novo
+    `assertFileContentMatchesExtension` roda nos 10 handlers (depois
+    do multer já ter bufferizado o arquivo em memória — só aí o buffer
+    completo existe; o `fileFilter` do multer roda antes disso, por
+    isso a checagem não podia ficar lá) e rejeita com `400` se a
+    extensão não estiver na allowlist **ou** se o conteúdo não bater
+    com a assinatura esperada.
+  - **Critério de aceite:** confirmado por 15 testes novos
+    (`file-signature.spec.ts`: cada família de assinatura, extensão
+    sem assinatura, buffer curto demais; `files.controller.spec.ts`:
+    conteúdo que não bate com a extensão declarada rejeita, extensão
+    fora da allowlist rejeita mesmo com bytes "válidos" de nenhuma
+    família conhecida, `.txt` continua aceito) e por teste manual real
+    — login de verdade, `POST /files/avatars` com um arquivo de texto
+    puro nomeado `fake.jpg`/`Content-Type: image/jpeg` → `400 "O
+    conteudo do arquivo nao corresponde ao tipo esperado."`; o mesmo
+    endpoint com bytes JPEG reais (`FF D8 FF E0 ...`) → sucesso, com a
+    URL assinada de volta. `tsc --noEmit`: 0 erros. `npm test`: 23
+    suítes, 106 testes.
   - [ ] 3.4 — confirmar rate limit e expiração do token de reset nos 4
     fluxos (decorators já existem em `registration.controller.ts`, mas
     não há uma confirmação dedicada registrada)

@@ -12,6 +12,7 @@ import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { randomUUID } from 'crypto';
 import { StorageService } from './storage.service';
+import { matchesFileSignature } from './file-signature';
 
 const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_HEALTH_FILE_SIZE = 6 * 1024 * 1024;
@@ -77,6 +78,25 @@ function buildFilename(originalname: string, allowedExtensions: Set<string>) {
   return `${randomUUID()}${safeExt}`;
 }
 
+// The mime-based multer filters below only see the client-declared
+// Content-Type of the multipart field, which is trivially spoofed; the
+// extension allowlist filters only see the client-supplied filename.
+// Neither inspects the actual bytes. This runs after multer has buffered
+// the file (fileFilter runs before that, so it can't check this), as the
+// authoritative check: the extension must both be on the allowlist and
+// match the file's real magic bytes.
+function assertFileContentMatchesExtension(
+  file: Express.Multer.File,
+  allowedExtensions: Set<string>,
+) {
+  const ext = extname(file.originalname).toLowerCase();
+  if (!allowedExtensions.has(ext) || !matchesFileSignature(ext, file.buffer)) {
+    throw new BadRequestException(
+      'O conteudo do arquivo nao corresponde ao tipo esperado.',
+    );
+  }
+}
+
 function imageOnlyFilter(
   _req: unknown,
   file: Express.Multer.File,
@@ -121,6 +141,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_AVATAR_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_AVATAR_EXTENSIONS,
@@ -154,6 +175,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_HEALTH_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_HEALTH_EXTENSIONS,
@@ -178,6 +200,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_TENANT_LOGO_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_TENANT_LOGO_EXTENSIONS,
@@ -202,6 +225,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ACTION_PHOTO_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ACTION_PHOTO_EXTENSIONS,
@@ -226,6 +250,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -253,6 +278,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -280,6 +306,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -307,6 +334,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -334,6 +362,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -361,6 +390,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
@@ -388,6 +418,7 @@ export class FilesController {
     if (!file) {
       throw new BadRequestException('Arquivo obrigatorio.');
     }
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
     const filename = buildFilename(
       file.originalname,
       ALLOWED_ATTACHMENT_EXTENSIONS,
