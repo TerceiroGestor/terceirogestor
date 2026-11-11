@@ -464,12 +464,23 @@ plano.
 
 ### 14. `prisma/seed.js` sem build automatizado
 
-- [ ] **Onde:** nenhum script compila `seed.ts` → `seed.js`. Já ficou
+- [x] **Feito em 2026-11-11**, branch `develop`. **Onde estava:**
+      nenhum script compilava `seed.ts` → `seed.js`. Já ficou
       desatualizado uma vez (emails antigos) até ser corrigido em
       2026-11-05.
-- **O que fazer:** passo no CI que falha o PR se `seed.js` divergir do
-  que `seed.ts` geraria.
-- Já registrado em `docs/backlog.md`.
+- **O que foi feito:** novo script `npm run build:seed`
+  (`backend/package.json`) encapsula o comando manual já documentado
+  no `backlog.md` (`tsc prisma/seed.ts --outDir prisma --module
+  commonjs --moduleResolution node --target es2023 --esModuleInterop
+  --skipLibCheck --declaration --sourceMap`). O novo
+  `.github/workflows/ci.yml` (ver também a criação do CI, item de
+  Parte 2) roda esse script e depois `git diff --exit-code -- prisma/
+  seed.js prisma/seed.d.ts prisma/seed.js.map`: se alguém editar
+  `seed.ts` sem recompilar os artefatos, o PR fica vermelho.
+- **Critério de aceite:** confirmado — `npm run build:seed` seguido de
+  `git diff --exit-code` nos 3 arquivos gerados devolve `0` (sem
+  divergência) no estado atual do repositório.
+- **Plano:** não estava na tabela original — achado novo, `docs/backlog.md`.
 
 ### 15. Vulnerabilidades de dependências não auditadas
 

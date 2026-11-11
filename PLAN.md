@@ -21,8 +21,17 @@ Parte por Parte:
     (auditoria #9) · [x] `GET /health` (auditoria #10) · [x]
     dependências patch/minor + `npm audit` (auditoria #15) · [x] 22
     suítes/91 testes do backend passando
-  - [ ] CI no GitHub Actions — não existe (`.github/` só tem template
-    de issue)
+  - [x] **CI no GitHub Actions** — feito em 2026-11-11, branch
+    `develop`. `.github/workflows/ci.yml`: job `backend` (`npm ci` →
+    `tsc --noEmit -p tsconfig.build.json` → `npm test` → `npm run build`
+    → `npm run build:seed` + `git diff --exit-code` nos artefatos do
+    seed, que também fecha o item 14 da auditoria) e job `frontend`
+    (`npm ci` → `tsc --noEmit` → `npm run build`), ambos em Node 22 (a
+    faixa declarada em `engines`). Confirmado manualmente antes de
+    subir: os dois builds e o `npm test` do backend passam com
+    `env -i` (sem nenhuma variável de ambiente) — nenhum segredo de CI
+    é necessário para `tsc`/`test`/`build`; `test:e2e` (precisa de
+    Postgres real) fica de fora, como já previsto na auditoria.
   - [ ] `frontend/middleware.ts` → `frontend/src/proxy.ts` (nome do
     Next 16) — ainda na raiz, não confirmado se roda
   - [ ] Separar `lint` (hoje roda com `--fix`) de um `lint:fix` —
@@ -51,8 +60,10 @@ Parte por Parte:
   real existe ainda. `GET /health` (pré-requisito 4.1) e a interface do
   `StorageService` (pré-requisito 4.2) já estão prontos; o resto depende
   do projeto Railway e do bucket R2 existirem.
-- **Achados novos da auditoria (13, 14, 16):** abertos, baixo risco,
-  todos com gatilho em `docs/backlog.md`.
+- **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
+  2026-11-11) e [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
+  acima) feitos. [ ] 16 (versão de Node) aberto, baixo risco, gatilho em
+  `docs/backlog.md`.
 
 ## Parte atual: Parte 2 — Pequenas correções (itens restantes acima) e fechamento dos itens da Parte 3 que ficaram pendentes
 

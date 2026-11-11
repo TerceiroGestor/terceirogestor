@@ -15,6 +15,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
+    "build:seed": "tsc prisma/seed.ts --outDir prisma --module commonjs --moduleResolution node --target es2023 --esModuleInterop --skipLibCheck --declaration --sourceMap",
     "permissions:backfill": "node scripts/backfill-core-permissions.js",
     "people:backfill-sensitive-docs": "node scripts/backfill-person-sensitive-documents.js",
     "build": "nest build",
