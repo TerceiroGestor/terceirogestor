@@ -16,7 +16,14 @@ Parte por Parte:
   (só API/backend foram exercitados via curl/testes automatizados nas
   sessões seguintes). Não bloqueou o trabalho das Partes 2/3, que já
   começou.
-- **Parte 2 — Pequenas correções:** parcialmente feita.
+- **Parte 2 — Pequenas correções:** critério de saída do plano
+  principal atingido em 2026-11-11 ("CI verde na main, testes do
+  backend passando, proxy.ts comprovadamente ativo e app recusando
+  subir sem as variáveis obrigatórias"). Checkpoint completo rodado
+  nesta sessão: backend `tsc` (0 erros) + `npm test` (22 suítes, 91
+  testes) + `npm run build` (ok); frontend `tsc` (0 erros) + `npm run
+  build` (ok, com `proxy.ts` confirmado ativo). Único item que
+  continua aberto é intencional (dívida de lint, ver abaixo).
   - [x] helmet (auditoria #8) · [x] validação de env vars no boot
     (auditoria #9) · [x] `GET /health` (auditoria #10) · [x]
     dependências patch/minor + `npm audit` (auditoria #15) · [x] 22
