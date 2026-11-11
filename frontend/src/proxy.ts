@@ -31,7 +31,7 @@ const LEGACY_PREFIXES = [
   "/auth/login",
 ];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const legacyPath = LEGACY_PREFIXES.find((prefix) =>

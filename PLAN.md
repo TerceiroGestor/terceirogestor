@@ -32,8 +32,21 @@ Parte por Parte:
     `env -i` (sem nenhuma variável de ambiente) — nenhum segredo de CI
     é necessário para `tsc`/`test`/`build`; `test:e2e` (precisa de
     Postgres real) fica de fora, como já previsto na auditoria.
-  - [ ] `frontend/middleware.ts` → `frontend/src/proxy.ts` (nome do
-    Next 16) — ainda na raiz, não confirmado se roda
+  - [x] **`frontend/middleware.ts` → `frontend/src/proxy.ts`** — feito
+    em 2026-11-11, branch `develop`. Confirmado na doc do Next 16
+    embutida no próprio pacote (`node_modules/next/dist/docs/.../
+    proxy.md`): desde a v16, `middleware` está deprecated; o arquivo
+    precisa se chamar `proxy.ts`, ficar no mesmo nível de `app/`
+    (então `src/proxy.ts`, já que o app está em `src/app`), e a
+    função exportada precisa se chamar `proxy`, não `middleware`.
+    `npx next build` mostra `ƒ Proxy (Middleware)` sem erro. Teste
+    manual real com o dev server: `/t/acme` → 307 para `/acme/
+    dashboard`; `/acme` (slug nu) → 307 para `/acme/dashboard`;
+    `/dashboard` com cookie `terceirogestor_tenant=acme` → 307 para
+    `/acme/dashboard`; `/dashboard` sem cookie → 200 (sem redirect,
+    como esperado). O log do próprio Next confirma a execução:
+    `GET /dashboard 200 in 4.3s (next.js: 3.6s, proxy.ts: 349ms,
+    application-code: 356ms)`.
   - [x] **Separar `lint`/`lint:fix`** — feito em 2026-11-11, branch
     `develop`. `backend/package.json`: `lint` não aplica mais `--fix`;
     `lint:fix` novo, idêntico ao `lint` antigo. `AGENTS.md` atualizado
