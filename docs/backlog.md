@@ -38,12 +38,44 @@ adiado sem gatilho. Formato do Alicerce.
   ajustar `TRUST_PROXY_HOPS` (provavelmente `1`) nas variáveis do
   Railway. Ver item 11 de `docs/auditoria-riscos.md`.
 
-- **41 vulnerabilidades no backend (`npm audit`: 3 low, 22 moderate, 14
-  high, 2 critical) e 27 no frontend (1 low, 10 moderate, 15 high, 1
-  critical)**, não investigadas ainda (rodar `npm audit` completo é item
-  da Parte 2).
-  **Gatilho:** Parte 2, item "Atualizar dependências só em patch/minor... Rodar
-  `npm audit` e registrar o resultado".
+- **`npm audit` triado em 2026-11-11 (item 15 de `docs/auditoria-riscos.md`)
+  — `npm audit fix` sem `--force` resolveu tudo que não exigia major**:
+  backend 41 → 29 (as 2 críticas, `handlebars` e `proxy-addr`, foram
+  embora); frontend 27 → 7, incluindo um RCE não-autenticado crítico no
+  Next.js (16.1.6 → 16.4.6 — mesma major, só precisou de `--force` por o
+  `package.json` fixar a versão exata; perguntei antes de aplicar).
+  O que sobrou, tudo exigindo major (proibido antes da Parte 5) ou sem
+  fix publicado ainda:
+  - **Backend:** `nodemailer` (alta, direto, `7.x`→`10.5.0`) — é o único
+    desses que roda em produção (envio de e-mail); os outros são só
+    devDependencies (`jest`→`29.7.0`, na direção errada — bug do
+    resolvedor do npm, não uma versão real mais nova —, `@nestjs/cli`→
+    `12.0.12`, `ts-jest`→`25.5.1`).
+  - **Backend e frontend:** o cluster `typescript-eslint`/
+    `@typescript-eslint/*` aparece como "corrigível", mas a versão
+    corrigida (`>8.72.2`) só existe como alpha (`8.72.3-alpha.*`) — não
+    tem release estável ainda pra instalar.
+  **Gatilho:** `nodemailer` — na próxima vez que o fluxo de e-mail for
+  tocado (ou antes do go-live, o que vier primeiro), subir pra `10.x`
+  com teste manual dos 3 fluxos que mandam e-mail (reset de senha,
+  código de registro, confirmação). `jest`/`@nestjs/cli`/`ts-jest` —
+  Parte 5 (majors). `typescript-eslint` — rodar `npm audit` de novo
+  depois que uma versão estável `>8.72.2` for publicada.
+
+- **O upgrade do `eslint-config-next` pra `16.4.6` (item acima) trouxe
+  uma versão mais nova do `eslint-plugin-react-hooks`, com regras novas
+  de segurança do React Compiler — e o frontend já tem
+  `reactCompiler: true` no `next.config.ts`. `npx eslint src` foi de 0
+  pra 213 problemas em 107 arquivos**, todos nessas 4 regras novas
+  (nenhuma é erro de digitação nem quebra o build — `tsc`, `next build`
+  e um teste manual real com os dois servidores de pé continuam
+  passando):
+  `react-hooks/set-state-in-effect` (181), `react-hooks/preserve-manual-memoization`
+  (27), `react-hooks/refs` (3), `react-hooks/immutability` (2).
+  **Gatilho:** Parte 2 (mesmo padrão da dívida de lint do backend: medir,
+  não deixar crescer, zerar com calma) — ou antes de qualquer trabalho
+  real de adoção do React Compiler, já que são exatamente os padrões que
+  o compiler não otimiza/pode quebrar.
 
 ## Dívida de lint (backend)
 

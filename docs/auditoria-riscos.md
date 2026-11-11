@@ -461,11 +461,50 @@ plano.
 
 ### 15. Vulnerabilidades de dependências não auditadas
 
-- [ ] **Onde:** `npm audit` (2026-11-05): 41 no backend (3 low/22
-      moderate/14 high/2 critical), 27 no frontend (1 low/10 moderate/15
-      high/1 critical).
-- **O que fazer:** rodar `npm audit` completo, triar cada uma, atualizar
-  patch/minor.
+- [x] **Feito em 2026-11-11**, branch `develop`. **Onde estava:** `npm
+      audit` (2026-11-05): 41 no backend (3 low/22 moderate/14 high/2
+      critical), 27 no frontend (1 low/10 moderate/15 high/1 critical).
+- **O que foi feito:** `npm audit fix` (sem `--force`) em cada app,
+  resolvendo tudo que era patch/minor de verdade:
+  - **Backend:** 41 → 29. As **2 críticas** (`handlebars`, `proxy-addr`)
+    foram resolvidas, junto com `body-parser`, `brace-expansion`,
+    `browserslist`, `multer`, `mysql2`, `prisma` (bump dentro de `^7.5.0`,
+    pra `7.10.1`), `@nestjs/platform-express`, entre outras.
+  - **Frontend:** 27 → 7. Incluía **1 crítica**: RCE não-autenticado no
+    Next.js (`16.1.6` → `16.4.6`, corrige também SSRF e mais 2 altas).
+    `next`/`eslint-config-next` estavam fixados com versão exata (sem
+    `^`), então o `npm audit fix` só aplicou com `--force` — mesma
+    major (16), não é o tipo de bump que as regras do projeto reservam
+    pra Parte 5, mas por tocar justo na área de renderização que o
+    projeto protege, perguntei antes de aplicar. Depois do fix, recolocado
+    o pin exato (`"16.4.6"`, sem `^`) pra manter a convenção do projeto
+    de fixar a versão do framework (`next`/`react`/`react-dom`/
+    `eslint-config-next`/`babel-plugin-react-compiler`).
+  - Rodar `npm dev` pra testar gerou um `frontend/AGENTS.md` novo
+    (recurso do Next 16.4+, regenerado a cada `next dev`). Perguntei;
+    decisão foi desativar (`agentRules: false` em `next.config.ts`) e
+    remover o arquivo — o `AGENTS.md` da raiz continua sendo a única
+    fonte de regras do projeto.
+  - O que sobrou (backend 29, frontend 7) exige major (proibido antes
+    da Parte 5: `nodemailer`, `jest`, `@nestjs/cli`, `ts-jest`) ou não
+    tem fix estável publicado ainda (`typescript-eslint` em ambos os
+    apps — a versão corrigida só existe como alpha). Registrado em
+    `docs/backlog.md` com gatilho específico por pacote.
+- **Efeito colateral do upgrade do `eslint-config-next`:** a versão
+  nova do `eslint-plugin-react-hooks` trouxe 4 regras novas de
+  segurança do React Compiler (o frontend já tem `reactCompiler: true`).
+  `npx eslint src` foi de 0 pra 213 problemas em 107 arquivos — nenhum
+  quebra o build (`tsc`/`next build`/teste manual continuam verdes),
+  mas é dívida de lint real. Registrado em `docs/backlog.md`, mesmo
+  padrão da dívida de lint do backend (medir, não deixar crescer).
+- **Critério de aceite:** confirmado — `npm audit` (backend): 41 → 29;
+  `npm audit` (frontend): 27 → 7, sem nenhuma crítica restando em
+  nenhum dos dois apps. Checkpoint completo: backend `tsc --noEmit` (0
+  erros) + `npm test` (22 suítes, 91 testes); frontend `tsc --noEmit`
+  (0 erros) + `npm run build` (ok) + teste manual real (backend e
+  frontend de pé juntos, `GET /instituicao-exemplo` renderizou a
+  página de login com o branding certo via SSR, sem erro no log do
+  Next).
 - **Plano:** Parte 2.
 
 ### 16. Node local fora da faixa declarada em `engines`

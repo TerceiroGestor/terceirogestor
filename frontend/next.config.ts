@@ -86,6 +86,9 @@ function resolveImageRemotePatterns() {
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // O root já tem AGENTS.md com as regras do projeto; não deixar o Next
+  // regenerar um segundo frontend/AGENTS.md a cada `next dev`.
+  agentRules: false,
   images: {
     remotePatterns: resolveImageRemotePatterns(),
   },
