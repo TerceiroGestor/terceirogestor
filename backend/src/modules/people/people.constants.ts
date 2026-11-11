@@ -32,6 +32,11 @@ export const STATUS_OPTIONS = [
   'Desligado',
 ] as const;
 
+// Status interno de exclusão lógica (soft delete) - de propósito fora de
+// STATUS_OPTIONS, para que nenhum DTO de create/update (@IsIn(STATUS_OPTIONS))
+// aceite esse valor. Só o fluxo de remove() pode marcar uma pessoa assim.
+export const EXCLUDED_PERSON_STATUS = 'Excluido';
+
 export const PERSON_TYPE_OPTIONS = [
   'Atendido',
   'Familiar',

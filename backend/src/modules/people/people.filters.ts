@@ -1,6 +1,16 @@
 import type { Prisma } from '../../generated/prisma';
 import { parseDateInput } from '../../core/utils/dates';
 import { parseJsonArray } from '../../core/utils/json';
+import { EXCLUDED_PERSON_STATUS } from './people.constants';
+
+// Person.status e' nullable, e o filtro `not` do Prisma NAO inclui
+// linhas com status null (equivalente a `status <> 'Excluido'` em SQL,
+// que descarta NULL em logica de 3 valores) - confirmado direto contra
+// o banco. Precisa do OR explicito com `status: null` pra pessoas sem
+// status definido (o caso comum de cadastro novo) continuarem visiveis.
+export const NOT_EXCLUDED_PERSON_FILTER: Prisma.PersonWhereInput = {
+  OR: [{ status: { not: EXCLUDED_PERSON_STATUS } }, { status: null }],
+};
 
 export type AdvancedFilter = {
   columnId: string;
@@ -120,7 +130,7 @@ export const buildPeopleWhere = ({
 
   return {
     tenantId,
-    ...(andFilters.length ? { AND: andFilters } : {}),
+    AND: [NOT_EXCLUDED_PERSON_FILTER, ...andFilters],
   };
 };
 

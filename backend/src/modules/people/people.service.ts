@@ -61,7 +61,9 @@ import {
   buildPeopleWhere,
   parseAdvancedFilters,
   parseGrouping,
+  NOT_EXCLUDED_PERSON_FILTER,
 } from './people.filters';
+import { EXCLUDED_PERSON_STATUS } from './people.constants';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 1000;
@@ -1020,7 +1022,7 @@ export class PeopleService {
 
   async findById(tenantId: string, id: string) {
     const person = await this.prisma.person.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, ...NOT_EXCLUDED_PERSON_FILTER },
       include: PERSON_DETAIL_INCLUDE,
     });
 
@@ -2172,6 +2174,7 @@ export class PeopleService {
 
   async listHealthConditions(tenantId: string, personId: string) {
     await this.findById(tenantId, personId);
+    await this.logSensitiveAccess(tenantId, personId, 'READ');
     const conditions = await this.prisma.personHealthCondition.findMany({
       where: { tenantId, personId },
       orderBy: { createdAt: 'desc' },
@@ -2185,6 +2188,7 @@ export class PeopleService {
     dto: CreatePersonHealthConditionDto,
   ) {
     await this.findById(tenantId, personId);
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     return this.prisma.$transaction(async (tx) => {
       const condition = await tx.personHealthCondition.create({
         data: {
@@ -2223,6 +2227,7 @@ export class PeopleService {
     if (!condition) {
       throw new NotFoundException('Condicao de saude nao encontrada.');
     }
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     const updated = await this.prisma.personHealthCondition.update({
       where: { id: conditionId },
       data: {
@@ -2262,6 +2267,7 @@ export class PeopleService {
     if (!condition) {
       throw new NotFoundException('Condicao de saude nao encontrada.');
     }
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     await this.prisma.$transaction(async (tx) => {
       await tx.personHealthCondition.delete({ where: { id: conditionId } });
     });
@@ -2270,6 +2276,7 @@ export class PeopleService {
 
   async listMedications(tenantId: string, personId: string) {
     await this.findById(tenantId, personId);
+    await this.logSensitiveAccess(tenantId, personId, 'READ');
     const medications = await this.prisma.personMedication.findMany({
       where: { tenantId, personId },
       orderBy: { createdAt: 'desc' },
@@ -2283,6 +2290,7 @@ export class PeopleService {
     dto: CreatePersonMedicationDto,
   ) {
     await this.findById(tenantId, personId);
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     return this.prisma.$transaction(async (tx) => {
       const medication = await tx.personMedication.create({
         data: {
@@ -2326,6 +2334,7 @@ export class PeopleService {
     if (!medication) {
       throw new NotFoundException('Medicacao nao encontrada.');
     }
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     const updated = await this.prisma.personMedication.update({
       where: { id: medicationId },
       data: {
@@ -2376,6 +2385,7 @@ export class PeopleService {
     if (!medication) {
       throw new NotFoundException('Medicacao nao encontrada.');
     }
+    await this.logSensitiveAccess(tenantId, personId, 'UPDATE');
     await this.prisma.$transaction(async (tx) => {
       await tx.personMedication.delete({ where: { id: medicationId } });
     });
@@ -3483,9 +3493,22 @@ export class PeopleService {
     };
   }
 
+  // Soft delete: a maioria dos sub-recursos de Person (financeiro, saude,
+  // relacoes familiares, documentos sensiveis, etc.) nao tem onDelete:
+  // Cascade - um hard delete real estoura violacao de FK pra qualquer
+  // pessoa com algum desses registros. Marcar como EXCLUDED_PERSON_STATUS
+  // tira a pessoa de findAll/findById (ver people.filters.ts) sem perder
+  // historico/auditoria.
   async remove(tenantId: string, id: string) {
-    await this.findById(tenantId, id);
-    await this.prisma.person.delete({ where: { id } });
+    const result = await this.prisma.person.updateMany({
+      where: { id, tenantId, ...NOT_EXCLUDED_PERSON_FILTER },
+      data: { status: EXCLUDED_PERSON_STATUS },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Person not found');
+    }
+
     return { deleted: true };
   }
 

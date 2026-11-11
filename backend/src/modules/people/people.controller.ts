@@ -477,7 +477,7 @@ export class PeopleController {
   }
 
   @Get(':id/health-conditions')
-  @Permissions('people.read')
+  @Permissions('people.sensitive.read')
   async listHealthConditions(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -487,7 +487,7 @@ export class PeopleController {
   }
 
   @Post(':id/health-conditions')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async createHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -498,7 +498,7 @@ export class PeopleController {
   }
 
   @Patch(':id/health-conditions/:conditionId')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async updateHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -516,7 +516,7 @@ export class PeopleController {
   }
 
   @Delete(':id/health-conditions/:conditionId')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async removeHealthCondition(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -528,7 +528,7 @@ export class PeopleController {
   }
 
   @Get(':id/medications')
-  @Permissions('people.read')
+  @Permissions('people.sensitive.read')
   async listMedications(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -538,7 +538,7 @@ export class PeopleController {
   }
 
   @Post(':id/medications')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async createMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -549,7 +549,7 @@ export class PeopleController {
   }
 
   @Patch(':id/medications/:medicationId')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async updateMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -562,7 +562,7 @@ export class PeopleController {
   }
 
   @Delete(':id/medications/:medicationId')
-  @Permissions('people.update')
+  @Permissions('people.sensitive.update')
   async removeMedication(
     @CurrentUser() user: JwtUser | undefined,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
