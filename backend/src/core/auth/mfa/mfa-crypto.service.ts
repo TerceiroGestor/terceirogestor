@@ -7,7 +7,7 @@ import {
   randomBytes,
 } from 'crypto';
 
-function parseKey(value: string) {
+export function parseKey(value: string) {
   const trimmed = value.trim();
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     return Buffer.from(trimmed, 'hex');

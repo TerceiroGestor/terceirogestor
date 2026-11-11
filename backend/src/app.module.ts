@@ -37,6 +37,7 @@ import { RateLimitGuard } from './core/rate-limit/rate-limit.guard';
 import { CepModule } from './core/cep/cep.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { validateEnv } from './core/config/env-validation';
 
 const rootEnvFilePaths = [
   resolve(__dirname, '..', '..', '.env.local'),
@@ -49,6 +50,7 @@ const rootEnvFilePaths = [
       isGlobal: true,
       envFilePath: rootEnvFilePaths,
       expandVariables: true,
+      validate: validateEnv,
     }),
     PrismaModule,
     AuthModule,

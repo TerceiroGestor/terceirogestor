@@ -284,13 +284,39 @@ plano.
 
 ### 9. Variáveis de ambiente não são validadas no boot
 
-- [ ] **Onde:** `backend/src/app.module.ts:49-53` — `ConfigModule.forRoot`
-      sem `validate`/`validationSchema`. O app sobe normalmente mesmo
-      faltando `JWT_SECRET`/`PII_MASTER_KEY`/`DATABASE_URL`, e só quebra
-      depois, ao usar a variável (foi exatamente isso que causou o crash
-      do backend em 2026-11-05, com chaves placeholder no `.env`).
-- **O que fazer:** schema de validação (zod/Joi) no `ConfigModule`; app
-  não sobe se faltar uma variável obrigatória.
+- [x] **Feito em 2026-11-10**, branch `develop`. **Onde estava:**
+      `backend/src/app.module.ts:49-53` — `ConfigModule.forRoot` sem
+      `validate`/`validationSchema`. O app subia normalmente mesmo
+      faltando `JWT_SECRET`/`PII_MASTER_KEY`/`TOTP_ENCRYPTION_KEY`/
+      `DATABASE_URL`, e só quebrava depois, ao usar a variável (foi
+      exatamente isso que causou o crash do backend em 2026-11-05, com
+      chaves placeholder no `.env`).
+- **O que foi feito:** `backend/src/core/config/env-validation.ts`
+  (novo) define `EnvironmentVariables` com `class-validator`/
+  `class-transformer` — mesma biblioteca já usada em todos os DTOs do
+  projeto, não precisou adicionar zod/Joi como dependência nova — e
+  exige `DATABASE_URL`, `JWT_SECRET`, `PII_MASTER_KEY` e
+  `TOTP_ENCRYPTION_KEY` (as quatro citadas no plano principal, Parte
+  2). Passado como `validate` em `ConfigModule.forRoot`
+  (`app.module.ts`). Além de checar presença, a validação reaproveita
+  o parsing que cada serviço já fazia — `createPrismaAdapter`
+  (`DATABASE_URL`), `parseMasterKey` (`PII_MASTER_KEY`) e o `parseKey`
+  do `MfaCryptoService` (agora exportado, `TOTP_ENCRYPTION_KEY`) — pra
+  também rejeitar uma variável presente mas com formato errado (não só
+  ausente), sem duplicar a lógica de parsing em dois lugares.
+  `WEB_URL` não entrou na lista: sem ela o CORS (item 4) já nega toda
+  origem por padrão — comportamento seguro, não precisa impedir o
+  boot.
+- **Critério de aceite:** confirmado por 13 testes novos
+  (`env-validation.spec.ts`: cada uma das 4 variáveis ausente/vazia/
+  malformada rejeita, válidas aceita, variáveis opcionais fora do
+  schema não são descartadas) e por teste manual real com o binário
+  compilado (`node dist/main.js`): com `PII_MASTER_KEY` inválida, o
+  processo recusa subir na hora (`Error: PII_MASTER_KEY inválida: ...
+  must be at least 32 bytes`, lançado dentro de `ConfigModule.forRoot`,
+  antes de qualquer outro módulo carregar); com as variáveis reais do
+  `.env`, sobe normalmente (`Nest application successfully started`).
+  `tsc --noEmit`: 0 erros. `npm test`: 20 suítes, 68 testes.
 - **Plano:** Parte 2.
 
 ### 10. Não existe `GET /health`
