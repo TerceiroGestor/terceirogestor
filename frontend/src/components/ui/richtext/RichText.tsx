@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { RichTextMenuBar } from "./RichTextMenuBar";
 import StarterKit from "@tiptap/starter-kit";
@@ -10,15 +11,19 @@ import ListItem from "@tiptap/extension-list-item";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import Document from "@tiptap/extension-document";
+import Mention from "@tiptap/extension-mention";
+import { createMentionSuggestion, type MentionSuggestionUser } from "./mention-suggestion";
 
 interface Props {
   value: string;
   disabled?: boolean;
   onChange: (value: string) => void;
   onBlur?: () => void;
+  /** Quando informado, habilita @menção para estas pessoas dentro do editor. */
+  mentionUsers?: MentionSuggestionUser[];
 }
 
-export function RichText({ value, disabled, onChange, onBlur }: Props) {
+export function RichText({ value, disabled, onChange, onBlur, mentionUsers }: Props) {
   const editor = useEditor({
     extensions: [
       Document,
@@ -38,6 +43,15 @@ export function RichText({ value, disabled, onChange, onBlur }: Props) {
       BulletList,
       OrderedList,
       ListItem,
+
+      ...(mentionUsers
+        ? [
+            Mention.configure({
+              HTMLAttributes: { class: "richtext-mention" },
+              suggestion: createMentionSuggestion(() => mentionUsers ?? []),
+            }),
+          ]
+        : []),
     ],
     content: value ?? "",
     editable: !disabled,
@@ -48,7 +62,7 @@ export function RichText({ value, disabled, onChange, onBlur }: Props) {
     onBlur() {
       onBlur?.();
     },
-  });
+  }, [mentionUsers]);
 
   if (!editor) return null;
 

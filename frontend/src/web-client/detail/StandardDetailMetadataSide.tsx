@@ -19,6 +19,16 @@ import type {
   DetailHistoryItem,
 } from "@/web-client/registry/types";
 
+/** Ordem/seleção fixa de abas. Quando omitido, mantém a ordem histórica (compatibilidade). */
+export type DetailMetadataTabKey =
+  | "activity"
+  | "comments"
+  | "notes"
+  | "tags"
+  | "attachments"
+  | "history"
+  | "context";
+
 export function StandardDetailContextPanel({
   items,
   emptyLabel = "Nenhum contexto disponivel.",
@@ -205,6 +215,7 @@ export function StandardDetailMetadataSide({
   history,
   attachments,
   defaultTab = "activity",
+  tabOrder,
 }: {
   mode: "create" | "edit";
   readOnly?: boolean;
@@ -232,6 +243,10 @@ export function StandardDetailMetadataSide({
     hidden?: boolean;
     label?: string;
     placeholder?: string;
+    /** Usa o editor com formatação (negrito, listas, @menção) em vez de texto simples. */
+    richText?: boolean;
+    /** Pessoas disponíveis para @menção. Só tem efeito quando `richText` é true. */
+    mentionUsers?: DetailCommentUser[];
   };
   tags?: {
     value: string[];
@@ -261,6 +276,12 @@ export function StandardDetailMetadataSide({
     emptyLabel?: string;
   };
   defaultTab?: DetailSideTabItem["value"];
+  /**
+   * Ordem e seleção explícita das abas (ex.: `["tags", "notes", "attachments", "activity"]`).
+   * Quando omitido, mantém a ordem histórica (Auditoria, Comentários, Notas, Tags, Anexos,
+   * Histórico, Contexto) — zero risco para quem já usa este componente sem essa prop.
+   */
+  tabOrder?: DetailMetadataTabKey[];
 }) {
   const auditCount = buildGroupedAuditFeed(detailAudit?.logs ?? []).length;
 
@@ -329,6 +350,8 @@ export function StandardDetailMetadataSide({
             onBlur={notes.onBlur}
             readOnly={notes.readOnly ?? readOnly}
             placeholder={notes.placeholder}
+            richText={notes.richText}
+            mentionUsers={notes.mentionUsers}
           />
         ),
       });
@@ -393,7 +416,11 @@ export function StandardDetailMetadataSide({
         contextPanel ?? <StandardDetailContextPanel items={contextItems} />,
     });
 
-    return nextTabs;
+    if (!tabOrder) return nextTabs;
+
+    return tabOrder
+      .map((key) => nextTabs.find((tab) => tab.value === key))
+      .filter((tab): tab is DetailSideTabItem => Boolean(tab));
   }, [
     attachments,
     auditCount,
@@ -408,6 +435,7 @@ export function StandardDetailMetadataSide({
     notes,
     onAuditVisibleCountChange,
     readOnly,
+    tabOrder,
     tags,
   ]);
 

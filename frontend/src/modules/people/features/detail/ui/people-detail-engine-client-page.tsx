@@ -16,10 +16,8 @@ import { getPersonHealthConditions } from "@/modules/people/api/health-condition
 import { getPersonMedications } from "@/modules/people/api/medications";
 import {
   addPersonAttachment,
-  addPersonComment,
   createPerson,
   deletePersonAttachment,
-  deletePersonComment,
   type ApiPerson,
 } from "@/modules/people/api";
 import { getPersonRelations } from "@/modules/people/api/relations";
@@ -32,7 +30,6 @@ import { mapApiPersonToPerson } from "@/modules/people/shared/domain/people-modu
 import type {
   Person,
   PersonAttachment,
-  PersonComment,
   PersonFormData,
 } from "@/modules/people/shared/domain/types";
 import {
@@ -56,11 +53,6 @@ import {
   getModuleDetailEditingConfig,
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
-
-const EMPTY_COMMENT_DRAFT = {
-  body: "",
-  mentionUserIds: [] as string[],
-};
 
 const EMPTY_RELATED_AUDIT_ENTITY_IDS = {
   financialEntryIds: [] as string[],
@@ -240,8 +232,6 @@ export function PeopleDetailEngineClientPage({
   }, [searchParams]);
   const [tabValue, setTabValue] = React.useState<PeopleDetailTabValue>(initialTab);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
-  const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
-  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const draftStateRef = React.useRef<PersonFormData | null>(null);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -252,7 +242,6 @@ export function PeopleDetailEngineClientPage({
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
-    setCommentDraft(EMPTY_COMMENT_DRAFT);
   }, [id, mode]);
 
   React.useEffect(() => {
@@ -525,15 +514,6 @@ export function PeopleDetailEngineClientPage({
     [commitDraft],
   );
 
-  const handleCommitDraft = React.useCallback(
-    (nextDraft: PersonFormData) => {
-      setDraft(nextDraft);
-      draftStateRef.current = nextDraft;
-      commitDraft(nextDraft);
-    },
-    [commitDraft],
-  );
-
   const handleCreate = React.useCallback(async () => {
     if (!token || !canCreate || !draft) return;
     const normalized = normalizePersonDraft(draft);
@@ -598,47 +578,6 @@ export function PeopleDetailEngineClientPage({
       setSaving(false);
     }
   }, [canCreate, draft, router, tenantSlug, toast, token]);
-
-  const handleSubmitComment = React.useCallback(async () => {
-    if (!token || !person || !commentDraft.body.trim()) return;
-    setCommentSubmitting(true);
-    setError(null);
-    try {
-      const updated = await addPersonComment(token, person.id, commentDraft);
-      refreshFromPerson(updated, replaceSavedDraft);
-      setCommentDraft(EMPTY_COMMENT_DRAFT);
-    } catch (nextError) {
-      const message =
-        nextError && typeof nextError === "object" && "message" in nextError
-          ? String((nextError as { message?: string }).message)
-          : "Falha ao comentar na pessoa.";
-      setError(message);
-    } finally {
-      setCommentSubmitting(false);
-    }
-  }, [commentDraft, person, refreshFromPerson, replaceSavedDraft, token]);
-
-  const handleDeleteComment = React.useCallback(
-    async (comment: PersonComment) => {
-      if (!token || !person) return;
-      if (!window.confirm("Excluir este comentario?")) return;
-      setCommentSubmitting(true);
-      setError(null);
-      try {
-        const updated = await deletePersonComment(token, person.id, comment.id);
-        refreshFromPerson(updated, replaceSavedDraft);
-      } catch (nextError) {
-        const message =
-          nextError && typeof nextError === "object" && "message" in nextError
-            ? String((nextError as { message?: string }).message)
-            : "Falha ao excluir comentario.";
-        setError(message);
-      } finally {
-        setCommentSubmitting(false);
-      }
-    },
-    [person, refreshFromPerson, replaceSavedDraft, token],
-  );
 
   const handleSelectAttachment = React.useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -717,17 +656,11 @@ export function PeopleDetailEngineClientPage({
                 : undefined,
           onDraftChange: handleDraftChange,
           onCommitField: handleCommitField,
-          onCommitDraft: handleCommitDraft,
           tabValue,
           onTabChange: handleTabChange,
           auditVisibleCount,
           onAuditVisibleCountChange: setAuditVisibleCount,
-          commentDraft,
-          commentSubmitting,
           attachmentUploading,
-          onCommentDraftChange: setCommentDraft,
-          onSubmitComment: handleSubmitComment,
-          onDeleteComment: handleDeleteComment,
           onUploadAttachment: () => {
             if (!canUpdate || mode !== "edit") return;
             suspendDetailAutoSave();
@@ -750,15 +683,10 @@ export function PeopleDetailEngineClientPage({
       handleAvatarUpdate,
       handleDraftChange,
       handleCommitField,
-      handleCommitDraft,
       tabValue,
       auditVisibleCount,
       handleTabChange,
-      commentDraft,
-      commentSubmitting,
       attachmentUploading,
-      handleSubmitComment,
-      handleDeleteComment,
       handleDeleteAttachment,
     ],
   );
@@ -810,7 +738,7 @@ export function PeopleDetailEngineClientPage({
         auditEnabled={mode === "edit" && canAudit}
         mode={mode}
         headerTitle={displayNames.primary}
-        saving={saving || avatarUploading || attachmentUploading || commentSubmitting}
+        saving={saving || avatarUploading || attachmentUploading}
         loading={loading}
         readOnly={context.readOnly}
         onSave={mode === "create" ? handleCreate : undefined}

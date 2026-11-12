@@ -276,3 +276,16 @@
 .tiptap ::selection {
   background: rgba(25, 118, 210, 0.25);
 }
+
+/* ===============================
+   MENÇÃO (@)
+=============================== */
+
+.richtext-mention {
+  background: rgba(25, 118, 210, 0.12);
+  color: #1976d2;
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-weight: 600;
+  white-space: nowrap;
+}

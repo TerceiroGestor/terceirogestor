@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RichText } from "@/components/ui/richtext/RichText";
 import { Badge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { Network } from "lucide-react";
@@ -35,7 +34,6 @@ import {
 import type {
   Person,
   PersonAttachment,
-  PersonComment,
   PersonFormData,
   PersonMentionableUser,
 } from "@/modules/people/shared/domain/types";
@@ -56,15 +54,8 @@ import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs"
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import { areTagsEqual } from "@/web-client/detail/tag-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import {
-  StandardDetailContextPanel,
-  StandardDetailMetadataSide,
-} from "@/web-client/detail/StandardDetailMetadataSide";
-import {
-  buildAuditHistoryItems,
-} from "@/web-client/detail/audit-feed-utils";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import type {
-  DetailContextItem,
   DetailHeaderActionConfig,
   DetailLayoutConfig,
 } from "@/web-client/registry/types";
@@ -92,25 +83,11 @@ export type PeopleDetailLayoutContext = DetailShellAuditContext & {
     field: K,
     nextValue?: PersonFormData[K],
   ) => void;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
   tabValue: PeopleDetailTabValue;
   onTabChange: (value: PeopleDetailTabValue) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
-  commentDraft: {
-    body: string;
-    mentionUserIds: string[];
-  };
-  commentSubmitting: boolean;
   attachmentUploading: boolean;
-  onCommentDraftChange: React.Dispatch<
-    React.SetStateAction<{
-      body: string;
-      mentionUserIds: string[];
-    }>
-  >;
-  onSubmitComment: () => void;
-  onDeleteComment: (comment: PersonComment) => void;
   onUploadAttachment: () => void;
   onDeleteAttachment: (attachment: PersonAttachment) => void;
 };
@@ -446,41 +423,16 @@ function StatusFields({
   );
 }
 
-function SummaryFields({
-  draft,
-  readOnly,
-  onDraftChange,
-  onCommitDraft,
-}: {
-  draft: PersonFormData;
-  readOnly: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
-}) {
-  return (
-    <SectionField label="Resumo">
-      <RichText
-        value={draft.profileSummary ?? ""}
-        disabled={readOnly}
-        onChange={(value) => onDraftChange((previous) => ({ ...previous, profileSummary: value }))}
-        onBlur={() => onCommitDraft?.({ ...draft })}
-      />
-    </SectionField>
-  );
-}
-
 function BasicDataSection({
   draft,
   readOnly,
   onDraftChange,
   onCommitField,
-  onCommitDraft,
 }: {
   draft: PersonFormData;
   readOnly: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
 }) {
   return (
     <div className="space-y-8">
@@ -513,19 +465,6 @@ function BasicDataSection({
           onCommitField={onCommitField}
         />
       </section>
-
-      <section className="space-y-4">
-        <SectionHeading
-          title="Resumo"
-          description="Observações e histórico narrativo sobre o acompanhamento."
-        />
-        <SummaryFields
-          draft={draft}
-          readOnly={readOnly}
-          onDraftChange={onDraftChange}
-          onCommitDraft={onCommitDraft}
-        />
-      </section>
     </div>
   );
 }
@@ -537,7 +476,6 @@ function PeopleDetailMain({
   readOnly,
   onDraftChange,
   onCommitField,
-  onCommitDraft,
   tabValue,
   onTabChange,
 }: {
@@ -547,7 +485,6 @@ function PeopleDetailMain({
   readOnly: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
-  onCommitDraft?: (nextDraft: PersonFormData) => void;
   tabValue: PeopleDetailTabValue;
   onTabChange: (value: PeopleDetailTabValue) => void;
 }) {
@@ -574,7 +511,6 @@ function PeopleDetailMain({
               readOnly={readOnly}
               onDraftChange={onDraftChange}
               onCommitField={onCommitField}
-              onCommitDraft={onCommitDraft}
             />
           }
           contactsSlot={
@@ -624,12 +560,7 @@ function PeopleDetailSide({
   tagsValue,
   onTagsChange,
   onTagsCommit,
-  commentDraft,
-  commentSubmitting,
   attachmentUploading,
-  onCommentDraftChange,
-  onSubmitComment,
-  onDeleteComment,
   onUploadAttachment,
   onDeleteAttachment,
 }: {
@@ -647,87 +578,10 @@ function PeopleDetailSide({
   tagsValue: string[];
   onTagsChange: (next: string[]) => void;
   onTagsCommit: (next: string[]) => void;
-  commentDraft: {
-    body: string;
-    mentionUserIds: string[];
-  };
-  commentSubmitting: boolean;
   attachmentUploading: boolean;
-  onCommentDraftChange: React.Dispatch<
-    React.SetStateAction<{
-      body: string;
-      mentionUserIds: string[];
-    }>
-  >;
-  onSubmitComment: () => void;
-  onDeleteComment: (comment: PersonComment) => void;
   onUploadAttachment: () => void;
   onDeleteAttachment: (attachment: PersonAttachment) => void;
 }) {
-  const ageValue = getAgeFromBirthDate(person.birthDate);
-  const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
-  const historyItems = React.useMemo(
-    () => buildAuditHistoryItems(detailAudit?.logs ?? []),
-    [detailAudit?.logs],
-  );
-
-  const contextItemsList = React.useMemo<DetailContextItem[]>(
-    () => [
-      { key: "status", label: "Status", value: person.status ?? "Sem status" },
-      { key: "type", label: "Tipo", value: person.personType ?? "Sem tipo" },
-      { key: "birthDate", label: "Nascimento", value: person.birthDate ?? "-" },
-      { key: "age", label: "Idade", value: ageLabel },
-      { key: "email", label: "Email", value: person.email ?? "-" },
-      { key: "phone", label: "Telefone", value: person.phone ?? "-" },
-      { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
-      { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
-      { key: "tags", label: "Tags", value: tagsValue.length },
-    ],
-    [ageLabel, person, tagsValue.length],
-  );
-
-  const contextPanel =
-    mode === "edit" ? (
-      <StandardDetailContextPanel items={contextItemsList} />
-    ) : (
-      <div className="space-y-4 border border-border/60 bg-background px-4 py-4">
-        <div className="space-y-1 border-b border-border/50 pb-3">
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Resumo
-          </div>
-          <div className="text-sm font-medium text-foreground">
-            {resolvePersonDisplayNames(person.fullName, person.socialName).primary}
-          </div>
-          {person.socialName ? (
-            <div className="text-xs text-muted-foreground">{person.socialName}</div>
-          ) : null}
-        </div>
-
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Status</span>
-            <span className="text-foreground">{person.status ?? "Sem status"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Tipo</span>
-            <span className="text-foreground">{person.personType ?? "Sem tipo"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Nascimento</span>
-            <span className="text-foreground">{person.birthDate ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Email</span>
-            <span className="text-foreground">{person.email ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Telefone</span>
-            <span className="text-foreground">{person.phone ?? "-"}</span>
-          </div>
-        </div>
-      </div>
-    );
-
   return (
     <StandardDetailMetadataSide
       mode={mode}
@@ -736,32 +590,14 @@ function PeopleDetailSide({
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit={canAudit}
-      comments={{
-        items: person.comments ?? [],
-        draft: commentDraft,
-        users: mentionableUsers,
-        onDraftChange: onCommentDraftChange,
-        onSubmit: onSubmitComment,
-        onDelete: readOnly
-          ? undefined
-          : (commentId) => {
-              const comment = (person.comments ?? []).find((entry) => entry.id === commentId);
-              if (comment) {
-                onDeleteComment(comment);
-              }
-            },
-        submitting: commentSubmitting,
-        readOnly,
-        emptyLabel:
-          mode === "create"
-            ? "Indisponível."
-            : "Nenhum comentário.",
-      }}
       notes={{
         value: notesValue,
         onChange: onNotesChange,
         onBlur: onNotesCommit,
         readOnly,
+        placeholder: "Notas internas sobre esta pessoa. Use @ para mencionar alguém.",
+        richText: true,
+        mentionUsers: mentionableUsers,
       }}
       tags={{
         value: tagsValue,
@@ -808,14 +644,7 @@ function PeopleDetailSide({
               ? "Enviando..."
               : "Nenhum anexo.",
       }}
-      history={{
-        items: historyItems,
-        emptyLabel:
-          mode === "create"
-            ? "Sem histórico."
-            : "Nenhum histórico.",
-      }}
-      contextPanel={contextPanel}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       defaultTab="activity"
     />
   );
@@ -834,12 +663,7 @@ const MemoizedPeopleDetailSide = React.memo(
     previous.notesValue === next.notesValue &&
     areTagsEqual(previous.tagsValue, next.tagsValue) &&
     areMentionableUsersEqual(previous.mentionableUsers, next.mentionableUsers) &&
-    previous.commentDraft === next.commentDraft &&
-    previous.commentSubmitting === next.commentSubmitting &&
     previous.attachmentUploading === next.attachmentUploading &&
-    previous.onCommentDraftChange === next.onCommentDraftChange &&
-    previous.onSubmitComment === next.onSubmitComment &&
-    previous.onDeleteComment === next.onDeleteComment &&
     previous.onUploadAttachment === next.onUploadAttachment &&
     previous.onDeleteAttachment === next.onDeleteAttachment,
 );
@@ -949,7 +773,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     readOnly,
     onDraftChange,
     onCommitField,
-    onCommitDraft,
     tabValue,
     onTabChange,
   }) => (
@@ -960,7 +783,6 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
       readOnly={readOnly}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
-      onCommitDraft={onCommitDraft}
       tabValue={tabValue}
       onTabChange={onTabChange}
     />
@@ -977,12 +799,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
-    commentDraft,
-    commentSubmitting,
     attachmentUploading,
-    onCommentDraftChange,
-    onSubmitComment,
-    onDeleteComment,
     onUploadAttachment,
     onDeleteAttachment,
   }) => (
@@ -1005,12 +822,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         onDraftChange((previous) => ({ ...previous, tags: nextTags }));
       }}
       onTagsCommit={(nextTags) => onCommitField?.("tags", nextTags)}
-      commentDraft={commentDraft}
-      commentSubmitting={commentSubmitting}
       attachmentUploading={attachmentUploading}
-      onCommentDraftChange={onCommentDraftChange}
-      onSubmitComment={onSubmitComment}
-      onDeleteComment={onDeleteComment}
       onUploadAttachment={onUploadAttachment}
       onDeleteAttachment={onDeleteAttachment}
     />
