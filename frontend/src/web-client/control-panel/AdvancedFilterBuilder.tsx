@@ -54,8 +54,8 @@ const DEFAULT_OPERATORS_BY_TYPE: Record<
 function resolveFieldOptions(field: SearchFieldDefinition) {
   if (field.type === "boolean" && !field.options?.length) {
     return [
-      { value: "true", label: "Sim" },
-      { value: "false", label: "Nao" },
+      { value: "true", label: "Verdadeiro" },
+      { value: "false", label: "Falso" },
     ];
   }
 

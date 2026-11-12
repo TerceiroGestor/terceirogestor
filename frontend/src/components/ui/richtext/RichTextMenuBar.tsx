@@ -12,6 +12,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
       <div className="toolbar-group">
         <button
           type="button"
+          title="Negrito"
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!state.canBold}
           className={state.isBold ? "active" : ""}
@@ -21,6 +22,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Italico"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={!state.canItalic}
           className={state.isItalic ? "active" : ""}
@@ -30,6 +32,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Tachado"
           onClick={() => editor.chain().focus().toggleStrike().run()}
           disabled={!state.canStrike}
           className={state.isStrike ? "active" : ""}
@@ -39,6 +42,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Codigo"
           onClick={() => editor.chain().focus().toggleCode().run()}
           disabled={!state.canCode}
           className={state.isCode ? "active" : ""}
@@ -53,6 +57,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
       <div className="toolbar-group">
         <button
           type="button"
+          title="Paragrafo"
           onClick={() => editor.chain().focus().setParagraph().run()}
           className={state.isParagraph ? "active" : ""}
         >
@@ -61,6 +66,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Titulo 1"
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 1 }).run()
           }
@@ -71,6 +77,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Titulo 2"
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 2 }).run()
           }
@@ -81,6 +88,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Titulo 3"
           onClick={() =>
             editor.chain().focus().toggleHeading({ level: 3 }).run()
           }
@@ -96,6 +104,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
       <div className="toolbar-group">
         <button
           type="button"
+          title="Lista com marcadores"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={state.isBulletList ? "active" : ""}
         >
@@ -104,6 +113,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Lista numerada"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           className={state.isOrderedList ? "active" : ""}
         >
@@ -112,6 +122,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Citacao"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           className={state.isBlockquote ? "active" : ""}
         >
@@ -120,6 +131,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Bloco de codigo"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           className={state.isCodeBlock ? "active" : ""}
         >
@@ -133,13 +145,15 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
       <div className="toolbar-group">
         <button
           type="button"
+          title="Limpar formatacao"
           onClick={() => editor.chain().focus().unsetAllMarks().run()}
         >
-          Clear
+          ⌫
         </button>
 
         <button
           type="button"
+          title="Linha horizontal"
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
         >
           ―
@@ -152,6 +166,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
       <div className="toolbar-group">
         <button
           type="button"
+          title="Desfazer"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!state.canUndo}
         >
@@ -160,6 +175,7 @@ export function RichTextMenuBar({ editor }: { editor: Editor }) {
 
         <button
           type="button"
+          title="Refazer"
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!state.canRedo}
         >

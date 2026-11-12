@@ -42,6 +42,13 @@ function operatorLabel(operator: string) {
   }
 }
 
+function describeBooleanValue(value: unknown): string | null {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "sim", "yes"].includes(normalized)) return "Verdadeiro";
+  if (["false", "0", "nao", "não", "no"].includes(normalized)) return "Falso";
+  return null;
+}
+
 function describeValue(
   fieldName: string,
   value: unknown,
@@ -58,14 +65,19 @@ function describeValue(
       return value
         .map((entry) => {
           const option = field.options?.find((candidate) => candidate.value === String(entry));
-          return option?.label ?? String(entry ?? "");
+          if (option) return option.label;
+          return field.type === "boolean" ? describeBooleanValue(entry) ?? String(entry ?? "") : String(entry ?? "");
         })
         .filter(Boolean)
         .join(", ");
     }
 
     const option = field.options?.find((candidate) => candidate.value === String(value));
-    return option?.label ?? String(value ?? "");
+    if (option) return option.label;
+    if (field.type === "boolean") {
+      return describeBooleanValue(value) ?? String(value ?? "");
+    }
+    return String(value ?? "");
   }
   if (field?.type === "date" && Array.isArray(value)) {
     const [from, to] = value;

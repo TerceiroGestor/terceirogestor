@@ -103,14 +103,45 @@ export const parseAdvancedFilters = (raw?: string) =>
 
 export const parseGrouping = (raw?: string) => parseJsonArray<string>(raw);
 
+// "isBirthdayMonth" nao e' coluna do banco (e' calculado a partir de
+// birthDate na leitura, ver mapPerson) - por isso nao pode ser resolvido
+// pelo buildAdvancedFilter generico. E' extraido do array de filtros ANTES
+// de chegar la; quem chama (people.service.ts#findAll) resolve os ids via
+// $queryRaw (EXTRACT(MONTH ...) nao tem equivalente no query builder do
+// Prisma) e devolve a lista pronta em `birthdayMonthPersonIds`.
+const BIRTHDAY_MONTH_FILTER_FIELD = 'isBirthdayMonth';
+
+export const extractBirthdayMonthFilter = (
+  filters: AdvancedFilter[],
+): { filters: AdvancedFilter[]; wantsBirthdayMonth: boolean | null } => {
+  const index = filters.findIndex(
+    (filter) => filter.columnId === BIRTHDAY_MONTH_FILTER_FIELD,
+  );
+  if (index === -1) {
+    return { filters, wantsBirthdayMonth: null };
+  }
+
+  const normalized = filters[index]!.value?.trim().toLowerCase();
+  const isTrue = ['true', '1', 'sim', 'yes'].includes(normalized ?? '');
+  const isFalse = ['false', '0', 'nao', 'não', 'no'].includes(normalized ?? '');
+
+  return {
+    filters: filters.filter((_, i) => i !== index),
+    wantsBirthdayMonth: isTrue ? true : isFalse ? false : null,
+  };
+};
+
 export const buildPeopleWhere = ({
   tenantId,
   query,
   filters,
+  birthdayMonthPersonIds,
 }: {
   tenantId: string;
   query?: string;
   filters: AdvancedFilter[];
+  /** Ids ja resolvidos (ver extractBirthdayMonthFilter) para o filtro de aniversariante do mes. */
+  birthdayMonthPersonIds?: string[] | null;
 }): Prisma.PersonWhereInput => {
   const andFilters: Prisma.PersonWhereInput[] = [];
   const q = query?.trim();
@@ -121,6 +152,10 @@ export const buildPeopleWhere = ({
         [field]: { contains: q },
       })) as Prisma.PersonWhereInput[],
     });
+  }
+
+  if (birthdayMonthPersonIds) {
+    andFilters.push({ id: { in: birthdayMonthPersonIds } });
   }
 
   filters

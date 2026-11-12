@@ -66,6 +66,25 @@ export type DetailShellProps = {
   labels?: DetailShellLabels;
 };
 
+const SIDE_WIDTH_STORAGE_KEY = "detailshell.sideWidth";
+const DEFAULT_SIDE_WIDTH = 420;
+const MIN_SIDE_WIDTH = 320;
+const MAX_SIDE_WIDTH = 720;
+
+function readStoredSideWidth(): number {
+  if (typeof window === "undefined") return DEFAULT_SIDE_WIDTH;
+  try {
+    const raw = window.localStorage.getItem(SIDE_WIDTH_STORAGE_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed)) {
+      return Math.min(MAX_SIDE_WIDTH, Math.max(MIN_SIDE_WIDTH, parsed));
+    }
+  } catch {
+    // Armazenamento indisponivel (modo privado, cota excedida) - usa o padrao.
+  }
+  return DEFAULT_SIDE_WIDTH;
+}
+
 const DEFAULT_LABELS: Required<DetailShellLabels> = {
   createSubtitle: "Criar",
   detailsSubtitle: "Detalhes",
@@ -114,6 +133,64 @@ export function DetailShell({
     () => ({ ...DEFAULT_LABELS, ...(labels ?? {}) }),
     [labels],
   );
+
+  const [sideWidth, setSideWidth] = React.useState(readStoredSideWidth);
+  const [isResizingSide, setIsResizingSide] = React.useState(false);
+  const resizeStateRef = React.useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const handleResizeStart = React.useCallback(
+    (event: React.PointerEvent) => {
+      event.preventDefault();
+      resizeStateRef.current = { startX: event.clientX, startWidth: sideWidth };
+      setIsResizingSide(true);
+    },
+    [sideWidth],
+  );
+
+  React.useEffect(() => {
+    if (!isResizingSide) return;
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMove = (event: PointerEvent) => {
+      const dragState = resizeStateRef.current;
+      if (!dragState) return;
+      // A alça fica na borda esquerda do painel: arrastar pra esquerda (clientX
+      // menor) deve alargar o painel, por isso o delta e' invertido.
+      const delta = dragState.startX - event.clientX;
+      const nextWidth = Math.min(
+        MAX_SIDE_WIDTH,
+        Math.max(MIN_SIDE_WIDTH, dragState.startWidth + delta),
+      );
+      setSideWidth(nextWidth);
+    };
+
+    const handleUp = () => {
+      setIsResizingSide(false);
+      resizeStateRef.current = null;
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [isResizingSide]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SIDE_WIDTH_STORAGE_KEY, String(sideWidth));
+    } catch {
+      // Armazenamento indisponivel - a largura so' nao persiste, sem quebrar a tela.
+    }
+  }, [sideWidth]);
 
   React.useEffect(() => {
     if (!hasSideSlot) {
@@ -240,12 +317,15 @@ export function DetailShell({
         {mainSlot || sideSlot || bottomSlot ? (
           <div
             className={cn(
-              "grid grid-cols-1 gap-6 lg:h-full lg:items-start lg:overflow-hidden",
-              hasSideSlot && sideOpen && !isMobile
-                ? "lg:grid-cols-[minmax(0,1fr)_minmax(360px,30vw)]"
-                : null,
+              "grid grid-cols-1 lg:h-full lg:items-start lg:overflow-hidden",
+              hasSideSlot && sideOpen && !isMobile ? null : "gap-6",
               bodyClassName,
             )}
+            style={
+              hasSideSlot && sideOpen && !isMobile
+                ? { gridTemplateColumns: `minmax(0,1fr) auto ${sideWidth}px` }
+                : undefined
+            }
           >
             <div
               className={cn(
@@ -292,8 +372,22 @@ export function DetailShell({
             </div>
             {hasSideSlot && sideOpen && !isMobile ? (
               <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Redimensionar painel lateral"
+                onPointerDown={handleResizeStart}
                 className={cn(
-                  "min-w-0 lg:flex lg:min-h-0 lg:h-full lg:flex-col lg:overflow-hidden lg:border-l lg:border-border/60 lg:pl-8",
+                  "relative hidden self-stretch lg:block",
+                  "w-3 shrink-0 cursor-col-resize touch-none select-none",
+                  "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border/60",
+                  isResizingSide ? "after:bg-primary/70" : "hover:after:bg-primary/40",
+                )}
+              />
+            ) : null}
+            {hasSideSlot && sideOpen && !isMobile ? (
+              <div
+                className={cn(
+                  "min-w-0 lg:flex lg:min-h-0 lg:h-full lg:flex-col lg:overflow-hidden",
                   sideClassName,
                 )}
               >

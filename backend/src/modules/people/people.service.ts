@@ -59,6 +59,7 @@ import { UpdatePersonRelationDto } from './dto/update-person-relation.dto';
 import {
   buildPeopleOrderBy,
   buildPeopleWhere,
+  extractBirthdayMonthFilter,
   parseAdvancedFilters,
   parseGrouping,
   NOT_EXCLUDED_PERSON_FILTER,
@@ -986,12 +987,19 @@ export class PeopleService {
       maxLimit: MAX_LIMIT,
     });
 
-    const filters = parseAdvancedFilters(query.filters);
+    const { filters, wantsBirthdayMonth } = extractBirthdayMonthFilter(
+      parseAdvancedFilters(query.filters),
+    );
     const grouping = parseGrouping(query.groupBy);
+    const birthdayMonthPersonIds =
+      wantsBirthdayMonth === null
+        ? null
+        : await this.resolveBirthdayMonthPersonIds(tenantId, wantsBirthdayMonth);
     const where = buildPeopleWhere({
       tenantId,
       query: query.q,
       filters,
+      birthdayMonthPersonIds,
     });
     const orderBy = buildPeopleOrderBy(grouping);
 
@@ -1018,6 +1026,35 @@ export class PeopleService {
         isAll,
       }),
     };
+  }
+
+  // O filtro "aniversariante do mes" nao tem equivalente no query builder
+  // do Prisma (seria preciso EXTRACT(MONTH FROM "birthDate"), que o
+  // findMany/where tipado nao expõe) - por isso resolve os ids numa query
+  // bruta, parametrizada pelo prisma (sem risco de SQL injection: tenantId
+  // vem do usuario autenticado, nunca de input livre), e devolve pro
+  // findAll aplicar como um filtro normal de id.
+  private async resolveBirthdayMonthPersonIds(
+    tenantId: string,
+    wantsBirthdayMonth: boolean,
+  ): Promise<string[]> {
+    const rows = wantsBirthdayMonth
+      ? await this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Person"
+          WHERE "tenantId" = ${tenantId}
+            AND "birthDate" IS NOT NULL
+            AND EXTRACT(MONTH FROM "birthDate") = EXTRACT(MONTH FROM CURRENT_DATE)
+        `
+      : await this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Person"
+          WHERE "tenantId" = ${tenantId}
+            AND (
+              "birthDate" IS NULL
+              OR EXTRACT(MONTH FROM "birthDate") <> EXTRACT(MONTH FROM CURRENT_DATE)
+            )
+        `;
+
+    return rows.map((row) => row.id);
   }
 
   async findById(tenantId: string, id: string) {

@@ -4,10 +4,11 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import type { ApiPerson } from "@/modules/people/api";
+import { updatePerson, type ApiPerson } from "@/modules/people/api";
 import {
   buildAnalysisFacets,
   buildAnalysisSlot,
@@ -24,7 +25,7 @@ import {
   type PeopleListQueryState,
 } from "@/modules/people/config/people-module-contract";
 import { mapApiPersonToTableItem } from "@/modules/people/shared/domain/people-module.helpers";
-import type { PeopleTableItem } from "@/modules/people/shared/domain/types";
+import type { PeopleTableItem, PersonFormData } from "@/modules/people/shared/domain/types";
 import {
   formatDate,
   resolvePersonDisplayNames,
@@ -146,18 +147,64 @@ export function PeopleListModuleClientPage() {
     permissions,
   );
 
+  const { toast } = useToast();
   const dataProvider = React.useMemo(
     () => createRestDataProvider({ token }),
     [token],
   );
   const graphBuilder = getModuleGraphBuilderConfig(peopleListModuleDefinition);
-  const columns = usePeopleColumns();
 
   const [rows, setRows] = React.useState<PeopleTableItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(1);
   const [totalCount, setTotalCount] = React.useState(0);
+  const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
+
+  const tagSuggestions = React.useMemo(() => {
+    const tags = new Set<string>();
+    rows.forEach((row) => {
+      (row.tags ?? []).forEach((tag) => {
+        const cleaned = tag.trim();
+        if (cleaned) tags.add(cleaned);
+      });
+    });
+    return Array.from(tags).sort((left, right) => left.localeCompare(right));
+  }, [rows]);
+
+  const handleInlineUpdate = React.useCallback(
+    async (personId: string, patch: Partial<Omit<PersonFormData, "avatarUrl">>) => {
+      if (!token) return;
+      setUpdatingIds((previous) => new Set(previous).add(personId));
+      try {
+        const updated = await updatePerson(token, personId, patch);
+        setRows((previous) =>
+          previous.map((row) =>
+            row.id === personId ? mapApiPersonToTableItem(updated) : row,
+          ),
+        );
+      } catch (nextError) {
+        const message =
+          nextError && typeof nextError === "object" && "message" in nextError
+            ? String((nextError as { message?: string }).message)
+            : "Falha ao atualizar pessoa.";
+        toast({ variant: "destructive", title: "Erro", description: message });
+      } finally {
+        setUpdatingIds((previous) => {
+          const next = new Set(previous);
+          next.delete(personId);
+          return next;
+        });
+      }
+    },
+    [toast, token],
+  );
+
+  const columns = usePeopleColumns({
+    onInlineUpdate: handleInlineUpdate,
+    updatingIds,
+    tagSuggestions,
+  });
 
   const [state, setState] = useModuleQueryState<PeopleListQueryState>({
     moduleDefinition: peopleListModuleDefinition,
@@ -483,6 +530,7 @@ export function PeopleListModuleClientPage() {
               left: ["fullName"],
               right: ["status"],
             }}
+            storageKey="people.list"
           />
 
           <PaginationBar

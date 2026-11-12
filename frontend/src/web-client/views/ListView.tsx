@@ -10,14 +10,25 @@ import type {
   RowSelectionState,
   SortingState,
   Table as TanstackTable,
+  VisibilityState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal, PinIcon, PinOff } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Columns3,
+  MoreHorizontal,
+  PinIcon,
+  PinOff,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -34,6 +45,74 @@ import {
   ModuleEmptyState,
   ModuleSurface,
 } from "@/web-client/ui/ModulePrimitives";
+
+const COLUMN_VISIBILITY_STORAGE_PREFIX = "listview.columnVisibility.";
+
+function readStoredColumnVisibility(storageKey?: string): VisibilityState | null {
+  if (!storageKey || typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(`${COLUMN_VISIBILITY_STORAGE_PREFIX}${storageKey}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as VisibilityState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredColumnVisibility(storageKey: string, visibility: VisibilityState) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      `${COLUMN_VISIBILITY_STORAGE_PREFIX}${storageKey}`,
+      JSON.stringify(visibility),
+    );
+  } catch {
+    // Armazenamento indisponivel (modo privado, cota excedida) - preferencia
+    // simplesmente nao persiste, sem quebrar a lista.
+  }
+}
+
+function resolveColumnLabel<TData>(column: Column<TData, unknown>) {
+  const header = column.columnDef.header;
+  if (typeof header === "string" && header.trim()) return header;
+  return column.id;
+}
+
+function ColumnVisibilityMenu<TData>({ table }: { table: TanstackTable<TData> }) {
+  const toggleableColumns = table
+    .getAllLeafColumns()
+    .filter((column) => column.id !== "__select__" && column.getCanHide());
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
+          <Columns3 className="size-3.5" />
+          Colunas
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+        <DropdownMenuLabel>Colunas visiveis</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {toggleableColumns.map((column) => (
+          <DropdownMenuCheckboxItem
+            key={column.id}
+            checked={column.getIsVisible()}
+            onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
+            onSelect={(event) => event.preventDefault()}
+          >
+            {resolveColumnLabel(column)}
+          </DropdownMenuCheckboxItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => table.toggleAllColumnsVisible(true)}>
+          Mostrar todas
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function shouldIgnoreRowClick(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -302,6 +381,7 @@ export function ListView<TData>({
   resolveGroupLabel = defaultGroupLabel,
   enableColumnTools = true,
   initialColumnPinning,
+  storageKey,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -316,12 +396,26 @@ export function ListView<TData>({
   resolveGroupLabel?: (field: string, groupValue: unknown) => string;
   enableColumnTools?: boolean;
   initialColumnPinning?: ColumnPinningState;
+  /**
+   * Chave estavel para lembrar, por usuario/navegador, quais colunas ficam
+   * visiveis nesta lista (ex.: "people.list"). Sem isso, o controle de
+   * colunas funciona normalmente, só nao sobrevive a um reload.
+   */
+  storageKey?: string;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
     () => initialColumnPinning ?? {},
   );
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => readStoredColumnVisibility(storageKey) ?? {},
+  );
+
+  React.useEffect(() => {
+    if (!storageKey) return;
+    writeStoredColumnVisibility(storageKey, columnVisibility);
+  }, [columnVisibility, storageKey]);
 
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown> | null>(() => {
     if (!enableRowSelection) return null;
@@ -358,12 +452,13 @@ export function ListView<TData>({
   const table = useReactTable({
     data,
     columns: effectiveColumns,
-    state: { sorting, rowSelection, columnPinning },
+    state: { sorting, rowSelection, columnPinning, columnVisibility },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     onColumnPinningChange: setColumnPinning,
+    onColumnVisibilityChange: setColumnVisibility,
     enableColumnPinning: true,
     enableRowSelection,
     getRowId: getRowId
@@ -405,15 +500,24 @@ export function ListView<TData>({
 
   return (
     <ModuleSurface className={cn("flex h-full min-h-0 flex-col", className)}>
-      {enableRowSelection && bulkActions && selectedRows.length ? (
+      {enableColumnTools || (enableRowSelection && bulkActions && selectedRows.length) ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
           <div className="text-muted-foreground">
-            Selecionados:{" "}
-            <span className="font-mono tabular-nums text-foreground">
-              {selectedRows.length}
-            </span>
+            {enableRowSelection && bulkActions && selectedRows.length ? (
+              <>
+                Selecionados:{" "}
+                <span className="font-mono tabular-nums text-foreground">
+                  {selectedRows.length}
+                </span>
+              </>
+            ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">{bulkActions(selectedRows)}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            {enableRowSelection && bulkActions && selectedRows.length
+              ? bulkActions(selectedRows)
+              : null}
+            {enableColumnTools ? <ColumnVisibilityMenu table={table} /> : null}
+          </div>
         </div>
       ) : null}
 
@@ -446,7 +550,7 @@ export function ListView<TData>({
                             {node.label}
                           </div>
                         </div>
-                        <div className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                        <div className="shrink-0 rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-foreground">
                           {node.count}
                         </div>
                       </button>

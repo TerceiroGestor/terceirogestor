@@ -28,6 +28,16 @@ export const peopleSearchView: SearchViewDefinition = {
       domain: { type: "condition", field: "status", operator: "=", value: "Ativo" },
     },
     {
+      id: "inactive",
+      label: "Inativos",
+      domain: { type: "condition", field: "status", operator: "=", value: "Inativo" },
+    },
+    {
+      id: "departed",
+      label: "Desligados",
+      domain: { type: "condition", field: "status", operator: "=", value: "Desligado" },
+    },
+    {
       id: "health",
       label: "Com condicao de saude",
       domain: {
@@ -43,6 +53,16 @@ export const peopleSearchView: SearchViewDefinition = {
       domain: {
         type: "condition",
         field: "hasMedication",
+        operator: "=",
+        value: "true",
+      },
+    },
+    {
+      id: "birthday-month",
+      label: "Aniversariantes do mes",
+      domain: {
+        type: "condition",
+        field: "isBirthdayMonth",
         operator: "=",
         value: "true",
       },
@@ -101,6 +121,7 @@ export const peopleSearchView: SearchViewDefinition = {
     { name: "tags", label: "Tags", type: "multi-select", operators: ["in", "contains", "is_null", "not_null"] },
     { name: "hasHealthCondition", label: "Condicao de saude", type: "boolean", operators: ["="] },
     { name: "hasMedication", label: "Medicacao", type: "boolean", operators: ["="] },
+    { name: "isBirthdayMonth", label: "Aniversariante do mes", type: "boolean", operators: ["="] },
     { name: "createdAt", label: "Cadastro", type: "date", operators: ["between", ">=", "<=", "="] },
     { name: "updatedAt", label: "Atualizado em", type: "date", operators: ["between", ">=", "<=", "="] },
   ],
