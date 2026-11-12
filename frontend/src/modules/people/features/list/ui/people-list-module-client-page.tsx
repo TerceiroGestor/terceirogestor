@@ -447,6 +447,7 @@ export function PeopleListModuleClientPage() {
       onCreate={openCreate}
       canCreate={canCreate}
       analysisSlot={analysisSlot}
+      columns={columns as ColumnDef<PeopleTableItem, unknown>[]}
       hasActiveAnalysis={hasActiveAnalysis(peopleListModuleDefinition, state)}
       onResetAnalysis={() =>
         setState((previous) => ({
@@ -530,7 +531,6 @@ export function PeopleListModuleClientPage() {
               left: ["fullName"],
               right: ["status"],
             }}
-            storageKey="people.list"
           />
 
           <PaginationBar

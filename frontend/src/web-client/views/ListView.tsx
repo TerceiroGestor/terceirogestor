@@ -25,10 +25,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -48,7 +46,7 @@ import {
 
 const COLUMN_VISIBILITY_STORAGE_PREFIX = "listview.columnVisibility.";
 
-function readStoredColumnVisibility(storageKey?: string): VisibilityState | null {
+export function readStoredColumnVisibility(storageKey?: string): VisibilityState | null {
   if (!storageKey || typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(`${COLUMN_VISIBILITY_STORAGE_PREFIX}${storageKey}`);
@@ -60,7 +58,7 @@ function readStoredColumnVisibility(storageKey?: string): VisibilityState | null
   }
 }
 
-function writeStoredColumnVisibility(storageKey: string, visibility: VisibilityState) {
+export function writeStoredColumnVisibility(storageKey: string, visibility: VisibilityState) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(
@@ -73,40 +71,172 @@ function writeStoredColumnVisibility(storageKey: string, visibility: VisibilityS
   }
 }
 
-function resolveColumnLabel<TData>(column: Column<TData, unknown>) {
-  const header = column.columnDef.header;
-  if (typeof header === "string" && header.trim()) return header;
-  return column.id;
+type ColumnVisibilityContextValue = {
+  // Tipo de linha não importa aqui - só id/header/enableHiding dos ColumnDef.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: ColumnDef<any, unknown>[];
+  visibility: VisibilityState;
+  setVisibility: (next: VisibilityState) => void;
+};
+
+const ColumnVisibilityContext = React.createContext<ColumnVisibilityContextValue | null>(null);
+
+function useColumnVisibilityContext() {
+  return React.useContext(ColumnVisibilityContext);
 }
 
-function ColumnVisibilityMenu<TData>({ table }: { table: TanstackTable<TData> }) {
-  const toggleableColumns = table
-    .getAllLeafColumns()
-    .filter((column) => column.id !== "__select__" && column.getCanHide());
+/**
+ * Padrão reutilizável pra qualquer módulo: envolva a tela (normalmente dentro
+ * do próprio `EntityModuleShell`, ver `RecordListHost.tsx`) com este provider
+ * passando `columns` e uma `storageKey` estável (ex.: `moduleDefinition.moduleId`).
+ * Isso já é suficiente pra: (1) o botão "Colunas" aparecer sozinho na barra de
+ * busca, perto do filtro, e (2) o `ListView` dentro do provider detectar o
+ * estado automaticamente - nenhuma prop extra precisa ser passada pra ele.
+ * Sem o provider, `ListView` continua funcionando como antes (estado próprio,
+ * botão dentro da própria lista).
+ */
+export function ColumnVisibilityProvider({
+  storageKey,
+  columns,
+  children,
+}: {
+  storageKey: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: ColumnDef<any, unknown>[];
+  children: React.ReactNode;
+}) {
+  const [visibility, setVisibility] = React.useState<VisibilityState>(
+    () => readStoredColumnVisibility(storageKey) ?? {},
+  );
+
+  React.useEffect(() => {
+    writeStoredColumnVisibility(storageKey, visibility);
+  }, [storageKey, visibility]);
+
+  const value = React.useMemo(
+    () => ({ columns, visibility, setVisibility }),
+    [columns, visibility],
+  );
+
+  return (
+    <ColumnVisibilityContext.Provider value={value}>
+      {children}
+    </ColumnVisibilityContext.Provider>
+  );
+}
+
+type ColumnVisibilityOption = { id: string; label: string };
+
+function resolveColumnDefId<TData>(columnDef: ColumnDef<TData, unknown>): string | undefined {
+  if (columnDef.id) return columnDef.id;
+  const accessorKey = (columnDef as { accessorKey?: unknown }).accessorKey;
+  return typeof accessorKey === "string" ? accessorKey : undefined;
+}
+
+function resolveColumnDefLabel<TData>(columnDef: ColumnDef<TData, unknown>, id: string) {
+  const header = columnDef.header;
+  if (typeof header === "string" && header.trim()) return header;
+  return id;
+}
+
+/**
+ * Ao contrário da versão anterior (que lia direto de `table.getAllLeafColumns()`),
+ * este menu só depende de `columns`/`visibility`/`onVisibilityChange` - dá pra
+ * renderizar em qualquer lugar (ex.: dentro da barra de busca, perto do botão de
+ * filtro), não só dentro do `ListView`. A seleção usa `Checkbox` como indicador
+ * puramente visual (pointer-events-none) com o clique tratado na linha inteira,
+ * evitando depender do `onCheckedChange`/`onSelect` do Radix `CheckboxItem`
+ * (era onde o estado não propagava de forma confiável).
+ */
+export function ColumnVisibilityMenu<TData>({
+  columns: columnsProp,
+  visibility: visibilityProp,
+  onVisibilityChange: onVisibilityChangeProp,
+  triggerLabel = "Colunas",
+  showTriggerLabel = true,
+  triggerVariant = "outline",
+  triggerSize = "sm",
+  triggerClassName,
+}: {
+  /** Opcional: sem isso, lê do `ColumnVisibilityProvider` mais próximo. */
+  columns?: ColumnDef<TData, unknown>[];
+  visibility?: VisibilityState;
+  onVisibilityChange?: (next: VisibilityState) => void;
+  triggerLabel?: string;
+  /** Quando false, mostra só o ícone - mesmo padrão do botão de filtro. */
+  showTriggerLabel?: boolean;
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
+  triggerClassName?: string;
+}) {
+  const context = useColumnVisibilityContext();
+  const contextColumns = context?.columns;
+  const visibility = visibilityProp ?? context?.visibility ?? {};
+  const onVisibilityChange = onVisibilityChangeProp ?? context?.setVisibility;
+
+  const options = React.useMemo<ColumnVisibilityOption[]>(() => {
+    const columns = (columnsProp ?? contextColumns ?? []) as ColumnDef<TData, unknown>[];
+    return columns
+      .map((columnDef) => {
+        if (columnDef.enableHiding === false) return null;
+        const id = resolveColumnDefId(columnDef);
+        if (!id || id === "__select__") return null;
+        return { id, label: resolveColumnDefLabel(columnDef, id) };
+      })
+      .filter((option): option is ColumnVisibilityOption => Boolean(option));
+  }, [columnsProp, contextColumns]);
+
+  if (!options.length || !onVisibilityChange) return null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
-          <Columns3 className="size-3.5" />
-          Colunas
+        <Button
+          type="button"
+          variant={triggerVariant}
+          size={triggerSize}
+          className={cn(showTriggerLabel ? "gap-1.5" : undefined, triggerClassName)}
+          title={triggerLabel}
+          aria-label={triggerLabel}
+        >
+          <Columns3 className="size-4" />
+          {showTriggerLabel ? triggerLabel : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
-        <DropdownMenuLabel>Colunas visiveis</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
+        <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Colunas visiveis
+        </div>
         <DropdownMenuSeparator />
-        {toggleableColumns.map((column) => (
-          <DropdownMenuCheckboxItem
-            key={column.id}
-            checked={column.getIsVisible()}
-            onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
-            onSelect={(event) => event.preventDefault()}
-          >
-            {resolveColumnLabel(column)}
-          </DropdownMenuCheckboxItem>
-        ))}
+        {options.map((option) => {
+          const isVisible = visibility[option.id] !== false;
+          return (
+            <div
+              key={option.id}
+              role="menuitemcheckbox"
+              aria-checked={isVisible}
+              tabIndex={0}
+              onClick={() =>
+                onVisibilityChange({ ...visibility, [option.id]: !isVisible })
+              }
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onVisibilityChange({ ...visibility, [option.id]: !isVisible });
+              }}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent focus:bg-accent"
+            >
+              <Checkbox
+                checked={isVisible}
+                tabIndex={-1}
+                className="pointer-events-none"
+              />
+              <span className="truncate">{option.label}</span>
+            </div>
+          );
+        })}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => table.toggleAllColumnsVisible(true)}>
+        <DropdownMenuItem onClick={() => onVisibilityChange({})}>
           Mostrar todas
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -380,8 +510,11 @@ export function ListView<TData>({
   groupByFields,
   resolveGroupLabel = defaultGroupLabel,
   enableColumnTools = true,
+  showColumnVisibilityButton = true,
   initialColumnPinning,
   storageKey,
+  columnVisibility: controlledColumnVisibility,
+  onColumnVisibilityChange,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -395,27 +528,66 @@ export function ListView<TData>({
   groupByFields?: string[] | null;
   resolveGroupLabel?: (field: string, groupValue: unknown) => string;
   enableColumnTools?: boolean;
+  /**
+   * Mostra o botão "Colunas" dentro da própria lista. Desative quando o
+   * módulo preferir renderizar o `ColumnVisibilityMenu` em outro lugar
+   * (ex.: na barra de busca, perto do filtro) usando `columnVisibility`/
+   * `onColumnVisibilityChange` controlados.
+   */
+  showColumnVisibilityButton?: boolean;
   initialColumnPinning?: ColumnPinningState;
   /**
    * Chave estavel para lembrar, por usuario/navegador, quais colunas ficam
    * visiveis nesta lista (ex.: "people.list"). Sem isso, o controle de
-   * colunas funciona normalmente, só nao sobrevive a um reload.
+   * colunas funciona normalmente, só nao sobrevive a um reload. Ignorado
+   * quando `columnVisibility` é controlado de fora.
    */
   storageKey?: string;
+  /** Estado controlado de visibilidade - quando informado, substitui o estado interno. */
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (next: VisibilityState) => void;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
     () => initialColumnPinning ?? {},
   );
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
-    () => readStoredColumnVisibility(storageKey) ?? {},
+  // Detecta um `ColumnVisibilityProvider` ancestral (ver RecordListHost.tsx) -
+  // é o padrão reutilizável: o módulo só envolve a tela com o provider e
+  // tanto o botão "Colunas" quanto este `ListView` já ficam sincronizados,
+  // sem nenhuma prop extra. Prioridade: prop controlada explícita > provider
+  // > estado interno (comportamento de sempre, pra quem não usa nenhum dos dois).
+  const visibilityContext = useColumnVisibilityContext();
+  const [internalColumnVisibility, setInternalColumnVisibility] =
+    React.useState<VisibilityState>(() => readStoredColumnVisibility(storageKey) ?? {});
+  const columnVisibility =
+    controlledColumnVisibility ?? visibilityContext?.visibility ?? internalColumnVisibility;
+
+  // `useReactTable` pode chamar isso com um valor direto ou um updater
+  // (old) => next - normaliza os dois formatos antes de repassar pro
+  // callback externo/provider (que só aceitam o valor já resolvido) ou pro
+  // estado interno (que aceita os dois).
+  const setColumnVisibility = React.useCallback(
+    (updaterOrValue: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? (updaterOrValue as (old: VisibilityState) => VisibilityState)(columnVisibility)
+          : updaterOrValue;
+      if (onColumnVisibilityChange) {
+        onColumnVisibilityChange(next);
+      } else if (visibilityContext) {
+        visibilityContext.setVisibility(next);
+      } else {
+        setInternalColumnVisibility(next);
+      }
+    },
+    [columnVisibility, onColumnVisibilityChange, visibilityContext],
   );
 
   React.useEffect(() => {
-    if (!storageKey) return;
+    if (!storageKey || controlledColumnVisibility || visibilityContext) return;
     writeStoredColumnVisibility(storageKey, columnVisibility);
-  }, [columnVisibility, storageKey]);
+  }, [columnVisibility, controlledColumnVisibility, storageKey, visibilityContext]);
 
   const selectionColumn = React.useMemo<ColumnDef<TData, unknown> | null>(() => {
     if (!enableRowSelection) return null;
@@ -497,10 +669,13 @@ export function ListView<TData>({
   }, []);
 
   const visibleColumnsCount = table.getVisibleLeafColumns().length;
+  // Dentro de um ColumnVisibilityProvider, quem mostra o botão "Colunas" é o
+  // shell (ver RecordListHost.tsx) - a lista nunca duplica o controle.
+  const shouldShowColumnVisibilityButton = showColumnVisibilityButton && !visibilityContext;
 
   return (
     <ModuleSurface className={cn("flex h-full min-h-0 flex-col", className)}>
-      {enableColumnTools || (enableRowSelection && bulkActions && selectedRows.length) ? (
+      {shouldShowColumnVisibilityButton || (enableRowSelection && bulkActions && selectedRows.length) ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
           <div className="text-muted-foreground">
             {enableRowSelection && bulkActions && selectedRows.length ? (
@@ -516,7 +691,13 @@ export function ListView<TData>({
             {enableRowSelection && bulkActions && selectedRows.length
               ? bulkActions(selectedRows)
               : null}
-            {enableColumnTools ? <ColumnVisibilityMenu table={table} /> : null}
+            {shouldShowColumnVisibilityButton ? (
+              <ColumnVisibilityMenu
+                columns={columns}
+                visibility={columnVisibility}
+                onVisibilityChange={setColumnVisibility}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

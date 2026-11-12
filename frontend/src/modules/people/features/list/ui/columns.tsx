@@ -148,6 +148,7 @@ export function usePeopleColumns({
     {
       accessorKey: "fullName",
       header: "Pessoa",
+      enableHiding: false,
       meta: { dataType: "string" },
       cell: ({ row }) => {
         const person = row.original;

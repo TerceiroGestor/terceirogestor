@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
@@ -21,6 +22,7 @@ import {
 } from "@/web-client/registry/module-utils";
 import type { SearchViewDefinition } from "@/web-client/search/types";
 import { getGraphBuilderGroupFields } from "@/web-client/views/GraphView";
+import { ColumnVisibilityMenu, ColumnVisibilityProvider } from "@/web-client/views/ListView";
 
 export type RecordListHostProps<
   TState extends RecordQueryState,
@@ -56,6 +58,14 @@ export type RecordListHostProps<
   onClearFilters?: () => void;
   onResetAnalysis?: () => void;
   onClearAll?: () => void;
+  /**
+   * Colunas da tabela (mesmo array passado pro `ListView`). Quando informado,
+   * o botão "Colunas" aparece sozinho na busca, do lado do filtro, e qualquer
+   * `ListView` renderizado dentro deste shell sincroniza automaticamente -
+   * padrão reutilizável, nenhuma outra prop precisa ser passada pro `ListView`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns?: ColumnDef<any, unknown>[];
 };
 
 const BASE_CONTROL_BUTTON_CLASS = "h-8 w-8 text-muted-foreground hover:text-foreground";
@@ -109,6 +119,7 @@ export function RecordListHost<
   onClearFilters,
   onResetAnalysis,
   onClearAll,
+  columns,
 }: RecordListHostProps<TState, TFavoriteState>) {
   const resolvedSearchView = searchView ?? moduleDefinition.searchConfig;
   const viewOptions = React.useMemo(
@@ -267,8 +278,12 @@ export function RecordListHost<
   );
   const hasActiveFilters = Boolean(state.domain);
   const panelIsActive = hasActiveFilters || hasActiveAnalysis;
+  // Só faz sentido escolher colunas na visualização em tabela (ver
+  // createStandardListView, viewType "list") - kanban/calendário/gráfico/etc.
+  // não usam ColumnDef nenhum.
+  const showColumnVisibilityControl = Boolean(columns?.length) && activeView?.viewType === "list";
 
-  return (
+  const content = (
     <div className="flex flex-col gap-4">
       <PageControlPanel
         primaryActionSlot={
@@ -311,6 +326,14 @@ export function RecordListHost<
                   >
                     {refreshAction?.icon ?? <RefreshCcw className="size-4" />}
                   </Button>
+                ) : null}
+                {showColumnVisibilityControl ? (
+                  <ColumnVisibilityMenu
+                    showTriggerLabel={false}
+                    triggerVariant="ghost"
+                    triggerSize="icon"
+                    triggerClassName={BASE_CONTROL_BUTTON_CLASS}
+                  />
                 ) : null}
                 {rightSlot}
                 <SearchPanelMenu<TFavoriteState>
@@ -416,6 +439,14 @@ export function RecordListHost<
 
       {children}
     </div>
+  );
+
+  if (!columns?.length) return content;
+
+  return (
+    <ColumnVisibilityProvider storageKey={moduleDefinition.moduleId} columns={columns}>
+      {content}
+    </ColumnVisibilityProvider>
   );
 }
 

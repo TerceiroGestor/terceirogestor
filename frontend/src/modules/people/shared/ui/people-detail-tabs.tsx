@@ -36,12 +36,12 @@ const tabItems: TabItem[] = [
   { value: "contatos", label: "Contatos", icon: Phone },
   { value: "endereco", label: "Endereço", icon: MapPin },
   { value: "documentos", label: "Documentos sensíveis", icon: FileLock2 },
-  { value: "familia", label: "Familia", icon: Users },
+  { value: "familia", label: "Família", icon: Users },
   { value: "financeiro", label: "Financeiro", icon: Wallet },
-  { value: "saude", label: "Condicoes", icon: HeartPulse },
-  { value: "medicacoes", label: "Medicacoes", icon: Pill },
+  { value: "saude", label: "Saúde", icon: HeartPulse },
+  { value: "medicacoes", label: "Medicação", icon: Pill },
   { value: "escolaridade", label: "Escolaridade", icon: GraduationCap },
-  { value: "reclusao", label: "Reclusao", icon: Lock },
+  { value: "reclusao", label: "Reclusão", icon: Lock },
   { value: "atendimentos", label: "Atendimentos", icon: ClipboardList, disabled: true },
 ];
 
