@@ -49,7 +49,7 @@ Evidencia:
 
 - [ ] `PASSA` usa `StandardDetailMetadataSide`
 - [ ] `PASSA` nenhuma aba visivel fica sem operacao real
-- [ ] `PASSA` `Comentarios`, `Notas internas`, `Tags` e `Anexos` so aparecem quando houver suporte funcional completo
+- [ ] `PASSA` `Comentarios`, `Notas`, `Tags` e `Anexos` so aparecem quando houver suporte funcional completo
 - [ ] `PASSA` `Auditoria`, `Historico` e `Contexto` seguem comportamento canonico
 - [ ] `PASSA` side nao usa texto explicativo de ajuda dentro da tela
 
@@ -122,4 +122,3 @@ Evidencia:
 - Dono de cada pendencia:
 - Prazo final:
 - Decisao de liberacao 1.0: `APROVADO`, `APROVADO_COM_RISCO_DOCUMENTADO` ou `BLOQUEADO`
-

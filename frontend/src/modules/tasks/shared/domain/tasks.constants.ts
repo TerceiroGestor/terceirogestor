@@ -58,7 +58,7 @@ export const TASK_AUDIT_FIELD_LABELS: Record<string, string> = {
   progress: "Progresso",
   effortPoints: "Pontos",
   tags: "Tags",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
 };
 
 export const TASK_CHECKLIST_AUDIT_FIELD_LABELS: Record<string, string> = {

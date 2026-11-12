@@ -12,7 +12,7 @@ export function DetailNotesPanel({
   onChange,
   onBlur,
   readOnly,
-  placeholder = "Notas internas",
+  placeholder = "Notas",
   intro = null,
   footer = null,
   richText = false,

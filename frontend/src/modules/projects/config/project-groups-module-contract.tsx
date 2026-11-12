@@ -148,7 +148,7 @@ export const projectGroupsListModuleDefinition =
         createdAt: { label: "Cadastro", type: "date" },
         "_count.memberships": { label: "Participantes", type: "number" },
         "_count.actions": { label: "Ações", type: "number" },
-        internalNotes: { label: "Notas internas" },
+        internalNotes: { label: "Notas" },
         updatedAt: { label: "Atualizado em", type: "date" },
       },
     },
@@ -268,7 +268,7 @@ export const projectGroupsDetailModuleDefinition =
       fields: {
         name: { label: "Grupo de Participantes" },
         description: { label: "Descrição" },
-        internalNotes: { label: "Notas internas" },
+        internalNotes: { label: "Notas" },
       },
     },
     searchConfig: projectGroupsSearchView,
@@ -281,6 +281,6 @@ export const projectGroupsDetailModuleDefinition =
 export type ProjectGroupsModuleDefinition =
   | RecordModuleDefinition<ProjectGroupsListQueryState>
   | RecordModuleDefinition<
-      ProjectGroupsDetailQueryState,
-      ProjectGroupsDetailLayoutContext
-    >;
+    ProjectGroupsDetailQueryState,
+    ProjectGroupsDetailLayoutContext
+  >;

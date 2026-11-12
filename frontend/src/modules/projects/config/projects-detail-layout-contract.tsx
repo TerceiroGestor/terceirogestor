@@ -58,7 +58,7 @@ const PROJECT_AUDIT_FIELD_LABELS = {
   status: "Status",
   description: "Descrição",
   tags: "Tags",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   startsAt: "Início",
   endsAt: "Fim",
   createdAt: "Criado em",
@@ -78,7 +78,7 @@ const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
 const PROJECT_GROUP_AUDIT_FIELD_LABELS = {
   name: "Nome",
   description: "Descrição",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -99,7 +99,7 @@ const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
   plannedStartAt: "Início planejado",
   plannedEndAt: "Fim planejado",
   executedAt: "Executada em",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -149,13 +149,13 @@ function groupRelationColumns(): ColumnDef<ApiProjectGroup, unknown>[] {
       accessorKey: "name",
       header: "Grupo",
       cell: ({ row }) => (
-          <div className="space-y-0.5">
-            <div className="font-medium text-foreground">{row.original.name}</div>
-            <div className="text-xs text-muted-foreground">
+        <div className="space-y-0.5">
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="text-xs text-muted-foreground">
             {row.original.description?.trim() || "Grupo operacional"}
-            </div>
           </div>
-        ),
+        </div>
+      ),
     },
   ];
 }
@@ -936,7 +936,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
                 row.person.fullName,
                 row.person.status ?? "",
                 PROJECT_PARTICIPATION_ROLE_LABELS[
-                  row.role as keyof typeof PROJECT_PARTICIPATION_ROLE_LABELS
+                row.role as keyof typeof PROJECT_PARTICIPATION_ROLE_LABELS
                 ] ?? row.role,
                 row.groups.map((group: { id: string; name: string }) => group.name).join(" "),
                 row.peopleGroups

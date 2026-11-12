@@ -38,7 +38,7 @@ const AUTO_SAVE_EDITING = {
 const AUDIT_FIELD_LABELS = {
   name: "Nome",
   description: "Descrição",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;

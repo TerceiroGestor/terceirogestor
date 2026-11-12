@@ -148,7 +148,7 @@ const TASK_FIELD_MAP = {
   progress: { label: "Progresso", type: "number" },
   effortPoints: { label: "Pontos", type: "number" },
   tags: { label: "Tags" },
-  internalNotes: { label: "Notas internas" },
+  internalNotes: { label: "Notas" },
   ...Object.fromEntries(
     Object.entries(TASK_AUDIT_FIELD_LABELS).map(([field, label]) => [field, { label }]),
   ),

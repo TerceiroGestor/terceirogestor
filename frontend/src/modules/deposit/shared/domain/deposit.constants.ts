@@ -61,7 +61,7 @@ export const DEPOSIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
-  notes: "Notas internas",
+  notes: "Notas",
 };
 
 export const DEPOSIT_DONOR_AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -165,7 +165,7 @@ export const DEPOSIT_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume saldo, grupo, setor padrão e status do objeto.",
         ],
       },
@@ -184,7 +184,7 @@ export const DEPOSIT_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam no painel lateral.",
           "O contexto resume tipo e contato da fonte.",
         ],
       },
@@ -203,7 +203,7 @@ export const DEPOSIT_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume objeto, setor e status da entrada.",
         ],
       },
@@ -222,7 +222,7 @@ export const DEPOSIT_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume objeto, setor e tipo da saída.",
         ],
       },

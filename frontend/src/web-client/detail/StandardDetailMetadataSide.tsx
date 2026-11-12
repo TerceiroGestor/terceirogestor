@@ -342,7 +342,7 @@ export function StandardDetailMetadataSide({
     if (notes && !notes.hidden) {
       nextTabs.push({
         value: "notes",
-        label: notes.label ?? "Notas internas",
+        label: notes.label ?? "Notas",
         content: (
           <DetailNotesPanel
             value={notes.value}

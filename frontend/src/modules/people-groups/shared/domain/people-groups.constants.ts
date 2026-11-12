@@ -10,7 +10,7 @@ export const PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
   ageMin: "Idade mínima",
   ageMax: "Idade máxima",
   isActive: "Status",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
 } as const;
@@ -59,7 +59,7 @@ export const PEOPLE_GROUP_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Notas internas, histórico e contexto apoiam a consulta operacional do grupo.",
+          "Notas, histórico e contexto apoiam a consulta operacional do grupo.",
           "A auditoria reúne as alterações do grupo e dos vínculos.",
         ],
       },

@@ -568,7 +568,7 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
           startsAt: "Início",
           endsAt: "Fim",
           isActive: "Status",
-          internalNotes: "Notas internas",
+          internalNotes: "Notas",
           deletedAt: "Encerrado em",
         },
         valueFormatters: {

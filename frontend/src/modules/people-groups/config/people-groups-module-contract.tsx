@@ -152,7 +152,7 @@ export const peopleGroupsListModuleDefinition =
         ageMax: { label: "Idade máxima" },
         isActive: { label: "Status" },
         description: { label: "Descrição" },
-        internalNotes: { label: "Notas internas" },
+        internalNotes: { label: "Notas" },
       },
     },
     searchConfig: peopleGroupsSearchView,
@@ -259,7 +259,7 @@ export const peopleGroupsDetailModuleDefinition =
         ageMax: { label: "Idade máxima" },
         isActive: { label: "Status" },
         description: { label: "Descrição" },
-        internalNotes: { label: "Notas internas" },
+        internalNotes: { label: "Notas" },
       },
     },
     searchConfig: peopleGroupsDetailSearchView,
@@ -272,6 +272,6 @@ export const peopleGroupsDetailModuleDefinition =
 export type PeopleGroupsModuleDefinition =
   | RecordModuleDefinition<PeopleGroupsListQueryState>
   | RecordModuleDefinition<
-      PeopleGroupsDetailQueryState,
-      PeopleGroupsDetailLayoutContext
-    >;
+    PeopleGroupsDetailQueryState,
+    PeopleGroupsDetailLayoutContext
+  >;

@@ -46,7 +46,7 @@ export const PROGRAM_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume tipo, status, vigência e quantidade de projetos.",
         ],
       },

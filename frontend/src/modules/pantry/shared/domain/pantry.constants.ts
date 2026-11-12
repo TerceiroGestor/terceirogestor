@@ -75,7 +75,7 @@ export const PANTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
-  notes: "Notas internas",
+  notes: "Notas",
 };
 
 export const PANTRY_DONOR_AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -174,7 +174,7 @@ export const PANTRY_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume saldo, grupo, setor padrão e status do alimento.",
         ],
       },
@@ -193,7 +193,7 @@ export const PANTRY_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam no painel lateral.",
           "O contexto resume tipo e contato do doador.",
         ],
       },
@@ -212,7 +212,7 @@ export const PANTRY_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume alimento, setor e status da entrada.",
         ],
       },
@@ -231,7 +231,7 @@ export const PANTRY_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Comentários, notas internas, tags, anexos e auditoria ficam concentrados no painel lateral.",
+          "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
           "O contexto resume alimento, setor e tipo da saída.",
         ],
       },

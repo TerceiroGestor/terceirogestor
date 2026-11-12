@@ -331,10 +331,10 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
               getValue: (row) => {
                 const record = row as {
                   peopleGroup?:
-                    | {
-                        name?: string | null;
-                      }
-                    | null;
+                  | {
+                    name?: string | null;
+                  }
+                  | null;
                 };
                 return record.peopleGroup?.name ?? null;
               },
@@ -428,7 +428,7 @@ export const actionsDetailModuleDefinition = defineRecordModule<
       tags: { label: "Tags" },
       createdAt: { label: "Cadastro", type: "date" },
       status: { label: "Status" },
-      internalNotes: { label: "Notas internas" },
+      internalNotes: { label: "Notas" },
       plannedStartAt: { label: "Início planejado", type: "date" },
       plannedEndAt: { label: "Fim planejado", type: "date" },
     },

@@ -110,7 +110,7 @@ Abas canÃ´nicas:
 
 - `Auditoria`
 - `Comentarios`
-- `Notas internas`
+- `Notas`
 - `Tags`
 - `Anexos`
 - `Historico`
@@ -215,4 +215,3 @@ Um mÃ³dulo sÃ³ Ã© canÃ´nico quando:
 - relation operacional usa `ListView`, nunca `grade tabular legada`
 - `SearchPanel` funciona igual aos outros mÃ³dulos
 - as mesmas views estÃ£o disponÃ­veis quando o domÃ­nio suporta
-

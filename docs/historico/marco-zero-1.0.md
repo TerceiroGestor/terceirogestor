@@ -69,7 +69,7 @@ Um modulo e considerado 100% canonico quando:
 
 - usa `StandardDetailMetadataSide`
 - nenhuma aba visivel pode existir sem operacao funcional real
-- `Comentarios`, `Notas internas`, `Tags` e `Anexos` so podem aparecer quando houver suporte completo em UI, API e persistencia
+- `Comentarios`, `Notas`, `Tags` e `Anexos` so podem aparecer quando houver suporte completo em UI, API e persistencia
 - `Auditoria`, `Historico` e `Contexto` seguem comportamento canonico
 - textos de orientacao nao ficam na tela; devem ir para o painel `Como usar`
 
@@ -273,4 +273,3 @@ Marco zero so e considerado concluido quando:
 - modulo novo consegue nascer sem inventar estrutura paralela
 - variacoes visuais/comportamentais estao eliminadas ou formalmente removidas
 - a versao resultante esta apta a ser base oficial de evolucao do produto
-

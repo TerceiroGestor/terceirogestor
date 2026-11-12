@@ -595,7 +595,7 @@ function PeopleDetailSide({
         onChange: onNotesChange,
         onBlur: onNotesCommit,
         readOnly,
-        placeholder: "Notas internas sobre esta pessoa. Use @ para mencionar alguém.",
+        placeholder: "Notas sobre esta pessoa. Use @ para mencionar alguém.",
         richText: true,
         mentionUsers: mentionableUsers,
       }}
@@ -631,11 +631,11 @@ function PeopleDetailSide({
         onDelete: readOnly
           ? undefined
           : (attachmentId) => {
-              const attachment = (person.attachments ?? []).find((entry) => entry.id === attachmentId);
-              if (attachment) {
-                onDeleteAttachment(attachment);
-              }
-            },
+            const attachment = (person.attachments ?? []).find((entry) => entry.id === attachmentId);
+            if (attachment) {
+              onDeleteAttachment(attachment);
+            }
+          },
         readOnly,
         emptyLabel:
           mode === "create"

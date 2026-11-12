@@ -58,7 +58,7 @@ const ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
   description: "Descrição",
   tags: "Tags",
-  internalNotes: "Notas internas",
+  internalNotes: "Notas",
   planHtml: "Planejamento",
   executedHtml: "Execução",
   conclusionHtml: "Conclusão",
