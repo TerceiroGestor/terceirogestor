@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ClipboardList,
+  ChevronLeft,
   ChevronRight,
   FileLock2,
   GraduationCap,
@@ -46,12 +47,14 @@ const tabItems: TabItem[] = [
 
 export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
 
   const updateScrollState = React.useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
     const remaining = element.scrollWidth - element.clientWidth - element.scrollLeft;
+    setCanScrollLeft(element.scrollLeft > 12);
     setCanScrollRight(remaining > 12);
   }, []);
 
@@ -68,15 +71,22 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
     };
   }, [updateScrollState]);
 
-  const scrollRight = React.useCallback(() => {
-    scrollRef.current?.scrollBy({ left: 220, behavior: "smooth" });
+  const scrollBy = React.useCallback((direction: "left" | "right") => {
+    scrollRef.current?.scrollBy({
+      left: direction === "right" ? 220 : -220,
+      behavior: "smooth",
+    });
   }, []);
 
   return (
     <div className="relative border-t border-border/60 pt-2">
       <div
         ref={scrollRef}
-        className="overflow-x-auto pr-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className={
+          canScrollLeft
+            ? "overflow-x-auto pl-10 pr-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            : "overflow-x-auto pr-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        }
       >
         <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-none border-0 bg-transparent p-0">
           {tabItems.map((item) => {
@@ -105,10 +115,21 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
           })}
         </TabsList>
       </div>
+      {canScrollLeft ? (
+        <button
+          type="button"
+          onClick={() => scrollBy("left")}
+          className="absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-sm transition hover:text-foreground"
+          aria-label="Ver abas anteriores"
+          title="Ver abas anteriores"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      ) : null}
       {canScrollRight ? (
         <button
           type="button"
-          onClick={scrollRight}
+          onClick={() => scrollBy("right")}
           className="absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-sm transition hover:text-foreground"
           aria-label="Ver mais abas"
           title="Ver mais abas"
