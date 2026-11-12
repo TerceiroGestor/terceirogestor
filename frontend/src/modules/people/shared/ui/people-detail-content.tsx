@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import type { Person } from "../domain/types";
@@ -12,11 +12,37 @@ import { DetentionsPanel } from "@/modules/people/features/detentions/ui/detenti
 
 type PeopleDetailContentProps = {
   person: Person;
+  basicDataSlot?: React.ReactNode;
+  contactsSlot?: React.ReactNode;
+  addressSlot?: React.ReactNode;
+  sensitiveDocumentsSlot?: React.ReactNode;
 };
 
-export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
+export function PeopleDetailContent({
+  person,
+  basicDataSlot,
+  contactsSlot,
+  addressSlot,
+  sensitiveDocumentsSlot,
+}: PeopleDetailContentProps) {
   return (
     <div className="flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <TabsContent value="dados-basicos" className="space-y-6">
+        {basicDataSlot}
+      </TabsContent>
+
+      <TabsContent value="contatos" className="space-y-6">
+        {contactsSlot}
+      </TabsContent>
+
+      <TabsContent value="endereco" className="space-y-6">
+        {addressSlot}
+      </TabsContent>
+
+      <TabsContent value="documentos" className="space-y-6">
+        {sensitiveDocumentsSlot}
+      </TabsContent>
+
       <TabsContent value="familia" className="space-y-6">
         <FamilyRelationsPanel personId={person.id} />
       </TabsContent>
@@ -42,4 +68,3 @@ export function PeopleDetailContent({ person }: PeopleDetailContentProps) {
     </div>
   );
 }
-

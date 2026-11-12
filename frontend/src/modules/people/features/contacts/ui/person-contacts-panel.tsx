@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   createPersonContact,
   deletePersonContact,
@@ -12,12 +13,19 @@ import {
 } from "@/modules/people/api";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/components/ui/use-toast";
-import { SectionDialog } from "@/components/section-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -25,7 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
+import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
 
 const ROLE_OPTIONS: { value: ApiPersonContactRole; label: string }[] = [
   { value: "SELF", label: "Pessoal" },
@@ -38,20 +47,12 @@ const TYPE_OPTIONS: { value: ApiPersonContactType; label: string }[] = [
   { value: "EMAIL", label: "E-mail" },
 ];
 
-function contactTitle(contact: ApiPersonContact) {
-  const role =
-    ROLE_OPTIONS.find((item) => item.value === contact.role)?.label ??
-    contact.role;
-  const type =
-    TYPE_OPTIONS.find((item) => item.value === contact.type)?.label ??
-    contact.type;
-  const who =
-    contact.role === "SELF"
-      ? null
-      : contact.name
-        ? contact.name
-        : "Contato";
-  return [type, role, who].filter(Boolean).join(" • ");
+function roleLabel(role: ApiPersonContactRole) {
+  return ROLE_OPTIONS.find((item) => item.value === role)?.label ?? role;
+}
+
+function typeLabel(type: ApiPersonContactType) {
+  return TYPE_OPTIONS.find((item) => item.value === type)?.label ?? type;
 }
 
 function safeErrorMessage(err: unknown, fallback: string) {
@@ -85,23 +86,25 @@ const emptyForm = (seed?: Partial<FormState>): FormState => ({
   notes: seed?.notes ?? "",
 });
 
-export function PersonContactsDialog({
+export function PersonContactsPanel({
   personId,
   seedEmail,
   seedPhone,
   onChanged,
+  readOnly = false,
 }: {
   personId: string;
   seedEmail?: string | null;
   seedPhone?: string | null;
   onChanged?: () => void;
+  readOnly?: boolean;
 }) {
   const { token } = useAuth();
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
   const [contacts, setContacts] = React.useState<ApiPersonContact[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiPersonContact | null>(null);
   const [form, setForm] = React.useState<FormState>(emptyForm());
 
@@ -123,39 +126,19 @@ export function PersonContactsDialog({
   }, [personId, toast, token]);
 
   React.useEffect(() => {
-    if (!open) return;
     load();
-  }, [open, load]);
+  }, [load]);
 
-  const resetForm = React.useCallback(() => {
-    setEditing(null);
-    setForm(emptyForm());
-  }, []);
-
-  const handleCopy = React.useCallback((value: string) => {
-    if (!value) return;
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(value);
-    }
-  }, []);
-
-  const handleSeed = React.useCallback(
-    (payload: { type: ApiPersonContactType; value: string }) => {
+  const openCreateDialog = React.useCallback(
+    (seed?: Partial<FormState>) => {
       setEditing(null);
-      setForm(
-        emptyForm({
-          role: "SELF",
-          type: payload.type,
-          value: payload.value,
-          isPrimary: true,
-          isWhatsapp: payload.type === "PHONE",
-        }),
-      );
+      setForm(emptyForm(seed));
+      setDialogOpen(true);
     },
     [],
   );
 
-  const handleEdit = React.useCallback((contact: ApiPersonContact) => {
+  const openEditDialog = React.useCallback((contact: ApiPersonContact) => {
     setEditing(contact);
     setForm(
       emptyForm({
@@ -170,6 +153,14 @@ export function PersonContactsDialog({
         notes: contact.notes ?? "",
       }),
     );
+    setDialogOpen(true);
+  }, []);
+
+  const handleCopy = React.useCallback((value: string) => {
+    if (!value) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(value);
+    }
   }, []);
 
   const handleDelete = React.useCallback(
@@ -180,9 +171,6 @@ export function PersonContactsDialog({
       setSaving(true);
       try {
         await deletePersonContact(token, personId, contact.id);
-        if (editing?.id === contact.id) {
-          resetForm();
-        }
         await load();
         onChanged?.();
       } catch (err) {
@@ -195,7 +183,7 @@ export function PersonContactsDialog({
         setSaving(false);
       }
     },
-    [editing?.id, load, onChanged, personId, resetForm, toast, token],
+    [load, onChanged, personId, toast, token],
   );
 
   const handleSubmit = React.useCallback(async () => {
@@ -238,7 +226,7 @@ export function PersonContactsDialog({
         await createPersonContact(token, personId, payload);
       }
       await load();
-      resetForm();
+      setDialogOpen(false);
       onChanged?.();
       toast({
         title: "Contato salvo",
@@ -253,76 +241,197 @@ export function PersonContactsDialog({
     } finally {
       setSaving(false);
     }
-  }, [editing, form, load, onChanged, personId, resetForm, toast, token]);
+  }, [editing, form, load, onChanged, personId, toast, token]);
 
   const showNameFields = form.role !== "SELF";
   const showWhatsapp = form.type === "PHONE";
+  const canSeed =
+    !readOnly && Boolean(seedEmail || seedPhone) && contacts.length === 0;
+
+  const columns = React.useMemo<ColumnDef<ApiPersonContact, unknown>[]>(
+    () => [
+      {
+        id: "contact",
+        header: "Contato",
+        cell: ({ row }) => {
+          const contact = row.original;
+          const who =
+            contact.role === "SELF" ? null : contact.name ? contact.name : "Contato";
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">
+                  {[typeLabel(contact.type), roleLabel(contact.role), who]
+                    .filter(Boolean)
+                    .join(" • ")}
+                </span>
+                {contact.isPrimary ? (
+                  <Badge variant="secondary">Principal</Badge>
+                ) : null}
+                {contact.type === "PHONE" && contact.isWhatsapp ? (
+                  <Badge variant="outline">WhatsApp</Badge>
+                ) : null}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "value",
+        header: "Valor",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">{row.original.value}</span>
+        ),
+      },
+      {
+        accessorKey: "label",
+        header: "Rótulo",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {row.original.label || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "relationship",
+        header: "Parentesco",
+        cell: ({ row }) => (
+          <span className="block truncate whitespace-nowrap">
+            {row.original.relationship || "-"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        size: 80,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleCopy(row.original.value);
+              }}
+              title="Copiar"
+            >
+              <Copy className="size-4" />
+            </Button>
+            {!readOnly ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleDelete(row.original);
+                }}
+                disabled={saving}
+                title="Remover"
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            ) : null}
+          </div>
+        ),
+      },
+    ],
+    [handleCopy, handleDelete, readOnly, saving],
+  );
+
+  const filterRow = React.useCallback((row: ApiPersonContact, query: string) => {
+    const values = [
+      typeLabel(row.type),
+      roleLabel(row.role),
+      row.value,
+      row.label,
+      row.name,
+      row.relationship,
+    ];
+    return values.some((value) => String(value ?? "").toLowerCase().includes(query));
+  }, []);
 
   return (
-    <SectionDialog
-      title="Contatos"
-      description="Telefones, e-mails e contatos de emergência/responsáveis."
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) resetForm();
-      }}
-      trigger={
-        <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-          Gerenciar
-        </Button>
-      }
-    >
-      <div className="space-y-3">
-        {(seedEmail || seedPhone) && !contacts.length ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-xs">
-            <span className="text-muted-foreground">
-              Importar do cadastro:
-            </span>
-            {seedPhone ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => handleSeed({ type: "PHONE", value: seedPhone })}
-              >
-                Telefone
-              </Button>
-            ) : null}
-            {seedEmail ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => handleSeed({ type: "EMAIL", value: seedEmail })}
-              >
-                E-mail
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Contatos
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Telefones, e-mails e contatos de emergência/responsáveis.
+        </p>
+      </div>
 
-        <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">
-              {editing ? "Editar contato" : "Novo contato"}
-            </p>
-            {editing ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={resetForm}
-              >
-                Cancelar
-              </Button>
-            ) : null}
-          </div>
+      {canSeed ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">Importar do cadastro:</span>
+          {seedPhone ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() =>
+                openCreateDialog({
+                  role: "SELF",
+                  type: "PHONE",
+                  value: seedPhone,
+                  isPrimary: true,
+                  isWhatsapp: true,
+                })
+              }
+            >
+              Telefone
+            </Button>
+          ) : null}
+          {seedEmail ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() =>
+                openCreateDialog({
+                  role: "SELF",
+                  type: "EMAIL",
+                  value: seedEmail,
+                  isPrimary: true,
+                })
+              }
+            >
+              E-mail
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <DetailRelationTablePanel
+        data={contacts}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={readOnly ? undefined : (row) => openEditDialog(row)}
+        searchPlaceholder="Pesquisar contatos"
+        filterRow={filterRow}
+        onAdd={readOnly ? undefined : () => openCreateDialog()}
+        addLabel="Novo contato"
+        loading={loading}
+        emptyMessage="Nenhum contato cadastrado."
+        tableMinWidthClassName="min-w-[760px]"
+        tableInitialColumnPinning={{ right: ["actions"] }}
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar contato" : "Novo contato"}</DialogTitle>
+            <DialogDescription>
+              Telefones, e-mails e contatos de emergência/responsáveis.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Tipo</Label>
               <Select
@@ -331,8 +440,7 @@ export function PersonContactsDialog({
                   setForm((prev) => ({
                     ...prev,
                     type: value as ApiPersonContactType,
-                    isWhatsapp:
-                      value === "PHONE" ? prev.isWhatsapp : false,
+                    isWhatsapp: value === "PHONE" ? prev.isWhatsapp : false,
                   }))
                 }
               >
@@ -406,37 +514,23 @@ export function PersonContactsDialog({
                   placeholder="Ex.: Maria da Silva"
                 />
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label>Parentesco (opcional)</Label>
-                <Input
-                  value={form.relationship}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      relationship: e.target.value,
-                    }))
-                  }
-                  placeholder="Ex.: Mãe, Pai..."
-                />
-              </div>
-            )}
-
-            {showNameFields ? (
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Parentesco (opcional)</Label>
-                <Input
-                  value={form.relationship}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      relationship: e.target.value,
-                    }))
-                  }
-                  placeholder="Ex.: Mãe, Pai..."
-                />
-              </div>
             ) : null}
+
+            <div
+              className={showNameFields ? "space-y-1.5" : "space-y-1.5 md:col-span-2"}
+            >
+              <Label>Parentesco (opcional)</Label>
+              <Input
+                value={form.relationship}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    relationship: e.target.value,
+                  }))
+                }
+                placeholder="Ex.: Mãe, Pai..."
+              />
+            </div>
 
             <div className="flex flex-wrap items-center gap-4 md:col-span-2">
               <label className="flex items-center gap-2 text-sm">
@@ -466,100 +560,22 @@ export function PersonContactsDialog({
                 </label>
               ) : null}
             </div>
-
-            <div className="md:col-span-2">
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={saving}
-                className="w-full"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                {editing ? "Salvar alterações" : "Adicionar contato"}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border/60 bg-background px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">Lista</p>
-            {loading ? (
-              <span className="text-xs text-muted-foreground">
-                Carregando...
-              </span>
-            ) : null}
           </div>
 
-          {!loading && !contacts.length ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Nenhum contato cadastrado.
-            </p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {contacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/5 px-3 py-2"
-                >
-                  <div className="min-w-[220px] space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold">
-                        {contactTitle(contact)}
-                      </span>
-                      {contact.isPrimary ? (
-                        <Badge variant="secondary">Principal</Badge>
-                      ) : null}
-                      {contact.type === "PHONE" && contact.isWhatsapp ? (
-                        <Badge variant="outline">WhatsApp</Badge>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {contact.label ? `${contact.label} • ` : null}
-                      {contact.value}
-                      {contact.relationship ? ` • ${contact.relationship}` : null}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleCopy(contact.value)}
-                      title="Copiar"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(contact)}
-                      title="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(contact)}
-                      disabled={saving}
-                      title="Remover"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </SectionDialog>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSubmit} disabled={saving}>
+              {editing ? "Salvar alterações" : "Adicionar contato"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

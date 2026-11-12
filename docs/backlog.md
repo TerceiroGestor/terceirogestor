@@ -131,6 +131,47 @@ adiado sem gatilho. Formato do Alicerce.
   **Gatilho:** precisar de uma 2ª réplica do `api` no Railway (ver Parte
   5.8 do plano — mover para Redis).
 
+## Módulo people — família
+
+- **Patrimônio da família (`HouseholdAsset`/`PersonAsset`) não tem
+  nenhuma tela hoje.** O backend já expõe os 10 endpoints
+  (`people.controller.ts`: `listHouseholdAssets`/`createHouseholdAsset`/
+  `updateHouseholdAsset`/`removeHouseholdAsset`,
+  `listPersonAssets`/`listHouseholdPersonAssets`/`createPersonAsset`/
+  `updatePersonAsset`/`removePersonAsset`), mas a aba "Financeiro" do
+  frontend (`people-financial`) só cobre renda/despesas/transferências —
+  nenhum arquivo do módulo referencia `HouseholdAsset`/`PersonAsset`.
+  Achado ao revisar por que endereço não tinha onde ser cadastrado
+  (2026-11-12): existe uma implementação pronta e funcional
+  (`family-assets-report.tsx`, em
+  `frontend/src/modules/people/features/family-members/ui/`), só que
+  nunca foi ligada a nenhuma rota — mesmo problema do item abaixo.
+  **Gatilho:** quando o patrimônio da família for revisado como feature
+  (fora do escopo desta sessão, que tratou só endereço).
+
+- **`features/family-members/ui/` tem um cluster de componentes sem
+  nenhum importador vivo**, sobras da versão anterior à migração da aba
+  "Família" para o padrão canônico (tabela + formulário simples):
+  `family-income-report.tsx`, `family-assets-report.tsx` (ver item
+  acima), `family-relations-list.tsx` + `family-relations-section.tsx`
+  (substituídos por `family-relations-panel.tsx` +
+  `family-relation-detail-page.tsx`), `family-summary-sheet.tsx`,
+  `family-preview.tsx`, `family-header-preview.tsx`. Mais dois arquivos
+  de re-export que também não têm importador:
+  `shared/ui/people-family-list.tsx` e
+  `shared/ui/people-detail-family-preview.tsx`. `family-household-report.tsx`
+  foi a exceção — sua lógica de busca de CEP foi reaproveitada ao tornar
+  `person-address-section.tsx` editável (2026-11-12), mas o arquivo
+  original continua intocado e sem importador.
+  Confirmado por grep: zero ocorrências de cada nome de componente fora
+  do próprio arquivo e dos outros arquivos do mesmo cluster morto.
+  `tsc`/`npm run build` não pegam isso porque são módulos válidos, só
+  não referenciados por nenhuma rota.
+  **Gatilho:** ao decidir o destino do patrimônio (item acima) — nesse
+  momento, decidir junto se algum desses componentes é reaproveitado
+  (ex.: `family-income-report`/`family-summary-sheet` podem servir de
+  base) ou se o cluster inteiro é removido.
+
 ## Testes e-2-e / CI local
 
 - `frontend/e2e/smoke.spec.ts` ("usuário já logado redireciona pro

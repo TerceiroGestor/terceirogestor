@@ -1,4 +1,8 @@
 export const PEOPLE_DETAIL_TAB_VALUES = [
+  "dados-basicos",
+  "contatos",
+  "endereco",
+  "documentos",
   "familia",
   "financeiro",
   "saude",
@@ -20,7 +24,9 @@ export function buildPeopleDetailTabPath(
   personId: string,
   tab: Exclude<PeopleDetailTabValue, "atendimentos" | "resumo">,
 ) {
-  return tab === "familia" ? `/people/${personId}` : `/people/${personId}?tab=${tab}`;
+  return tab === "dados-basicos"
+    ? `/people/${personId}`
+    : `/people/${personId}?tab=${tab}`;
 }
 
 export function buildPeopleHealthConditionPath(
@@ -57,6 +63,10 @@ export function buildPeopleDetentionPath(
   return detentionId
     ? `/people/${personId}/detentions/${detentionId}`
     : `/people/${personId}/detentions/new`;
+}
+
+export function buildPeopleTreePath(personId: string) {
+  return `/people/${personId}/tree`;
 }
 
 export function buildPeopleFamilyRelationPath(

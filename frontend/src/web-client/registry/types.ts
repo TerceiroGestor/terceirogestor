@@ -1,6 +1,7 @@
 import type { BreadcrumbItem } from "@/components/layout/BreadcrumbContext";
 import type * as React from "react";
 import type { LucideIcon } from "lucide-react";
+import type { ButtonProps } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Domain, DomainOperator } from "@/web-client/domain/types";
 import type {
@@ -607,6 +608,28 @@ export type DetailRelationActionConfig<TContext> = {
   variant?: "default" | "secondary" | "outline" | "ghost" | "destructive";
 };
 
+/**
+ * Ação simples do header do detalhe. `href` é um caminho relativo ao tenant
+ * (ex.: "/people/123/tree") — o renderer aplica o prefixo do tenant. Use
+ * `render` só quando a ação não cabe no par label/icon/onClick|href (ex.: um
+ * diálogo próprio).
+ */
+export type DetailHeaderActionConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  key: string;
+  label?: string;
+  /** Texto de acessibilidade (aria-label/title) quando a ação não tem `label` visível. */
+  tooltip?: string;
+  icon?: React.ReactNode;
+  variant?: ButtonProps["variant"];
+  onClick?: (context: TContext) => void;
+  href?: (context: TContext) => string;
+  disabled?: (context: TContext) => boolean;
+  hidden?: (context: TContext) => boolean;
+  render?: (context: TContext) => React.ReactNode;
+};
+
 export type DetailRelationFilterOption = {
   label: string;
   value: string;
@@ -721,6 +744,7 @@ export type DetailLayoutConfig<
     title?: (context: TContext) => string;
     leadingSlot?: (context: TContext) => React.ReactNode;
     slot?: (context: TContext) => React.ReactNode;
+    actions?: DetailHeaderActionConfig<TContext>[];
   };
   headerSlot?: (context: TContext) => React.ReactNode;
   main?: (context: TContext) => React.ReactNode;

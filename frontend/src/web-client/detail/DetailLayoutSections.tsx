@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ListChecks, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type {
+  DetailHeaderActionConfig,
   DetailRelationConfig,
   DetailTabTemplate,
 } from "@/web-client/registry/types";
@@ -339,6 +343,77 @@ export function DetailRelationsRenderer<
           context={context}
         />
       ))}
+    </div>
+  );
+}
+
+export function DetailHeaderActionsRenderer<
+  TContext extends Record<string, unknown>,
+>({
+  actions,
+  context,
+}: {
+  actions: DetailHeaderActionConfig<TContext>[];
+  context: TContext;
+}) {
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
+  const visibleActions = React.useMemo(
+    () => actions.filter((action) => !(action.hidden?.(context) ?? false)),
+    [actions, context],
+  );
+
+  if (!visibleActions.length) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {visibleActions.map((action) => {
+        if (action.render) {
+          return <React.Fragment key={action.key}>{action.render(context)}</React.Fragment>;
+        }
+
+        const variant = action.variant ?? "action";
+        const disabled = action.disabled?.(context) ?? false;
+        const iconOnly = !action.label;
+        const size = iconOnly ? "icon-sm" : "sm";
+        const accessibleLabel = action.tooltip ?? action.label;
+
+        if (action.href) {
+          return (
+            <Button
+              key={action.key}
+              type="button"
+              variant={variant}
+              size={size}
+              disabled={disabled}
+              aria-label={iconOnly ? accessibleLabel : undefined}
+              title={accessibleLabel}
+              asChild
+            >
+              <Link href={withTenantPath(action.href(context), tenantSlug)}>
+                {action.icon}
+                {action.label}
+              </Link>
+            </Button>
+          );
+        }
+
+        return (
+          <Button
+            key={action.key}
+            type="button"
+            variant={variant}
+            size={size}
+            disabled={disabled}
+            aria-label={iconOnly ? accessibleLabel : undefined}
+            title={accessibleLabel}
+            onClick={() => action.onClick?.(context)}
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        );
+      })}
     </div>
   );
 }

@@ -11,9 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RichText } from "@/components/ui/richtext/RichText";
+import { Badge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
+import { Network } from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api";
+import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
 import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
+import { PersonContactsPanel } from "@/modules/people/features/contacts/ui/person-contacts-panel";
+import { PersonSensitiveDocumentsPanel } from "@/modules/people/features/sensitive-documents/ui/person-sensitive-documents-panel";
 import {
   GENDER_LABELS,
   GENDER_OPTIONS,
@@ -34,21 +39,35 @@ import type {
   PersonFormData,
   PersonMentionableUser,
 } from "@/modules/people/shared/domain/types";
-import { getAgeFromBirthDate, isBirthdayToday, resolvePersonDisplayNames } from "@/modules/people/shared/domain/utils";
-import { personFormSteps } from "@/modules/people/shared/config/people-form-config";
-import type { PeopleDetailTabValue } from "@/modules/people/shared/domain/people-relation-routes";
+import {
+  getAgeFromBirthDate,
+  isBirthdayToday,
+  resolveLabel,
+  resolvePersonDisplayNames,
+} from "@/modules/people/shared/domain/utils";
+import {
+  buildPeopleTreePath,
+  type PeopleDetailTabValue,
+} from "@/modules/people/shared/domain/people-relation-routes";
 import { PeopleDetailContent } from "@/modules/people/shared/ui/people-detail-content";
-import { PeopleDetailSidebar } from "@/modules/people/shared/ui/people-detail-sidebar";
+import { PersonAddressSection } from "@/modules/people/shared/ui/person-address-section";
+import { PersonFullRecordDialog } from "@/modules/people/shared/ui/people-detail-sidebar";
 import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs";
-import { DetailFormSteps, type DetailFormStep } from "@/web-client/detail/DetailFormSteps";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import { areTagsEqual } from "@/web-client/detail/tag-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
+import {
+  StandardDetailContextPanel,
+  StandardDetailMetadataSide,
+} from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildAuditHistoryItems,
 } from "@/web-client/detail/audit-feed-utils";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import type {
+  DetailContextItem,
+  DetailHeaderActionConfig,
+  DetailLayoutConfig,
+} from "@/web-client/registry/types";
 
 export type PeopleDetailLayoutContext = DetailShellAuditContext & {
   mode: "create" | "edit";
@@ -127,6 +146,13 @@ function areMentionableUsersEqual(
   });
 }
 
+function getPersonStatusBadgeVariant(status?: string | null) {
+  if (status === "Ativo") return "default" as const;
+  if (status === "Desligado") return "destructive" as const;
+  if (status === "Inativo") return "secondary" as const;
+  return "outline" as const;
+}
+
 function SectionField({
   label,
   children,
@@ -142,7 +168,24 @@ function SectionField({
   );
 }
 
-function IdentificationStep({
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-1 border-b border-border/60 pb-2">
+      <div className="text-sm font-semibold text-foreground">{title}</div>
+      {description ? (
+        <p className="text-xs text-muted-foreground">{description}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function IdentificationFields({
   draft,
   readOnly,
   onDraftChange,
@@ -204,6 +247,23 @@ function IdentificationStep({
           readOnly={readOnly}
         />
       </SectionField>
+    </div>
+  );
+}
+
+function ClassificationFields({
+  draft,
+  readOnly,
+  onDraftChange,
+  onCommitField,
+}: {
+  draft: PersonFormData;
+  readOnly: boolean;
+  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
+  onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
+}) {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       <SectionField label="Tipo">
         <Select
           value={draft.personType ?? "__empty__"}
@@ -332,7 +392,7 @@ function IdentificationStep({
   );
 }
 
-function OrganizationStep({
+function StatusFields({
   draft,
   readOnly,
   onDraftChange,
@@ -386,7 +446,7 @@ function OrganizationStep({
   );
 }
 
-function NotesStep({
+function SummaryFields({
   draft,
   readOnly,
   onDraftChange,
@@ -409,54 +469,69 @@ function NotesStep({
   );
 }
 
-function PeopleInlineForm({
-  step,
+function BasicDataSection({
   draft,
   readOnly,
   onDraftChange,
   onCommitField,
   onCommitDraft,
 }: {
-  step: string;
   draft: PersonFormData;
   readOnly: boolean;
   onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
   onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
   onCommitDraft?: (nextDraft: PersonFormData) => void;
 }) {
-  if (step === "organization") {
-    return (
-      <OrganizationStep
-        draft={draft}
-        readOnly={readOnly}
-        onDraftChange={onDraftChange}
-        onCommitField={onCommitField}
-      />
-    );
-  }
-
-  if (step === "notes") {
-    return (
-      <NotesStep
-        draft={draft}
-        readOnly={readOnly}
-        onDraftChange={onDraftChange}
-        onCommitDraft={onCommitDraft}
-      />
-    );
-  }
-
   return (
-    <IdentificationStep
-      draft={draft}
-      readOnly={readOnly}
-      onDraftChange={onDraftChange}
-      onCommitField={onCommitField}
-    />
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <SectionHeading title="Identificação" />
+        <IdentificationFields
+          draft={draft}
+          readOnly={readOnly}
+          onDraftChange={onDraftChange}
+          onCommitField={onCommitField}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading title="Classificação" />
+        <ClassificationFields
+          draft={draft}
+          readOnly={readOnly}
+          onDraftChange={onDraftChange}
+          onCommitField={onCommitField}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading title="Status no cadastro" />
+        <StatusFields
+          draft={draft}
+          readOnly={readOnly}
+          onDraftChange={onDraftChange}
+          onCommitField={onCommitField}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading
+          title="Resumo"
+          description="Observações e histórico narrativo sobre o acompanhamento."
+        />
+        <SummaryFields
+          draft={draft}
+          readOnly={readOnly}
+          onDraftChange={onDraftChange}
+          onCommitDraft={onCommitDraft}
+        />
+      </section>
+    </div>
   );
 }
 
 function PeopleDetailMain({
+  mode,
   person,
   draft,
   readOnly,
@@ -466,6 +541,7 @@ function PeopleDetailMain({
   tabValue,
   onTabChange,
 }: {
+  mode: "create" | "edit";
   person: Person;
   draft: PersonFormData;
   readOnly: boolean;
@@ -475,41 +551,60 @@ function PeopleDetailMain({
   tabValue: PeopleDetailTabValue;
   onTabChange: (value: PeopleDetailTabValue) => void;
 }) {
-  const steps = React.useMemo<DetailFormStep[]>(
-    () =>
-      personFormSteps.map((step, index) => ({
-        key: index === 0 ? "identification" : index === 1 ? "organization" : "notes",
-        title: step.title,
-      })),
-    [],
+  const unavailableBeforeSave = (
+    <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
+      Disponível após salvar o cadastro.
+    </div>
   );
-  const [formStep, setFormStep] = React.useState<string>("identification");
-
   return (
     <FamilyRelationsProvider personId={person.id} initialMode="summary">
-      <div className="space-y-6">
-        <DetailFormSteps steps={steps} value={formStep} onValueChange={setFormStep} />
-
-        <PeopleInlineForm
-          step={formStep}
-          draft={draft}
-          readOnly={readOnly}
-          onDraftChange={onDraftChange}
-          onCommitField={onCommitField}
-          onCommitDraft={onCommitDraft}
+      <Tabs
+        value={tabValue}
+        onValueChange={(value) => onTabChange(value as PeopleDetailTabValue)}
+        className="flex h-full flex-col gap-4"
+      >
+        <div className="shrink-0">
+          <PeopleDetailTabs onValueChange={onTabChange} />
+        </div>
+        <PeopleDetailContent
+          person={person}
+          basicDataSlot={
+            <BasicDataSection
+              draft={draft}
+              readOnly={readOnly}
+              onDraftChange={onDraftChange}
+              onCommitField={onCommitField}
+              onCommitDraft={onCommitDraft}
+            />
+          }
+          contactsSlot={
+            mode === "edit" ? (
+              <PersonContactsPanel
+                personId={person.id}
+                seedEmail={person.email}
+                seedPhone={person.phone}
+                readOnly={readOnly}
+              />
+            ) : (
+              unavailableBeforeSave
+            )
+          }
+          addressSlot={
+            mode === "edit" ? (
+              <PersonAddressSection />
+            ) : (
+              unavailableBeforeSave
+            )
+          }
+          sensitiveDocumentsSlot={
+            mode === "edit" ? (
+              <PersonSensitiveDocumentsPanel personId={person.id} />
+            ) : (
+              unavailableBeforeSave
+            )
+          }
         />
-
-        <Tabs
-          value={tabValue}
-          onValueChange={(value) => onTabChange(value as PeopleDetailTabValue)}
-          className="flex flex-col gap-4"
-        >
-          <div className="shrink-0">
-            <PeopleDetailTabs onValueChange={onTabChange} />
-          </div>
-          <PeopleDetailContent person={person} />
-        </Tabs>
-      </div>
+      </Tabs>
     </FamilyRelationsProvider>
   );
 }
@@ -571,27 +666,29 @@ function PeopleDetailSide({
 }) {
   const ageValue = getAgeFromBirthDate(person.birthDate);
   const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
-  const isTodayBirthdayValue = isBirthdayToday(person.birthDate);
   const historyItems = React.useMemo(
     () => buildAuditHistoryItems(detailAudit?.logs ?? []),
     [detailAudit?.logs],
   );
 
-  const handleCopy = React.useCallback((value: string) => {
-    if (!value || !navigator?.clipboard?.writeText) return;
-    void navigator.clipboard.writeText(value);
-  }, []);
+  const contextItemsList = React.useMemo<DetailContextItem[]>(
+    () => [
+      { key: "status", label: "Status", value: person.status ?? "Sem status" },
+      { key: "type", label: "Tipo", value: person.personType ?? "Sem tipo" },
+      { key: "birthDate", label: "Nascimento", value: person.birthDate ?? "-" },
+      { key: "age", label: "Idade", value: ageLabel },
+      { key: "email", label: "Email", value: person.email ?? "-" },
+      { key: "phone", label: "Telefone", value: person.phone ?? "-" },
+      { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
+      { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
+      { key: "tags", label: "Tags", value: tagsValue.length },
+    ],
+    [ageLabel, person, tagsValue.length],
+  );
 
   const contextPanel =
     mode === "edit" ? (
-      <FamilyRelationsProvider personId={person.id} initialMode="summary">
-        <PeopleDetailSidebar
-          person={person}
-          ageLabel={ageLabel}
-          isTodayBirthday={isTodayBirthdayValue}
-          onCopy={handleCopy}
-        />
-      </FamilyRelationsProvider>
+      <StandardDetailContextPanel items={contextItemsList} />
     ) : (
       <div className="space-y-4 border border-border/60 bg-background px-4 py-4">
         <div className="space-y-1 border-b border-border/50 pb-3">
@@ -719,17 +816,6 @@ function PeopleDetailSide({
             : "Nenhum histórico.",
       }}
       contextPanel={contextPanel}
-      contextItems={[
-        { key: "status", label: "Status", value: person.status ?? "Sem status" },
-        { key: "type", label: "Tipo", value: person.personType ?? "Sem tipo" },
-        { key: "birthDate", label: "Nascimento", value: person.birthDate ?? "-" },
-        { key: "age", label: "Idade", value: ageLabel },
-        { key: "email", label: "Email", value: person.email ?? "-" },
-        { key: "phone", label: "Telefone", value: person.phone ?? "-" },
-        { key: "comments", label: "Comentários", value: (person.comments ?? []).length },
-        { key: "attachments", label: "Anexos", value: (person.attachments ?? []).length },
-        { key: "tags", label: "Tags", value: tagsValue.length },
-      ]}
       defaultTab="activity"
     />
   );
@@ -778,10 +864,37 @@ export const PEOPLE_AUDIT_FIELD_LABELS: Record<string, string> = {
   avatarUrl: "Foto",
 };
 
+const PEOPLE_DETAIL_HEADER_ACTIONS: DetailHeaderActionConfig<PeopleDetailLayoutContext>[] = [
+  {
+    key: "full-record",
+    hidden: ({ mode }) => mode !== "edit",
+    render: ({ person }) => {
+      const ageValue = getAgeFromBirthDate(person.birthDate);
+      const ageLabel = ageValue !== null ? `${ageValue} anos` : "-";
+      return (
+        <PersonFullRecordDialog
+          person={person}
+          ageLabel={ageLabel}
+          isTodayBirthday={isBirthdayToday(person.birthDate)}
+        />
+      );
+    },
+  },
+  {
+    key: "family-tree",
+    tooltip: "Árvore genealógica",
+    icon: <Network className="h-4 w-4" />,
+    variant: "action",
+    hidden: ({ mode }) => mode !== "edit",
+    href: ({ person }) => buildPeopleTreePath(person.id),
+  },
+];
+
 export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> = {
   editing: AUTO_EDITING,
   header: {
     title: ({ person }) => resolvePersonDisplayNames(person.fullName, person.socialName).primary,
+    actions: PEOPLE_DETAIL_HEADER_ACTIONS,
     leadingSlot: ({ person, readOnly, avatarUploading, onAvatarFileSelect }) => (
       <div className="mt-2">
         <DetailIdentityMediaField
@@ -794,30 +907,43 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         />
       </div>
     ),
-    slot: ({ person }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div className="font-medium text-foreground">{person.status ?? "Sem status"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Tipo</div>
-            <div className="font-medium text-foreground">{person.personType ?? "Sem tipo"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Nascimento</div>
-            <div className="font-medium text-foreground">{person.birthDate ?? "-"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Cadastro</div>
-            <div className="font-medium text-foreground">{person.createdAt ?? "-"}</div>
+    slot: ({ person }) => {
+      const ageValue = getAgeFromBirthDate(person.birthDate);
+      return (
+        <div className="border-y border-border/60 bg-transparent px-0 py-3">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Status</div>
+              <Badge variant={getPersonStatusBadgeVariant(person.status)}>
+                {person.status ?? "Sem status"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Tipo</div>
+              <div className="font-medium text-foreground">
+                {person.personType ? resolveLabel(person.personType, PERSON_TYPE_LABELS) : "Sem tipo"}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Nascimento</div>
+              <div className="font-medium text-foreground">
+                {formatDateOnlyPtBR(person.birthDate)}
+                {ageValue !== null ? ` (${ageValue} anos)` : ""}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Cadastro</div>
+              <div className="font-medium text-foreground">
+                {formatDateTimePtBR(person.createdAt)}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    ),
+      );
+    },
   },
   main: ({
+    mode,
     person,
     draft,
     readOnly,
@@ -828,6 +954,7 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
     onTabChange,
   }) => (
     <PeopleDetailMain
+      mode={mode}
       person={person}
       draft={draft}
       readOnly={readOnly}

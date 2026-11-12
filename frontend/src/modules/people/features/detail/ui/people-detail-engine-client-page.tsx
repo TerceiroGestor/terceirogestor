@@ -236,7 +236,7 @@ export function PeopleDetailEngineClientPage({
     const tab = searchParams.get("tab");
     return isPeopleDetailTabValue(tab) && tab !== "atendimentos"
       ? tab
-      : "familia";
+      : "dados-basicos";
   }, [searchParams]);
   const [tabValue, setTabValue] = React.useState<PeopleDetailTabValue>(initialTab);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
@@ -273,7 +273,7 @@ export function PeopleDetailEngineClientPage({
     (nextValue: PeopleDetailTabValue) => {
       setTabValue(nextValue);
       const nextSearch = new URLSearchParams(searchParams.toString());
-      if (nextValue === "familia") {
+      if (nextValue === "dados-basicos") {
         nextSearch.delete("tab");
       } else {
         nextSearch.set("tab", nextValue);
@@ -700,41 +700,41 @@ export function PeopleDetailEngineClientPage({
     () =>
       person && draft
         ? {
-            mode,
-            person,
-            draft,
-            readOnly: mode === "create" ? !canCreate : !canUpdate,
-            avatarUploading,
-            canAudit: mode === "edit" && canAudit,
-            mentionableUsers,
-            relatedAuditEntityIds,
-            tagSuggestions,
-            onAvatarFileSelect:
-              mode === "create"
+          mode,
+          person,
+          draft,
+          readOnly: mode === "create" ? !canCreate : !canUpdate,
+          avatarUploading,
+          canAudit: mode === "edit" && canAudit,
+          mentionableUsers,
+          relatedAuditEntityIds,
+          tagSuggestions,
+          onAvatarFileSelect:
+            mode === "create"
+              ? (file) => handleAvatarUpdate(file)
+              : canUpdate
                 ? (file) => handleAvatarUpdate(file)
-                : canUpdate
-                  ? (file) => handleAvatarUpdate(file)
-                  : undefined,
-            onDraftChange: handleDraftChange,
-            onCommitField: handleCommitField,
-            onCommitDraft: handleCommitDraft,
-            tabValue,
-            onTabChange: handleTabChange,
-            auditVisibleCount,
-            onAuditVisibleCountChange: setAuditVisibleCount,
-            commentDraft,
-            commentSubmitting,
-            attachmentUploading,
-            onCommentDraftChange: setCommentDraft,
-            onSubmitComment: handleSubmitComment,
-            onDeleteComment: handleDeleteComment,
-            onUploadAttachment: () => {
-              if (!canUpdate || mode !== "edit") return;
-              suspendDetailAutoSave();
-              attachmentInputRef.current?.click();
-            },
-            onDeleteAttachment: handleDeleteAttachment,
-          }
+                : undefined,
+          onDraftChange: handleDraftChange,
+          onCommitField: handleCommitField,
+          onCommitDraft: handleCommitDraft,
+          tabValue,
+          onTabChange: handleTabChange,
+          auditVisibleCount,
+          onAuditVisibleCountChange: setAuditVisibleCount,
+          commentDraft,
+          commentSubmitting,
+          attachmentUploading,
+          onCommentDraftChange: setCommentDraft,
+          onSubmitComment: handleSubmitComment,
+          onDeleteComment: handleDeleteComment,
+          onUploadAttachment: () => {
+            if (!canUpdate || mode !== "edit") return;
+            suspendDetailAutoSave();
+            attachmentInputRef.current?.click();
+          },
+          onDeleteAttachment: handleDeleteAttachment,
+        }
         : null,
     [
       person,
@@ -820,7 +820,6 @@ export function PeopleDetailEngineClientPage({
           { label: "Pessoas", href: PEOPLE_ROUTES.list },
           ...(mode === "edit" ? [{ label: displayNames.primary }] : []),
         ]}
-        headerActionsSlot={null}
       />
     </>
   );

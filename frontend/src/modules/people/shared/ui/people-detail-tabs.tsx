@@ -4,9 +4,13 @@ import * as React from "react";
 import {
   ClipboardList,
   ChevronRight,
+  FileLock2,
   GraduationCap,
   HeartPulse,
+  IdCard,
   Lock,
+  MapPin,
+  Phone,
   Pill,
   Users,
   Wallet,
@@ -27,6 +31,10 @@ type TabItem = {
 };
 
 const tabItems: TabItem[] = [
+  { value: "dados-basicos", label: "Dados básicos", icon: IdCard },
+  { value: "contatos", label: "Contatos", icon: Phone },
+  { value: "endereco", label: "Endereço", icon: MapPin },
+  { value: "documentos", label: "Documentos sensíveis", icon: FileLock2 },
   { value: "familia", label: "Familia", icon: Users },
   { value: "financeiro", label: "Financeiro", icon: Wallet },
   { value: "saude", label: "Condicoes", icon: HeartPulse },
@@ -73,6 +81,7 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
         <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-none border-0 bg-transparent p-0">
           {tabItems.map((item) => {
             const Icon = item.icon;
+            const isSensitive = item.value === "documentos";
             return (
               <TabsTrigger
                 key={item.value}
@@ -81,7 +90,11 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
                 onClick={() =>
                   !item.disabled && onValueChange(item.value as PeopleDetailTabValue)
                 }
-                className="group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
+                className={
+                  isSensitive
+                    ? "group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-amber-700/80 shadow-none data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-amber-700 dark:text-amber-400/80 dark:data-[state=active]:text-amber-400"
+                    : "group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
+                }
               >
                 <span className="flex items-center gap-2">
                   <Icon className="size-4" />

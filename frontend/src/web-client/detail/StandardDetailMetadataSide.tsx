@@ -19,7 +19,7 @@ import type {
   DetailHistoryItem,
 } from "@/web-client/registry/types";
 
-function StandardDetailContextPanel({
+export function StandardDetailContextPanel({
   items,
   emptyLabel = "Nenhum contexto disponivel.",
 }: {

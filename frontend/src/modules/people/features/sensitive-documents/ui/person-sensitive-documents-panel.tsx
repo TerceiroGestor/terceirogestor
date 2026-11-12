@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
-import { SectionDialog } from "@/components/section-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,7 @@ import {
   upsertPersonSensitiveDocuments,
 } from "@/modules/people/api";
 import type { ApiError } from "@/lib/api";
-import { Copy, LockKeyhole, Save } from "lucide-react";
+import { Copy, LockKeyhole, Save, ShieldAlert } from "lucide-react";
 
 function safeErrorMessage(err: unknown, fallback: string) {
   if (err && typeof err === "object" && "message" in err) {
@@ -36,7 +35,7 @@ const emptyForm = (seed?: Partial<FormState>): FormState => ({
   cns: seed?.cns ?? "",
 });
 
-export function PersonSensitiveDocumentsDialog({
+export function PersonSensitiveDocumentsPanel({
   personId,
 }: {
   personId: string;
@@ -49,14 +48,9 @@ export function PersonSensitiveDocumentsDialog({
   const canUpdate = permissions.includes("people.sensitive.update");
   const canAccess = canRead || canUpdate;
 
-  const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState<FormState>(emptyForm());
-
-  React.useEffect(() => {
-    if (open && !canAccess) setOpen(false);
-  }, [open, canAccess]);
 
   const load = React.useCallback(async () => {
     if (!token || !canRead) return;
@@ -80,7 +74,6 @@ export function PersonSensitiveDocumentsDialog({
             "Você não tem acesso para visualizar documentos sensíveis.",
           variant: "destructive",
         });
-        setOpen(false);
         await refreshCurrentUser();
         return;
       }
@@ -95,17 +88,22 @@ export function PersonSensitiveDocumentsDialog({
   }, [canRead, personId, refreshCurrentUser, toast, token]);
 
   React.useEffect(() => {
-    if (!open) return;
     load();
-  }, [open, load]);
+  }, [load]);
 
-  const handleCopy = React.useCallback((value: string) => {
-    if (!value) return;
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(value);
-      toast({ title: "Copiado", description: "Valor copiado para a área de transferência." });
-    }
-  }, [toast]);
+  const handleCopy = React.useCallback(
+    (value: string) => {
+      if (!value) return;
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(value);
+        toast({
+          title: "Copiado",
+          description: "Valor copiado para a área de transferência.",
+        });
+      }
+    },
+    [toast],
+  );
 
   const handleSubmit = React.useCallback(async () => {
     if (!token || !canUpdate) return;
@@ -129,7 +127,6 @@ export function PersonSensitiveDocumentsDialog({
           description: "Você não tem acesso para editar documentos sensíveis.",
           variant: "destructive",
         });
-        setOpen(false);
         await refreshCurrentUser();
         return;
       }
@@ -143,32 +140,29 @@ export function PersonSensitiveDocumentsDialog({
     }
   }, [canUpdate, form, personId, refreshCurrentUser, toast, token]);
 
-  if (!canAccess) {
-    return null;
-  }
-
   return (
-    <SectionDialog
-      title="Documentos sensíveis"
-      description="Armazenados com criptografia em repouso. Acessos são auditados (LGPD)."
-      open={open}
-      onOpenChange={setOpen}
-      trigger={
-        <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
-          {canUpdate ? "Gerenciar" : "Visualizar"}
-        </Button>
-      }
-      headerSlot={
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <LockKeyhole className="h-4 w-4" />
-          Protegido
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold">Área protegida (LGPD)</p>
+          <p className="text-xs">
+            CPF, RG, NIS e Cartão SUS são armazenados com criptografia em
+            repouso. Toda visualização e alteração é registrada em um
+            histórico de auditoria específico.
+          </p>
         </div>
-      }
-      contentClassName="max-w-[min(96vw,46rem)]"
-    >
-      {!canRead ? (
-        <div className="rounded-xl border border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
-          Você não tem permissão para visualizar documentos sensíveis.
+      </div>
+
+      {!canAccess ? (
+        <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Você não tem permissão para acessar documentos sensíveis.</span>
+        </div>
+      ) : !canRead ? (
+        <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/10 px-4 py-4 text-sm text-muted-foreground">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Você não tem permissão para visualizar documentos sensíveis.</span>
         </div>
       ) : (
         <div className="space-y-4">
@@ -278,22 +272,23 @@ export function PersonSensitiveDocumentsDialog({
             </div>
           </div>
 
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canUpdate || saving}
-            className="w-full"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Salvar
-          </Button>
-          {!canUpdate ? (
+          {canUpdate ? (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="w-full sm:w-auto"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Salvar
+            </Button>
+          ) : (
             <p className="text-xs text-muted-foreground">
               Você não tem permissão para editar documentos sensíveis.
             </p>
-          ) : null}
+          )}
         </div>
       )}
-    </SectionDialog>
+    </div>
   );
 }

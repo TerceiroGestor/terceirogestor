@@ -10,6 +10,7 @@ import {
 import type { DataProvider } from "@/web-client/data-provider/types";
 import type { DetailAuditFeedState } from "@/web-client/detail/audit-types";
 import {
+  DetailHeaderActionsRenderer,
   DetailRelationsRenderer,
   DetailTabsRenderer,
 } from "@/web-client/detail/DetailLayoutSections";
@@ -103,6 +104,19 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
 
   const titleFromLayout = layout?.header?.title?.(engineContext);
 
+  const headerActionItems = layout?.header?.actions;
+  const resolvedHeaderActionsSlot = React.useMemo(() => {
+    if (!headerActionItems?.length && !headerActionsSlot) return null;
+    return (
+      <>
+        {headerActionItems?.length ? (
+          <DetailHeaderActionsRenderer actions={headerActionItems} context={engineContext} />
+        ) : null}
+        {headerActionsSlot}
+      </>
+    );
+  }, [engineContext, headerActionItems, headerActionsSlot]);
+
   const mainSlot = React.useMemo(
     () =>
       layout?.main?.(engineContext) ??
@@ -184,7 +198,7 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
       readOnly={readOnly}
       onSave={onSave}
       onClose={onClose}
-      headerActionsSlot={headerActionsSlot}
+      headerActionsSlot={resolvedHeaderActionsSlot}
       headerTitleSlot={headerTitleSlot}
       headerInfoSlot={headerSlot}
       viewControlsSlot={viewControlsSlot}
