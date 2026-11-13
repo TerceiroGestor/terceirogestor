@@ -21,7 +21,7 @@ import {
 // auth.service.ts#hashToken - replicated here (sha256 hex) so the test can
 // insert a PasswordResetToken row whose hash matches a token it controls,
 // without reaching into the service's private method or depending on an
-// email being sent (SMTP isn't configured in this environment).
+// email being sent (RESEND_API_KEY isn't configured in this environment).
 function hashResetToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }

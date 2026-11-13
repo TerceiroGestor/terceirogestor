@@ -58,7 +58,7 @@ describe('validateEnv', () => {
   });
 
   it('não descarta variáveis opcionais que não fazem parte do schema', () => {
-    const config = validConfig({ SMTP_HOST: 'smtp.example.com' });
+    const config = validConfig({ RESEND_API_KEY: 're_example' });
     const result = validateEnv(config);
     expect(result).toEqual(config);
   });

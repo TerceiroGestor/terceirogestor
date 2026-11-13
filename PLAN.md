@@ -287,6 +287,27 @@ Parte por Parte:
     media via `git stash` era 60, incluindo os `no-unsafe-*` do código
     OAuth agora removido); frontend `tsc --noEmit` → 0 erros; `npx
     eslint` nos arquivos tocados → 0 problemas; `npm run build` → ok.
+  - [x] **Trocar provedor de e-mail para Resend** — feito em 2026-11-13,
+    branch `develop` (decisão do usuário, ver "Perguntas em aberto"
+    acima). `EmailService` reescrito: SMTP genérico (`nodemailer`) →
+    SDK oficial `resend` (`npm install resend`, `npm uninstall
+    nodemailer` — sem uso restante no projeto). Variáveis
+    `SMTP_HOST/PORT/USER/PASS/FROM` → `RESEND_API_KEY`/`EMAIL_FROM` em
+    `.env`, `.env.example`, `backend/.env.example`,
+    `.env.production.example`. Sem `RESEND_API_KEY` configurada, o
+    serviço imprime no console (mesmo comportamento de fallback de
+    antes, só troca a variável que o aciona) — os 3 fluxos que mandam
+    e-mail (reset de senha, código de registro, confirmação) continuam
+    chamando a mesma interface `EmailService.send()`, não precisaram
+    mudar. Resolve também o item de `npm audit` pendente sobre
+    `nodemailer` (alta severidade) — por remoção, não upgrade.
+    **Ainda falta:** testar o envio real, que exige a
+    `RESEND_API_KEY` de uma conta Resend (ação do usuário).
+    **Evidência:** 3 testes novos em `email.service.spec.ts` (fallback
+    console sem chave, envio ok mockando o SDK, erro do Resend vira
+    `BadRequestException`); backend `tsc --noEmit -p tsconfig.build.json`
+    → 0 erros; `npm test` → 28 suítes, 139 testes, ok; `npx eslint` nos
+    arquivos tocados → 0 problemas.
 - **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
   2026-11-11), [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
   acima) e [x] 16 (versão de Node, 2026-11-13 — Dockerfile/CI/`.nvmrc`

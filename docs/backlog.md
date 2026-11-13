@@ -40,8 +40,12 @@ adiado sem gatilho. Formato do Alicerce.
   `package.json` fixar a versão exata; perguntei antes de aplicar).
   O que sobrou, tudo exigindo major (proibido antes da Parte 5) ou sem
   fix publicado ainda:
-  - **Backend:** `nodemailer` (alta, direto, `7.x`→`10.5.0`) — é o único
-    desses que roda em produção (envio de e-mail); os outros são só
+  - **Backend:** `nodemailer` (alta, direto, `7.x`→`10.5.0`) — era o único
+    desses que roda em produção (envio de e-mail). **Resolvido em
+    2026-11-13 por remoção, não upgrade:** `EmailService` trocou SMTP
+    genérico (`nodemailer`) pelo SDK oficial do Resend (decisão do
+    usuário), então `nodemailer` foi desinstalado — o problema deixou de
+    existir em vez de precisar de upgrade. Os que sobram são só
     devDependencies (`jest`→`29.7.0`, na direção errada — bug do
     resolvedor do npm, não uma versão real mais nova —, `@nestjs/cli`→
     `12.0.12`, `ts-jest`→`25.5.1`).
@@ -49,12 +53,9 @@ adiado sem gatilho. Formato do Alicerce.
     `@typescript-eslint/*` aparece como "corrigível", mas a versão
     corrigida (`>8.72.2`) só existe como alpha (`8.72.3-alpha.*`) — não
     tem release estável ainda pra instalar.
-  **Gatilho:** `nodemailer` — na próxima vez que o fluxo de e-mail for
-  tocado (ou antes do go-live, o que vier primeiro), subir pra `10.x`
-  com teste manual dos 3 fluxos que mandam e-mail (reset de senha,
-  código de registro, confirmação). `jest`/`@nestjs/cli`/`ts-jest` —
-  Parte 5 (majors). `typescript-eslint` — rodar `npm audit` de novo
-  depois que uma versão estável `>8.72.2` for publicada.
+  **Gatilho:** `jest`/`@nestjs/cli`/`ts-jest` — Parte 5 (majors).
+  `typescript-eslint` — rodar `npm audit` de novo depois que uma versão
+  estável `>8.72.2` for publicada.
 
 - **O upgrade do `eslint-config-next` pra `16.4.6` (item acima) trouxe
   uma versão mais nova do `eslint-plugin-react-hooks`, com regras novas
