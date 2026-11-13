@@ -290,6 +290,7 @@ export function AdminRolesListModuleClientPage() {
       queryFacets={queryFacets}
       analysisFacets={analysisFacets}
       valueSuggestions={valueSuggestions}
+      columns={columns}
       favoriteSnapshot={buildFavoriteSnapshot(state)}
       mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}

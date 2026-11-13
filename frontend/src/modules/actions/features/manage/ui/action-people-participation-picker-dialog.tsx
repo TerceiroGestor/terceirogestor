@@ -354,6 +354,7 @@ export function ActionPeopleParticipationPickerDialog({
             )
           }
           minWidthClassName="min-w-[980px]"
+          showColumnVisibilityButton={false}
         />
 
         <PaginationBar

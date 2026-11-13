@@ -79,6 +79,7 @@ export function AdminUserAccessLogsCard({
           data={rows}
           columns={columns}
           className="min-h-[320px]"
+          showColumnVisibilityButton={false}
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">

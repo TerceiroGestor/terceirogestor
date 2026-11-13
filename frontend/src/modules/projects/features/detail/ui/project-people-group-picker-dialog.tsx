@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SectionDialog } from "@/components/section-dialog";
@@ -9,7 +9,6 @@ import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { listPeopleGroups } from "@/modules/people-groups/api/people-groups";
 import type { ApiPeopleGroup } from "@/modules/people-groups/api";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
-import { ColumnVisibilityMenu } from "@/web-client/views/ListView";
 import { TableView } from "@/web-client/views/TableView";
 
 type ProjectPeopleGroupPickerDialogProps = {
@@ -54,7 +53,6 @@ export function ProjectPeopleGroupPickerDialog({
     pageSize: 10,
   });
   const [search, setSearch] = React.useState("");
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   const resolvedTitle =
     title ?? (purpose === "EQUIPE" ? "Vincular grupo de equipe" : "Vincular grupo de pessoas");
@@ -250,21 +248,11 @@ export function ProjectPeopleGroupPickerDialog({
               onChange={setSearch}
               placeholder="Pesquisar"
               rightSlot={
-                <div className="flex items-center gap-0.5">
-                  <div className="whitespace-nowrap px-1 text-[11px] text-muted-foreground">
-                    Total:{" "}
-                    <span className="font-mono tabular-nums text-foreground">
-                      {totalCount.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                  <ColumnVisibilityMenu
-                    columns={columns}
-                    visibility={columnVisibility}
-                    onVisibilityChange={setColumnVisibility}
-                    showTriggerLabel={false}
-                    triggerVariant="ghost"
-                    triggerSize="icon"
-                  />
+                <div className="whitespace-nowrap px-1 text-[11px] text-muted-foreground">
+                  Total:{" "}
+                  <span className="font-mono tabular-nums text-foreground">
+                    {totalCount.toLocaleString("pt-BR")}
+                  </span>
                 </div>
               }
             />
@@ -298,8 +286,6 @@ export function ProjectPeopleGroupPickerDialog({
             );
           }}
           showColumnVisibilityButton={false}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
         />
 
         <PaginationBar

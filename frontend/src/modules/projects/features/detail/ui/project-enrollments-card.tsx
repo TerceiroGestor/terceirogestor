@@ -770,6 +770,7 @@ export function ProjectEnrollmentsCard({
           data={rows}
           columns={listColumns}
           className="min-h-[420px]"
+          showColumnVisibilityButton={false}
           getRowId={(row) => row.id}
           enableRowSelection={selectionMode}
           onSelectionChange={setSelectedRows}

@@ -110,6 +110,7 @@ export function DetailRelationTablePanel<TData>({
         className="bg-transparent"
         minWidthClassName={tableMinWidthClassName}
         initialColumnPinning={tableInitialColumnPinning}
+        showColumnVisibilityButton={false}
       />
 
       {loading ? (

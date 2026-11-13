@@ -767,6 +767,7 @@ export function ProgramsListModuleClientPage() {
       onStateChange={setState}
       queryFacets={queryFacets}
       analysisFacets={analysisFacets}
+      columns={columns}
       favoriteSnapshot={favoriteSnapshot}
       mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}

@@ -383,6 +383,7 @@ export function PeopleGroupPeoplePickerDialog({
                 );
               }}
               minWidthClassName="min-w-[920px]"
+              showColumnVisibilityButton={false}
             />
           </div>
         </div>

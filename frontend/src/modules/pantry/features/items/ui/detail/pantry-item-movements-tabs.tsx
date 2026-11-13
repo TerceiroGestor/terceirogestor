@@ -336,6 +336,7 @@ export function PantryItemMovementsTabs({
                   groupByFields={[]}
                   getRowId={(row) => row.id}
                   onRowClick={(row) => onOpenEntry(row.id)}
+                  showColumnVisibilityButton={false}
                 />
               ) : (
                 <div className="rounded-md border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
@@ -369,6 +370,7 @@ export function PantryItemMovementsTabs({
                   groupByFields={[]}
                   getRowId={(row) => row.id}
                   onRowClick={(row) => onOpenExit(row.id)}
+                  showColumnVisibilityButton={false}
                 />
               ) : (
                 <div className="rounded-md border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
@@ -393,6 +395,7 @@ export function PantryItemMovementsTabs({
               groupByFields={[]}
               getRowId={(row) => row.id}
               onRowClick={(row) => (row.kind === "ENTRY" ? onOpenEntry(row.id) : onOpenExit(row.id))}
+              showColumnVisibilityButton={false}
             />
           ) : (
             <div className="rounded-md border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">

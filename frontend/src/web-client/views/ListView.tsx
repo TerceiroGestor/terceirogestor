@@ -89,33 +89,45 @@ function useColumnVisibilityContext() {
  * Padrão reutilizável pra qualquer módulo: envolva a tela (normalmente dentro
  * do próprio `EntityModuleShell`, ver `RecordListHost.tsx`) com este provider
  * passando `columns` e uma `storageKey` estável (ex.: `moduleDefinition.moduleId`).
- * Isso já é suficiente pra: (1) o botão "Colunas" aparecer sozinho na barra de
- * busca, perto do filtro, e (2) o `ListView` dentro do provider detectar o
- * estado automaticamente - nenhuma prop extra precisa ser passada pra ele.
- * Sem o provider, `ListView` continua funcionando como antes (estado próprio,
- * botão dentro da própria lista).
+ * Isso já é suficiente pra: (1) o `ListView` dentro do provider detectar o
+ * estado automaticamente - nenhuma prop extra precisa ser passada pra ele - e
+ * (2), quando `visibility`/`onVisibilityChange` forem passados (controlado),
+ * manter esse mesmo estado em sincronia com um botão "Colunas" renderizado
+ * fora da árvore deste provider (ex.: via `PageControlPanel`/`ControlPanelShell`,
+ * que relocaliza `searchSlot` para outro ponto da página - um Context.Provider
+ * local não alcança esse ponto, então o botão ali precisa receber as props
+ * explicitamente; ver `RecordListHost.tsx`). Sem controle externo, mantém
+ * estado próprio (comportamento anterior). Sem o provider, `ListView` continua
+ * funcionando como antes (estado próprio, botão dentro da própria lista).
  */
 export function ColumnVisibilityProvider({
   storageKey,
   columns,
+  visibility: controlledVisibility,
+  onVisibilityChange: controlledOnVisibilityChange,
   children,
 }: {
   storageKey: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: ColumnDef<any, unknown>[];
+  visibility?: VisibilityState;
+  onVisibilityChange?: (next: VisibilityState) => void;
   children: React.ReactNode;
 }) {
-  const [visibility, setVisibility] = React.useState<VisibilityState>(
+  const [internalVisibility, setInternalVisibility] = React.useState<VisibilityState>(
     () => readStoredColumnVisibility(storageKey) ?? {},
   );
+  const visibility = controlledVisibility ?? internalVisibility;
+  const setVisibility = controlledOnVisibilityChange ?? setInternalVisibility;
 
   React.useEffect(() => {
+    if (controlledVisibility) return;
     writeStoredColumnVisibility(storageKey, visibility);
-  }, [storageKey, visibility]);
+  }, [controlledVisibility, storageKey, visibility]);
 
   const value = React.useMemo(
     () => ({ columns, visibility, setVisibility }),
-    [columns, visibility],
+    [columns, visibility, setVisibility],
   );
 
   return (

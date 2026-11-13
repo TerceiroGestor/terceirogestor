@@ -22,7 +22,13 @@ import {
 } from "@/web-client/registry/module-utils";
 import type { SearchViewDefinition } from "@/web-client/search/types";
 import { getGraphBuilderGroupFields } from "@/web-client/views/GraphView";
-import { ColumnVisibilityMenu, ColumnVisibilityProvider } from "@/web-client/views/ListView";
+import {
+  ColumnVisibilityMenu,
+  ColumnVisibilityProvider,
+  readStoredColumnVisibility,
+  writeStoredColumnVisibility,
+} from "@/web-client/views/ListView";
+import type { VisibilityState } from "@tanstack/react-table";
 
 export type RecordListHostProps<
   TState extends RecordQueryState,
@@ -121,6 +127,22 @@ export function RecordListHost<
   onClearAll,
   columns,
 }: RecordListHostProps<TState, TFavoriteState>) {
+  // Estado de visibilidade de colunas erguido pra cá (em vez de dentro do
+  // ColumnVisibilityProvider) porque o botão "Colunas" da barra de busca é
+  // renderizado fora desta árvore: PageControlPanel não renderiza seus slots
+  // localmente, só registra as props num ControlPanelContext que o
+  // ControlPanelShell (montado em outro ponto do layout) lê e renderiza -
+  // nenhum React.Context local alcança esse ponto. Por isso o botão recebe
+  // columns/visibility/onVisibilityChange explicitamente, e o mesmo estado é
+  // passado como controlado pro ColumnVisibilityProvider que envolve
+  // `children` (esse sim renderiza no lugar certo, sem relocação).
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => readStoredColumnVisibility(moduleDefinition.moduleId) ?? {},
+  );
+  React.useEffect(() => {
+    writeStoredColumnVisibility(moduleDefinition.moduleId, columnVisibility);
+  }, [moduleDefinition.moduleId, columnVisibility]);
+
   const resolvedSearchView = searchView ?? moduleDefinition.searchConfig;
   const viewOptions = React.useMemo(
     () => buildViewOptions(moduleDefinition),
@@ -333,6 +355,9 @@ export function RecordListHost<
                 ) : null}
                 {showColumnVisibilityControl ? (
                   <ColumnVisibilityMenu
+                    columns={columns}
+                    visibility={columnVisibility}
+                    onVisibilityChange={setColumnVisibility}
                     showTriggerLabel={false}
                     triggerVariant="ghost"
                     triggerSize="icon"
@@ -448,7 +473,12 @@ export function RecordListHost<
   if (!columns?.length) return content;
 
   return (
-    <ColumnVisibilityProvider storageKey={moduleDefinition.moduleId} columns={columns}>
+    <ColumnVisibilityProvider
+      storageKey={moduleDefinition.moduleId}
+      columns={columns}
+      visibility={columnVisibility}
+      onVisibilityChange={setColumnVisibility}
+    >
       {content}
     </ColumnVisibilityProvider>
   );

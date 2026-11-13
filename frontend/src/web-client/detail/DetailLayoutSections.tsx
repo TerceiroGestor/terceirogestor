@@ -298,6 +298,7 @@ function DetailRelationSection<
                   ? (row) => relation.onRowClick?.(row, context)
                   : undefined
               }
+              showColumnVisibilityButton={false}
             />
           </div>
         ) : (

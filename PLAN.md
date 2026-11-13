@@ -443,6 +443,44 @@ ponta-a-ponta (subir os dois servidores, exercitar as telas afetadas)
 ainda pendente antes de considerar a fase 100% fechada. Seguindo para a
 Fase R2 (matrícula por grupo).
 
+**Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
+seletor de colunas ("Colunas") por tipo de tela:**
+- **ListView** (tela principal de um módulo — Pessoas, Grupos de Pessoas,
+  Programas, Projetos, Ações, Tarefas, Admin, Pantry/Despensa): o botão
+  "Colunas" fica **dentro do Painel Search**, na barra de busca, ao lado
+  do botão de Filtros — nunca solto acima da tabela.
+- **RelationView** (tabela de relação embutida numa aba de Detail — ex.:
+  "Grupos de Pessoas"/"Participantes"/"Ações" dentro do Projeto — e
+  diálogos de vínculo/picker como `ProjectPeopleGroupPickerDialog`/
+  `BulkEnrollmentDialog`): o Painel Search é a **versão mínima** — só a
+  barra de busca, pesquisando em qualquer coluna/valor (nome, número,
+  o que for). **Sem seletor de colunas em nenhum lugar.**
+
+Bug corrigido: o botão "Colunas" não aparecia em nenhum lugar em Pessoas/
+Grupos de Pessoas, e aparecia solto acima da tabela (fora do Painel
+Search) em Programas/Projetos/Ações — e o mesmo acontecia nas tabelas de
+Relation, violando a regra acima. Causa raiz dupla: (1) `PageControlPanel`
+não renderiza seus slots localmente — só registra as props num
+`ControlPanelContext` que o `ControlPanelShell` (montado em outro ponto
+do layout) lê e renderiza, então nenhum `ColumnVisibilityProvider` local
+alcançava o botão da busca (afetava todo mundo); (2) `projects`/
+`programs`/`actions` nunca passavam `columns` pro `EntityModuleShell`,
+então o `ColumnVisibilityProvider` nem chegava a envolver a tela (o
+`ListView` caía no botão flutuante próprio). Corrigido elevando o estado
+de visibilidade pra dentro do `RecordListHost` (passado explícito pro
+botão da busca, e como Provider controlado pro resto da árvore) e
+adicionando `columns` nos ~6 módulos que não passavam; nas Relations e
+diálogos de picker, `showColumnVisibilityButton={false}` explícito no
+`ListView`/`TableView` em vez de deixar cair no padrão. Verificado com
+browser real (Playwright + Chrome já instalado, sem baixar nada): botão
+aparece dentro da busca nas 6 telas principais testadas (Pessoas, Grupos
+de Pessoas, Programas, Projetos, Ações, Tarefas) e funciona (abre o menu,
+esconde/mostra coluna, persiste); zero botão de coluna nas Relations e
+diálogos testados (aba "Grupos de Pessoas" do Projeto, diálogo de
+vincular grupo, aba "Participantes"). `tsc` 0 erros; `eslint` 210
+problemas vs. baseline 212, net -2 (apagado `person-picker-dialog.tsx`,
+não usado em lugar nenhum); `npm run build` sucesso.
+
 Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
 fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
 `962b91c`).

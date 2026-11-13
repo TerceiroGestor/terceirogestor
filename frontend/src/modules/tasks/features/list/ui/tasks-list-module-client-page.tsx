@@ -1006,6 +1006,7 @@ export function TasksListModuleClientPage() {
       queryFacets={queryFacets}
       analysisFacets={analysisFacets}
       valueSuggestions={valueSuggestions}
+      columns={columns}
       favoriteSnapshot={{
         view: state.view,
         searchText: state.searchText,

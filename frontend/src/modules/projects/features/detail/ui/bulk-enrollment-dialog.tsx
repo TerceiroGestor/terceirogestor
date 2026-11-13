@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SectionDialog } from "@/components/section-dialog";
-import { ColumnVisibilityMenu } from "@/web-client/views/ListView";
 import {
   Select,
   SelectContent,
@@ -111,7 +110,6 @@ export function BulkEnrollmentDialog({
     React.useState<ProjectParticipationRole>("PUBLICO_ATENDIDO");
   const [saving, setSaving] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   const loadPeople = React.useCallback(async () => {
     if (!open) return;
@@ -467,15 +465,6 @@ export function BulkEnrollmentDialog({
               placeholder="Pesquisar"
               facets={queryFacets}
               rightSlot={
-                <div className="flex items-center gap-0.5">
-                  <ColumnVisibilityMenu
-                    columns={columns}
-                    visibility={columnVisibility}
-                    onVisibilityChange={setColumnVisibility}
-                    showTriggerLabel={false}
-                    triggerVariant="ghost"
-                    triggerSize="icon"
-                  />
                   <SearchPanelMenu
                   actionId="project-enrollment-picker.people"
                   searchView={peopleSearchView}
@@ -539,7 +528,6 @@ export function BulkEnrollmentDialog({
                   }}
                   variant="compact"
                   />
-                </div>
               }
             />
           </div>
@@ -575,8 +563,6 @@ export function BulkEnrollmentDialog({
               }}
               minWidthClassName="min-w-[980px]"
               showColumnVisibilityButton={false}
-              columnVisibility={columnVisibility}
-              onColumnVisibilityChange={setColumnVisibility}
             />
           </div>
         </div>

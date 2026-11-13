@@ -484,6 +484,7 @@ export function ProjectActionAttendancesCard({
               data={visibleRows}
               columns={columns}
               className="h-full"
+              showColumnVisibilityButton={false}
               getRowId={(row) => row.enrollment.id}
               enableRowSelection={selectionEnabled}
               bulkActions={

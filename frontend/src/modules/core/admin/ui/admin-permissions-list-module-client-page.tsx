@@ -222,6 +222,7 @@ export function AdminPermissionsListModuleClientPage() {
       onStateChange={setState}
       queryFacets={queryFacets}
       analysisFacets={analysisFacets}
+      columns={columns}
       favoriteSnapshot={buildFavoriteSnapshot(state)}
       mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}
