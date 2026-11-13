@@ -308,6 +308,49 @@ Parte por Parte:
     `BadRequestException`); backend `tsc --noEmit -p tsconfig.build.json`
     → 0 erros; `npm test` → 28 suítes, 139 testes, ok; `npx eslint` nos
     arquivos tocados → 0 problemas.
+  - [x] **Driver `r2` do `StorageService`** — feito em 2026-11-13, branch
+    `develop` (pré-requisito 4.2; decisão de arquitetura tomada junto
+    com o usuário antes de codificar — ver pergunta "Arquitetura de
+    download" respondida nesta sessão: **URL assinada nativa do R2**,
+    não proxy pelo backend). `npm install @aws-sdk/client-s3
+    @aws-sdk/s3-request-presigner`. Achado ao investigar: o download
+    (`UploadsController.download`) lia o arquivo direto do disco local,
+    ignorando por completo a abstração `StorageDriver` — um driver `r2`
+    só com `put`/`delete` deixaria os downloads quebrados (upload vai
+    pro R2, download nunca acha o arquivo). Corrigido junto:
+    `getSignedUrl` virou parte da interface `StorageDriver` (antes era
+    só HMAC fixo em `StorageService`) — `local` mantém a URL assinada
+    própria de hoje (`/uploads/...?sig=`, verificada por
+    `UploadsController`); `r2` presigna um `GetObjectCommand` nativo
+    (`@aws-sdk/s3-request-presigner`), e o navegador passa a baixar
+    direto do bucket, nunca pela API. Consequência assumida: o log de
+    acesso sensível (`PersonSensitiveAccessLog`, item 2 de
+    `docs/auditoria-riscos.md`) não pode mais depender do download
+    passar pela API (não passa, com `r2`) — moveu de
+    `UploadsController.download` para `SignUploadsInterceptor`, no
+    momento em que a URL é emitida (mesmo princípio para os dois
+    drivers agora, não só pra `r2`): uma falha ao gravar o log não
+    derruba a resposta (`try/catch` + aviso, mesmo padrão defensivo de
+    `PrismaService#safeAuditLog`). `getSignedUrl` ficou `async` (e
+    `SignUploadsInterceptor` também, via `switchMap`/`Promise.all`, já
+    que presignar no R2 é uma chamada assíncrona do SDK). Variáveis
+    novas: `STORAGE_DRIVER` (default `local`), `R2_ACCOUNT_ID`,
+    `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` nos 4
+    arquivos de env (`.env.production.example` já com
+    `STORAGE_DRIVER=r2`). **Ainda falta:** testar contra um bucket R2
+    de verdade — exige a conta/credenciais (ação do usuário); migração
+    dos arquivos que já existem localmente fica para quando isso
+    acontecer (script idempotente, como o plano já previa).
+    **Evidência:** `storage.service.spec.ts` reescrito (14 testes:
+    local inalterado + 4 novos de `r2` mockando `@aws-sdk/client-s3`/
+    `s3-request-presigner` + rejeição de driver desconhecido/env
+    incompleta); `sign-uploads.interceptor.spec.ts` com 2 testes novos
+    (log não dispara sem `personId` em nenhum nível, falha no log não
+    derruba a resposta); `uploads.controller.spec.ts` simplificado (sem
+    `PrismaService`/`RequestContextService`, que saíram do construtor).
+    backend `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test`
+    → 28 suítes, 143 testes, ok; `npx eslint` nos arquivos tocados → 0
+    problemas.
 - **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
   2026-11-11), [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
   acima) e [x] 16 (versão de Node, 2026-11-13 — Dockerfile/CI/`.nvmrc`

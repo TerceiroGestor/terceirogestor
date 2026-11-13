@@ -3,6 +3,8 @@ import type { ConfigService } from '@nestjs/config';
 import { of } from 'rxjs';
 import { SignUploadsInterceptor } from './sign-uploads.interceptor';
 import { StorageService } from './storage.service';
+import type { PrismaService } from '../prisma/prisma.service';
+import type { RequestContextService } from '../request-context/request-context.service';
 
 type TestUser = { tenantId: string; userId: string };
 
@@ -22,9 +24,23 @@ const USER: TestUser = { tenantId: 'tenant-a', userId: 'user-a' };
 
 describe('SignUploadsInterceptor', () => {
   const storage = new StorageService({
-    get: () => 'test-secret',
+    get: (key: string) => (key === 'JWT_SECRET' ? 'test-secret' : undefined),
   } as unknown as ConfigService);
-  const interceptor = new SignUploadsInterceptor(storage);
+  let createSensitiveLog: jest.Mock;
+  let prisma: PrismaService;
+  let requestContext: RequestContextService;
+  let interceptor: SignUploadsInterceptor;
+
+  beforeEach(() => {
+    createSensitiveLog = jest.fn().mockResolvedValue(undefined);
+    prisma = {
+      personSensitiveAccessLog: { create: createSensitiveLog },
+    } as unknown as PrismaService;
+    requestContext = {
+      get: () => ({ ipAddress: '203.0.113.1', userAgent: 'jest' }),
+    } as unknown as RequestContextService;
+    interceptor = new SignUploadsInterceptor(storage, prisma, requestContext);
+  });
 
   function run(data: unknown, user?: TestUser): Promise<unknown> {
     return new Promise((resolve) => {
@@ -51,7 +67,6 @@ describe('SignUploadsInterceptor', () => {
     ).toEqual({
       tenantId: 'tenant-a',
       userId: 'user-a',
-      personId: undefined,
     });
   });
 
@@ -127,7 +142,7 @@ describe('SignUploadsInterceptor', () => {
     ).toBe(true);
   });
 
-  it('carries personId into a sensitive (health) document URL signed as a sibling field', async () => {
+  it('signs a sensitive (health) document URL and writes a PersonSensitiveAccessLog row, using personId from the sibling field', async () => {
     const result = (await run(
       {
         id: 'cond-1',
@@ -142,10 +157,21 @@ describe('SignUploadsInterceptor', () => {
     );
     expect(
       storage.verifySignature('health', 'doc.pdf', sig ?? undefined),
-    ).toEqual({ tenantId: 'tenant-a', userId: 'user-a', personId: 'person-x' });
+    ).toEqual({ tenantId: 'tenant-a', userId: 'user-a' });
+    expect(createSensitiveLog).toHaveBeenCalledTimes(1);
+    expect(createSensitiveLog).toHaveBeenCalledWith({
+      data: {
+        tenantId: 'tenant-a',
+        personId: 'person-x',
+        userId: 'user-a',
+        action: 'READ',
+        ipAddress: '203.0.113.1',
+        userAgent: 'jest',
+      },
+    });
   });
 
-  it('does not carry personId into a non-sensitive category even if present as a sibling field', async () => {
+  it('does not log access for a non-sensitive category even if personId is present as a sibling field', async () => {
     const result = (await run(
       {
         id: 'att-1',
@@ -160,10 +186,20 @@ describe('SignUploadsInterceptor', () => {
     );
     expect(
       storage.verifySignature('people', 'file.pdf', sig ?? undefined),
-    ).toEqual({ tenantId: 'tenant-a', userId: 'user-a', personId: undefined });
+    ).toEqual({ tenantId: 'tenant-a', userId: 'user-a' });
+    expect(createSensitiveLog).not.toHaveBeenCalled();
   });
 
-  it('propagates personId from a parent object down to a nested sensitive path (medication record)', async () => {
+  it('does not log access for a sensitive category with no personId anywhere in the chain', async () => {
+    await run(
+      { id: 'cond-1', documentUrl: '/uploads/health/tenant-a/doc.pdf' },
+      USER,
+    );
+
+    expect(createSensitiveLog).not.toHaveBeenCalled();
+  });
+
+  it('propagates personId from a parent object down to a nested sensitive path (medication record), logging each one', async () => {
     const result = (await run(
       {
         personId: 'person-y',
@@ -188,8 +224,23 @@ describe('SignUploadsInterceptor', () => {
       ).toEqual({
         tenantId: 'tenant-a',
         userId: 'user-a',
-        personId: 'person-y',
       });
     }
+    expect(createSensitiveLog).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not fail the response when writing the access log throws', async () => {
+    createSensitiveLog.mockRejectedValue(new Error('db down'));
+
+    const result = (await run(
+      {
+        id: 'cond-1',
+        personId: 'person-x',
+        documentUrl: '/uploads/health/tenant-a/doc.pdf',
+      },
+      USER,
+    )) as { documentUrl: string };
+
+    expect(result.documentUrl).toContain('?sig=');
   });
 });

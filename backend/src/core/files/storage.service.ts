@@ -3,6 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import { dirname, join } from 'path';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl as getS3SignedUrl } from '@aws-sdk/s3-request-presigner';
 import { UPLOAD_CATEGORY_DIRS } from './upload-paths';
 
 interface SignedUploadPayload {
@@ -10,30 +17,27 @@ interface SignedUploadPayload {
   userId: string;
   category: string;
   filename: string;
-  personId?: string;
   exp: number;
 }
 
 export interface SignedUploadUrlOptions {
   ttlSeconds?: number;
-  /** Person the file belongs to - only set for sensitive categories, so a
-   * download can be written to PersonSensitiveAccessLog (item 2). */
-  personId?: string;
 }
 
 export interface VerifiedUploadSignature {
   tenantId: string;
   userId: string;
-  personId?: string;
 }
 
 const DEFAULT_TTL_SECONDS = 5 * 60;
 
 /**
- * Where `put`/`delete` actually write bytes. `local` writes straight to
- * the container's disk (lost on every Railway redeploy — item 12 of
- * docs/auditoria-riscos.md); swapping to R2 (Parte 4.2) only needs a new
- * class here and `STORAGE_DRIVER=r2`, no caller changes.
+ * Where `put`/`delete`/`getSignedUrl` actually touch bytes. `local` writes
+ * straight to the container's disk and signs its own `/uploads/...` proxy
+ * URL (lost on every Railway redeploy — item 12 of docs/auditoria-riscos.md).
+ * `r2` (Parte 4.2) stores in the R2 bucket and signs a native presigned
+ * GET URL for it, so the browser downloads straight from R2, never through
+ * this API.
  */
 export interface StorageDriver {
   put(
@@ -43,12 +47,25 @@ export interface StorageDriver {
     data: Buffer,
   ): Promise<void>;
   delete(category: string, tenantId: string, filename: string): Promise<void>;
+  getSignedUrl(
+    category: string,
+    filename: string,
+    tenantId: string,
+    userId: string,
+    options: SignedUploadUrlOptions,
+  ): Promise<string>;
+}
+
+function storageKey(category: string, tenantId: string, filename: string) {
+  return `${category}/${tenantId}/${filename}`;
 }
 
 class LocalStorageDriver implements StorageDriver {
+  constructor(private readonly secret: string) {}
+
   // async on purpose: resolve() below can throw synchronously (unknown
   // category) and async is what turns that into a rejected Promise,
-  // matching how a real (genuinely awaited) R2 driver will behave.
+  // matching how the real R2 driver behaves (every call is genuinely async).
   // eslint-disable-next-line @typescript-eslint/require-await
   async put(
     category: string,
@@ -71,7 +88,34 @@ class LocalStorageDriver implements StorageDriver {
     fs.rmSync(this.resolve(category, tenantId, filename), { force: true });
   }
 
-  private resolve(category: string, tenantId: string, filename: string): string {
+  // see put() above
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async getSignedUrl(
+    category: string,
+    filename: string,
+    tenantId: string,
+    userId: string,
+    options: SignedUploadUrlOptions,
+  ): Promise<string> {
+    const payload: SignedUploadPayload = {
+      tenantId,
+      userId,
+      category,
+      filename,
+      exp: Date.now() + (options.ttlSeconds ?? DEFAULT_TTL_SECONDS) * 1000,
+    };
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const mac = createHmac('sha256', this.secret)
+      .update(body)
+      .digest('base64url');
+    return `/uploads/${category}/${tenantId}/${filename}?sig=${body}.${mac}`;
+  }
+
+  private resolve(
+    category: string,
+    tenantId: string,
+    filename: string,
+  ): string {
     const dir = UPLOAD_CATEGORY_DIRS[category];
     if (!dir) {
       throw new Error(`Categoria de upload desconhecida: ${category}`);
@@ -80,16 +124,68 @@ class LocalStorageDriver implements StorageDriver {
   }
 }
 
+class R2StorageDriver implements StorageDriver {
+  constructor(
+    private readonly client: S3Client,
+    private readonly bucket: string,
+  ) {}
+
+  async put(
+    category: string,
+    tenantId: string,
+    filename: string,
+    data: Buffer,
+  ): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: storageKey(category, tenantId, filename),
+        Body: data,
+      }),
+    );
+  }
+
+  async delete(
+    category: string,
+    tenantId: string,
+    filename: string,
+  ): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: storageKey(category, tenantId, filename),
+      }),
+    );
+  }
+
+  async getSignedUrl(
+    category: string,
+    filename: string,
+    tenantId: string,
+    _userId: string,
+    options: SignedUploadUrlOptions,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: storageKey(category, tenantId, filename),
+    });
+    return getS3SignedUrl(this.client, command, {
+      expiresIn: options.ttlSeconds ?? DEFAULT_TTL_SECONDS,
+    });
+  }
+}
+
 /**
- * Local-disk stand-in for the R2 StorageService planned for Parte 4.2.
- * `getSignedUrl`/`verifySignature` sign short-lived download URLs so the
- * browser can keep using plain <img src>/<a href> (the access token lives
- * only in sessionStorage, never in a cookie, so it can't ride along
- * automatically on those requests) while still requiring proof of tenant
- * ownership. `put`/`delete` are the write side (item 12): every upload
- * endpoint in `files.controller.ts` goes through them instead of touching
- * the filesystem directly, so there's exactly one place to change when R2
- * is ready.
+ * Storage abstraction planned for Parte 4.2. `put`/`delete` are the write
+ * side (item 12 of docs/auditoria-riscos.md): every upload endpoint in
+ * `files.controller.ts` goes through them instead of touching the
+ * filesystem directly. `getSignedUrl` is the read side: `local` mints its
+ * own short-lived proxy URL (verified by `verifySignature` + served by
+ * `UploadsController`); `r2` mints a native presigned R2 GET URL instead,
+ * so a sensitive download never passes through this API - the permission
+ * check (and, for sensitive categories, the LGPD access log) happens once,
+ * up front, when `SignUploadsInterceptor` mints the URL, not on every byte
+ * fetched afterwards.
  */
 @Injectable()
 export class StorageService {
@@ -97,9 +193,6 @@ export class StorageService {
 
   constructor(private readonly config: ConfigService) {}
 
-  // async on purpose: getDriver() can throw synchronously (unimplemented
-  // driver) and async is what turns that into a rejected Promise instead
-  // of a thrown error, so callers can just `await` + try/catch either way.
   async put(
     category: string,
     tenantId: string,
@@ -109,7 +202,6 @@ export class StorageService {
     return this.getDriver().put(category, tenantId, filename, data);
   }
 
-  // see put() above
   async delete(
     category: string,
     tenantId: string,
@@ -118,17 +210,56 @@ export class StorageService {
     return this.getDriver().delete(category, tenantId, filename);
   }
 
+  async getSignedUrl(
+    category: string,
+    filename: string,
+    tenantId: string,
+    userId: string,
+    options: SignedUploadUrlOptions = {},
+  ): Promise<string> {
+    return this.getDriver().getSignedUrl(
+      category,
+      filename,
+      tenantId,
+      userId,
+      options,
+    );
+  }
+
   private getDriver(): StorageDriver {
     if (!this.driver) {
       const name = this.config.get<string>('STORAGE_DRIVER')?.trim() || 'local';
-      if (name !== 'local') {
+      if (name === 'local') {
+        this.driver = new LocalStorageDriver(this.secret());
+      } else if (name === 'r2') {
+        this.driver = this.createR2Driver();
+      } else {
         throw new Error(
-          `Storage driver "${name}" ainda não foi implementado (Parte 4.2 — R2). Use STORAGE_DRIVER=local.`,
+          `Storage driver "${name}" não é suportado. Use STORAGE_DRIVER=local ou STORAGE_DRIVER=r2.`,
         );
       }
-      this.driver = new LocalStorageDriver();
     }
     return this.driver;
+  }
+
+  private createR2Driver(): R2StorageDriver {
+    const accountId = this.config.get<string>('R2_ACCOUNT_ID')?.trim();
+    const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID')?.trim();
+    const secretAccessKey = this.config
+      .get<string>('R2_SECRET_ACCESS_KEY')
+      ?.trim();
+    const bucket = this.config.get<string>('R2_BUCKET')?.trim();
+    if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+      throw new Error(
+        'STORAGE_DRIVER=r2 requer R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY e R2_BUCKET.',
+      );
+    }
+    const client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId, secretAccessKey },
+    });
+    return new R2StorageDriver(client, bucket);
   }
 
   private secret(): string {
@@ -139,28 +270,12 @@ export class StorageService {
     return value;
   }
 
-  getSignedUrl(
-    category: string,
-    filename: string,
-    tenantId: string,
-    userId: string,
-    options: SignedUploadUrlOptions = {},
-  ): string {
-    const payload: SignedUploadPayload = {
-      tenantId,
-      userId,
-      category,
-      filename,
-      personId: options.personId,
-      exp: Date.now() + (options.ttlSeconds ?? DEFAULT_TTL_SECONDS) * 1000,
-    };
-    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const mac = createHmac('sha256', this.secret())
-      .update(body)
-      .digest('base64url');
-    return `/uploads/${category}/${tenantId}/${filename}?sig=${body}.${mac}`;
-  }
-
+  /**
+   * Verifies a signed URL minted by the `local` driver. Only meaningful for
+   * that driver: `UploadsController` (the only caller) is itself only
+   * reachable for local-driver URLs - an `r2` signed URL points straight at
+   * the R2 bucket and never reaches this API.
+   */
   verifySignature(
     category: string,
     filename: string,
@@ -204,7 +319,6 @@ export class StorageService {
     return {
       tenantId: payload.tenantId,
       userId: payload.userId,
-      personId: payload.personId,
     };
   }
 }

@@ -17,6 +17,39 @@ const fs = require('fs') as {
   rmSync: jest.Mock;
 };
 
+type MockCommand = { input: Record<string, unknown> };
+
+const s3Send = jest.fn();
+
+function lastCommandInput(): Record<string, unknown> {
+  const calls = s3Send.mock.calls as unknown as MockCommand[][];
+  return calls[calls.length - 1][0].input;
+}
+
+function makeCommandMock() {
+  return jest
+    .fn()
+    .mockImplementation((input: Record<string, unknown>) => ({ input }));
+}
+
+jest.mock('@aws-sdk/client-s3', () => ({
+  S3Client: jest.fn().mockImplementation(() => ({ send: s3Send })),
+  PutObjectCommand: makeCommandMock(),
+  DeleteObjectCommand: makeCommandMock(),
+  GetObjectCommand: makeCommandMock(),
+}));
+
+const presign = jest.fn();
+
+jest.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: (...args: unknown[]): unknown => presign(...args),
+}));
+
+function lastPresignInput(): Record<string, unknown> {
+  const calls = presign.mock.calls as unknown as [unknown, MockCommand][];
+  return calls[calls.length - 1][1].input;
+}
+
 function makeService(configValues: Record<string, string> = {}) {
   const values: Record<string, string> = {
     JWT_SECRET: 'test-secret',
@@ -27,49 +60,45 @@ function makeService(configValues: Record<string, string> = {}) {
   } as unknown as ConfigService);
 }
 
-describe('StorageService', () => {
-  it('signs a URL and verifies it for the same tenant/category/filename', () => {
-    const service = makeService();
-    const url = service.getSignedUrl('health', 'doc.pdf', 'tenant-a', 'user-a');
-    const sig = new URL(url, 'http://local').searchParams.get('sig');
+function makeR2Service(overrides: Record<string, string> = {}) {
+  return makeService({
+    STORAGE_DRIVER: 'r2',
+    R2_ACCOUNT_ID: 'acc-123',
+    R2_ACCESS_KEY_ID: 'key-id',
+    R2_SECRET_ACCESS_KEY: 'key-secret',
+    R2_BUCKET: 'tg-dev-arquivos',
+    ...overrides,
+  });
+}
 
-    expect(url.startsWith('/uploads/health/tenant-a/doc.pdf?sig=')).toBe(
-      true,
-    );
-    expect(
-      service.verifySignature('health', 'doc.pdf', sig ?? undefined),
-    ).toEqual({
-      tenantId: 'tenant-a',
-      userId: 'user-a',
-      personId: undefined,
-    });
+describe('StorageService', () => {
+  beforeEach(() => {
+    s3Send.mockReset();
+    presign.mockReset();
   });
 
-  it('carries the personId for sensitive categories', () => {
+  it('signs a URL and verifies it for the same tenant/category/filename', async () => {
     const service = makeService();
-    const url = service.getSignedUrl(
+    const url = await service.getSignedUrl(
       'health',
       'doc.pdf',
       'tenant-a',
       'user-a',
-      {
-        personId: 'person-x',
-      },
     );
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
+    expect(url.startsWith('/uploads/health/tenant-a/doc.pdf?sig=')).toBe(true);
     expect(
       service.verifySignature('health', 'doc.pdf', sig ?? undefined),
     ).toEqual({
       tenantId: 'tenant-a',
       userId: 'user-a',
-      personId: 'person-x',
     });
   });
 
-  it('rejects a signature issued for a different tenant file that gets reused on another category/filename', () => {
+  it('rejects a signature issued for a different tenant file that gets reused on another category/filename', async () => {
     const service = makeService();
-    const url = service.getSignedUrl(
+    const url = await service.getSignedUrl(
       'health',
       'doc-a.pdf',
       'tenant-a',
@@ -85,9 +114,9 @@ describe('StorageService', () => {
     ).toBeNull();
   });
 
-  it('rejects a tampered signature', () => {
+  it('rejects a tampered signature', async () => {
     const service = makeService();
-    const url = service.getSignedUrl(
+    const url = await service.getSignedUrl(
       'people',
       'file.jpg',
       'tenant-a',
@@ -100,10 +129,15 @@ describe('StorageService', () => {
     expect(service.verifySignature('people', 'file.jpg', tampered)).toBeNull();
   });
 
-  it('rejects a signature minted with a different secret', () => {
+  it('rejects a signature minted with a different secret', async () => {
     const issuer = makeService({ JWT_SECRET: 'secret-1' });
     const verifier = makeService({ JWT_SECRET: 'secret-2' });
-    const url = issuer.getSignedUrl('people', 'file.jpg', 'tenant-a', 'user-a');
+    const url = await issuer.getSignedUrl(
+      'people',
+      'file.jpg',
+      'tenant-a',
+      'user-a',
+    );
     const sig = new URL(url, 'http://local').searchParams.get('sig');
 
     expect(
@@ -111,9 +145,9 @@ describe('StorageService', () => {
     ).toBeNull();
   });
 
-  it('rejects an expired signature', () => {
+  it('rejects an expired signature', async () => {
     const service = makeService();
-    const url = service.getSignedUrl(
+    const url = await service.getSignedUrl(
       'people',
       'file.jpg',
       'tenant-a',
@@ -184,13 +218,80 @@ describe('StorageService', () => {
         ),
       ).rejects.toThrow(/Categoria de upload desconhecida/);
     });
+  });
 
-    it('rejeita STORAGE_DRIVER diferente de "local" (R2 ainda não existe — Parte 4.2)', async () => {
-      const service = makeService({ STORAGE_DRIVER: 'r2' });
+  describe('put/delete/getSignedUrl (driver r2)', () => {
+    it('put() envia um PutObjectCommand com a key categoria/tenant/arquivo', async () => {
+      const service = makeR2Service();
+      const data = Buffer.from('conteudo');
+
+      await service.put('people', 'tenant-a', 'arquivo.pdf', data);
+
+      expect(s3Send).toHaveBeenCalledTimes(1);
+      expect(lastCommandInput()).toEqual({
+        Bucket: 'tg-dev-arquivos',
+        Key: 'people/tenant-a/arquivo.pdf',
+        Body: data,
+      });
+    });
+
+    it('delete() envia um DeleteObjectCommand com a mesma key', async () => {
+      const service = makeR2Service();
+
+      await service.delete('avatars', 'tenant-a', 'foto.png');
+
+      expect(lastCommandInput()).toEqual({
+        Bucket: 'tg-dev-arquivos',
+        Key: 'avatars/tenant-a/foto.png',
+      });
+    });
+
+    it('getSignedUrl() presigna um GetObjectCommand e devolve a URL do presigner', async () => {
+      presign.mockResolvedValue(
+        'https://tg-dev-arquivos.acc-123.r2.cloudflarestorage.com/signed',
+      );
+      const service = makeR2Service();
+
+      const url = await service.getSignedUrl(
+        'health',
+        'doc.pdf',
+        'tenant-a',
+        'user-a',
+        { ttlSeconds: 300 },
+      );
+
+      expect(url).toBe(
+        'https://tg-dev-arquivos.acc-123.r2.cloudflarestorage.com/signed',
+      );
+      expect(lastPresignInput()).toEqual({
+        Bucket: 'tg-dev-arquivos',
+        Key: 'health/tenant-a/doc.pdf',
+      });
+      expect(presign).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        {
+          expiresIn: 300,
+        },
+      );
+    });
+
+    it('rejeita quando falta alguma variável de ambiente do R2', async () => {
+      const service = makeR2Service({ R2_BUCKET: '' });
 
       await expect(
         service.put('people', 'tenant-a', 'x.txt', Buffer.from('a')),
-      ).rejects.toThrow(/não foi implementado/);
+      ).rejects.toThrow(
+        /R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY e R2_BUCKET/,
+      );
     });
+  });
+
+  it('rejeita um STORAGE_DRIVER desconhecido', async () => {
+    const service = makeService({ STORAGE_DRIVER: 'azure' });
+
+    await expect(
+      service.put('people', 'tenant-a', 'x.txt', Buffer.from('a')),
+    ).rejects.toThrow(/não é suportado/);
   });
 });

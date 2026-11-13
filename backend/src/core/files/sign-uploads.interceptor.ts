@@ -5,9 +5,11 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { from, Observable, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import type { JwtUser } from '../auth/strategies/jwt.strategy';
+import { PrismaService } from '../prisma/prisma.service';
+import { RequestContextService } from '../request-context/request-context.service';
 import { StorageService } from './storage.service';
 import {
   PUBLIC_UPLOAD_CATEGORIES,
@@ -25,21 +27,29 @@ interface SignContext {
 
 /**
  * Rewrites every raw `/uploads/<category>/<tenantId>/<file>` string in a
- * response body into a short-lived signed URL for the caller's own tenant,
- * so the
- * frontend's plain <img src>/<a href> usage keeps working without the
- * caller needing to attach an Authorization header. See
- * docs/auditoria-riscos.md item 1.
+ * response body into a short-lived signed download URL for the caller's
+ * own tenant, so the frontend's plain <img src>/<a href> usage keeps
+ * working without the caller needing to attach an Authorization header.
+ * See docs/auditoria-riscos.md item 1. Async because minting that URL is
+ * (`StorageService.getSignedUrl`) - the `local` driver signs its own proxy
+ * URL synchronously under the hood, but the `r2` driver presigns a real
+ * S3 request, which the SDK only exposes as a Promise.
  *
- * For sensitive categories (health documents, item 2) it also carries the
- * owning person's id in the token, read from a `personId` field on the
- * same object as the path - every PersonHealthCondition/PersonMedication
- * response already has one as a sibling of `documentUrl` - so the
- * download endpoint can write the LGPD access log without a DB lookup.
+ * For sensitive categories (health documents, item 2) this is also the
+ * one place that writes the LGPD access log: once a signed URL exists,
+ * the file is accessible for its whole TTL regardless of whether this API
+ * sees the actual download request afterwards (it doesn't, for `r2` -
+ * the browser downloads straight from the bucket), so "a signed URL was
+ * minted for this person's document" is the only reliable access event to
+ * log, for either driver.
  */
 @Injectable()
 export class SignUploadsInterceptor implements NestInterceptor {
-  constructor(private readonly storage: StorageService) {}
+  constructor(
+    private readonly storage: StorageService,
+    private readonly prisma: PrismaService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context
@@ -48,23 +58,25 @@ export class SignUploadsInterceptor implements NestInterceptor {
     const user = request.user;
 
     return next.handle().pipe(
-      map((data: unknown) =>
+      switchMap((data: unknown) =>
         user
-          ? this.signDeep(data, {
-              tenantId: user.tenantId,
-              userId: user.userId,
-            })
-          : data,
+          ? from(
+              this.signDeep(data, {
+                tenantId: user.tenantId,
+                userId: user.userId,
+              }),
+            )
+          : of(data),
       ),
     );
   }
 
-  private signDeep(value: unknown, ctx: SignContext): unknown {
+  private async signDeep(value: unknown, ctx: SignContext): Promise<unknown> {
     if (typeof value === 'string') {
       return this.signIfUploadPath(value, ctx);
     }
     if (Array.isArray(value)) {
-      return value.map((item) => this.signDeep(item, ctx));
+      return Promise.all(value.map((item) => this.signDeep(item, ctx)));
     }
     // Only recurse into plain objects - Decimal/Date/Buffer and other
     // class instances pass through untouched so their own serialization
@@ -81,16 +93,21 @@ export class SignUploadsInterceptor implements NestInterceptor {
         ? { ...ctx, personId: ownPersonId }
         : ctx;
 
-      const out: Record<string, unknown> = {};
-      for (const [key, entry] of Object.entries(record)) {
-        out[key] = this.signDeep(entry, childCtx);
-      }
-      return out;
+      const entries = await Promise.all(
+        Object.entries(record).map(
+          async ([key, entry]) =>
+            [key, await this.signDeep(entry, childCtx)] as const,
+        ),
+      );
+      return Object.fromEntries(entries);
     }
     return value;
   }
 
-  private signIfUploadPath(value: string, ctx: SignContext): string {
+  private async signIfUploadPath(
+    value: string,
+    ctx: SignContext,
+  ): Promise<string> {
     const match = UPLOAD_PATH_PATTERN.exec(value);
     if (!match) return value;
     const [, category, pathTenantId, filename] = match;
@@ -100,17 +117,41 @@ export class SignUploadsInterceptor implements NestInterceptor {
     // the download 404s) instead of signing a URL for the wrong tenant.
     if (pathTenantId !== ctx.tenantId) return value;
 
-    const personId = SENSITIVE_UPLOAD_CATEGORIES.has(category)
-      ? ctx.personId
-      : undefined;
-    return this.storage.getSignedUrl(
+    const url = await this.storage.getSignedUrl(
       category,
       filename,
       ctx.tenantId,
       ctx.userId,
-      {
-        personId,
-      },
     );
+
+    if (SENSITIVE_UPLOAD_CATEGORIES.has(category) && ctx.personId) {
+      await this.logSensitiveAccess(ctx.tenantId, ctx.personId, ctx.userId);
+    }
+
+    return url;
+  }
+
+  private async logSensitiveAccess(
+    tenantId: string,
+    personId: string,
+    userId: string,
+  ) {
+    try {
+      const requestCtx = this.requestContext.get();
+      await this.prisma.personSensitiveAccessLog.create({
+        data: {
+          tenantId,
+          personId,
+          userId,
+          action: 'READ',
+          ipAddress: requestCtx?.ipAddress ?? null,
+          userAgent: requestCtx?.userAgent ?? null,
+        },
+      });
+    } catch (error) {
+      // A logging failure must not block the response that triggered it
+      // (same defensive stance as PrismaService#safeAuditLog).
+      console.warn('PersonSensitiveAccessLog failed', error);
+    }
   }
 }
