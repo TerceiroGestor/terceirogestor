@@ -534,11 +534,15 @@ plano.
 
 ### 16. Node local fora da faixa declarada em `engines`
 
-- [ ] **Onde:** `package.json` (`"node": ">=22 <23"`) vs. Node v26.1.0
+- [x] **Onde:** `package.json` (`"node": ">=22 <23"`) vs. Node v26.1.0
       rodando nesta máquina.
 - **O que fazer:** fixar a versão de Node do build (Railway/Dockerfile)
   em 22.x; alinhar o ambiente de dev se possível.
-- Já registrado em `docs/backlog.md`.
+- **Feito em 2026-11-13 (lado do build):** `Dockerfile` dos dois apps já
+  em `node:22-alpine`, CI já em `node-version: "22"`, `.nvmrc` (`22`) já
+  existe nos dois — nenhuma mudança necessária, já estava correto.
+  Ambiente de dev local fica intencionalmente em v26.1.0 (decisão do
+  usuário); ver `docs/backlog.md`.
 
 ## Como vamos trabalhar
 

@@ -7,11 +7,15 @@ adiado sem gatilho. Formato do Alicerce.
 
 - **Node local é v26.1.0**, fora da faixa `>=22 <23` dos dois
   `package.json` (`engines`). O frontend já avisa com `EBADENGINE` no
-  `npm ci`. Tudo funcionou nesta sessão, mas não é a versão que vai rodar
-  no Railway.
-  **Gatilho:** antes do Parte 4.1 (configurar o Railway), fixar a versão de
-  Node do build (nixpacks/Dockerfile) em 22.x e, se possível, alinhar o
-  ambiente de desenvolvimento também.
+  `npm ci`. Tudo funciona nesta máquina mesmo assim, mas não é a versão
+  que vai rodar no Railway.
+  **Resolvido em 2026-11-13 (lado do build):** `backend/Dockerfile` e
+  `frontend/Dockerfile` já usam `node:22-alpine` em todos os estágios,
+  `.github/workflows/ci.yml` já roda com `node-version: "22"` nos dois
+  jobs, e existe `.nvmrc` (`22`) em `backend/` e `frontend/` — nada
+  precisou mudar, já estava certo. **Decisão do usuário:** não alinhar
+  a máquina de desenvolvimento local agora (fica v26.1.0); revisitar
+  por conta própria quando quiser, sem gatilho — não bloqueia nada.
 
 - **`TRUST_PROXY_HOPS` está em 0 (nenhum proxy confiável) em todo
   lugar, inclusive nos `.env.example`.** Isso é seguro — ninguém

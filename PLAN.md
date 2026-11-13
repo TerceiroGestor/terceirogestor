@@ -288,9 +288,11 @@ Parte por Parte:
     OAuth agora removido); frontend `tsc --noEmit` → 0 erros; `npx
     eslint` nos arquivos tocados → 0 problemas; `npm run build` → ok.
 - **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
-  2026-11-11) e [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
-  acima) feitos. [ ] 16 (versão de Node) aberto, baixo risco, gatilho em
-  `docs/backlog.md`.
+  2026-11-11), [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
+  acima) e [x] 16 (versão de Node, 2026-11-13 — Dockerfile/CI/`.nvmrc`
+  dos dois apps já em 22.x, nenhuma mudança necessária; ambiente de dev
+  local fica em v26.1.0 por decisão do usuário, ver `docs/backlog.md`)
+  feitos.
 
 ## Parte atual: Partes 2 e 3 fechadas (exceto itens intencionalmente adiados), pronta para a Parte 4
 
