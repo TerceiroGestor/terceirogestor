@@ -514,6 +514,9 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
   reportLoading: boolean;
   reportError: string | null;
+  occurrenceId: string | null;
+  occurrenceOptions: Array<{ label: string; value: string }>;
+  onOccurrenceIdChange: (value: string) => void;
   attendanceGroupId: string;
   attendanceStatusFilter: AttendanceStatusFilter;
   attendanceGroupOptions: Array<{
@@ -655,6 +658,14 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           searchable: true,
           searchPlaceholder: ACTION_RELATION_TEXT.participants.searchPlaceholder,
           filters: [
+            {
+              key: "occurrence",
+              label: "Encontro",
+              type: "select",
+              value: ({ occurrenceId }) => occurrenceId ?? "",
+              onChange: ({ onOccurrenceIdChange }, value) => onOccurrenceIdChange(value),
+              options: ({ occurrenceOptions }) => occurrenceOptions,
+            },
             {
               key: "group",
               label: ACTION_RELATION_TEXT.participants.groupFilterLabel,
@@ -810,6 +821,14 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           searchable: true,
           searchPlaceholder: ACTION_RELATION_TEXT.quality.searchPlaceholder,
           filters: [
+            {
+              key: "occurrence",
+              label: "Encontro",
+              type: "select",
+              value: ({ occurrenceId }) => occurrenceId ?? "",
+              onChange: ({ onOccurrenceIdChange }, value) => onOccurrenceIdChange(value),
+              options: ({ occurrenceOptions }) => occurrenceOptions,
+            },
             {
               key: "group",
               label: ACTION_RELATION_TEXT.quality.groupFilterLabel,

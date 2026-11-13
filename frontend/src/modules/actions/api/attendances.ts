@@ -10,6 +10,7 @@ export async function listProjectActionAttendances(
   token: string,
   projectId: string,
   actionId: string,
+  occurrenceId: string,
   params?: {
     q?: string;
     status?: AttendanceStatus;
@@ -20,7 +21,7 @@ export async function listProjectActionAttendances(
 ) {
   const query = buildQuery(params);
   return apiRequest<ProjectActionAttendancesListResponse>(
-    `/projects/${projectId}/actions/${actionId}/attendances${query}`,
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/attendances${query}`,
     {},
     token,
   );
@@ -30,6 +31,7 @@ export async function upsertProjectActionAttendances(
   token: string,
   projectId: string,
   actionId: string,
+  occurrenceId: string,
   items: {
     enrollmentId: string;
     status: AttendanceStatus;
@@ -40,7 +42,7 @@ export async function upsertProjectActionAttendances(
   }[],
 ) {
   return apiRequest<{ ok: true; created: number; updated: number }>(
-    `/projects/${projectId}/actions/${actionId}/attendances`,
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/attendances`,
     { method: "PUT", body: JSON.stringify({ items }) },
     token,
   );

@@ -156,34 +156,40 @@ export class ProjectActionsController {
     return this.service.deleteProjectAction(user, projectId, actionId);
   }
 
-  @Get(':projectId/actions/:actionId/attendances')
+  @Get(':projectId/actions/:actionId/occurrences/:occurrenceId/attendances')
   @Permissions('actions.read')
   async listAttendances(
     @CurrentUser() user: JwtUser,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
     @Query() query: ListProjectActionAttendancesQueryDto,
   ) {
     return this.service.listProjectActionAttendances(
       user,
       projectId,
       actionId,
+      occurrenceId,
       query,
     );
   }
 
-  @Put(':projectId/actions/:actionId/attendances')
+  @Put(':projectId/actions/:actionId/occurrences/:occurrenceId/attendances')
   @Permissions('actions.update')
   async upsertAttendances(
     @CurrentUser() user: JwtUser,
     @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
     @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
     @Body() dto: UpsertProjectActionAttendancesDto,
   ) {
     return this.service.upsertProjectActionAttendances(
       user,
       projectId,
       actionId,
+      occurrenceId,
       dto,
     );
   }

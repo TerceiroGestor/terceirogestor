@@ -19,6 +19,7 @@
     "permissions:backfill": "node scripts/backfill-core-permissions.js",
     "migrate:upload-keys": "node scripts/migrate-upload-keys-to-tenant-scoped.js",
     "people:backfill-sensitive-docs": "node scripts/backfill-person-sensitive-documents.js",
+    "actions:backfill-occurrences": "node scripts/backfill-action-occurrences.js",
     "build": "nest build",
     "postbuild": "node scripts/sync-generated-prisma-to-dist.js",
     "pantry:backfill-allocations": "node scripts/backfill-pantry-exit-allocations.js",

@@ -15,10 +15,12 @@ import {
   deleteProjectActionComment,
   endProjectActionPeopleParticipation,
   getProjectAction,
+  listActionOccurrences,
   listProjectActionAttendances,
   listProjectActionPeopleParticipations,
   upsertProjectActionAttendances,
   updateProjectAction,
+  type ApiActionOccurrence,
   type AttendanceStatus,
   type ApiProjectAction,
   type ProjectActionAttendancesListItem,
@@ -36,6 +38,7 @@ import {
   buildAttendanceGroupOptions,
   filterAttendanceRows,
   filterQualityRows,
+  resolveDefaultOccurrenceId,
   type AttendanceDraft,
   type AttendanceNotesDialogState,
   type AttendanceStatusFilter,
@@ -80,6 +83,7 @@ async function fetchAllAttendances(params: {
   token: string;
   projectId: string;
   actionId: string;
+  occurrenceId: string;
 }) {
   const limit = 200;
   let page = 1;
@@ -90,6 +94,7 @@ async function fetchAllAttendances(params: {
       params.token,
       params.projectId,
       params.actionId,
+      params.occurrenceId,
       { page, limit },
     );
     all.push(...(response.data ?? []));
@@ -132,6 +137,8 @@ export function ActionDetailEngineClientPage() {
   const [photoUploading, setPhotoUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
+  const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
+  const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
   const [reportRows, setReportRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
   const [reportPeopleRows, setReportPeopleRows] = React.useState<
     ActionsDetailLayoutContext["reportPeopleRows"]
@@ -195,11 +202,18 @@ export function ActionDetailEngineClientPage() {
     setQualitySaving(true);
     try {
       const [rows, people] = await Promise.all([
-        fetchAllAttendances({ token, projectId, actionId: id }),
+        occurrenceId
+          ? fetchAllAttendances({ token, projectId, actionId: id, occurrenceId })
+          : Promise.resolve([]),
         listProjectActionPeopleParticipations(token, projectId, id, { page: 1, limit: 200 }),
       ]);
       setReportRows(rows);
       setReportPeopleRows(people.data ?? []);
+      if (!occurrenceId) {
+        setReportError(
+          "Nenhum encontro agendado ainda. Agende um encontro na aba \"Encontros\" para registrar presença.",
+        );
+      }
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
@@ -210,6 +224,22 @@ export function ActionDetailEngineClientPage() {
       setReportError(message);
     } finally {
       setReportLoading(false);
+    }
+  }, [canRead, id, occurrenceId, projectId, token]);
+
+  const loadOccurrences = React.useCallback(async () => {
+    if (!token || !projectId || !id || !canRead) return;
+    try {
+      const response = await listActionOccurrences(token, projectId, id, { limit: 200 });
+      setOccurrences(response.data);
+      setOccurrenceId((previous) =>
+        previous && response.data.some((item) => item.id === previous)
+          ? previous
+          : resolveDefaultOccurrenceId(response.data),
+      );
+    } catch {
+      setOccurrences([]);
+      setOccurrenceId(null);
     }
   }, [canRead, id, projectId, token]);
 
@@ -226,6 +256,8 @@ export function ActionDetailEngineClientPage() {
   React.useEffect(() => {
     setAuditVisibleCount(24);
     setCommentDraft(EMPTY_COMMENT_DRAFT);
+    setOccurrences([]);
+    setOccurrenceId(null);
     setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
     setAttendanceStatusFilter("all");
     setAttendanceDrafts({});
@@ -236,6 +268,10 @@ export function ActionDetailEngineClientPage() {
     setQualitySaving(false);
     setQualityNotesDialog(null);
   }, [id]);
+
+  React.useEffect(() => {
+    void loadOccurrences();
+  }, [loadOccurrences]);
 
   React.useEffect(() => {
     if (!token || !projectId || !canRead) {
@@ -446,6 +482,17 @@ export function ActionDetailEngineClientPage() {
     [reportRows],
   );
 
+  const occurrenceOptions = React.useMemo(
+    () =>
+      occurrences.map((occurrence) => ({
+        label: new Date(occurrence.scheduledDate).toLocaleDateString("pt-BR", {
+          timeZone: "UTC",
+        }),
+        value: occurrence.id,
+      })),
+    [occurrences],
+  );
+
   React.useEffect(() => {
     if (!attendanceGroupOptions.some((option) => option.value === attendanceGroupId)) {
       setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
@@ -527,7 +574,7 @@ export function ActionDetailEngineClientPage() {
   );
 
   const saveAttendanceDrafts = React.useCallback(async () => {
-    if (!token || !projectId) return;
+    if (!token || !projectId || !occurrenceId) return;
 
     const items = Object.entries(attendanceDrafts).map(([enrollmentId, entry]) => {
       const row = reportRows.find((item) => item.enrollment.id === enrollmentId);
@@ -555,6 +602,7 @@ export function ActionDetailEngineClientPage() {
         token,
         projectId,
         id,
+        occurrenceId,
         items.map((item) => ({
           enrollmentId: item.enrollmentId,
           status: item.status as AttendanceStatus,
@@ -580,7 +628,7 @@ export function ActionDetailEngineClientPage() {
     } finally {
       setAttendanceSaving(false);
     }
-  }, [attendanceDrafts, id, projectId, refreshReport, reportRows, toast, token]);
+  }, [attendanceDrafts, id, occurrenceId, projectId, refreshReport, reportRows, toast, token]);
 
   const applyAttendanceNotesDialog = React.useCallback(
     (state: AttendanceNotesDialogState) => {
@@ -659,7 +707,7 @@ export function ActionDetailEngineClientPage() {
   );
 
   const saveQualityDrafts = React.useCallback(async () => {
-    if (!token || !projectId) return;
+    if (!token || !projectId || !occurrenceId) return;
     const enrollmentIds = Object.keys(qualityDrafts);
     if (!enrollmentIds.length) return;
 
@@ -693,7 +741,7 @@ export function ActionDetailEngineClientPage() {
     }
 
     try {
-      await upsertProjectActionAttendances(token, projectId, id, items);
+      await upsertProjectActionAttendances(token, projectId, id, occurrenceId, items);
       setQualityDrafts({});
       setQualityNotesDialog(null);
       toast({ title: ACTION_RELATION_TEXT.quality.saveOkTitle });
@@ -707,7 +755,7 @@ export function ActionDetailEngineClientPage() {
     } finally {
       setQualitySaving(false);
     }
-  }, [id, projectId, qualityDrafts, refreshReport, reportRows, toast, token]);
+  }, [id, occurrenceId, projectId, qualityDrafts, refreshReport, reportRows, toast, token]);
 
   const applyQualityNotesDialog = React.useCallback(
     (state: QualityNotesDialogState) => {
@@ -764,6 +812,9 @@ export function ActionDetailEngineClientPage() {
     reportPeopleRows,
     reportLoading,
     reportError,
+    occurrenceId,
+    occurrenceOptions,
+    onOccurrenceIdChange: setOccurrenceId,
     attendanceGroupId,
     attendanceStatusFilter,
     attendanceGroupOptions,

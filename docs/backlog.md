@@ -198,11 +198,12 @@ adiado sem gatilho. Formato do Alicerce.
   **Gatilho:** início da Parte 5 (evolução de arquitetura), depois do
   go-live (Parte 4). Decisão do usuário em 2026-11-12/13: registrar e não
   iniciar agora. **Atualização 2026-11-13:** Fases 1 (model
-  `ActionOccurrence` + endpoints) e 2 (UI de Encontros) já foram
+  `ActionOccurrence` + endpoints), 2 (UI de Encontros) e 3 (presença/
+  qualidade por Encontro, com migration em 2 passos + backfill) já foram
   implementadas e testadas, a pedido explícito do usuário, à frente desta
   decisão de sequenciamento — ver evidência em
   `docs/plano-implementacao-scfv.md` e o desvio registrado no topo do
-  `PLAN.md`. As Fases 3-9 continuam adiadas.
+  `PLAN.md`. As Fases 4-9 continuam adiadas.
 
 ## Frontend — autenticação
 

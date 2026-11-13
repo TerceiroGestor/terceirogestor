@@ -17,6 +17,7 @@ import { SectionDialog } from "@/components/section-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+  ApiActionOccurrence,
   AttendanceStatus,
   ProjectActionAttendancesListItem,
 } from "@/modules/actions/api";
@@ -181,6 +182,66 @@ export function filterQualityRows(
 
 export function countDistinctAttendanceGroups(rows: ProjectActionAttendancesListItem[]) {
   return new Set(rows.flatMap((row) => row.enrollment.groups.map((group) => group.id))).size;
+}
+
+// Presença agora é por Encontro (Fase 3 do plano SCFV), não mais por
+// Atividade inteira - por padrão abre no encontro mais recente que já
+// aconteceu (ou passou da data), ou no mais próximo futuro se nenhum já
+// passou.
+export function resolveDefaultOccurrenceId(
+  occurrences: ApiActionOccurrence[],
+): string | null {
+  if (occurrences.length === 0) return null;
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const sorted = [...occurrences].sort(
+    (a, b) => a.scheduledDate.slice(0, 10).localeCompare(b.scheduledDate.slice(0, 10)),
+  );
+
+  const pastOrToday = sorted.filter((item) => item.scheduledDate.slice(0, 10) <= todayKey);
+  if (pastOrToday.length > 0) {
+    return pastOrToday[pastOrToday.length - 1].id;
+  }
+  return sorted[0].id;
+}
+
+function formatOccurrenceOptionLabel(occurrence: ApiActionOccurrence) {
+  const date = new Date(occurrence.scheduledDate).toLocaleDateString("pt-BR", {
+    timeZone: "UTC",
+  });
+  const group = occurrence.peopleGroup?.name;
+  return group ? `${date} — ${group}` : date;
+}
+
+export function OccurrenceSelect({
+  occurrences,
+  value,
+  onChange,
+  disabled,
+}: {
+  occurrences: ApiActionOccurrence[];
+  value: string | null;
+  onChange: (occurrenceId: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Select
+      value={value ?? undefined}
+      onValueChange={onChange}
+      disabled={disabled || occurrences.length === 0}
+    >
+      <SelectTrigger className="h-9 min-w-[220px]">
+        <SelectValue placeholder="Selecione um encontro" />
+      </SelectTrigger>
+      <SelectContent>
+        {occurrences.map((occurrence) => (
+          <SelectItem key={occurrence.id} value={occurrence.id}>
+            {formatOccurrenceOptionLabel(occurrence)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 export function countAttendanceHighlights(rows: ProjectActionAttendancesListItem[]) {

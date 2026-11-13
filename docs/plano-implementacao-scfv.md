@@ -245,10 +245,90 @@ detalhe da Atividade.
 
 ---
 
-## Fase 3 — Presença migra para nível de Encontro
+## Fase 3 — Presença migra para nível de Encontro — [x] feita em 2026-11-13
 
 **Objetivo:** frequência real dia a dia (exigida pelo RMA/SISC), não "uma
 presença por atividade inteira".
+
+**Evidência:**
+
+- **Decisão tomada antes de codificar:** como ainda não existe produção
+  (confirmado nesta sessão — só ambiente de dev), os dois deploys do plano
+  (expandir/contrair) foram feitos na mesma sessão, um atrás do outro, em
+  vez de esperar uma janela de produção real — não há gap de dados pra
+  cobrir num banco que nunca existiu. A migration de produção futura
+  (quando o Parte 4 acontecer) já nasce com o schema final de uma vez,
+  contra um banco vazio.
+- Duas migrations: `20261113144545_add_attendance_occurrence_id`
+  (`occurrenceId` opcional, aditiva pura) → script de backfill
+  (`backend/scripts/backfill-action-occurrences.js`,
+  `npm run actions:backfill-occurrences`, idempotente, usa SQL raw de
+  propósito porque o Prisma Client gerado do schema final não aceita mais
+  filtrar por `occurrenceId: null`) → confirmado 0 linhas nulas →
+  `20261113144728_require_attendance_occurrence_id` (`occurrenceId`
+  obrigatório + troca do `@@unique` de `[tenantId, actionId,
+  enrollmentId]` para `[tenantId, occurrenceId, enrollmentId]`).
+  `actionId` foi **mantido** (denormalizado, sincronizado a partir do
+  `occurrenceId` em toda escrita) de propósito — Prisma `groupBy` não
+  agrupa por campo de relação aninhada, e isso evitou precisar tocar em
+  `dashboard.service.ts` (contagem de presença continua agrupando por
+  `actionId` direto, sem mudança nenhuma, confirmado por teste manual).
+- **Achado no caminho, corrigido:** `UploadsController`/aqui não, mas
+  `deleteProjectAction` não excluía `ActionOccurrence`/`ActionPeopleGroup`
+  antes de excluir a própria `ProjectAction` — já estava quebrado desde a
+  Fase 1 (FK `RESTRICT`), só não tinha sido notado porque nada testava
+  excluir uma atividade com encontro já criado. Corrigido junto (ordem:
+  presença → encontro → grupo-ação → participação/comentário/anexo →
+  ação). Também corrigido `deleteActionOccurrence`: precisa excluir a
+  presença do encontro antes do próprio encontro (mesma razão).
+- **Achado e corrigido:** `scopedPeopleGroupId` em
+  `listProjectActionAttendances` acessava `(action as any).peopleGroupId`
+  num objeto que nunca teve esse campo (só existe depois de serializado)
+  — sempre `undefined`, silenciosamente. Corrigido usando
+  `resolvePrimaryActionPeopleGroup(action)` direto, e agora o
+  `peopleGroupId` do **encontro** (quando o encontro tem um grupo
+  específico) tem prioridade sobre o grupo "principal" da atividade.
+- Endpoints: `GET/PUT /projects/:projectId/actions/:actionId/occurrences/
+  :occurrenceId/attendances` substituem `GET/PUT .../attendances` (removido
+  — decisão já registrada de tirar código não usado, não deixar como
+  branch morta).
+- **`prisma/seed.ts` também seedava `ProjectActionAttendance` direto**
+  (achado só ao rodar `npm run db:seed` depois da migration — 6 linhas
+  fictícias sem `occurrenceId`, quebrava o seed). Corrigido: 3
+  `ActionOccurrence` novos no seed (IDs fixos
+  `ids.occurrences.*`), presença aponta pra eles.
+- **Frontend:** decisão tomada com o usuário antes de codificar — manter
+  as abas "Participantes"/"Qualidade" que já existem na tela da Atividade
+  (em vez de mover tudo pra dentro do diálogo do Encontro), acrescentando
+  um seletor de Encontro que as duas compartilham (as duas sempre
+  consumiram o mesmo fetch de presença). Helper novo
+  `resolveDefaultOccurrenceId` (abre no encontro mais recente que já
+  passou, ou no próximo futuro se nenhum passou) e componente
+  `OccurrenceSelect`, os dois em `action-operational-relations.tsx`,
+  reusados pelos 2 pontos de consumo (`action-detail-engine-client-page.tsx`
+  e o card standalone `project-action-attendances-card.tsx`, usado no
+  diálogo de gestão de ações do Projeto). Estado vazio (nenhum encontro
+  agendado ainda) mostra aviso em vez de tela quebrada.
+- **Evidência de teste:** backend — `tsc --noEmit -p tsconfig.build.json`
+  → 0 erros; `npm test` → 28 suítes, 143 testes (inalterado, módulo
+  `actions` nunca teve specs unitários — mesma lacuna de Fase 1/2, testado
+  manualmente); `npx eslint` nos arquivos tocados → medido via `git
+  stash`, 155→152 problemas (net -3, nenhuma categoria nova). Teste manual
+  real contra Postgres local (tenant seed, `admin@seed.local`): listar
+  presença por encontro → 3 de 8 matrículas com presença, confere com o
+  seed; `PUT` cria presença nova com `occurrenceId` certo (confirmado no
+  banco); rota antiga `.../attendances` sem encontro → 404 (removida de
+  verdade); encontro de outra atividade acessado pela atividade errada →
+  404 (isolamento por `actionId`); excluir um encontro com presença já
+  registrada → `200`, cascade manual funcionou, zero erro de FK;
+  dashboard (`/dashboard/overview?from=...&to=...` cobrindo fev/2026) →
+  contagem de presença (`totals.attendances`) bate com os dados
+  conhecidos do seed, sem regressão. Banco restaurado ao estado original
+  via `npm run db:seed` (que por sua vez expôs e permitiu corrigir o
+  problema do seed acima). Frontend — `tsc --noEmit` → 0 erros; `npx
+  eslint` → 215→217 problemas, só `react-hooks/set-state-in-effect` (a
+  mesma categoria de dívida já documentada e tolerada desde a Fase 2, não
+  é um problema novo); `npm run build` → ok.
 
 ### Schema (migração aditiva, 2 deploys — regra do `AGENTS.md`)
 **Deploy 1 (expandir):**

@@ -1101,6 +1101,16 @@ export class ActionsService {
     await this.prisma.projectActionAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
+    // Precisa vir depois da presença (FK occurrenceId é RESTRICT) e antes
+    // da própria ação (FK actionId do encontro também é RESTRICT) - achado
+    // ao implementar a Fase 3: excluir uma atividade com encontro já
+    // agendado (Fase 1/2) já falhava com erro de FK antes desta correção.
+    await this.prisma.actionOccurrence.deleteMany({
+      where: { tenantId: user.tenantId, actionId: existing.id },
+    });
+    await this.prisma.actionPeopleGroup.deleteMany({
+      where: { tenantId: user.tenantId, actionId: existing.id },
+    });
     await this.prisma.projectActionPeopleParticipation.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
@@ -1629,6 +1639,12 @@ export class ActionsService {
       occurrenceId,
     );
 
+    // A FK de ProjectActionAttendance.occurrenceId é RESTRICT (mesmo padrão
+    // manual de cascade já usado em deleteProjectAction) - sem isso, excluir
+    // um encontro com presença já registrada falharia com erro de FK.
+    await this.prisma.projectActionAttendance.deleteMany({
+      where: { tenantId: user.tenantId, occurrenceId: existing.id },
+    });
     await this.prisma.actionOccurrence.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
@@ -2105,6 +2121,7 @@ export class ActionsService {
     user: JwtUser,
     projectId: string,
     actionId: string,
+    occurrenceId: string,
     query: ListProjectActionAttendancesQueryDto,
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
@@ -2112,6 +2129,11 @@ export class ActionsService {
       user,
       projectId,
       actionId,
+    );
+    const occurrence = await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
     );
 
     const { page, limit, skip, take } = resolvePagination({
@@ -2124,7 +2146,13 @@ export class ActionsService {
 
     const q = normalizeString(query.q);
     const scopedGroupId = action.groupId ?? query.groupId ?? null;
-    const scopedPeopleGroupId = (action as any).peopleGroupId ?? null;
+    // O encontro pode ter seu próprio grupo-alvo (ex.: a atividade atende
+    // 3 grupos, mas este encontro específico é só pro grupo B) - prevalece
+    // sobre o grupo "principal" da atividade quando presente.
+    const scopedPeopleGroupId =
+      occurrence.peopleGroupId ??
+      resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ??
+      null;
 
     const where: Prisma.ProjectEnrollmentWhereInput = {
       tenantId: user.tenantId,
@@ -2222,7 +2250,7 @@ export class ActionsService {
     const attendanceRows = await this.prisma.projectActionAttendance.findMany({
       where: {
         tenantId: user.tenantId,
-        actionId,
+        occurrenceId,
         enrollmentId: { in: enrollments.map((row) => row.id) },
         ...(query.status ? { status: query.status as AttendanceStatus } : {}),
       },
@@ -2255,8 +2283,15 @@ export class ActionsService {
         id: action.id,
         title: action.title,
         projectGroupId: action.groupId,
-        peopleGroupId: (action as any).peopleGroupId ?? null,
+        peopleGroupId:
+          resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ?? null,
         targetEnrollmentId: (action as any).targetEnrollmentId ?? null,
+      },
+      occurrence: {
+        id: occurrence.id,
+        scheduledDate: occurrence.scheduledDate,
+        status: occurrence.status,
+        peopleGroupId: occurrence.peopleGroupId,
       },
       data,
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
@@ -2267,13 +2302,15 @@ export class ActionsService {
     user: JwtUser,
     projectId: string,
     actionId: string,
+    occurrenceId: string,
     dto: UpsertProjectActionAttendancesDto,
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
-    const action = await this.ensureProjectActionExists(
-      user,
-      projectId,
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    await this.ensureActionOccurrenceExists(
+      user.tenantId,
       actionId,
+      occurrenceId,
     );
 
     const items = dto.items ?? [];
@@ -2294,7 +2331,7 @@ export class ActionsService {
     const existing = await this.prisma.projectActionAttendance.findMany({
       where: {
         tenantId: user.tenantId,
-        actionId,
+        occurrenceId,
         enrollmentId: { in: enrollmentIds },
       },
       select: { id: true, enrollmentId: true },
@@ -2354,6 +2391,7 @@ export class ActionsService {
             data: {
               tenantId: user.tenantId,
               actionId,
+              occurrenceId,
               enrollmentId: item.enrollmentId,
               status: item.status,
               notes: notes === undefined ? null : notes,

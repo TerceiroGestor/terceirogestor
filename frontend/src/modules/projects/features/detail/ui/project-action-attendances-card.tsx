@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  listActionOccurrences,
   listProjectActionAttendances,
   upsertProjectActionAttendances,
+  type ApiActionOccurrence,
   type AttendanceStatus,
   type ProjectActionAttendancesListItem,
 } from "@/modules/actions/api";
@@ -22,10 +24,12 @@ import { ATTENDANCE_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actio
 import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
 import {
   AttendanceNotesDialog,
+  OccurrenceSelect,
   buildAttendanceGroupOptions,
   buildParticipantsColumns,
   countDistinctAttendanceGroups,
   filterAttendanceRows,
+  resolveDefaultOccurrenceId,
   type AttendanceDraft,
   type AttendanceNotesDialogState,
   type AttendanceStatusFilter,
@@ -49,6 +53,7 @@ async function fetchAllAttendances(params: {
   token: string;
   projectId: string;
   actionId: string;
+  occurrenceId: string;
 }) {
   const limit = 200;
   let page = 1;
@@ -59,6 +64,7 @@ async function fetchAllAttendances(params: {
       params.token,
       params.projectId,
       params.actionId,
+      params.occurrenceId,
       { page, limit },
     );
     rows.push(...(response.data ?? []));
@@ -100,6 +106,9 @@ export function ProjectActionAttendancesCard({
   const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const { toast } = useToast();
 
+  const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
+  const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
+  const [occurrencesLoading, setOccurrencesLoading] = React.useState(true);
   const [rows, setRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -111,11 +120,40 @@ export function ProjectActionAttendancesCard({
   const [selectionEnabled, setSelectionEnabled] = React.useState(false);
   const [notesDialog, setNotesDialog] = React.useState<AttendanceNotesDialogState | null>(null);
 
+  React.useEffect(() => {
+    let active = true;
+    setOccurrencesLoading(true);
+    listActionOccurrences(token, projectId, actionId, { limit: 200 })
+      .then((response) => {
+        if (!active) return;
+        setOccurrences(response.data);
+        setOccurrenceId((previous) =>
+          previous && response.data.some((item) => item.id === previous)
+            ? previous
+            : resolveDefaultOccurrenceId(response.data),
+        );
+      })
+      .catch(() => {
+        if (!active) return;
+        setOccurrences([]);
+      })
+      .finally(() => {
+        if (active) setOccurrencesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, projectId, actionId]);
+
   const load = React.useCallback(async () => {
+    if (!occurrenceId) {
+      setRows([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAllAttendances({ token, projectId, actionId });
+      const data = await fetchAllAttendances({ token, projectId, actionId, occurrenceId });
       setRows(data);
       setDrafts({});
       setSelectionEnabled(false);
@@ -131,7 +169,7 @@ export function ProjectActionAttendancesCard({
     } finally {
       setLoading(false);
     }
-  }, [actionId, projectId, token]);
+  }, [actionId, projectId, token, occurrenceId]);
 
   React.useEffect(() => {
     void load();
@@ -207,7 +245,7 @@ export function ProjectActionAttendancesCard({
   );
 
   const handleSave = React.useCallback(async () => {
-    if (!canUpdate) return;
+    if (!canUpdate || !occurrenceId) return;
 
     const items = Object.entries(drafts).map(([enrollmentId, entry]) => {
       const row = rows.find((item) => item.enrollment.id === enrollmentId);
@@ -236,6 +274,7 @@ export function ProjectActionAttendancesCard({
         token,
         projectId,
         actionId,
+        occurrenceId,
         items.map((item) => ({
           enrollmentId: item.enrollmentId,
           status: item.status as AttendanceStatus,
@@ -261,7 +300,7 @@ export function ProjectActionAttendancesCard({
     } finally {
       setSaving(false);
     }
-  }, [actionId, canUpdate, drafts, load, projectId, rows, toast, token]);
+  }, [actionId, canUpdate, drafts, load, occurrenceId, projectId, rows, toast, token]);
 
   const columns = React.useMemo(
     () =>
@@ -282,9 +321,32 @@ export function ProjectActionAttendancesCard({
     [canReadPeople, canUpdate, getEffective, setRowDraft, tenantSlug],
   );
 
+  if (!occurrencesLoading && occurrences.length === 0) {
+    return (
+      <SectionCard title={ACTION_RELATION_TEXT.participants.relationLabel}>
+        <p className="text-sm text-muted-foreground">
+          Nenhum encontro agendado ainda. Agende um encontro na aba
+          &quot;Encontros&quot; para poder registrar presença.
+        </p>
+      </SectionCard>
+    );
+  }
+
   return (
     <SectionCard title={ACTION_RELATION_TEXT.participants.relationLabel}>
       <div className="space-y-4">
+        <div className="min-w-[220px] space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Encontro
+          </div>
+          <OccurrenceSelect
+            occurrences={occurrences}
+            value={occurrenceId}
+            onChange={setOccurrenceId}
+            disabled={occurrencesLoading}
+          />
+        </div>
+
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
             <div className="relative">

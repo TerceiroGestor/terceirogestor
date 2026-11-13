@@ -184,6 +184,12 @@ export type ProjectActionAttendancesListResponse = {
     projectGroupId?: string | null;
     targetEnrollmentId?: string | null;
   };
+  occurrence: {
+    id: string;
+    scheduledDate: string;
+    status: OccurrenceStatus;
+    peopleGroupId: string | null;
+  };
   data: ProjectActionAttendancesListItem[];
   pagination: PaginationMeta;
 };

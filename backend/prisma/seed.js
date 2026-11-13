@@ -91,6 +91,11 @@ const ids = {
         encontroC2m: '11111111-1111-4111-8111-111111112003',
         rodaFamilias: '11111111-1111-4111-8111-111111112004',
     },
+    occurrences: {
+        acolhimento: '11111111-1111-4111-8111-111111112101',
+        encontroC2m: '11111111-1111-4111-8111-111111112102',
+        rodaFamilias: '11111111-1111-4111-8111-111111112103',
+    },
 };
 const people = [
     {
@@ -1077,12 +1082,46 @@ async function main() {
             },
         ],
     });
+    // Um encontro por atividade já executada/agendada, pra presença (abaixo)
+    // ter sempre um occurrenceId - Fase 3 do plano SCFV.
+    await prisma.actionOccurrence.createMany({
+        data: [
+            {
+                id: ids.occurrences.acolhimento,
+                tenantId: ids.tenant,
+                actionId: ids.actions.acolhimento,
+                scheduledDate: new Date('2026-02-06'),
+                startTime: new Date('2026-02-06T12:10:00Z'),
+                endTime: new Date('2026-02-06T13:50:00Z'),
+                status: 'DONE',
+            },
+            {
+                id: ids.occurrences.encontroC2m,
+                tenantId: ids.tenant,
+                actionId: ids.actions.encontroC2m,
+                scheduledDate: new Date('2026-03-22'),
+                startTime: new Date('2026-03-22T12:30:00Z'),
+                endTime: new Date('2026-03-22T14:00:00Z'),
+                status: 'SCHEDULED',
+            },
+            {
+                id: ids.occurrences.rodaFamilias,
+                tenantId: ids.tenant,
+                actionId: ids.actions.rodaFamilias,
+                scheduledDate: new Date('2026-02-20'),
+                startTime: new Date('2026-02-20T17:10:00Z'),
+                endTime: new Date('2026-02-20T18:55:00Z'),
+                status: 'DONE',
+            },
+        ],
+    });
     await prisma.projectActionAttendance.createMany({
         data: [
             {
                 id: '11111111-1111-4111-8111-111111115001',
                 tenantId: ids.tenant,
                 actionId: ids.actions.acolhimento,
+                occurrenceId: ids.occurrences.acolhimento,
                 enrollmentId: '11111111-1111-4111-8111-111111114001',
                 status: 'PRESENT',
                 qualityScore: 5,
@@ -1093,6 +1132,7 @@ async function main() {
                 id: '11111111-1111-4111-8111-111111115002',
                 tenantId: ids.tenant,
                 actionId: ids.actions.acolhimento,
+                occurrenceId: ids.occurrences.acolhimento,
                 enrollmentId: '11111111-1111-4111-8111-111111114002',
                 status: 'PRESENT',
                 qualityScore: 4,
@@ -1102,6 +1142,7 @@ async function main() {
                 id: '11111111-1111-4111-8111-111111115003',
                 tenantId: ids.tenant,
                 actionId: ids.actions.acolhimento,
+                occurrenceId: ids.occurrences.acolhimento,
                 enrollmentId: '11111111-1111-4111-8111-111111114003',
                 status: 'ABSENT',
                 notes: 'Faltou por consulta medica.',
@@ -1110,6 +1151,7 @@ async function main() {
                 id: '11111111-1111-4111-8111-111111115004',
                 tenantId: ids.tenant,
                 actionId: ids.actions.rodaFamilias,
+                occurrenceId: ids.occurrences.rodaFamilias,
                 enrollmentId: '11111111-1111-4111-8111-111111114009',
                 status: 'PRESENT',
                 qualityScore: 5,
@@ -1120,6 +1162,7 @@ async function main() {
                 id: '11111111-1111-4111-8111-111111115005',
                 tenantId: ids.tenant,
                 actionId: ids.actions.rodaFamilias,
+                occurrenceId: ids.occurrences.rodaFamilias,
                 enrollmentId: '11111111-1111-4111-8111-111111114010',
                 status: 'EXCUSED',
                 notes: 'Ausencia justificada por trabalho.',
@@ -1128,6 +1171,7 @@ async function main() {
                 id: '11111111-1111-4111-8111-111111115006',
                 tenantId: ids.tenant,
                 actionId: ids.actions.encontroC2m,
+                occurrenceId: ids.occurrences.encontroC2m,
                 enrollmentId: '11111111-1111-4111-8111-111111114003',
                 status: 'PRESENT',
                 qualityScore: 5,
