@@ -5,6 +5,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import * as Sentry from '@sentry/nestjs';
 import { from, Observable, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import type { JwtUser } from '../auth/strategies/jwt.strategy';
@@ -152,6 +153,7 @@ export class SignUploadsInterceptor implements NestInterceptor {
       // A logging failure must not block the response that triggered it
       // (same defensive stance as PrismaService#safeAuditLog).
       console.warn('PersonSensitiveAccessLog failed', error);
+      Sentry.captureException(error);
     }
   }
 }

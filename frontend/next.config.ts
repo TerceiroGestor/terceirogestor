@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 function loadRootEnv() {
   const envPaths = [
@@ -127,4 +128,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// org/project/authToken ficam de fora até existir um projeto Sentry real
+// (Parte 4.5) - sem eles, o plugin só pula o upload de sourcemaps.
+export default withSentryConfig(nextConfig, {
+  silent: true,
+});

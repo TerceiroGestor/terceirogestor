@@ -1,5 +1,7 @@
+import './instrument';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { isOriginAllowed, parseWebUrlList } from './core/auth/http/auth-http';
@@ -7,6 +9,7 @@ import { parseTrustProxyHops } from './core/config/trust-proxy';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new SentryGlobalFilter(app.getHttpAdapter()));
   const httpAdapter = app.getHttpAdapter();
   const instance = httpAdapter.getInstance() as {
     disable?: (key: string) => void;

@@ -351,6 +351,49 @@ Parte por Parte:
     backend `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test`
     → 28 suítes, 143 testes, ok; `npx eslint` nos arquivos tocados → 0
     problemas.
+  - [x] **Sentry no backend e no frontend** — feito em 2026-11-13, pré-
+    requisito 4.5 ("saber do erro antes da instituição ligar"),
+    incluindo falha de auditoria. `npm install @sentry/nestjs`
+    (backend) e `@sentry/nextjs` (frontend). **Backend:**
+    `src/instrument.ts` (novo, `Sentry.init` só se `SENTRY_DSN` estiver
+    setada — sem DSN, zero mudança de comportamento), importado como
+    primeira linha de `main.ts`; `SentryModule.forRoot()` como primeiro
+    item de `imports` em `app.module.ts`; `SentryGlobalFilter` como
+    filtro global (`app.useGlobalFilters`) — não existia nenhum filtro
+    global antes, sem conflito. `Sentry.captureException(error)`
+    adicionado nos 2 pontos que hoje só fazem `console.warn` e engolem
+    o erro (`PrismaService#safeAuditLog`,
+    `SignUploadsInterceptor#logSensitiveAccess`) — a falha de auditoria
+    agora também vira alerta, não só log local. **Frontend (Next 16,
+    App Router):** `src/instrumentation.ts` (`register()` +
+    `onRequestError: Sentry.captureRequestError`, API estável desde o
+    Next 15, confirmada na doc embutida no pacote `next`),
+    `src/instrumentation-client.ts` (convenção atual — `sentry.client.
+    config.ts` foi descontinuado a partir do Next 15.3), `src/app/
+    global-error.tsx` novo (não existia nenhum error boundary ainda).
+    `next.config.ts` envolvido com `withSentryConfig` de
+    `@sentry/nextjs/config` (não é mais exportado do pacote principal
+    nesta versão) — `org`/`project`/`authToken` ficam de fora até
+    existir um projeto Sentry real; sem eles o plugin só pula o upload
+    de sourcemaps (confirmado: `npm run build` roda limpo, sem nenhum
+    aviso do Sentry). Variáveis novas: `SENTRY_DSN`/`SENTRY_ENVIRONMENT`
+    (server) e `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_ENVIRONMENT`
+    (client, mesma DSN normalmente) nos 4 arquivos de env.
+    **Ainda falta:** DSN de um projeto Sentry real (ação do usuário) —
+    sem ela nenhum dos dois apps reporta nada, intencionalmente.
+    **Evidência:** backend `tsc` → 0 erros; `npm test` → 28 suítes, 143
+    testes, ok (inalterado - nenhum spec monta o `AppModule` completo);
+    `npx eslint` nos arquivos tocados → 0 problemas novos (`main.ts`/
+    `prisma.service.ts` mantiveram a mesma contagem de antes, 137
+    problemas, confirmado via `git stash`). Teste manual real: subi o
+    backend (`npm run start:dev`) e confirmei no log — `SentryModule
+    dependencies initialized` e `Nest application successfully
+    started` antes de qualquer outra coisa, provando que o módulo e o
+    filtro global inicializam sem erro (o bind da porta 3001 falhou só
+    porque já havia outro processo `node dist/main` alheio a esta
+    sessão ocupando a porta — não é regressão do Sentry). Frontend:
+    `tsc` → 0 erros; `npx eslint` nos arquivos tocados → 0 problemas;
+    `npm run build` → ok, sem nenhum aviso/erro do Sentry no output.
 - **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
   2026-11-11), [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
   acima) e [x] 16 (versão de Node, 2026-11-13 — Dockerfile/CI/`.nvmrc`

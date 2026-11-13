@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/nestjs';
 import { PrismaClient, type AuditLogAction } from '../../generated/prisma';
 import { RequestContextService } from '../request-context/request-context.service';
 import { createPrismaAdapter } from './prisma-adapter';
@@ -380,6 +381,7 @@ export class PrismaService
       });
     } catch (error) {
       console.warn('AuditLog failed', error);
+      Sentry.captureException(error);
     }
   }
 
