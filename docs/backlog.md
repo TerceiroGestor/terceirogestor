@@ -172,6 +172,51 @@ adiado sem gatilho. Formato do Alicerce.
   (ex.: `family-income-report`/`family-summary-sheet` podem servir de
   base) ou se o cluster inteiro é removido.
 
+## Arquitetura (Parte 5)
+
+- **Plataforma SCFV completa (Programas/Projetos/Atividades/Encontros +
+  Atendimento Técnico + Encaminhamentos + Ocorrências + relatórios
+  RMA/SISC).** Plano módulo a módulo, testável, em
+  `docs/plano-implementacao-scfv.md` (2026-11-13) — substitui e amplia o
+  plano anterior (`docs/plano-reestruturacao-programas-projetos-atividades.md`,
+  2026-11-12, mantido como referência histórica do racional original de
+  `ActionOccurrence`). 9 fases com dependências mapeadas: Encontro (model
+  novo) → UI de Encontros → migração de presença para nível de Encontro (2
+  deploys) → relabel "Ação"→"Atividade" (paralelo) → módulos novos
+  Atendimento/Encaminhamento/Ocorrência (com guard de sigilo reaproveitável)
+  → regras SCFV (faixa etária, público prioritário, lista de espera, motivo
+  de desligamento) → timeline 360° da Pessoa (aba "Atendimentos", hoje
+  `disabled: true` — `people-detail-tabs.tsx:45`) → relatórios de
+  estrutura/compliance → prontuário individual exportável. Decisões
+  pendentes listadas no fim de cada fase do plano, com recomendação própria
+  cada uma.
+  **Gatilho:** início da Parte 5 (evolução de arquitetura), depois do
+  go-live (Parte 4). Decisão do usuário em 2026-11-12/13: registrar e não
+  iniciar agora. **Atualização 2026-11-13:** Fases 1 (model
+  `ActionOccurrence` + endpoints) e 2 (UI de Encontros) já foram
+  implementadas e testadas, a pedido explícito do usuário, à frente desta
+  decisão de sequenciamento — ver evidência em
+  `docs/plano-implementacao-scfv.md` e o desvio registrado no topo do
+  `PLAN.md`. As Fases 3-9 continuam adiadas.
+
+## Frontend — autenticação
+
+- **`LoginForm` perde o que a pessoa já digitou se ela começar a digitar
+  antes do nome da instituição carregar.** `login-form.tsx` busca o
+  tenant por slug de forma assíncrona (`fetchTenantBySlug`) e, ao
+  resolver, dispara um re-render que reseta os campos do formulário de
+  credenciais para os valores iniciais — qualquer coisa já digitada
+  nesse meio-tempo é perdida. Achado em 2026-11-13 testando a Fase 2 do
+  plano SCFV via automação de navegador (preencher o campo de e-mail
+  antes do nome do tenant aparecer reproduz 100% das vezes). Impacto
+  baixo (a busca do tenant é rápida), mas é uma causa plausível de
+  "preenchi e sumiu" relatado por usuário real.
+  **Gatilho:** próxima vez que o `login-form.tsx` for tocado, ou se
+  virar reclamação de usuário real — mover os valores padrão de
+  `initialValues` para fora do fluxo de re-render do tenant (ex.: não
+  depender de um state que muda após o fetch), ou usar `key` estável no
+  `RecordForm` para não perder o que já foi digitado.
+
 ## Testes e-2-e / CI local
 
 - `frontend/e2e/smoke.spec.ts` ("usuário já logado redireciona pro

@@ -160,7 +160,7 @@ export const peopleGroupsListModuleDefinition =
       createStandardListView({
         id: "table",
         title: "Tabela",
-        viewType: "table",
+        viewType: "list",
         icon: <Table2 className="size-4" />,
         params: {
           searchable: true,

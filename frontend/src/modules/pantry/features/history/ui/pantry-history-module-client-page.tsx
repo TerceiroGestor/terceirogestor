@@ -965,6 +965,7 @@ export function PantryHistoryModuleClientPage() {
       onStateChange={setState}
       queryFacets={queryFacets}
       analysisFacets={analysisFacets}
+      columns={columns}
       valueSuggestions={valueSuggestions}
       favoriteSnapshot={{
         view: state.view,

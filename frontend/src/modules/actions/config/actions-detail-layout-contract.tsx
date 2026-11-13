@@ -18,6 +18,7 @@ import {
 } from "@/modules/actions/shared/domain/actions.constants";
 import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
 import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
+import { ActionOccurrencesSection } from "@/modules/actions/features/manage/ui/action-occurrences-section";
 import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
 import {
   AttendanceNotesDialog,
@@ -745,6 +746,21 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         },
       ],
       emptyLabel: "Sem participantes.",
+    },
+    {
+      key: "occurrences",
+      label: "Encontros",
+      visible: ({ mode }) => mode === "edit",
+      content: ({ action, projectId, token, readOnly }) =>
+        action ? (
+          <ActionOccurrencesSection
+            token={token}
+            projectId={projectId}
+            actionId={action.id}
+            readOnly={readOnly}
+          />
+        ) : null,
+      emptyLabel: "Sem encontros.",
     },
     {
       key: "quality",

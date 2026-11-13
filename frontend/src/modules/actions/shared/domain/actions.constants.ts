@@ -4,6 +4,8 @@ import type {
   ActionPeopleParticipationRole,
   ActionStatus,
   AttendanceStatus,
+  OccurrenceStatus,
+  WeekDay,
 } from "@/modules/actions/api";
 
 export type ActionTarget = "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
@@ -57,6 +59,38 @@ export const ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS: Record<
   RESPONSAVEL_TECNICO: "Responsável técnico",
   CONVIDADO: "Convidado",
 };
+
+export const OCCURRENCE_STATUS_LABELS: Record<OccurrenceStatus, string> = {
+  SCHEDULED: "Agendado",
+  DONE: "Realizado",
+  CANCELED: "Cancelado",
+};
+
+export const OCCURRENCE_STATUS_OPTIONS = [
+  { label: OCCURRENCE_STATUS_LABELS.SCHEDULED, value: "SCHEDULED" },
+  { label: OCCURRENCE_STATUS_LABELS.DONE, value: "DONE" },
+  { label: OCCURRENCE_STATUS_LABELS.CANCELED, value: "CANCELED" },
+] satisfies { label: string; value: OccurrenceStatus }[];
+
+export const WEEK_DAY_LABELS: Record<WeekDay, string> = {
+  MON: "Seg",
+  TUE: "Ter",
+  WED: "Qua",
+  THU: "Qui",
+  FRI: "Sex",
+  SAT: "Sáb",
+  SUN: "Dom",
+};
+
+export const WEEK_DAY_OPTIONS = [
+  { label: WEEK_DAY_LABELS.MON, value: "MON" },
+  { label: WEEK_DAY_LABELS.TUE, value: "TUE" },
+  { label: WEEK_DAY_LABELS.WED, value: "WED" },
+  { label: WEEK_DAY_LABELS.THU, value: "THU" },
+  { label: WEEK_DAY_LABELS.FRI, value: "FRI" },
+  { label: WEEK_DAY_LABELS.SAT, value: "SAT" },
+  { label: WEEK_DAY_LABELS.SUN, value: "SUN" },
+] satisfies { label: string; value: WeekDay }[];
 
 export const ACTION_PEOPLE_PARTICIPATION_ROLE_OPTIONS = [
   { label: ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS.PARTICIPANTE, value: "PARTICIPANTE" },

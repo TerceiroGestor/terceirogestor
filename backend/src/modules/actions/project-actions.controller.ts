@@ -20,14 +20,23 @@ import { ActionsService } from './actions.service';
 import { CreateProjectActionAttachmentDto } from './dto/create-project-action-attachment.dto';
 import { CreateProjectActionCommentDto } from './dto/create-project-action-comment.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
+import {
+  BulkCreateActionOccurrencesDto,
+  CreateActionOccurrenceDto,
+} from './dto/create-action-occurrence.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
 import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action-people-participation.dto';
 import { ListActionPeopleGroupsQueryDto } from './dto/list-action-people-groups-query.dto';
+import { ListActionOccurrencesQueryDto } from './dto/list-action-occurrences-query.dto';
 import { ListEligibleProjectActionPeopleQueryDto } from './dto/list-eligible-project-action-people-query.dto';
 import { ListProjectActionAttendancesQueryDto } from './dto/list-project-action-attendances-query.dto';
 import { ListProjectActionPeopleParticipationsQueryDto } from './dto/list-project-action-people-participations-query.dto';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
+import {
+  UpdateActionOccurrenceBatchDto,
+  UpdateActionOccurrenceDto,
+} from './dto/update-action-occurrence.dto';
 import { UpdateProjectActionDto } from './dto/update-project-action.dto';
 import { UpsertProjectActionAttendancesDto } from './dto/upsert-project-action-attendances.dto';
 
@@ -252,6 +261,99 @@ export class ProjectActionsController {
       projectId,
       actionId,
       actionPeopleGroupId,
+    );
+  }
+
+  @Get(':projectId/actions/:actionId/occurrences')
+  @Permissions('actions.read')
+  async listOccurrences(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Query() query: ListActionOccurrencesQueryDto,
+  ) {
+    return this.service.listActionOccurrences(user, projectId, actionId, query);
+  }
+
+  @Post(':projectId/actions/:actionId/occurrences')
+  @Permissions('actions.create')
+  async createOccurrence(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Body() dto: CreateActionOccurrenceDto,
+  ) {
+    return this.service.createActionOccurrence(user, projectId, actionId, dto);
+  }
+
+  @Post(':projectId/actions/:actionId/occurrences/bulk')
+  @Permissions('actions.create')
+  async bulkCreateOccurrences(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Body() dto: BulkCreateActionOccurrencesDto,
+  ) {
+    return this.service.bulkCreateActionOccurrences(
+      user,
+      projectId,
+      actionId,
+      dto,
+    );
+  }
+
+  @Patch(':projectId/actions/:actionId/occurrences/batch/:recurrenceBatchId')
+  @Permissions('actions.update')
+  async updateOccurrenceBatch(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('recurrenceBatchId', new ParseUUIDPipe({ version: '4' }))
+    recurrenceBatchId: string,
+    @Body() dto: UpdateActionOccurrenceBatchDto,
+  ) {
+    return this.service.updateActionOccurrenceBatch(
+      user,
+      projectId,
+      actionId,
+      recurrenceBatchId,
+      dto,
+    );
+  }
+
+  @Patch(':projectId/actions/:actionId/occurrences/:occurrenceId')
+  @Permissions('actions.update')
+  async updateOccurrence(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+    @Body() dto: UpdateActionOccurrenceDto,
+  ) {
+    return this.service.updateActionOccurrence(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
+      dto,
+    );
+  }
+
+  @Delete(':projectId/actions/:actionId/occurrences/:occurrenceId')
+  @Permissions('actions.delete')
+  async deleteOccurrence(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+  ) {
+    return this.service.deleteActionOccurrence(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
     );
   }
 

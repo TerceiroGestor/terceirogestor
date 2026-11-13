@@ -289,6 +289,7 @@ export function PeopleGroupsListModuleClientPage() {
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}
+      columns={columnDefs}
       favoriteSnapshot={favoriteSnapshot}
       isLoading={loading}
       totalCount={filteredRows.length}

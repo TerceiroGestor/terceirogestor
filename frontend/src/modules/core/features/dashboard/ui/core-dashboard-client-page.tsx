@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import NextImage from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ClipboardPlus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,34 +25,69 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useBreadcrumb } from "@/components/layout/BreadcrumbContext";
 import { useAuth } from "@/features/auth/auth-context";
+import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
+import { resolveMediaUrl } from "@/lib/api";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   getDashboardOverview,
   type DashboardOverviewResponse,
 } from "@/modules/core/api/dashboard";
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from "recharts";
 
+// Paleta institucional (terrosa/verde), usada só nesta tela — não altera o
+// tema do resto do sistema.
+const INSTITUTIONAL = {
+  primary: "#2f6f4e",
+  secondary: "#c2693c",
+} as const;
+
 const attendanceConfig = {
   attendances: {
     label: "Atendimentos",
-    color: "#2563eb",
+    color: INSTITUTIONAL.primary,
   },
   actionsExecuted: {
     label: "Ações executadas",
-    color: "#0f766e",
+    color: INSTITUTIONAL.secondary,
   },
 } satisfies ChartConfig;
 
 const PIE_COLORS = [
-  "#2563eb",
-  "#0f766e",
-  "#f97316",
-  "#a855f7",
-  "#22c55e",
-  "#e11d48",
-  "#0891b2",
-  "#ca8a04",
+  "#2f6f4e",
+  "#c2693c",
+  "#d9a441",
+  "#4f7c82",
+  "#8a6240",
+  "#9c3d54",
+  "#6b8f3c",
+  "#3f5b6b",
 ] as const;
+
+type QuickAction = {
+  key: string;
+  label: string;
+  description: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+};
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    key: "people.create",
+    label: "Cadastrar pessoa",
+    description: "Novo atendido ou familiar",
+    href: "/people/new",
+    icon: UserPlus,
+  },
+  {
+    key: "actions.create",
+    label: "Registrar ação",
+    description: "Nova ação realizada",
+    href: "/actions/new",
+    icon: ClipboardPlus,
+  },
+];
 
 function toDateInputValue(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -164,7 +203,10 @@ async function downloadChartPng(params: {
 export function CoreDashboardClientPage() {
   const { token } = useAuth();
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
+  const { user, tenant } = useCurrentUser();
   const { setPageBreadcrumb } = useBreadcrumb();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname);
   const [isHydrated, setIsHydrated] = React.useState(false);
 
   const [overview, setOverview] = React.useState<DashboardOverviewResponse | null>(
@@ -275,6 +317,23 @@ export function CoreDashboardClientPage() {
     return config;
   }, [actionTypeData]);
 
+  const tenantName = tenant?.name ?? "Instituição";
+  const initials =
+    tenantName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "TG";
+  const logoSrc = tenant?.logoUrl
+    ? resolveMediaUrl(tenant.logoUrl) || tenant.logoUrl
+    : null;
+  const firstName = user?.name?.trim().split(" ")[0];
+  const greeting = firstName ? `Olá, ${firstName}` : "Visão geral";
+  const missionText =
+    tenant?.description?.trim() ||
+    "Trabalhando para transformar vidas e fortalecer a comunidade.";
+
   if (authLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
@@ -285,47 +344,108 @@ export function CoreDashboardClientPage() {
 
   return (
     <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            ONG
-          </p>
-          <h1 className="text-2xl font-semibold">Visao geral da ONG</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Período: {appliedPeriodLabel}
-          </p>
+      <header className="flex flex-col gap-4">
+        <div
+          className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+          style={{ borderLeftWidth: 4, borderLeftColor: INSTITUTIONAL.primary }}
+        >
+          <div className="flex items-center gap-4">
+            {logoSrc ? (
+              <NextImage
+                src={logoSrc}
+                alt={tenantName}
+                width={56}
+                height={56}
+                unoptimized
+                className="size-14 rounded-xl object-cover"
+              />
+            ) : (
+              <div
+                className="grid size-14 place-items-center rounded-xl text-base font-semibold text-white"
+                style={{ backgroundColor: INSTITUTIONAL.primary }}
+              >
+                {initials}
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                {greeting}
+              </p>
+              <h1 className="text-2xl font-semibold">{tenantName}</h1>
+              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                {missionText}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-muted-foreground">De</p>
+                <Input
+                  type="date"
+                  value={draftFrom}
+                  onChange={(e) => setDraftFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-muted-foreground">Até</p>
+                <Input
+                  type="date"
+                  value={draftTo}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRange({ from: draftFrom, to: draftTo })}
+                disabled={isLoading}
+              >
+                Aplicar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadOverview}
+                disabled={isLoading}
+              >
+                Atualizar
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Período: {appliedPeriodLabel}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium text-muted-foreground">De</p>
-              <Input
-                type="date"
-                value={draftFrom}
-                onChange={(e) => setDraftFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium text-muted-foreground">Até</p>
-              <Input
-                type="date"
-                value={draftTo}
-                onChange={(e) => setDraftTo(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setRange({ from: draftFrom, to: draftTo })}
-              disabled={isLoading}
-            >
-              Aplicar
-            </Button>
-            <Button variant="outline" onClick={loadOverview} disabled={isLoading}>
-              Atualizar
-            </Button>
-          </div>
+
+        <div className="flex flex-wrap gap-3">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={action.key}
+                href={withTenantPath(action.href, tenantSlug)}
+                className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5 text-sm shadow-sm transition-colors hover:bg-muted/50"
+              >
+                <span
+                  className="grid size-8 shrink-0 place-items-center rounded-full"
+                  style={{ backgroundColor: `${INSTITUTIONAL.primary}1a` }}
+                >
+                  <Icon
+                    className="size-4"
+                    style={{ color: INSTITUTIONAL.primary }}
+                  />
+                </span>
+                <span>
+                  <span className="block font-medium">{action.label}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {action.description}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </header>
 
@@ -343,7 +463,17 @@ export function CoreDashboardClientPage() {
         </Card>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="h-5 w-1 rounded-full"
+            style={{ backgroundColor: INSTITUTIONAL.primary }}
+          />
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Impacto no período
+          </h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs uppercase tracking-[0.3em]">
@@ -413,6 +543,7 @@ export function CoreDashboardClientPage() {
             Ações executadas no período.
           </CardContent>
         </Card>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.8fr_1fr]">

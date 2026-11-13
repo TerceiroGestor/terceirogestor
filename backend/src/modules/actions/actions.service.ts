@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -24,8 +25,14 @@ import {
   buildPeopleWhere,
   parseAdvancedFilters,
 } from '../people/people.filters';
+import { generateOccurrenceDates } from './action-occurrence-schedule';
 import { CreateActionTypeDto } from './dto/create-action-type.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
+import {
+  BulkCreateActionOccurrencesDto,
+  CreateActionOccurrenceDto,
+} from './dto/create-action-occurrence.dto';
+import { ListActionOccurrencesQueryDto } from './dto/list-action-occurrences-query.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
 import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action-people-participation.dto';
@@ -35,12 +42,33 @@ import { ListActionPeopleGroupsQueryDto } from './dto/list-action-people-groups-
 import { ListProjectActionAttendancesQueryDto } from './dto/list-project-action-attendances-query.dto';
 import { ListProjectActionPeopleParticipationsQueryDto } from './dto/list-project-action-people-participations-query.dto';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
+import {
+  UpdateActionOccurrenceBatchDto,
+  UpdateActionOccurrenceDto,
+} from './dto/update-action-occurrence.dto';
 import { UpdateActionTypeDto } from './dto/update-action-type.dto';
 import { UpdateProjectActionDto } from './dto/update-project-action.dto';
 import { UpsertProjectActionAttendancesDto } from './dto/upsert-project-action-attendances.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const MAX_BULK_OCCURRENCES = 200;
+
+const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function combineDateAndTime(date: Date, time: string): Date {
+  const match = TIME_OF_DAY_PATTERN.exec(time.trim());
+  if (!match) throw new BadRequestException('Horario invalido (use HH:mm)');
+  const combined = new Date(date.getTime());
+  combined.setUTCHours(Number(match[1]), Number(match[2]), 0, 0);
+  return combined;
+}
+
+function toTimeOfDay(date: Date): string {
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
 
 function ensureValidPeriod(params: {
   startsAt?: Date | null;
@@ -403,6 +431,26 @@ export class ActionsService {
     });
     if (!peopleGroupLink)
       throw new BadRequestException('Grupo de pessoas invalido');
+  }
+
+  private async ensurePeopleGroupBelongsToAction(
+    tenantId: string,
+    actionId: string,
+    peopleGroupId: string,
+  ) {
+    const peopleGroupLink = await this.prisma.actionPeopleGroup.findFirst({
+      where: {
+        tenantId,
+        actionId,
+        peopleGroupId,
+        participationKind: 'PARTICIPANT',
+      },
+      select: { id: true },
+    });
+    if (!peopleGroupLink)
+      throw new BadRequestException(
+        'Grupo de pessoas invalido para esta atividade',
+      );
   }
 
   private async ensureEnrollmentBelongsToProject(
@@ -1265,6 +1313,323 @@ export class ActionsService {
       throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
 
     await this.prisma.actionPeopleGroup.delete({ where: { id: existing.id } });
+    return { ok: true as const };
+  }
+
+  async listActionOccurrences(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    query: ListActionOccurrencesQueryDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const { page, limit, skip, take } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: false,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const from = parseDateInput(query.from);
+    const to = parseDateInput(query.to, { endOfDay: true });
+
+    const where: Prisma.ActionOccurrenceWhereInput = {
+      tenantId: user.tenantId,
+      actionId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.peopleGroupId ? { peopleGroupId: query.peopleGroupId } : {}),
+      ...(from || to
+        ? {
+            scheduledDate: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.actionOccurrence.findMany({
+        where,
+        include: { peopleGroup: { select: { id: true, name: true } } },
+        orderBy: [{ scheduledDate: 'asc' }, { startTime: 'asc' }],
+        skip,
+        take,
+      }),
+      this.prisma.actionOccurrence.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+    };
+  }
+
+  async createActionOccurrence(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: CreateActionOccurrenceDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    if (dto.peopleGroupId) {
+      await this.ensurePeopleGroupBelongsToAction(
+        user.tenantId,
+        actionId,
+        dto.peopleGroupId,
+      );
+    }
+
+    const scheduledDate = parseDateInput(dto.scheduledDate);
+    if (!scheduledDate)
+      throw new BadRequestException('Data do encontro invalida');
+
+    const startTime = combineDateAndTime(scheduledDate, dto.startTime);
+    const endTime = dto.endTime
+      ? combineDateAndTime(scheduledDate, dto.endTime)
+      : null;
+    if (endTime && endTime <= startTime) {
+      throw new BadRequestException(
+        'Horario de termino deve ser depois do horario de inicio',
+      );
+    }
+
+    return this.prisma.actionOccurrence.create({
+      data: {
+        tenantId: user.tenantId,
+        actionId,
+        peopleGroupId: dto.peopleGroupId ?? null,
+        scheduledDate,
+        startTime,
+        endTime,
+        notes: dto.notes?.trim() ? dto.notes.trim() : null,
+      },
+      include: { peopleGroup: { select: { id: true, name: true } } },
+    });
+  }
+
+  async bulkCreateActionOccurrences(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: BulkCreateActionOccurrencesDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    if (dto.peopleGroupId) {
+      await this.ensurePeopleGroupBelongsToAction(
+        user.tenantId,
+        actionId,
+        dto.peopleGroupId,
+      );
+    }
+
+    const startDate = parseDateInput(dto.startDate);
+    const endDate = parseDateInput(dto.endDate);
+    if (!startDate || !endDate) {
+      throw new BadRequestException('Periodo do agendamento invalido');
+    }
+    if (startDate > endDate) {
+      throw new BadRequestException(
+        'Periodo invalido: inicio maior que termino',
+      );
+    }
+
+    const dates = generateOccurrenceDates({
+      startDate,
+      endDate,
+      daysOfWeek: dto.daysOfWeek,
+    });
+    if (dates.length === 0) {
+      throw new BadRequestException(
+        'Nenhuma data cai nos dias da semana escolhidos dentro do periodo',
+      );
+    }
+    if (dates.length > MAX_BULK_OCCURRENCES) {
+      throw new BadRequestException(
+        `O agendamento geraria ${dates.length} encontros; o maximo por leva e ${MAX_BULK_OCCURRENCES}. Encurte o periodo.`,
+      );
+    }
+
+    const endTimeOfDay = dto.endTime ?? null;
+    if (endTimeOfDay) {
+      const sample = combineDateAndTime(dates[0], dto.startTime);
+      const sampleEnd = combineDateAndTime(dates[0], endTimeOfDay);
+      if (sampleEnd <= sample) {
+        throw new BadRequestException(
+          'Horario de termino deve ser depois do horario de inicio',
+        );
+      }
+    }
+
+    const recurrenceBatchId = randomUUID();
+    const notes = dto.notes?.trim() ? dto.notes.trim() : null;
+
+    await this.prisma.actionOccurrence.createMany({
+      data: dates.map((scheduledDate) => ({
+        tenantId: user.tenantId,
+        actionId,
+        peopleGroupId: dto.peopleGroupId ?? null,
+        scheduledDate,
+        startTime: combineDateAndTime(scheduledDate, dto.startTime),
+        endTime: endTimeOfDay
+          ? combineDateAndTime(scheduledDate, endTimeOfDay)
+          : null,
+        notes,
+        recurrenceBatchId,
+      })),
+    });
+
+    const created = await this.prisma.actionOccurrence.findMany({
+      where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
+      include: { peopleGroup: { select: { id: true, name: true } } },
+      orderBy: [{ scheduledDate: 'asc' }],
+    });
+
+    return { recurrenceBatchId, created: created.length, data: created };
+  }
+
+  private async ensureActionOccurrenceExists(
+    tenantId: string,
+    actionId: string,
+    occurrenceId: string,
+  ) {
+    const occurrence = await this.prisma.actionOccurrence.findFirst({
+      where: { id: occurrenceId, tenantId, actionId },
+    });
+    if (!occurrence) throw new NotFoundException('Encontro nao encontrado');
+    return occurrence;
+  }
+
+  async updateActionOccurrence(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+    dto: UpdateActionOccurrenceDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    const existing = await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
+    );
+
+    if (dto.peopleGroupId) {
+      await this.ensurePeopleGroupBelongsToAction(
+        user.tenantId,
+        actionId,
+        dto.peopleGroupId,
+      );
+    }
+
+    const scheduledDate = dto.scheduledDate
+      ? parseDateInput(dto.scheduledDate)
+      : existing.scheduledDate;
+    if (dto.scheduledDate && !scheduledDate) {
+      throw new BadRequestException('Data do encontro invalida');
+    }
+    const baseDate = scheduledDate ?? existing.scheduledDate;
+
+    const startTime = dto.startTime
+      ? combineDateAndTime(baseDate, dto.startTime)
+      : dto.scheduledDate
+        ? combineDateAndTime(baseDate, toTimeOfDay(existing.startTime))
+        : existing.startTime;
+    const endTime =
+      dto.endTime === null
+        ? null
+        : dto.endTime
+          ? combineDateAndTime(baseDate, dto.endTime)
+          : existing.endTime && dto.scheduledDate
+            ? combineDateAndTime(baseDate, toTimeOfDay(existing.endTime))
+            : existing.endTime;
+
+    if (endTime && endTime <= startTime) {
+      throw new BadRequestException(
+        'Horario de termino deve ser depois do horario de inicio',
+      );
+    }
+
+    return this.prisma.actionOccurrence.update({
+      where: { id: existing.id },
+      data: {
+        scheduledDate: baseDate,
+        startTime,
+        endTime,
+        status: dto.status ?? undefined,
+        peopleGroupId:
+          dto.peopleGroupId === null ? null : (dto.peopleGroupId ?? undefined),
+        notes:
+          dto.notes === undefined
+            ? undefined
+            : dto.notes === null
+              ? null
+              : dto.notes.trim()
+                ? dto.notes.trim()
+                : null,
+      },
+      include: { peopleGroup: { select: { id: true, name: true } } },
+    });
+  }
+
+  async updateActionOccurrenceBatch(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    recurrenceBatchId: string,
+    dto: UpdateActionOccurrenceBatchDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const fromDate = dto.fromDate ? parseDateInput(dto.fromDate) : null;
+    if (dto.fromDate && !fromDate) {
+      throw new BadRequestException('Data inicial invalida');
+    }
+
+    const where: Prisma.ActionOccurrenceWhereInput = {
+      tenantId: user.tenantId,
+      actionId,
+      recurrenceBatchId,
+      ...(fromDate ? { scheduledDate: { gte: fromDate } } : {}),
+    };
+
+    const existing = await this.prisma.actionOccurrence.count({ where });
+    if (existing === 0) {
+      throw new NotFoundException('Leva de encontros nao encontrada');
+    }
+
+    const result = await this.prisma.actionOccurrence.updateMany({
+      where,
+      data: { status: dto.status },
+    });
+
+    return { ok: true as const, updated: result.count };
+  }
+
+  async deleteActionOccurrence(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    const existing = await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
+    );
+
+    await this.prisma.actionOccurrence.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
 

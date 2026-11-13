@@ -267,6 +267,16 @@ para um gerenciador de senhas — ação operacional do usuário, não é
 código). Parte 4 (Railway/Cloudflare/R2) só começa quando o projeto
 Railway existir.
 
+**Desvio em andamento, a pedido explícito do usuário em 2026-11-13:**
+Fases 1 e 2 do plano SCFV (`docs/plano-implementacao-scfv.md`) foram
+iniciadas antes da Parte 4/5. Fase 1: model `ActionOccurrence` (Encontro)
++ endpoints (CRUD, geração em lote por recorrência semanal, cancelamento
+em série). Fase 2: aba "Encontros" no detalhe da Atividade (lista/
+calendário, agendamento em lote, edição/cancelamento) — testada de ponta
+a ponta com navegador real. Ambas implementadas e testadas (ver evidência
+nas seções "Fase 1"/"Fase 2" desse plano). Não bloqueia a Parte 4; é
+trabalho adicional em paralelo.
+
 Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
 fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
 `962b91c`).

@@ -236,3 +236,90 @@ export type EndActionPeopleParticipationInput = {
   endsAt?: string | null;
   internalNotes?: string | null;
 };
+
+export type ApiActionPeopleGroup = {
+  id: string;
+  tenantId: string;
+  actionId: string;
+  peopleGroupId: string;
+  participationKind: "PARTICIPANT" | "TEAM";
+  createdAt: string;
+  updatedAt: string;
+  peopleGroup: {
+    id: string;
+    name: string;
+    category: string | null;
+    description: string | null;
+    ageMin: number | null;
+    ageMax: number | null;
+    isActive: boolean;
+  };
+};
+
+export type ActionPeopleGroupInput = {
+  peopleGroupId: string;
+  participationKind: "PARTICIPANT" | "TEAM";
+};
+
+export type WeekDay = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
+
+export type OccurrenceStatus = "SCHEDULED" | "DONE" | "CANCELED";
+
+export type ApiActionOccurrence = {
+  id: string;
+  tenantId: string;
+  actionId: string;
+  peopleGroupId: string | null;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string | null;
+  status: OccurrenceStatus;
+  notes: string | null;
+  recurrenceBatchId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  peopleGroup: { id: string; name: string } | null;
+};
+
+export type ActionOccurrencesListResponse = {
+  data: ApiActionOccurrence[];
+  pagination: PaginationMeta;
+};
+
+export type ActionOccurrenceInput = {
+  scheduledDate: string;
+  startTime: string;
+  endTime?: string | null;
+  peopleGroupId?: string | null;
+  notes?: string | null;
+};
+
+export type ActionOccurrenceUpdateInput = {
+  scheduledDate?: string;
+  startTime?: string;
+  endTime?: string | null;
+  peopleGroupId?: string | null;
+  status?: OccurrenceStatus;
+  notes?: string | null;
+};
+
+export type BulkCreateActionOccurrencesInput = {
+  peopleGroupId?: string | null;
+  startDate: string;
+  endDate: string;
+  daysOfWeek: WeekDay[];
+  startTime: string;
+  endTime?: string | null;
+  notes?: string | null;
+};
+
+export type BulkCreateActionOccurrencesResponse = {
+  recurrenceBatchId: string;
+  created: number;
+  data: ApiActionOccurrence[];
+};
+
+export type UpdateActionOccurrenceBatchInput = {
+  status: OccurrenceStatus;
+  fromDate?: string;
+};

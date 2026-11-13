@@ -75,6 +75,12 @@ enum ActionStatus {
   CANCELED
 }
 
+enum OccurrenceStatus {
+  SCHEDULED
+  DONE
+  CANCELED
+}
+
 enum ActionTarget {
   PROJECT
   PROJECT_GROUP
@@ -299,6 +305,7 @@ model Tenant {
   projectActionComments                ProjectActionComment[]
   projectActionAttachments             ProjectActionAttachment[]
   actionPeopleGroups                   ActionPeopleGroup[]
+  actionOccurrences                    ActionOccurrence[]
   projectActionAttendances             ProjectActionAttendance[]
   projectActionPeopleParticipations    ProjectActionPeopleParticipation[]
 
@@ -1250,6 +1257,7 @@ model PeopleGroup {
   participations      PeopleGroupParticipation[]
   projectPeopleGroups ProjectPeopleGroup[]
   actionPeopleGroups  ActionPeopleGroup[]
+  actionOccurrences   ActionOccurrence[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1433,6 +1441,7 @@ model ProjectAction {
   actionType           ActionType                         @relation(fields: [actionTypeId], references: [id])
   attendances          ProjectActionAttendance[]
   peopleGroups         ActionPeopleGroup[]
+  occurrences          ActionOccurrence[]
   peopleParticipations ProjectActionPeopleParticipation[]
   comments             ProjectActionComment[]
   attachments          ProjectActionAttachment[]
@@ -1505,6 +1514,29 @@ model ActionPeopleGroup {
   @@index([actionId])
   @@index([peopleGroupId])
   @@index([participationKind])
+}
+
+model ActionOccurrence {
+  id                String           @id @default(uuid()) @db.Char(36)
+  tenantId          String           @db.Char(36)
+  actionId          String           @db.Char(36)
+  peopleGroupId     String?          @db.Char(36)
+  scheduledDate     DateTime         @db.Date
+  startTime         DateTime
+  endTime           DateTime?
+  status            OccurrenceStatus @default(SCHEDULED)
+  notes             String?          @db.Text
+  recurrenceBatchId String?          @db.Char(36)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  action      ProjectAction @relation(fields: [actionId], references: [id])
+  peopleGroup PeopleGroup?  @relation(fields: [peopleGroupId], references: [id])
+
+  @@index([tenantId, actionId])
+  @@index([tenantId, scheduledDate])
+  @@index([recurrenceBatchId])
 }
 
 model ProjectActionAttendance {

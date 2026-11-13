@@ -326,6 +326,7 @@ export function DepositDonorsModuleClientPage() {
       state={state}
       onStateChange={setState}
       queryFacets={queryFacets}
+      columns={columns}
       valueSuggestions={valueSuggestions}
       favoriteSnapshot={{
         searchText: state.searchText,

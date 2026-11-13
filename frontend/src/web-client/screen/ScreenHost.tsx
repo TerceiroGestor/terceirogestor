@@ -1,15 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { PageBreadcrumb } from "@/components/layout/PageBreadcrumb";
+import { useRequireAuth } from "@/hooks/use-require-auth";
 import { getWindowAction } from "@/web-client/registry";
 import { hasPermissionRequirement } from "@/web-client/registry/module-utils";
 import { resolveWindowActionPermissionRequirement } from "@/web-client/registry/window-actions";
 
 export function ScreenHost({ actionId }: { actionId: string }) {
-  const { isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { permissions, isLoading: userLoading, user, tenant } = useCurrentUser();
   const action = React.useMemo(() => getWindowAction(actionId), [actionId]);
 
@@ -23,7 +23,11 @@ export function ScreenHost({ actionId }: { actionId: string }) {
 
   const hasResolvedCurrentUser = Boolean(user || tenant || permissions.length);
 
-  if (authLoading || (userLoading && !hasResolvedCurrentUser)) {
+  if (
+    authLoading ||
+    !isAuthenticated ||
+    (userLoading && !hasResolvedCurrentUser)
+  ) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
         Carregando...
