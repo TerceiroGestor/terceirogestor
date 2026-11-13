@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Search } from "lucide-react";
+import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SectionDialog } from "@/components/section-dialog";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { listPeopleGroups } from "@/modules/people-groups/api/people-groups";
 import type { ApiPeopleGroup } from "@/modules/people-groups/api";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { ColumnVisibilityMenu } from "@/web-client/views/ListView";
 import { TableView } from "@/web-client/views/TableView";
 
 type ProjectPeopleGroupPickerDialogProps = {
@@ -18,12 +19,18 @@ type ProjectPeopleGroupPickerDialogProps = {
   purpose: "PUBLICO" | "EQUIPE";
   title?: string;
   actionLabel?: string;
-  onPick: (peopleGroup: ApiPeopleGroup) => void;
+  onPick: (peopleGroups: ApiPeopleGroup[]) => void | Promise<void>;
 };
 
 function formatAgeRange(ageMin: number | null | undefined, ageMax: number | null | undefined) {
   if (ageMin == null && ageMax == null) return "Livre";
   return `${ageMin ?? "-"} a ${ageMax ?? "-"}`;
+}
+
+function mergeUniqueGroups(current: ApiPeopleGroup[], incoming: ApiPeopleGroup[]) {
+  return Array.from(
+    new Map([...current, ...incoming].map((group) => [group.id, group])).values(),
+  );
 }
 
 export function ProjectPeopleGroupPickerDialog({
@@ -36,7 +43,9 @@ export function ProjectPeopleGroupPickerDialog({
   onPick,
 }: ProjectPeopleGroupPickerDialogProps) {
   const [rows, setRows] = React.useState<ApiPeopleGroup[]>([]);
+  const [selected, setSelected] = React.useState<ApiPeopleGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pageCount, setPageCount] = React.useState(0);
   const [totalCount, setTotalCount] = React.useState(0);
@@ -45,13 +54,60 @@ export function ProjectPeopleGroupPickerDialog({
     pageSize: 10,
   });
   const [search, setSearch] = React.useState("");
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
 
   const resolvedTitle =
     title ?? (purpose === "EQUIPE" ? "Vincular grupo de equipe" : "Vincular grupo de pessoas");
   const resolvedActionLabel = actionLabel ?? "Vincular";
 
+  const handlePickOne = React.useCallback(
+    (peopleGroup: ApiPeopleGroup) => {
+      void onPick([peopleGroup]);
+    },
+    [onPick],
+  );
+
   const columns = React.useMemo<ColumnDef<ApiPeopleGroup>[]>(
     () => [
+      {
+        id: "select",
+        header: () => {
+          const pageSelected =
+            rows.length > 0 &&
+            rows.every((group) => selected.some((item) => item.id === group.id));
+
+          return (
+            <Checkbox
+              checked={pageSelected}
+              onCheckedChange={(next) => {
+                setSelected((previous) =>
+                  next
+                    ? mergeUniqueGroups(previous, rows)
+                    : previous.filter((group) => !rows.some((row) => row.id === group.id)),
+                );
+              }}
+              aria-label="Selecionar grupos da pagina"
+            />
+          );
+        },
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => {
+          const checked = selected.some((group) => group.id === row.original.id);
+          return (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={(next) => {
+                setSelected((previous) => {
+                  if (next) return mergeUniqueGroups(previous, [row.original]);
+                  return previous.filter((group) => group.id !== row.original.id);
+                });
+              }}
+              aria-label={`Selecionar ${row.original.name}`}
+            />
+          );
+        },
+      },
       {
         accessorKey: "name",
         header: "Grupo institucional",
@@ -96,6 +152,7 @@ export function ProjectPeopleGroupPickerDialog({
         id: "actions",
         header: "",
         enableSorting: false,
+        enableHiding: false,
         cell: ({ row }) => (
           <div className="flex justify-end">
             <Button
@@ -105,7 +162,7 @@ export function ProjectPeopleGroupPickerDialog({
               className="h-8 rounded-none border-b border-border/60 px-1"
               onClick={(event) => {
                 event.stopPropagation();
-                onPick(row.original);
+                handlePickOne(row.original);
               }}
             >
               {resolvedActionLabel}
@@ -114,7 +171,7 @@ export function ProjectPeopleGroupPickerDialog({
         ),
       },
     ],
-    [onPick, resolvedActionLabel],
+    [handlePickOne, resolvedActionLabel, rows, selected],
   );
 
   const load = React.useCallback(async () => {
@@ -152,8 +209,25 @@ export function ProjectPeopleGroupPickerDialog({
   }, [open, search]);
 
   React.useEffect(() => {
+    if (!open) {
+      setSelected([]);
+    }
+  }, [open]);
+
+  React.useEffect(() => {
     void load();
   }, [load]);
+
+  const handlePickSelected = React.useCallback(async () => {
+    if (selected.length === 0) return;
+    setSaving(true);
+    try {
+      await onPick(selected);
+      setSelected([]);
+    } finally {
+      setSaving(false);
+    }
+  }, [onPick, selected]);
 
   return (
     <SectionDialog
@@ -169,25 +243,63 @@ export function ProjectPeopleGroupPickerDialog({
       ) : null}
 
       <div className="space-y-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Pesquisar"
-            className="h-9 rounded-none border-x-0 border-t-0 border-border/70 pl-6 pr-14 text-sm shadow-none focus-visible:ring-0"
-          />
-          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[11px] font-medium tabular-nums text-muted-foreground">
-            {totalCount.toLocaleString("pt-BR")}
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Pesquisar"
+              rightSlot={
+                <div className="flex items-center gap-0.5">
+                  <div className="whitespace-nowrap px-1 text-[11px] text-muted-foreground">
+                    Total:{" "}
+                    <span className="font-mono tabular-nums text-foreground">
+                      {totalCount.toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <ColumnVisibilityMenu
+                    columns={columns}
+                    visibility={columnVisibility}
+                    onVisibilityChange={setColumnVisibility}
+                    showTriggerLabel={false}
+                    triggerVariant="ghost"
+                    triggerSize="icon"
+                  />
+                </div>
+              }
+            />
+          </div>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="whitespace-nowrap text-muted-foreground">
+              Selecionados: <strong>{selected.length}</strong>
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 px-3"
+              disabled={saving || selected.length === 0}
+              onClick={() => void handlePickSelected()}
+            >
+              {saving ? "Vinculando..." : resolvedActionLabel}
+            </Button>
+          </div>
         </div>
 
         <TableView
           data={rows}
           columns={columns}
           onRowClick={(row) => {
-            onPick(row);
+            setSelected((previous) =>
+              previous.some((group) => group.id === row.id)
+                ? previous.filter((group) => group.id !== row.id)
+                : mergeUniqueGroups(previous, [row]),
+            );
           }}
+          showColumnVisibilityButton={false}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
         />
 
         <PaginationBar

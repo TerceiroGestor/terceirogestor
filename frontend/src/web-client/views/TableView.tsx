@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef, ColumnPinningState } from "@tanstack/react-table";
+import type { ColumnDef, ColumnPinningState, VisibilityState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { ListView } from "@/web-client/views/ListView";
 
@@ -13,6 +13,9 @@ export function TableView<TData>({
   getRowId,
   minWidthClassName = "min-w-[860px]",
   initialColumnPinning,
+  showColumnVisibilityButton,
+  columnVisibility,
+  onColumnVisibilityChange,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -21,6 +24,14 @@ export function TableView<TData>({
   getRowId?: (row: TData, index: number) => string;
   minWidthClassName?: string;
   initialColumnPinning?: ColumnPinningState;
+  /**
+   * Desative quando o chamador renderizar o próprio `ColumnVisibilityMenu`
+   * (ex.: dentro da barra de busca de um diálogo) - evita o botão duplicado
+   * flutuando acima da tabela.
+   */
+  showColumnVisibilityButton?: boolean;
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (next: VisibilityState) => void;
 }) {
   return (
     <div
@@ -36,6 +47,9 @@ export function TableView<TData>({
           onRowClick={onRowClick}
           getRowId={getRowId}
           initialColumnPinning={initialColumnPinning}
+          showColumnVisibilityButton={showColumnVisibilityButton}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={onColumnVisibilityChange}
         />
       </div>
     </div>

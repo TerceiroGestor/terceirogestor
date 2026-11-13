@@ -26,6 +26,7 @@ import {
 import { BulkEnrollmentDialog } from "@/modules/projects/features/detail/ui/bulk-enrollment-dialog";
 import { ProjectPeopleGroupPickerDialog } from "@/modules/projects/features/detail/ui/project-people-group-picker-dialog";
 import { ProjectEnrollmentManageDialog } from "@/modules/projects/features/detail/ui/project-enrollment-manage-dialog";
+import type { ApiPeopleGroup } from "@/modules/people-groups/api";
 import { listPrograms, type ApiProgram } from "@/modules/programs/api";
 import {
   type ProjectDetailDraft,
@@ -470,30 +471,62 @@ export function ProjectsDetailEngineClientPage() {
   }, []);
 
   const handlePickPeopleGroup = React.useCallback(
-    async (peopleGroup: { id: string }) => {
-      if (!token || !id || !peopleGroupPickerPurpose) return;
-      try {
-        await createProjectPeopleGroup(token, id, {
-          peopleGroupId: peopleGroup.id,
-          participationKind: peopleGroupPickerPurpose === "EQUIPE" ? "TEAM" : "PARTICIPANT",
-        });
-        toast({
-          title:
-            peopleGroupPickerPurpose === "EQUIPE"
-              ? "Grupo de Equipe adicionado"
-              : "Grupo de Pessoas adicionado",
-        });
+    async (peopleGroups: ApiPeopleGroup[]) => {
+      if (!token || !id || !peopleGroupPickerPurpose || peopleGroups.length === 0) return;
+
+      const participationKind = peopleGroupPickerPurpose === "EQUIPE" ? "TEAM" : "PARTICIPANT";
+      let created = 0;
+      let alreadyLinked = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      await Promise.allSettled(
+        peopleGroups.map(async (peopleGroup) => {
+          try {
+            await createProjectPeopleGroup(token, id, {
+              peopleGroupId: peopleGroup.id,
+              participationKind,
+            });
+            created += 1;
+          } catch (error) {
+            const message =
+              error && typeof error === "object" && "message" in error
+                ? String((error as { message?: string }).message)
+                : "Falha ao adicionar grupo.";
+            if (message.toLowerCase().includes("ja esta vinculado")) {
+              alreadyLinked += 1;
+              return;
+            }
+            failed += 1;
+            errors.push(`${peopleGroup.name}: ${message}`);
+          }
+        }),
+      );
+
+      if (created > 0 || alreadyLinked > 0) {
         setPeopleGroupPickerPurpose(null);
         await loadRelations();
-      } catch (error) {
-        const message =
-          error && typeof error === "object" && "message" in error
-            ? String((error as { message?: string }).message)
-            : peopleGroupPickerPurpose === "EQUIPE"
-              ? "Falha ao adicionar grupo de equipe."
-              : "Falha ao adicionar grupo de pessoas.";
-        toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
+
+      if (failed > 0) {
+        toast({
+          variant: "destructive",
+          title: "Falha ao adicionar",
+          description: errors.slice(0, 5).join("\n"),
+        });
+        return;
+      }
+
+      toast({
+        title:
+          peopleGroupPickerPurpose === "EQUIPE"
+            ? "Grupo de Equipe adicionado"
+            : "Grupo de Pessoas adicionado",
+        description:
+          peopleGroups.length > 1
+            ? `Vinculados: ${created} • Ja vinculados: ${alreadyLinked}`
+            : undefined,
+      });
     },
     [id, loadRelations, peopleGroupPickerPurpose, toast, token],
   );

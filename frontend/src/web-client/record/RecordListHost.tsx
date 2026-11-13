@@ -280,8 +280,12 @@ export function RecordListHost<
   const panelIsActive = hasActiveFilters || hasActiveAnalysis;
   // Só faz sentido escolher colunas na visualização em tabela (ver
   // createStandardListView, viewType "list") - kanban/calendário/gráfico/etc.
-  // não usam ColumnDef nenhum.
-  const showColumnVisibilityControl = Boolean(columns?.length) && activeView?.viewType === "list";
+  // não usam ColumnDef nenhum. Aceita "table" também: alguns contratos de
+  // módulo usaram esse valor por engano (mesma visualização de tabela), e
+  // sem isso o botão "Colunas" simplesmente some em vez de aparecer errado.
+  const showColumnVisibilityControl =
+    Boolean(columns?.length) &&
+    (activeView?.viewType === "list" || activeView?.viewType === "table");
 
   const content = (
     <div className="flex flex-col gap-4">

@@ -127,6 +127,21 @@ export class ProjectStructureService {
     await this.ensureProjectExists(tenantId, projectId);
     await this.getPeopleGroup(tenantId, dto.peopleGroupId);
 
+    const existing = await this.prisma.projectPeopleGroup.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        peopleGroupId: dto.peopleGroupId,
+        participationKind: dto.participationKind,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'Grupo ja esta vinculado ao projeto com essa finalidade.',
+      );
+    }
+
     return this.prisma.projectPeopleGroup.create({
       data: {
         tenantId,
