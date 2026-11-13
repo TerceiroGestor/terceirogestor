@@ -161,8 +161,10 @@ Objetivo: subir no Railway com staging, R2, backup testado e monitoramento, e en
 
 - [ ] Cadastrar `app.<domínio>` e `api.<domínio>` como domínios customizados no Railway e criar os CNAMEs na Cloudflare com o proxy ativo
 - [ ] SSL/TLS em **Full**, "Always Use HTTPS" ligado. Testar **Full (strict)**
-- [ ] Registros de e-mail transacional: SPF, DKIM e DMARC do provedor SMTP escolhido
-- [ ] Atualizar as URLs de redirect do OAuth Google e Microsoft para `app.<domínio>`
+- [ ] Registros de e-mail transacional: SPF, DKIM e DMARC do provedor SMTP escolhido (Resend)
+- [x] ~~Atualizar as URLs de redirect do OAuth Google e Microsoft para `app.<domínio>`~~ —
+  não se aplica: login/cadastro via Google e Microsoft foi removido do MVP
+  (decisão de 2026-11-13, ver `PLAN.md`)
 
 ### 4.4 Backup e restauração
 
@@ -259,9 +261,18 @@ Depois disso:
 
 ### Perguntas em aberto
 
-- [ ] Já existe alguma instituição com dados reais em algum banco? Se sim, a migration de base (3.1) precisa ser marcada como aplicada nele, e os arquivos em disco entram no script de migração para o R2 (4.2)
-- [ ] Qual é o domínio de produção (`app.` e `api.`)?
-- [ ] Qual será o provedor de e-mail transacional (Resend, Brevo, Amazon SES ou outro)?
-- [ ] Vão continuar o login com Google e Microsoft no go-live, ou entram depois?
+- [x] Já existe alguma instituição com dados reais em algum banco? **Não —
+  respondido em 2026-11-13. Só ambiente de desenvolvimento, produção ainda
+  não existe.** A migration de base (3.1) não precisa ser marcada como
+  aplicada em nenhum banco real ainda; não há arquivos em disco de produção
+  para o script de migração ao R2 (4.2)
+- [x] Qual é o domínio de produção (`app.` e `api.`)? **`terceirogestor.com.br`
+  — respondido em 2026-11-13.** `app.terceirogestor.com.br` → web,
+  `api.terceirogestor.com.br` → api
+- [x] Qual será o provedor de e-mail transacional? **Resend — respondido em
+  2026-11-13**
+- [x] Vão continuar o login com Google e Microsoft no go-live, ou entram
+  depois? **Tirar por enquanto — respondido em 2026-11-13.** OAuth
+  Google/Microsoft fica fora do MVP; revisitar depois do go-live
 
 Fonte consultada: [discussão no Railway Station sobre Cloudflare Full e Full (strict)](https://station.railway.com/questions/cloudflare-ssl-full-strict-does-not-ab35244a).

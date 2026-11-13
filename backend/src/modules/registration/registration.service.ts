@@ -7,11 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, randomInt, createHash } from 'crypto';
-import type {
-  AccessLogAction,
-  Prisma,
-  TenantRegistrationMethod,
-} from '../../generated/prisma';
+import type { AccessLogAction, Prisma } from '../../generated/prisma';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EmailService } from '../../core/email/email.service';
 import { RequestContextService } from '../../core/request-context/request-context.service';
@@ -25,8 +21,6 @@ import { RequestTenantRegistrationDto } from './dto/request-tenant-registration.
 import { ConfirmTenantRegistrationDto } from './dto/confirm-tenant-registration.dto';
 import { AuthTokenPayload } from '../../core/auth/types/auth-token-payload';
 import { buildTenantRegistrationCodeEmail } from '../../core/email/templates/tenant-registration-code';
-
-type OAuthProvider = 'google' | 'microsoft';
 
 const RESERVED_TENANT_SLUGS = new Set([
   '',
@@ -209,90 +203,6 @@ export class RegistrationService {
     return { ...result, ...tokens };
   }
 
-  async startOAuth(provider: OAuthProvider, tenantName: string) {
-    const cleanName = tenantName.trim();
-    await this.ensureTenantNameIsFree(cleanName);
-    const tenantSlug = this.normalizeTenantSlug(slugify(cleanName));
-
-    const stateSecret = randomBytes(16).toString('base64url');
-    const stateHash = this.hashValue(stateSecret);
-
-    const method: TenantRegistrationMethod =
-      provider === 'google' ? 'GOOGLE' : 'MICROSOFT';
-    const registration = await this.prisma.tenantRegistration.create({
-      data: {
-        method,
-        status: 'PENDING_OAUTH',
-        tenantName: cleanName,
-        tenantSlug,
-        oauthStateHash: stateHash,
-      },
-      select: { id: true },
-    });
-
-    const state = `${registration.id}.${stateSecret}`;
-    const redirectUrl =
-      provider === 'google'
-        ? this.buildGoogleAuthorizeUrl(state)
-        : this.buildMicrosoftAuthorizeUrl(state);
-
-    return { redirectUrl };
-  }
-
-  async handleOAuthCallback(
-    provider: OAuthProvider,
-    params: { code?: string; state?: string; error?: string },
-  ) {
-    if (params.error) {
-      throw new BadRequestException(params.error);
-    }
-    const code = params.code?.trim();
-    const state = params.state?.trim();
-    if (!code || !state) {
-      throw new BadRequestException('Callback invalido');
-    }
-
-    const [registrationId, stateSecret] = state.split('.', 2);
-    if (!registrationId || !stateSecret) {
-      throw new BadRequestException('State invalido');
-    }
-
-    const reg = await this.prisma.tenantRegistration.findUnique({
-      where: { id: registrationId },
-    });
-    if (!reg || reg.status !== 'PENDING_OAUTH' || !reg.oauthStateHash) {
-      throw new NotFoundException('Registro nao encontrado');
-    }
-    if (this.hashValue(stateSecret) !== reg.oauthStateHash) {
-      throw new BadRequestException('State invalido');
-    }
-
-    const profile =
-      provider === 'google'
-        ? await this.fetchGoogleProfile(code)
-        : await this.fetchMicrosoftProfile(code);
-
-    const {
-      code: verifyCode,
-      codeHash,
-      expiresAt,
-    } = await this.buildVerificationCode();
-    await this.prisma.tenantRegistration.update({
-      where: { id: reg.id },
-      data: {
-        status: 'PENDING_VERIFICATION',
-        adminEmail: profile.email,
-        adminName: profile.name,
-        oauthProviderSub: profile.sub,
-        verificationCodeHash: codeHash,
-        verificationCodeExpiresAt: expiresAt,
-      },
-    });
-
-    await this.sendCodeEmail(profile.email, reg.tenantName, verifyCode);
-    return { registrationId: reg.id };
-  }
-
   private normalizeTenantSlug(slug: string) {
     const value = slugify(slug);
     if (RESERVED_TENANT_SLUGS.has(value)) {
@@ -324,10 +234,6 @@ export class RegistrationService {
       expiresMinutes: REGISTRATION_CODE_TTL_MINUTES,
     });
     await this.email.send({ to, ...message });
-  }
-
-  private hashValue(value: string) {
-    return createHash('sha256').update(value).digest('hex');
   }
 
   private async ensureCorePermissions(tx: Prisma.TransactionClient) {
@@ -416,168 +322,6 @@ export class RegistrationService {
 
     if (!entries.length) return;
     await tx.rolePermission.createMany({ data: entries, skipDuplicates: true });
-  }
-
-  private buildGoogleAuthorizeUrl(state: string) {
-    const clientId = this.config.get<string>('GOOGLE_OAUTH_CLIENT_ID')?.trim();
-    const redirectUri = this.config
-      .get<string>('GOOGLE_OAUTH_REDIRECT_URI')
-      ?.trim();
-    if (!clientId || !redirectUri) {
-      throw new BadRequestException('Google OAuth nao configurado');
-    }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid email profile',
-      access_type: 'offline',
-      prompt: 'consent',
-      state,
-    });
-    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  }
-
-  private buildMicrosoftAuthorizeUrl(state: string) {
-    const clientId = this.config
-      .get<string>('MICROSOFT_OAUTH_CLIENT_ID')
-      ?.trim();
-    const redirectUri = this.config
-      .get<string>('MICROSOFT_OAUTH_REDIRECT_URI')
-      ?.trim();
-    if (!clientId || !redirectUri) {
-      throw new BadRequestException('Microsoft OAuth nao configurado');
-    }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      response_mode: 'query',
-      scope: 'openid email profile',
-      state,
-    });
-    return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
-  }
-
-  private async fetchGoogleProfile(code: string) {
-    const clientId = this.config.get<string>('GOOGLE_OAUTH_CLIENT_ID')?.trim();
-    const clientSecret = this.config
-      .get<string>('GOOGLE_OAUTH_CLIENT_SECRET')
-      ?.trim();
-    const redirectUri = this.config
-      .get<string>('GOOGLE_OAUTH_REDIRECT_URI')
-      ?.trim();
-    if (!clientId || !clientSecret || !redirectUri) {
-      throw new BadRequestException('Google OAuth nao configurado');
-    }
-
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
-    });
-    const tokenPayload: any = await tokenResponse.json().catch(() => null);
-    if (!tokenResponse.ok) {
-      throw new BadRequestException(
-        tokenPayload?.error_description ?? 'Falha ao autenticar com Google',
-      );
-    }
-
-    const accessToken = tokenPayload?.access_token;
-    if (typeof accessToken !== 'string' || !accessToken) {
-      throw new BadRequestException('Falha ao autenticar com Google');
-    }
-
-    const profileResponse = await fetch(
-      'https://www.googleapis.com/oauth2/v3/userinfo',
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    const profile: any = await profileResponse.json().catch(() => null);
-    if (!profileResponse.ok) {
-      throw new BadRequestException('Falha ao carregar perfil do Google');
-    }
-
-    const email =
-      typeof profile?.email === 'string' ? profile.email.toLowerCase() : null;
-    const name = typeof profile?.name === 'string' ? profile.name : null;
-    const sub = typeof profile?.sub === 'string' ? profile.sub : null;
-    if (!email || !sub) {
-      throw new BadRequestException('Perfil do Google invalido');
-    }
-    return { email, name: name ?? email, sub };
-  }
-
-  private async fetchMicrosoftProfile(code: string) {
-    const clientId = this.config
-      .get<string>('MICROSOFT_OAUTH_CLIENT_ID')
-      ?.trim();
-    const clientSecret = this.config
-      .get<string>('MICROSOFT_OAUTH_CLIENT_SECRET')
-      ?.trim();
-    const redirectUri = this.config
-      .get<string>('MICROSOFT_OAUTH_REDIRECT_URI')
-      ?.trim();
-    if (!clientId || !clientSecret || !redirectUri) {
-      throw new BadRequestException('Microsoft OAuth nao configurado');
-    }
-
-    const tokenResponse = await fetch(
-      'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-        }),
-      },
-    );
-    const tokenPayload: any = await tokenResponse.json().catch(() => null);
-    if (!tokenResponse.ok) {
-      throw new BadRequestException(
-        tokenPayload?.error_description ?? 'Falha ao autenticar com Microsoft',
-      );
-    }
-
-    const accessToken = tokenPayload?.access_token;
-    if (typeof accessToken !== 'string' || !accessToken) {
-      throw new BadRequestException('Falha ao autenticar com Microsoft');
-    }
-
-    const profileResponse = await fetch(
-      'https://graph.microsoft.com/oidc/userinfo',
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    const profile: any = await profileResponse.json().catch(() => null);
-    if (!profileResponse.ok) {
-      throw new BadRequestException('Falha ao carregar perfil do Microsoft');
-    }
-
-    const emailRaw =
-      (typeof profile?.email === 'string' && profile.email) ||
-      (typeof profile?.preferred_username === 'string' &&
-        profile.preferred_username) ||
-      null;
-    const email = emailRaw ? emailRaw.toLowerCase() : null;
-    const name = typeof profile?.name === 'string' ? profile.name : null;
-    const sub = typeof profile?.sub === 'string' ? profile.sub : null;
-    if (!email || !sub) {
-      throw new BadRequestException('Perfil do Microsoft invalido');
-    }
-    return { email, name: name ?? email, sub };
   }
 
   private async issueTokensForUser(

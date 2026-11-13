@@ -179,12 +179,9 @@ enum TaskOrganizerKind {
 
 enum TenantRegistrationMethod {
   EMAIL
-  GOOGLE
-  MICROSOFT
 }
 
 enum TenantRegistrationStatus {
-  PENDING_OAUTH
   PENDING_VERIFICATION
   CONFIRMED
   EXPIRED
@@ -218,96 +215,96 @@ model Tenant {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  users                                User[]
-  roles                                Role[]
-  mfaTotpSetups                        UserMfaTotpSetup[]
-  mfaChallenges                        UserMfaChallenge[]
-  trustedDevices                       UserTrustedDevice[]
-  mfaRecoveryCodes                     UserMfaRecoveryCode[]
-  people                               Person[]
-  peopleGroups                         PeopleGroup[]
-  peopleGroupParticipations            PeopleGroupParticipation[]
-  personContacts                       PersonContact[]
-  personComments                       PersonComment[]
-  personAttachments                    PersonAttachment[]
-  personRecordComments                 PersonRecordComment[]
-  personRecordAttachments              PersonRecordAttachment[]
-  personRecordTags                     PersonRecordTag[]
-  personSensitiveDocuments             PersonSensitiveDocument[]
-  personSensitiveAccessLogs            PersonSensitiveAccessLog[]
-  rolePermissions                      RolePermission[]
-  userRoles                            UserRole[]
-  households                           Household[]
-  householdMembers                     HouseholdMember[]
-  householdProfiles                    HouseholdProfile[]
-  personRelations                      PersonRelation[]
-  personFinancialEntries               PersonFinancialEntry[]
-  personIncomes                        PersonIncome[]
-  personExpenses                       PersonExpense[]
-  personBenefits                       PersonBenefit[]
-  personDetentions                     PersonDetention[]
-  householdAssets                      HouseholdAsset[]
-  personAssets                         PersonAsset[]
-  householdTransfers                   HouseholdTransfer[]
-  personHealthConditions               PersonHealthCondition[]
-  personMedications                    PersonMedication[]
-  personEducations                     PersonEducation[]
-  userSessions                         UserSession[]
-  passwordResetTokens                  PasswordResetToken[]
-  accessLogs                           AccessLog[]
-  auditLogs                            AuditLog[]
-  pantryItems                          PantryItem[]
-  pantrySectors                        PantrySector[]
-  pantryEntries                        PantryEntry[]
-  pantryExits                          PantryExit[]
-  pantryDonors                         PantryDonor[]
-  pantryItemComments                   PantryItemComment[]
-  pantryItemAttachments                PantryItemAttachment[]
-  pantryDonorComments                  PantryDonorComment[]
-  pantryDonorAttachments               PantryDonorAttachment[]
-  pantryEntryComments                  PantryEntryComment[]
-  pantryEntryAttachments               PantryEntryAttachment[]
-  pantryExitComments                   PantryExitComment[]
-  pantryExitAttachments                PantryExitAttachment[]
-  pantryExitAllocations                PantryExitAllocation[]
-  depositItems                         DepositItem[]
-  depositSectors                       DepositSector[]
-  depositEntries                       DepositEntry[]
-  depositExits                         DepositExit[]
-  depositDonors                        DepositDonor[]
-  depositItemComments                  DepositItemComment[]
-  depositItemAttachments               DepositItemAttachment[]
-  depositDonorComments                 DepositDonorComment[]
-  depositDonorAttachments              DepositDonorAttachment[]
-  depositEntryComments                 DepositEntryComment[]
-  depositEntryAttachments              DepositEntryAttachment[]
-  depositExitComments                  DepositExitComment[]
-  depositExitAttachments               DepositExitAttachment[]
-  depositExitAllocations               DepositExitAllocation[]
-  taskOrganizerTasks                   TaskOrganizerTask[]
-  taskOrganizerChecklistItems          TaskOrganizerChecklistItem[]
-  taskOrganizerSubtasks                TaskOrganizerSubtask[]
-  taskOrganizerComments                TaskOrganizerComment[]
-  taskOrganizerAttachments             TaskOrganizerAttachment[]
-  taskOrganizerTaskDependencies        TaskOrganizerTaskDependency[]
-  programs                             Program[]
-  projects                             Project[]
-  projectComments                      ProjectComment[]
-  projectAttachments                   ProjectAttachment[]
-  programComments                      ProgramComment[]
-  programAttachments                   ProgramAttachment[]
-  projectGroups                        ProjectGroup[]
-  projectPeopleGroups                  ProjectPeopleGroup[]
-  projectEnrollments                   ProjectEnrollment[]
-  projectEnrollmentGroupMemberships    ProjectEnrollmentGroupMembership[]
-  actionTypes                          ActionType[]
-  projectActions                       ProjectAction[]
-  projectActionComments                ProjectActionComment[]
-  projectActionAttachments             ProjectActionAttachment[]
-  actionPeopleGroups                   ActionPeopleGroup[]
-  actionOccurrences                    ActionOccurrence[]
-  projectActionAttendances             ProjectActionAttendance[]
-  projectActionPeopleParticipations    ProjectActionPeopleParticipation[]
+  users                             User[]
+  roles                             Role[]
+  mfaTotpSetups                     UserMfaTotpSetup[]
+  mfaChallenges                     UserMfaChallenge[]
+  trustedDevices                    UserTrustedDevice[]
+  mfaRecoveryCodes                  UserMfaRecoveryCode[]
+  people                            Person[]
+  peopleGroups                      PeopleGroup[]
+  peopleGroupParticipations         PeopleGroupParticipation[]
+  personContacts                    PersonContact[]
+  personComments                    PersonComment[]
+  personAttachments                 PersonAttachment[]
+  personRecordComments              PersonRecordComment[]
+  personRecordAttachments           PersonRecordAttachment[]
+  personRecordTags                  PersonRecordTag[]
+  personSensitiveDocuments          PersonSensitiveDocument[]
+  personSensitiveAccessLogs         PersonSensitiveAccessLog[]
+  rolePermissions                   RolePermission[]
+  userRoles                         UserRole[]
+  households                        Household[]
+  householdMembers                  HouseholdMember[]
+  householdProfiles                 HouseholdProfile[]
+  personRelations                   PersonRelation[]
+  personFinancialEntries            PersonFinancialEntry[]
+  personIncomes                     PersonIncome[]
+  personExpenses                    PersonExpense[]
+  personBenefits                    PersonBenefit[]
+  personDetentions                  PersonDetention[]
+  householdAssets                   HouseholdAsset[]
+  personAssets                      PersonAsset[]
+  householdTransfers                HouseholdTransfer[]
+  personHealthConditions            PersonHealthCondition[]
+  personMedications                 PersonMedication[]
+  personEducations                  PersonEducation[]
+  userSessions                      UserSession[]
+  passwordResetTokens               PasswordResetToken[]
+  accessLogs                        AccessLog[]
+  auditLogs                         AuditLog[]
+  pantryItems                       PantryItem[]
+  pantrySectors                     PantrySector[]
+  pantryEntries                     PantryEntry[]
+  pantryExits                       PantryExit[]
+  pantryDonors                      PantryDonor[]
+  pantryItemComments                PantryItemComment[]
+  pantryItemAttachments             PantryItemAttachment[]
+  pantryDonorComments               PantryDonorComment[]
+  pantryDonorAttachments            PantryDonorAttachment[]
+  pantryEntryComments               PantryEntryComment[]
+  pantryEntryAttachments            PantryEntryAttachment[]
+  pantryExitComments                PantryExitComment[]
+  pantryExitAttachments             PantryExitAttachment[]
+  pantryExitAllocations             PantryExitAllocation[]
+  depositItems                      DepositItem[]
+  depositSectors                    DepositSector[]
+  depositEntries                    DepositEntry[]
+  depositExits                      DepositExit[]
+  depositDonors                     DepositDonor[]
+  depositItemComments               DepositItemComment[]
+  depositItemAttachments            DepositItemAttachment[]
+  depositDonorComments              DepositDonorComment[]
+  depositDonorAttachments           DepositDonorAttachment[]
+  depositEntryComments              DepositEntryComment[]
+  depositEntryAttachments           DepositEntryAttachment[]
+  depositExitComments               DepositExitComment[]
+  depositExitAttachments            DepositExitAttachment[]
+  depositExitAllocations            DepositExitAllocation[]
+  taskOrganizerTasks                TaskOrganizerTask[]
+  taskOrganizerChecklistItems       TaskOrganizerChecklistItem[]
+  taskOrganizerSubtasks             TaskOrganizerSubtask[]
+  taskOrganizerComments             TaskOrganizerComment[]
+  taskOrganizerAttachments          TaskOrganizerAttachment[]
+  taskOrganizerTaskDependencies     TaskOrganizerTaskDependency[]
+  programs                          Program[]
+  projects                          Project[]
+  projectComments                   ProjectComment[]
+  projectAttachments                ProjectAttachment[]
+  programComments                   ProgramComment[]
+  programAttachments                ProgramAttachment[]
+  projectGroups                     ProjectGroup[]
+  projectPeopleGroups               ProjectPeopleGroup[]
+  projectEnrollments                ProjectEnrollment[]
+  projectEnrollmentGroupMemberships ProjectEnrollmentGroupMembership[]
+  actionTypes                       ActionType[]
+  projectActions                    ProjectAction[]
+  projectActionComments             ProjectActionComment[]
+  projectActionAttachments          ProjectActionAttachment[]
+  actionPeopleGroups                ActionPeopleGroup[]
+  actionOccurrences                 ActionOccurrence[]
+  projectActionAttendances          ProjectActionAttendance[]
+  projectActionPeopleParticipations ProjectActionPeopleParticipation[]
 
   @@index([status])
 }
@@ -1239,19 +1236,19 @@ model ProjectAttachment {
 }
 
 model PeopleGroup {
-  id            String          @id @default(uuid()) @db.Char(36)
-  tenantId      String          @db.Char(36)
+  id            String             @id @default(uuid()) @db.Char(36)
+  tenantId      String             @db.Char(36)
   name          String
-  groupType     PeopleGroupType @default(SEGMENT)
+  groupType     PeopleGroupType    @default(SEGMENT)
   purpose       PeopleGroupPurpose @default(PUBLICO)
   category      String?
-  description   String?         @db.Text
+  description   String?            @db.Text
   ageMin        Int?
   ageMax        Int?
-  isActive      Boolean         @default(true)
-  internalNotes String?         @db.Text
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  isActive      Boolean            @default(true)
+  internalNotes String?            @db.Text
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   tenant              Tenant                     @relation(fields: [tenantId], references: [id])
   participations      PeopleGroupParticipation[]
@@ -1349,9 +1346,9 @@ model ProjectEnrollment {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  tenant                     Tenant                                @relation(fields: [tenantId], references: [id])
-  project                    Project                               @relation(fields: [projectId], references: [id])
-  person                     Person                                @relation(fields: [personId], references: [id])
+  tenant                     Tenant                             @relation(fields: [tenantId], references: [id])
+  project                    Project                            @relation(fields: [projectId], references: [id])
+  person                     Person                             @relation(fields: [personId], references: [id])
   groupMemberships           ProjectEnrollmentGroupMembership[]
   actionAttendances          ProjectActionAttendance[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
@@ -1409,29 +1406,29 @@ model ActionType {
 }
 
 model ProjectAction {
-  id                String       @id @default(uuid()) @db.Char(36)
-  tenantId          String       @db.Char(36)
-  projectId         String       @db.Char(36)
-  createdByUserId   String?      @db.Char(36)
-  groupId           String?      @db.Char(36)
-  targetEnrollmentId String?     @db.Char(36)
-  actionTypeId      String       @db.Char(36)
-  title             String
-  description       String?      @db.Text
-  tags              String?      @db.Text
-  internalNotes     String?      @db.Text
-  planHtml          String?      @db.Text
-  executedHtml      String?      @db.Text
-  conclusionHtml    String?      @db.Text
-  completionPercent Int?
-  photoPaths        Json?
-  status            ActionStatus @default(PLANNED)
-  plannedStartAt    DateTime?
-  plannedEndAt      DateTime?
-  executedStartAt   DateTime?
-  executedEndAt     DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  id                 String       @id @default(uuid()) @db.Char(36)
+  tenantId           String       @db.Char(36)
+  projectId          String       @db.Char(36)
+  createdByUserId    String?      @db.Char(36)
+  groupId            String?      @db.Char(36)
+  targetEnrollmentId String?      @db.Char(36)
+  actionTypeId       String       @db.Char(36)
+  title              String
+  description        String?      @db.Text
+  tags               String?      @db.Text
+  internalNotes      String?      @db.Text
+  planHtml           String?      @db.Text
+  executedHtml       String?      @db.Text
+  conclusionHtml     String?      @db.Text
+  completionPercent  Int?
+  photoPaths         Json?
+  status             ActionStatus @default(PLANNED)
+  plannedStartAt     DateTime?
+  plannedEndAt       DateTime?
+  executedStartAt    DateTime?
+  executedEndAt      DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   tenant               Tenant                             @relation(fields: [tenantId], references: [id])
   project              Project                            @relation(fields: [projectId], references: [id])
@@ -1540,21 +1537,21 @@ model ActionOccurrence {
 }
 
 model ProjectActionAttendance {
-  id                   String           @id @default(uuid()) @db.Char(36)
-  tenantId             String           @db.Char(36)
-  actionId             String           @db.Char(36)
-  enrollmentId         String           @db.Char(36)
-  status               AttendanceStatus @default(PRESENT)
-  notes                String?          @db.Text
-  qualityScore         Int?
-  qualityNotes         String?          @db.Text
-  isHighlight          Boolean          @default(false)
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  id           String           @id @default(uuid()) @db.Char(36)
+  tenantId     String           @db.Char(36)
+  actionId     String           @db.Char(36)
+  enrollmentId String           @db.Char(36)
+  status       AttendanceStatus @default(PRESENT)
+  notes        String?          @db.Text
+  qualityScore Int?
+  qualityNotes String?          @db.Text
+  isHighlight  Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  tenant             Tenant                               @relation(fields: [tenantId], references: [id])
-  action             ProjectAction                        @relation(fields: [actionId], references: [id])
-  enrollment         ProjectEnrollment                    @relation(fields: [enrollmentId], references: [id])
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  action     ProjectAction     @relation(fields: [actionId], references: [id])
+  enrollment ProjectEnrollment @relation(fields: [enrollmentId], references: [id])
 
   @@unique([tenantId, actionId, enrollmentId])
   @@index([tenantId])
@@ -2363,9 +2360,6 @@ model TenantRegistration {
   adminName         String?
   adminEmail        String?
   adminPasswordHash String?
-
-  oauthProviderSub String?
-  oauthStateHash   String?
 
   verificationCodeHash      String?
   verificationCodeExpiresAt DateTime?

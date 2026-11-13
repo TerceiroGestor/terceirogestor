@@ -4,13 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { RecordForm } from "@/web-client/forms";
 import type { FormField } from "@/web-client/forms/types";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  buildGoogleRegistrationUrl,
-  buildMicrosoftRegistrationUrl,
-  requestTenantRegistration,
-} from "@/modules/core/api/registration";
+import { requestTenantRegistration } from "@/modules/core/api/registration";
 import { slugify } from "@/modules/core/features/registration/domain/slug";
 
 type RegisterValues = {
@@ -105,31 +100,6 @@ export function RegisterClientPage() {
             submit: { label: isSubmitting ? "Enviando..." : "Cadastrar", variant: "primary" },
           }}
         />
-
-        <div className="border-t pt-6 space-y-3">
-          <p className="text-sm text-muted-foreground">Ou continue com:</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!tenantName.trim()}
-              onClick={() => window.location.assign(buildGoogleRegistrationUrl(tenantName.trim()))}
-            >
-              Google
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!tenantName.trim()}
-              onClick={() => window.location.assign(buildMicrosoftRegistrationUrl(tenantName.trim()))}
-            >
-              Microsoft
-            </Button>
-          </div>
-          {!tenantName.trim() ? (
-            <p className="text-xs text-muted-foreground">Informe o nome da instituição para usar OAuth.</p>
-          ) : null}
-        </div>
       </div>
     </div>
   );

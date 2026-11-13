@@ -254,6 +254,39 @@ Parte por Parte:
   real existe ainda. `GET /health` (pré-requisito 4.1) e a interface do
   `StorageService` (pré-requisito 4.2) já estão prontos; o resto depende
   do projeto Railway e do bucket R2 existirem.
+  - **Perguntas em aberto respondidas em 2026-11-13** (ver
+    "Perguntas em aberto" no plano completo): nenhuma instituição com
+    dado real em banco ainda (só dev); domínio de produção
+    `terceirogestor.com.br` (`app.`/`api.`); e-mail transacional via
+    Resend; login Google/Microsoft fica fora do MVP (tirar por
+    enquanto, revisitar pós go-live).
+  - [x] **Remover login/cadastro via OAuth Google e Microsoft** — feito
+    em 2026-11-13, branch `develop`, decorrente da decisão acima
+    ("ordem é remover código não usado", registrada pelo usuário). Era
+    usado só no cadastro de tenant (atalho que pré-preenchia nome/email
+    via perfil OAuth), nunca no login de usuário existente (`auth`
+    module, 100% email+senha+MFA, intacto). Removido: 4 rotas e os 7
+    métodos de OAuth em `registration.controller.ts`/`registration.service.ts`;
+    `GOOGLE`/`MICROSOFT` do enum `TenantRegistrationMethod` e
+    `PENDING_OAUTH` do enum `TenantRegistrationStatus`; campos
+    `oauthProviderSub`/`oauthStateHash` de `TenantRegistration`
+    (migration `20261113114835_remove_tenant_registration_oauth`,
+    aplicada local — sem dado real em produção, então migration única,
+    sem precisar do padrão expandir/contrair); os 2 botões e as 2
+    funções `build*RegistrationUrl` em
+    `register-client-page.tsx`/`registration.ts` (frontend); as 4
+    variáveis `GOOGLE_OAUTH_*`/`MICROSOFT_OAUTH_*` de `.env`,
+    `.env.example`, `backend/.env.example`, `.env.production.example`;
+    o item 4.3 do plano completo (URLs de redirect OAuth) marcado como
+    não aplicável. Confirmado por `SELECT` direto no Postgres local:
+    zero linhas em `TenantRegistration` usando `GOOGLE`/`MICROSOFT`/
+    `PENDING_OAUTH` antes da migration (nada para perder).
+    **Evidência:** backend `tsc --noEmit -p tsconfig.build.json` → 0
+    erros; `npm test` → 27 suítes, 136 testes, ok; `npx eslint` nos
+    arquivos tocados → 4 problemas (pré-existentes, nada novo — baseline
+    media via `git stash` era 60, incluindo os `no-unsafe-*` do código
+    OAuth agora removido); frontend `tsc --noEmit` → 0 erros; `npx
+    eslint` nos arquivos tocados → 0 problemas; `npm run build` → ok.
 - **Achados novos da auditoria:** [x] 13 (`.gitignore` sem barra,
   2026-11-11) e [x] 14 (seed sem build automatizado, 2026-11-11, ver CI
   acima) feitos. [ ] 16 (versão de Node) aberto, baixo risco, gatilho em

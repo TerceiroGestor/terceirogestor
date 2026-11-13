@@ -1,23 +1,9 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  Redirect,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { ConfigService } from '@nestjs/config';
 import { RegistrationService } from './registration.service';
 import { RequestTenantRegistrationDto } from './dto/request-tenant-registration.dto';
 import { ConfirmTenantRegistrationDto } from './dto/confirm-tenant-registration.dto';
-import {
-  getCookieOptions,
-  getPrimaryWebUrl,
-} from '../../core/auth/http/auth-http';
+import { getCookieOptions } from '../../core/auth/http/auth-http';
 import { RateLimit } from '../../core/rate-limit/rate-limit.decorator';
 
 function getRequestMeta(req: Request) {
@@ -29,10 +15,7 @@ function getRequestMeta(req: Request) {
 
 @Controller('registration')
 export class RegistrationController {
-  constructor(
-    private readonly service: RegistrationService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly service: RegistrationService) {}
 
   @Post('tenant/request')
   @RateLimit({
@@ -66,62 +49,5 @@ export class RegistrationController {
       await this.service.confirmRegistration(dto, getRequestMeta(req));
     res.cookie('refresh_token', refreshToken, getCookieOptions());
     return { accessToken, tenantSlug };
-  }
-
-  @Get('oauth/google/start')
-  @Redirect()
-  async startGoogle(@Query('tenantName') tenantName?: string) {
-    if (!tenantName) return { url: '/' };
-    const { redirectUrl } = await this.service.startOAuth('google', tenantName);
-    return { url: redirectUrl };
-  }
-
-  @Get('oauth/google/callback')
-  @Redirect()
-  async googleCallback(@Query() query: any) {
-    const { registrationId } = await this.service.handleOAuthCallback(
-      'google',
-      {
-        code: query?.code,
-        state: query?.state,
-        error: query?.error,
-      },
-    );
-    const webUrl =
-      getPrimaryWebUrl(this.config.get<string>('WEB_URL')) ||
-      'http://localhost';
-    return {
-      url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
-    };
-  }
-
-  @Get('oauth/microsoft/start')
-  @Redirect()
-  async startMicrosoft(@Query('tenantName') tenantName?: string) {
-    if (!tenantName) return { url: '/' };
-    const { redirectUrl } = await this.service.startOAuth(
-      'microsoft',
-      tenantName,
-    );
-    return { url: redirectUrl };
-  }
-
-  @Get('oauth/microsoft/callback')
-  @Redirect()
-  async microsoftCallback(@Query() query: any) {
-    const { registrationId } = await this.service.handleOAuthCallback(
-      'microsoft',
-      {
-        code: query?.code,
-        state: query?.state,
-        error: query?.error,
-      },
-    );
-    const webUrl =
-      getPrimaryWebUrl(this.config.get<string>('WEB_URL')) ||
-      'http://localhost';
-    return {
-      url: `${webUrl}/register/confirm?rid=${encodeURIComponent(registrationId)}`,
-    };
   }
 }

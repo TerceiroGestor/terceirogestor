@@ -14,7 +14,7 @@ export function isProduction() {
 /**
  * WEB_URL holds one or more allowed frontend origins, comma-separated
  * (used as the CORS allowlist). Call sites that need a single URL — the
- * cookie policy, password-reset/OAuth redirect links — use the first one.
+ * cookie policy, password-reset redirect links — use the first one.
  */
 export function parseWebUrlList(raw: string | undefined | null): string[] {
   return (raw ?? '')
