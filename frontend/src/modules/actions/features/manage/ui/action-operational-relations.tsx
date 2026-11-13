@@ -124,7 +124,7 @@ function renderParticipantIdentity({
       <div className="flex min-w-0 flex-col">
         <span className="truncate font-medium">{person.fullName}</span>
         <span className="truncate text-xs text-muted-foreground">
-          {row.enrollment.groups.map((group) => group.name).join(", ") || "—"}
+          {row.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
         </span>
       </div>
     </div>
@@ -137,7 +137,7 @@ export function buildAttendanceGroupOptions(
   const groups = Array.from(
     new Map(
       rows
-        .flatMap((row) => row.enrollment.groups)
+        .flatMap((row) => row.enrollment.peopleGroups)
         .map((group) => [group.id, { label: group.name, value: group.id }] as const),
     ).values(),
   ).sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
@@ -158,7 +158,7 @@ export function filterAttendanceRows(
   return rows.filter((row) => {
     const matchesGroup =
       filters.groupId === ACTION_RELATION_VALUES.allGroups ||
-      row.enrollment.groups.some((group) => group.id === filters.groupId);
+      row.enrollment.peopleGroups.some((group) => group.id === filters.groupId);
     if (!matchesGroup) return false;
 
     if (filters.status === "all") return true;
@@ -176,12 +176,12 @@ export function filterQualityRows(
   return rows.filter((row) => {
     if (row.attendance === null) return false;
     if (filters.groupId === ACTION_RELATION_VALUES.allGroups) return true;
-    return row.enrollment.groups.some((group) => group.id === filters.groupId);
+    return row.enrollment.peopleGroups.some((group) => group.id === filters.groupId);
   });
 }
 
 export function countDistinctAttendanceGroups(rows: ProjectActionAttendancesListItem[]) {
-  return new Set(rows.flatMap((row) => row.enrollment.groups.map((group) => group.id))).size;
+  return new Set(rows.flatMap((row) => row.enrollment.peopleGroups.map((group) => group.id))).size;
 }
 
 // Presença agora é por Encontro (Fase 3 do plano SCFV), não mais por

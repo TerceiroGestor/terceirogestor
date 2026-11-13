@@ -32,12 +32,10 @@ import {
 } from "@/modules/actions/shared/domain/actions.constants";
 import {
   listProjectEnrollments,
-  listProjectGroups,
   listProjectPeopleGroups,
   listProjects,
   type ApiProject,
   type ApiProjectEnrollment,
-  type ApiProjectGroup,
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { ACTION_CREATE_TEXT } from "../config/action-create.constants";
@@ -53,7 +51,6 @@ type ActionCreateValues = {
   actionTypeId: string;
   title: string;
   status: ActionStatus;
-  projectGroupId: string;
   peopleGroupId: string;
   targetEnrollmentId: string;
   plannedStartAt: string;
@@ -124,7 +121,6 @@ export function ActionCreateFormSection({
 
   const [projects, setProjects] = React.useState<ApiProject[]>([]);
   const [actionTypes, setActionTypes] = React.useState<ApiActionType[]>([]);
-  const [groups, setGroups] = React.useState<ApiProjectGroup[]>([]);
   const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
   const [enrollments, setEnrollments] = React.useState<ApiProjectEnrollment[]>([]);
   const [saving, setSaving] = React.useState(false);
@@ -133,7 +129,6 @@ export function ActionCreateFormSection({
     actionTypeId: NONE_VALUE,
     title: "",
     status: "PLANNED",
-    projectGroupId: NONE_VALUE,
     peopleGroupId: NONE_VALUE,
     targetEnrollmentId: NONE_VALUE,
     plannedStartAt: "",
@@ -155,7 +150,6 @@ export function ActionCreateFormSection({
       actionTypeId: action.actionTypeId ?? NONE_VALUE,
       title: action.title ?? "",
       status: action.status ?? "PLANNED",
-      projectGroupId: action.projectGroupId ?? NONE_VALUE,
       peopleGroupId: action.peopleGroupId ?? NONE_VALUE,
       targetEnrollmentId: action.targetEnrollmentId ?? NONE_VALUE,
       plannedStartAt: action.plannedStartAt?.slice(0, 10) ?? "",
@@ -206,7 +200,6 @@ export function ActionCreateFormSection({
   React.useEffect(() => {
     if (!token || !canAccessForm) return;
     if (!values.projectId || values.projectId === NONE_VALUE) {
-      setGroups([]);
       setPeopleGroups([]);
       setEnrollments([]);
       return;
@@ -214,16 +207,13 @@ export function ActionCreateFormSection({
 
     (async () => {
       try {
-        const [projectGroups, projectPeopleGroups, projectEnrollments] = await Promise.all([
-          listProjectGroups(token, values.projectId),
+        const [projectPeopleGroups, projectEnrollments] = await Promise.all([
           listProjectPeopleGroups(token, values.projectId, { participationKind: "PARTICIPANT" }),
           listProjectEnrollments(token, values.projectId, { page: 1, limit: 200 }),
         ]);
-        setGroups(projectGroups);
         setPeopleGroups(projectPeopleGroups);
         setEnrollments(projectEnrollments.data ?? []);
       } catch {
-        setGroups([]);
         setPeopleGroups([]);
         setEnrollments([]);
       }
@@ -255,11 +245,6 @@ export function ActionCreateFormSection({
       return;
     }
 
-    if (resolvedType.target === "PROJECT_GROUP" && values.projectGroupId === NONE_VALUE) {
-      toast({ title: ACTION_CREATE_TEXT.validations.groupRequired, variant: "destructive" });
-      return;
-    }
-
     if (resolvedType.target === "PEOPLE_GROUP" && values.peopleGroupId === NONE_VALUE) {
       toast({ title: ACTION_CREATE_TEXT.validations.cycleRequired, variant: "destructive" });
       return;
@@ -276,10 +261,6 @@ export function ActionCreateFormSection({
         actionTypeId: values.actionTypeId,
         title,
         status: values.status,
-        projectGroupId:
-          resolvedType.target === "PROJECT_GROUP" && values.projectGroupId !== NONE_VALUE
-            ? values.projectGroupId
-            : null,
         peopleGroupId:
           resolvedType.target === "PEOPLE_GROUP" && values.peopleGroupId !== NONE_VALUE
             ? values.peopleGroupId
@@ -364,7 +345,6 @@ export function ActionCreateFormSection({
               setValues((previous) => ({
                 ...previous,
                 projectId: next,
-                projectGroupId: NONE_VALUE,
                 peopleGroupId: NONE_VALUE,
                 targetEnrollmentId: NONE_VALUE,
               }))
@@ -404,7 +384,6 @@ export function ActionCreateFormSection({
               setValues((previous) => ({
                 ...previous,
                 actionTypeId: next,
-                projectGroupId: NONE_VALUE,
                 peopleGroupId: NONE_VALUE,
                 targetEnrollmentId: NONE_VALUE,
               }))
@@ -446,28 +425,6 @@ export function ActionCreateFormSection({
               {ACTION_STATUS_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
-
-        <SectionField label={ACTION_CREATE_TEXT.form.groupLabel}>
-          <Select
-            value={values.projectGroupId}
-            onValueChange={(next) =>
-              setValues((previous) => ({ ...previous, projectGroupId: next }))
-            }
-            disabled={saving || selectedType?.target !== "PROJECT_GROUP"}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder={ACTION_CREATE_TEXT.form.groupPlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.groupPlaceholder}</SelectItem>
-              {groups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -12,19 +12,7 @@ export class ListProjectEnrollmentsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  groupId?: string;
-
-  @IsOptional()
-  @IsUUID('4')
-  groupHistoryId?: string;
-
-  @IsOptional()
-  @IsUUID('4')
   peopleGroupId?: string;
-
-  @IsOptional()
-  @IsUUID('4')
-  excludeGroupId?: string;
 
   @IsOptional()
   @IsUUID('4')

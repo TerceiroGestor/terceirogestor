@@ -225,10 +225,8 @@ function serializeProjectAction(action: any) {
   const primaryPeopleGroup = resolvePrimaryActionPeopleGroup(action);
   return {
     ...action,
-    projectGroupId: (action as any).groupId ?? null,
     peopleGroupId: primaryPeopleGroup?.peopleGroupId ?? null,
     tags: parseTags(action.tags),
-    projectGroup: action.group ?? null,
     peopleGroup: primaryPeopleGroup?.peopleGroup ?? null,
     peopleGroups: undefined,
     comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
@@ -238,33 +236,22 @@ function serializeProjectAction(action: any) {
 
 function resolveScopeFromTarget(params: {
   target: ActionTarget;
-  groupId: string | null;
   peopleGroupId: string | null;
   targetEnrollmentId: string | null;
 }) {
-  if (params.target === 'PROJECT_GROUP') {
-    return {
-      groupId: params.groupId,
-      peopleGroupId: null as string | null,
-      targetEnrollmentId: null as string | null,
-    };
-  }
   if (params.target === 'PEOPLE_GROUP') {
     return {
-      groupId: null as string | null,
       peopleGroupId: params.peopleGroupId,
       targetEnrollmentId: null as string | null,
     };
   }
   if (params.target === 'ENROLLMENT') {
     return {
-      groupId: null as string | null,
       peopleGroupId: null as string | null,
       targetEnrollmentId: params.targetEnrollmentId,
     };
   }
   return {
-    groupId: null as string | null,
     peopleGroupId: null as string | null,
     targetEnrollmentId: null as string | null,
   };
@@ -274,7 +261,6 @@ const projectActionInclude = {
   project: { select: { id: true, name: true } },
   actionType: { select: { id: true, name: true, target: true } },
   createdByUser: { select: { id: true, name: true, email: true } },
-  group: { select: { id: true, name: true } },
   peopleGroups: {
     where: { participationKind: 'PARTICIPANT' },
     include: {
@@ -316,10 +302,6 @@ const projectActionInclude = {
           },
         },
       },
-      groupMemberships: {
-        where: { isActive: true, deletedAt: null },
-        include: { group: { select: { id: true, name: true } } },
-      },
     },
   },
 } satisfies Prisma.ProjectActionInclude;
@@ -341,9 +323,6 @@ function buildProjectActionWhere(params: {
   if (query.actionTypeId) {
     and.push({ actionTypeId: query.actionTypeId });
   }
-  if (query.groupId) {
-    and.push({ groupId: query.groupId });
-  }
   if (scopedPeopleGroupId) {
     and.push({
       peopleGroups: {
@@ -362,7 +341,6 @@ function buildProjectActionWhere(params: {
         { internalNotes: { contains: q } },
         { actionType: { name: { contains: q } } },
         { project: { name: { contains: q } } },
-        { group: { name: { contains: q } } },
         { peopleGroups: { some: { peopleGroup: { name: { contains: q } } } } },
         {
           peopleGroups: {
@@ -404,19 +382,6 @@ export class ActionsService {
       select: { id: true },
     });
     if (!project) throw new NotFoundException('Projeto nao encontrado');
-  }
-
-  private async ensureProjectGroupBelongsToProject(
-    tenantId: string,
-    projectId: string,
-    projectGroupId: string,
-  ) {
-    const projectGroup = await this.prisma.projectGroup.findFirst({
-      where: { id: projectGroupId, tenantId, projectId },
-      select: { id: true },
-    });
-    if (!projectGroup)
-      throw new BadRequestException('Grupo de participantes invalido');
   }
 
   private async ensurePeopleGroupBelongsToProject(
@@ -465,10 +430,7 @@ export class ActionsService {
     if (!enrollment) throw new BadRequestException('Participante invalido');
   }
 
-  private serializeEnrollment<T extends { groupMemberships?: any[] }>(
-    enrollment: T,
-  ) {
-    const groups = (enrollment.groupMemberships ?? []).map((m) => m.group);
+  private serializeEnrollment<T>(enrollment: T) {
     const person = (enrollment as any).person;
     const peopleGroups = (person?.peopleGroupParticipations ?? [])
       .map(
@@ -488,10 +450,8 @@ export class ActionsService {
     return {
       ...enrollment,
       ...(person ? { person: withPersonFlags } : {}),
-      groups,
       cycle: null,
       peopleGroups,
-      groupMemberships: undefined,
     };
   }
 
@@ -510,7 +470,6 @@ export class ActionsService {
       include: {
         actionType: { select: { id: true, name: true, target: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
-        group: { select: { id: true, name: true } },
         peopleGroups: {
           where: { participationKind: 'PARTICIPANT' },
           include: {
@@ -551,10 +510,6 @@ export class ActionsService {
                   },
                 },
               },
-            },
-            groupMemberships: {
-              where: { isActive: true, deletedAt: null },
-              include: { group: { select: { id: true, name: true } } },
             },
           },
         },
@@ -802,16 +757,10 @@ export class ActionsService {
 
     const scope = resolveScopeFromTarget({
       target: type.target,
-      groupId: dto.projectGroupId ?? null,
       peopleGroupId: dto.peopleGroupId ?? null,
       targetEnrollmentId: dto.targetEnrollmentId ?? null,
     });
 
-    if (type.target === 'PROJECT_GROUP' && !scope.groupId) {
-      throw new BadRequestException(
-        'Grupo de participantes e obrigatorio para este tipo de acao',
-      );
-    }
     if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
@@ -823,13 +772,6 @@ export class ActionsService {
       );
     }
 
-    if (scope.groupId) {
-      await this.ensureProjectGroupBelongsToProject(
-        user.tenantId,
-        projectId,
-        scope.groupId,
-      );
-    }
     if (scope.peopleGroupId) {
       await this.ensurePeopleGroupBelongsToProject(
         user.tenantId,
@@ -867,7 +809,6 @@ export class ActionsService {
         tenantId: user.tenantId,
         projectId,
         createdByUserId: user.userId,
-        groupId: scope.groupId,
         targetEnrollmentId: scope.targetEnrollmentId,
         actionTypeId: dto.actionTypeId,
         title,
@@ -918,10 +859,6 @@ export class ActionsService {
     if (!type) throw new BadRequestException('Tipo de acao invalido');
     if (!type.isActive) throw new BadRequestException('Tipo de acao inativo');
 
-    const groupIdInput =
-      dto.projectGroupId === undefined
-        ? (existing.groupId ?? null)
-        : (dto.projectGroupId ?? null);
     const peopleGroupIdInput =
       dto.peopleGroupId === undefined
         ? (existing.peopleGroupId ?? null)
@@ -932,16 +869,10 @@ export class ActionsService {
         : (dto.targetEnrollmentId ?? null);
     const scope = resolveScopeFromTarget({
       target: type.target,
-      groupId: groupIdInput,
       peopleGroupId: peopleGroupIdInput,
       targetEnrollmentId: targetEnrollmentIdInput,
     });
 
-    if (type.target === 'PROJECT_GROUP' && !scope.groupId) {
-      throw new BadRequestException(
-        'Grupo de participantes e obrigatorio para este tipo de acao',
-      );
-    }
     if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
@@ -953,13 +884,6 @@ export class ActionsService {
       );
     }
 
-    if (scope.groupId) {
-      await this.ensureProjectGroupBelongsToProject(
-        user.tenantId,
-        projectId,
-        scope.groupId,
-      );
-    }
     if (scope.peopleGroupId) {
       await this.ensurePeopleGroupBelongsToProject(
         user.tenantId,
@@ -1047,11 +971,9 @@ export class ActionsService {
           ? { actionTypeId: resolvedActionTypeId }
           : {}),
         ...(dto.actionTypeId !== undefined ||
-        dto.projectGroupId !== undefined ||
         dto.peopleGroupId !== undefined ||
         dto.targetEnrollmentId !== undefined
           ? {
-              groupId: scope.groupId,
               targetEnrollmentId: scope.targetEnrollmentId,
             }
           : {}),
@@ -1072,7 +994,6 @@ export class ActionsService {
     });
     if (
       dto.actionTypeId !== undefined ||
-      dto.projectGroupId !== undefined ||
       dto.peopleGroupId !== undefined ||
       dto.targetEnrollmentId !== undefined
     ) {
@@ -1745,10 +1666,6 @@ export class ActionsService {
                   },
                 },
               },
-              groupMemberships: {
-                where: { isActive: true, deletedAt: null },
-                include: { group: { select: { id: true, name: true } } },
-              },
             },
           },
         },
@@ -1891,10 +1808,6 @@ export class ActionsService {
               },
               _count: { select: { healthConditions: true, medications: true } },
             },
-          },
-          groupMemberships: {
-            where: { isActive: true, deletedAt: null },
-            include: { group: { select: { id: true, name: true } } },
           },
         },
         orderBy: [{ person: { fullName: 'asc' } }],
@@ -2053,10 +1966,6 @@ export class ActionsService {
                   },
                 },
               },
-              groupMemberships: {
-                where: { isActive: true, deletedAt: null },
-                include: { group: { select: { id: true, name: true } } },
-              },
             },
           },
         },
@@ -2145,7 +2054,6 @@ export class ActionsService {
     });
 
     const q = normalizeString(query.q);
-    const scopedGroupId = action.groupId ?? query.groupId ?? null;
     // O encontro pode ter seu próprio grupo-alvo (ex.: a atividade atende
     // 3 grupos, mas este encontro específico é só pro grupo B) - prevalece
     // sobre o grupo "principal" da atividade quando presente.
@@ -2159,22 +2067,10 @@ export class ActionsService {
       projectId,
       status: 'ACTIVE',
       ...(action.targetEnrollmentId ? { id: action.targetEnrollmentId } : {}),
-      ...(scopedGroupId
-        ? {
-            groupMemberships: {
-              some: { isActive: true, groupId: scopedGroupId },
-            },
-          }
-        : {}),
       ...(q
         ? {
             OR: [
               { person: { fullName: { contains: q } } },
-              {
-                groupMemberships: {
-                  some: { isActive: true, group: { name: { contains: q } } },
-                },
-              },
               {
                 person: {
                   peopleGroupParticipations: {
@@ -2235,10 +2131,6 @@ export class ActionsService {
               _count: { select: { healthConditions: true, medications: true } },
             },
           },
-          groupMemberships: {
-            where: { isActive: true },
-            include: { group: { select: { id: true, name: true } } },
-          },
         },
         orderBy: [{ person: { fullName: 'asc' } }],
         skip,
@@ -2282,7 +2174,6 @@ export class ActionsService {
       action: {
         id: action.id,
         title: action.title,
-        projectGroupId: action.groupId,
         peopleGroupId:
           resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ?? null,
         targetEnrollmentId: (action as any).targetEnrollmentId ?? null,

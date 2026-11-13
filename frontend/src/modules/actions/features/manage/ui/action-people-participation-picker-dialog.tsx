@@ -137,10 +137,10 @@ export function ActionPeopleParticipationPickerDialog({
       {
         id: "groups",
         header: "Grupos",
-        accessorFn: (row) => row.groups.map((group) => group.name).join(", "),
+        accessorFn: (row) => row.peopleGroups.map((group) => group.name).join(", "),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground">
-            {row.original.groups.map((group) => group.name).join(", ") || "Sem grupo"}
+            {row.original.peopleGroups.map((group) => group.name).join(", ") || "Sem grupo"}
           </span>
         ),
       },

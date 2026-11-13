@@ -28,12 +28,6 @@ export const actionsSearchView: SearchViewDefinition = {
       operators: ["contains", "=", "!="],
     },
     {
-      name: "projectGroup.name",
-      label: "Grupo de Participantes",
-      type: "text",
-      operators: ["contains", "=", "!="],
-    },
-    {
       name: "peopleGroup.name",
       label: "Grupo de Pessoas",
       type: "text",
@@ -71,7 +65,6 @@ export const actionsSearchView: SearchViewDefinition = {
     { field: "tags", label: "Tags" },
     { field: "createdAt", label: "Cadastro" },
     { field: "actionType.name", label: "Tipo" },
-    { field: "projectGroup.name", label: "Grupo de Participantes" },
     { field: "peopleGroup.name", label: "Grupo de Pessoas" },
     { field: "targetEnrollment.person.fullName", label: "Participante" },
   ],

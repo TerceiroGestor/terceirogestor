@@ -18,11 +18,9 @@ import {
   deleteProjectComment,
   deleteProjectEnrollment,
   listProjectEnrollments,
-  listProjectGroups,
   listProjectPeopleGroups,
   type ApiProject,
   type ApiProjectEnrollment,
-  type ApiProjectGroup,
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { BulkEnrollmentDialog } from "@/modules/projects/features/detail/ui/bulk-enrollment-dialog";
@@ -37,7 +35,6 @@ import {
   projectsDetailModuleDefinition,
   PROJECTS_ROUTES,
 } from "@/modules/projects/config/projects-module-contract";
-import { PROJECT_GROUPS_ROUTES } from "@/modules/projects/config/project-groups-module-contract";
 import { listProjectActions, type ApiProjectAction } from "@/modules/actions/api";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
@@ -121,7 +118,6 @@ export function ProjectsDetailEngineClientPage() {
   );
   const [programOptions, setProgramOptions] = React.useState<ApiProgram[]>([]);
   const [peopleGroupRows, setPeopleGroupRows] = React.useState<ApiProjectPeopleGroup[]>([]);
-  const [groupRows, setGroupRows] = React.useState<ApiProjectGroup[]>([]);
   const [enrollmentRows, setEnrollmentRows] = React.useState<ApiProjectEnrollment[]>([]);
   const [actionRows, setActionRows] = React.useState<ApiProjectAction[]>([]);
   const [loading, setLoading] = React.useState(isEdit);
@@ -161,7 +157,6 @@ export function ProjectsDetailEngineClientPage() {
   const loadRelations = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
       setPeopleGroupRows([]);
-      setGroupRows([]);
       setEnrollmentRows([]);
       setActionRows([]);
       return;
@@ -169,19 +164,16 @@ export function ProjectsDetailEngineClientPage() {
 
       setRelationsLoading(true);
     try {
-      const [peopleGroups, groups, enrollments, actions] = await Promise.all([
+      const [peopleGroups, enrollments, actions] = await Promise.all([
         listProjectPeopleGroups(token, id),
-        listProjectGroups(token, id),
         listProjectEnrollments(token, id, { page: 1, limit: 200 }),
         listProjectActions(token, id, { page: 1, limit: 200 }),
       ]);
       setPeopleGroupRows(peopleGroups ?? []);
-      setGroupRows(groups ?? []);
       setEnrollmentRows(enrollments.data ?? []);
       setActionRows(actions.data ?? []);
     } catch {
       setPeopleGroupRows([]);
-      setGroupRows([]);
       setEnrollmentRows([]);
       setActionRows([]);
     } finally {
@@ -576,7 +568,6 @@ export function ProjectsDetailEngineClientPage() {
         selectedProgram,
         publicPeopleGroupRows,
         teamPeopleGroupRows,
-        groupRows,
         enrollmentRows,
         actionRows,
       relationsLoading,
@@ -597,20 +588,6 @@ export function ProjectsDetailEngineClientPage() {
       onNotesChange: (next) =>
         setDraft((previous) => ({ ...previous, internalNotes: next })),
       onNotesBlur: () => void commitField("internalNotes"),
-      onOpenGroup: (groupId) =>
-        router.push(
-          withTenantPath(
-            `/projects/${id}/groups?groupId=${encodeURIComponent(groupId)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
-      onCreateGroup: () =>
-        router.push(
-          withTenantPath(
-            `${PROJECT_GROUPS_ROUTES.list}/new?projectId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
       onOpenPeopleGroup: (peopleGroupId) =>
         router.push(
           withTenantPath(
@@ -657,7 +634,6 @@ export function ProjectsDetailEngineClientPage() {
       commitField,
       draft,
       enrollmentRows,
-      groupRows,
       id,
       mode,
       pathname,

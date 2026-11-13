@@ -84,7 +84,6 @@ function matchesSearch(row: ProjectActionAttendancesListItem, query: string) {
     row.enrollment.person.sex,
     row.enrollment.person.gender,
     row.enrollment.person.raceColor,
-    row.enrollment.groups.map((group) => group.name).join(", "),
     row.enrollment.peopleGroups.map((group) => group.name).join(", "),
     row.attendance?.status ?? "",
     row.attendance?.notes ?? "",

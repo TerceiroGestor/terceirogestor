@@ -7,7 +7,7 @@ export type ApiActionType = {
   tenantId: string;
   name: string;
   description: string | null;
-  target: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
+  target: "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -20,7 +20,6 @@ export type ApiProjectAction = {
   tenantId: string;
   projectId: string;
   createdByUserId: string | null;
-  projectGroupId: string | null;
   peopleGroupId: string | null;
   targetEnrollmentId: string | null;
   actionTypeId: string;
@@ -46,10 +45,9 @@ export type ApiProjectAction = {
   actionType?: {
     id: string;
     name: string;
-    target?: "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
+    target?: "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
   };
   createdByUser?: { id: string; name: string | null; email: string };
-  projectGroup?: { id: string; name: string } | null;
   peopleGroup?:
     | {
         id: string;
@@ -130,7 +128,6 @@ export type ProjectActionInput = {
   completionPercent?: number | null;
   photoPaths?: string[] | null;
   status?: ActionStatus;
-  projectGroupId?: string | null;
   peopleGroupId?: string | null;
   targetEnrollmentId?: string | null;
   plannedStartAt?: string | null;
@@ -181,7 +178,6 @@ export type ProjectActionAttendancesListResponse = {
     id: string;
     title: string;
     peopleGroupId: string | null;
-    projectGroupId?: string | null;
     targetEnrollmentId?: string | null;
   };
   occurrence: {

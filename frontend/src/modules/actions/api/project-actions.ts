@@ -17,18 +17,13 @@ export async function listProjectActions(
     mine?: boolean;
     status?: string;
     actionTypeId?: string;
-    projectGroupId?: string;
     peopleGroupId?: string;
     targetEnrollmentId?: string;
     page?: number;
     limit?: number;
   },
 ) {
-  const query = buildQuery({
-    ...params,
-    groupId: params?.projectGroupId,
-    peopleGroupId: params?.peopleGroupId,
-  });
+  const query = buildQuery(params);
   return apiRequest<ProjectActionsListResponse>(
     `/projects/${projectId}/actions${query}`,
     {},
@@ -44,18 +39,13 @@ export async function listActions(
     status?: string;
     actionTypeId?: string;
     projectId?: string;
-    projectGroupId?: string;
     peopleGroupId?: string;
     targetEnrollmentId?: string;
     page?: number;
     limit?: number;
   },
 ) {
-  const query = buildQuery({
-    ...params,
-    groupId: params?.projectGroupId,
-    peopleGroupId: params?.peopleGroupId,
-  });
+  const query = buildQuery(params);
   return apiRequest<ProjectActionsListResponse>(`/actions${query}`, {}, token);
 }
 

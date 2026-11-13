@@ -22,7 +22,6 @@ export const auditEntityLabels: Record<string, string> = {
   PantryDonor: "Doadores (despensa)",
 
   Project: "Projetos",
-  ProjectGroup: "Grupos (projetos)",
   ProjectEnrollment: "Inscrições (projetos)",
 
   Program: "Programas",

@@ -166,7 +166,6 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
       status: { label: "Status" },
       "actionType.name": { label: "Tipo" },
       "project.name": { label: "Projeto" },
-      "projectGroup.name": { label: "Grupo de Participantes" },
       "peopleGroup.name": { label: "Grupo de Pessoas" },
       "targetEnrollment.person.fullName": { label: "Participante" },
       plannedStartAt: { label: "Início planejado", type: "date" },
@@ -210,7 +209,6 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
           "status",
           "actionType.name",
           "project.name",
-          "projectGroup.name",
           "peopleGroup.name",
           "targetEnrollment.person.fullName",
           "tags",
@@ -270,7 +268,6 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
           "status",
           "actionType.name",
           "project.name",
-          "projectGroup.name",
           "peopleGroup.name",
           "targetEnrollment.person.fullName",
           "tags",
@@ -314,15 +311,6 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
                 (row as {
                   project?: { name?: string | null } | null;
                 }).project?.name ?? null,
-            },
-            {
-              field: "projectGroup.name",
-              label: "Grupo de Participantes",
-              kind: "dimension",
-              getValue: (row) =>
-                (row as {
-                  projectGroup?: { name?: string | null } | null;
-                }).projectGroup?.name ?? null,
             },
             {
               field: "peopleGroup.name",

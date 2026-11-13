@@ -249,24 +249,6 @@ export function ProjectEnrollmentsCard({
           ),
         },
         {
-          id: "groups",
-          header: "Grupos",
-          accessorFn: (item) =>
-            item.groups?.map((group) => group.name) ?? [],
-          cell: ({ row }) => {
-            const groups = row.original.groups ?? [];
-            if (groups.length === 0) {
-              return <span className="text-xs">Sem grupo</span>;
-            }
-            const label = groups.map((group) => group.name).join(", ");
-            return (
-              <span className="text-xs truncate" title={label}>
-                {label}
-              </span>
-            );
-          },
-        },
-        {
           id: "peopleGroups",
           header: "Grupo de Pessoas",
           accessorFn: (item) => item.peopleGroups?.map((peopleGroup) => peopleGroup.name) ?? [],

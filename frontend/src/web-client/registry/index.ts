@@ -61,10 +61,6 @@ import {
 import {
   projectEnrollmentsManageAction,
   projectActionsManageAction,
-  projectGroupsCreateAction,
-  projectGroupsDetailAction,
-  projectGroupsListAction,
-  projectGroupsManageAction,
 } from "@/web-client/registry/actions/project-structure";
 import {
   programsCreateAction,
@@ -104,9 +100,6 @@ import {
   projectsDetailSearchView,
   projectsSearchView,
 } from "@/web-client/registry/searchViews/projects";
-import {
-  projectGroupsSearchView,
-} from "@/web-client/registry/searchViews/project-structure";
 import {
   programsDetailSearchView,
   programsSearchView,
@@ -171,10 +164,6 @@ const WINDOW_ACTIONS: WindowAction[] = [
   projectsListAction,
   projectsDetailAction,
   projectsCreateAction,
-  projectGroupsListAction,
-  projectGroupsCreateAction,
-  projectGroupsDetailAction,
-  projectGroupsManageAction,
   projectEnrollmentsManageAction,
   projectActionsManageAction,
   programsListAction,
@@ -207,7 +196,6 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   peopleGroupsDetailSearchView,
   projectsSearchView,
   projectsDetailSearchView,
-  projectGroupsSearchView,
   programsSearchView,
   programsDetailSearchView,
   tasksSearchView,

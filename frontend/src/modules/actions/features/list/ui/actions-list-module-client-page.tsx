@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Clock3,
   FolderKanban,
-  Shapes,
   Users,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -95,7 +94,6 @@ const ACTION_LIST_GROUP_FIELD_KEYS: Record<string, string> = {
   status: "__group_status",
   "actionType.name": "__group_action_type_name",
   "project.name": "__group_project_name",
-  "projectGroup.name": "__group_project_group_name",
   "peopleGroup.name": "__group_people_group_name",
   "peopleGroup.segment.name": "__group_people_group_name",
   "targetEnrollment.person.fullName": "__group_target_enrollment_name",
@@ -221,8 +219,6 @@ function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
       return record.project?.name ?? "";
     case "actionType.name":
       return resolveActionTypeLabel(record);
-    case "projectGroup.name":
-      return record.projectGroup?.name ?? "";
     case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(record);
@@ -292,17 +288,6 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Users className="size-4 text-muted-foreground" />
           <span>{resolvePeopleGroupLabel(row.original)}</span>
-        </div>
-      ),
-    },
-    {
-      id: "projectGroup",
-      header: "Grupo de Participantes",
-      accessorFn: (row) => row.projectGroup?.name ?? "",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Shapes className="size-4 text-muted-foreground" />
-          <span>{row.original.projectGroup?.name ?? "-"}</span>
         </div>
       ),
     },
@@ -391,8 +376,6 @@ function resolveKanbanColumnValue(action: ApiProjectAction, field: string) {
       return resolveActionTypeLabel(action);
     case "project.name":
       return action.project?.name ?? "Sem projeto";
-    case "projectGroup.name":
-      return action.projectGroup?.name ?? "Sem grupo";
     case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(action);
@@ -430,8 +413,6 @@ function resolveGanttGroupValue(action: ApiProjectAction, field: string) {
       return resolveActionTypeLabel(action);
     case "project.name":
       return action.project?.name ?? "Sem projeto";
-    case "projectGroup.name":
-      return action.projectGroup?.name ?? "Sem grupo";
     case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(action);
@@ -568,7 +549,6 @@ export function ActionsListModuleClientPage() {
       [resolveListGroupFieldKey("status")]: record.status,
       [resolveListGroupFieldKey("actionType.name")]: resolveActionTypeLabel(record),
       [resolveListGroupFieldKey("project.name")]: record.project?.name ?? null,
-      [resolveListGroupFieldKey("projectGroup.name")]: record.projectGroup?.name ?? null,
       [resolveListGroupFieldKey("peopleGroup.name")]: resolvePeopleGroupLabel(record),
       [resolveListGroupFieldKey("targetEnrollment.person.fullName")]:
         record.targetEnrollment?.person?.fullName ?? null,

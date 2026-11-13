@@ -15,10 +15,6 @@ export async function searchActions(
       typeof args.context?.projectId === "string" && args.context.projectId.trim()
         ? args.context.projectId
         : undefined,
-    projectGroupId:
-      typeof args.context?.groupId === "string" && args.context.groupId.trim()
-        ? args.context.groupId
-        : undefined,
     peopleGroupId:
       typeof args.context?.peopleGroupId === "string" && args.context.peopleGroupId.trim()
         ? args.context.peopleGroupId

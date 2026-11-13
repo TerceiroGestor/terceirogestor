@@ -1,14 +1,10 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
   ApiProjectEnrollment,
-  ApiProjectGroup,
   ApiProjectPeopleGroup,
   EligibleProjectPeopleListResponse,
-  ProjectGroupsListResponse,
-  EnrollmentGroupInput,
   ProjectEnrollmentInput,
   ProjectEnrollmentsListResponse,
-  ProjectGroupInput,
   ProjectPeopleGroupInput,
 } from "./types";
 import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
@@ -84,14 +80,6 @@ function serializePeopleDomain(domain: Domain | null | undefined) {
   return filters.length ? JSON.stringify(filters) : undefined;
 }
 
-export async function listProjectGroups(token: string, projectId: string) {
-  return apiRequest<ApiProjectGroup[]>(
-    `/projects/${projectId}/groups`,
-    {},
-    token,
-  );
-}
-
 export async function listProjectPeopleGroups(
   token: string,
   projectId: string,
@@ -125,61 +113,13 @@ export async function deleteProjectPeopleGroup(
   );
 }
 
-export async function listAllProjectGroups(
-  token: string,
-  params?: { q?: string; page?: number; limit?: number; all?: boolean },
-) {
-  const query = buildQuery(params);
-  return apiRequest<ProjectGroupsListResponse>(`/project-groups${query}`, {}, token);
-}
-
-export async function createProjectGroup(
-  token: string,
-  projectId: string,
-  payload: ProjectGroupInput,
-) {
-  return apiRequest<ApiProjectGroup>(
-    `/projects/${projectId}/groups`,
-    { method: "POST", body: JSON.stringify(payload) },
-    token,
-  );
-}
-
-export async function updateProjectGroup(
-  token: string,
-  projectId: string,
-  groupId: string,
-  payload: Partial<ProjectGroupInput>,
-) {
-  return apiRequest<ApiProjectGroup>(
-    `/projects/${projectId}/groups/${groupId}`,
-    { method: "PATCH", body: JSON.stringify(payload) },
-    token,
-  );
-}
-
-export async function deleteProjectGroup(
-  token: string,
-  projectId: string,
-  groupId: string,
-) {
-  return apiRequest<{ ok: true }>(
-    `/projects/${projectId}/groups/${groupId}`,
-    { method: "DELETE" },
-    token,
-  );
-}
-
 export async function listProjectEnrollments(
   token: string,
   projectId: string,
   params?: {
     q?: string;
     status?: string;
-    groupId?: string;
-    groupHistoryId?: string;
     peopleGroupId?: string;
-    excludeGroupId?: string;
     excludePeopleGroupId?: string;
     filters?: Domain | null;
     page?: number;
@@ -257,28 +197,3 @@ export async function deleteProjectEnrollment(
   );
 }
 
-export async function addEnrollmentToGroup(
-  token: string,
-  projectId: string,
-  enrollmentId: string,
-  payload: EnrollmentGroupInput,
-) {
-  return apiRequest<{ ok: true }>(
-    `/projects/${projectId}/enrollments/${enrollmentId}/groups`,
-    { method: "POST", body: JSON.stringify(payload) },
-    token,
-  );
-}
-
-export async function removeEnrollmentFromGroup(
-  token: string,
-  projectId: string,
-  enrollmentId: string,
-  groupId: string,
-) {
-  return apiRequest<{ ok: true }>(
-    `/projects/${projectId}/enrollments/${enrollmentId}/groups/${groupId}`,
-    { method: "DELETE" },
-    token,
-  );
-}

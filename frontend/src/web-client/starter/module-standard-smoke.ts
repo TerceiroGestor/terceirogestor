@@ -40,7 +40,6 @@ import {
   projectsDetailModuleDefinition,
   projectsListModuleDefinition,
 } from "@/modules/projects/config/projects-module-contract";
-import { projectGroupsListModuleDefinition } from "@/modules/projects/config/project-groups-module-contract";
 import {
   tasksDetailModuleDefinition,
   tasksListModuleDefinition,
@@ -75,7 +74,6 @@ const MODULE_STANDARD_SMOKE_DEFINITIONS: Array<RecordModuleDefinition<any, any>>
   programsDetailModuleDefinition,
   projectsListModuleDefinition,
   projectsDetailModuleDefinition,
-  projectGroupsListModuleDefinition,
   actionsListModuleDefinition,
   actionsDetailModuleDefinition,
   tasksListModuleDefinition,

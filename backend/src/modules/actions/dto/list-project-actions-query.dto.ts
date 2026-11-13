@@ -37,10 +37,6 @@ export class ListProjectActionsQueryDto {
 
   @IsOptional()
   @IsUUID('4')
-  groupId?: string;
-
-  @IsOptional()
-  @IsUUID('4')
   peopleGroupId?: string;
 
   @IsOptional()

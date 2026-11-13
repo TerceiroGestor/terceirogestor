@@ -65,10 +65,6 @@ export class CreateProjectActionDto {
 
   @IsOptional()
   @IsUUID('4')
-  projectGroupId?: string | null;
-
-  @IsOptional()
-  @IsUUID('4')
   peopleGroupId?: string | null;
 
   @IsOptional()

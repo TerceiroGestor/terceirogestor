@@ -122,8 +122,6 @@ export function ProjectEnrollmentManageDialog({
     return null;
   }
 
-  const groupsLabel =
-    enrollment.groups.map((group) => group.name).join(", ") || "Sem grupo";
   const peopleGroupsLabel =
     enrollment.peopleGroups.map((group) => group.name).join(", ") ||
     "Sem grupo de pessoas";
@@ -151,12 +149,6 @@ export function ProjectEnrollmentManageDialog({
           <div className="text-sm text-foreground">
             {enrollment.status === "ACTIVE" ? "Ativa" : "Encerrada"}
           </div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Grupos
-          </div>
-          <div className="text-sm text-foreground">{groupsLabel}</div>
         </div>
         <div className="space-y-1">
           <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">

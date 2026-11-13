@@ -14,7 +14,6 @@ export const ACTION_CREATE_TEXT = {
     projectRequired: "Selecione um projeto",
     typeRequired: "Selecione um tipo",
     titleRequired: "Informe um título",
-    groupRequired: "Selecione um grupo de participantes",
     cycleRequired: "Selecione um grupo de pessoas",
   },
   toasts: {
@@ -30,8 +29,6 @@ export const ACTION_CREATE_TEXT = {
     typePlaceholder: "Selecione um tipo",
     targetLabel: "Direcionamento",
     statusLabel: "Status",
-    groupLabel: "Grupo de Participantes",
-    groupPlaceholder: "Selecione um grupo de participantes",
     cycleLabel: "Grupo de pessoas",
     cyclePlaceholder: "Selecione um grupo de pessoas",
     plannedStartLabel: "Início planejado",

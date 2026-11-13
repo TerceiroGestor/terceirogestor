@@ -132,7 +132,6 @@ export function ActionReportPreview({
         </h1>
         <div className="text-sm text-muted-foreground">
           {action.actionType?.name ?? "—"}
-          {action.projectGroup?.name ? ` • ${action.projectGroup.name}` : ""}
           {action.peopleGroup?.name
             ? ` • ${action.peopleGroup.name}`
             : action.targetEnrollment?.person?.fullName

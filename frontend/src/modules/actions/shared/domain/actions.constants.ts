@@ -8,7 +8,7 @@ import type {
   WeekDay,
 } from "@/modules/actions/api";
 
-export type ActionTarget = "PROJECT" | "PROJECT_GROUP" | "PEOPLE_GROUP" | "ENROLLMENT";
+export type ActionTarget = "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
 
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
   PLANNED: "Planejada",
@@ -36,14 +36,12 @@ export const ATTENDANCE_STATUS_OPTIONS = [
 
 export const ACTION_TARGET_LABELS: Record<ActionTarget, string> = {
   PROJECT: "Projeto",
-  PROJECT_GROUP: "Grupo de Participantes",
   PEOPLE_GROUP: "Grupo de Pessoas",
   ENROLLMENT: "Participante",
 };
 
 export const ACTION_TARGET_OPTIONS = [
   { label: ACTION_TARGET_LABELS.PROJECT, value: "PROJECT" },
-  { label: ACTION_TARGET_LABELS.PROJECT_GROUP, value: "PROJECT_GROUP" },
   { label: ACTION_TARGET_LABELS.PEOPLE_GROUP, value: "PEOPLE_GROUP" },
   { label: ACTION_TARGET_LABELS.ENROLLMENT, value: "ENROLLMENT" },
 ] satisfies { label: string; value: ActionTarget }[];

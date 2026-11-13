@@ -45,7 +45,6 @@ import {
   searchProjects,
   updateProjectRecord,
 } from "@/web-client/data-provider/rest/projects";
-import { searchProjectGroups } from "@/web-client/data-provider/rest/project-groups";
 import { searchActions } from "@/web-client/data-provider/rest/actions";
 import {
   createPersonRecord,
@@ -313,8 +312,6 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await searchPeopleGroups(authToken, args)) as unknown as SearchResult<T>;
           case "projects.list":
             return (await searchProjects(authToken, args)) as unknown as SearchResult<T>;
-          case "project-groups.list":
-            return (await searchProjectGroups(authToken, args)) as unknown as SearchResult<T>;
           case "actions.list":
             return (await searchActions(authToken, args)) as unknown as SearchResult<T>;
           case "tasks.list":

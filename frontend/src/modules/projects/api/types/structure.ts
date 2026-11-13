@@ -34,19 +34,6 @@ export type ApiProjectPeopleGroup = {
   };
 };
 
-export type ApiProjectGroup = {
-  id: string;
-  tenantId: string;
-  projectId: string;
-  name: string;
-  description: string | null;
-  internalNotes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  project?: { id: string; name: string; programId?: string | null };
-  _count?: { memberships: number; actions: number };
-};
-
 export type ApiEnrollmentPerson = {
   id: string;
   fullName: string;
@@ -96,23 +83,8 @@ export type ApiProjectEnrollment = {
   createdAt: string;
   updatedAt: string;
   person: ApiEnrollmentPerson;
-  groups: { id: string; name: string }[];
   peopleGroups: { id: string; name: string; category?: string | null }[];
-  groupMembershipHistory: Array<{
-    id: string;
-    isActive: boolean;
-    startsAt: string | null;
-    endsAt: string | null;
-    deletedAt: string | null;
-    group: { id: string; name: string };
-  }>;
   cycle: { id: string; name: string } | null;
-};
-
-export type ProjectGroupInput = {
-  name: string;
-  description?: string | null;
-  internalNotes?: string | null;
 };
 
 export type ProjectEnrollmentInput = {
@@ -129,10 +101,6 @@ export type ProjectPeopleGroupInput = {
   participationKind: ParticipationKind;
 };
 
-export type EnrollmentGroupInput = {
-  groupId: string;
-};
-
 export type ProjectEnrollmentsListResponse = {
   data: ApiProjectEnrollment[];
   pagination: ProjectsPagination;
@@ -140,10 +108,5 @@ export type ProjectEnrollmentsListResponse = {
 
 export type EligibleProjectPeopleListResponse = {
   data: ApiEligibleProjectPerson[];
-  pagination: ProjectsPagination;
-};
-
-export type ProjectGroupsListResponse = {
-  data: ApiProjectGroup[];
   pagination: ProjectsPagination;
 };

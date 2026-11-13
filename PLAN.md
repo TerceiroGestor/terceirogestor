@@ -422,6 +422,27 @@ Todas implementadas e testadas (ver evidência nas seções "Fase 1"/
 "Fase 2"/"Fase 3" desse plano). Não bloqueia a Parte 4; é trabalho
 adicional em paralelo.
 
+**Novo desvio, a pedido explícito do usuário em 2026-11-13:**
+redesenho de Programa→Projeto→Atividade→Encontro (consolidar
+`ProjectGroup`/`PeopleGroup`, matrícula por grupo, Encontro com grupo de
+equipe, rename Ação→Atividade no código via `@@map`, relatórios em
+cascata) — plano completo em
+`docs/plano-redesenho-grupos-matricula-atividades.md`, em fases R1-R5.
+
+Fase R1 (eliminar `ProjectGroup`, consolidar em `PeopleGroup`) concluída:
+migration de remoção (`20261113170301_remove_project_group`, sem dado de
+produção a preservar), backend limpo (CRUD de `ProjectGroup` e branch
+`PROJECT_GROUP` removidos de `project-structure.*` e `actions.service.ts`;
+`tsc` 0 erros, `npm test` 28 suítes/143 testes sem regressão) e frontend
+limpo (módulo standalone + 4 window actions + search view removidos via
+`git rm`; `tsc` 0 erros; `eslint` 211 problemas vs. baseline 217 via `git
+stash`, net -6, nenhuma categoria nova; `npm run build` sucesso). Detalhe
+completo na seção "Status" da Fase R1 em
+`docs/plano-redesenho-grupos-matricula-atividades.md`. Teste manual
+ponta-a-ponta (subir os dois servidores, exercitar as telas afetadas)
+ainda pendente antes de considerar a fase 100% fechada. Seguindo para a
+Fase R2 (matrícula por grupo).
+
 Branch: `develop` (mesclada em `main` em 2026-11-06 — ver AGENTS.md para o
 fluxo atual de branches). Ponto de retorno: tag `v0-baseline` (commit
 `962b91c`).

@@ -1067,7 +1067,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           key: "scope",
           label: "Escopo",
           value:
-            action?.projectGroup?.name ??
             action?.peopleGroup?.name ??
             action?.targetEnrollment?.person?.fullName ??
             "Projeto",
