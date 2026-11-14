@@ -438,10 +438,33 @@ limpo (módulo standalone + 4 window actions + search view removidos via
 `git rm`; `tsc` 0 erros; `eslint` 211 problemas vs. baseline 217 via `git
 stash`, net -6, nenhuma categoria nova; `npm run build` sucesso). Detalhe
 completo na seção "Status" da Fase R1 em
-`docs/plano-redesenho-grupos-matricula-atividades.md`. Teste manual
-ponta-a-ponta (subir os dois servidores, exercitar as telas afetadas)
-ainda pendente antes de considerar a fase 100% fechada. Seguindo para a
-Fase R2 (matrícula por grupo).
+`docs/plano-redesenho-grupos-matricula-atividades.md`.
+
+Correção do seletor de colunas/Painel Search (fora da numeração R1-R5,
+mas no mesmo desvio): causa raiz era estrutural
+(`PageControlPanel`/`ControlPanelContext` relocam o botão da busca pra
+fora do `ColumnVisibilityProvider` local) — corrigido elevando o estado
+pro `RecordListHost`; Relations (abas de relação + diálogos de vínculo)
+passam a nunca mostrar o seletor. Verificado com browser real (Chrome já
+instalado + Playwright, sem baixar nada). Detalhe completo já registrado
+nesta seção anteriormente.
+
+Fase R2 (matrícula por grupo) concluída: sem migration — a revisão é
+computada em cima de `PeopleGroupParticipation`/`ProjectEnrollment`
+existentes (ver "Status" da Fase R2 no plano). Backend:
+`syncPeopleGroupEnrollments` + rota `POST .../sync-enrollments`; `tsc` 0
+erros, `npm test` 28/143 sem regressão, `eslint` igual à baseline (3
+diffs de quebra de linha corrigidos com `--fix`). Frontend: botão
+"Matricular/revisar membros" na tab Grupos de Pessoas do Projeto; `tsc` 0
+erros, `eslint` igual à baseline, `npm run build` sucesso. Testado com
+dado real via API direta no projeto "Projeto Alvorada"/grupo "C1M":
+removida 1 participação ativa + adicionada 1 pessoa nova → resultado
+exato `enrolled: [Bianca Torres], ended: [Sabrina Melo]`; testado
+também no browser (botão aparece só nos grupos PARTICIPANT, diálogo de
+confirmação, toast de resumo). Banco resetado via `npm run db:seed`
+depois do teste. Seguindo para a Fase R3 (Encontro ganha planejamento/
+relatório/fotos + grupo de equipe — escopo ampliado nesta sessão, ver o
+plano).
 
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**

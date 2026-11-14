@@ -6,6 +6,8 @@ import type {
   ProjectEnrollmentInput,
   ProjectEnrollmentsListResponse,
   ProjectPeopleGroupInput,
+  SyncPeopleGroupEnrollmentsInput,
+  SyncPeopleGroupEnrollmentsResponse,
 } from "./types";
 import type { AdvancedFilter } from "@/web-client/filtering/advanced-filters";
 import { collectAndConditions } from "@/web-client/domain/conditions";
@@ -109,6 +111,19 @@ export async function deleteProjectPeopleGroup(
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/people-groups/${projectPeopleGroupId}`,
     { method: "DELETE" },
+    token,
+  );
+}
+
+export async function syncProjectPeopleGroupEnrollments(
+  token: string,
+  projectId: string,
+  peopleGroupId: string,
+  payload?: SyncPeopleGroupEnrollmentsInput,
+) {
+  return apiRequest<SyncPeopleGroupEnrollmentsResponse>(
+    `/projects/${projectId}/people-groups/${peopleGroupId}/sync-enrollments`,
+    { method: "POST", body: JSON.stringify(payload ?? {}) },
     token,
   );
 }

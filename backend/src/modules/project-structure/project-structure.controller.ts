@@ -20,6 +20,7 @@ import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.d
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
+import { SyncPeopleGroupEnrollmentsDto } from './dto/sync-people-group-enrollments.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
 import { ProjectStructureService } from './project-structure.service';
 
@@ -60,6 +61,23 @@ export class ProjectStructureController {
       user.tenantId,
       projectId,
       projectPeopleGroupId,
+    );
+  }
+
+  @Post(':projectId/people-groups/:peopleGroupId/sync-enrollments')
+  @Permissions('enrollments.create')
+  async syncPeopleGroupEnrollments(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('peopleGroupId', new ParseUUIDPipe({ version: '4' }))
+    peopleGroupId: string,
+    @Body() dto: SyncPeopleGroupEnrollmentsDto,
+  ) {
+    return this.service.syncPeopleGroupEnrollments(
+      user.tenantId,
+      projectId,
+      peopleGroupId,
+      dto,
     );
   }
 

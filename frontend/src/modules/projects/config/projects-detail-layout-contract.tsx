@@ -282,7 +282,10 @@ function buildProjectHistoryItems(logs: NonNullable<ProjectsDetailLayoutContext[
   });
 }
 
-function peopleGroupRelationColumns(): ColumnDef<
+function peopleGroupRelationColumns({
+  canManageEnrollments,
+  onSyncPeopleGroup,
+}: Pick<ProjectsDetailLayoutContext, "canManageEnrollments" | "onSyncPeopleGroup">): ColumnDef<
   ProjectsDetailLayoutContext["publicPeopleGroupRows"][number],
   unknown
 >[] {
@@ -311,6 +314,28 @@ function peopleGroupRelationColumns(): ColumnDef<
       header: "Faixa etaria",
       cell: ({ row }) =>
         formatAgeRange(row.original.peopleGroup.ageMin ?? null, row.original.peopleGroup.ageMax ?? null),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) =>
+        canManageEnrollments && row.original.participationKind === "PARTICIPANT" ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 rounded-none border-b border-border/60 px-1"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSyncPeopleGroup(row.original);
+              }}
+            >
+              Matricular/revisar membros
+            </Button>
+          </div>
+        ) : null,
     },
   ];
 }
@@ -406,6 +431,7 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
   onOpenPeopleGroup: (peopleGroupId: string) => void;
   onCreatePublicPeopleGroup: () => void;
   onCreateTeamPeopleGroup: () => void;
+  onSyncPeopleGroup: (row: { peopleGroupId: string; peopleGroup: { name: string } }) => void;
   onOpenEnrollment: (enrollmentId: string) => void;
   onCreateEnrollment: () => void;
   onEndEnrollment: (enrollment: ApiProjectEnrollment) => void;
@@ -792,7 +818,11 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           label: "Grupos de Pessoas",
           loading: ({ relationsLoading }) => relationsLoading,
           rows: ({ mode, publicPeopleGroupRows }) => (mode === "edit" ? publicPeopleGroupRows : []),
-          columns: peopleGroupRelationColumns(),
+          columns: (context) =>
+            peopleGroupRelationColumns({
+              canManageEnrollments: context.canManageEnrollments,
+              onSyncPeopleGroup: context.onSyncPeopleGroup,
+            }),
           getRowId: (row) => row.id,
           filterRows: (rows, query) => {
             const needle = query.trim().toLocaleLowerCase();
@@ -835,7 +865,11 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           label: "Grupos de Equipe",
           loading: ({ relationsLoading }) => relationsLoading,
           rows: ({ mode, teamPeopleGroupRows }) => (mode === "edit" ? teamPeopleGroupRows : []),
-          columns: peopleGroupRelationColumns(),
+          columns: (context) =>
+            peopleGroupRelationColumns({
+              canManageEnrollments: context.canManageEnrollments,
+              onSyncPeopleGroup: context.onSyncPeopleGroup,
+            }),
           getRowId: (row) => row.id,
           filterRows: (rows, query) => {
             const needle = query.trim().toLocaleLowerCase();

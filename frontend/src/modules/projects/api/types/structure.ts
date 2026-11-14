@@ -110,3 +110,12 @@ export type EligibleProjectPeopleListResponse = {
   data: ApiEligibleProjectPerson[];
   pagination: ProjectsPagination;
 };
+
+export type SyncPeopleGroupEnrollmentsInput = {
+  role?: ProjectParticipationRole;
+};
+
+export type SyncPeopleGroupEnrollmentsResponse = {
+  enrolled: { id: string; personId: string; fullName: string }[];
+  ended: { id: string; personId: string; fullName: string }[];
+};

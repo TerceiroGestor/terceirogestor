@@ -161,39 +161,105 @@ membros de um `PeopleGroup` de uma vez — a "matrícula por grupo" e a
    no projeto → confirma matrícula criada; remover uma pessoa do grupo →
    rodar de novo → confirma matrícula encerrada.
 
+### Status: concluída (2026-11-13)
+
+- **Sem migration de schema** — a "revisão" é computada em cima do que já
+  existe: "a matricular" = `PeopleGroupParticipation` ativa no grupo sem
+  `ProjectEnrollment` ativa no projeto; "a encerrar" = tinha alguma
+  `PeopleGroupParticipation` nesse grupo (ativa ou não — assim não precisa
+  de coluna nova pra saber "já foi desse grupo") mas não está mais ativa
+  nele, e ainda tem `ProjectEnrollment` ativa no projeto.
+- **Backend:** `project-structure.service.ts#syncPeopleGroupEnrollments` +
+  rota `POST :projectId/people-groups/:peopleGroupId/sync-enrollments`
+  (permissão `enrollments.create`); DTO
+  `SyncPeopleGroupEnrollmentsDto { role? }`. **Evidência:** `tsc --noEmit
+  -p tsconfig.build.json` → 0 erros; `npm test` → 28 suítes/143 testes
+  sem regressão; `eslint` no arquivo tocado → 14 problemas, igual à
+  baseline (os 3 a mais que apareceram na primeira passada eram
+  `prettier/prettier` de quebra de linha, corrigidos com `--fix`).
+- **Frontend:** `syncProjectPeopleGroupEnrollments` em
+  `project-structure.ts`; botão "Matricular/revisar membros" por linha na
+  tab "Grupos de Pessoas" do Projeto (só pra grupos `PARTICIPANT` —
+  grupos de equipe não matriculam público), com confirmação via
+  `useConfirm()` e toast de resumo. **Evidência:** `tsc --noEmit` → 0
+  erros; `eslint` nos 4 arquivos tocados → 6 problemas, igual à baseline
+  (zero novo); `npm run build` → sucesso.
+- **Teste manual real** (API direta + browser, Chrome já instalado +
+  Playwright, sem baixar nada): endpoint testado no projeto "Projeto
+  Alvorada"/grupo "C1M" com dado real — removida a participação ativa de
+  1 pessoa do grupo e adicionada 1 pessoa nova; rodado o sync via API →
+  resultado exato `{ enrolled: [Bianca Torres], ended: [Sabrina Melo] }`,
+  confirmando a lógica de diff. No browser: botão aparece corretamente só
+  nas linhas de grupos `PARTICIPANT`, abre o diálogo de confirmação com o
+  texto certo, e o toast final mostra a contagem. Banco resetado via
+  `npm run db:seed` depois do teste pra não deixar dado de teste no dev.
+
 ---
 
-## Fase R3 — Encontro com grupo participante + grupo(s) de equipe
+## Fase R3 — Encontro ganha planejamento/relatório/fotos + grupo de equipe
 
-**Objetivo:** hoje o Encontro só tem `peopleGroupId` (o grupo que
-participa). Adicionar grupo(s) de equipe/educadores responsáveis por
-aquele encontro específico.
+**Objetivo (escopo ampliado em 2026-11-13, a pedido do usuário):**
+originalmente esta fase só previa adicionar grupo(s) de equipe/
+educadores ao Encontro. Ao descrever o fluxo completo de Atividade →
+Encontro, o usuário deixou claro que **todo o conteúdo operacional**
+("relatório, planejamento, anotações, presenças, observações de cada
+participante, avaliação com nota") deve ficar no Encontro, com a
+Atividade virando só o container (objetivo/descrição). Presença,
+observação por participante e nota de qualidade (1-5) **já existem no
+Encontro** desde a Fase 3 do SCFV — não é trabalho novo. O que falta:
+planejamento/relatório/fotos (hoje só na Atividade, via `planHtml`/
+`executedHtml`/`conclusionHtml`/`photoPaths` em `ProjectAction`) e
+grupo(s) de equipe (hoje o Encontro só aceita 1 grupo participante).
+Perguntado explicitamente, o usuário escolheu **mover** esses 4 campos
+pra Encontro (não duplicar nos dois níveis). `completionPercent` fica na
+Atividade — é um indicador manual de progresso geral, independente do
+conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
 
-### Schema
+### Schema (1 migration, dev-only)
+- `ActionOccurrence` ganha `planHtml`/`executedHtml`/`conclusionHtml`
+  (`Text?`) e `photoPaths` (`Json?`) — mesmo tipo que tinham em
+  `ProjectAction`. `ProjectAction` perde essas 4 colunas (mantém
+  `completionPercent`).
 - Nova tabela `ActionOccurrenceTeamGroup` (`tenantId`, `occurrenceId`,
   `peopleGroupId`), mesma forma de `ActionPeopleGroup` mas no nível do
-  Encontro — N grupos de equipe por encontro.
+  Encontro, sem `participationKind` (toda linha já é equipe) — N grupos
+  de equipe por encontro.
+- `prisma/seed.ts`: mover o conteúdo de plan/executed/conclusion/fotos
+  das fixtures de `ProjectAction` pras fixtures de `ActionOccurrence`
+  correspondentes.
 
 ### Backend
-- DTOs de criar/editar `ActionOccurrence` ganham `teamPeopleGroupIds?:
-  string[]`.
-- Validação igual à já existente para `peopleGroupId`
-  (`ensurePeopleGroupBelongsToAction`): cada grupo de equipe precisa estar
-  entre os `ActionPeopleGroup` com `participationKind: TEAM` já vinculados
-  à Atividade.
+- `ensurePeopleGroupBelongsToAction` ganha parâmetro
+  `participationKind` (hoje hardcoded em `PARTICIPANT`) — reaproveitado
+  pra validar `teamPeopleGroupIds`.
+- DTOs de criar/editar `ActionOccurrence` ganham `planHtml`/
+  `executedHtml`/`conclusionHtml`/`photoPaths` (mesmos decorators que
+  saem de `create/update-project-action.dto.ts`) e
+  `teamPeopleGroupIds?: string[]`.
+- `createProjectAction`/`updateProjectAction` perdem o bloco desses 4
+  campos; `serializeProjectAction` para de devolvê-los.
 
 ### Frontend
-- `action-occurrences-section.tsx` → `EditOccurrenceDialog` ganha um
-  segundo campo (multi-select) "Educadores/Equipe", carregado com
-  `listActionPeopleGroups(..., { participationKind: "TEAM" })` — mesmo
-  padrão já usado para o campo de grupo participante.
+- `action-occurrences-section.tsx` → `EditOccurrenceDialog` ganha 3
+  campos `<RichText>` (planejamento/relato/conclusão), um editor de
+  fotos (migrado de `ActionPhotosSection`/`action-detail-engine-client-page.tsx`,
+  que deixam de existir no nível da Atividade) e um campo multi-select
+  "Educadores/Equipe" carregado com `listActionPeopleGroups(...,
+  { participationKind: "TEAM" })` — a função já aceita isso, só nunca
+  tinha sido chamada com `TEAM`.
+- `action-create-form-section.tsx`: remove o campo `planHtml` (Atividade
+  não edita mais isso na criação).
+- `action-report-preview.tsx`: passa a ler os 4 campos de conteúdo do
+  Encontro selecionado (via `OccurrenceSelect`/
+  `resolveDefaultOccurrenceId`, já existentes), não mais da Atividade.
 
 ### Plano de teste
 1. `tsc` + `npm test`.
 2. Teste de serviço: grupo de equipe que não pertence à Atividade → 400;
    grupo de equipe válido → aceito e devolvido no GET do encontro.
 3. Teste manual: agendar encontro com 1 grupo participante + 2 grupos de
-   equipe → confirma os 3 aparecem corretos na edição.
+   equipe, preencher planejamento/relatório, subir foto, marcar
+   presença → confirma tudo certo na edição e no `action-report-preview`.
 
 ---
 

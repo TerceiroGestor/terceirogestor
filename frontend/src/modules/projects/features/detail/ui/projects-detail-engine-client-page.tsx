@@ -19,6 +19,7 @@ import {
   deleteProjectEnrollment,
   listProjectEnrollments,
   listProjectPeopleGroups,
+  syncProjectPeopleGroupEnrollments,
   type ApiProject,
   type ApiProjectEnrollment,
   type ApiProjectPeopleGroup,
@@ -567,6 +568,34 @@ export function ProjectsDetailEngineClientPage() {
     [canDeleteEnrollments, confirm, id, loadRelations, toast, token],
   );
 
+  const handleSyncPeopleGroup = React.useCallback(
+    async (row: { peopleGroupId: string; peopleGroup: { name: string } }) => {
+      if (!token || !id || !canManageEnrollments) return;
+      const confirmed = await confirm({
+        title: "Matricular/revisar membros",
+        description: `Matricular quem entrou no grupo "${row.peopleGroup.name}" e encerrar a matrícula de quem saiu dele. Continuar?`,
+        confirmLabel: "Revisar",
+        cancelLabel: "Cancelar",
+      });
+      if (!confirmed) return;
+      try {
+        const result = await syncProjectPeopleGroupEnrollments(token, id, row.peopleGroupId);
+        toast({
+          title: "Revisão concluída",
+          description: `Matriculados: ${result.enrolled.length} • Encerrados: ${result.ended.length}`,
+        });
+        await loadRelations();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao revisar matrículas do grupo.";
+        toast({ variant: "destructive", title: "Falha ao revisar", description: message });
+      }
+    },
+    [canManageEnrollments, confirm, id, loadRelations, toast, token],
+  );
+
   const handleEnrollmentDialogChange = React.useCallback(
     (open: boolean) => {
       setEnrollmentDialogOpen(open);
@@ -630,6 +659,7 @@ export function ProjectsDetailEngineClientPage() {
         ),
       onCreatePublicPeopleGroup: handleCreatePublicPeopleGroup,
       onCreateTeamPeopleGroup: handleCreateTeamPeopleGroup,
+      onSyncPeopleGroup: handleSyncPeopleGroup,
       onOpenEnrollment: (enrollmentId) =>
         router.push(buildProjectDetailHref({ enrollmentId })),
       onCreateEnrollment: handleCreateEnrollment,
@@ -680,6 +710,7 @@ export function ProjectsDetailEngineClientPage() {
       handleCreateTeamPeopleGroup,
       buildProjectDetailHref,
       handleEndEnrollment,
+      handleSyncPeopleGroup,
       handleSubmitComment,
       mentionableUsers,
       publicPeopleGroupRows,

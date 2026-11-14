@@ -25,6 +25,7 @@ import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.d
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
+import { SyncPeopleGroupEnrollmentsDto } from './dto/sync-people-group-enrollments.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
 
 const DEFAULT_LIMIT = 20;
@@ -181,6 +182,137 @@ export class ProjectStructureService {
 
     await this.prisma.projectPeopleGroup.delete({ where: { id: existing.id } });
     return { ok: true as const };
+  }
+
+  async syncPeopleGroupEnrollments(
+    tenantId: string,
+    projectId: string,
+    peopleGroupId: string,
+    dto: SyncPeopleGroupEnrollmentsDto,
+  ) {
+    await this.ensureProjectExists(tenantId, projectId);
+
+    const projectPeopleGroup = await this.prisma.projectPeopleGroup.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        peopleGroupId,
+        participationKind: 'PARTICIPANT',
+      },
+      select: { id: true },
+    });
+    if (!projectPeopleGroup) {
+      throw new BadRequestException(
+        'Grupo nao esta vinculado a este projeto como grupo de participantes.',
+      );
+    }
+
+    const role: ProjectParticipationRole = dto.role ?? 'PUBLICO_ATENDIDO';
+
+    const toEnroll = await this.prisma.person.findMany({
+      where: {
+        tenantId,
+        peopleGroupParticipations: {
+          some: { tenantId, peopleGroupId, isActive: true, deletedAt: null },
+        },
+        projectEnrollments: {
+          none: {
+            tenantId,
+            projectId,
+            participationKind: 'PARTICIPANT',
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
+        },
+      },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const toEnd = await this.prisma.projectEnrollment.findMany({
+      where: {
+        tenantId,
+        projectId,
+        participationKind: 'PARTICIPANT',
+        status: 'ACTIVE',
+        deletedAt: null,
+        person: {
+          peopleGroupParticipations: { some: { tenantId, peopleGroupId } },
+          NOT: {
+            peopleGroupParticipations: {
+              some: {
+                tenantId,
+                peopleGroupId,
+                isActive: true,
+                deletedAt: null,
+              },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        personId: true,
+        person: { select: { fullName: true } },
+      },
+      orderBy: { person: { fullName: 'asc' } },
+    });
+
+    const now = new Date();
+    const transactionOps: Prisma.PrismaPromise<any>[] = [
+      ...toEnroll.map((person) =>
+        this.prisma.projectEnrollment.create({
+          data: {
+            tenantId,
+            projectId,
+            personId: person.id,
+            status: 'ACTIVE',
+            participationKind: 'PARTICIPANT',
+            role,
+            startsAt: now,
+            endsAt: null,
+            deletedAt: null,
+          },
+          select: { id: true, personId: true },
+        }),
+      ),
+      ...(toEnd.length
+        ? [
+            this.prisma.projectEnrollment.updateMany({
+              where: { id: { in: toEnd.map((enrollment) => enrollment.id) } },
+              data: { status: 'ENDED', endsAt: now },
+            }),
+          ]
+        : []),
+    ];
+
+    const transactionResults =
+      transactionOps.length > 0
+        ? await this.prisma.$transaction(transactionOps)
+        : [];
+    const createdEnrollments = transactionResults.slice(
+      0,
+      toEnroll.length,
+    ) as Array<{
+      id: string;
+      personId: string;
+    }>;
+    const fullNameByPersonId = new Map(
+      toEnroll.map((person) => [person.id, person.fullName]),
+    );
+
+    return {
+      enrolled: createdEnrollments.map((enrollment) => ({
+        id: enrollment.id,
+        personId: enrollment.personId,
+        fullName: fullNameByPersonId.get(enrollment.personId) ?? '',
+      })),
+      ended: toEnd.map((enrollment) => ({
+        id: enrollment.id,
+        personId: enrollment.personId,
+        fullName: enrollment.person.fullName,
+      })),
+    };
   }
 
   async listEnrollments(
