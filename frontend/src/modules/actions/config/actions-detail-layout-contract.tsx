@@ -3,9 +3,9 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RichText } from "@/components/ui/richtext/RichText";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
+  ApiActionOccurrence,
   ApiProjectAction,
   ApiProjectActionPeopleParticipation,
   ProjectActionAttendancesListItem,
@@ -103,10 +103,6 @@ function SectionField({
       {children}
     </div>
   );
-}
-
-function toDateOnly(value: string | null | undefined) {
-  return value ? value.slice(0, 10) : "";
 }
 
 function formatStatus(value: string | null | undefined) {
@@ -232,95 +228,7 @@ function teamParticipationColumns({
   ];
 }
 
-function ActionExecutedSection({
-  action,
-  readOnly,
-  saving,
-  onSave,
-}: {
-  action: ApiProjectAction | null;
-  readOnly: boolean;
-  saving: boolean;
-  onSave: (patch: Partial<ProjectActionInput>) => Promise<void>;
-}) {
-  const [draft, setDraft] = React.useState({
-    executedStartAt: toDateOnly(action?.executedStartAt),
-    executedEndAt: toDateOnly(action?.executedEndAt),
-    executedHtml: action?.executedHtml ?? "",
-  });
-
-  React.useEffect(() => {
-    setDraft({
-      executedStartAt: toDateOnly(action?.executedStartAt),
-      executedEndAt: toDateOnly(action?.executedEndAt),
-      executedHtml: action?.executedHtml ?? "",
-    });
-  }, [action]);
-
-  if (!action) return null;
-
-  return (
-    <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1.2fr]">
-        <SectionField label="Início executado">
-          <Input
-            type="date"
-            value={draft.executedStartAt}
-            onChange={(event) =>
-              setDraft((previous) => ({ ...previous, executedStartAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={readOnly || saving}
-          />
-        </SectionField>
-        <SectionField label="Fim executado">
-          <Input
-            type="date"
-            value={draft.executedEndAt}
-            onChange={(event) =>
-              setDraft((previous) => ({ ...previous, executedEndAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={readOnly || saving}
-          />
-        </SectionField>
-        <SectionField label="Período executado">
-          <div className="flex h-10 items-center border-b border-border/60 text-sm text-foreground">
-            {formatPeriod(action.executedStartAt, action.executedEndAt)}
-          </div>
-        </SectionField>
-      </div>
-
-      <SectionField label="Relato da execução">
-        <RichText
-          value={draft.executedHtml}
-          disabled={readOnly || saving}
-          onChange={(value) => setDraft((previous) => ({ ...previous, executedHtml: value }))}
-        />
-      </SectionField>
-
-      {!readOnly ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() =>
-              void onSave({
-                executedStartAt: draft.executedStartAt.trim() || null,
-                executedEndAt: draft.executedEndAt.trim() || null,
-                executedHtml: draft.executedHtml.trim() || null,
-              })
-            }
-            disabled={saving}
-          >
-            {saving ? "Salvando..." : "Salvar execução"}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ActionConclusionSection({
+function ActionProgressSection({
   action,
   readOnly,
   saving,
@@ -336,7 +244,6 @@ function ActionConclusionSection({
       action?.completionPercent === null || action?.completionPercent === undefined
         ? ""
         : String(action.completionPercent),
-    conclusionHtml: action?.conclusionHtml ?? "",
   });
 
   React.useEffect(() => {
@@ -345,7 +252,6 @@ function ActionConclusionSection({
         action?.completionPercent === null || action?.completionPercent === undefined
           ? ""
           : String(action.completionPercent),
-      conclusionHtml: action?.conclusionHtml ?? "",
     });
   }, [action]);
 
@@ -368,14 +274,6 @@ function ActionConclusionSection({
         <div />
       </div>
 
-      <SectionField label="Conclusão">
-        <RichText
-          value={draft.conclusionHtml}
-          disabled={readOnly || saving}
-          onChange={(value) => setDraft((previous) => ({ ...previous, conclusionHtml: value }))}
-        />
-      </SectionField>
-
       {!readOnly ? (
         <div className="flex justify-end">
           <Button
@@ -385,96 +283,15 @@ function ActionConclusionSection({
                 completionPercent: draft.completionPercent.trim()
                   ? Number(draft.completionPercent)
                   : null,
-                conclusionHtml: draft.conclusionHtml.trim() || null,
               })
             }
             disabled={saving}
           >
-            {saving ? "Salvando..." : "Salvar conclusão"}
+            {saving ? "Salvando..." : "Salvar progresso"}
           </Button>
         </div>
       ) : null}
     </div>
-  );
-}
-
-function ActionPhotosSection({
-  action,
-  readOnly,
-  saving,
-  onUploadPhoto,
-  onDeletePhoto,
-}: {
-  action: ApiProjectAction | null;
-  readOnly: boolean;
-  saving: boolean;
-  onUploadPhoto: (file: File) => Promise<void>;
-  onDeletePhoto: (path: string) => Promise<void>;
-}) {
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
-  const photoPaths = action?.photoPaths ?? [];
-
-  return (
-    <SectionCard title="Fotos">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) {
-            void onUploadPhoto(file);
-          }
-        }}
-      />
-
-      {!readOnly ? (
-        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-4 py-3">
-          <div className="text-sm text-muted-foreground">
-            {photoPaths.length >= 5 ? "5/5 fotos" : `${photoPaths.length}/5 fotos`}
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => inputRef.current?.click()}
-            disabled={saving || photoPaths.length >= 5}
-          >
-            {saving ? "Enviando..." : "Enviar foto"}
-          </Button>
-        </div>
-      ) : null}
-
-      {photoPaths.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhuma foto adicionada.</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {photoPaths.map((path) => (
-            <div
-              key={path}
-              className="group relative overflow-hidden rounded-lg border border-border/60 bg-muted/10"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolveMediaUrl(path)} alt="Foto da ação" className="h-40 w-full object-cover" />
-              {!readOnly ? (
-                <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => void onDeletePhoto(path)}
-                    disabled={saving}
-                  >
-                    Remover
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      )}
-    </SectionCard>
   );
 }
 
@@ -495,6 +312,7 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   token: string;
   projectId: string;
   action: ApiProjectAction | null;
+  selectedOccurrence: ApiActionOccurrence | null;
   draft: ActionMetadataDraft;
   setDraft: React.Dispatch<React.SetStateAction<ActionMetadataDraft>>;
   mentionableUsers: Array<{
@@ -509,7 +327,6 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   };
   commentSubmitting: boolean;
   attachmentUploading: boolean;
-  photoUploading: boolean;
   reportRows: ProjectActionAttendancesListItem[];
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
   reportLoading: boolean;
@@ -550,8 +367,6 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onNotesBlur: () => void;
   onSaveActionPatch: (patch: Partial<ProjectActionInput>) => Promise<void>;
   onActionLoaded: (action: ApiProjectAction) => void;
-  onUploadPhoto: (file: File) => Promise<void>;
-  onDeletePhoto: (path: string) => Promise<void>;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
   onAttendanceGroupChange: (value: string) => void;
@@ -899,53 +714,32 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       emptyLabel: "Sem equipe.",
     },
     {
-      key: "executed",
-      label: "Execução",
+      key: "progress",
+      label: "Progresso",
       visible: ({ mode }) => mode === "edit",
-      content: ({ action, readOnly, attachmentUploading, photoUploading, onSaveActionPatch }) => (
-        <ActionExecutedSection
+      content: ({ action, readOnly, attachmentUploading, onSaveActionPatch }) => (
+        <ActionProgressSection
           action={action}
           readOnly={readOnly}
-          saving={attachmentUploading || photoUploading}
+          saving={attachmentUploading}
           onSave={onSaveActionPatch}
         />
       ),
-      emptyLabel: "Sem execução.",
-    },
-    {
-      key: "conclusion",
-      label: "Conclusão",
-      visible: ({ mode }) => mode === "edit",
-      content: ({ action, readOnly, attachmentUploading, photoUploading, onSaveActionPatch }) => (
-        <ActionConclusionSection
-          action={action}
-          readOnly={readOnly}
-          saving={attachmentUploading || photoUploading}
-          onSave={onSaveActionPatch}
-        />
-      ),
-      emptyLabel: "Sem conclusão.",
-    },
-    {
-      key: "photos",
-      label: "Fotos",
-      visible: ({ mode }) => mode === "edit",
-      content: ({ action, readOnly, photoUploading, onUploadPhoto, onDeletePhoto }) => (
-        <ActionPhotosSection
-          action={action}
-          readOnly={readOnly}
-          saving={photoUploading}
-          onUploadPhoto={onUploadPhoto}
-          onDeletePhoto={onDeletePhoto}
-        />
-      ),
-      emptyLabel: "Sem fotos.",
+      emptyLabel: "Sem progresso registrado.",
     },
     {
       key: "report",
       label: "Relatório",
       visible: ({ mode }) => mode === "edit",
-      content: ({ action, reportRows, reportPeopleRows, reportLoading, reportError, canReadPeople }) => (
+      content: ({
+        action,
+        selectedOccurrence,
+        reportRows,
+        reportPeopleRows,
+        reportLoading,
+        reportError,
+        canReadPeople,
+      }) => (
         <SectionCard title="Relatório">
           {reportError ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -953,12 +747,17 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
             </div>
           ) : null}
           {reportLoading ? <p className="text-xs text-muted-foreground">Carregando...</p> : null}
-          {action ? (
+          {!reportLoading && !selectedOccurrence ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhum encontro agendado ainda — o relatório é gerado a partir de um Encontro.
+            </p>
+          ) : null}
+          {action && selectedOccurrence ? (
             <ActionReportPreview
               action={action}
+              occurrence={selectedOccurrence}
               rows={reportRows}
               peopleParticipations={reportPeopleRows}
-              photoPaths={action.photoPaths ?? []}
               canShowPeople={canReadPeople}
             />
           ) : null}

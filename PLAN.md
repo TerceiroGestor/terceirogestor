@@ -466,6 +466,35 @@ depois do teste. Seguindo para a Fase R3 (Encontro ganha planejamento/
 relatório/fotos + grupo de equipe — escopo ampliado nesta sessão, ver o
 plano).
 
+Fase R3 (Encontro ganha planejamento/relatório/fotos + grupo de equipe)
+concluída: migration `20261114013300_move_plan_report_to_occurrence_add_team_group`
+move `planHtml`/`executedHtml`/`conclusionHtml`/`photoPaths` de
+`ProjectAction` pra `ActionOccurrence` (mantém `completionPercent` na
+Atividade) e cria `ActionOccurrenceTeamGroup`; `seed.ts` migrado junto.
+Backend: `actions.service.ts` valida e persiste os 4 campos +
+`teamPeopleGroupIds` em create/update/bulk de `ActionOccurrence`
+(diff via `$transaction` no update); `createProjectAction`/
+`updateProjectAction` não lidam mais com esses campos. `tsc` 0 erros,
+`npm test` 28/143 sem regressão, `eslint` em `actions/**/*.ts` → 139
+problemas vs. 137 na baseline (+2 do mesmo
+`@typescript-eslint/no-unsafe-assignment` já existente, nenhuma
+categoria nova); DTOs tocados → 0 problemas. Frontend: diálogo de
+edição do Encontro ganha seletor de grupos de equipe, 3 campos
+`<RichText>` e editor de fotos próprio; aba da Atividade troca
+executado/conclusão/fotos por uma aba "Progresso" só com
+`completionPercent`; "Relatório" passa a ler do Encontro selecionado.
+`tsc` 0 erros, `eslint` nos 8 arquivos tocados → 11 problemas vs. 12 na
+baseline (mesma categoria, contagem menor), `npm run build` sucesso.
+Testado no browser com dado de seed (Encontro "Acolhimento de abertura"
+do "Projeto Música Manhã"): diálogo já chega com grupos de equipe
+marcados e conteúdo migrado preenchido; upload de foto ao vivo
+funcionou (1/5 fotos) e salvou (toast "Encontro atualizado"); aba
+Relatório confirma o mesmo conteúdo vindo do Encontro, não mais da
+Atividade. Detalhe completo na seção "Status" da Fase R3 em
+`docs/plano-redesenho-grupos-matricula-atividades.md`. Fases R4 (rename
+Ação→Atividade via `@@map`) e R5 (relatórios em cascata) ainda não
+retomadas — a confirmar escopo com o usuário antes de seguir.
+
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**
 - **ListView** (tela principal de um módulo — Pessoas, Grupos de Pessoas,

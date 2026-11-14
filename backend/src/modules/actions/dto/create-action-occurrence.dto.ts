@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsIn,
@@ -6,6 +7,7 @@ import {
   IsString,
   IsUUID,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { WEEK_DAYS } from '../action-occurrence-schedule';
 
@@ -31,14 +33,43 @@ export class CreateActionOccurrenceDto {
   peopleGroupId?: string | null;
 
   @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  teamPeopleGroupIds?: string[];
+
+  @IsOptional()
   @IsString()
   notes?: string | null;
+
+  @IsOptional()
+  @IsString()
+  planHtml?: string | null;
+
+  @IsOptional()
+  @IsString()
+  executedHtml?: string | null;
+
+  @IsOptional()
+  @IsString()
+  conclusionHtml?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  photoPaths?: string[];
 }
 
 export class BulkCreateActionOccurrencesDto {
   @IsOptional()
   @IsUUID('4')
   peopleGroupId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  teamPeopleGroupIds?: string[];
 
   @IsString()
   startDate!: string;
@@ -65,4 +96,23 @@ export class BulkCreateActionOccurrencesDto {
   @IsOptional()
   @IsString()
   notes?: string | null;
+
+  @IsOptional()
+  @IsString()
+  planHtml?: string | null;
+
+  @IsOptional()
+  @IsString()
+  executedHtml?: string | null;
+
+  @IsOptional()
+  @IsString()
+  conclusionHtml?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  photoPaths?: string[];
 }

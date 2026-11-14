@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useAuth } from "@/features/auth/auth-context";
-import { uploadActionAttachment, uploadActionPhoto } from "@/features/uploads/api";
+import { uploadActionAttachment } from "@/features/uploads/api";
 import {
   addProjectActionAttachment,
   addProjectActionComment,
@@ -134,11 +134,14 @@ export function ActionDetailEngineClientPage() {
   const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
-  const [photoUploading, setPhotoUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
   const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
   const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
+  const selectedOccurrence = React.useMemo(
+    () => occurrences.find((item) => item.id === occurrenceId) ?? null,
+    [occurrences, occurrenceId],
+  );
   const [reportRows, setReportRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
   const [reportPeopleRows, setReportPeopleRows] = React.useState<
     ActionsDetailLayoutContext["reportPeopleRows"]
@@ -393,45 +396,6 @@ export function ActionDetailEngineClientPage() {
       setAttachmentUploading(false);
     }
   }, [applyLoadedAction, id, projectId, toast, token]);
-
-  const handleUploadPhoto = React.useCallback(async (file: File) => {
-    if (!token || !projectId || !action) return;
-    setPhotoUploading(true);
-    try {
-      const uploaded = await uploadActionPhoto(token, file);
-      const nextPaths = [...(action.photoPaths ?? []), uploaded.path].slice(0, 5);
-      const updated = await updateProjectAction(token, projectId, id, { photoPaths: nextPaths });
-      applyLoadedAction(updated);
-      await refreshReport();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao enviar foto.";
-      toast({ variant: "destructive", title: "Falha ao enviar", description: message });
-    } finally {
-      setPhotoUploading(false);
-    }
-  }, [action, applyLoadedAction, id, projectId, refreshReport, toast, token]);
-
-  const handleDeletePhoto = React.useCallback(async (path: string) => {
-    if (!token || !projectId || !action) return;
-    setPhotoUploading(true);
-    try {
-      const nextPaths = (action.photoPaths ?? []).filter((item) => item !== path);
-      const updated = await updateProjectAction(token, projectId, id, { photoPaths: nextPaths });
-      applyLoadedAction(updated);
-      await refreshReport();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao remover foto.";
-      toast({ variant: "destructive", title: "Falha ao remover", description: message });
-    } finally {
-      setPhotoUploading(false);
-    }
-  }, [action, applyLoadedAction, id, projectId, refreshReport, toast, token]);
 
   const handleAddTeamParticipation = React.useCallback(
     async (params: {
@@ -801,13 +765,13 @@ export function ActionDetailEngineClientPage() {
     token: token ?? "",
     projectId,
     action,
+    selectedOccurrence,
     draft,
     setDraft,
     mentionableUsers,
     commentDraft,
     commentSubmitting,
     attachmentUploading,
-    photoUploading,
     reportRows,
     reportPeopleRows,
     reportLoading,
@@ -843,8 +807,6 @@ export function ActionDetailEngineClientPage() {
     onNotesBlur: () => void commitField("internalNotes"),
     onSaveActionPatch: handleSaveActionPatch,
     onActionLoaded: applyLoadedAction,
-    onUploadPhoto: handleUploadPhoto,
-    onDeletePhoto: handleDeletePhoto,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
     onEndTeamParticipation: handleEndTeamParticipation,
     onAttendanceGroupChange: setAttendanceGroupId,
@@ -889,7 +851,6 @@ export function ActionDetailEngineClientPage() {
           saving ||
           commentSubmitting ||
           attachmentUploading ||
-          photoUploading ||
           reportLoading ||
           attendanceSaving ||
           qualitySaving

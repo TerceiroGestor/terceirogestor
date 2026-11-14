@@ -899,9 +899,6 @@ async function main() {
         actionTypeId: ids.actionTypes.oficina,
         title: 'Acolhimento de abertura',
         description: 'Recepcao inicial de participantes e equipe.',
-        planHtml: '<p>Recepcao, alinhamento e apresentacao da proposta.</p>',
-        executedHtml: '<p>Acolhimento realizado com roda inicial.</p>',
-        conclusionHtml: '<p>Boa adesao do publico e da equipe.</p>',
         completionPercent: 100,
         status: 'EXECUTED',
         plannedStartAt: new Date('2026-02-06T12:00:00Z'),
@@ -917,7 +914,6 @@ async function main() {
         actionTypeId: ids.actionTypes.atendimento,
         title: 'Ensaio dos meninos da percussao',
         description: 'Atividade direcionada ao grupo operacional.',
-        planHtml: '<p>Ensaiar repertorio da apresentacao do mes.</p>',
         completionPercent: 0,
         status: 'PLANNED',
         plannedStartAt: new Date('2026-03-18T13:00:00Z'),
@@ -931,7 +927,6 @@ async function main() {
         actionTypeId: ids.actionTypes.encontro,
         title: 'Encontro do segmento C2M',
         description: 'Encontro especifico para o segmento C2M.',
-        planHtml: '<p>Trabalhar integracao e ritmo corporal.</p>',
         completionPercent: 0,
         status: 'PLANNED',
         plannedStartAt: new Date('2026-03-22T12:30:00Z'),
@@ -945,9 +940,6 @@ async function main() {
         actionTypeId: ids.actionTypes.encontro,
         title: 'Roda de conversa com familias',
         description: 'Encontro de escuta e fortalecimento de vinculos.',
-        planHtml: '<p>Escuta ativa e orientacoes socioassistenciais.</p>',
-        executedHtml: '<p>Participacao consistente das familias presentes.</p>',
-        conclusionHtml: '<p>Encaminhamentos definidos para o proximo mes.</p>',
         completionPercent: 100,
         status: 'EXECUTED',
         plannedStartAt: new Date('2026-02-20T17:00:00Z'),
@@ -1053,6 +1045,9 @@ async function main() {
         startTime: new Date('2026-02-06T12:10:00Z'),
         endTime: new Date('2026-02-06T13:50:00Z'),
         status: 'DONE',
+        planHtml: '<p>Recepcao, alinhamento e apresentacao da proposta.</p>',
+        executedHtml: '<p>Acolhimento realizado com roda inicial.</p>',
+        conclusionHtml: '<p>Boa adesao do publico e da equipe.</p>',
       },
       {
         id: ids.occurrences.encontroC2m,
@@ -1062,6 +1057,7 @@ async function main() {
         startTime: new Date('2026-03-22T12:30:00Z'),
         endTime: new Date('2026-03-22T14:00:00Z'),
         status: 'SCHEDULED',
+        planHtml: '<p>Trabalhar integracao e ritmo corporal.</p>',
       },
       {
         id: ids.occurrences.rodaFamilias,
@@ -1071,6 +1067,26 @@ async function main() {
         startTime: new Date('2026-02-20T17:10:00Z'),
         endTime: new Date('2026-02-20T18:55:00Z'),
         status: 'DONE',
+        planHtml: '<p>Escuta ativa e orientacoes socioassistenciais.</p>',
+        executedHtml: '<p>Participacao consistente das familias presentes.</p>',
+        conclusionHtml: '<p>Encaminhamentos definidos para o proximo mes.</p>',
+      },
+    ],
+  });
+
+  await prisma.actionOccurrenceTeamGroup.createMany({
+    data: [
+      {
+        id: '11111111-1111-4111-8111-111111112201',
+        tenantId: ids.tenant,
+        occurrenceId: ids.occurrences.acolhimento,
+        peopleGroupId: ids.peopleGroups.funcionarios,
+      },
+      {
+        id: '11111111-1111-4111-8111-111111112202',
+        tenantId: ids.tenant,
+        occurrenceId: ids.occurrences.acolhimento,
+        peopleGroupId: ids.peopleGroups.voluntarios,
       },
     ],
   });

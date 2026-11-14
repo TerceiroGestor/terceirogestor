@@ -300,6 +300,7 @@ model Tenant {
   projectActionAttachments          ProjectActionAttachment[]
   actionPeopleGroups                ActionPeopleGroup[]
   actionOccurrences                 ActionOccurrence[]
+  actionOccurrenceTeamGroups        ActionOccurrenceTeamGroup[]
   projectActionAttendances          ProjectActionAttendance[]
   projectActionPeopleParticipations ProjectActionPeopleParticipation[]
 
@@ -1246,11 +1247,12 @@ model PeopleGroup {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  tenant              Tenant                     @relation(fields: [tenantId], references: [id])
-  participations      PeopleGroupParticipation[]
-  projectPeopleGroups ProjectPeopleGroup[]
-  actionPeopleGroups  ActionPeopleGroup[]
-  actionOccurrences   ActionOccurrence[]
+  tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
+  participations             PeopleGroupParticipation[]
+  projectPeopleGroups        ProjectPeopleGroup[]
+  actionPeopleGroups         ActionPeopleGroup[]
+  actionOccurrences          ActionOccurrence[]
+  actionOccurrenceTeamGroups ActionOccurrenceTeamGroup[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1365,11 +1367,7 @@ model ProjectAction {
   description        String?      @db.Text
   tags               String?      @db.Text
   internalNotes      String?      @db.Text
-  planHtml           String?      @db.Text
-  executedHtml       String?      @db.Text
-  conclusionHtml     String?      @db.Text
   completionPercent  Int?
-  photoPaths         Json?
   status             ActionStatus @default(PLANNED)
   plannedStartAt     DateTime?
   plannedEndAt       DateTime?
@@ -1469,18 +1467,40 @@ model ActionOccurrence {
   endTime           DateTime?
   status            OccurrenceStatus @default(SCHEDULED)
   notes             String?          @db.Text
+  planHtml          String?          @db.Text
+  executedHtml      String?          @db.Text
+  conclusionHtml    String?          @db.Text
+  photoPaths        Json?
   recurrenceBatchId String?          @db.Char(36)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  tenant      Tenant                    @relation(fields: [tenantId], references: [id])
-  action      ProjectAction             @relation(fields: [actionId], references: [id])
-  peopleGroup PeopleGroup?              @relation(fields: [peopleGroupId], references: [id])
-  attendances ProjectActionAttendance[]
+  tenant           Tenant                      @relation(fields: [tenantId], references: [id])
+  action           ProjectAction               @relation(fields: [actionId], references: [id])
+  peopleGroup      PeopleGroup?                @relation(fields: [peopleGroupId], references: [id])
+  attendances      ProjectActionAttendance[]
+  teamPeopleGroups ActionOccurrenceTeamGroup[]
 
   @@index([tenantId, actionId])
   @@index([tenantId, scheduledDate])
   @@index([recurrenceBatchId])
+}
+
+model ActionOccurrenceTeamGroup {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  occurrenceId  String   @db.Char(36)
+  peopleGroupId String   @db.Char(36)
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  occurrence  ActionOccurrence @relation(fields: [occurrenceId], references: [id])
+  peopleGroup PeopleGroup      @relation(fields: [peopleGroupId], references: [id])
+
+  @@unique([tenantId, occurrenceId, peopleGroupId])
+  @@index([tenantId])
+  @@index([occurrenceId])
+  @@index([peopleGroupId])
 }
 
 model ProjectActionAttendance {

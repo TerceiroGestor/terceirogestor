@@ -261,6 +261,53 @@ conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
    equipe, preencher planejamento/relatório, subir foto, marcar
    presença → confirma tudo certo na edição e no `action-report-preview`.
 
+### Status: concluída (2026-11-14)
+
+- **Migration:** `20261114013300_move_plan_report_to_occurrence_add_team_group`
+  — `ActionOccurrence` ganha `planHtml`/`executedHtml`/`conclusionHtml`/
+  `photoPaths`; `ProjectAction` perde essas 4 colunas (mantém
+  `completionPercent`); nova tabela `ActionOccurrenceTeamGroup`. Aplicada
+  via `migrate deploy`. `prisma/seed.ts` migrado (conteúdo movido pras
+  fixtures de `ActionOccurrence`; novo bloco `actionOccurrenceTeamGroup`).
+- **Backend:** `actions.service.ts` — `ensurePeopleGroupBelongsToAction`
+  ganha parâmetro `participationKind`; novo
+  `ensureTeamPeopleGroupsBelongToAction`; `createActionOccurrence`/
+  `updateActionOccurrence`/`bulkCreateActionOccurrences` passam a aceitar
+  e persistir os 4 campos de conteúdo + `teamPeopleGroupIds` (diff via
+  `$transaction` no update); novo `actionOccurrenceInclude` com
+  `teamPeopleGroups`. `createProjectAction`/`updateProjectAction` não
+  lidam mais com os 4 campos. DTOs atualizados nos dois sentidos.
+  **Evidência:** `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm
+  test` → 28 suítes/143 testes sem regressão; `eslint` em
+  `src/modules/actions/**/*.ts` → 139 problemas vs. 137 na baseline
+  (+2 ocorrências de `@typescript-eslint/no-unsafe-assignment`, mesma
+  categoria já presente, nenhuma categoria nova); DTOs tocados → 0
+  problemas.
+- **Frontend:** tipos (`ApiActionOccurrence`/`ActionOccurrenceInput`/etc.)
+  atualizados; `action-occurrences-section.tsx` (`EditOccurrenceDialog`)
+  ganha seletor de grupos de equipe, 3 campos `<RichText>`
+  (planejamento/relato/conclusão) e editor de fotos (upload/exclusão
+  próprios, sem depender mais da Atividade);
+  `actions-detail-layout-contract.tsx` troca as abas antigas
+  (executado/conclusão/fotos) por uma aba "Progresso" (só
+  `completionPercent`) e a aba "Relatório" passa a exigir e ler do
+  Encontro selecionado; `action-report-preview.tsx` lê os 4 campos do
+  Encontro, não mais da Atividade; `action-create-form-section.tsx`
+  perde o campo de planejamento na criação. **Evidência:** `tsc --noEmit`
+  → 0 erros; `eslint` nos 8 arquivos tocados → 11 problemas vs. 12 na
+  baseline (mesma categoria `react-hooks/set-state-in-effect`, nenhuma
+  nova, contagem menor); `npm run build` → sucesso.
+- **Teste manual real** (browser via Chrome já instalado + Playwright,
+  sem baixar nada): aberto o Encontro "Acolhimento de abertura" (projeto
+  "Projeto Música Manhã") com dado de seed — diálogo de edição já chega
+  com os grupos de equipe "Funcionarios"/"Voluntarios" marcados e os
+  campos de planejamento/relato/conclusão preenchidos com o conteúdo
+  migrado do seed; upload de foto testado ao vivo (1/5 fotos, thumbnail
+  renderizado) e salvo com sucesso (toast "Encontro atualizado"); aba
+  "Relatório", após recarregar a página, mostra o mesmo conteúdo
+  (planejamento/execução/foto) vindo do Encontro selecionado, confirmando
+  que o relatório não lê mais da Atividade.
+
 ---
 
 ## Fase R4 — Rename "Ação" → "Atividade" no código (`@@map`, zero risco de dado)

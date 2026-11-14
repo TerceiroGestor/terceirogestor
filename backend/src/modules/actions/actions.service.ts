@@ -306,6 +306,14 @@ const projectActionInclude = {
   },
 } satisfies Prisma.ProjectActionInclude;
 
+const actionOccurrenceInclude = {
+  peopleGroup: { select: { id: true, name: true } },
+  teamPeopleGroups: {
+    include: { peopleGroup: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'asc' },
+  },
+} satisfies Prisma.ActionOccurrenceInclude;
+
 function buildProjectActionWhere(params: {
   tenantId: string;
   userId: string;
@@ -398,17 +406,37 @@ export class ActionsService {
       throw new BadRequestException('Grupo de pessoas invalido');
   }
 
+  private async ensureTeamPeopleGroupsBelongToAction(
+    tenantId: string,
+    actionId: string,
+    teamPeopleGroupIds: string[],
+  ) {
+    const uniqueIds = Array.from(new Set(teamPeopleGroupIds));
+    await Promise.all(
+      uniqueIds.map((peopleGroupId) =>
+        this.ensurePeopleGroupBelongsToAction(
+          tenantId,
+          actionId,
+          peopleGroupId,
+          'TEAM',
+        ),
+      ),
+    );
+    return uniqueIds;
+  }
+
   private async ensurePeopleGroupBelongsToAction(
     tenantId: string,
     actionId: string,
     peopleGroupId: string,
+    participationKind: ParticipationKind = 'PARTICIPANT',
   ) {
     const peopleGroupLink = await this.prisma.actionPeopleGroup.findFirst({
       where: {
         tenantId,
         actionId,
         peopleGroupId,
-        participationKind: 'PARTICIPANT',
+        participationKind,
       },
       select: { id: true },
     });
@@ -817,11 +845,7 @@ export class ActionsService {
         internalNotes: dto.internalNotes?.trim()
           ? dto.internalNotes.trim()
           : null,
-        planHtml: normalizeHtml(dto.planHtml) ?? null,
-        executedHtml: normalizeHtml(dto.executedHtml) ?? null,
-        conclusionHtml: normalizeHtml(dto.conclusionHtml) ?? null,
         completionPercent: dto.completionPercent ?? null,
-        photoPaths: (normalizePhotoPaths(dto.photoPaths) as any) ?? null,
         status: (dto.status as ActionStatus | undefined) ?? 'PLANNED',
         plannedStartAt,
         plannedEndAt,
@@ -938,10 +962,6 @@ export class ActionsService {
     if (title !== undefined && !title)
       throw new BadRequestException('Titulo e obrigatorio');
 
-    const planHtml = normalizeHtml(dto.planHtml);
-    const executedHtml = normalizeHtml(dto.executedHtml);
-    const conclusionHtml = normalizeHtml(dto.conclusionHtml);
-    const photoPaths = normalizePhotoPaths(dto.photoPaths);
     const normalizedTags =
       dto.tags !== undefined ? normalizeTags(dto.tags) : undefined;
 
@@ -977,14 +997,8 @@ export class ActionsService {
               targetEnrollmentId: scope.targetEnrollmentId,
             }
           : {}),
-        ...(planHtml !== undefined ? { planHtml } : {}),
-        ...(executedHtml !== undefined ? { executedHtml } : {}),
-        ...(conclusionHtml !== undefined ? { conclusionHtml } : {}),
         ...(dto.completionPercent !== undefined
           ? { completionPercent: dto.completionPercent ?? null }
-          : {}),
-        ...(photoPaths !== undefined
-          ? { photoPaths: (photoPaths as any) ?? null }
           : {}),
         ...(dto.plannedStartAt !== undefined ? { plannedStartAt } : {}),
         ...(dto.plannedEndAt !== undefined ? { plannedEndAt } : {}),
@@ -1285,7 +1299,7 @@ export class ActionsService {
     const [data, total] = await Promise.all([
       this.prisma.actionOccurrence.findMany({
         where,
-        include: { peopleGroup: { select: { id: true, name: true } } },
+        include: actionOccurrenceInclude,
         orderBy: [{ scheduledDate: 'asc' }, { startTime: 'asc' }],
         skip,
         take,
@@ -1316,6 +1330,14 @@ export class ActionsService {
       );
     }
 
+    const teamPeopleGroupIds = dto.teamPeopleGroupIds?.length
+      ? await this.ensureTeamPeopleGroupsBelongToAction(
+          user.tenantId,
+          actionId,
+          dto.teamPeopleGroupIds,
+        )
+      : [];
+
     const scheduledDate = parseDateInput(dto.scheduledDate);
     if (!scheduledDate)
       throw new BadRequestException('Data do encontro invalida');
@@ -1330,7 +1352,7 @@ export class ActionsService {
       );
     }
 
-    return this.prisma.actionOccurrence.create({
+    const created = await this.prisma.actionOccurrence.create({
       data: {
         tenantId: user.tenantId,
         actionId,
@@ -1339,9 +1361,25 @@ export class ActionsService {
         startTime,
         endTime,
         notes: dto.notes?.trim() ? dto.notes.trim() : null,
+        planHtml: normalizeHtml(dto.planHtml) ?? null,
+        executedHtml: normalizeHtml(dto.executedHtml) ?? null,
+        conclusionHtml: normalizeHtml(dto.conclusionHtml) ?? null,
+        photoPaths: (normalizePhotoPaths(dto.photoPaths) as any) ?? null,
+        teamPeopleGroups: teamPeopleGroupIds.length
+          ? {
+              createMany: {
+                data: teamPeopleGroupIds.map((peopleGroupId) => ({
+                  tenantId: user.tenantId,
+                  peopleGroupId,
+                })),
+              },
+            }
+          : undefined,
       },
-      include: { peopleGroup: { select: { id: true, name: true } } },
+      include: actionOccurrenceInclude,
     });
+
+    return created;
   }
 
   async bulkCreateActionOccurrences(
@@ -1360,6 +1398,14 @@ export class ActionsService {
         dto.peopleGroupId,
       );
     }
+
+    const teamPeopleGroupIds = dto.teamPeopleGroupIds?.length
+      ? await this.ensureTeamPeopleGroupsBelongToAction(
+          user.tenantId,
+          actionId,
+          dto.teamPeopleGroupIds,
+        )
+      : [];
 
     const startDate = parseDateInput(dto.startDate);
     const endDate = parseDateInput(dto.endDate);
@@ -1401,6 +1447,10 @@ export class ActionsService {
 
     const recurrenceBatchId = randomUUID();
     const notes = dto.notes?.trim() ? dto.notes.trim() : null;
+    const planHtml = normalizeHtml(dto.planHtml) ?? null;
+    const executedHtml = normalizeHtml(dto.executedHtml) ?? null;
+    const conclusionHtml = normalizeHtml(dto.conclusionHtml) ?? null;
+    const photoPaths = (normalizePhotoPaths(dto.photoPaths) as any) ?? null;
 
     await this.prisma.actionOccurrence.createMany({
       data: dates.map((scheduledDate) => ({
@@ -1413,13 +1463,35 @@ export class ActionsService {
           ? combineDateAndTime(scheduledDate, endTimeOfDay)
           : null,
         notes,
+        planHtml,
+        executedHtml,
+        conclusionHtml,
+        photoPaths,
         recurrenceBatchId,
       })),
     });
 
+    const createdOccurrenceIds = teamPeopleGroupIds.length
+      ? await this.prisma.actionOccurrence.findMany({
+          where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
+          select: { id: true },
+        })
+      : [];
+    if (teamPeopleGroupIds.length && createdOccurrenceIds.length) {
+      await this.prisma.actionOccurrenceTeamGroup.createMany({
+        data: createdOccurrenceIds.flatMap((occurrence) =>
+          teamPeopleGroupIds.map((peopleGroupId) => ({
+            tenantId: user.tenantId,
+            occurrenceId: occurrence.id,
+            peopleGroupId,
+          })),
+        ),
+      });
+    }
+
     const created = await this.prisma.actionOccurrence.findMany({
       where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
-      include: { peopleGroup: { select: { id: true, name: true } } },
+      include: actionOccurrenceInclude,
       orderBy: [{ scheduledDate: 'asc' }],
     });
 
@@ -1461,6 +1533,15 @@ export class ActionsService {
       );
     }
 
+    const teamPeopleGroupIds =
+      dto.teamPeopleGroupIds !== undefined
+        ? await this.ensureTeamPeopleGroupsBelongToAction(
+            user.tenantId,
+            actionId,
+            dto.teamPeopleGroupIds,
+          )
+        : undefined;
+
     const scheduledDate = dto.scheduledDate
       ? parseDateInput(dto.scheduledDate)
       : existing.scheduledDate;
@@ -1489,7 +1570,12 @@ export class ActionsService {
       );
     }
 
-    return this.prisma.actionOccurrence.update({
+    const planHtml = normalizeHtml(dto.planHtml);
+    const executedHtml = normalizeHtml(dto.executedHtml);
+    const conclusionHtml = normalizeHtml(dto.conclusionHtml);
+    const photoPaths = normalizePhotoPaths(dto.photoPaths);
+
+    const updated = await this.prisma.actionOccurrence.update({
       where: { id: existing.id },
       data: {
         scheduledDate: baseDate,
@@ -1506,8 +1592,52 @@ export class ActionsService {
               : dto.notes.trim()
                 ? dto.notes.trim()
                 : null,
+        ...(planHtml !== undefined ? { planHtml } : {}),
+        ...(executedHtml !== undefined ? { executedHtml } : {}),
+        ...(conclusionHtml !== undefined ? { conclusionHtml } : {}),
+        ...(photoPaths !== undefined
+          ? { photoPaths: (photoPaths as any) ?? null }
+          : {}),
       },
-      include: { peopleGroup: { select: { id: true, name: true } } },
+    });
+
+    if (teamPeopleGroupIds !== undefined) {
+      const current = await this.prisma.actionOccurrenceTeamGroup.findMany({
+        where: { tenantId: user.tenantId, occurrenceId: existing.id },
+        select: { id: true, peopleGroupId: true },
+      });
+      const toRemove = current.filter(
+        (row) => !teamPeopleGroupIds.includes(row.peopleGroupId),
+      );
+      const toAdd = teamPeopleGroupIds.filter(
+        (peopleGroupId) =>
+          !current.some((row) => row.peopleGroupId === peopleGroupId),
+      );
+      await this.prisma.$transaction([
+        ...(toRemove.length
+          ? [
+              this.prisma.actionOccurrenceTeamGroup.deleteMany({
+                where: { id: { in: toRemove.map((row) => row.id) } },
+              }),
+            ]
+          : []),
+        ...(toAdd.length
+          ? [
+              this.prisma.actionOccurrenceTeamGroup.createMany({
+                data: toAdd.map((peopleGroupId) => ({
+                  tenantId: user.tenantId,
+                  occurrenceId: existing.id,
+                  peopleGroupId,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    return this.prisma.actionOccurrence.findFirst({
+      where: { id: updated.id },
+      include: actionOccurrenceInclude,
     });
   }
 

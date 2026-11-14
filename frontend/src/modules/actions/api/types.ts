@@ -27,11 +27,7 @@ export type ApiProjectAction = {
   description: string | null;
   tags: string[];
   internalNotes: string | null;
-  planHtml: string | null;
-  executedHtml: string | null;
-  conclusionHtml: string | null;
   completionPercent: number | null;
-  photoPaths: string[] | null;
   status: ActionStatus;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
@@ -122,11 +118,7 @@ export type ProjectActionInput = {
   description?: string | null;
   tags?: string[];
   internalNotes?: string | null;
-  planHtml?: string | null;
-  executedHtml?: string | null;
-  conclusionHtml?: string | null;
   completionPercent?: number | null;
-  photoPaths?: string[] | null;
   status?: ActionStatus;
   peopleGroupId?: string | null;
   targetEnrollmentId?: string | null;
@@ -267,6 +259,12 @@ export type WeekDay = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
 export type OccurrenceStatus = "SCHEDULED" | "DONE" | "CANCELED";
 
+export type ApiActionOccurrenceTeamGroup = {
+  id: string;
+  peopleGroupId: string;
+  peopleGroup: { id: string; name: string };
+};
+
 export type ApiActionOccurrence = {
   id: string;
   tenantId: string;
@@ -277,10 +275,15 @@ export type ApiActionOccurrence = {
   endTime: string | null;
   status: OccurrenceStatus;
   notes: string | null;
+  planHtml: string | null;
+  executedHtml: string | null;
+  conclusionHtml: string | null;
+  photoPaths: string[] | null;
   recurrenceBatchId: string | null;
   createdAt: string;
   updatedAt: string;
   peopleGroup: { id: string; name: string } | null;
+  teamPeopleGroups: ApiActionOccurrenceTeamGroup[];
 };
 
 export type ActionOccurrencesListResponse = {
@@ -293,7 +296,12 @@ export type ActionOccurrenceInput = {
   startTime: string;
   endTime?: string | null;
   peopleGroupId?: string | null;
+  teamPeopleGroupIds?: string[];
   notes?: string | null;
+  planHtml?: string | null;
+  executedHtml?: string | null;
+  conclusionHtml?: string | null;
+  photoPaths?: string[] | null;
 };
 
 export type ActionOccurrenceUpdateInput = {
@@ -301,18 +309,28 @@ export type ActionOccurrenceUpdateInput = {
   startTime?: string;
   endTime?: string | null;
   peopleGroupId?: string | null;
+  teamPeopleGroupIds?: string[];
   status?: OccurrenceStatus;
   notes?: string | null;
+  planHtml?: string | null;
+  executedHtml?: string | null;
+  conclusionHtml?: string | null;
+  photoPaths?: string[] | null;
 };
 
 export type BulkCreateActionOccurrencesInput = {
   peopleGroupId?: string | null;
+  teamPeopleGroupIds?: string[];
   startDate: string;
   endDate: string;
   daysOfWeek: WeekDay[];
   startTime: string;
   endTime?: string | null;
   notes?: string | null;
+  planHtml?: string | null;
+  executedHtml?: string | null;
+  conclusionHtml?: string | null;
+  photoPaths?: string[] | null;
 };
 
 export type BulkCreateActionOccurrencesResponse = {

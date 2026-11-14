@@ -33,8 +33,6 @@ export const ACTION_CREATE_TEXT = {
     cyclePlaceholder: "Selecione um grupo de pessoas",
     plannedStartLabel: "Início planejado",
     plannedEndLabel: "Término planejado",
-    planLabel: "Planejamento",
-    planHelper: "Descreva objetivos, materiais, metodologia e etapas.",
     submitLabel: "Criar ação",
     cancelLabel: "Voltar",
   },

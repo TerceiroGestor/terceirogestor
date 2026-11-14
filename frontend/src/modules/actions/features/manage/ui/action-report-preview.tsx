@@ -7,6 +7,7 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
+  ApiActionOccurrence,
   ApiProjectAction,
   ApiProjectActionPeopleParticipation,
   ProjectActionAttendancesListItem,
@@ -17,9 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ActionReportPreviewProps = {
   action: ApiProjectAction;
+  occurrence: ApiActionOccurrence;
   rows: ProjectActionAttendancesListItem[];
   peopleParticipations: ApiProjectActionPeopleParticipation[];
-  photoPaths: string[];
   canShowPeople: boolean;
   printMode?: boolean;
 };
@@ -34,12 +35,13 @@ function formatPeriod(start: string | null, end: string | null) {
 
 export function ActionReportPreview({
   action,
+  occurrence,
   rows,
   peopleParticipations,
-  photoPaths,
   canShowPeople,
   printMode = false,
 }: ActionReportPreviewProps) {
+  const photoPaths = occurrence.photoPaths ?? [];
   const totals = React.useMemo(() => {
     let presentes = 0;
     let faltantes = 0;
@@ -260,9 +262,9 @@ export function ActionReportPreview({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.planHtml, html: action.planHtml })}
-        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.executedHtml, html: action.executedHtml })}
-        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.conclusionHtml, html: action.conclusionHtml })}
+        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.planHtml, html: occurrence.planHtml })}
+        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.executedHtml, html: occurrence.executedHtml })}
+        {renderRichCard({ title: ACTION_REPORT_TEXT.titles.conclusionHtml, html: occurrence.conclusionHtml })}
       </div>
 
       {peopleParticipations.length ? (

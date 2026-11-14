@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RichText } from "@/components/ui/richtext/RichText";
 import {
   Select,
   SelectContent,
@@ -55,7 +54,6 @@ type ActionCreateValues = {
   targetEnrollmentId: string;
   plannedStartAt: string;
   plannedEndAt: string;
-  planHtml: string;
 };
 
 function SectionField({
@@ -133,7 +131,6 @@ export function ActionCreateFormSection({
     targetEnrollmentId: NONE_VALUE,
     plannedStartAt: "",
     plannedEndAt: "",
-    planHtml: "",
   });
 
   const actionTypesById = React.useMemo(
@@ -154,7 +151,6 @@ export function ActionCreateFormSection({
       targetEnrollmentId: action.targetEnrollmentId ?? NONE_VALUE,
       plannedStartAt: action.plannedStartAt?.slice(0, 10) ?? "",
       plannedEndAt: action.plannedEndAt?.slice(0, 10) ?? "",
-      planHtml: action.planHtml ?? "",
     });
   }, [action, mode]);
 
@@ -271,7 +267,6 @@ export function ActionCreateFormSection({
             : null,
         plannedStartAt: values.plannedStartAt.trim() || null,
         plannedEndAt: values.plannedEndAt.trim() || null,
-        planHtml: values.planHtml.trim() || null,
       };
 
       if (mode === "edit" && actionIdProp) {
@@ -499,14 +494,6 @@ export function ActionCreateFormSection({
           />
         </SectionField>
       </div>
-
-      <SectionField label={ACTION_CREATE_TEXT.form.planLabel}>
-        <RichText
-          value={values.planHtml}
-          disabled={saving}
-          onChange={(next) => setValues((previous) => ({ ...previous, planHtml: next }))}
-        />
-      </SectionField>
 
       <div className="flex items-center justify-end gap-2 pt-2">
         {mode === "create" || onCancel ? (

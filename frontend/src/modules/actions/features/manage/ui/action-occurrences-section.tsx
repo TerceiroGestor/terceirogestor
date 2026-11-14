@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,10 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RichText } from "@/components/ui/richtext/RichText";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { resolveMediaUrl } from "@/lib/api";
+import { uploadActionPhoto } from "@/features/uploads/api";
 import {
   bulkCreateActionOccurrences,
   deleteActionOccurrence,
@@ -36,6 +40,53 @@ import {
 } from "@/modules/actions/shared/domain/actions.constants";
 import { CalendarView } from "@/web-client/views/CalendarView";
 import { ListView } from "@/web-client/views/ListView";
+
+function TeamPeopleGroupPicker({
+  groups,
+  selectedIds,
+  onChange,
+  disabled,
+}: {
+  groups: ApiActionPeopleGroup[];
+  selectedIds: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  if (groups.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Nenhum grupo de equipe vinculado a esta atividade.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border/60 p-2">
+      {groups.map((link) => {
+        const checked = selectedIds.includes(link.peopleGroupId);
+        return (
+          <label
+            key={link.id}
+            className="flex cursor-pointer items-center gap-2 text-sm"
+          >
+            <Checkbox
+              checked={checked}
+              disabled={disabled}
+              onCheckedChange={(next) => {
+                onChange(
+                  next
+                    ? [...selectedIds, link.peopleGroupId]
+                    : selectedIds.filter((id) => id !== link.peopleGroupId),
+                );
+              }}
+            />
+            {link.peopleGroup.name}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
 
 const NO_GROUP_VALUE = "__none__";
 
@@ -150,6 +201,7 @@ type BulkScheduleDialogProps = {
   projectId: string;
   actionId: string;
   groups: ApiActionPeopleGroup[];
+  teamGroups: ApiActionPeopleGroup[];
   onCompleted: () => void;
 };
 
@@ -160,10 +212,12 @@ function BulkScheduleOccurrencesDialog({
   projectId,
   actionId,
   groups,
+  teamGroups,
   onCompleted,
 }: BulkScheduleDialogProps) {
   const { toast } = useToast();
   const [peopleGroupId, setPeopleGroupId] = React.useState(NO_GROUP_VALUE);
+  const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [daysOfWeek, setDaysOfWeek] = React.useState<WeekDay[]>([]);
@@ -176,6 +230,7 @@ function BulkScheduleOccurrencesDialog({
   React.useEffect(() => {
     if (!open) return;
     setPeopleGroupId(NO_GROUP_VALUE);
+    setTeamPeopleGroupIds([]);
     setStartDate("");
     setEndDate("");
     setDaysOfWeek([]);
@@ -204,6 +259,7 @@ function BulkScheduleOccurrencesDialog({
     try {
       const result = await bulkCreateActionOccurrences(token, projectId, actionId, {
         peopleGroupId: peopleGroupId === NO_GROUP_VALUE ? null : peopleGroupId,
+        teamPeopleGroupIds: teamPeopleGroupIds.length ? teamPeopleGroupIds : undefined,
         startDate,
         endDate,
         daysOfWeek,
@@ -254,6 +310,15 @@ function BulkScheduleOccurrencesDialog({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Educadores/Equipe</Label>
+          <TeamPeopleGroupPicker
+            groups={teamGroups}
+            selectedIds={teamPeopleGroupIds}
+            onChange={setTeamPeopleGroupIds}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -336,6 +401,7 @@ function BulkScheduleOccurrencesDialog({
 type EditOccurrenceDialogProps = {
   occurrence: ApiActionOccurrence | null;
   groups: ApiActionPeopleGroup[];
+  teamGroups: ApiActionPeopleGroup[];
   token: string;
   projectId: string;
   actionId: string;
@@ -347,6 +413,7 @@ type EditOccurrenceDialogProps = {
 function EditOccurrenceDialog({
   occurrence,
   groups,
+  teamGroups,
   token,
   projectId,
   actionId,
@@ -359,10 +426,17 @@ function EditOccurrenceDialog({
   const [startTime, setStartTime] = React.useState("");
   const [endTime, setEndTime] = React.useState("");
   const [peopleGroupId, setPeopleGroupId] = React.useState(NO_GROUP_VALUE);
+  const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
   const [status, setStatus] = React.useState<OccurrenceStatus>("SCHEDULED");
   const [notes, setNotes] = React.useState("");
+  const [planHtml, setPlanHtml] = React.useState("");
+  const [executedHtml, setExecutedHtml] = React.useState("");
+  const [conclusionHtml, setConclusionHtml] = React.useState("");
+  const [photoPaths, setPhotoPaths] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
+  const [photoUploading, setPhotoUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     if (!occurrence) return;
@@ -370,8 +444,13 @@ function EditOccurrenceDialog({
     setStartTime(toTimeInputValue(occurrence.startTime));
     setEndTime(occurrence.endTime ? toTimeInputValue(occurrence.endTime) : "");
     setPeopleGroupId(occurrence.peopleGroupId ?? NO_GROUP_VALUE);
+    setTeamPeopleGroupIds(occurrence.teamPeopleGroups.map((link) => link.peopleGroupId));
     setStatus(occurrence.status);
     setNotes(occurrence.notes ?? "");
+    setPlanHtml(occurrence.planHtml ?? "");
+    setExecutedHtml(occurrence.executedHtml ?? "");
+    setConclusionHtml(occurrence.conclusionHtml ?? "");
+    setPhotoPaths(occurrence.photoPaths ?? []);
     setError(null);
   }, [occurrence]);
 
@@ -386,8 +465,13 @@ function EditOccurrenceDialog({
         startTime,
         endTime: endTime || null,
         peopleGroupId: peopleGroupId === NO_GROUP_VALUE ? null : peopleGroupId,
+        teamPeopleGroupIds,
         status,
         notes: notes.trim() ? notes.trim() : null,
+        planHtml: planHtml.trim() || null,
+        executedHtml: executedHtml.trim() || null,
+        conclusionHtml: conclusionHtml.trim() || null,
+        photoPaths,
       });
       toast({ title: "Encontro atualizado" });
       onSaved();
@@ -396,6 +480,47 @@ function EditOccurrenceDialog({
       setError(resolveErrorMessage(err, "Falha ao salvar o encontro."));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadPhoto = async (file: File) => {
+    setPhotoUploading(true);
+    try {
+      const uploaded = await uploadActionPhoto(token, file);
+      const nextPaths = [...photoPaths, uploaded.path].slice(0, 5);
+      await updateActionOccurrence(token, projectId, actionId, occurrence.id, {
+        photoPaths: nextPaths,
+      });
+      setPhotoPaths(nextPaths);
+      onSaved();
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Falha ao enviar foto",
+        description: resolveErrorMessage(err, "Falha ao enviar foto."),
+      });
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async (path: string) => {
+    setPhotoUploading(true);
+    try {
+      const nextPaths = photoPaths.filter((item) => item !== path);
+      await updateActionOccurrence(token, projectId, actionId, occurrence.id, {
+        photoPaths: nextPaths,
+      });
+      setPhotoPaths(nextPaths);
+      onSaved();
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Falha ao remover foto",
+        description: resolveErrorMessage(err, "Falha ao remover foto."),
+      });
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -436,7 +561,7 @@ function EditOccurrenceDialog({
       open={Boolean(occurrence)}
       onOpenChange={onOpenChange}
       title="Encontro"
-      contentClassName="max-w-[560px]"
+      contentClassName="max-w-[720px] max-h-[85vh] overflow-y-auto"
     >
       <div className="flex flex-col gap-4">
         {error ? (
@@ -519,6 +644,16 @@ function EditOccurrenceDialog({
         </div>
 
         <div className="flex flex-col gap-2">
+          <Label>Educadores/Equipe</Label>
+          <TeamPeopleGroupPicker
+            groups={teamGroups}
+            selectedIds={teamPeopleGroupIds}
+            onChange={setTeamPeopleGroupIds}
+            disabled={!canUpdate}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
           <Label>Notas</Label>
           <Textarea
             rows={3}
@@ -526,6 +661,80 @@ function EditOccurrenceDialog({
             onChange={(event) => setNotes(event.target.value)}
             readOnly={!canUpdate}
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Planejamento</Label>
+          <RichText value={planHtml} onChange={setPlanHtml} disabled={!canUpdate} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Relato da execução</Label>
+          <RichText value={executedHtml} onChange={setExecutedHtml} disabled={!canUpdate} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Conclusão</Label>
+          <RichText value={conclusionHtml} onChange={setConclusionHtml} disabled={!canUpdate} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Fotos</Label>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void handleUploadPhoto(file);
+            }}
+          />
+          {canUpdate ? (
+            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
+              <span className="text-xs text-muted-foreground">
+                {photoPaths.length}/5 fotos
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={photoUploading || photoPaths.length >= 5}
+              >
+                {photoUploading ? "Enviando..." : "Enviar foto"}
+              </Button>
+            </div>
+          ) : null}
+          {photoPaths.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhuma foto adicionada.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {photoPaths.map((path) => (
+                <div
+                  key={path}
+                  className="group relative overflow-hidden rounded-lg border border-border/60 bg-muted/10"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={resolveMediaUrl(path)} alt="Foto do encontro" className="h-32 w-full object-cover" />
+                  {canUpdate ? (
+                    <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void handleDeletePhoto(path)}
+                        disabled={photoUploading}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -574,6 +783,7 @@ export function ActionOccurrencesSection({
   const { toast } = useToast();
   const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
   const [groups, setGroups] = React.useState<ApiActionPeopleGroup[]>([]);
+  const [teamGroups, setTeamGroups] = React.useState<ApiActionPeopleGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [view, setView] = React.useState<"list" | "calendar">("list");
@@ -606,10 +816,22 @@ export function ActionOccurrencesSection({
     }
   }, [token, projectId, actionId]);
 
+  const loadTeamGroups = React.useCallback(async () => {
+    try {
+      const response = await listActionPeopleGroups(token, projectId, actionId, {
+        participationKind: "TEAM",
+      });
+      setTeamGroups(response);
+    } catch {
+      setTeamGroups([]);
+    }
+  }, [token, projectId, actionId]);
+
   React.useEffect(() => {
     void loadOccurrences();
     void loadGroups();
-  }, [loadOccurrences, loadGroups]);
+    void loadTeamGroups();
+  }, [loadOccurrences, loadGroups, loadTeamGroups]);
 
   const handleDelete = React.useCallback(
     async (occurrence: ApiActionOccurrence) => {
@@ -719,12 +941,14 @@ export function ActionOccurrencesSection({
         projectId={projectId}
         actionId={actionId}
         groups={groups}
+        teamGroups={teamGroups}
         onCompleted={() => void loadOccurrences()}
       />
 
       <EditOccurrenceDialog
         occurrence={editTarget}
         groups={groups}
+        teamGroups={teamGroups}
         token={token}
         projectId={projectId}
         actionId={actionId}
