@@ -19,7 +19,7 @@ coluna "Falta"), `[ ]` não iniciada.
 | `[x]` | **1 — Estrutura básica de Projetos** | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
 | `[~]` | **2 — Registro ágil do Encontro** | Presença por participante, avaliação (nota 1-5 + observação), upload de foto — tudo já no `Meeting` (=`ActionOccorrence`) | Validar com usuário real o tempo de preenchimento (meta 3-5 min) — é teste de UX, não código novo a construir do zero |
 | `[x]` | **3 — Presença Diária derivada (`DailyAttendance`)** | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
-| `[~]` | **4 — Recorrência e geração automática de agenda** | Geração em lote por recorrência (dias da semana + período), edição/cancelamento pontual sem afetar a série | Confirmar se existe preview antes de confirmar a geração; exceções/feriados (não implementado) |
+| `[x]` | **4 — Recorrência e geração automática de agenda** | Feito em 2026-11-16 — ver evidência em `PLAN.md` | — |
 | `[ ]` | **5 — Ocorrência** | nada | `Occurrence`, `OccurrencePeople`, ciclo registrada→em análise→desfecho |
 | `[ ]` | **6 — Atendimento (social/psicológico)** | nada | `Attendance`, `AttendancePeople`, `Benefit`, evoluções, abertura/encerramento |
 | `[ ]` | **7 — Encaminhamento** | nada | `Referral`, status com contrarreferência, dashboard de pendência |
@@ -370,7 +370,7 @@ se quiser uma tela, é um próximo passo separado, de baixo esforço
 
 ---
 
-### **Fase 4 — Recorrência e geração automática de agenda** `[~ parcial]`
+### **Fase 4 — Recorrência e geração automática de agenda** `[x concluída]`
 
 **Objetivo:** viabilizar a criação da estrutura anual em 1 dia de trabalho.
 
@@ -379,6 +379,90 @@ se quiser uma tela, é um próximo passo separado, de baixo esforço
 - Edição pontual de um `Meeting` já gerado (cancelar, trocar educador, remarcar) sem afetar a série.
 
 **✅ Critério de teste:** criar 1 atividade semanal com vigência de 1 ano → gerar automaticamente ~48 encontros, remover 3 datas de feriado no preview, confirmar, e depois editar 1 encontro pontual sem afetar os demais.
+
+**Feito em 2026-11-16.** Dos 3 itens da fase, geração em lote por recorrência
+(dias da semana + período) e edição/cancelamento pontual (via
+`recurrenceBatchId`) **já existiam** desde a Fase 1-2 do plano SCFV
+anterior — confirmado por investigação antes de codificar. Os 2 gaps
+reais identificados no índice deste documento, resolvidos agora:
+
+- **Preview antes de confirmar** — não existia (o endpoint de geração em
+  lote já gravava direto no banco). Novo endpoint
+  `POST .../occurrences/bulk/preview`, que roda as mesmas validações e o
+  mesmo `generateOccurrenceDates` do endpoint de criação (nenhuma lógica
+  de data duplicada), mas só retorna as datas calculadas, sem persistir.
+- **Exceções/feriados** — decisão de design: em vez de um calendário de
+  feriados à parte (modelo/cadastro novo), a exclusão acontece **dentro
+  do próprio fluxo de preview**: o usuário vê a lista de datas geradas e
+  desmarca manualmente as que não quer (feriado, ponto facultativo,
+  qualquer motivo) antes de confirmar. Campo novo `excludedDates?: string[]`
+  no DTO de criação em lote — o backend filtra essas datas da lista antes
+  de criar, então "o que o preview mostrou, menos o que foi desmarcado" é
+  exatamente o que é criado (sem recalcular nada no passo de confirmação).
+  Decisão registrada para o usuário confirmar: isso cobre o caso de uso
+  descrito no plano (remover feriados pontuais ao gerar a agenda), mas não
+  é um calendário de feriados reaproveitável entre atividades — se isso
+  for necessário no futuro, é uma feature nova à parte (ver
+  `docs/backlog.md`).
+
+**Backend:** `PreviewActionOccurrencesDto` (`startDate`/`endDate`/
+`daysOfWeek`) e `previewActionOccurrences` em `actions.service.ts`
+(mesma validação de período/limite de 200 do bulk-create, sem
+`peopleGroupId`/`teamPeopleGroupIds` — preview não precisa validar
+vínculo de grupo, só calcular datas). `BulkCreateActionOccurrencesDto`
+ganhou `excludedDates?: string[]`; `bulkCreateActionOccurrences` filtra
+as datas geradas por esse conjunto antes de aplicar o limite de 200 e
+criar — excluir todas as datas geradas vira `400` com mensagem
+específica ("Nenhuma data restou apos remover as datas excluidas"), não
+um `200` vazio. Rota nova:
+`POST /projects/:projectId/actions/:actionId/occurrences/bulk/preview`,
+mesma permissão `actions.create` do bulk-create (sem chave nova).
+**Evidência:** `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm
+test` → 28 suítes/143 testes sem regressão; `eslint` nos 3 arquivos
+tocados (`actions.service.ts`, `project-actions.controller.ts`,
+`create-action-occurrence.dto.ts`) → 138 problemas, idêntico à baseline
+medida via `git stash` (nenhum problema novo).
+
+**Frontend:** `BulkScheduleOccurrencesDialog`
+(`action-occurrences-section.tsx`) ganhou um segundo passo (`step: "form"
+| "preview"`) — o botão "Agendar" virou "Ver datas geradas" (chama
+`previewBulkMeetings`); a etapa de preview lista cada data com checkbox
+(marcada por padrão) e dia da semana entre parênteses, contador "N de M
+data(s) selecionada(s)" e botão "Confirmar e agendar (N)" com a contagem
+ao vivo; "Voltar" retorna ao formulário sem perder os campos já
+preenchidos. Ao confirmar, `bulkCreateMeetings` recebe `excludedDates`
+com as datas desmarcadas. Tipos/funções novos: `PreviewMeetingsInput`/
+`PreviewMeetingsResponse`, `previewBulkMeetings` (`occurrences.ts`).
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint`
+no arquivo tocado → 3 problemas, idêntico à baseline medida via `git
+stash` (mesma categoria já tolerada em todo o projeto,
+`react-hooks/set-state-in-effect`, nenhum problema novo).
+
+**Testado de ponta a ponta contra Postgres real**, via API direta e via
+navegador real (Playwright + Chromium em cache, login real
+`admin@seed.local`, backend e frontend de pé): preview de uma atividade
+semanal (segunda-feira) de 2027-01-01 a 2027-12-31 devolveu exatamente
+52 datas; excluídas 3 (simulando feriados) e confirmado → `created: 49`
+(bate com o critério de teste: "~48 encontros, remover 3 datas de
+feriado, confirmar"), nenhuma das 3 datas excluídas presente no
+resultado. Testado também o caso de erro: período invertido → `400`;
+excluir todas as datas geradas antes de confirmar → `400` com a
+mensagem nova, não um lote vazio. No navegador: tela de preview mostra
+"52 de 52 data(s) selecionada(s)", desmarcar 3 datas atualiza o contador
+ao vivo para "49 de 52" e o botão para "Confirmar e agendar (49)";
+depois de confirmar, a lista de Encontros da atividade mostra o primeiro
+encontro em 25/01/2027 (a 4ª segunda-feira — as 3 primeiras ficaram de
+fora, como esperado) e o toast "49 encontro(s) criado(s)"; zero erro no
+console em todas as telas visitadas. Edição pontual sem afetar a série
+não foi re-testada nesta sessão por já ter evidência própria das Fases
+1-2 do plano SCFV anterior (mecanismo inalterado: `recurrenceBatchId`
+e `PATCH .../occurrences/:occurrenceId` continua por registro
+individual). Todos os 49 encontros de teste e os 49 de uma rodada
+anterior via API (102 no total) foram excluídos via API ao final;
+atividade de teste ("Ensaio dos meninos da percussao") confirmada sem
+nenhum encontro residual (`GET .../occurrences` → `total: 0`); nenhum
+dado de seed foi alterado (projeto "Projeto Musica Manha" confirmado com
+`startsAt`/`endsAt`/`updatedAt` idênticos ao estado pré-teste).
 
 ---
 

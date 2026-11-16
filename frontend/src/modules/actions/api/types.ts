@@ -334,12 +334,23 @@ export type BulkCreateMeetingsInput = {
   executedHtml?: string | null;
   conclusionHtml?: string | null;
   photoPaths?: string[] | null;
+  excludedDates?: string[];
 };
 
 export type BulkCreateMeetingsResponse = {
   recurrenceBatchId: string;
   created: number;
   data: ApiMeeting[];
+};
+
+export type PreviewMeetingsInput = {
+  startDate: string;
+  endDate: string;
+  daysOfWeek: WeekDay[];
+};
+
+export type PreviewMeetingsResponse = {
+  dates: string[];
 };
 
 export type UpdateMeetingBatchInput = {

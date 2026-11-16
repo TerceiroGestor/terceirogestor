@@ -26,6 +26,7 @@ import {
   deleteMeeting,
   listMeetings,
   listActivityPeopleGroups,
+  previewBulkMeetings,
   updateMeeting,
   updateMeetingBatch,
   type ApiMeeting,
@@ -98,6 +99,15 @@ function resolveErrorMessage(err: unknown, fallback: string) {
 
 function formatDateOnly(value: string) {
   return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function formatDateWithWeekday(value: string) {
+  const date = new Date(value);
+  const weekday = date.toLocaleDateString("pt-BR", {
+    timeZone: "UTC",
+    weekday: "short",
+  });
+  return `${formatDateOnly(value)} (${weekday})`;
 }
 
 function formatTimeOnly(value: string) {
@@ -216,6 +226,7 @@ function BulkScheduleOccurrencesDialog({
   onCompleted,
 }: BulkScheduleDialogProps) {
   const { toast } = useToast();
+  const [step, setStep] = React.useState<"form" | "preview">("form");
   const [peopleGroupId, setPeopleGroupId] = React.useState(NO_GROUP_VALUE);
   const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
   const [startDate, setStartDate] = React.useState("");
@@ -224,11 +235,15 @@ function BulkScheduleOccurrencesDialog({
   const [startTime, setStartTime] = React.useState("");
   const [endTime, setEndTime] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [previewDates, setPreviewDates] = React.useState<string[]>([]);
+  const [excludedDates, setExcludedDates] = React.useState<Set<string>>(new Set());
+  const [loadingPreview, setLoadingPreview] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
+    setStep("form");
     setPeopleGroupId(NO_GROUP_VALUE);
     setTeamPeopleGroupIds([]);
     setStartDate("");
@@ -237,6 +252,8 @@ function BulkScheduleOccurrencesDialog({
     setStartTime("");
     setEndTime("");
     setNotes("");
+    setPreviewDates([]);
+    setExcludedDates(new Set());
     setError(null);
   }, [open]);
 
@@ -248,12 +265,43 @@ function BulkScheduleOccurrencesDialog({
     );
   };
 
-  const handleSubmit = async () => {
+  const toggleExcluded = (date: string) => {
+    setExcludedDates((previous) => {
+      const next = new Set(previous);
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+      }
+      return next;
+    });
+  };
+
+  const handlePreview = async () => {
     if (!startDate || !endDate || !startTime || daysOfWeek.length === 0) {
       setError("Preencha o período, os dias da semana e o horário de início.");
       return;
     }
 
+    setLoadingPreview(true);
+    setError(null);
+    try {
+      const result = await previewBulkMeetings(token, projectId, actionId, {
+        startDate,
+        endDate,
+        daysOfWeek,
+      });
+      setPreviewDates(result.dates);
+      setExcludedDates(new Set());
+      setStep("preview");
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Falha ao calcular as datas do agendamento."));
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleConfirm = async () => {
     setSaving(true);
     setError(null);
     try {
@@ -266,6 +314,7 @@ function BulkScheduleOccurrencesDialog({
         startTime,
         endTime: endTime || null,
         notes: notes.trim() ? notes.trim() : null,
+        excludedDates: excludedDates.size ? [...excludedDates] : undefined,
       });
       toast({
         title: "Encontros agendados",
@@ -280,120 +329,171 @@ function BulkScheduleOccurrencesDialog({
     }
   };
 
+  const includedCount = previewDates.length - excludedDates.size;
+
   return (
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Agendar encontros"
-      description="Gera os encontros de uma vez, a partir de um padrão semanal."
+      description={
+        step === "form"
+          ? "Gera os encontros de uma vez, a partir de um padrão semanal."
+          : "Revise as datas geradas e desmarque feriados ou pontos facultativos antes de confirmar."
+      }
       contentClassName="max-w-[560px]"
     >
-      <div className="flex flex-col gap-4">
-        {error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
+      {step === "form" ? (
+        <div className="flex flex-col gap-4">
+          {error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
 
-        <div className="flex flex-col gap-2">
-          <Label>Grupo</Label>
-          <Select value={peopleGroupId} onValueChange={setPeopleGroupId}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_GROUP_VALUE}>Sem grupo específico</SelectItem>
-              {groups.map((link) => (
-                <SelectItem key={link.id} value={link.peopleGroupId}>
-                  {link.peopleGroup.name}
-                </SelectItem>
+          <div className="flex flex-col gap-2">
+            <Label>Grupo</Label>
+            <Select value={peopleGroupId} onValueChange={setPeopleGroupId}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_GROUP_VALUE}>Sem grupo específico</SelectItem>
+                {groups.map((link) => (
+                  <SelectItem key={link.id} value={link.peopleGroupId}>
+                    {link.peopleGroup.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Educadores/Equipe</Label>
+            <TeamPeopleGroupPicker
+              groups={teamGroups}
+              selectedIds={teamPeopleGroupIds}
+              onChange={setTeamPeopleGroupIds}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>De</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Até</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Dias da semana</Label>
+            <div className="flex flex-wrap gap-2">
+              {WEEK_DAY_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={daysOfWeek.includes(option.value) ? "default" : "outline"}
+                  onClick={() => toggleDay(option.value)}
+                >
+                  {option.label}
+                </Button>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
+            </div>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <Label>Educadores/Equipe</Label>
-          <TeamPeopleGroupPicker
-            groups={teamGroups}
-            selectedIds={teamPeopleGroupIds}
-            onChange={setTeamPeopleGroupIds}
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>Início</Label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Término (opcional)</Label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+              />
+            </div>
+          </div>
 
-        <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-2">
-            <Label>De</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+            <Label>Notas (opcional)</Label>
+            <Textarea
+              rows={3}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label>Até</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" disabled={loadingPreview} onClick={() => void handlePreview()}>
+              {loadingPreview ? "Calculando..." : "Ver datas geradas"}
+            </Button>
           </div>
         </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
 
-        <div className="flex flex-col gap-2">
-          <Label>Dias da semana</Label>
-          <div className="flex flex-wrap gap-2">
-            {WEEK_DAY_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                size="sm"
-                variant={daysOfWeek.includes(option.value) ? "default" : "outline"}
-                onClick={() => toggleDay(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
+          <p className="text-sm text-muted-foreground">
+            {includedCount} de {previewDates.length} data(s) selecionada(s). Desmarque as
+            que não devem gerar encontro (feriados, pontos facultativos etc.).
+          </p>
+
+          <div className="flex max-h-[320px] flex-col gap-1 overflow-y-auto rounded-md border border-border/60 p-2">
+            {previewDates.map((date) => {
+              const checked = !excludedDates.has(date);
+              return (
+                <label
+                  key={date}
+                  className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted/50"
+                >
+                  <Checkbox checked={checked} onCheckedChange={() => toggleExcluded(date)} />
+                  <span className={checked ? "" : "text-muted-foreground line-through"}>
+                    {formatDateWithWeekday(date)}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setStep("form")}>
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              disabled={saving || includedCount === 0}
+              onClick={() => void handleConfirm()}
+            >
+              {saving ? "Agendando..." : `Confirmar e agendar (${includedCount})`}
+            </Button>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2">
-            <Label>Início</Label>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Término (opcional)</Label>
-            <Input
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Notas (opcional)</Label>
-          <Textarea
-            rows={3}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="button" disabled={saving} onClick={() => void handleSubmit()}>
-            {saving ? "Agendando..." : "Agendar"}
-          </Button>
-        </div>
-      </div>
+      )}
     </SectionDialog>
   );
 }

@@ -9,6 +9,8 @@ import type {
   BulkCreateMeetingsInput,
   BulkCreateMeetingsResponse,
   OccurrenceStatus,
+  PreviewMeetingsInput,
+  PreviewMeetingsResponse,
   UpdateMeetingBatchInput,
 } from "./types";
 
@@ -41,6 +43,19 @@ export async function createMeeting(
 ) {
   return apiRequest<ApiMeeting>(
     `/projects/${projectId}/actions/${actionId}/occurrences`,
+    { method: "POST", body: JSON.stringify(input) },
+    token,
+  );
+}
+
+export async function previewBulkMeetings(
+  token: string,
+  projectId: string,
+  actionId: string,
+  input: PreviewMeetingsInput,
+) {
+  return apiRequest<PreviewMeetingsResponse>(
+    `/projects/${projectId}/actions/${actionId}/occurrences/bulk/preview`,
     { method: "POST", body: JSON.stringify(input) },
     token,
   );

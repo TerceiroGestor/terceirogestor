@@ -61,6 +61,19 @@ export class CreateActionOccurrenceDto {
   photoPaths?: string[];
 }
 
+export class PreviewActionOccurrencesDto {
+  @IsString()
+  startDate!: string;
+
+  @IsString()
+  endDate!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsIn(WEEK_DAYS, { each: true })
+  daysOfWeek!: (typeof WEEK_DAYS)[number][];
+}
+
 export class BulkCreateActionOccurrencesDto {
   @IsOptional()
   @IsUUID('4')
@@ -115,4 +128,10 @@ export class BulkCreateActionOccurrencesDto {
   @IsString({ each: true })
   @MaxLength(500, { each: true })
   photoPaths?: string[];
+
+  /** Datas (feriados/pontos facultativos) removidas no preview, excluidas da geracao. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedDates?: string[];
 }

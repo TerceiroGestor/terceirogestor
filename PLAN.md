@@ -774,6 +774,70 @@ comportamento de dados (testável por API), e "relatório simples" no
 texto da fase não especifica onde expor na UI. A API já existe; criar a
 tela é um próximo passo separado e pequeno, se/quando quiser.
 
+**Fase 4 do plano mestre (Recorrência e geração automática de agenda)
+concluída em 2026-11-16,** a pedido explícito do usuário
+("Implemente a Fase 4 de acordo com o
+`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`").
+Investigação prévia (antes de codificar) confirmou que geração em lote
+por recorrência e edição/cancelamento pontual via `recurrenceBatchId` já
+existiam desde as Fases 1-2 do plano SCFV anterior; os 2 gaps reais
+eram exatamente os que o índice do plano mestre já apontava: preview
+antes de confirmar, e exceções/feriados.
+**Decisão de design:** em vez de um calendário de feriados à parte,
+feriados/pontos facultativos são tratados como qualquer outra data que
+o usuário queira excluir manualmente na tela de preview — sem cadastro
+novo, sem reuso entre atividades. Registrado no plano mestre para
+confirmação futura do usuário.
+**Backend:** novo endpoint `POST .../occurrences/bulk/preview`
+(`PreviewActionOccurrencesDto`: `startDate`/`endDate`/`daysOfWeek`) que
+roda a mesma `generateOccurrenceDates` e as mesmas validações de
+período/limite (200) do bulk-create, mas só retorna as datas, sem
+persistir; `BulkCreateActionOccurrencesDto` ganhou `excludedDates?:
+string[]`, filtrado antes da criação (excluir todas as datas geradas
+vira `400` explícito, não um lote vazio). Mesma permissão
+`actions.create`, sem chave nova. `tsc --noEmit -p tsconfig.build.json`
+→ 0 erros; `npm test` → 28 suítes/143 testes sem regressão; `eslint` nos
+3 arquivos tocados → 138 problemas, idêntico à baseline (`git stash`),
+nenhum problema novo.
+**Frontend:** `BulkScheduleOccurrencesDialog`
+(`action-occurrences-section.tsx`) ganhou um segundo passo de preview —
+lista de datas com checkbox (dia da semana ao lado), contador "N de M
+selecionada(s)" ao vivo, "Voltar"/"Confirmar e agendar (N)"; novo
+`previewBulkMeetings` em `occurrences.ts`. `tsc --noEmit` → 0 erros;
+`npm run build` → ok; `eslint` no arquivo tocado → 3 problemas,
+idêntico à baseline (`git stash`, mesma categoria já tolerada em todo o
+projeto, `react-hooks/set-state-in-effect`).
+**Testado de ponta a ponta contra Postgres real**, via API direta e via
+navegador real (Playwright + Chromium em cache, backend e frontend de
+pé, login real `admin@seed.local`): preview de uma atividade semanal
+(segunda-feira) de 2027-01-01 a 2027-12-31 devolveu exatamente 52
+datas; excluídas 3 e confirmado → `created: 49` (bate com o critério de
+teste da fase: "~48 encontros, remover 3 feriados, confirmar"); nenhuma
+das 3 datas excluídas presente no resultado. Casos de erro confirmados:
+período invertido → `400`; excluir todas as datas geradas → `400` com
+mensagem específica. No navegador (fluxo completo Projetos → Projeto
+Música Manhã → aba Atividades → "Ensaio dos meninos da percussão" → aba
+Encontros → "Agendar encontros"): tela de preview mostrou "52 de 52
+data(s) selecionada(s)"; desmarcar 3 datas atualizou o contador ao vivo
+para "49 de 52" e o botão para "Confirmar e agendar (49)"; após
+confirmar, a lista de Encontros mostrou o primeiro encontro em
+25/01/2027 (a 4ª segunda-feira, já que as 3 primeiras foram excluídas) e
+o toast "49 encontro(s) criado(s)"; zero erro no console em todas as
+telas visitadas. Edição pontual sem afetar a série não foi re-testada
+nesta sessão (mecanismo inalterado, evidência própria já existe nas
+Fases 1-2 do plano SCFV anterior). Todos os 98 encontros de teste criados
+nesta sessão (49 via API + 49 via navegador) foram excluídos via API ao
+final; `GET .../occurrences` da atividade de teste confirmou `total: 0`
+depois da limpeza; dados do seed confirmados intactos (`Projeto Música
+Manhã` com `startsAt`/`endsAt`/`updatedAt` idênticos ao estado
+pré-teste — um bug do próprio script de teste preencheu por engano um
+campo de data do Projeto que estava atrás do diálogo antes de eu
+restringir os seletores ao diálogo; confirmado que esse preenchimento
+nunca foi salvo, então nada precisou ser revertido).
+**Índice do plano mestre** (`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`)
+atualizado: Fase 4 marcada `[x]`, evidência completa na seção da Fase 4
+do próprio documento.
+
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**
 - **ListView** (tela principal de um módulo — Pessoas, Grupos de Pessoas,

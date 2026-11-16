@@ -23,6 +23,7 @@ import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto
 import {
   BulkCreateActionOccurrencesDto,
   CreateActionOccurrenceDto,
+  PreviewActionOccurrencesDto,
 } from './dto/create-action-occurrence.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
@@ -290,6 +291,22 @@ export class ProjectActionsController {
     @Body() dto: CreateActionOccurrenceDto,
   ) {
     return this.service.createActionOccurrence(user, projectId, actionId, dto);
+  }
+
+  @Post(':projectId/actions/:actionId/occurrences/bulk/preview')
+  @Permissions('actions.create')
+  async previewOccurrences(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Body() dto: PreviewActionOccurrencesDto,
+  ) {
+    return this.service.previewActionOccurrences(
+      user,
+      projectId,
+      actionId,
+      dto,
+    );
   }
 
   @Post(':projectId/actions/:actionId/occurrences/bulk')

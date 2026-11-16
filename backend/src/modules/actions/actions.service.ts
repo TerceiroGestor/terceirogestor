@@ -31,6 +31,7 @@ import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto
 import {
   BulkCreateActionOccurrencesDto,
   CreateActionOccurrenceDto,
+  PreviewActionOccurrencesDto,
 } from './dto/create-action-occurrence.dto';
 import { ListActionOccurrencesQueryDto } from './dto/list-action-occurrences-query.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
@@ -62,6 +63,10 @@ function combineDateAndTime(date: Date, time: string): Date {
   const combined = new Date(date.getTime());
   combined.setUTCHours(Number(match[1]), Number(match[2]), 0, 0);
   return combined;
+}
+
+function toDateOnlyString(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 function toTimeOfDay(date: Date): string {
@@ -1529,6 +1534,45 @@ export class ActionsService {
     return created;
   }
 
+  async previewActionOccurrences(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    dto: PreviewActionOccurrencesDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const startDate = parseDateInput(dto.startDate);
+    const endDate = parseDateInput(dto.endDate);
+    if (!startDate || !endDate) {
+      throw new BadRequestException('Periodo do agendamento invalido');
+    }
+    if (startDate > endDate) {
+      throw new BadRequestException(
+        'Periodo invalido: inicio maior que termino',
+      );
+    }
+
+    const dates = generateOccurrenceDates({
+      startDate,
+      endDate,
+      daysOfWeek: dto.daysOfWeek,
+    });
+    if (dates.length === 0) {
+      throw new BadRequestException(
+        'Nenhuma data cai nos dias da semana escolhidos dentro do periodo',
+      );
+    }
+    if (dates.length > MAX_BULK_OCCURRENCES) {
+      throw new BadRequestException(
+        `O agendamento geraria ${dates.length} encontros; o maximo por leva e ${MAX_BULK_OCCURRENCES}. Encurte o periodo.`,
+      );
+    }
+
+    return { dates: dates.map((date) => toDateOnlyString(date)) };
+  }
+
   async bulkCreateActionOccurrences(
     user: JwtUser,
     projectId: string,
@@ -1565,14 +1609,17 @@ export class ActionsService {
       );
     }
 
+    const excludedDates = new Set(dto.excludedDates ?? []);
     const dates = generateOccurrenceDates({
       startDate,
       endDate,
       daysOfWeek: dto.daysOfWeek,
-    });
+    }).filter((date) => !excludedDates.has(toDateOnlyString(date)));
     if (dates.length === 0) {
       throw new BadRequestException(
-        'Nenhuma data cai nos dias da semana escolhidos dentro do periodo',
+        excludedDates.size
+          ? 'Nenhuma data restou apos remover as datas excluidas'
+          : 'Nenhuma data cai nos dias da semana escolhidos dentro do periodo',
       );
     }
     if (dates.length > MAX_BULK_OCCURRENCES) {
