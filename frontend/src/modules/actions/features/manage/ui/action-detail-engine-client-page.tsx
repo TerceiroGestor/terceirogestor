@@ -14,16 +14,16 @@ import {
   deleteProjectActionAttachment,
   deleteProjectActionComment,
   endProjectActionPeopleParticipation,
-  getProjectAction,
-  listActionOccurrences,
-  listProjectActionAttendances,
+  getActivity,
+  listMeetings,
+  listMeetingAttendances,
   listProjectActionPeopleParticipations,
-  upsertProjectActionAttendances,
-  updateProjectAction,
-  type ApiActionOccurrence,
+  upsertMeetingAttendances,
+  updateActivity,
+  type ApiMeeting,
   type AttendanceStatus,
-  type ApiProjectAction,
-  type ProjectActionAttendancesListItem,
+  type ApiActivity,
+  type MeetingAttendancesListItem,
 } from "@/modules/actions/api";
 import {
   ACTIONS_ROUTES,
@@ -60,7 +60,7 @@ import {
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 
-function buildDraft(action?: ApiProjectAction | null): ActionMetadataDraft {
+function buildDraft(action?: ApiActivity | null): ActionMetadataDraft {
   return {
     tags: action?.tags ?? [],
     internalNotes: action?.internalNotes ?? null,
@@ -87,10 +87,10 @@ async function fetchAllAttendances(params: {
 }) {
   const limit = 200;
   let page = 1;
-  const all: ProjectActionAttendancesListItem[] = [];
+  const all: MeetingAttendancesListItem[] = [];
 
   while (true) {
-    const response = await listProjectActionAttendances(
+    const response = await listMeetingAttendances(
       params.token,
       params.projectId,
       params.actionId,
@@ -128,7 +128,7 @@ export function ActionDetailEngineClientPage() {
   const { users: mentionableUsers } = useMentionableUsers("actions.read");
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
-  const [action, setAction] = React.useState<ApiProjectAction | null>(null);
+  const [action, setAction] = React.useState<ApiActivity | null>(null);
   const [draft, setDraft] = React.useState<ActionMetadataDraft>(buildDraft());
   const [loading, setLoading] = React.useState(true);
   const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
@@ -136,13 +136,13 @@ export function ActionDetailEngineClientPage() {
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
-  const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
+  const [occurrences, setOccurrences] = React.useState<ApiMeeting[]>([]);
   const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
   const selectedOccurrence = React.useMemo(
     () => occurrences.find((item) => item.id === occurrenceId) ?? null,
     [occurrences, occurrenceId],
   );
-  const [reportRows, setReportRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
+  const [reportRows, setReportRows] = React.useState<MeetingAttendancesListItem[]>([]);
   const [reportPeopleRows, setReportPeopleRows] = React.useState<
     ActionsDetailLayoutContext["reportPeopleRows"]
   >([]);
@@ -172,7 +172,7 @@ export function ActionDetailEngineClientPage() {
     async (nextDraft: ActionMetadataDraft) => {
       if (!token || !projectId) return nextDraft;
       const normalized = normalizeDraft(nextDraft);
-      const updated = await updateProjectAction(token, projectId, id, normalized);
+      const updated = await updateActivity(token, projectId, id, normalized);
       const savedDraft = buildDraft(updated);
       setAction(updated);
       setDraft(savedDraft);
@@ -191,7 +191,7 @@ export function ActionDetailEngineClientPage() {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao salvar ação.";
+          : "Falha ao salvar atividade.";
       toast({ variant: "destructive", title: "Falha ao salvar", description: message });
     },
   });
@@ -233,7 +233,7 @@ export function ActionDetailEngineClientPage() {
   const loadOccurrences = React.useCallback(async () => {
     if (!token || !projectId || !id || !canRead) return;
     try {
-      const response = await listActionOccurrences(token, projectId, id, { limit: 200 });
+      const response = await listMeetings(token, projectId, id, { limit: 200 });
       setOccurrences(response.data);
       setOccurrenceId((previous) =>
         previous && response.data.some((item) => item.id === previous)
@@ -247,7 +247,7 @@ export function ActionDetailEngineClientPage() {
   }, [canRead, id, projectId, token]);
 
   const applyLoadedAction = React.useCallback(
-    (loaded: ApiProjectAction) => {
+    (loaded: ApiActivity) => {
       const nextDraft = buildDraft(loaded);
       setAction(loaded);
       setDraft(nextDraft);
@@ -283,7 +283,7 @@ export function ActionDetailEngineClientPage() {
     }
 
     setLoading(true);
-    getProjectAction(token, projectId, id)
+    getActivity(token, projectId, id)
       .then((loaded) => {
         applyLoadedAction(loaded);
       })
@@ -291,7 +291,7 @@ export function ActionDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao carregar ação.";
+            : "Falha ao carregar atividade.";
         toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       })
       .finally(() => setLoading(false));
@@ -303,9 +303,9 @@ export function ActionDetailEngineClientPage() {
   }, [action, refreshReport]);
 
   const handleSaveActionPatch = React.useCallback(
-    async (patch: Parameters<typeof updateProjectAction>[3]) => {
+    async (patch: Parameters<typeof updateActivity>[3]) => {
       if (!token || !projectId) return;
-      const updated = await updateProjectAction(token, projectId, id, patch);
+      const updated = await updateActivity(token, projectId, id, patch);
       applyLoadedAction(updated);
       toast({ title: "Salvo" });
       await refreshReport();
@@ -324,7 +324,7 @@ export function ActionDetailEngineClientPage() {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao comentar na ação.";
+          : "Falha ao comentar na atividade.";
       toast({ variant: "destructive", title: "Falha ao comentar", description: message });
     } finally {
       setCommentSubmitting(false);
@@ -484,7 +484,7 @@ export function ActionDetailEngineClientPage() {
   );
 
   const getAttendanceEffective = React.useCallback(
-    (row: ProjectActionAttendancesListItem) => {
+    (row: MeetingAttendancesListItem) => {
       const draftEntry = attendanceDrafts[row.enrollment.id];
       return {
         status: (draftEntry?.status ?? row.attendance?.status ?? null) as AttendanceStatus | null,
@@ -499,7 +499,7 @@ export function ActionDetailEngineClientPage() {
 
   const setAttendanceRowDraft = React.useCallback(
     (
-      row: ProjectActionAttendancesListItem,
+      row: MeetingAttendancesListItem,
       patch: AttendanceDraft,
       prune = false,
     ) => {
@@ -529,7 +529,7 @@ export function ActionDetailEngineClientPage() {
   );
 
   const applyAttendanceStatusToRows = React.useCallback(
-    (rows: ProjectActionAttendancesListItem[], status: AttendanceStatus) => {
+    (rows: MeetingAttendancesListItem[], status: AttendanceStatus) => {
       rows.forEach((row) => {
         setAttendanceRowDraft(row, { status }, true);
       });
@@ -562,7 +562,7 @@ export function ActionDetailEngineClientPage() {
     }
 
     try {
-      const result = await upsertProjectActionAttendances(
+      const result = await upsertMeetingAttendances(
         token,
         projectId,
         id,
@@ -616,7 +616,7 @@ export function ActionDetailEngineClientPage() {
   );
 
   const getQualityEffective = React.useCallback(
-    (row: ProjectActionAttendancesListItem) => {
+    (row: MeetingAttendancesListItem) => {
       const draftEntry = qualityDrafts[row.enrollment.id];
       return {
         qualityScore:
@@ -638,7 +638,7 @@ export function ActionDetailEngineClientPage() {
 
   const setQualityRowDraft = React.useCallback(
     (
-      row: ProjectActionAttendancesListItem,
+      row: MeetingAttendancesListItem,
       patch: QualityDraft,
       prune = false,
     ) => {
@@ -705,7 +705,7 @@ export function ActionDetailEngineClientPage() {
     }
 
     try {
-      await upsertProjectActionAttendances(token, projectId, id, occurrenceId, items);
+      await upsertMeetingAttendances(token, projectId, id, occurrenceId, items);
       setQualityDrafts({});
       setQualityNotesDialog(null);
       toast({ title: ACTION_RELATION_TEXT.quality.saveOkTitle });
@@ -746,7 +746,7 @@ export function ActionDetailEngineClientPage() {
   }
 
   if (!authLoading && !userLoading && !canRead) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem acesso a Ações.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem acesso a Atividades.</div>;
   }
 
   const closeHref = returnTo
@@ -841,11 +841,11 @@ export function ActionDetailEngineClientPage() {
         dataProvider={dataProvider}
         auditEnabled={canAudit}
         mode="edit"
-        headerTitle={action?.title ?? "Ação"}
-        breadcrumbTitle={action?.title ?? "Ação"}
+        headerTitle={action?.title ?? "Atividade"}
+        breadcrumbTitle={action?.title ?? "Atividade"}
         breadcrumbItems={[
-          { label: "Ações", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
-          { label: action?.title || id || "Ação" },
+          { label: "Atividades", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
+          { label: action?.title || id || "Atividade" },
         ]}
         saving={
           saving ||

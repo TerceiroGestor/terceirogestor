@@ -13,12 +13,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  listActionOccurrences,
-  listProjectActionAttendances,
-  upsertProjectActionAttendances,
-  type ApiActionOccurrence,
+  listMeetings,
+  listMeetingAttendances,
+  upsertMeetingAttendances,
+  type ApiMeeting,
   type AttendanceStatus,
-  type ProjectActionAttendancesListItem,
+  type MeetingAttendancesListItem,
 } from "@/modules/actions/api";
 import { ATTENDANCE_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
@@ -57,10 +57,10 @@ async function fetchAllAttendances(params: {
 }) {
   const limit = 200;
   let page = 1;
-  const rows: ProjectActionAttendancesListItem[] = [];
+  const rows: MeetingAttendancesListItem[] = [];
 
   while (true) {
-    const response = await listProjectActionAttendances(
+    const response = await listMeetingAttendances(
       params.token,
       params.projectId,
       params.actionId,
@@ -76,7 +76,7 @@ async function fetchAllAttendances(params: {
   return rows;
 }
 
-function matchesSearch(row: ProjectActionAttendancesListItem, query: string) {
+function matchesSearch(row: MeetingAttendancesListItem, query: string) {
   if (!query.trim()) return true;
   const normalized = query.trim().toLocaleLowerCase("pt-BR");
   const values = [
@@ -105,10 +105,10 @@ export function ProjectActionAttendancesCard({
   const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const { toast } = useToast();
 
-  const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
+  const [occurrences, setOccurrences] = React.useState<ApiMeeting[]>([]);
   const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
   const [occurrencesLoading, setOccurrencesLoading] = React.useState(true);
-  const [rows, setRows] = React.useState<ProjectActionAttendancesListItem[]>([]);
+  const [rows, setRows] = React.useState<MeetingAttendancesListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [searchText, setSearchText] = React.useState("");
@@ -122,7 +122,7 @@ export function ProjectActionAttendancesCard({
   React.useEffect(() => {
     let active = true;
     setOccurrencesLoading(true);
-    listActionOccurrences(token, projectId, actionId, { limit: 200 })
+    listMeetings(token, projectId, actionId, { limit: 200 })
       .then((response) => {
         if (!active) return;
         setOccurrences(response.data);
@@ -190,7 +190,7 @@ export function ProjectActionAttendancesCard({
   }, [groupId, rows, searchText, statusFilter]);
 
   const getEffective = React.useCallback(
-    (row: ProjectActionAttendancesListItem) => {
+    (row: MeetingAttendancesListItem) => {
       const draftEntry = drafts[row.enrollment.id];
       return {
         status: (draftEntry?.status ?? row.attendance?.status ?? null) as AttendanceStatus | null,
@@ -205,7 +205,7 @@ export function ProjectActionAttendancesCard({
 
   const setRowDraft = React.useCallback(
     (
-      row: ProjectActionAttendancesListItem,
+      row: MeetingAttendancesListItem,
       patch: AttendanceDraft,
       prune = false,
     ) => {
@@ -235,7 +235,7 @@ export function ProjectActionAttendancesCard({
   );
 
   const applyStatusToRows = React.useCallback(
-    (items: ProjectActionAttendancesListItem[], status: AttendanceStatus) => {
+    (items: MeetingAttendancesListItem[], status: AttendanceStatus) => {
       items.forEach((row) => {
         setRowDraft(row, { status }, true);
       });
@@ -269,7 +269,7 @@ export function ProjectActionAttendancesCard({
 
     setSaving(true);
     try {
-      const result = await upsertProjectActionAttendances(
+      const result = await upsertMeetingAttendances(
         token,
         projectId,
         actionId,
@@ -480,7 +480,7 @@ export function ProjectActionAttendancesCard({
           </div>
         ) : (
           <div className="min-h-[420px]">
-            <ListView<ProjectActionAttendancesListItem>
+            <ListView<MeetingAttendancesListItem>
               data={visibleRows}
               columns={columns}
               className="h-full"

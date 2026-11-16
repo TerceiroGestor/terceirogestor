@@ -4,14 +4,14 @@ export const ACTION_MANAGE_TEXT = {
   back: "Voltar",
   print: "Imprimir",
   loading: "Carregando...",
-  notFound: "Ação não encontrada.",
-  noAccessTitle: "Ação",
-  noAccessSubtitle: "Você não tem permissão para visualizar ações.",
-  projectMissingTitle: "Ação",
+  notFound: "Atividade não encontrada.",
+  noAccessTitle: "Atividade",
+  noAccessSubtitle: "Você não tem permissão para visualizar atividades.",
+  projectMissingTitle: "Atividade",
   projectMissingSubtitle: "Projeto não informado",
-  projectMissingHint: "Volte para a lista de ações e selecione um projeto.",
+  projectMissingHint: "Volte para a lista de atividades e selecione um projeto.",
   requestAccessHint: "Solicite acesso ao administrador do sistema.",
-  loadErrorTitle: "Falha ao carregar ação",
+  loadErrorTitle: "Falha ao carregar atividade",
   loadErrorFallback: "Tente novamente.",
   saveOk: "Salvo",
   saveFailedTitle: "Falha ao salvar",
@@ -43,7 +43,7 @@ export const ACTION_MANAGE_TEXT = {
     submit: "Salvar execução",
   },
   conclusion: {
-    helper: "Breve relatório final da ação e resultado em relação ao planejado.",
+    helper: "Breve relatório final da atividade e resultado em relação ao planejado.",
     conclusionLabel: "Conclusão (RichText)",
     completionPercentLabel: "% atingida (0 a 100)",
     completionPercentHelper: "Estimativa do quanto foi atingido em relação ao planejado.",
@@ -51,7 +51,7 @@ export const ACTION_MANAGE_TEXT = {
   },
   photos: {
     title: "Fotos",
-    subtitle: "Adicione até 5 fotos desta ação.",
+    subtitle: "Adicione até 5 fotos desta atividade.",
     empty: "Nenhuma foto adicionada.",
     upload: "Enviar foto",
     remove: "Remover",
@@ -71,10 +71,10 @@ export const ACTION_MANAGE_TEXT = {
   occurrences: {
     title: "Ocorrências",
     subtitle: "Gere ocorrências quando necessário (em breve).",
-    hint: "No próximo passo vamos integrar a criação de ocorrências a partir dos participantes desta ação.",
+    hint: "No próximo passo vamos integrar a criação de ocorrências a partir dos participantes desta atividade.",
   },
   usage: {
-    title: "Gerenciar ação",
+    title: "Gerenciar atividade",
     sections: [
       {
         title: "Planejamento",
@@ -96,7 +96,7 @@ export const ACTION_MANAGE_TEXT = {
         title: "Equipe, apoio e voluntariado",
         items: [
           "Use a aba Equipe para registrar facilitadores, apoio, voluntários e outros papéis.",
-          "Cada pessoa pode ser vinculada com um papel próprio na ação.",
+          "Cada pessoa pode ser vinculada com um papel próprio na atividade.",
           "Esses vínculos aparecem separados do controle de presença do público.",
         ],
       },

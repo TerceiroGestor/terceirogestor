@@ -124,7 +124,7 @@ export async function endProjectActionPeopleParticipation(
   );
 }
 
-export async function listEligibleProjectActionPeople(
+export async function listEligibleActivityPeople(
   token: string,
   projectId: string,
   actionId: string,

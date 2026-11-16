@@ -127,7 +127,7 @@ async function migrateField(prisma, { model, field, category, ownIdIsTenantId })
 // ProjectAction.photoPaths is a Json array of paths, not a single String
 // field - handled separately from FIELD_MIGRATIONS.
 async function migrateProjectActionPhotoPaths(prisma) {
-  const rows = await prisma.projectAction.findMany({
+  const rows = await prisma.activity.findMany({
     where: { photoPaths: { not: null } },
     select: { id: true, tenantId: true, photoPaths: true },
   });
@@ -146,7 +146,7 @@ async function migrateProjectActionPhotoPaths(prisma) {
     });
 
     if (changed) {
-      await prisma.projectAction.update({
+      await prisma.activity.update({
         where: { id: row.id },
         data: { photoPaths: nextPaths },
       });

@@ -7,19 +7,19 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
-  ApiActionOccurrence,
-  ApiProjectAction,
+  ApiMeeting,
+  ApiActivity,
   ApiProjectActionPeopleParticipation,
-  ProjectActionAttendancesListItem,
+  MeetingAttendancesListItem,
 } from "@/modules/actions/api";
 import { ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import { ACTION_REPORT_TEXT } from "../config/action-report.constants";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ActionReportPreviewProps = {
-  action: ApiProjectAction;
-  occurrence: ApiActionOccurrence;
-  rows: ProjectActionAttendancesListItem[];
+  action: ApiActivity;
+  occurrence: ApiMeeting;
+  rows: MeetingAttendancesListItem[];
   peopleParticipations: ApiProjectActionPeopleParticipation[];
   canShowPeople: boolean;
   printMode?: boolean;
@@ -312,7 +312,7 @@ export function ActionReportPreview({
               <img
                 key={path}
                 src={resolveMediaUrl(path)}
-                alt="Foto da ação"
+                alt="Foto da atividade"
                 className="h-40 w-full rounded-lg object-cover"
               />
             ))}

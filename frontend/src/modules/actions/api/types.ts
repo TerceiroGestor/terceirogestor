@@ -2,7 +2,7 @@
 
 import type { ApiProjectEnrollment } from "@/modules/projects/api";
 
-export type ApiActionType = {
+export type ApiActivityType = {
   id: string;
   tenantId: string;
   name: string;
@@ -15,7 +15,7 @@ export type ApiActionType = {
 
 export type ActionStatus = "PLANNED" | "EXECUTED" | "CANCELED";
 
-export type ApiProjectAction = {
+export type ApiActivity = {
   id: string;
   tenantId: string;
   projectId: string;
@@ -23,6 +23,7 @@ export type ApiProjectAction = {
   peopleGroupId: string | null;
   targetEnrollmentId: string | null;
   actionTypeId: string;
+  goalId: string | null;
   title: string;
   description: string | null;
   tags: string[];
@@ -43,6 +44,7 @@ export type ApiProjectAction = {
     name: string;
     target?: "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
   };
+  goal?: { id: string; title: string } | null;
   createdByUser?: { id: string; name: string | null; email: string };
   peopleGroup?:
     | {
@@ -107,12 +109,12 @@ export type PaginationMeta = {
   pages: number;
 };
 
-export type ProjectActionsListResponse = {
-  data: ApiProjectAction[];
+export type ActivitiesListResponse = {
+  data: ApiActivity[];
   pagination: PaginationMeta;
 };
 
-export type ProjectActionInput = {
+export type ActivityInput = {
   actionTypeId: string;
   title: string;
   description?: string | null;
@@ -122,6 +124,7 @@ export type ProjectActionInput = {
   status?: ActionStatus;
   peopleGroupId?: string | null;
   targetEnrollmentId?: string | null;
+  goalId?: string | null;
   plannedStartAt?: string | null;
   plannedEndAt?: string | null;
   executedStartAt?: string | null;
@@ -149,7 +152,7 @@ export type ActionPeopleParticipationRole =
   | "RESPONSAVEL_TECNICO"
   | "CONVIDADO";
 
-export type ApiProjectActionAttendance = {
+export type ApiMeetingAttendance = {
   id: string;
   enrollmentId: string;
   status: AttendanceStatus;
@@ -160,12 +163,12 @@ export type ApiProjectActionAttendance = {
   updatedAt: string;
 };
 
-export type ProjectActionAttendancesListItem = {
+export type MeetingAttendancesListItem = {
   enrollment: import("@/modules/projects/api").ApiProjectEnrollment;
-  attendance: ApiProjectActionAttendance | null;
+  attendance: ApiMeetingAttendance | null;
 };
 
-export type ProjectActionAttendancesListResponse = {
+export type MeetingAttendancesListResponse = {
   action: {
     id: string;
     title: string;
@@ -178,7 +181,7 @@ export type ProjectActionAttendancesListResponse = {
     status: OccurrenceStatus;
     peopleGroupId: string | null;
   };
-  data: ProjectActionAttendancesListItem[];
+  data: MeetingAttendancesListItem[];
   pagination: PaginationMeta;
 };
 
@@ -231,7 +234,7 @@ export type EndActionPeopleParticipationInput = {
   internalNotes?: string | null;
 };
 
-export type ApiActionPeopleGroup = {
+export type ApiActivityPeopleGroup = {
   id: string;
   tenantId: string;
   actionId: string;
@@ -250,7 +253,7 @@ export type ApiActionPeopleGroup = {
   };
 };
 
-export type ActionPeopleGroupInput = {
+export type ActivityPeopleGroupInput = {
   peopleGroupId: string;
   participationKind: "PARTICIPANT" | "TEAM";
 };
@@ -265,7 +268,7 @@ export type ApiActionOccurrenceTeamGroup = {
   peopleGroup: { id: string; name: string };
 };
 
-export type ApiActionOccurrence = {
+export type ApiMeeting = {
   id: string;
   tenantId: string;
   actionId: string;
@@ -286,12 +289,12 @@ export type ApiActionOccurrence = {
   teamPeopleGroups: ApiActionOccurrenceTeamGroup[];
 };
 
-export type ActionOccurrencesListResponse = {
-  data: ApiActionOccurrence[];
+export type MeetingsListResponse = {
+  data: ApiMeeting[];
   pagination: PaginationMeta;
 };
 
-export type ActionOccurrenceInput = {
+export type MeetingInput = {
   scheduledDate: string;
   startTime: string;
   endTime?: string | null;
@@ -304,7 +307,7 @@ export type ActionOccurrenceInput = {
   photoPaths?: string[] | null;
 };
 
-export type ActionOccurrenceUpdateInput = {
+export type MeetingUpdateInput = {
   scheduledDate?: string;
   startTime?: string;
   endTime?: string | null;
@@ -318,7 +321,7 @@ export type ActionOccurrenceUpdateInput = {
   photoPaths?: string[] | null;
 };
 
-export type BulkCreateActionOccurrencesInput = {
+export type BulkCreateMeetingsInput = {
   peopleGroupId?: string | null;
   teamPeopleGroupIds?: string[];
   startDate: string;
@@ -333,13 +336,13 @@ export type BulkCreateActionOccurrencesInput = {
   photoPaths?: string[] | null;
 };
 
-export type BulkCreateActionOccurrencesResponse = {
+export type BulkCreateMeetingsResponse = {
   recurrenceBatchId: string;
   created: number;
-  data: ApiActionOccurrence[];
+  data: ApiMeeting[];
 };
 
-export type UpdateActionOccurrenceBatchInput = {
+export type UpdateMeetingBatchInput = {
   status: OccurrenceStatus;
   fromDate?: string;
 };

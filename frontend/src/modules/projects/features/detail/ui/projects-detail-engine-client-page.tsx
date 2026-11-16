@@ -37,7 +37,7 @@ import {
   projectsDetailModuleDefinition,
   PROJECTS_ROUTES,
 } from "@/modules/projects/config/projects-module-contract";
-import { listProjectActions, type ApiProjectAction } from "@/modules/actions/api";
+import { listActivities, type ApiActivity } from "@/modules/actions/api";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import {
@@ -121,7 +121,7 @@ export function ProjectsDetailEngineClientPage() {
   const [programOptions, setProgramOptions] = React.useState<ApiProgram[]>([]);
   const [peopleGroupRows, setPeopleGroupRows] = React.useState<ApiProjectPeopleGroup[]>([]);
   const [enrollmentRows, setEnrollmentRows] = React.useState<ApiProjectEnrollment[]>([]);
-  const [actionRows, setActionRows] = React.useState<ApiProjectAction[]>([]);
+  const [actionRows, setActionRows] = React.useState<ApiActivity[]>([]);
   const [loading, setLoading] = React.useState(isEdit);
   const [relationsLoading, setRelationsLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -169,7 +169,7 @@ export function ProjectsDetailEngineClientPage() {
       const [peopleGroups, enrollments, actions] = await Promise.all([
         listProjectPeopleGroups(token, id),
         listProjectEnrollments(token, id, { page: 1, limit: 200 }),
-        listProjectActions(token, id, { page: 1, limit: 200 }),
+        listActivities(token, id, { page: 1, limit: 200 }),
       ]);
       setPeopleGroupRows(peopleGroups ?? []);
       setEnrollmentRows(enrollments.data ?? []);

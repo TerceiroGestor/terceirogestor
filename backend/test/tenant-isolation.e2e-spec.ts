@@ -236,7 +236,7 @@ describe('Isolamento entre tenants (e2e)', () => {
   });
 
   it('actions (tipos de ação): lista, edição e exclusão não vazam entre tenants', async () => {
-    const actionType = await prisma.actionType.create({
+    const actionType = await prisma.activityType.create({
       data: {
         tenantId: tenantA.tenant.id,
         name: `E2E Action Type ${randomUUID()}`,
@@ -254,7 +254,7 @@ describe('Isolamento entre tenants (e2e)', () => {
       `/action-types/${actionType.id}`,
     );
 
-    const stillThere = await prisma.actionType.findUnique({
+    const stillThere = await prisma.activityType.findUnique({
       where: { id: actionType.id },
     });
     expect(stillThere).not.toBeNull();

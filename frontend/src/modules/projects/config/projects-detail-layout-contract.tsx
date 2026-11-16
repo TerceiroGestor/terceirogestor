@@ -23,9 +23,11 @@ import type { ApiProgram, ProgramStatus, ProgramType } from "@/modules/programs/
 import {
   PROGRAM_TYPE_LABELS,
 } from "@/modules/programs/shared/domain/programs.constants";
-import type { ApiProjectAction, ActionStatus } from "@/modules/actions/api";
+import type { ApiActivity, ActionStatus } from "@/modules/actions/api";
 import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
+import { ProjectFundingSourcesSection } from "@/modules/projects/features/detail/ui/project-funding-sources-section";
+import { ProjectGoalsSection } from "@/modules/projects/features/detail/ui/project-goals-section";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildGroupedAuditFeed,
@@ -218,11 +220,11 @@ function enrollmentRelationColumns({
   ];
 }
 
-function actionRelationColumns(): ColumnDef<ApiProjectAction, unknown>[] {
+function actionRelationColumns(): ColumnDef<ApiActivity, unknown>[] {
   return [
     {
       accessorKey: "title",
-      header: "Ação",
+      header: "Atividade",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.title}</div>
@@ -398,7 +400,7 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
     };
   }>;
   enrollmentRows: ApiProjectEnrollment[];
-  actionRows: ApiProjectAction[];
+  actionRows: ApiActivity[];
   relationsLoading: boolean;
   mentionableUsers: Array<{
     id: string;
@@ -707,7 +709,7 @@ function ProjectsDetailSide({
         { key: "participants", label: "Participantes", value: enrollmentRows.length },
         { key: "publicPeopleGroups", label: "Grupos de Pessoas", value: publicPeopleGroupRows.length },
         { key: "teamPeopleGroups", label: "Grupos de Equipe", value: teamPeopleGroupRows.length },
-        { key: "actions", label: "Ações", value: actionRows.length },
+        { key: "actions", label: "Atividades", value: actionRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
       defaultTab="activity"
@@ -958,12 +960,12 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     },
     {
       key: "actions",
-      label: "Ações",
+      label: "Atividades",
       badge: ({ actionRows }) => actionRows.length,
       relations: [
         {
           key: "project.actions",
-          label: "Ações",
+          label: "Atividades",
           loading: ({ relationsLoading }) => relationsLoading,
           rows: ({ mode, actionRows }) => (mode === "edit" ? actionRows : []),
           columns: actionRelationColumns(),
@@ -987,7 +989,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           searchPlaceholder: "Pesquisar",
           onRowClick: (row, context) => context.onOpenAction(row.id),
           action: {
-            label: "Nova ação",
+            label: "Nova atividade",
             onClick: (context) => context.onCreateAction(),
             hidden: ({ readOnly, mode, canManageActions }) =>
               readOnly || mode !== "edit" || !canManageActions,
@@ -996,6 +998,26 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
             mode === "create" ? "Indisponível." : "Nenhum vínculo.",
         },
       ],
+    },
+    {
+      key: "goals",
+      label: "Metas",
+      visible: ({ mode }) => mode === "edit",
+      content: ({ project, readOnly }) =>
+        project ? (
+          <ProjectGoalsSection projectId={project.id} readOnly={readOnly} />
+        ) : null,
+      emptyLabel: "Sem metas.",
+    },
+    {
+      key: "fundingSources",
+      label: "Financiamento",
+      visible: ({ mode }) => mode === "edit",
+      content: ({ project, readOnly }) =>
+        project ? (
+          <ProjectFundingSourcesSection projectId={project.id} readOnly={readOnly} />
+        ) : null,
+      emptyLabel: "Sem fontes de financiamento.",
     },
   ],
   auditSources: {
@@ -1039,7 +1061,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         key: "projectAction",
         entity: "ProjectAction",
         model: "audit.logs",
-        label: "Ação",
+        label: "Atividade",
         fieldLabels: PROJECT_ACTION_AUDIT_FIELD_LABELS,
         valueFormatters: {
           status: (value) => formatActionStatus(typeof value === "string" ? value : null),

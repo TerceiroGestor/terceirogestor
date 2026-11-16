@@ -26,7 +26,7 @@ export const projectActionsManageAction = createModuleWindowAction({
   id: PROJECT_STRUCTURE_ACTION_IDS.actionsManage,
   moduleDefinition: projectsListModuleDefinition,
   permissions: { allOf: ["projects.read", "actions.read"] },
-  title: "Acoes do projeto",
+  title: "Atividades do projeto",
   breadcrumbs: [{ label: "Projetos", href: "/projects" }],
   hideBreadcrumb: true,
   render: () => <ProjectActionsManageRouteClientPage />,

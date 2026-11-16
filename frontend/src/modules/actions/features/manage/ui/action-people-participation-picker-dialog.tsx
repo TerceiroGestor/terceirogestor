@@ -20,7 +20,7 @@ import { removeConditionAtIndex } from "@/web-client/domain/conditions";
 import type { Domain } from "@/web-client/domain/types";
 import { getTenantSlugFromPath } from "@/lib/tenant-path";
 import {
-  listEligibleProjectActionPeople,
+  listEligibleActivityPeople,
   type ActionPeopleParticipationRole,
 } from "@/modules/actions/api";
 import { type ApiProjectEnrollment } from "@/modules/projects/api";
@@ -184,7 +184,7 @@ export function ActionPeopleParticipationPickerDialog({
     setLoading(true);
     setError(null);
     try {
-      const response = await listEligibleProjectActionPeople(token, projectId, actionId, {
+      const response = await listEligibleActivityPeople(token, projectId, actionId, {
         q: searchText.trim() || undefined,
         filters: domain,
         participationKind: "TEAM",

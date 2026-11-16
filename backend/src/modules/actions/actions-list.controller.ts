@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
@@ -6,6 +13,7 @@ import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
 import { ActionsService } from './actions.service';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
+import { PersonAttendanceSummaryQueryDto } from './dto/person-attendance-summary-query.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('actions')
@@ -19,5 +27,19 @@ export class ActionsListController {
     @Query() query: ListProjectActionsQueryDto,
   ) {
     return this.service.listActions(user, query);
+  }
+
+  @Get('attendance-summary/:personId')
+  @Permissions('actions.read')
+  async attendanceSummary(
+    @CurrentUser() user: JwtUser,
+    @Param('personId', new ParseUUIDPipe({ version: '4' })) personId: string,
+    @Query() query: PersonAttendanceSummaryQueryDto,
+  ) {
+    return this.service.getPersonAttendanceSummary(
+      user.tenantId,
+      personId,
+      query.month,
+    );
   }
 }

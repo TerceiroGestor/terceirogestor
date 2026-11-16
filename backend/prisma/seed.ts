@@ -67,6 +67,19 @@ const ids = {
     encontroC2m: '11111111-1111-4111-8111-111111112102',
     rodaFamilias: '11111111-1111-4111-8111-111111112103',
   },
+  goals: {
+    frequenciaCoral: '11111111-1111-4111-8111-111111112301',
+  },
+  dailyAttendances: {
+    acolhimentoPessoa0: '11111111-1111-4111-8111-111111112501',
+    acolhimentoPessoa1: '11111111-1111-4111-8111-111111112502',
+    encontroC2mPessoa2: '11111111-1111-4111-8111-111111112503',
+    rodaFamiliasPessoa7: '11111111-1111-4111-8111-111111112504',
+  },
+  projectFundingSources: {
+    musicaManhaMunicipal: '11111111-1111-4111-8111-111111112401',
+    musicaManhaTerceiro: '11111111-1111-4111-8111-111111112402',
+  },
 };
 
 const people = [
@@ -680,6 +693,38 @@ async function main() {
     ],
   });
 
+  await prisma.projectFundingSource.createMany({
+    data: [
+      {
+        id: ids.projectFundingSources.musicaManhaMunicipal,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        source: 'MUNICIPAL',
+        name: 'Convenio SMADS 2026',
+      },
+      {
+        id: ids.projectFundingSources.musicaManhaTerceiro,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        source: 'TERCEIRO',
+        name: 'Patrocinio Instituto Cultural Urna',
+      },
+    ],
+  });
+
+  await prisma.goal.createMany({
+    data: [
+      {
+        id: ids.goals.frequenciaCoral,
+        tenantId: ids.tenant,
+        projectId: ids.projects.musicaManha,
+        title: 'Aumentar a frequencia media do Coral',
+        description:
+          'Meta do Plano de Trabalho: elevar a frequencia media mensal dos participantes do Coral.',
+      },
+    ],
+  });
+
   await prisma.projectPeopleGroup.createMany({
     data: [
       {
@@ -860,7 +905,7 @@ async function main() {
   });
 
 
-  await prisma.actionType.createMany({
+  await prisma.activityType.createMany({
     data: [
       {
         id: ids.actionTypes.oficina,
@@ -889,7 +934,7 @@ async function main() {
     ],
   });
 
-  await prisma.projectAction.createMany({
+  await prisma.activity.createMany({
     data: [
       {
         id: ids.actions.acolhimento,
@@ -912,6 +957,7 @@ async function main() {
         projectId: ids.projects.musicaManha,
         createdByUserId: ids.users.gestor,
         actionTypeId: ids.actionTypes.atendimento,
+        goalId: ids.goals.frequenciaCoral,
         title: 'Ensaio dos meninos da percussao',
         description: 'Atividade direcionada ao grupo operacional.',
         completionPercent: 0,
@@ -950,7 +996,7 @@ async function main() {
     ],
   });
 
-  await prisma.actionPeopleGroup.createMany({
+  await prisma.activityPeopleGroup.createMany({
     data: [
       {
         id: '11111111-1111-4111-8111-111111119111',
@@ -1035,7 +1081,7 @@ async function main() {
 
   // Um encontro por atividade já executada/agendada, pra presença (abaixo)
   // ter sempre um occurrenceId - Fase 3 do plano SCFV.
-  await prisma.actionOccurrence.createMany({
+  await prisma.meeting.createMany({
     data: [
       {
         id: ids.occurrences.acolhimento,
@@ -1091,7 +1137,7 @@ async function main() {
     ],
   });
 
-  await prisma.projectActionAttendance.createMany({
+  await prisma.meetingAttendance.createMany({
     data: [
       {
         id: '11111111-1111-4111-8111-111111115001',
@@ -1152,6 +1198,38 @@ async function main() {
         status: 'PRESENT',
         qualityScore: 5,
         qualityNotes: 'Participacao ativa no encontro do segmento.',
+      },
+    ],
+  });
+
+  // Fase 3 do plano mestre: presenca diaria derivada das presencas PRESENT
+  // acima - 1 linha por pessoa/dia, mesmo quando ha mais de um encontro no
+  // mesmo dia (reflete o que syncDailyAttendanceForPersonDate calcularia).
+  await prisma.dailyAttendance.createMany({
+    data: [
+      {
+        id: ids.dailyAttendances.acolhimentoPessoa0,
+        tenantId: ids.tenant,
+        personId: people[0].id,
+        date: new Date('2026-02-06'),
+      },
+      {
+        id: ids.dailyAttendances.acolhimentoPessoa1,
+        tenantId: ids.tenant,
+        personId: people[1].id,
+        date: new Date('2026-02-06'),
+      },
+      {
+        id: ids.dailyAttendances.encontroC2mPessoa2,
+        tenantId: ids.tenant,
+        personId: people[2].id,
+        date: new Date('2026-03-22'),
+      },
+      {
+        id: ids.dailyAttendances.rodaFamiliasPessoa7,
+        tenantId: ids.tenant,
+        personId: people[7].id,
+        date: new Date('2026-02-20'),
       },
     ],
   });

@@ -15,13 +15,17 @@ import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
+import { CreateGoalDto } from './dto/create-goal.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
+import { CreateProjectFundingSourceDto } from './dto/create-project-funding-source.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
 import { SyncPeopleGroupEnrollmentsDto } from './dto/sync-people-group-enrollments.dto';
+import { UpdateGoalDto } from './dto/update-goal.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
+import { UpdateProjectFundingSourceDto } from './dto/update-project-funding-source.dto';
 import { ProjectStructureService } from './project-structure.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -62,6 +66,97 @@ export class ProjectStructureController {
       projectId,
       projectPeopleGroupId,
     );
+  }
+
+  @Get(':projectId/funding-sources')
+  @Permissions('project-structure.read')
+  async listFundingSources(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+  ) {
+    return this.service.listFundingSources(user.tenantId, projectId);
+  }
+
+  @Post(':projectId/funding-sources')
+  @Permissions('project-structure.create')
+  async createFundingSource(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Body() dto: CreateProjectFundingSourceDto,
+  ) {
+    return this.service.createFundingSource(user.tenantId, projectId, dto);
+  }
+
+  @Patch(':projectId/funding-sources/:fundingSourceId')
+  @Permissions('project-structure.update')
+  async updateFundingSource(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('fundingSourceId', new ParseUUIDPipe({ version: '4' }))
+    fundingSourceId: string,
+    @Body() dto: UpdateProjectFundingSourceDto,
+  ) {
+    return this.service.updateFundingSource(
+      user.tenantId,
+      projectId,
+      fundingSourceId,
+      dto,
+    );
+  }
+
+  @Delete(':projectId/funding-sources/:fundingSourceId')
+  @Permissions('project-structure.delete')
+  async deleteFundingSource(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('fundingSourceId', new ParseUUIDPipe({ version: '4' }))
+    fundingSourceId: string,
+  ) {
+    return this.service.deleteFundingSource(
+      user.tenantId,
+      projectId,
+      fundingSourceId,
+    );
+  }
+
+  @Get(':projectId/goals')
+  @Permissions('project-structure.read')
+  async listGoals(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+  ) {
+    return this.service.listGoals(user.tenantId, projectId);
+  }
+
+  @Post(':projectId/goals')
+  @Permissions('project-structure.create')
+  async createGoal(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Body() dto: CreateGoalDto,
+  ) {
+    return this.service.createGoal(user.tenantId, projectId, dto);
+  }
+
+  @Patch(':projectId/goals/:goalId')
+  @Permissions('project-structure.update')
+  async updateGoal(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('goalId', new ParseUUIDPipe({ version: '4' })) goalId: string,
+    @Body() dto: UpdateGoalDto,
+  ) {
+    return this.service.updateGoal(user.tenantId, projectId, goalId, dto);
+  }
+
+  @Delete(':projectId/goals/:goalId')
+  @Permissions('project-structure.delete')
+  async deleteGoal(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('goalId', new ParseUUIDPipe({ version: '4' })) goalId: string,
+  ) {
+    return this.service.deleteGoal(user.tenantId, projectId, goalId);
   }
 
   @Post(':projectId/people-groups/:peopleGroupId/sync-enrollments')

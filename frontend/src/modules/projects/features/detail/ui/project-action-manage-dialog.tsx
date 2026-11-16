@@ -11,9 +11,9 @@ import { useConfirm } from "@/components/confirm/use-confirm";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ACTION_STATUS_LABELS,
-  deleteProjectAction,
-  getProjectAction,
-  type ApiProjectAction,
+  deleteActivity,
+  getActivity,
+  type ApiActivity,
   type ActionStatus,
 } from "@/modules/actions";
 import { formatDateOnlyPtBR } from "@/lib/date";
@@ -57,7 +57,7 @@ type ProjectActionManageDialogProps = {
   canReadStructure: boolean;
   canReadPeople: boolean;
   canReadPeopleIdentity: boolean;
-  onEditRequested?: (action: ApiProjectAction) => void;
+  onEditRequested?: (action: ApiActivity) => void;
   onDeleted?: () => void;
 };
 
@@ -80,20 +80,20 @@ export function ProjectActionManageDialog({
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [action, setAction] = React.useState<ApiProjectAction | null>(null);
+  const [action, setAction] = React.useState<ApiActivity | null>(null);
 
   const load = React.useCallback(async () => {
     if (!actionId) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await getProjectAction(token, projectId, actionId);
+      const data = await getActivity(token, projectId, actionId);
       setAction(data);
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message?: string }).message)
-          : "Falha ao carregar ação.";
+          : "Falha ao carregar atividade.";
       setError(message);
       setAction(null);
     } finally {
@@ -109,16 +109,16 @@ export function ProjectActionManageDialog({
   const handleDelete = React.useCallback(async () => {
     if (!action || !canDelete) return;
     const confirmed = await confirm({
-      title: "Excluir ação",
-      description: `Excluir a ação "${action.title}"?`,
+      title: "Excluir atividade",
+      description: `Excluir a atividade "${action.title}"?`,
       confirmLabel: "Excluir",
       cancelLabel: "Cancelar",
       confirmVariant: "destructive",
     });
     if (!confirmed) return;
     try {
-      await deleteProjectAction(token, projectId, action.id);
-      toast({ title: "Ação excluída" });
+      await deleteActivity(token, projectId, action.id);
+      toast({ title: "Atividade excluída" });
       onOpenChange(false);
       onDeleted?.();
     } catch (err) {
@@ -133,7 +133,7 @@ export function ProjectActionManageDialog({
     }
   }, [action, canDelete, confirm, onDeleted, onOpenChange, projectId, toast, token]);
 
-  const title = action?.title ?? "Ação";
+  const title = action?.title ?? "Atividade";
 
   return (
     <SectionDialog
@@ -146,7 +146,7 @@ export function ProjectActionManageDialog({
         }
       }}
       title={title}
-      description="Gerencie a ação e registre presenças."
+      description="Gerencie a atividade e registre presenças."
       contentClassName="max-w-[min(96vw,72rem)]"
       headerSlot={
         action ? (
@@ -191,7 +191,7 @@ export function ProjectActionManageDialog({
 
       {action ? (
         <>
-          <SectionCard title="Resumo" subtitle="Contexto rápido da ação.">
+          <SectionCard title="Resumo" subtitle="Contexto rápido da atividade.">
             <SectionList>
               <SectionListItem
                 title={

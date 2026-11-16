@@ -1,12 +1,12 @@
 "use client";
 
 export const ACTION_CREATE_TEXT = {
-  breadcrumbTitle: "Nova ação",
-  breadcrumbItems: [{ label: "Ações", href: "/actions" }, { label: "Nova ação" }],
-  pageTitle: "Nova ação",
-  pageSubtitle: "Nova ação",
-  noAccessTitle: "Nova ação",
-  noAccessSubtitle: "Você não tem permissão para criar ações.",
+  breadcrumbTitle: "Nova atividade",
+  breadcrumbItems: [{ label: "Atividades", href: "/actions" }, { label: "Nova atividade" }],
+  pageTitle: "Nova atividade",
+  pageSubtitle: "Nova atividade",
+  noAccessTitle: "Nova atividade",
+  noAccessSubtitle: "Você não tem permissão para criar atividades.",
   requestAccessHint: "Solicite acesso ao administrador do sistema.",
   loadErrorTitle: "Falha ao carregar dados",
   loadErrorFallback: "Tente novamente.",
@@ -17,8 +17,8 @@ export const ACTION_CREATE_TEXT = {
     cycleRequired: "Selecione um grupo de pessoas",
   },
   toasts: {
-    created: "Ação criada",
-    createFailed: "Falha ao criar ação",
+    created: "Atividade criada",
+    createFailed: "Falha ao criar atividade",
   },
   form: {
     projectLabel: "Projeto",
@@ -33,24 +33,24 @@ export const ACTION_CREATE_TEXT = {
     cyclePlaceholder: "Selecione um grupo de pessoas",
     plannedStartLabel: "Início planejado",
     plannedEndLabel: "Término planejado",
-    submitLabel: "Criar ação",
+    submitLabel: "Criar atividade",
     cancelLabel: "Voltar",
   },
   usage: {
-    title: "Criar ação",
+    title: "Criar atividade",
     sections: [
       {
         title: "Selecionar projeto",
         items: [
-          "Selecione um projeto para associar a ação.",
+          "Selecione um projeto para associar a atividade.",
           "Se houver apenas um projeto disponível, ele pode vir pré-selecionado.",
         ],
       },
       {
         title: "Tipo e escopo",
         items: [
-          "Escolha o tipo: ele define se a ação é do projeto, de um grupo de participantes ou de um grupo de pessoas.",
-          "Selecione o direcionamento correspondente para manter a ação ligada ao público correto.",
+          "Escolha o tipo: ele define se a atividade é do projeto, de um grupo de participantes ou de um grupo de pessoas.",
+          "Selecione o direcionamento correspondente para manter a atividade ligada ao público correto.",
         ],
       },
       {

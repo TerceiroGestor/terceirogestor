@@ -120,11 +120,13 @@ mas **todas apontam para telas de `people-segments`** (`actionId:
 `"people-segments.detail"`). Hoje `/people-groups` é, na prática, um
 alias de `/people-segments`, sem UI própria.
 
-`docs/canonical-business-structure.md` já modela `PeopleGroup` como
-conceito de negócio real (agrupamento institucional, finalidades
-`PUBLICO`/`EQUIPE`) e o coloca **primeiro** na "Ordem de canonização" —
-ou seja, existe uma intenção documentada de construí-lo de verdade, que
-nunca foi executada.
+`docs/historico/canonical-business-structure.md` (arquivado em
+2026-11-15 — descrevia `ProjectGroup` como conceito ativo, eliminado pela
+Fase R1 do redesenho de grupos; a parte sobre `PeopleGroup` continua
+factualmente certa) já modelava `PeopleGroup` como conceito de negócio
+real (agrupamento institucional, finalidades `PUBLICO`/`EQUIPE`) e o
+colocava **primeiro** na "Ordem de canonização" — ou seja, existe uma
+intenção documentada de construí-lo de verdade, que nunca foi executada.
 
 **Decisão pendente, não técnica:** construir `people-groups` como módulo
 real (com manifest, UI própria, seguindo o padrão canônico de

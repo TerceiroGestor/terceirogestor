@@ -2,17 +2,17 @@
 
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
-  ActionOccurrenceInput,
-  ActionOccurrenceUpdateInput,
-  ActionOccurrencesListResponse,
-  ApiActionOccurrence,
-  BulkCreateActionOccurrencesInput,
-  BulkCreateActionOccurrencesResponse,
+  MeetingInput,
+  MeetingUpdateInput,
+  MeetingsListResponse,
+  ApiMeeting,
+  BulkCreateMeetingsInput,
+  BulkCreateMeetingsResponse,
   OccurrenceStatus,
-  UpdateActionOccurrenceBatchInput,
+  UpdateMeetingBatchInput,
 } from "./types";
 
-export async function listActionOccurrences(
+export async function listMeetings(
   token: string,
   projectId: string,
   actionId: string,
@@ -26,59 +26,59 @@ export async function listActionOccurrences(
   },
 ) {
   const query = buildQuery(params);
-  return apiRequest<ActionOccurrencesListResponse>(
+  return apiRequest<MeetingsListResponse>(
     `/projects/${projectId}/actions/${actionId}/occurrences${query}`,
     {},
     token,
   );
 }
 
-export async function createActionOccurrence(
+export async function createMeeting(
   token: string,
   projectId: string,
   actionId: string,
-  input: ActionOccurrenceInput,
+  input: MeetingInput,
 ) {
-  return apiRequest<ApiActionOccurrence>(
+  return apiRequest<ApiMeeting>(
     `/projects/${projectId}/actions/${actionId}/occurrences`,
     { method: "POST", body: JSON.stringify(input) },
     token,
   );
 }
 
-export async function bulkCreateActionOccurrences(
+export async function bulkCreateMeetings(
   token: string,
   projectId: string,
   actionId: string,
-  input: BulkCreateActionOccurrencesInput,
+  input: BulkCreateMeetingsInput,
 ) {
-  return apiRequest<BulkCreateActionOccurrencesResponse>(
+  return apiRequest<BulkCreateMeetingsResponse>(
     `/projects/${projectId}/actions/${actionId}/occurrences/bulk`,
     { method: "POST", body: JSON.stringify(input) },
     token,
   );
 }
 
-export async function updateActionOccurrence(
+export async function updateMeeting(
   token: string,
   projectId: string,
   actionId: string,
   occurrenceId: string,
-  patch: ActionOccurrenceUpdateInput,
+  patch: MeetingUpdateInput,
 ) {
-  return apiRequest<ApiActionOccurrence>(
+  return apiRequest<ApiMeeting>(
     `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}`,
     { method: "PATCH", body: JSON.stringify(patch) },
     token,
   );
 }
 
-export async function updateActionOccurrenceBatch(
+export async function updateMeetingBatch(
   token: string,
   projectId: string,
   actionId: string,
   recurrenceBatchId: string,
-  patch: UpdateActionOccurrenceBatchInput,
+  patch: UpdateMeetingBatchInput,
 ) {
   return apiRequest<{ ok: true; updated: number }>(
     `/projects/${projectId}/actions/${actionId}/occurrences/batch/${recurrenceBatchId}`,
@@ -87,7 +87,7 @@ export async function updateActionOccurrenceBatch(
   );
 }
 
-export async function deleteActionOccurrence(
+export async function deleteMeeting(
   token: string,
   projectId: string,
   actionId: string,

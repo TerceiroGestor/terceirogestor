@@ -54,6 +54,10 @@ export class UpdateProjectActionDto {
   targetEnrollmentId?: string | null;
 
   @IsOptional()
+  @IsUUID('4')
+  goalId?: string | null;
+
+  @IsOptional()
   @IsString()
   plannedStartAt?: string | null;
 

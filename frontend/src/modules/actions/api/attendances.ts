@@ -3,10 +3,10 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
   AttendanceStatus,
-  ProjectActionAttendancesListResponse,
+  MeetingAttendancesListResponse,
 } from "./types";
 
-export async function listProjectActionAttendances(
+export async function listMeetingAttendances(
   token: string,
   projectId: string,
   actionId: string,
@@ -20,14 +20,14 @@ export async function listProjectActionAttendances(
   },
 ) {
   const query = buildQuery(params);
-  return apiRequest<ProjectActionAttendancesListResponse>(
+  return apiRequest<MeetingAttendancesListResponse>(
     `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/attendances${query}`,
     {},
     token,
   );
 }
 
-export async function upsertProjectActionAttendances(
+export async function upsertMeetingAttendances(
   token: string,
   projectId: string,
   actionId: string,

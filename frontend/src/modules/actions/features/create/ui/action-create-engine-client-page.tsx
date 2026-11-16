@@ -95,11 +95,11 @@ export function ActionCreateEngineClientPage() {
       moduleDefinition={actionsDetailModuleDefinition}
       context={context}
       mode="create"
-      headerTitle="Nova ação"
-      breadcrumbTitle="Nova ação"
+      headerTitle="Nova atividade"
+      breadcrumbTitle="Nova atividade"
       breadcrumbItems={[
-        { label: "Ações", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
-        { label: "Nova ação" },
+        { label: "Atividades", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
+        { label: "Nova atividade" },
       ]}
       saving={false}
       loading={false}

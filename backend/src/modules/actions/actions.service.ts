@@ -260,6 +260,7 @@ function resolveScopeFromTarget(params: {
 const projectActionInclude = {
   project: { select: { id: true, name: true } },
   actionType: { select: { id: true, name: true, target: true } },
+  goal: { select: { id: true, title: true } },
   createdByUser: { select: { id: true, name: true, email: true } },
   peopleGroups: {
     where: { participationKind: 'PARTICIPANT' },
@@ -304,7 +305,7 @@ const projectActionInclude = {
       },
     },
   },
-} satisfies Prisma.ProjectActionInclude;
+} satisfies Prisma.ActivityInclude;
 
 const actionOccurrenceInclude = {
   peopleGroup: { select: { id: true, name: true } },
@@ -312,7 +313,7 @@ const actionOccurrenceInclude = {
     include: { peopleGroup: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'asc' },
   },
-} satisfies Prisma.ActionOccurrenceInclude;
+} satisfies Prisma.MeetingInclude;
 
 function buildProjectActionWhere(params: {
   tenantId: string;
@@ -326,7 +327,7 @@ function buildProjectActionWhere(params: {
   const effectiveMine = canReadAll ? (query.mine ?? false) : true;
   const resolvedProjectId = params.projectId ?? query.projectId ?? null;
   const scopedPeopleGroupId = query.peopleGroupId ?? null;
-  const and: Prisma.ProjectActionWhereInput[] = [];
+  const and: Prisma.ActivityWhereInput[] = [];
 
   if (query.actionTypeId) {
     and.push({ actionTypeId: query.actionTypeId });
@@ -363,9 +364,9 @@ function buildProjectActionWhere(params: {
     tenantId,
     ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
     ...(effectiveMine ? { createdByUserId: userId } : {}),
-    ...(query.status ? { status: query.status as ActionStatus } : {}),
+    ...(query.status ? { status: query.status } : {}),
     ...(and.length ? { AND: and } : {}),
-  } satisfies Prisma.ProjectActionWhereInput;
+  } satisfies Prisma.ActivityWhereInput;
 }
 
 @Injectable()
@@ -431,7 +432,7 @@ export class ActionsService {
     peopleGroupId: string,
     participationKind: ParticipationKind = 'PARTICIPANT',
   ) {
-    const peopleGroupLink = await this.prisma.actionPeopleGroup.findFirst({
+    const peopleGroupLink = await this.prisma.activityPeopleGroup.findFirst({
       where: {
         tenantId,
         actionId,
@@ -456,6 +457,64 @@ export class ActionsService {
       select: { id: true },
     });
     if (!enrollment) throw new BadRequestException('Participante invalido');
+  }
+
+  private async ensureGoalBelongsToProject(
+    tenantId: string,
+    projectId: string,
+    goalId: string,
+  ) {
+    const goal = await this.prisma.goal.findFirst({
+      where: { id: goalId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!goal) throw new BadRequestException('Meta invalida');
+  }
+
+  // Fase 3 do plano mestre: uma pessoa pode ter presenca em N encontros
+  // (Meeting) no mesmo dia, mas conta como 1 unico dia de permanencia no
+  // servico. Reavalia do zero (nao incrementa/decrementa) para que
+  // corrigir uma presenca de PRESENT para ABSENT remova a presenca diaria
+  // quando nao sobra nenhum outro encontro PRESENT naquele dia.
+  private async syncDailyAttendanceForPersonDate(
+    tenantId: string,
+    personId: string,
+    date: Date,
+  ) {
+    const hasPresence = await this.prisma.meetingAttendance.count({
+      where: {
+        tenantId,
+        status: 'PRESENT',
+        enrollment: { personId },
+        occurrence: { scheduledDate: date },
+      },
+    });
+
+    if (hasPresence > 0) {
+      await this.prisma.dailyAttendance.upsert({
+        where: { tenantId_personId_date: { tenantId, personId, date } },
+        create: { tenantId, personId, date },
+        update: {},
+      });
+    } else {
+      await this.prisma.dailyAttendance.deleteMany({
+        where: { tenantId, personId, date },
+      });
+    }
+  }
+
+  // Reavalia a presenca diaria de um conjunto de pessoas para uma data -
+  // usado depois de qualquer escrita em lote que mude presenca (upsert,
+  // exclusao de encontro, exclusao de atividade inteira).
+  private async syncDailyAttendanceForPeopleDate(
+    tenantId: string,
+    personIds: Iterable<string>,
+    date: Date,
+  ) {
+    const uniquePersonIds = Array.from(new Set(personIds));
+    for (const personId of uniquePersonIds) {
+      await this.syncDailyAttendanceForPersonDate(tenantId, personId, date);
+    }
   }
 
   private serializeEnrollment<T>(enrollment: T) {
@@ -493,10 +552,11 @@ export class ActionsService {
       user.userId,
       'actions.manage',
     );
-    const action = await this.prisma.projectAction.findFirst({
+    const action = await this.prisma.activity.findFirst({
       where: { id: actionId, tenantId: user.tenantId, projectId },
       include: {
         actionType: { select: { id: true, name: true, target: true } },
+        goal: { select: { id: true, title: true } },
         createdByUser: { select: { id: true, name: true, email: true } },
         peopleGroups: {
           where: { participationKind: 'PARTICIPANT' },
@@ -572,7 +632,7 @@ export class ActionsService {
     actionId: string;
     peopleGroupId: string | null;
   }) {
-    await this.prisma.actionPeopleGroup.deleteMany({
+    await this.prisma.activityPeopleGroup.deleteMany({
       where: {
         tenantId: params.tenantId,
         actionId: params.actionId,
@@ -591,7 +651,7 @@ export class ActionsService {
       'PARTICIPANT',
     );
 
-    await this.prisma.actionPeopleGroup.create({
+    await this.prisma.activityPeopleGroup.create({
       data: {
         tenantId: params.tenantId,
         actionId: params.actionId,
@@ -603,7 +663,7 @@ export class ActionsService {
 
   async listActionTypes(tenantId: string, query: ListActionTypesQueryDto) {
     const q = normalizeString(query.q);
-    return this.prisma.actionType.findMany({
+    return this.prisma.activityType.findMany({
       where: {
         tenantId,
         ...(query.isActiveValue === undefined
@@ -618,7 +678,7 @@ export class ActionsService {
   async createActionType(tenantId: string, dto: CreateActionTypeDto) {
     const name = (dto.name ?? '').trim();
     if (!name) throw new BadRequestException('Nome e obrigatorio');
-    return this.prisma.actionType.create({
+    return this.prisma.activityType.create({
       data: {
         tenantId,
         name,
@@ -634,7 +694,7 @@ export class ActionsService {
     id: string,
     dto: UpdateActionTypeDto,
   ) {
-    const existing = await this.prisma.actionType.findFirst({
+    const existing = await this.prisma.activityType.findFirst({
       where: { id, tenantId },
     });
     if (!existing) throw new NotFoundException('Tipo de acao nao encontrado');
@@ -643,7 +703,7 @@ export class ActionsService {
     if (name !== undefined && !name)
       throw new BadRequestException('Nome e obrigatorio');
 
-    return this.prisma.actionType.update({
+    return this.prisma.activityType.update({
       where: { id: existing.id },
       data: {
         ...(name !== undefined ? { name } : {}),
@@ -661,13 +721,13 @@ export class ActionsService {
   }
 
   async deleteActionType(tenantId: string, id: string) {
-    const existing = await this.prisma.actionType.findFirst({
+    const existing = await this.prisma.activityType.findFirst({
       where: { id, tenantId },
       select: { id: true },
     });
     if (!existing) throw new NotFoundException('Tipo de acao nao encontrado');
 
-    const usage = await this.prisma.projectAction.count({
+    const usage = await this.prisma.activity.count({
       where: { tenantId, actionTypeId: existing.id },
     });
     if (usage > 0) {
@@ -676,7 +736,7 @@ export class ActionsService {
       );
     }
 
-    await this.prisma.actionType.delete({ where: { id: existing.id } });
+    await this.prisma.activityType.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
 
@@ -709,14 +769,14 @@ export class ActionsService {
     });
 
     const [data, total] = await Promise.all([
-      this.prisma.projectAction.findMany({
+      this.prisma.activity.findMany({
         where,
         include: projectActionInclude,
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
         skip,
         take,
       }),
-      this.prisma.projectAction.count({ where }),
+      this.prisma.activity.count({ where }),
     ]);
 
     return {
@@ -748,20 +808,65 @@ export class ActionsService {
     });
 
     const [data, total] = await Promise.all([
-      this.prisma.projectAction.findMany({
+      this.prisma.activity.findMany({
         where,
         include: projectActionInclude,
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
         skip,
         take,
       }),
-      this.prisma.projectAction.count({ where }),
+      this.prisma.activity.count({ where }),
     ]);
 
     return {
       data: data.map((item) => serializeProjectAction(item)),
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };
+  }
+
+  // Fase 3 do plano mestre: "relatorio simples" comparando frequencia por
+  // atividade (quantos encontros a pessoa compareceu) com frequencia de
+  // permanencia no servico (quantos dias distintos, sem duplicar quando
+  // ha mais de um encontro no mesmo dia).
+  async getPersonAttendanceSummary(
+    tenantId: string,
+    personId: string,
+    month?: string,
+  ) {
+    const person = await this.prisma.person.findFirst({
+      where: { id: personId, tenantId },
+      select: { id: true },
+    });
+    if (!person) throw new NotFoundException('Pessoa nao encontrada');
+
+    const resolvedMonth = month ?? new Date().toISOString().slice(0, 7);
+    const match = /^(\d{4})-(\d{2})$/.exec(resolvedMonth);
+    if (!match) {
+      throw new BadRequestException('Mes invalido, use o formato AAAA-MM');
+    }
+    const year = Number(match[1]);
+    const monthNumber = Number(match[2]);
+    if (monthNumber < 1 || monthNumber > 12) {
+      throw new BadRequestException('Mes invalido, use o formato AAAA-MM');
+    }
+    const start = new Date(Date.UTC(year, monthNumber - 1, 1));
+    const end = new Date(Date.UTC(year, monthNumber, 1));
+
+    const [activityAttendances, dailyAttendances] = await Promise.all([
+      this.prisma.meetingAttendance.count({
+        where: {
+          tenantId,
+          status: 'PRESENT',
+          enrollment: { personId },
+          occurrence: { scheduledDate: { gte: start, lt: end } },
+        },
+      }),
+      this.prisma.dailyAttendance.count({
+        where: { tenantId, personId, date: { gte: start, lt: end } },
+      }),
+    ]);
+
+    return { personId, month: resolvedMonth, activityAttendances, dailyAttendances };
   }
 
   async getProjectAction(user: JwtUser, projectId: string, actionId: string) {
@@ -776,7 +881,7 @@ export class ActionsService {
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
 
-    const type = await this.prisma.actionType.findFirst({
+    const type = await this.prisma.activityType.findFirst({
       where: { id: dto.actionTypeId, tenantId: user.tenantId },
       select: { id: true, isActive: true, target: true },
     });
@@ -814,6 +919,13 @@ export class ActionsService {
         scope.targetEnrollmentId,
       );
     }
+    if (dto.goalId) {
+      await this.ensureGoalBelongsToProject(
+        user.tenantId,
+        projectId,
+        dto.goalId,
+      );
+    }
 
     const plannedStartAt = parseDateInput(dto.plannedStartAt);
     const plannedEndAt = parseDateInput(dto.plannedEndAt, { endOfDay: true });
@@ -832,13 +944,14 @@ export class ActionsService {
     const title = (dto.title ?? '').trim();
     if (!title) throw new BadRequestException('Titulo e obrigatorio');
 
-    const created = await this.prisma.projectAction.create({
+    const created = await this.prisma.activity.create({
       data: {
         tenantId: user.tenantId,
         projectId,
         createdByUserId: user.userId,
         targetEnrollmentId: scope.targetEnrollmentId,
         actionTypeId: dto.actionTypeId,
+        goalId: dto.goalId ?? null,
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
         tags: normalizeTags(dto.tags),
@@ -846,7 +959,7 @@ export class ActionsService {
           ? dto.internalNotes.trim()
           : null,
         completionPercent: dto.completionPercent ?? null,
-        status: (dto.status as ActionStatus | undefined) ?? 'PLANNED',
+        status: dto.status ?? 'PLANNED',
         plannedStartAt,
         plannedEndAt,
         executedStartAt,
@@ -876,7 +989,7 @@ export class ActionsService {
     );
 
     const resolvedActionTypeId = dto.actionTypeId ?? existing.actionTypeId;
-    const type = await this.prisma.actionType.findFirst({
+    const type = await this.prisma.activityType.findFirst({
       where: { id: resolvedActionTypeId, tenantId: user.tenantId },
       select: { id: true, isActive: true, target: true },
     });
@@ -889,7 +1002,7 @@ export class ActionsService {
         : (dto.peopleGroupId ?? null);
     const targetEnrollmentIdInput =
       dto.targetEnrollmentId === undefined
-        ? ((existing as any).targetEnrollmentId ?? null)
+        ? (existing.targetEnrollmentId ?? null)
         : (dto.targetEnrollmentId ?? null);
     const scope = resolveScopeFromTarget({
       target: type.target,
@@ -920,6 +1033,13 @@ export class ActionsService {
         user.tenantId,
         projectId,
         scope.targetEnrollmentId,
+      );
+    }
+    if (dto.goalId) {
+      await this.ensureGoalBelongsToProject(
+        user.tenantId,
+        projectId,
+        dto.goalId,
       );
     }
 
@@ -965,7 +1085,7 @@ export class ActionsService {
     const normalizedTags =
       dto.tags !== undefined ? normalizeTags(dto.tags) : undefined;
 
-    await this.prisma.projectAction.update({
+    await this.prisma.activity.update({
       where: { id: existing.id },
       data: {
         ...(title !== undefined ? { title } : {}),
@@ -984,12 +1104,11 @@ export class ActionsService {
                 : null,
             }
           : {}),
-        ...(dto.status !== undefined
-          ? { status: dto.status as ActionStatus }
-          : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.actionTypeId !== undefined
           ? { actionTypeId: resolvedActionTypeId }
           : {}),
+        ...(dto.goalId !== undefined ? { goalId: dto.goalId ?? null } : {}),
         ...(dto.actionTypeId !== undefined ||
         dto.peopleGroupId !== undefined ||
         dto.targetEnrollmentId !== undefined
@@ -1033,17 +1152,34 @@ export class ActionsService {
       actionId,
     );
 
-    await this.prisma.projectActionAttendance.deleteMany({
+    // Fase 3: capturar quem tinha presenca PRESENT (e em que dia) antes de
+    // apagar tudo, para reavaliar a presenca diaria depois.
+    const presentAttendances = await this.prisma.meetingAttendance.findMany({
+      where: { tenantId: user.tenantId, actionId: existing.id, status: 'PRESENT' },
+      select: {
+        enrollment: { select: { personId: true } },
+        occurrence: { select: { scheduledDate: true } },
+      },
+    });
+    const personIdsByDate = new Map<number, Set<string>>();
+    for (const row of presentAttendances) {
+      const key = row.occurrence.scheduledDate.getTime();
+      const bucket = personIdsByDate.get(key) ?? new Set<string>();
+      bucket.add(row.enrollment.personId);
+      personIdsByDate.set(key, bucket);
+    }
+
+    await this.prisma.meetingAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
     // Precisa vir depois da presença (FK occurrenceId é RESTRICT) e antes
     // da própria ação (FK actionId do encontro também é RESTRICT) - achado
     // ao implementar a Fase 3: excluir uma atividade com encontro já
     // agendado (Fase 1/2) já falhava com erro de FK antes desta correção.
-    await this.prisma.actionOccurrence.deleteMany({
+    await this.prisma.meeting.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
-    await this.prisma.actionPeopleGroup.deleteMany({
+    await this.prisma.activityPeopleGroup.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
     await this.prisma.projectActionPeopleParticipation.deleteMany({
@@ -1056,7 +1192,16 @@ export class ActionsService {
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
 
-    await this.prisma.projectAction.delete({ where: { id: existing.id } });
+    await this.prisma.activity.delete({ where: { id: existing.id } });
+
+    for (const [time, personIds] of personIdsByDate) {
+      await this.syncDailyAttendanceForPeopleDate(
+        user.tenantId,
+        personIds,
+        new Date(time),
+      );
+    }
+
     return { ok: true as const };
   }
 
@@ -1195,7 +1340,7 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    return this.prisma.actionPeopleGroup.findMany({
+    return this.prisma.activityPeopleGroup.findMany({
       where: {
         tenantId: user.tenantId,
         actionId,
@@ -1226,7 +1371,7 @@ export class ActionsService {
       dto.participationKind,
     );
 
-    return this.prisma.actionPeopleGroup.create({
+    return this.prisma.activityPeopleGroup.create({
       data: {
         tenantId: user.tenantId,
         actionId,
@@ -1246,7 +1391,7 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    const existing = await this.prisma.actionPeopleGroup.findFirst({
+    const existing = await this.prisma.activityPeopleGroup.findFirst({
       where: {
         id: actionPeopleGroupId,
         tenantId: user.tenantId,
@@ -1257,7 +1402,9 @@ export class ActionsService {
     if (!existing)
       throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
 
-    await this.prisma.actionPeopleGroup.delete({ where: { id: existing.id } });
+    await this.prisma.activityPeopleGroup.delete({
+      where: { id: existing.id },
+    });
     return { ok: true as const };
   }
 
@@ -1281,7 +1428,7 @@ export class ActionsService {
     const from = parseDateInput(query.from);
     const to = parseDateInput(query.to, { endOfDay: true });
 
-    const where: Prisma.ActionOccurrenceWhereInput = {
+    const where: Prisma.MeetingWhereInput = {
       tenantId: user.tenantId,
       actionId,
       ...(query.status ? { status: query.status } : {}),
@@ -1297,14 +1444,14 @@ export class ActionsService {
     };
 
     const [data, total] = await Promise.all([
-      this.prisma.actionOccurrence.findMany({
+      this.prisma.meeting.findMany({
         where,
         include: actionOccurrenceInclude,
         orderBy: [{ scheduledDate: 'asc' }, { startTime: 'asc' }],
         skip,
         take,
       }),
-      this.prisma.actionOccurrence.count({ where }),
+      this.prisma.meeting.count({ where }),
     ]);
 
     return {
@@ -1352,7 +1499,7 @@ export class ActionsService {
       );
     }
 
-    const created = await this.prisma.actionOccurrence.create({
+    const created = await this.prisma.meeting.create({
       data: {
         tenantId: user.tenantId,
         actionId,
@@ -1452,7 +1599,7 @@ export class ActionsService {
     const conclusionHtml = normalizeHtml(dto.conclusionHtml) ?? null;
     const photoPaths = (normalizePhotoPaths(dto.photoPaths) as any) ?? null;
 
-    await this.prisma.actionOccurrence.createMany({
+    await this.prisma.meeting.createMany({
       data: dates.map((scheduledDate) => ({
         tenantId: user.tenantId,
         actionId,
@@ -1472,7 +1619,7 @@ export class ActionsService {
     });
 
     const createdOccurrenceIds = teamPeopleGroupIds.length
-      ? await this.prisma.actionOccurrence.findMany({
+      ? await this.prisma.meeting.findMany({
           where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
           select: { id: true },
         })
@@ -1489,7 +1636,7 @@ export class ActionsService {
       });
     }
 
-    const created = await this.prisma.actionOccurrence.findMany({
+    const created = await this.prisma.meeting.findMany({
       where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
       include: actionOccurrenceInclude,
       orderBy: [{ scheduledDate: 'asc' }],
@@ -1503,7 +1650,7 @@ export class ActionsService {
     actionId: string,
     occurrenceId: string,
   ) {
-    const occurrence = await this.prisma.actionOccurrence.findFirst({
+    const occurrence = await this.prisma.meeting.findFirst({
       where: { id: occurrenceId, tenantId, actionId },
     });
     if (!occurrence) throw new NotFoundException('Encontro nao encontrado');
@@ -1575,7 +1722,7 @@ export class ActionsService {
     const conclusionHtml = normalizeHtml(dto.conclusionHtml);
     const photoPaths = normalizePhotoPaths(dto.photoPaths);
 
-    const updated = await this.prisma.actionOccurrence.update({
+    const updated = await this.prisma.meeting.update({
       where: { id: existing.id },
       data: {
         scheduledDate: baseDate,
@@ -1635,7 +1782,7 @@ export class ActionsService {
       ]);
     }
 
-    return this.prisma.actionOccurrence.findFirst({
+    return this.prisma.meeting.findFirst({
       where: { id: updated.id },
       include: actionOccurrenceInclude,
     });
@@ -1656,19 +1803,19 @@ export class ActionsService {
       throw new BadRequestException('Data inicial invalida');
     }
 
-    const where: Prisma.ActionOccurrenceWhereInput = {
+    const where: Prisma.MeetingWhereInput = {
       tenantId: user.tenantId,
       actionId,
       recurrenceBatchId,
       ...(fromDate ? { scheduledDate: { gte: fromDate } } : {}),
     };
 
-    const existing = await this.prisma.actionOccurrence.count({ where });
+    const existing = await this.prisma.meeting.count({ where });
     if (existing === 0) {
       throw new NotFoundException('Leva de encontros nao encontrada');
     }
 
-    const result = await this.prisma.actionOccurrence.updateMany({
+    const result = await this.prisma.meeting.updateMany({
       where,
       data: { status: dto.status },
     });
@@ -1690,13 +1837,32 @@ export class ActionsService {
       occurrenceId,
     );
 
-    // A FK de ProjectActionAttendance.occurrenceId é RESTRICT (mesmo padrão
-    // manual de cascade já usado em deleteProjectAction) - sem isso, excluir
+    // Fase 3: capturar quem tinha presenca PRESENT neste encontro antes de
+    // apagar, para reavaliar a presenca diaria depois (pode ser que essa
+    // fosse a unica presenca da pessoa naquele dia).
+    const presentAttendances = await this.prisma.meetingAttendance.findMany({
+      where: {
+        tenantId: user.tenantId,
+        occurrenceId: existing.id,
+        status: 'PRESENT',
+      },
+      select: { enrollment: { select: { personId: true } } },
+    });
+
+    // A FK de MeetingAttendance.occurrenceId é RESTRICT (mesmo padrão
+    // manual de cascade já usado em deleteActivity) - sem isso, excluir
     // um encontro com presença já registrada falharia com erro de FK.
-    await this.prisma.projectActionAttendance.deleteMany({
+    await this.prisma.meetingAttendance.deleteMany({
       where: { tenantId: user.tenantId, occurrenceId: existing.id },
     });
-    await this.prisma.actionOccurrence.delete({ where: { id: existing.id } });
+    await this.prisma.meeting.delete({ where: { id: existing.id } });
+
+    await this.syncDailyAttendanceForPeopleDate(
+      user.tenantId,
+      presentAttendances.map((row) => row.enrollment.personId),
+      existing.scheduledDate,
+    );
+
     return { ok: true as const };
   }
 
@@ -1723,9 +1889,7 @@ export class ActionsService {
       actionId,
       isActive: true,
       deletedAt: null,
-      ...(query.role
-        ? { role: query.role as ActionPeopleParticipationRole }
-        : {}),
+      ...(query.role ? { role: query.role } : {}),
       ...(q
         ? {
             OR: [
@@ -1844,7 +2008,7 @@ export class ActionsService {
     const filters = parseAdvancedFilters(query.filters);
     const participationKind: ParticipationKind =
       query.participationKind ?? 'TEAM';
-    const actionPeopleGroups = await this.prisma.actionPeopleGroup.findMany({
+    const actionPeopleGroups = await this.prisma.activityPeopleGroup.findMany({
       where: {
         tenantId: user.tenantId,
         actionId,
@@ -2269,12 +2433,12 @@ export class ActionsService {
       this.prisma.projectEnrollment.count({ where }),
     ]);
 
-    const attendanceRows = await this.prisma.projectActionAttendance.findMany({
+    const attendanceRows = await this.prisma.meetingAttendance.findMany({
       where: {
         tenantId: user.tenantId,
         occurrenceId,
         enrollmentId: { in: enrollments.map((row) => row.id) },
-        ...(query.status ? { status: query.status as AttendanceStatus } : {}),
+        ...(query.status ? { status: query.status } : {}),
       },
       select: {
         id: true,
@@ -2306,7 +2470,7 @@ export class ActionsService {
         title: action.title,
         peopleGroupId:
           resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ?? null,
-        targetEnrollmentId: (action as any).targetEnrollmentId ?? null,
+        targetEnrollmentId: action.targetEnrollmentId ?? null,
       },
       occurrence: {
         id: occurrence.id,
@@ -2328,7 +2492,7 @@ export class ActionsService {
   ) {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
-    await this.ensureActionOccurrenceExists(
+    const occurrence = await this.ensureActionOccurrenceExists(
       user.tenantId,
       actionId,
       occurrenceId,
@@ -2343,13 +2507,16 @@ export class ActionsService {
     );
     const enrollments = await this.prisma.projectEnrollment.findMany({
       where: { tenantId: user.tenantId, projectId, id: { in: enrollmentIds } },
-      select: { id: true },
+      select: { id: true, personId: true },
     });
     if (enrollments.length !== enrollmentIds.length) {
       throw new BadRequestException('Matricula invalida');
     }
+    const personIdByEnrollment = new Map(
+      enrollments.map((enrollment) => [enrollment.id, enrollment.personId]),
+    );
 
-    const existing = await this.prisma.projectActionAttendance.findMany({
+    const existing = await this.prisma.meetingAttendance.findMany({
       where: {
         tenantId: user.tenantId,
         occurrenceId,
@@ -2390,7 +2557,7 @@ export class ActionsService {
             existingByEnrollment.get(item.enrollmentId) ?? null;
 
           if (existingId) {
-            await this.prisma.projectActionAttendance.update({
+            await this.prisma.meetingAttendance.update({
               where: { id: existingId },
               data: {
                 status: item.status,
@@ -2408,7 +2575,7 @@ export class ActionsService {
             return;
           }
 
-          await this.prisma.projectActionAttendance.create({
+          await this.prisma.meetingAttendance.create({
             data: {
               tenantId: user.tenantId,
               actionId,
@@ -2430,6 +2597,15 @@ export class ActionsService {
         throw failed.reason;
       }
     }
+
+    const affectedPersonIds = items
+      .map((item) => personIdByEnrollment.get(item.enrollmentId))
+      .filter((personId): personId is string => Boolean(personId));
+    await this.syncDailyAttendanceForPeopleDate(
+      user.tenantId,
+      affectedPersonIds,
+      occurrence.scheduledDate,
+    );
 
     return { ok: true as const, created, updated };
   }

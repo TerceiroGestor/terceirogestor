@@ -124,6 +124,21 @@ adiado sem gatilho. Formato do Alicerce.
   **Gatilho:** antes do primeiro deploy em staging/produção que inclua
   o commit da reorganização da chave física (item 3.2 do `PLAN.md`).
 
+- **`migrate-upload-keys-to-tenant-scoped.js#migrateProjectActionPhotoPaths`
+  está quebrado desde 2026-11-14** — a Fase R3 do redesenho de grupos moveu
+  `photoPaths` de `ProjectAction`/`Activity` para `ActionOccurrence`/
+  `Meeting`, mas a função continua filtrando `activity.findMany({ where: {
+  photoPaths: ... } })`, campo que não existe mais nesse model (vai falhar
+  com erro do Prisma se rodar hoje). Achado incidentalmente durante o
+  rename da Fase 1.0 (ver
+  `docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`),
+  não corrigido ali porque exige decidir se a função deve migrar para
+  `meeting.photoPaths` ou se já é redundante (o próprio objetivo dela —
+  mover chave física pra `categoria/tenantId/arquivo` — já rodou com
+  sucesso uma vez, por `ProjectAction.photoPaths`, antes da Fase R3 existir).
+  **Gatilho:** o mesmo item acima — antes do próximo ambiente que precisar
+  rodar `npm run migrate:upload-keys` com arquivos no formato antigo.
+
 ## Segurança / chaves
 
 - **Rotação de `PII_MASTER_KEY` e `TOTP_ENCRYPTION_KEY`.**
@@ -179,22 +194,33 @@ adiado sem gatilho. Formato do Alicerce.
 
 ## Arquitetura (Parte 5)
 
+- **Revisar `ProjectFundingSource` para permitir boa gestão dos recursos
+  do projeto.** Decisão do usuário em 2026-11-15, ao aprovar a Fase 1 do
+  plano mestre: a modelagem atual (N fontes por projeto, cada uma só com
+  `source`/`name`/`notes` livres) resolve o caso de "projeto com
+  financiamento misto" descrito na dor de negócio, mas é uma primeira
+  passada — não cobre valor orçado/recebido por fonte, prazo de
+  prestação de contas, nem template de relatório por financiador (esse
+  último já é o escopo da Fase 9 do plano mestre, que pode alimentar
+  essa revisão). **Gatilho:** antes de qualquer tela de "prestação de
+  contas"/relatório financeiro por fonte, ou quando uma instituição real
+  pedir para registrar valores por convênio/edital.
+
 - **Plataforma SCFV completa (Programas/Projetos/Atividades/Encontros +
   Atendimento Técnico + Encaminhamentos + Ocorrências + relatórios
   RMA/SISC).** Plano módulo a módulo, testável, em
-  `docs/plano-implementacao-scfv.md` (2026-11-13) — substitui e amplia o
-  plano anterior (`docs/plano-reestruturacao-programas-projetos-atividades.md`,
-  2026-11-12, mantido como referência histórica do racional original de
-  `ActionOccurrence`). 9 fases com dependências mapeadas: Encontro (model
-  novo) → UI de Encontros → migração de presença para nível de Encontro (2
-  deploys) → relabel "Ação"→"Atividade" (paralelo) → módulos novos
-  Atendimento/Encaminhamento/Ocorrência (com guard de sigilo reaproveitável)
-  → regras SCFV (faixa etária, público prioritário, lista de espera, motivo
-  de desligamento) → timeline 360° da Pessoa (aba "Atendimentos", hoje
-  `disabled: true` — `people-detail-tabs.tsx:45`) → relatórios de
-  estrutura/compliance → prontuário individual exportável. Decisões
-  pendentes listadas no fim de cada fase do plano, com recomendação própria
-  cada uma.
+  `docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`
+  (revisão de 2026-11-15 — plano mestre atual; substitui
+  `docs/historico/plano-implementacao-scfv.md`,
+  `docs/historico/especificacao-completa-saas-para-ongs-de-scfv.md` e
+  `docs/historico/plano-reestruturacao-programas-projetos-atividades.md`,
+  todos movidos para `docs/historico/` nesta revisão). 10 fases com
+  dependências mapeadas (Fase 1.0 de rename de nomenclatura → Encontro/
+  presença/avaliação por participante → presença diária derivada →
+  recorrência/agenda anual → Ocorrência → Atendimento → Encaminhamento →
+  Caso (agrupador) → relatórios por financiador). Decisões pendentes
+  listadas no fim de cada fase do plano, com recomendação própria cada
+  uma.
   **Gatilho:** início da Parte 5 (evolução de arquitetura), depois do
   go-live (Parte 4). Decisão do usuário em 2026-11-12/13: registrar e não
   iniciar agora. **Atualização 2026-11-13:** Fases 1 (model
@@ -202,8 +228,12 @@ adiado sem gatilho. Formato do Alicerce.
   qualidade por Encontro, com migration em 2 passos + backfill) já foram
   implementadas e testadas, a pedido explícito do usuário, à frente desta
   decisão de sequenciamento — ver evidência em
-  `docs/plano-implementacao-scfv.md` e o desvio registrado no topo do
-  `PLAN.md`. As Fases 4-9 continuam adiadas.
+  `docs/historico/plano-implementacao-scfv.md` e o desvio registrado no
+  topo do `PLAN.md`. Também já implementadas: Fases R1-R3 do redesenho de
+  grupos/matrícula/Encontro (ver `docs/historico/plano-redesenho-grupos-matricula-atividades.md`).
+  Tudo que continua sem implementar — presença diária derivada, rename de
+  nomenclatura, Ocorrência/Atendimento/Encaminhamento/Caso, relatórios por
+  financiador — está mapeado no plano mestre atual.
 
 ## Frontend — autenticação
 

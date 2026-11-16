@@ -2,14 +2,14 @@
 
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
-  ApiProjectAction,
+  ApiActivity,
   ProjectActionAttachmentInput,
   ProjectActionCommentInput,
-  ProjectActionInput,
-  ProjectActionsListResponse,
+  ActivityInput,
+  ActivitiesListResponse,
 } from "./types";
 
-export async function listProjectActions(
+export async function listActivities(
   token: string,
   projectId: string,
   params?: {
@@ -24,7 +24,7 @@ export async function listProjectActions(
   },
 ) {
   const query = buildQuery(params);
-  return apiRequest<ProjectActionsListResponse>(
+  return apiRequest<ActivitiesListResponse>(
     `/projects/${projectId}/actions${query}`,
     {},
     token,
@@ -46,47 +46,47 @@ export async function listActions(
   },
 ) {
   const query = buildQuery(params);
-  return apiRequest<ProjectActionsListResponse>(`/actions${query}`, {}, token);
+  return apiRequest<ActivitiesListResponse>(`/actions${query}`, {}, token);
 }
 
-export async function getProjectAction(
+export async function getActivity(
   token: string,
   projectId: string,
   actionId: string,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}`,
     {},
     token,
   );
 }
 
-export async function createProjectAction(
+export async function createActivity(
   token: string,
   projectId: string,
-  payload: ProjectActionInput,
+  payload: ActivityInput,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions`,
     { method: "POST", body: JSON.stringify(payload) },
     token,
   );
 }
 
-export async function updateProjectAction(
+export async function updateActivity(
   token: string,
   projectId: string,
   actionId: string,
-  payload: Partial<ProjectActionInput>,
+  payload: Partial<ActivityInput>,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}`,
     { method: "PATCH", body: JSON.stringify(payload) },
     token,
   );
 }
 
-export async function deleteProjectAction(
+export async function deleteActivity(
   token: string,
   projectId: string,
   actionId: string,
@@ -104,7 +104,7 @@ export async function addProjectActionComment(
   actionId: string,
   payload: ProjectActionCommentInput,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}/comments`,
     { method: "POST", body: JSON.stringify(payload) },
     token,
@@ -117,7 +117,7 @@ export async function deleteProjectActionComment(
   actionId: string,
   commentId: string,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}/comments/${commentId}`,
     { method: "DELETE" },
     token,
@@ -130,7 +130,7 @@ export async function addProjectActionAttachment(
   actionId: string,
   payload: ProjectActionAttachmentInput,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}/attachments`,
     { method: "POST", body: JSON.stringify(payload) },
     token,
@@ -143,7 +143,7 @@ export async function deleteProjectActionAttachment(
   actionId: string,
   attachmentId: string,
 ) {
-  return apiRequest<ApiProjectAction>(
+  return apiRequest<ApiActivity>(
     `/projects/${projectId}/actions/${actionId}/attachments/${attachmentId}`,
     { method: "DELETE" },
     token,

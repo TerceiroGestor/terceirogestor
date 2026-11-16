@@ -241,7 +241,7 @@ export class PeopleGroupsService {
         this.prisma.projectPeopleGroup.count({
           where: { tenantId, peopleGroupId: existing.id },
         }),
-        this.prisma.actionPeopleGroup.count({
+        this.prisma.activityPeopleGroup.count({
           where: { tenantId, peopleGroupId: existing.id },
         }),
       ]);

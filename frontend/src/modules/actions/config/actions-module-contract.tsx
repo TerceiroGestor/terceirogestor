@@ -89,7 +89,7 @@ const ACTIONS_PERMISSIONS = {
 const ACTIONS_LIST_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Abrir ação",
+    label: "Abrir atividade",
     permissionKey: "canRead",
     scope: "row",
     requiresReturnTo: true,
@@ -111,13 +111,13 @@ const ACTIONS_LIST_ACTIONS: RecordModuleActionMap = {
 const ACTIONS_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar ação",
+    label: "Visualizar atividade",
     permissionKey: "canRead",
     scope: "detail",
   },
   create: {
     key: "create",
-    label: "Nova acao",
+    label: "Nova atividade",
     permissionKey: "canCreate",
     scope: "detail",
   },
@@ -149,18 +149,18 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
     listDataProvider: { model: "actions.list" },
   },
   domainAdapter: {
-    entity: { singular: "Ação", plural: "Ações" },
+    entity: { singular: "Atividade", plural: "Atividades" },
     list: {
-      searchPlaceholder: "Pesquisar ações",
+      searchPlaceholder: "Pesquisar atividades",
       createActionLabel: "Novo",
       totalLabel: "Total",
-      emptyStateLabel: "Nenhuma ação encontrada.",
+      emptyStateLabel: "Nenhuma atividade encontrada.",
     },
     detail: {
-      fallbackTitle: "Ação",
+      fallbackTitle: "Atividade",
     },
     fields: {
-      title: { label: "Ação" },
+      title: { label: "Atividade" },
       tags: { label: "Tags" },
       createdAt: { label: "Cadastro", type: "date" },
       status: { label: "Status" },
@@ -355,7 +355,7 @@ export const actionsListModuleDefinition = defineRecordModule<ActionsListQuerySt
             filters: {},
           },
           maxGroups: 10,
-          downloadFileName: "acoes",
+          downloadFileName: "atividades",
         },
       },
     },
@@ -407,12 +407,12 @@ export const actionsDetailModuleDefinition = defineRecordModule<
     auditDataProvider: { model: "audit.logs" },
   },
   domainAdapter: {
-    entity: { singular: "Ação", plural: "Ações" },
+    entity: { singular: "Atividade", plural: "Atividades" },
     detail: {
-      fallbackTitle: "Ação",
+      fallbackTitle: "Atividade",
     },
     fields: {
-      title: { label: "Ação" },
+      title: { label: "Atividade" },
       tags: { label: "Tags" },
       createdAt: { label: "Cadastro", type: "date" },
       status: { label: "Status" },

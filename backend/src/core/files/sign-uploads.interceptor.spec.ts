@@ -70,7 +70,7 @@ describe('SignUploadsInterceptor', () => {
     });
   });
 
-  it('signs upload paths inside arrays (e.g. ProjectAction.photoPaths)', async () => {
+  it('signs upload paths inside arrays (e.g. Meeting.photoPaths)', async () => {
     const result = (await run(
       {
         photoPaths: [

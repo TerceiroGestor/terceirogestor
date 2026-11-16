@@ -93,6 +93,13 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum FundingSourceType {
+  MUNICIPAL
+  ESTADUAL
+  FEDERAL
+  TERCEIRO
+}
+
 enum ActionPeopleParticipationRole {
   PARTICIPANTE
   FACILITADOR
@@ -231,6 +238,7 @@ model Tenant {
   personRecordTags                  PersonRecordTag[]
   personSensitiveDocuments          PersonSensitiveDocument[]
   personSensitiveAccessLogs         PersonSensitiveAccessLog[]
+  dailyAttendances                  DailyAttendance[]
   rolePermissions                   RolePermission[]
   userRoles                         UserRole[]
   households                        Household[]
@@ -294,15 +302,17 @@ model Tenant {
   programAttachments                ProgramAttachment[]
   projectPeopleGroups               ProjectPeopleGroup[]
   projectEnrollments                ProjectEnrollment[]
-  actionTypes                       ActionType[]
-  projectActions                    ProjectAction[]
+  actionTypes                       ActivityType[]
+  projectActions                    Activity[]
   projectActionComments             ProjectActionComment[]
   projectActionAttachments          ProjectActionAttachment[]
-  actionPeopleGroups                ActionPeopleGroup[]
-  actionOccurrences                 ActionOccurrence[]
+  actionPeopleGroups                ActivityPeopleGroup[]
+  actionOccurrences                 Meeting[]
   actionOccurrenceTeamGroups        ActionOccurrenceTeamGroup[]
-  projectActionAttendances          ProjectActionAttendance[]
+  projectActionAttendances          MeetingAttendance[]
   projectActionPeopleParticipations ProjectActionPeopleParticipation[]
+  projectFundingSources             ProjectFundingSource[]
+  goals                             Goal[]
 
   @@index([status])
 }
@@ -354,7 +364,7 @@ model User {
   depositEntryAttachments             DepositEntryAttachment[]
   depositExitComments                 DepositExitComment[]
   depositExitAttachments              DepositExitAttachment[]
-  projectActionsCreated               ProjectAction[]
+  projectActionsCreated               Activity[]
   projectComments                     ProjectComment[]
   projectAttachments                  ProjectAttachment[]
   programComments                     ProgramComment[]
@@ -478,9 +488,27 @@ model Person {
   projectEnrollments         ProjectEnrollment[]
   peopleGroupParticipations  PeopleGroupParticipation[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
+  dailyAttendances           DailyAttendance[]
 
   @@index([tenantId])
   @@index([fullName])
+}
+
+model DailyAttendance {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  personId  String   @db.Char(36)
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  person Person @relation(fields: [personId], references: [id])
+
+  @@unique([tenantId, personId, date])
+  @@index([tenantId])
+  @@index([personId])
+  @@index([tenantId, date])
 }
 
 model PersonContact {
@@ -1178,18 +1206,55 @@ model Project {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  tenant       Tenant               @relation(fields: [tenantId], references: [id])
-  program      Program              @relation(fields: [programId], references: [id])
-  peopleGroups ProjectPeopleGroup[]
-  enrollments  ProjectEnrollment[]
-  actions      ProjectAction[]
-  comments     ProjectComment[]
-  attachments  ProjectAttachment[]
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id])
+  program        Program                @relation(fields: [programId], references: [id])
+  peopleGroups   ProjectPeopleGroup[]
+  enrollments    ProjectEnrollment[]
+  actions        Activity[]
+  comments       ProjectComment[]
+  attachments    ProjectAttachment[]
+  fundingSources ProjectFundingSource[]
+  goals          Goal[]
 
   @@index([tenantId])
   @@index([programId])
   @@index([name])
   @@index([status])
+}
+
+model ProjectFundingSource {
+  id        String            @id @default(uuid()) @db.Char(36)
+  tenantId  String            @db.Char(36)
+  projectId String            @db.Char(36)
+  source    FundingSourceType
+  name      String?
+  notes     String?           @db.Text
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([source])
+}
+
+model Goal {
+  id          String   @id @default(uuid()) @db.Char(36)
+  tenantId    String   @db.Char(36)
+  projectId   String   @db.Char(36)
+  title       String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  project    Project    @relation(fields: [projectId], references: [id])
+  activities Activity[]
+
+  @@index([tenantId])
+  @@index([projectId])
 }
 
 model ProjectComment {
@@ -1250,8 +1315,8 @@ model PeopleGroup {
   tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
   participations             PeopleGroupParticipation[]
   projectPeopleGroups        ProjectPeopleGroup[]
-  actionPeopleGroups         ActionPeopleGroup[]
-  actionOccurrences          ActionOccurrence[]
+  actionPeopleGroups         ActivityPeopleGroup[]
+  actionOccurrences          Meeting[]
   actionOccurrenceTeamGroups ActionOccurrenceTeamGroup[]
 
   @@unique([tenantId, name])
@@ -1326,9 +1391,9 @@ model ProjectEnrollment {
   tenant                     Tenant                             @relation(fields: [tenantId], references: [id])
   project                    Project                            @relation(fields: [projectId], references: [id])
   person                     Person                             @relation(fields: [personId], references: [id])
-  actionAttendances          ProjectActionAttendance[]
+  actionAttendances          MeetingAttendance[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
-  targetedActions            ProjectAction[]
+  targetedActions            Activity[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -1337,7 +1402,7 @@ model ProjectEnrollment {
   @@index([status])
 }
 
-model ActionType {
+model ActivityType {
   id          String       @id @default(uuid()) @db.Char(36)
   tenantId    String       @db.Char(36)
   name        String
@@ -1347,22 +1412,24 @@ model ActionType {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  tenant  Tenant          @relation(fields: [tenantId], references: [id])
-  actions ProjectAction[]
+  tenant  Tenant     @relation(fields: [tenantId], references: [id])
+  actions Activity[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([name])
   @@index([isActive])
+  @@map("ActionType")
 }
 
-model ProjectAction {
+model Activity {
   id                 String       @id @default(uuid()) @db.Char(36)
   tenantId           String       @db.Char(36)
   projectId          String       @db.Char(36)
   createdByUserId    String?      @db.Char(36)
   targetEnrollmentId String?      @db.Char(36)
   actionTypeId       String       @db.Char(36)
+  goalId             String?      @db.Char(36)
   title              String
   description        String?      @db.Text
   tags               String?      @db.Text
@@ -1380,10 +1447,11 @@ model ProjectAction {
   project              Project                            @relation(fields: [projectId], references: [id])
   createdByUser        User?                              @relation(fields: [createdByUserId], references: [id])
   targetEnrollment     ProjectEnrollment?                 @relation(fields: [targetEnrollmentId], references: [id])
-  actionType           ActionType                         @relation(fields: [actionTypeId], references: [id])
-  attendances          ProjectActionAttendance[]
-  peopleGroups         ActionPeopleGroup[]
-  occurrences          ActionOccurrence[]
+  actionType           ActivityType                       @relation(fields: [actionTypeId], references: [id])
+  goal                 Goal?                              @relation(fields: [goalId], references: [id])
+  attendances          MeetingAttendance[]
+  peopleGroups         ActivityPeopleGroup[]
+  occurrences          Meeting[]
   peopleParticipations ProjectActionPeopleParticipation[]
   comments             ProjectActionComment[]
   attachments          ProjectActionAttachment[]
@@ -1393,8 +1461,10 @@ model ProjectAction {
   @@index([createdByUserId])
   @@index([targetEnrollmentId])
   @@index([actionTypeId])
+  @@index([goalId])
   @@index([status])
   @@index([plannedStartAt])
+  @@map("ProjectAction")
 }
 
 model ProjectActionComment {
@@ -1407,9 +1477,9 @@ model ProjectActionComment {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant     Tenant        @relation(fields: [tenantId], references: [id])
-  action     ProjectAction @relation(fields: [actionId], references: [id])
-  authorUser User?         @relation(fields: [authorUserId], references: [id])
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  action     Activity @relation(fields: [actionId], references: [id])
+  authorUser User?    @relation(fields: [authorUserId], references: [id])
 
   @@index([tenantId])
   @@index([actionId])
@@ -1428,16 +1498,16 @@ model ProjectActionAttachment {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  tenant         Tenant        @relation(fields: [tenantId], references: [id])
-  action         ProjectAction @relation(fields: [actionId], references: [id])
-  uploadedByUser User?         @relation(fields: [uploadedByUserId], references: [id])
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  action         Activity @relation(fields: [actionId], references: [id])
+  uploadedByUser User?    @relation(fields: [uploadedByUserId], references: [id])
 
   @@index([tenantId])
   @@index([actionId])
   @@index([uploadedByUserId])
 }
 
-model ActionPeopleGroup {
+model ActivityPeopleGroup {
   id                String            @id @default(uuid()) @db.Char(36)
   tenantId          String            @db.Char(36)
   actionId          String            @db.Char(36)
@@ -1446,18 +1516,19 @@ model ActionPeopleGroup {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  tenant      Tenant        @relation(fields: [tenantId], references: [id])
-  action      ProjectAction @relation(fields: [actionId], references: [id])
-  peopleGroup PeopleGroup   @relation(fields: [peopleGroupId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  action      Activity    @relation(fields: [actionId], references: [id])
+  peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
 
   @@unique([tenantId, actionId, peopleGroupId, participationKind])
   @@index([tenantId])
   @@index([actionId])
   @@index([peopleGroupId])
   @@index([participationKind])
+  @@map("ActionPeopleGroup")
 }
 
-model ActionOccurrence {
+model Meeting {
   id                String           @id @default(uuid()) @db.Char(36)
   tenantId          String           @db.Char(36)
   actionId          String           @db.Char(36)
@@ -1476,14 +1547,15 @@ model ActionOccurrence {
   updatedAt         DateTime         @updatedAt
 
   tenant           Tenant                      @relation(fields: [tenantId], references: [id])
-  action           ProjectAction               @relation(fields: [actionId], references: [id])
+  action           Activity                    @relation(fields: [actionId], references: [id])
   peopleGroup      PeopleGroup?                @relation(fields: [peopleGroupId], references: [id])
-  attendances      ProjectActionAttendance[]
+  attendances      MeetingAttendance[]
   teamPeopleGroups ActionOccurrenceTeamGroup[]
 
   @@index([tenantId, actionId])
   @@index([tenantId, scheduledDate])
   @@index([recurrenceBatchId])
+  @@map("ActionOccurrence")
 }
 
 model ActionOccurrenceTeamGroup {
@@ -1493,9 +1565,9 @@ model ActionOccurrenceTeamGroup {
   peopleGroupId String   @db.Char(36)
   createdAt     DateTime @default(now())
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id])
-  occurrence  ActionOccurrence @relation(fields: [occurrenceId], references: [id])
-  peopleGroup PeopleGroup      @relation(fields: [peopleGroupId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  occurrence  Meeting     @relation(fields: [occurrenceId], references: [id])
+  peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
 
   @@unique([tenantId, occurrenceId, peopleGroupId])
   @@index([tenantId])
@@ -1503,7 +1575,7 @@ model ActionOccurrenceTeamGroup {
   @@index([peopleGroupId])
 }
 
-model ProjectActionAttendance {
+model MeetingAttendance {
   id           String           @id @default(uuid()) @db.Char(36)
   tenantId     String           @db.Char(36)
   actionId     String           @db.Char(36)
@@ -1518,8 +1590,8 @@ model ProjectActionAttendance {
   updatedAt    DateTime         @updatedAt
 
   tenant     Tenant            @relation(fields: [tenantId], references: [id])
-  action     ProjectAction     @relation(fields: [actionId], references: [id])
-  occurrence ActionOccurrence  @relation(fields: [occurrenceId], references: [id])
+  action     Activity          @relation(fields: [actionId], references: [id])
+  occurrence Meeting           @relation(fields: [occurrenceId], references: [id])
   enrollment ProjectEnrollment @relation(fields: [enrollmentId], references: [id])
 
   @@unique([tenantId, occurrenceId, enrollmentId])
@@ -1528,6 +1600,7 @@ model ProjectActionAttendance {
   @@index([occurrenceId])
   @@index([enrollmentId])
   @@index([status])
+  @@map("ProjectActionAttendance")
 }
 
 model ProjectActionPeopleParticipation {
@@ -1548,7 +1621,7 @@ model ProjectActionPeopleParticipation {
   updatedAt         DateTime                      @updatedAt
 
   tenant     Tenant             @relation(fields: [tenantId], references: [id])
-  action     ProjectAction      @relation(fields: [actionId], references: [id])
+  action     Activity           @relation(fields: [actionId], references: [id])
   person     Person             @relation(fields: [personId], references: [id])
   enrollment ProjectEnrollment? @relation(fields: [enrollmentId], references: [id])
 

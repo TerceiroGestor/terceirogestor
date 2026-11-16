@@ -34,7 +34,7 @@ function buildDateRange(params: OverviewParams) {
 function buildActionExecutedPeriodWhere(params: {
   from: Date;
   to: Date;
-}): Prisma.ProjectActionWhereInput {
+}): Prisma.ActivityWhereInput {
   const { from, to } = params;
   return {
     status: 'EXECUTED',
@@ -111,7 +111,7 @@ export class DashboardService {
         where: { tenantId, personType: 'Atendido', status: 'Ativo' },
         _count: { _all: true },
       }),
-      this.prisma.projectAction.findMany({
+      this.prisma.activity.findMany({
         where: { tenantId, ...actionPeriodWhere },
         select: {
           id: true,
@@ -121,7 +121,7 @@ export class DashboardService {
           updatedAt: true,
         },
       }),
-      this.prisma.projectActionAttendance.groupBy({
+      this.prisma.meetingAttendance.groupBy({
         by: ['actionId'],
         where: {
           tenantId,
@@ -130,7 +130,7 @@ export class DashboardService {
         },
         _count: { _all: true },
       }),
-      this.prisma.projectAction.groupBy({
+      this.prisma.activity.groupBy({
         by: ['actionTypeId'],
         where: { tenantId, ...actionPeriodWhere },
         _count: { _all: true },
@@ -198,7 +198,7 @@ export class DashboardService {
       .map((row) => row.actionTypeId)
       .filter(Boolean);
     const actionTypes = actionTypeIds.length
-      ? await this.prisma.actionType.findMany({
+      ? await this.prisma.activityType.findMany({
           where: { tenantId, id: { in: actionTypeIds } },
           select: { id: true, name: true },
         })

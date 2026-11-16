@@ -20,13 +20,17 @@ import {
   buildPeopleWhere,
   parseAdvancedFilters,
 } from '../people/people.filters';
+import { CreateGoalDto } from './dto/create-goal.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
+import { CreateProjectFundingSourceDto } from './dto/create-project-funding-source.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
 import { SyncPeopleGroupEnrollmentsDto } from './dto/sync-people-group-enrollments.dto';
+import { UpdateGoalDto } from './dto/update-goal.dto';
 import { UpdateProjectEnrollmentDto } from './dto/update-project-enrollment.dto';
+import { UpdateProjectFundingSourceDto } from './dto/update-project-funding-source.dto';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
@@ -166,7 +170,7 @@ export class ProjectStructureService {
     if (!existing)
       throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
 
-    const actionsCount = await this.prisma.actionPeopleGroup.count({
+    const actionsCount = await this.prisma.activityPeopleGroup.count({
       where: {
         tenantId,
         peopleGroupId: existing.peopleGroupId,
@@ -181,6 +185,146 @@ export class ProjectStructureService {
     }
 
     await this.prisma.projectPeopleGroup.delete({ where: { id: existing.id } });
+    return { ok: true as const };
+  }
+
+  async listFundingSources(tenantId: string, projectId: string) {
+    await this.ensureProjectExists(tenantId, projectId);
+    return this.prisma.projectFundingSource.findMany({
+      where: { tenantId, projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createFundingSource(
+    tenantId: string,
+    projectId: string,
+    dto: CreateProjectFundingSourceDto,
+  ) {
+    await this.ensureProjectExists(tenantId, projectId);
+    return this.prisma.projectFundingSource.create({
+      data: {
+        tenantId,
+        projectId,
+        source: dto.source,
+        name: normalizeString(dto.name),
+        notes: normalizeString(dto.notes),
+      },
+    });
+  }
+
+  async updateFundingSource(
+    tenantId: string,
+    projectId: string,
+    fundingSourceId: string,
+    dto: UpdateProjectFundingSourceDto,
+  ) {
+    const existing = await this.prisma.projectFundingSource.findFirst({
+      where: { id: fundingSourceId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!existing)
+      throw new NotFoundException('Fonte de financiamento nao encontrada');
+
+    return this.prisma.projectFundingSource.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.source !== undefined ? { source: dto.source } : {}),
+        ...(dto.name !== undefined ? { name: normalizeString(dto.name) } : {}),
+        ...(dto.notes !== undefined
+          ? { notes: normalizeString(dto.notes) }
+          : {}),
+      },
+    });
+  }
+
+  async deleteFundingSource(
+    tenantId: string,
+    projectId: string,
+    fundingSourceId: string,
+  ) {
+    const existing = await this.prisma.projectFundingSource.findFirst({
+      where: { id: fundingSourceId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!existing)
+      throw new NotFoundException('Fonte de financiamento nao encontrada');
+
+    await this.prisma.projectFundingSource.delete({
+      where: { id: existing.id },
+    });
+    return { ok: true as const };
+  }
+
+  async listGoals(tenantId: string, projectId: string) {
+    await this.ensureProjectExists(tenantId, projectId);
+    return this.prisma.goal.findMany({
+      where: { tenantId, projectId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createGoal(tenantId: string, projectId: string, dto: CreateGoalDto) {
+    await this.ensureProjectExists(tenantId, projectId);
+    const title = (dto.title ?? '').trim();
+    if (!title) throw new BadRequestException('Titulo da meta e obrigatorio');
+
+    return this.prisma.goal.create({
+      data: {
+        tenantId,
+        projectId,
+        title,
+        description: normalizeString(dto.description),
+      },
+    });
+  }
+
+  async updateGoal(
+    tenantId: string,
+    projectId: string,
+    goalId: string,
+    dto: UpdateGoalDto,
+  ) {
+    const existing = await this.prisma.goal.findFirst({
+      where: { id: goalId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundException('Meta nao encontrada');
+
+    const title =
+      dto.title !== undefined ? (dto.title ?? '').trim() : undefined;
+    if (title !== undefined && !title) {
+      throw new BadRequestException('Titulo da meta e obrigatorio');
+    }
+
+    return this.prisma.goal.update({
+      where: { id: existing.id },
+      data: {
+        ...(title !== undefined ? { title } : {}),
+        ...(dto.description !== undefined
+          ? { description: normalizeString(dto.description) }
+          : {}),
+      },
+    });
+  }
+
+  async deleteGoal(tenantId: string, projectId: string, goalId: string) {
+    const existing = await this.prisma.goal.findFirst({
+      where: { id: goalId, tenantId, projectId },
+      select: { id: true },
+    });
+    if (!existing) throw new NotFoundException('Meta nao encontrada');
+
+    const activitiesCount = await this.prisma.activity.count({
+      where: { tenantId, goalId: existing.id },
+    });
+    if (activitiesCount > 0) {
+      throw new BadRequestException(
+        'Nao e possivel remover a meta: existem atividades vinculadas',
+      );
+    }
+
+    await this.prisma.goal.delete({ where: { id: existing.id } });
     return { ok: true as const };
   }
 

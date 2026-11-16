@@ -1,9 +1,9 @@
 "use client";
 
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiActionType } from "./types";
+import type { ApiActivityType } from "./types";
 
-export async function listActionTypes(
+export async function listActivityTypes(
   token: string,
   params?: { q?: string; isActive?: boolean },
 ) {
@@ -12,10 +12,10 @@ export async function listActionTypes(
     isActive:
       params?.isActive === undefined ? undefined : String(params.isActive),
   });
-  return apiRequest<ApiActionType[]>(`/action-types${query}`, {}, token);
+  return apiRequest<ApiActivityType[]>(`/action-types${query}`, {}, token);
 }
 
-export async function createActionType(
+export async function createActivityType(
   token: string,
   payload: {
     name: string;
@@ -24,14 +24,14 @@ export async function createActionType(
     isActive?: boolean;
   },
 ) {
-  return apiRequest<ApiActionType>(
+  return apiRequest<ApiActivityType>(
     "/action-types",
     { method: "POST", body: JSON.stringify(payload) },
     token,
   );
 }
 
-export async function updateActionType(
+export async function updateActivityType(
   token: string,
   id: string,
   payload: Partial<{
@@ -41,14 +41,14 @@ export async function updateActionType(
     isActive: boolean;
   }>,
 ) {
-  return apiRequest<ApiActionType>(
+  return apiRequest<ApiActivityType>(
     `/action-types/${id}`,
     { method: "PATCH", body: JSON.stringify(payload) },
     token,
   );
 }
 
-export async function deleteActionType(token: string, id: string) {
+export async function deleteActivityType(token: string, id: string) {
   return apiRequest<{ ok: true }>(
     `/action-types/${id}`,
     { method: "DELETE" },

@@ -82,8 +82,8 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
   {
     key: "actions.create",
-    label: "Registrar ação",
-    description: "Nova ação realizada",
+    label: "Registrar atividade",
+    description: "Nova atividade realizada",
     href: "/actions/new",
     icon: ClipboardPlus,
   },
@@ -663,7 +663,7 @@ export function CoreDashboardClientPage() {
         <Card>
           <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle>Distribuição por tipo de ação</CardTitle>
+              <CardTitle>Distribuição por tipo de atividade</CardTitle>
               <CardDescription>Top tipos no período.</CardDescription>
             </div>
             <Button
@@ -673,7 +673,7 @@ export function CoreDashboardClientPage() {
               onClick={() =>
                 downloadChartPng({
                   container: typeChartRef.current,
-                  fileBaseName: "dashboard-tipos-de-acao",
+                  fileBaseName: "dashboard-tipos-de-atividade",
                 })
               }
             >

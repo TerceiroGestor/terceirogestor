@@ -6,7 +6,7 @@ import type { SearchViewDefinition } from "@/web-client/search/types";
 export const actionsSearchView: SearchViewDefinition = {
   id: "actions.search",
   model: "actions.list",
-  searchPlaceholder: "Pesquisar acoes por titulo ou tipo",
+  searchPlaceholder: "Pesquisar atividades por titulo ou tipo",
   features: {
     favorites: true,
     presets: false,

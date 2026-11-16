@@ -17,9 +17,9 @@ import { SectionDialog } from "@/components/section-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
-  ApiActionOccurrence,
+  ApiMeeting,
   AttendanceStatus,
-  ProjectActionAttendancesListItem,
+  MeetingAttendancesListItem,
 } from "@/modules/actions/api";
 import {
   ATTENDANCE_STATUS_LABELS,
@@ -104,7 +104,7 @@ function renderParticipantIdentity({
   tenantSlug,
   canReadPeople,
 }: {
-  row: ProjectActionAttendancesListItem;
+  row: MeetingAttendancesListItem;
   tenantSlug: string;
   canReadPeople: boolean;
 }) {
@@ -132,7 +132,7 @@ function renderParticipantIdentity({
 }
 
 export function buildAttendanceGroupOptions(
-  rows: ProjectActionAttendancesListItem[],
+  rows: MeetingAttendancesListItem[],
 ): RelationGroupOption[] {
   const groups = Array.from(
     new Map(
@@ -149,7 +149,7 @@ export function buildAttendanceGroupOptions(
 }
 
 export function filterAttendanceRows(
-  rows: ProjectActionAttendancesListItem[],
+  rows: MeetingAttendancesListItem[],
   filters: {
     groupId: string;
     status: AttendanceStatusFilter;
@@ -168,7 +168,7 @@ export function filterAttendanceRows(
 }
 
 export function filterQualityRows(
-  rows: ProjectActionAttendancesListItem[],
+  rows: MeetingAttendancesListItem[],
   filters: {
     groupId: string;
   },
@@ -180,7 +180,7 @@ export function filterQualityRows(
   });
 }
 
-export function countDistinctAttendanceGroups(rows: ProjectActionAttendancesListItem[]) {
+export function countDistinctAttendanceGroups(rows: MeetingAttendancesListItem[]) {
   return new Set(rows.flatMap((row) => row.enrollment.peopleGroups.map((group) => group.id))).size;
 }
 
@@ -189,7 +189,7 @@ export function countDistinctAttendanceGroups(rows: ProjectActionAttendancesList
 // aconteceu (ou passou da data), ou no mais próximo futuro se nenhum já
 // passou.
 export function resolveDefaultOccurrenceId(
-  occurrences: ApiActionOccurrence[],
+  occurrences: ApiMeeting[],
 ): string | null {
   if (occurrences.length === 0) return null;
 
@@ -205,7 +205,7 @@ export function resolveDefaultOccurrenceId(
   return sorted[0].id;
 }
 
-function formatOccurrenceOptionLabel(occurrence: ApiActionOccurrence) {
+function formatOccurrenceOptionLabel(occurrence: ApiMeeting) {
   const date = new Date(occurrence.scheduledDate).toLocaleDateString("pt-BR", {
     timeZone: "UTC",
   });
@@ -219,7 +219,7 @@ export function OccurrenceSelect({
   onChange,
   disabled,
 }: {
-  occurrences: ApiActionOccurrence[];
+  occurrences: ApiMeeting[];
   value: string | null;
   onChange: (occurrenceId: string) => void;
   disabled?: boolean;
@@ -244,7 +244,7 @@ export function OccurrenceSelect({
   );
 }
 
-export function countAttendanceHighlights(rows: ProjectActionAttendancesListItem[]) {
+export function countAttendanceHighlights(rows: MeetingAttendancesListItem[]) {
   return rows.filter((row) => row.attendance?.isHighlight).length;
 }
 
@@ -259,14 +259,14 @@ export function buildParticipantsColumns({
   canUpdate: boolean;
   canReadPeople: boolean;
   tenantSlug: string;
-  getEffective: (row: ProjectActionAttendancesListItem) => AttendanceEffectiveState;
+  getEffective: (row: MeetingAttendancesListItem) => AttendanceEffectiveState;
   onSetRowDraft: (
-    row: ProjectActionAttendancesListItem,
+    row: MeetingAttendancesListItem,
     patch: AttendanceDraft,
     prune?: boolean,
   ) => void;
-  onOpenNotesDialog: (row: ProjectActionAttendancesListItem) => void;
-}): ColumnDef<ProjectActionAttendancesListItem>[] {
+  onOpenNotesDialog: (row: MeetingAttendancesListItem) => void;
+}): ColumnDef<MeetingAttendancesListItem>[] {
   return [
     {
       id: "person",
@@ -379,14 +379,14 @@ export function buildQualityColumns({
   canUpdate: boolean;
   canReadPeople: boolean;
   tenantSlug: string;
-  getEffective: (row: ProjectActionAttendancesListItem) => QualityEffectiveState;
+  getEffective: (row: MeetingAttendancesListItem) => QualityEffectiveState;
   onSetRowDraft: (
-    row: ProjectActionAttendancesListItem,
+    row: MeetingAttendancesListItem,
     patch: QualityDraft,
     prune?: boolean,
   ) => void;
-  onOpenNotesDialog: (row: ProjectActionAttendancesListItem) => void;
-}): ColumnDef<ProjectActionAttendancesListItem>[] {
+  onOpenNotesDialog: (row: MeetingAttendancesListItem) => void;
+}): ColumnDef<MeetingAttendancesListItem>[] {
   return [
     {
       id: "person",

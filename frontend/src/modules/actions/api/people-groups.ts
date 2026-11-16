@@ -1,9 +1,9 @@
 "use client";
 
 import { apiRequest, buildQuery } from "@/lib/api";
-import type { ApiActionPeopleGroup } from "./types";
+import type { ApiActivityPeopleGroup } from "./types";
 
-export async function listActionPeopleGroups(
+export async function listActivityPeopleGroups(
   token: string,
   projectId: string,
   actionId: string,
@@ -12,7 +12,7 @@ export async function listActionPeopleGroups(
   },
 ) {
   const query = buildQuery(params);
-  return apiRequest<ApiActionPeopleGroup[]>(
+  return apiRequest<ApiActivityPeopleGroup[]>(
     `/projects/${projectId}/actions/${actionId}/people-groups${query}`,
     {},
     token,

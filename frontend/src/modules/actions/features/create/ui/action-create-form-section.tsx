@@ -18,11 +18,11 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
-  createProjectAction,
-  listActionTypes,
-  updateProjectAction,
-  type ApiProjectAction,
-  type ApiActionType,
+  createActivity,
+  listActivityTypes,
+  updateActivity,
+  type ApiActivity,
+  type ApiActivityType,
   type ActionStatus,
 } from "@/modules/actions/api";
 import {
@@ -31,8 +31,10 @@ import {
 } from "@/modules/actions/shared/domain/actions.constants";
 import {
   listProjectEnrollments,
+  listProjectGoals,
   listProjectPeopleGroups,
   listProjects,
+  type ApiGoal,
   type ApiProject,
   type ApiProjectEnrollment,
   type ApiProjectPeopleGroup,
@@ -52,6 +54,7 @@ type ActionCreateValues = {
   status: ActionStatus;
   peopleGroupId: string;
   targetEnrollmentId: string;
+  goalId: string;
   plannedStartAt: string;
   plannedEndAt: string;
 };
@@ -80,17 +83,17 @@ function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
   return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
 }
 
-function resolveTypeTargetLabel(target: ApiActionType["target"] | undefined) {
+function resolveTypeTargetLabel(target: ApiActivityType["target"] | undefined) {
   if (!target) return ACTION_TARGET_LABELS.PROJECT;
   return ACTION_TARGET_LABELS[target];
 }
 
 type ActionCreateFormSectionProps = {
   mode?: "create" | "edit";
-  action?: ApiProjectAction | null;
+  action?: ApiActivity | null;
   projectId?: string;
   actionId?: string;
-  onSaved?: (action: ApiProjectAction) => void;
+  onSaved?: (action: ApiActivity) => void;
   onCancel?: () => void;
 };
 
@@ -118,9 +121,10 @@ export function ActionCreateFormSection({
     projectIdProp ?? action?.projectId ?? params.get("projectId") ?? NONE_VALUE;
 
   const [projects, setProjects] = React.useState<ApiProject[]>([]);
-  const [actionTypes, setActionTypes] = React.useState<ApiActionType[]>([]);
+  const [actionTypes, setActivityTypes] = React.useState<ApiActivityType[]>([]);
   const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
   const [enrollments, setEnrollments] = React.useState<ApiProjectEnrollment[]>([]);
+  const [goals, setGoals] = React.useState<ApiGoal[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [values, setValues] = React.useState<ActionCreateValues>({
     projectId: initialProjectId,
@@ -129,6 +133,7 @@ export function ActionCreateFormSection({
     status: "PLANNED",
     peopleGroupId: NONE_VALUE,
     targetEnrollmentId: NONE_VALUE,
+    goalId: NONE_VALUE,
     plannedStartAt: "",
     plannedEndAt: "",
   });
@@ -149,6 +154,7 @@ export function ActionCreateFormSection({
       status: action.status ?? "PLANNED",
       peopleGroupId: action.peopleGroupId ?? NONE_VALUE,
       targetEnrollmentId: action.targetEnrollmentId ?? NONE_VALUE,
+      goalId: action.goalId ?? NONE_VALUE,
       plannedStartAt: action.plannedStartAt?.slice(0, 10) ?? "",
       plannedEndAt: action.plannedEndAt?.slice(0, 10) ?? "",
     });
@@ -160,12 +166,12 @@ export function ActionCreateFormSection({
       try {
         const [projectsResponse, types] = await Promise.all([
           listProjects(token, { all: true, limit: 200 }),
-          listActionTypes(token, { isActive: true }),
+          listActivityTypes(token, { isActive: true }),
         ]);
         const nextProjects = projectsResponse.data ?? [];
         const nextTypes = types ?? [];
         setProjects(nextProjects);
-        setActionTypes(nextTypes);
+        setActivityTypes(nextTypes);
         setValues((previous) => ({
           ...previous,
           projectId:
@@ -198,20 +204,24 @@ export function ActionCreateFormSection({
     if (!values.projectId || values.projectId === NONE_VALUE) {
       setPeopleGroups([]);
       setEnrollments([]);
+      setGoals([]);
       return;
     }
 
     (async () => {
       try {
-        const [projectPeopleGroups, projectEnrollments] = await Promise.all([
+        const [projectPeopleGroups, projectEnrollments, projectGoals] = await Promise.all([
           listProjectPeopleGroups(token, values.projectId, { participationKind: "PARTICIPANT" }),
           listProjectEnrollments(token, values.projectId, { page: 1, limit: 200 }),
+          listProjectGoals(token, values.projectId),
         ]);
         setPeopleGroups(projectPeopleGroups);
         setEnrollments(projectEnrollments.data ?? []);
+        setGoals(projectGoals);
       } catch {
         setPeopleGroups([]);
         setEnrollments([]);
+        setGoals([]);
       }
     })();
   }, [canAccessForm, token, values.projectId]);
@@ -265,21 +275,22 @@ export function ActionCreateFormSection({
           resolvedType.target === "ENROLLMENT" && values.targetEnrollmentId !== NONE_VALUE
             ? values.targetEnrollmentId
             : null,
+        goalId: values.goalId !== NONE_VALUE ? values.goalId : null,
         plannedStartAt: values.plannedStartAt.trim() || null,
         plannedEndAt: values.plannedEndAt.trim() || null,
       };
 
       if (mode === "edit" && actionIdProp) {
-        const updated = await updateProjectAction(
+        const updated = await updateActivity(
           token,
           projectIdProp ?? action?.projectId ?? values.projectId,
           actionIdProp,
           payload,
         );
-        toast({ title: "Ação atualizada" });
+        toast({ title: "Atividade atualizada" });
         onSaved?.(updated);
       } else {
-        const created = await createProjectAction(token, values.projectId, payload);
+        const created = await createActivity(token, values.projectId, payload);
         toast({ title: ACTION_CREATE_TEXT.toasts.created });
         onSaved?.(created);
         const href = withTenantPath(`/actions/${created.id}`, tenantSlug);
@@ -464,6 +475,26 @@ export function ActionCreateFormSection({
               {enrollments.map((enrollment) => (
                 <SelectItem key={enrollment.id} value={enrollment.id}>
                   {enrollment.person?.fullName ?? enrollment.personId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SectionField>
+
+        <SectionField label="Meta (Plano de Trabalho)">
+          <Select
+            value={values.goalId}
+            onValueChange={(next) => setValues((previous) => ({ ...previous, goalId: next }))}
+            disabled={saving || values.projectId === NONE_VALUE}
+          >
+            <SelectTrigger className={lineInputClassName}>
+              <SelectValue placeholder="Sem meta vinculada" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>Sem meta vinculada</SelectItem>
+              {goals.map((goal) => (
+                <SelectItem key={goal.id} value={goal.id}>
+                  {goal.title}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -2,12 +2,12 @@
 
 import type { SearchArgs, SearchResult } from "@/web-client/data-provider/types";
 import { listActions } from "@/modules/actions/api";
-import type { ApiProjectAction } from "@/modules/actions/api";
+import type { ApiActivity } from "@/modules/actions/api";
 
 export async function searchActions(
   token: string,
   args: SearchArgs,
-): Promise<SearchResult<ApiProjectAction>> {
+): Promise<SearchResult<ApiActivity>> {
   return listActions(token, {
     q: args.searchText?.trim() || undefined,
     mine: typeof args.context?.onlyMine === "boolean" ? args.context.onlyMine : undefined,

@@ -119,3 +119,37 @@ export type SyncPeopleGroupEnrollmentsResponse = {
   enrolled: { id: string; personId: string; fullName: string }[];
   ended: { id: string; personId: string; fullName: string }[];
 };
+
+export type FundingSourceType = "MUNICIPAL" | "ESTADUAL" | "FEDERAL" | "TERCEIRO";
+
+export type ApiProjectFundingSource = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  source: FundingSourceType;
+  name: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProjectFundingSourceInput = {
+  source: FundingSourceType;
+  name?: string | null;
+  notes?: string | null;
+};
+
+export type ApiGoal = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GoalInput = {
+  title: string;
+  description?: string | null;
+};

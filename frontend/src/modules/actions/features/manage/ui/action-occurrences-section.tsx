@@ -22,14 +22,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { resolveMediaUrl } from "@/lib/api";
 import { uploadActionPhoto } from "@/features/uploads/api";
 import {
-  bulkCreateActionOccurrences,
-  deleteActionOccurrence,
-  listActionOccurrences,
-  listActionPeopleGroups,
-  updateActionOccurrence,
-  updateActionOccurrenceBatch,
-  type ApiActionOccurrence,
-  type ApiActionPeopleGroup,
+  bulkCreateMeetings,
+  deleteMeeting,
+  listMeetings,
+  listActivityPeopleGroups,
+  updateMeeting,
+  updateMeetingBatch,
+  type ApiMeeting,
+  type ApiActivityPeopleGroup,
   type OccurrenceStatus,
   type WeekDay,
 } from "@/modules/actions/api";
@@ -47,7 +47,7 @@ function TeamPeopleGroupPicker({
   onChange,
   disabled,
 }: {
-  groups: ApiActionPeopleGroup[];
+  groups: ApiActivityPeopleGroup[];
   selectedIds: string[];
   onChange: (next: string[]) => void;
   disabled?: boolean;
@@ -131,9 +131,9 @@ function resolveOccurrenceStatusBadge(status: OccurrenceStatus) {
 }
 
 function buildOccurrenceColumns(params: {
-  onDelete: (occurrence: ApiActionOccurrence) => void;
+  onDelete: (occurrence: ApiMeeting) => void;
   canUpdate: boolean;
-}): ColumnDef<ApiActionOccurrence>[] {
+}): ColumnDef<ApiMeeting>[] {
   return [
     {
       id: "scheduledDate",
@@ -200,8 +200,8 @@ type BulkScheduleDialogProps = {
   token: string;
   projectId: string;
   actionId: string;
-  groups: ApiActionPeopleGroup[];
-  teamGroups: ApiActionPeopleGroup[];
+  groups: ApiActivityPeopleGroup[];
+  teamGroups: ApiActivityPeopleGroup[];
   onCompleted: () => void;
 };
 
@@ -257,7 +257,7 @@ function BulkScheduleOccurrencesDialog({
     setSaving(true);
     setError(null);
     try {
-      const result = await bulkCreateActionOccurrences(token, projectId, actionId, {
+      const result = await bulkCreateMeetings(token, projectId, actionId, {
         peopleGroupId: peopleGroupId === NO_GROUP_VALUE ? null : peopleGroupId,
         teamPeopleGroupIds: teamPeopleGroupIds.length ? teamPeopleGroupIds : undefined,
         startDate,
@@ -399,9 +399,9 @@ function BulkScheduleOccurrencesDialog({
 }
 
 type EditOccurrenceDialogProps = {
-  occurrence: ApiActionOccurrence | null;
-  groups: ApiActionPeopleGroup[];
-  teamGroups: ApiActionPeopleGroup[];
+  occurrence: ApiMeeting | null;
+  groups: ApiActivityPeopleGroup[];
+  teamGroups: ApiActivityPeopleGroup[];
   token: string;
   projectId: string;
   actionId: string;
@@ -460,7 +460,7 @@ function EditOccurrenceDialog({
     setSaving(true);
     setError(null);
     try {
-      await updateActionOccurrence(token, projectId, actionId, occurrence.id, {
+      await updateMeeting(token, projectId, actionId, occurrence.id, {
         scheduledDate,
         startTime,
         endTime: endTime || null,
@@ -488,7 +488,7 @@ function EditOccurrenceDialog({
     try {
       const uploaded = await uploadActionPhoto(token, file);
       const nextPaths = [...photoPaths, uploaded.path].slice(0, 5);
-      await updateActionOccurrence(token, projectId, actionId, occurrence.id, {
+      await updateMeeting(token, projectId, actionId, occurrence.id, {
         photoPaths: nextPaths,
       });
       setPhotoPaths(nextPaths);
@@ -508,7 +508,7 @@ function EditOccurrenceDialog({
     setPhotoUploading(true);
     try {
       const nextPaths = photoPaths.filter((item) => item !== path);
-      await updateActionOccurrence(token, projectId, actionId, occurrence.id, {
+      await updateMeeting(token, projectId, actionId, occurrence.id, {
         photoPaths: nextPaths,
       });
       setPhotoPaths(nextPaths);
@@ -536,7 +536,7 @@ function EditOccurrenceDialog({
     setSaving(true);
     setError(null);
     try {
-      const result = await updateActionOccurrenceBatch(
+      const result = await updateMeetingBatch(
         token,
         projectId,
         actionId,
@@ -781,20 +781,20 @@ export function ActionOccurrencesSection({
   readOnly,
 }: ActionOccurrencesSectionProps) {
   const { toast } = useToast();
-  const [occurrences, setOccurrences] = React.useState<ApiActionOccurrence[]>([]);
-  const [groups, setGroups] = React.useState<ApiActionPeopleGroup[]>([]);
-  const [teamGroups, setTeamGroups] = React.useState<ApiActionPeopleGroup[]>([]);
+  const [occurrences, setOccurrences] = React.useState<ApiMeeting[]>([]);
+  const [groups, setGroups] = React.useState<ApiActivityPeopleGroup[]>([]);
+  const [teamGroups, setTeamGroups] = React.useState<ApiActivityPeopleGroup[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [view, setView] = React.useState<"list" | "calendar">("list");
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
-  const [editTarget, setEditTarget] = React.useState<ApiActionOccurrence | null>(null);
+  const [editTarget, setEditTarget] = React.useState<ApiMeeting | null>(null);
 
   const loadOccurrences = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await listActionOccurrences(token, projectId, actionId, {
+      const response = await listMeetings(token, projectId, actionId, {
         limit: 200,
       });
       setOccurrences(response.data);
@@ -807,7 +807,7 @@ export function ActionOccurrencesSection({
 
   const loadGroups = React.useCallback(async () => {
     try {
-      const response = await listActionPeopleGroups(token, projectId, actionId, {
+      const response = await listActivityPeopleGroups(token, projectId, actionId, {
         participationKind: "PARTICIPANT",
       });
       setGroups(response);
@@ -818,7 +818,7 @@ export function ActionOccurrencesSection({
 
   const loadTeamGroups = React.useCallback(async () => {
     try {
-      const response = await listActionPeopleGroups(token, projectId, actionId, {
+      const response = await listActivityPeopleGroups(token, projectId, actionId, {
         participationKind: "TEAM",
       });
       setTeamGroups(response);
@@ -834,10 +834,10 @@ export function ActionOccurrencesSection({
   }, [loadOccurrences, loadGroups, loadTeamGroups]);
 
   const handleDelete = React.useCallback(
-    async (occurrence: ApiActionOccurrence) => {
+    async (occurrence: ApiMeeting) => {
       if (!window.confirm("Excluir este encontro?")) return;
       try {
-        await deleteActionOccurrence(token, projectId, actionId, occurrence.id);
+        await deleteMeeting(token, projectId, actionId, occurrence.id);
         toast({ title: "Encontro excluído" });
         void loadOccurrences();
       } catch (err) {
@@ -902,7 +902,7 @@ export function ActionOccurrencesSection({
           Nenhum encontro agendado ainda.
         </p>
       ) : view === "list" ? (
-        <ListView<ApiActionOccurrence>
+        <ListView<ApiMeeting>
           data={occurrences}
           columns={columns}
           getRowId={(row) => row.id}
@@ -910,7 +910,7 @@ export function ActionOccurrencesSection({
           showColumnVisibilityButton={false}
         />
       ) : (
-        <CalendarView<ApiActionOccurrence>
+        <CalendarView<ApiMeeting>
           items={occurrences}
           getDate={(item) => new Date(item.scheduledDate)}
           renderItem={(item) => (

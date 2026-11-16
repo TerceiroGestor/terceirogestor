@@ -25,8 +25,8 @@ import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   listActions,
-  type ApiProjectAction,
-  type ProjectActionsListResponse,
+  type ApiActivity,
+  type ActivitiesListResponse,
 } from "@/modules/actions/api";
 import {
   actionsListModuleDefinition,
@@ -185,7 +185,7 @@ function serializeState(state: ActionsListQueryState) {
   };
 }
 
-function resolveStatusBadge(status: ApiProjectAction["status"]) {
+function resolveStatusBadge(status: ApiActivity["status"]) {
   const label = ACTION_STATUS_LABELS[status] ?? status;
   switch (status) {
     case "EXECUTED":
@@ -197,15 +197,15 @@ function resolveStatusBadge(status: ApiProjectAction["status"]) {
   }
 }
 
-function resolvePeopleGroupLabel(action: ApiProjectAction) {
+function resolvePeopleGroupLabel(action: ApiActivity) {
   return action.peopleGroup?.name ?? "-";
 }
 
-function resolveActionTypeLabel(action: ApiProjectAction) {
+function resolveActivityTypeLabel(action: ApiActivity) {
   return action.actionType?.name ?? "Sem tipo";
 }
 
-function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
+function resolveRecordValue(record: ApiActivity, field: string): unknown {
   switch (field) {
     case "title":
       return record.title;
@@ -218,7 +218,7 @@ function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
     case "project.name":
       return record.project?.name ?? "";
     case "actionType.name":
-      return resolveActionTypeLabel(record);
+      return resolveActivityTypeLabel(record);
     case "peopleGroup.name":
     case "peopleGroup.segment.name":
       return resolvePeopleGroupLabel(record);
@@ -241,7 +241,7 @@ function resolveRecordValue(record: ApiProjectAction, field: string): unknown {
 
 function resolveGroupLabel(field: string, value: unknown) {
   if (field === "status" && typeof value === "string") {
-    return ACTION_STATUS_LABELS[value as ApiProjectAction["status"]] ?? value;
+    return ACTION_STATUS_LABELS[value as ApiActivity["status"]] ?? value;
   }
   if (
     (field === "createdAt" ||
@@ -257,15 +257,15 @@ function resolveGroupLabel(field: string, value: unknown) {
   return String(value ?? "Sem valor");
 }
 
-function actionColumns(): ColumnDef<ApiProjectAction>[] {
+function actionColumns(): ColumnDef<ApiActivity>[] {
   return [
     {
       accessorKey: "title",
-      header: "Ação",
+      header: "Atividade",
       cell: ({ row }) => (
         <div className="space-y-1">
           <div className="font-medium text-foreground">{row.original.title}</div>
-          <div className="text-xs text-muted-foreground">{resolveActionTypeLabel(row.original)}</div>
+          <div className="text-xs text-muted-foreground">{resolveActivityTypeLabel(row.original)}</div>
         </div>
       ),
     },
@@ -355,7 +355,7 @@ function actionColumns(): ColumnDef<ApiProjectAction>[] {
   ];
 }
 
-function ActionCalendarCard({ action }: { action: ApiProjectAction }) {
+function ActionCalendarCard({ action }: { action: ApiActivity }) {
   return (
     <div className="rounded-lg border border-border/60 bg-background px-3 py-3">
       <div className="truncate text-sm font-medium text-foreground">{action.title}</div>
@@ -367,13 +367,13 @@ function ActionCalendarCard({ action }: { action: ApiProjectAction }) {
 }
 
 function actionDateGetter(field: ActionDateField) {
-  return (action: ApiProjectAction) => parseActionDate(action[field]);
+  return (action: ApiActivity) => parseActionDate(action[field]);
 }
 
-function resolveKanbanColumnValue(action: ApiProjectAction, field: string) {
+function resolveKanbanColumnValue(action: ApiActivity, field: string) {
   switch (field) {
     case "actionType.name":
-      return resolveActionTypeLabel(action);
+      return resolveActivityTypeLabel(action);
     case "project.name":
       return action.project?.name ?? "Sem projeto";
     case "peopleGroup.name":
@@ -389,7 +389,7 @@ function resolveKanbanColumnValue(action: ApiProjectAction, field: string) {
   }
 }
 
-function getActionGanttStart(action: ApiProjectAction) {
+function getActionGanttStart(action: ApiActivity) {
   return (
     parseActionDate(action.plannedStartAt) ??
     parseActionDate(action.executedStartAt) ??
@@ -398,7 +398,7 @@ function getActionGanttStart(action: ApiProjectAction) {
   );
 }
 
-function getActionGanttEnd(action: ApiProjectAction) {
+function getActionGanttEnd(action: ApiActivity) {
   return (
     parseActionDate(action.plannedEndAt) ??
     parseActionDate(action.executedEndAt) ??
@@ -407,10 +407,10 @@ function getActionGanttEnd(action: ApiProjectAction) {
   );
 }
 
-function resolveGanttGroupValue(action: ApiProjectAction, field: string) {
+function resolveGanttGroupValue(action: ApiActivity, field: string) {
   switch (field) {
     case "actionType.name":
-      return resolveActionTypeLabel(action);
+      return resolveActivityTypeLabel(action);
     case "project.name":
       return action.project?.name ?? "Sem projeto";
     case "peopleGroup.name":
@@ -442,7 +442,7 @@ async function fetchAllActions(token: string, searchText: string) {
     return allRows;
   }
 
-  const requests: Promise<ProjectActionsListResponse>[] = [];
+  const requests: Promise<ActivitiesListResponse>[] = [];
   for (let page = 2; page <= totalPages; page += 1) {
     requests.push(
       listActions(token, {
@@ -476,7 +476,7 @@ export function ActionsListModuleClientPage() {
   const canRead = hasModulePermission(actionsListModuleDefinition, "canRead", permissions);
   const canCreate = canUseModuleAction(actionsListModuleDefinition, "create", permissions);
 
-  const [rows, setRows] = React.useState<ApiProjectAction[]>([]);
+  const [rows, setRows] = React.useState<ApiActivity[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -527,7 +527,7 @@ export function ActionsListModuleClientPage() {
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao carregar ações.";
+          : "Falha ao carregar atividades.";
       setRows([]);
       setError(message);
     } finally {
@@ -547,7 +547,7 @@ export function ActionsListModuleClientPage() {
     return filteredRows.map((record) => ({
       ...record,
       [resolveListGroupFieldKey("status")]: record.status,
-      [resolveListGroupFieldKey("actionType.name")]: resolveActionTypeLabel(record),
+      [resolveListGroupFieldKey("actionType.name")]: resolveActivityTypeLabel(record),
       [resolveListGroupFieldKey("project.name")]: record.project?.name ?? null,
       [resolveListGroupFieldKey("peopleGroup.name")]: resolvePeopleGroupLabel(record),
       [resolveListGroupFieldKey("targetEnrollment.person.fullName")]:
@@ -570,7 +570,7 @@ export function ActionsListModuleClientPage() {
   const pageCount = Math.max(Math.ceil(Math.max(listRows.length, 1) / state.pageSize), 1);
 
   const openDetail = React.useCallback(
-    (action: ApiProjectAction) => {
+    (action: ApiActivity) => {
       router.push(withTenantPath(`/actions/${action.id}?projectId=${action.projectId}`, tenantSlug));
     },
     [router, tenantSlug],
@@ -934,7 +934,7 @@ export function ActionsListModuleClientPage() {
   ]);
 
   if (!authLoading && !userLoading && !canRead) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem acesso a Ações.</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">Você não tem acesso a Atividades.</div>;
   }
 
   return (
@@ -1055,7 +1055,7 @@ export function ActionsListModuleClientPage() {
         />
       ) : (
         <>
-          <ListView<ApiProjectAction>
+          <ListView<ApiActivity>
             data={pagedRows}
             columns={columns}
             groupByFields={listGroupByFields}

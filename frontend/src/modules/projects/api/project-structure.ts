@@ -1,10 +1,14 @@
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
+  ApiGoal,
   ApiProjectEnrollment,
+  ApiProjectFundingSource,
   ApiProjectPeopleGroup,
   EligibleProjectPeopleListResponse,
+  GoalInput,
   ProjectEnrollmentInput,
   ProjectEnrollmentsListResponse,
+  ProjectFundingSourceInput,
   ProjectPeopleGroupInput,
   SyncPeopleGroupEnrollmentsInput,
   SyncPeopleGroupEnrollmentsResponse,
@@ -207,6 +211,95 @@ export async function deleteProjectEnrollment(
 ) {
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/enrollments/${enrollmentId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function listProjectFundingSources(
+  token: string,
+  projectId: string,
+) {
+  return apiRequest<ApiProjectFundingSource[]>(
+    `/projects/${projectId}/funding-sources`,
+    {},
+    token,
+  );
+}
+
+export async function createProjectFundingSource(
+  token: string,
+  projectId: string,
+  payload: ProjectFundingSourceInput,
+) {
+  return apiRequest<ApiProjectFundingSource>(
+    `/projects/${projectId}/funding-sources`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function updateProjectFundingSource(
+  token: string,
+  projectId: string,
+  fundingSourceId: string,
+  payload: Partial<ProjectFundingSourceInput>,
+) {
+  return apiRequest<ApiProjectFundingSource>(
+    `/projects/${projectId}/funding-sources/${fundingSourceId}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectFundingSource(
+  token: string,
+  projectId: string,
+  fundingSourceId: string,
+) {
+  return apiRequest<{ ok: true }>(
+    `/projects/${projectId}/funding-sources/${fundingSourceId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function listProjectGoals(token: string, projectId: string) {
+  return apiRequest<ApiGoal[]>(`/projects/${projectId}/goals`, {}, token);
+}
+
+export async function createProjectGoal(
+  token: string,
+  projectId: string,
+  payload: GoalInput,
+) {
+  return apiRequest<ApiGoal>(
+    `/projects/${projectId}/goals`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function updateProjectGoal(
+  token: string,
+  projectId: string,
+  goalId: string,
+  payload: Partial<GoalInput>,
+) {
+  return apiRequest<ApiGoal>(
+    `/projects/${projectId}/goals/${goalId}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deleteProjectGoal(
+  token: string,
+  projectId: string,
+  goalId: string,
+) {
+  return apiRequest<{ ok: true }>(
+    `/projects/${projectId}/goals/${goalId}`,
     { method: "DELETE" },
     token,
   );

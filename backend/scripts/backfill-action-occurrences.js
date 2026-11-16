@@ -51,7 +51,7 @@ async function main() {
     );
 
     for (const { actionId } of orphaned) {
-      const existingOccurrenceCount = await prisma.actionOccurrence.count({
+      const existingOccurrenceCount = await prisma.meeting.count({
         where: { actionId },
       });
       if (existingOccurrenceCount > 0) {
@@ -67,7 +67,7 @@ async function main() {
         continue;
       }
 
-      const action = await prisma.projectAction.findUnique({
+      const action = await prisma.activity.findUnique({
         where: { id: actionId },
         select: {
           id: true,
@@ -93,7 +93,7 @@ async function main() {
         Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
       );
 
-      const occurrence = await prisma.actionOccurrence.create({
+      const occurrence = await prisma.meeting.create({
         data: {
           tenantId: action.tenantId,
           actionId: action.id,
@@ -109,7 +109,7 @@ async function main() {
       // action has zero encontros, so every one of its attendance rows is
       // necessarily orphaned - and that filter has the same "null no
       // longer typechecks" problem as the query above.
-      const { count } = await prisma.projectActionAttendance.updateMany({
+      const { count } = await prisma.meetingAttendance.updateMany({
         where: { actionId },
         data: { occurrenceId: occurrence.id },
       });

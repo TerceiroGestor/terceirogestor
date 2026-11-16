@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
-  ApiActionOccurrence,
-  ApiProjectAction,
+  ApiMeeting,
+  ApiActivity,
   ApiProjectActionPeopleParticipation,
-  ProjectActionAttendancesListItem,
-  ProjectActionInput,
+  MeetingAttendancesListItem,
+  ActivityInput,
 } from "@/modules/actions/api";
 import {
   ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
@@ -234,10 +234,10 @@ function ActionProgressSection({
   saving,
   onSave,
 }: {
-  action: ApiProjectAction | null;
+  action: ApiActivity | null;
   readOnly: boolean;
   saving: boolean;
-  onSave: (patch: Partial<ProjectActionInput>) => Promise<void>;
+  onSave: (patch: Partial<ActivityInput>) => Promise<void>;
 }) {
   const [draft, setDraft] = React.useState({
     completionPercent:
@@ -311,8 +311,8 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   tenantSlug: string;
   token: string;
   projectId: string;
-  action: ApiProjectAction | null;
-  selectedOccurrence: ApiActionOccurrence | null;
+  action: ApiActivity | null;
+  selectedOccurrence: ApiMeeting | null;
   draft: ActionMetadataDraft;
   setDraft: React.Dispatch<React.SetStateAction<ActionMetadataDraft>>;
   mentionableUsers: Array<{
@@ -327,7 +327,7 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   };
   commentSubmitting: boolean;
   attachmentUploading: boolean;
-  reportRows: ProjectActionAttendancesListItem[];
+  reportRows: MeetingAttendancesListItem[];
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
   reportLoading: boolean;
   reportError: string | null;
@@ -347,8 +347,8 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   qualityDrafts: Record<string, QualityDraft>;
   qualitySaving: boolean;
   qualityNotesDialog: QualityNotesDialogState | null;
-  participantRows: ProjectActionAttendancesListItem[];
-  qualityRows: ProjectActionAttendancesListItem[];
+  participantRows: MeetingAttendancesListItem[];
+  qualityRows: MeetingAttendancesListItem[];
   onCommitField: <K extends keyof ActionMetadataDraft>(
     field: K,
     nextValue?: ActionMetadataDraft[K],
@@ -365,36 +365,36 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onDeleteAttachment: (attachmentId: string) => void;
   onNotesChange: (next: string | null) => void;
   onNotesBlur: () => void;
-  onSaveActionPatch: (patch: Partial<ProjectActionInput>) => Promise<void>;
-  onActionLoaded: (action: ApiProjectAction) => void;
+  onSaveActionPatch: (patch: Partial<ActivityInput>) => Promise<void>;
+  onActionLoaded: (action: ApiActivity) => void;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
   onAttendanceGroupChange: (value: string) => void;
   onAttendanceStatusFilterChange: (value: AttendanceStatusFilter) => void;
-  getAttendanceEffective: (row: ProjectActionAttendancesListItem) => {
+  getAttendanceEffective: (row: MeetingAttendancesListItem) => {
     status: import("@/modules/actions/api").AttendanceStatus | null;
     notes: string | null;
   };
   setAttendanceRowDraft: (
-    row: ProjectActionAttendancesListItem,
+    row: MeetingAttendancesListItem,
     patch: AttendanceDraft,
     prune?: boolean,
   ) => void;
   applyAttendanceStatusToRows: (
-    rows: ProjectActionAttendancesListItem[],
+    rows: MeetingAttendancesListItem[],
     status: import("@/modules/actions/api").AttendanceStatus,
   ) => void;
   saveAttendanceDrafts: () => void;
   onAttendanceNotesDialogChange: (state: AttendanceNotesDialogState | null) => void;
   applyAttendanceNotesDialog: (state: AttendanceNotesDialogState) => void;
   onQualityGroupChange: (value: string) => void;
-  getQualityEffective: (row: ProjectActionAttendancesListItem) => {
+  getQualityEffective: (row: MeetingAttendancesListItem) => {
     qualityScore: number | null;
     qualityNotes: string | null;
     isHighlight: boolean;
   };
   setQualityRowDraft: (
-    row: ProjectActionAttendancesListItem,
+    row: MeetingAttendancesListItem,
     patch: QualityDraft,
     prune?: boolean,
   ) => void;
@@ -830,7 +830,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           href: resolveMediaUrl(attachment.filePath),
           description: attachment.uploadedBy?.name
             ? `Enviado por ${attachment.uploadedBy.name}`
-            : "Anexo da ação",
+            : "Anexo da atividade",
           mimeType: attachment.mimeType ?? null,
           sizeLabel:
             typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
@@ -881,7 +881,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "action",
       entity: "ProjectAction",
       model: "audit.logs",
-      label: "Ação",
+      label: "Atividade",
       fieldLabels: ACTION_AUDIT_FIELD_LABELS,
       valueFormatters: {
         status: (value) => formatStatus(typeof value === "string" ? value : null),

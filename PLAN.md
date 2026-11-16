@@ -410,8 +410,9 @@ código). Parte 4 (Railway/Cloudflare/R2) só começa quando o projeto
 Railway existir.
 
 **Desvio em andamento, a pedido explícito do usuário em 2026-11-13:**
-Fases 1, 2 e 3 do plano SCFV (`docs/plano-implementacao-scfv.md`) foram
-iniciadas antes da Parte 4/5. Fase 1: model `ActionOccurrence` (Encontro)
+Fases 1, 2 e 3 do plano SCFV (então em `docs/plano-implementacao-scfv.md`,
+hoje `docs/historico/plano-implementacao-scfv.md` — ver nota de
+2026-11-15 abaixo) foram iniciadas antes da Parte 4/5. Fase 1: model `ActionOccurrence` (Encontro)
 + endpoints (CRUD, geração em lote por recorrência semanal, cancelamento
 em série). Fase 2: aba "Encontros" no detalhe da Atividade (lista/
 calendário, agendamento em lote, edição/cancelamento) — testada de ponta
@@ -427,7 +428,8 @@ redesenho de Programa→Projeto→Atividade→Encontro (consolidar
 `ProjectGroup`/`PeopleGroup`, matrícula por grupo, Encontro com grupo de
 equipe, rename Ação→Atividade no código via `@@map`, relatórios em
 cascata) — plano completo em
-`docs/plano-redesenho-grupos-matricula-atividades.md`, em fases R1-R5.
+`docs/historico/plano-redesenho-grupos-matricula-atividades.md` (movido
+para `historico` em 2026-11-15, ver nota abaixo), em fases R1-R5.
 
 Fase R1 (eliminar `ProjectGroup`, consolidar em `PeopleGroup`) concluída:
 migration de remoção (`20261113170301_remove_project_group`, sem dado de
@@ -438,7 +440,7 @@ limpo (módulo standalone + 4 window actions + search view removidos via
 `git rm`; `tsc` 0 erros; `eslint` 211 problemas vs. baseline 217 via `git
 stash`, net -6, nenhuma categoria nova; `npm run build` sucesso). Detalhe
 completo na seção "Status" da Fase R1 em
-`docs/plano-redesenho-grupos-matricula-atividades.md`.
+`docs/historico/plano-redesenho-grupos-matricula-atividades.md`.
 
 Correção do seletor de colunas/Painel Search (fora da numeração R1-R5,
 mas no mesmo desvio): causa raiz era estrutural
@@ -491,9 +493,286 @@ marcados e conteúdo migrado preenchido; upload de foto ao vivo
 funcionou (1/5 fotos) e salvou (toast "Encontro atualizado"); aba
 Relatório confirma o mesmo conteúdo vindo do Encontro, não mais da
 Atividade. Detalhe completo na seção "Status" da Fase R3 em
-`docs/plano-redesenho-grupos-matricula-atividades.md`. Fases R4 (rename
-Ação→Atividade via `@@map`) e R5 (relatórios em cascata) ainda não
-retomadas — a confirmar escopo com o usuário antes de seguir.
+`docs/historico/plano-redesenho-grupos-matricula-atividades.md`. Fases R4
+(rename Ação→Atividade via `@@map`) e R5 (relatórios em cascata) ainda
+não retomadas — absorvidas em 2026-11-15 pelo novo plano mestre (ver nota
+abaixo), como "Fase 1.0" e "Fase 9" respectivamente.
+
+**Revisão de documentação em 2026-11-15, a pedido explícito do usuário:**
+o usuário escreveu
+`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`
+(Fases 0-9 dos módulos Atendimento e Gestão de Projetos) e pediu revisão
+de toda a documentação de planejamento para eliminar divergência. Decisão
+do usuário: esse documento novo é **o plano mestre** para esses dois
+módulos daqui pra frente, substituindo
+`docs/plano-implementacao-scfv.md`,
+`docs/especificacao-completa-saas-para-ongs-de-scfv.md` e as Fases R4/R5
+de `docs/plano-redesenho-grupos-matricula-atividades.md` (os três movidos
+para `docs/historico/`, mantidos como registro histórico — Fases 1-3/R1-R3
+já implementadas continuam com evidência preservada lá). A nomenclatura do
+documento novo (`Meeting`/`Attendance`/`Benefit`/`Referral`/`Occurrence`/
+`Case`/etc.) é a referência oficial para o trabalho ainda não
+implementado; o próprio documento traz uma tabela de mapeamento para o
+que já existe no banco sob outros nomes (`ActionOccurrence` = `Meeting`,
+`ProjectActionAttendance` = `MeetingAttendance` etc.) — nenhuma tabela já
+criada foi renomeada só para bater com o texto. Também arquivados nesta
+revisão, por estarem obsoletos/órfãos: `docs/canonical-business-structure.md`
+(descrevia `ProjectGroup` como conceito ativo — eliminado na Fase R1) e
+`docs/module-canonical-checklist.md` (checklist do "Marco Zero 1.0", já
+fechado, sem nenhuma referência viva). `docs/pesquisa-de-mercado-modulo-scfv.md`
+continua ativo (é pesquisa regulatória, não plano). Nenhuma linha de
+código mudou nesta revisão — é só documentação.
+
+**Fase 1.0 do plano mestre (rename no código) concluída em 2026-11-15,**
+a pedido explícito do usuário. Escopo: só os 5 models que o plano
+mestre lista — `ProjectAction`→`Activity`, `ActionType`→`ActivityType`,
+`ActionOccurrence`→`Meeting`, `ProjectActionAttendance`→`MeetingAttendance`,
+`ActionPeopleGroup`→`ActivityPeopleGroup` —, via `@@map`/`@map` do Prisma
+(tabela física inalterada, nenhuma migration gerada). Deliberadamente
+fora do escopo (nomes de modelo que não mudam, mesmo decisão já tomada na
+Fase R4 original): `ProjectActionComment`, `ProjectActionAttachment`,
+`ProjectActionPeopleParticipation`, `ActionOccurrenceTeamGroup`, e os 3
+enums (`ActionStatus`, `ActionTarget`, `ActionPeopleParticipationRole`).
+**Backend:** schema editado model a model (9 edições em
+`schema.prisma`, confirmado `npx prisma validate` + `npx prisma generate`
+sem erro); find-and-replace disciplinado de `prisma.<accessor>` e
+`Prisma.<Tipo>` (ordem cuidando de colisão de prefixo, ex.:
+`prisma.projectActionAttendance` antes de `prisma.projectAction`) em
+`actions.service.ts`, `dashboard.service.ts`, `people-groups.service.ts`,
+`project-structure.service.ts`, `prisma/seed.ts` (+ `seed.js`/`seed.js.map`
+recompilados via `npm run build:seed`), `scripts/backfill-action-occurrences.js`,
+`scripts/migrate-upload-keys-to-tenant-scoped.js`,
+`test/tenant-isolation.e2e-spec.ts`, `test/support/tenant-isolation.setup.ts`.
+2 comentários desatualizados corrigidos de propósito (`actions.service.ts`,
+`sign-uploads.interceptor.spec.ts`). **Frontend:** 37 identificadores
+renomeados (tipos `Api*`/`*Input`/`*Response`/`*ListItem` + funções do
+cliente de API) em 20 arquivos de `modules/actions`, `modules/projects` e
+`web-client/data-provider/rest/actions.ts` — nomes de componente React,
+arquivos e rotas **não** foram tocados (fora do escopo: só "tipos e código
+interno"). **Correção em 2026-11-15, achada durante teste de navegador da
+Fase 1:** a afirmação original aqui ("a UI/labels já diziam 'Atividade'
+desde a Fase 4 do plano SCFV") estava **errada** — nunca foi verificada.
+O rótulo visível continua "Ação"/"Ações" em todo lugar (manifest do
+módulo, sidebar, breadcrumbs, botão "Nova ação", `actions-module-contract.tsx`
+`entity: { singular: "Ação", plural: "Ações" }`). O relabel textual
+(Fase 4 do plano SCFV antigo) nunca foi de fato executado — registrado
+como pendente em `docs/backlog.md`.
+**Evidência:** backend `npx tsc --noEmit -p tsconfig.build.json` → 0
+erros; `npm test` → 28 suítes/143 testes sem regressão; `npm run build` →
+ok; `npx eslint` nos 4 arquivos de serviço tocados → 141 problemas vs. 146
+na baseline (medida via `git stash` + `prisma generate` pro schema antigo,
+pra não contaminar a comparação) — net -5, nenhuma categoria nova (1
+`prettier/prettier` cosmético corrigido com `--fix`). Frontend `npx tsc
+--noEmit` → 0 erros; `npm run build` → ok; `npx eslint` nas áreas tocadas →
+mesma dívida já documentada (`react-hooks/set-state-in-effect`,
+`react-hooks/preserve-manual-memoization`), nenhuma categoria nova.
+Confirmado por grep (`\b(ProjectAction|ActionType|ActionOccurrence|
+ProjectActionAttendance|ActionPeopleGroup)\b`, case-insensitive) em todo o
+repositório: zero referência sobrando fora de `docs/historico/`, das
+migrations (SQL histórico, não muda — `@@map` preserva a tabela física) e
+de 3 pontos pré-existentes deixados intocados de propósito (`entity:
+"ProjectAction"` em `prisma/seed.ts`, `ENTITY_LABELS` do dashboard e o
+filtro da aba Auditoria em `actions-detail-layout-contract.tsx`/
+`projects-detail-layout-contract.tsx` — nenhum corresponde a uma gravação
+real de audit log hoje, confirmado por grep em `backend/src` por
+`entity: 'ProjectAction'`/`entity: 'Project'`: só `DepositItem`/
+`PantryItem`/`TaskOrganizerTask`/etc. são gravados de verdade; não são
+identificadores de código, são valores de string livres). Sem Postgres
+disponível neste ambiente para `prisma migrate status` — não é um
+problema: `@@map` não gera migration (confirmado pelo schema validar e o
+client gerar sem diff de migration).
+**Achado incidental, registrado em `docs/backlog.md`:**
+`migrate-upload-keys-to-tenant-scoped.js#migrateProjectActionPhotoPaths`
+já estava quebrado desde a Fase R3 (2026-11-14, moveu `photoPaths` de
+`ProjectAction` pra `ActionOccurrence`) — não corrigido aqui, fora do
+escopo desta fase.
+
+**Fase 1 do plano mestre (Estrutura básica de Projetos) concluída em
+2026-11-15,** a pedido explícito do usuário. Dos 5 itens da fase,
+`Program`/`Activity`/`Meeting` manual/turma vinculada já existiam; os 2
+gaps reais, resolvidos agora:
+- **Decisão do usuário sobre `funding_source`:** não é campo único no
+  `Project` — a dor de "financiamento misto" (seção 1.2 do plano mestre)
+  é real, então criei `ProjectFundingSource` (N por projeto: `source`
+  `MUNICIPAL/ESTADUAL/FEDERAL/TERCEIRO` + `name`/`notes` livres).
+  Pedido explícito do usuário: registrar no backlog uma fase futura para
+  revisar essa estrutura visando boa gestão dos recursos do projeto
+  (valores, prazos, templates por fonte) — feito em `docs/backlog.md`.
+- `Goal`/`Objective` modelado como **uma única entidade** `Goal`
+  (`title`/`description`, por `Project`) — decisão própria registrada
+  explicitamente no plano mestre (seção da Fase 1) para confirmação do
+  usuário, já que o documento original usava os dois nomes de forma
+  ambígua.
+**Schema:** migration `20261115120000_add_goal_and_project_funding_source`
+(enum `FundingSourceType`; tabelas `ProjectFundingSource`/`Goal`; coluna
+`goalId` em `ProjectAction`) — **escrita à mão**, replicando exatamente o
+estilo das migrations já existentes (`CreateEnum`/`AlterTable`/
+`CreateTable`/`CreateIndex`/`AddForeignKey`, mesma convenção de nomes de
+constraint), porque este ambiente não tem Postgres acessível para
+`prisma migrate dev` gerar automaticamente (`P1001`, confirmado também
+que não há nada escutando a porta 5432 nem serviço de Postgres instalado
+aqui). **Ação pendente do usuário:** rodar `npx prisma migrate dev` (ou
+`migrate status`) numa máquina com Postgres antes de aplicar essa
+migration em qualquer ambiente, para confirmar que o SQL bate com o
+schema sem drift — isso não foi verificado nesta sessão.
+**Backend:** CRUD completo de `funding-sources` e `goals` em
+`project-structure.service.ts`/`.controller.ts` (rotas
+`/projects/:projectId/funding-sources` e `/goals`, reaproveitando as
+permissões `project-structure.*` já existentes, sem chave nova);
+`actions.service.ts` valida `goalId` contra o projeto
+(`ensureGoalBelongsToProject`) em create/update da Atividade e inclui
+`goal: { id, title }` no retorno. `prisma/seed.ts` ganhou 1 meta + 2
+fontes de financiamento de exemplo (Projeto Música Manhã), com a
+atividade "Ensaio dos meninos da percussão" já vinculada à meta.
+**Evidência:** `npx prisma validate` + `npx prisma generate` → ok; `tsc
+--noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 28 suítes/143
+testes sem regressão; `npm run build` → ok; `npm run build:seed` → ok
+(seed.ts compila e `seed.js`/`seed.js.map` foram recompilados); `npx
+eslint` nos 9 arquivos novos/tocados do backend → 0 problemas novos (as 4
+service files mantiveram os mesmos 141 problemas já medidos na Fase 1.0).
+**Frontend:** tipos `ApiGoal`/`ApiProjectFundingSource` +
+`GoalInput`/`ProjectFundingSourceInput` (`modules/projects/api/types/
+structure.ts`) + funções de API (`project-structure.ts`); duas seções
+novas autocontidas — `ProjectGoalsSection`/`ProjectFundingSourcesSection`
+(mesmo padrão de `ActionOccurrencesSection`: fetch próprio via
+`useAuth()`, sem acoplar ao engine) — plugadas como abas "Metas" e
+"Financiamento" no detalhe do Projeto (`projects-detail-layout-contract.tsx`,
+usando a chave genérica `content:` do `tabTemplates`, já suportada pelo
+engine mas não usada antes neste arquivo); seletor de Meta opcional no
+formulário de Atividade (`action-create-form-section.tsx`, compartilhado
+por create/edit). **Evidência:** `tsc --noEmit` → 0 erros; `npm run
+build` → ok; `npx eslint` nos arquivos novos → 4 problemas, todos
+`react-hooks/set-state-in-effect` (dívida já tolerada em todo o projeto,
+nenhuma categoria nova).
+**Testado manualmente em 2026-11-15** — usuário religou o WSL, Postgres
+local ficou acessível. `npx prisma migrate dev` aplicou a migration
+escrita à mão **sem detectar drift** (confirma que o SQL batia com o
+schema). `npm run db:seed` ok. Backend (`npm run start:dev`) e frontend
+(`npm run dev`) subiram sem erro. Teste real de navegador (Playwright,
+Chromium já em cache local, login real `admin@seed.local`): aba "Metas"
+do Projeto mostra a meta do seed + cria uma nova via diálogo; aba
+"Financiamento" mostra as 2 fontes do seed com badge Municipal/Terceiro
+corretos; seletor "Meta (Plano de Trabalho)" no formulário de Atividade
+popula corretamente ao escolher o Projeto; zero erro de console nas 8
+telas visitadas. Achado no caminho, nada a ver com código quebrado: o
+formulário de login realmente perde o que foi digitado se preenchido
+antes do nome da instituição carregar (bug já conhecido, registrado em
+`docs/backlog.md` desde 2026-11-13) — contornado no script de teste
+esperando o nome carregar antes de preencher. Dados de teste (3 metas
+fictícias, geradas ao reexecutar o script durante o ajuste dos
+seletores) removidos via API; banco restaurado com `npm run db:seed`.
+**Achado e corrigido na documentação:** a Fase 1.0 afirmava que o rótulo
+de UI já dizia "Atividade" — nunca tinha sido verificado e estava
+**errado** (confirmado nas telas reais: ainda era "Ação"/"Ações" em todo
+lugar — manifest do módulo, breadcrumbs, botão "Nova ação"). Corrigido
+na seção da Fase 1.0 acima.
+
+**Relabel "Ação"→"Atividade" feito em 2026-11-15,** a pedido explícito
+do usuário ("se ficou pendência na Fase 1, finalize"). Find-and-replace
+disciplinado (regex com `\b`, preservando "ação"/"ações" genéricas que
+não são sobre esta entidade — ex.: "Esta ação não pode ser desfeita" em
+diálogos de confirmação, "Ação" como coluna de log de auditoria em
+admin/access-log, "Ações" como menu de linha em `project-enrollments-card.tsx`
+— nenhum desses foi tocado, são sobre o verbo genérico, não a entidade)
+em 17 arquivos: `modules/actions/manifest.ts` (título do menu),
+`actions-module-contract.tsx` (entity singular/plural, fallbackTitle,
+field label, createActionLabel, downloadFileName), `actions-detail-layout-contract.tsx`
+(label da fonte de auditoria), `action-create.constants.ts`/
+`action-create-engine-client-page.tsx` (breadcrumbs, títulos), `actions-list.constants.ts`/
+`actions-list-module-client-page.tsx` (breadcrumbs, botão, coluna),
+`action-manage.constants.ts`/`action-quality.constants.ts`/
+`action-relations.constants.ts`/`action-detail-engine-client-page.tsx`/
+`action-report-preview.tsx` (todos os textos da tela de detalhe/gestão),
+`project-action-manage-dialog.tsx`/`projects-detail-layout-contract.tsx`
+(aba/coluna/label dentro do Projeto), `web-client/registry/actions/
+actions.tsx`/`project-structure.tsx` (breadcrumbs, título da janela),
+`web-client/registry/searchViews/actions.ts` (placeholder de busca —
+achado só depois, porque estava sem acento: "Pesquisar acoes por..." não
+batia com o regex acentuado), `core-dashboard-client-page.tsx` (ação
+rápida do Dashboard + título do gráfico + nome do arquivo baixado).
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npm run build` → ok; `npx
+eslint` nas áreas tocadas → mesma dívida já tolerada
+(`react-hooks/set-state-in-effect`/`react-hooks/preserve-manual-memoization`),
+nenhuma categoria nova. Teste real de navegador (mesmo Chromium em cache,
+login real): sidebar mostra "Atividades"; ação rápida do Dashboard
+mostra "Registrar atividade"; lista mostra breadcrumb "Atividades",
+coluna "ATIVIDADE" e placeholder de busca "Pesquisar atividades por
+titulo ou tipo"; formulário de criação mostra breadcrumb "Atividades >
+Nova atividade", título "Nova atividade" e botão "Criar atividade" —
+confirmado por screenshot real, zero "Ação"/"Ações" sobrando nessas
+telas. Nenhum dado de teste criado (só navegação, não cheguei a
+submeter o formulário). Servidores de dev encerrados ao final.
+**Dívida reconhecida, não bloqueante:** o ambiente de dev ficou visivelmente
+sobrecarregado durante os testes repetidos desta sessão (respostas de
+10-20s+ em rotas já compiladas, 1 `ECONNRESET` de fetch) — não é
+regressão de código (confirmado: a mesma rota funcionou assim que o
+servidor teve um instante para respirar), é só o custo de rodar 3
+sessões de Playwright + 2 reinícios de servidor seguidos neste sandbox.
+
+**Fase 3 do plano mestre (Presença Diária derivada) concluída em
+2026-11-15,** a pedido explícito do usuário ("implemente a fase 3, os
+testes vou fazer depois" — mesmo assim, testada de ponta a ponta contra
+Postgres real nesta sessão, ver abaixo). **Decisão própria de escopo,
+registrada para confirmação futura:** `DailyAttendance` é por
+pessoa/dia (`tenantId`+`personId`+`date`), não por projeto — o texto da
+fase só diz "por pessoa/data"; se um dia precisar de presença diária
+*dentro de um projeto específico*, é migração aditiva simples
+(`projectId` a mais na tabela).
+**Schema:** migration `20261115172019_add_daily_attendance` — desta vez
+gerada e aplicada de verdade via `npx prisma migrate dev` (Postgres
+local acessível nesta sessão, depois que o usuário religou o WSL), sem
+precisar escrever SQL à mão como na Fase 1.
+**Backend:** `syncDailyAttendanceForPersonDate` reavalia do zero a cada
+chamada (conta quantos `MeetingAttendance` `PRESENT` existem pra
+pessoa+data, em qualquer encontro/atividade, e faz upsert ou remove) —
+decisão deliberada de não incrementar/decrementar contador, porque isso
+trata corretamente o caso de corrigir uma presença já lançada (de
+`PRESENT` pra `ABSENT`): se não sobra nenhuma outra presença no dia, o
+registro some, não fica errado. Conectado em `actions.service.ts` nos 3
+pontos que escrevem ou apagam `MeetingAttendance`:
+`upsertProjectActionAttendances` (fluxo principal de marcar presença),
+`deleteActionOccurrence` e `deleteProjectAction` (evita presença diária
+órfã quando um encontro ou uma atividade inteira some). Relatório
+simples novo: `GET /actions/attendance-summary/:personId?month=AAAA-MM`
+→ `{ activityAttendances, dailyAttendances }`, reaproveitando a
+permissão `actions.read` já existente (sem chave nova).
+**Evidência:** `npx prisma migrate dev` → aplicou sem nenhum drift
+detectado (prova que o design do schema está consistente);
+`tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 28
+suítes/143 testes sem regressão; `npm run build` → ok; `eslint` em
+`actions.service.ts`/`actions-list.controller.ts` → 131 problemas vs.
+132 na baseline (medida via `git stash`, descontaminada regenerando o
+Prisma Client pro schema antigo antes de medir) — net -1, nenhuma
+categoria nova; DTO novo (`person-attendance-summary-query.dto.ts`) → 0
+problemas.
+**Testado de ponta a ponta contra Postgres real** (não só unitário, já
+que o ambiente tinha banco disponível desta vez): backend de pé, dados
+do seed, autenticação real. Criados 3 encontros em 3 atividades
+diferentes do "Projeto Música Manhã" na mesma data (2026-04-01); marcada
+presença `PRESENT` da mesma matrícula (pessoa `...113004`) nos 3 →
+`GET /actions/attendance-summary/...113004?month=2026-04` devolveu
+`{"activityAttendances":3,"dailyAttendances":1}` — bate exatamente com o
+critério de teste da fase ("3 registros de presença por atividade, mas
+1 único registro de presença diária"). Corrigida 1 das 3 presenças para
+`ABSENT` → `dailyAttendances` continuou `1` (ainda sobravam 2
+`PRESENT`, prova que a reavaliação funciona, não é só "criar e nunca
+apagar"). Corrigidas as 2 restantes para `ABSENT` → `dailyAttendances`
+caiu pra `0`. Marcada `PRESENT` de novo numa delas e excluído o próprio
+encontro (única presença do dia) → `dailyAttendances` voltou a `0`,
+confirmando que `deleteActionOccurrence` também dispara a reavaliação.
+Os 3 encontros de teste foram excluídos via API ao final; banco
+restaurado com `npm run db:seed`. Seed também ganhou 4
+`DailyAttendance` de exemplo, coerentes com as presenças `PRESENT` já
+existentes no seed — confirmado por `GET /actions/attendance-summary`
+real contra o seed limpo antes de começar o teste
+(`{"activityAttendances":1,"dailyAttendances":1}` para a pessoa
+`...113001` em fevereiro/2026, batendo com o único `PRESENT` do seed
+pra ela naquele mês).
+**Fora do escopo desta fase, de propósito:** nenhuma tela de frontend
+para o relatório — o critério de teste é inteiramente sobre
+comportamento de dados (testável por API), e "relatório simples" no
+texto da fase não especifica onde expor na UI. A API já existe; criar a
+tela é um próximo passo separado e pequeno, se/quando quiser.
 
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**
