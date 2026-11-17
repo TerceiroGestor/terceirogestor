@@ -260,3 +260,39 @@ adiado sem gatilho. Formato do Alicerce.
   de mudança de código.
   **Gatilho:** só investigar se falhar de forma consistente e repetível no
   CI real (Parte 2), não numa única corrida local.
+
+## Módulos Atendimento / Gestão de Projetos
+
+- **Encontro (`Meeting`) com múltiplos grupos de uma vez (N:N), para
+  eventos especiais** — achado 4.14 do teste manual da Fase 4
+  (2026-11-16). Decisão do usuário: por ora só a Atividade ganha
+  múltiplos grupos-alvo (multiselect); o Encontro continua escolhendo 1
+  grupo por vez dentre os vinculados à Atividade — cobre o caso do dia a
+  dia. `Meeting.peopleGroupId` continua FK singular nullable.
+  **Gatilho:** quando aparecer a necessidade real de registrar 1 único
+  Encontro que juntou vários grupos simultaneamente (ex.: um evento
+  especial com todas as turmas) — nesse ponto, trocar `peopleGroupId`
+  por uma tabela de junção `MeetingPeopleGroup` (mesmo padrão de
+  `ActivityPeopleGroup`), migrando os dados existentes.
+
+## Infraestrutura de UI (web-client)
+
+- **`ListView.tsx` (`enableRowSelection`/`onSelectionChange`): o efeito
+  que notifica a seleção recalcula `selectedRows` com `.map()` a cada
+  render, sem memoização — qualquer consumidor que passe o `setState`
+  bruto (`onSelectionChange={setSelectedRows}`) entra em loop infinito
+  ("Maximum update depth exceeded"), porque a nova referência do array
+  (mesmo com conteúdo igual) sempre dispara um re-render do pai, que
+  força o `ListView` a recalcular de novo. Achado e contornado em
+  `action-occurrences-section.tsx` (Fase 4, ajuste 2.9) com um updater
+  funcional que compara o conteúdo antes de trocar a referência — não
+  mexi no `ListView.tsx` em si, por ser infraestrutura compartilhada com
+  outros 5 consumidores (`project-enrollments-card.tsx`,
+  `pantry-donors-module-client-page.tsx`, etc.) e eu não ter orçamento
+  nesta sessão pra testar o impacto nos seis.
+  **Gatilho:** da próxima vez que outro consumidor de
+  `onSelectionChange` relatar o mesmo loop (ou ao tocar em
+  `ListView.tsx` por outro motivo) — mover a comparação de conteúdo
+  para dentro do próprio componente (memoizar `selectedRows` com
+  `useMemo` chaveado em algo estável, tipo os ids selecionados) em vez
+  de depender de cada consumidor se proteger por conta própria.

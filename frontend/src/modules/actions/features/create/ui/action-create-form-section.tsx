@@ -12,31 +12,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RichText } from "@/components/ui/richtext/RichText";
 import { useToast } from "@/components/ui/use-toast";
+import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   createActivity,
+  createProjectActionPeopleParticipation,
+  endProjectActionPeopleParticipation,
   listActivityTypes,
+  listEligibleActivityPeople,
+  listProjectActionPeopleParticipations,
   updateActivity,
+  type ActionPeopleParticipationRole,
   type ApiActivity,
   type ApiActivityType,
+  type ApiProjectActionPeopleParticipation,
   type ActionStatus,
 } from "@/modules/actions/api";
+import { ACTION_STATUS_OPTIONS } from "@/modules/actions/shared/domain/actions.constants";
 import {
-  ACTION_STATUS_OPTIONS,
-  ACTION_TARGET_LABELS,
-} from "@/modules/actions/shared/domain/actions.constants";
-import {
-  listProjectEnrollments,
   listProjectGoals,
   listProjectPeopleGroups,
   listProjects,
   type ApiGoal,
   type ApiProject,
-  type ApiProjectEnrollment,
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { ACTION_CREATE_TEXT } from "../config/action-create.constants";
@@ -52,9 +56,10 @@ type ActionCreateValues = {
   actionTypeId: string;
   title: string;
   status: ActionStatus;
-  peopleGroupId: string;
-  targetEnrollmentId: string;
+  peopleGroupIds: string[];
   goalId: string;
+  description: string;
+  pedagogicalPlanHtml: string;
   plannedStartAt: string;
   plannedEndAt: string;
 };
@@ -74,6 +79,21 @@ function SectionField({
   );
 }
 
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-1 border-b border-border/60 pb-2">
+      <div className="text-sm font-semibold text-foreground">{title}</div>
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+    </div>
+  );
+}
+
 function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
   const primary = row.peopleGroup?.name ?? "";
   const secondaryParts = [
@@ -83,9 +103,125 @@ function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
   return secondaryParts.length ? `${primary} - ${secondaryParts.join(" - ")}` : primary;
 }
 
-function resolveTypeTargetLabel(target: ApiActivityType["target"] | undefined) {
-  if (!target) return ACTION_TARGET_LABELS.PROJECT;
-  return ACTION_TARGET_LABELS[target];
+/**
+ * Atalho de 1 pessoa por papel (Gestor = RESPONSAVEL_TECNICO, Educador =
+ * FACILITADOR), lendo/gravando em ProjectActionPeopleParticipation - o
+ * mesmo cadastro que a aba "Equipe" já usa, sem campo/tabela nova. A
+ * pessoa elegível vem do grupo de equipe do Projeto (participationKind
+ * "TEAM"), igual ao que a aba Equipe já oferece.
+ */
+function ActivityRolePicker({
+  token,
+  projectId,
+  actionId,
+  role,
+  placeholder,
+  disabled,
+}: {
+  token: string;
+  projectId: string | undefined;
+  actionId: string | undefined;
+  role: ActionPeopleParticipationRole;
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const [eligible, setEligible] = React.useState<
+    { personId: string; fullName: string; enrollmentId: string | null }[]
+  >([]);
+  const [current, setCurrent] = React.useState<ApiProjectActionPeopleParticipation | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const load = React.useCallback(async () => {
+    if (!token || !projectId || !actionId) return;
+    setLoading(true);
+    try {
+      const [eligibleResponse, participations] = await Promise.all([
+        listEligibleActivityPeople(token, projectId, actionId, {
+          participationKind: "TEAM",
+          limit: 200,
+        }),
+        listProjectActionPeopleParticipations(token, projectId, actionId, {
+          role,
+          limit: 1,
+        }),
+      ]);
+      setEligible(
+        (eligibleResponse.data ?? []).map((enrollment) => ({
+          personId: enrollment.personId,
+          fullName: enrollment.person?.fullName ?? enrollment.personId,
+          enrollmentId: enrollment.id,
+        })),
+      );
+      setCurrent(participations.data?.[0] ?? null);
+    } catch {
+      setEligible([]);
+      setCurrent(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, projectId, actionId, role]);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  const handleChange = async (personId: string) => {
+    if (!token || !projectId || !actionId) return;
+    setLoading(true);
+    try {
+      if (current) {
+        await endProjectActionPeopleParticipation(token, projectId, actionId, current.id);
+      }
+      if (personId !== NONE_VALUE) {
+        const picked = eligible.find((item) => item.personId === personId);
+        await createProjectActionPeopleParticipation(token, projectId, actionId, {
+          personId,
+          enrollmentId: picked?.enrollmentId ?? null,
+          role,
+        });
+      }
+      await load();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!actionId) {
+    return (
+      <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+        Disponível após criar a atividade.
+      </div>
+    );
+  }
+
+  const value = current?.personId ?? NONE_VALUE;
+  const options =
+    current && !eligible.some((item) => item.personId === current.personId)
+      ? [
+          {
+            personId: current.personId,
+            fullName: current.person.fullName,
+            enrollmentId: current.enrollmentId,
+          },
+          ...eligible,
+        ]
+      : eligible;
+
+  return (
+    <Select value={value} onValueChange={(next) => void handleChange(next)} disabled={disabled || loading}>
+      <SelectTrigger className={lineInputClassName}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE_VALUE}>{placeholder}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.personId} value={option.personId}>
+            {option.fullName}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 type ActionCreateFormSectionProps = {
@@ -123,7 +259,6 @@ export function ActionCreateFormSection({
   const [projects, setProjects] = React.useState<ApiProject[]>([]);
   const [actionTypes, setActivityTypes] = React.useState<ApiActivityType[]>([]);
   const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
-  const [enrollments, setEnrollments] = React.useState<ApiProjectEnrollment[]>([]);
   const [goals, setGoals] = React.useState<ApiGoal[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [values, setValues] = React.useState<ActionCreateValues>({
@@ -131,9 +266,10 @@ export function ActionCreateFormSection({
     actionTypeId: NONE_VALUE,
     title: "",
     status: "PLANNED",
-    peopleGroupId: NONE_VALUE,
-    targetEnrollmentId: NONE_VALUE,
+    peopleGroupIds: [],
     goalId: NONE_VALUE,
+    description: "",
+    pedagogicalPlanHtml: "",
     plannedStartAt: "",
     plannedEndAt: "",
   });
@@ -152,9 +288,10 @@ export function ActionCreateFormSection({
       actionTypeId: action.actionTypeId ?? NONE_VALUE,
       title: action.title ?? "",
       status: action.status ?? "PLANNED",
-      peopleGroupId: action.peopleGroupId ?? NONE_VALUE,
-      targetEnrollmentId: action.targetEnrollmentId ?? NONE_VALUE,
+      peopleGroupIds: action.peopleGroupIds ?? [],
       goalId: action.goalId ?? NONE_VALUE,
+      description: action.description ?? "",
+      pedagogicalPlanHtml: action.pedagogicalPlanHtml ?? "",
       plannedStartAt: action.plannedStartAt?.slice(0, 10) ?? "",
       plannedEndAt: action.plannedEndAt?.slice(0, 10) ?? "",
     });
@@ -203,24 +340,20 @@ export function ActionCreateFormSection({
     if (!token || !canAccessForm) return;
     if (!values.projectId || values.projectId === NONE_VALUE) {
       setPeopleGroups([]);
-      setEnrollments([]);
       setGoals([]);
       return;
     }
 
     (async () => {
       try {
-        const [projectPeopleGroups, projectEnrollments, projectGoals] = await Promise.all([
+        const [projectPeopleGroups, projectGoals] = await Promise.all([
           listProjectPeopleGroups(token, values.projectId, { participationKind: "PARTICIPANT" }),
-          listProjectEnrollments(token, values.projectId, { page: 1, limit: 200 }),
           listProjectGoals(token, values.projectId),
         ]);
         setPeopleGroups(projectPeopleGroups);
-        setEnrollments(projectEnrollments.data ?? []);
         setGoals(projectGoals);
       } catch {
         setPeopleGroups([]);
-        setEnrollments([]);
         setGoals([]);
       }
     })();
@@ -251,13 +384,8 @@ export function ActionCreateFormSection({
       return;
     }
 
-    if (resolvedType.target === "PEOPLE_GROUP" && values.peopleGroupId === NONE_VALUE) {
+    if (resolvedType.target === "PEOPLE_GROUP" && values.peopleGroupIds.length === 0) {
       toast({ title: ACTION_CREATE_TEXT.validations.cycleRequired, variant: "destructive" });
-      return;
-    }
-
-    if (resolvedType.target === "ENROLLMENT" && values.targetEnrollmentId === NONE_VALUE) {
-      toast({ title: "Selecione um participante", variant: "destructive" });
       return;
     }
 
@@ -267,15 +395,13 @@ export function ActionCreateFormSection({
         actionTypeId: values.actionTypeId,
         title,
         status: values.status,
-        peopleGroupId:
-          resolvedType.target === "PEOPLE_GROUP" && values.peopleGroupId !== NONE_VALUE
-            ? values.peopleGroupId
-            : null,
-        targetEnrollmentId:
-          resolvedType.target === "ENROLLMENT" && values.targetEnrollmentId !== NONE_VALUE
-            ? values.targetEnrollmentId
-            : null,
+        peopleGroupIds:
+          resolvedType.target === "PEOPLE_GROUP" ? values.peopleGroupIds : [],
         goalId: values.goalId !== NONE_VALUE ? values.goalId : null,
+        description: values.description.trim() ? values.description.trim() : null,
+        pedagogicalPlanHtml: values.pedagogicalPlanHtml.trim()
+          ? values.pedagogicalPlanHtml
+          : null,
         plannedStartAt: values.plannedStartAt.trim() || null,
         plannedEndAt: values.plannedEndAt.trim() || null,
       };
@@ -342,188 +468,233 @@ export function ActionCreateFormSection({
   }
 
   return (
-    <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionField label={ACTION_CREATE_TEXT.form.projectLabel}>
-          <Select
-            value={values.projectId}
-            onValueChange={(next) =>
-              setValues((previous) => ({
-                ...previous,
-                projectId: next,
-                peopleGroupId: NONE_VALUE,
-                targetEnrollmentId: NONE_VALUE,
-              }))
-            }
-            disabled={saving}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder={ACTION_CREATE_TEXT.form.projectPlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.projectPlaceholder}</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+    <div className="space-y-8 border-y border-border/60 bg-transparent px-0 py-4">
+      <SectionField label={ACTION_CREATE_TEXT.form.titleLabel}>
+        <Input
+          value={values.title}
+          onChange={(event) =>
+            setValues((previous) => ({ ...previous, title: event.target.value }))
+          }
+          className="h-12 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:border-primary focus-visible:ring-0"
+          placeholder={ACTION_CREATE_TEXT.form.titlePlaceholder}
+          readOnly={saving}
+        />
+      </SectionField>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.titleLabel}>
-          <Input
-            value={values.title}
-            onChange={(event) =>
-              setValues((previous) => ({ ...previous, title: event.target.value }))
-            }
-            className={lineInputClassName}
-            placeholder={ACTION_CREATE_TEXT.form.titlePlaceholder}
-            readOnly={saving}
-          />
-        </SectionField>
+      <div className="space-y-4">
+        <SectionHeading title="Organização" />
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <SectionField label={ACTION_CREATE_TEXT.form.projectLabel}>
+            <Select
+              value={values.projectId}
+              onValueChange={(next) =>
+                setValues((previous) => ({
+                  ...previous,
+                  projectId: next,
+                  peopleGroupIds: [],
+                }))
+              }
+              disabled={saving}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder={ACTION_CREATE_TEXT.form.projectPlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.projectPlaceholder}</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionField>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.typeLabel}>
-          <Select
-            value={values.actionTypeId}
-            onValueChange={(next) =>
-              setValues((previous) => ({
-                ...previous,
-                actionTypeId: next,
-                peopleGroupId: NONE_VALUE,
-                targetEnrollmentId: NONE_VALUE,
-              }))
-            }
-            disabled={saving}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder={ACTION_CREATE_TEXT.form.typePlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.typePlaceholder}</SelectItem>
-              {actionTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+          <SectionField label={ACTION_CREATE_TEXT.form.typeLabel}>
+            <Select
+              value={values.actionTypeId}
+              onValueChange={(next) =>
+                setValues((previous) => ({
+                  ...previous,
+                  actionTypeId: next,
+                  peopleGroupIds: [],
+                }))
+              }
+              disabled={saving}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder={ACTION_CREATE_TEXT.form.typePlaceholder} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.typePlaceholder}</SelectItem>
+                {actionTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionField>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.targetLabel}>
-          <div className="flex h-10 items-center border-b border-border/60 text-sm text-foreground">
-            {selectedType ? resolveTypeTargetLabel(selectedType.target) : "-"}
-          </div>
-        </SectionField>
+          <SectionField label={ACTION_CREATE_TEXT.form.statusLabel}>
+            <Select
+              value={values.status}
+              onValueChange={(next) =>
+                setValues((previous) => ({ ...previous, status: next as ActionStatus }))
+              }
+              disabled={saving}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder={ACTION_CREATE_TEXT.form.statusLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTION_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionField>
+        </div>
+      </div>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.statusLabel}>
-          <Select
-            value={values.status}
-            onValueChange={(next) =>
-              setValues((previous) => ({ ...previous, status: next as ActionStatus }))
-            }
-            disabled={saving}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder={ACTION_CREATE_TEXT.form.statusLabel} />
-            </SelectTrigger>
-            <SelectContent>
-              {ACTION_STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+      <div className="space-y-4">
+        <SectionHeading
+          title="Direcionamento"
+          description="Pra quem esta atividade é voltada e a que meta do Plano de Trabalho ela atende."
+        />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionField label={ACTION_CREATE_TEXT.form.cycleLabel}>
+            {selectedType?.target !== "PEOPLE_GROUP" ? (
+              <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+                {ACTION_CREATE_TEXT.form.cyclePlaceholder}
+              </div>
+            ) : (
+              <MultiSelectBadges
+                options={peopleGroups.map((row) => ({
+                  value: row.peopleGroupId,
+                  label: formatPeopleGroupOptionLabel(row),
+                }))}
+                selectedValues={values.peopleGroupIds}
+                onChange={(next) =>
+                  setValues((previous) => ({ ...previous, peopleGroupIds: next }))
+                }
+                disabled={saving}
+                addLabel="Adicionar grupo"
+                searchPlaceholder="Pesquisar grupo..."
+                noOptionsLabel="Nenhum grupo disponível neste projeto."
+                emptyLabel="Nenhum grupo selecionado."
+              />
+            )}
+          </SectionField>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.cycleLabel}>
-          <Select
-            value={values.peopleGroupId}
-            onValueChange={(next) =>
-              setValues((previous) => ({ ...previous, peopleGroupId: next }))
-            }
-            disabled={saving || selectedType?.target !== "PEOPLE_GROUP"}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder={ACTION_CREATE_TEXT.form.cyclePlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>{ACTION_CREATE_TEXT.form.cyclePlaceholder}</SelectItem>
-              {peopleGroups.map((row) => (
-                <SelectItem key={row.id} value={row.peopleGroupId}>
-                  {formatPeopleGroupOptionLabel(row)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+          <SectionField label="Meta (Plano de Trabalho)">
+            <Select
+              value={values.goalId}
+              onValueChange={(next) => setValues((previous) => ({ ...previous, goalId: next }))}
+              disabled={saving || values.projectId === NONE_VALUE}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder="Sem meta vinculada" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>Sem meta vinculada</SelectItem>
+                {goals.map((goal) => (
+                  <SelectItem key={goal.id} value={goal.id}>
+                    {goal.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SectionField>
+        </div>
+      </div>
 
-        <SectionField label="Participante">
-          <Select
-            value={values.targetEnrollmentId}
-            onValueChange={(next) =>
-              setValues((previous) => ({ ...previous, targetEnrollmentId: next }))
-            }
-            disabled={saving || selectedType?.target !== "ENROLLMENT"}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder="Selecione um participante" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>Selecione um participante</SelectItem>
-              {enrollments.map((enrollment) => (
-                <SelectItem key={enrollment.id} value={enrollment.id}>
-                  {enrollment.person?.fullName ?? enrollment.personId}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+      <div className="space-y-4">
+        <SectionHeading
+          title="Equipe responsável"
+          description="Gestor e educador/executor vêm do grupo de equipe do Projeto (aba Equipe). Pra mais de 1 pessoa por função, use a aba Equipe."
+        />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionField label="Gestor">
+            <ActivityRolePicker
+              token={token ?? ""}
+              projectId={values.projectId !== NONE_VALUE ? values.projectId : undefined}
+              actionId={actionIdProp}
+              role="RESPONSAVEL_TECNICO"
+              placeholder="Ninguém definido"
+              disabled={saving}
+            />
+          </SectionField>
 
-        <SectionField label="Meta (Plano de Trabalho)">
-          <Select
-            value={values.goalId}
-            onValueChange={(next) => setValues((previous) => ({ ...previous, goalId: next }))}
-            disabled={saving || values.projectId === NONE_VALUE}
-          >
-            <SelectTrigger className={lineInputClassName}>
-              <SelectValue placeholder="Sem meta vinculada" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE_VALUE}>Sem meta vinculada</SelectItem>
-              {goals.map((goal) => (
-                <SelectItem key={goal.id} value={goal.id}>
-                  {goal.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SectionField>
+          <SectionField label="Educador/Executor">
+            <ActivityRolePicker
+              token={token ?? ""}
+              projectId={values.projectId !== NONE_VALUE ? values.projectId : undefined}
+              actionId={actionIdProp}
+              role="FACILITADOR"
+              placeholder="Ninguém definido"
+              disabled={saving}
+            />
+          </SectionField>
+        </div>
+      </div>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.plannedStartLabel}>
-          <Input
-            type="date"
-            value={values.plannedStartAt}
-            onChange={(event) =>
-              setValues((previous) => ({ ...previous, plannedStartAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={saving}
-          />
-        </SectionField>
+      <div className="space-y-4">
+        <SectionHeading title="Planejamento" />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionField label={ACTION_CREATE_TEXT.form.plannedStartLabel}>
+            <Input
+              type="date"
+              value={values.plannedStartAt}
+              onChange={(event) =>
+                setValues((previous) => ({ ...previous, plannedStartAt: event.target.value }))
+              }
+              className={lineInputClassName}
+              readOnly={saving}
+            />
+          </SectionField>
 
-        <SectionField label={ACTION_CREATE_TEXT.form.plannedEndLabel}>
-          <Input
-            type="date"
-            value={values.plannedEndAt}
-            onChange={(event) =>
-              setValues((previous) => ({ ...previous, plannedEndAt: event.target.value }))
-            }
-            className={lineInputClassName}
-            readOnly={saving}
-          />
-        </SectionField>
+          <SectionField label={ACTION_CREATE_TEXT.form.plannedEndLabel}>
+            <Input
+              type="date"
+              value={values.plannedEndAt}
+              onChange={(event) =>
+                setValues((previous) => ({ ...previous, plannedEndAt: event.target.value }))
+              }
+              className={lineInputClassName}
+              readOnly={saving}
+            />
+          </SectionField>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <SectionHeading title="Descrição e plano pedagógico" />
+        <div className="space-y-6">
+          <SectionField label="Descrição">
+            <Textarea
+              rows={3}
+              value={values.description}
+              onChange={(event) =>
+                setValues((previous) => ({ ...previous, description: event.target.value }))
+              }
+              disabled={saving}
+              placeholder="Resumo curto sobre a atividade."
+            />
+          </SectionField>
+
+          <SectionField label="Plano pedagógico">
+            <RichText
+              value={values.pedagogicalPlanHtml}
+              onChange={(next) =>
+                setValues((previous) => ({ ...previous, pedagogicalPlanHtml: next }))
+              }
+              disabled={saving}
+            />
+          </SectionField>
+        </div>
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2">

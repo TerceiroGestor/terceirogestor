@@ -40,6 +40,7 @@ import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action
 import { ListEligibleProjectActionPeopleQueryDto } from './dto/list-eligible-project-action-people-query.dto';
 import { ListActionTypesQueryDto } from './dto/list-action-types-query.dto';
 import { ListActionPeopleGroupsQueryDto } from './dto/list-action-people-groups-query.dto';
+import { ListProjectActionAttendanceSummaryQueryDto } from './dto/list-project-action-attendance-summary-query.dto';
 import { ListProjectActionAttendancesQueryDto } from './dto/list-project-action-attendances-query.dto';
 import { ListProjectActionPeopleParticipationsQueryDto } from './dto/list-project-action-people-participations-query.dto';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
@@ -228,12 +229,24 @@ const mapProjectActionAttachmentItem = (attachment: {
 
 function serializeProjectAction(action: any) {
   const primaryPeopleGroup = resolvePrimaryActionPeopleGroup(action);
+  const participantGroups = (action.peopleGroups ?? []).filter(
+    (row: { participationKind?: ParticipationKind }) =>
+      row.participationKind === 'PARTICIPANT',
+  );
   return {
     ...action,
     peopleGroupId: primaryPeopleGroup?.peopleGroupId ?? null,
+    peopleGroupIds: participantGroups.map(
+      (row: { peopleGroupId: string }) => row.peopleGroupId,
+    ),
     tags: parseTags(action.tags),
     peopleGroup: primaryPeopleGroup?.peopleGroup ?? null,
-    peopleGroups: undefined,
+    peopleGroups: participantGroups.map(
+      (row: { peopleGroupId: string; peopleGroup: unknown }) => ({
+        peopleGroupId: row.peopleGroupId,
+        peopleGroup: row.peopleGroup,
+      }),
+    ),
     comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
     attachments: action.attachments?.map(mapProjectActionAttachmentItem) ?? [],
   };
@@ -241,23 +254,23 @@ function serializeProjectAction(action: any) {
 
 function resolveScopeFromTarget(params: {
   target: ActionTarget;
-  peopleGroupId: string | null;
+  peopleGroupIds: string[];
   targetEnrollmentId: string | null;
 }) {
   if (params.target === 'PEOPLE_GROUP') {
     return {
-      peopleGroupId: params.peopleGroupId,
+      peopleGroupIds: [...new Set(params.peopleGroupIds)],
       targetEnrollmentId: null as string | null,
     };
   }
   if (params.target === 'ENROLLMENT') {
     return {
-      peopleGroupId: null as string | null,
+      peopleGroupIds: [] as string[],
       targetEnrollmentId: params.targetEnrollmentId,
     };
   }
   return {
-    peopleGroupId: null as string | null,
+    peopleGroupIds: [] as string[],
     targetEnrollmentId: null as string | null,
   };
 }
@@ -313,12 +326,30 @@ const projectActionInclude = {
 } satisfies Prisma.ActivityInclude;
 
 const actionOccurrenceInclude = {
-  peopleGroup: { select: { id: true, name: true } },
   teamPeopleGroups: {
     include: { peopleGroup: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'asc' },
   },
+  peopleGroups: {
+    include: { peopleGroup: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'asc' },
+  },
 } satisfies Prisma.MeetingInclude;
+
+function serializeMeeting(occurrence: {
+  peopleGroups?: Array<{
+    peopleGroupId: string;
+    peopleGroup: { id: string; name: string };
+  }>;
+  [key: string]: unknown;
+}) {
+  const peopleGroups = occurrence.peopleGroups ?? [];
+  return {
+    ...occurrence,
+    peopleGroupIds: peopleGroups.map((row) => row.peopleGroupId),
+    peopleGroup: peopleGroups[0]?.peopleGroup ?? null,
+  };
+}
 
 function buildProjectActionWhere(params: {
   tenantId: string;
@@ -425,6 +456,25 @@ export class ActionsService {
           actionId,
           peopleGroupId,
           'TEAM',
+        ),
+      ),
+    );
+    return uniqueIds;
+  }
+
+  private async ensureParticipantPeopleGroupsBelongToAction(
+    tenantId: string,
+    actionId: string,
+    peopleGroupIds: string[],
+  ) {
+    const uniqueIds = Array.from(new Set(peopleGroupIds));
+    await Promise.all(
+      uniqueIds.map((peopleGroupId) =>
+        this.ensurePeopleGroupBelongsToAction(
+          tenantId,
+          actionId,
+          peopleGroupId,
+          'PARTICIPANT',
         ),
       ),
     );
@@ -631,11 +681,16 @@ export class ActionsService {
     return serializeProjectAction(action);
   }
 
+  /**
+   * Chamar depois de validar `peopleGroupIds` (ensurePeopleGroupBelongsToProject
+   * em cada um) - este metodo nao revalida, para nao escrever a Activity e
+   * so depois falhar com um id invalido, deixando um registro orfao sem
+   * nenhum grupo-alvo.
+   */
   private async syncParticipantPeopleGroupScope(params: {
     tenantId: string;
-    projectId: string;
     actionId: string;
-    peopleGroupId: string | null;
+    peopleGroupIds: string[];
   }) {
     await this.prisma.activityPeopleGroup.deleteMany({
       where: {
@@ -645,24 +700,17 @@ export class ActionsService {
       },
     });
 
-    if (!params.peopleGroupId) {
+    if (!params.peopleGroupIds.length) {
       return;
     }
 
-    await this.ensurePeopleGroupBelongsToProject(
-      params.tenantId,
-      params.projectId,
-      params.peopleGroupId,
-      'PARTICIPANT',
-    );
-
-    await this.prisma.activityPeopleGroup.create({
-      data: {
+    await this.prisma.activityPeopleGroup.createMany({
+      data: params.peopleGroupIds.map((peopleGroupId) => ({
         tenantId: params.tenantId,
         actionId: params.actionId,
-        peopleGroupId: params.peopleGroupId,
-        participationKind: 'PARTICIPANT',
-      },
+        peopleGroupId,
+        participationKind: 'PARTICIPANT' as const,
+      })),
     });
   }
 
@@ -871,7 +919,12 @@ export class ActionsService {
       }),
     ]);
 
-    return { personId, month: resolvedMonth, activityAttendances, dailyAttendances };
+    return {
+      personId,
+      month: resolvedMonth,
+      activityAttendances,
+      dailyAttendances,
+    };
   }
 
   async getProjectAction(user: JwtUser, projectId: string, actionId: string) {
@@ -895,11 +948,11 @@ export class ActionsService {
 
     const scope = resolveScopeFromTarget({
       target: type.target,
-      peopleGroupId: dto.peopleGroupId ?? null,
+      peopleGroupIds: dto.peopleGroupIds ?? [],
       targetEnrollmentId: dto.targetEnrollmentId ?? null,
     });
 
-    if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
+    if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
       );
@@ -910,13 +963,16 @@ export class ActionsService {
       );
     }
 
-    if (scope.peopleGroupId) {
-      await this.ensurePeopleGroupBelongsToProject(
-        user.tenantId,
-        projectId,
-        scope.peopleGroupId,
-      );
-    }
+    await Promise.all(
+      scope.peopleGroupIds.map((peopleGroupId) =>
+        this.ensurePeopleGroupBelongsToProject(
+          user.tenantId,
+          projectId,
+          peopleGroupId,
+          'PARTICIPANT',
+        ),
+      ),
+    );
     if (scope.targetEnrollmentId) {
       await this.ensureEnrollmentBelongsToProject(
         user.tenantId,
@@ -959,6 +1015,7 @@ export class ActionsService {
         goalId: dto.goalId ?? null,
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        pedagogicalPlanHtml: normalizeHtml(dto.pedagogicalPlanHtml) ?? null,
         tags: normalizeTags(dto.tags),
         internalNotes: dto.internalNotes?.trim()
           ? dto.internalNotes.trim()
@@ -973,9 +1030,8 @@ export class ActionsService {
     });
     await this.syncParticipantPeopleGroupScope({
       tenantId: user.tenantId,
-      projectId,
       actionId: created.id,
-      peopleGroupId: scope.peopleGroupId,
+      peopleGroupIds: scope.peopleGroupIds,
     });
     return this.getProjectAction(user, projectId, created.id);
   }
@@ -1001,21 +1057,21 @@ export class ActionsService {
     if (!type) throw new BadRequestException('Tipo de acao invalido');
     if (!type.isActive) throw new BadRequestException('Tipo de acao inativo');
 
-    const peopleGroupIdInput =
-      dto.peopleGroupId === undefined
-        ? (existing.peopleGroupId ?? null)
-        : (dto.peopleGroupId ?? null);
+    const peopleGroupIdsInput =
+      dto.peopleGroupIds === undefined
+        ? ((existing.peopleGroupIds as string[] | undefined) ?? [])
+        : (dto.peopleGroupIds ?? []);
     const targetEnrollmentIdInput =
       dto.targetEnrollmentId === undefined
         ? (existing.targetEnrollmentId ?? null)
         : (dto.targetEnrollmentId ?? null);
     const scope = resolveScopeFromTarget({
       target: type.target,
-      peopleGroupId: peopleGroupIdInput,
+      peopleGroupIds: peopleGroupIdsInput,
       targetEnrollmentId: targetEnrollmentIdInput,
     });
 
-    if (type.target === 'PEOPLE_GROUP' && !scope.peopleGroupId) {
+    if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
       throw new BadRequestException(
         'Grupo de pessoas e obrigatorio para este tipo de acao',
       );
@@ -1026,13 +1082,16 @@ export class ActionsService {
       );
     }
 
-    if (scope.peopleGroupId) {
-      await this.ensurePeopleGroupBelongsToProject(
-        user.tenantId,
-        projectId,
-        scope.peopleGroupId,
-      );
-    }
+    await Promise.all(
+      scope.peopleGroupIds.map((peopleGroupId) =>
+        this.ensurePeopleGroupBelongsToProject(
+          user.tenantId,
+          projectId,
+          peopleGroupId,
+          'PARTICIPANT',
+        ),
+      ),
+    );
     if (scope.targetEnrollmentId) {
       await this.ensureEnrollmentBelongsToProject(
         user.tenantId,
@@ -1101,6 +1160,12 @@ export class ActionsService {
                 : null,
             }
           : {}),
+        ...(dto.pedagogicalPlanHtml !== undefined
+          ? {
+              pedagogicalPlanHtml:
+                normalizeHtml(dto.pedagogicalPlanHtml) ?? null,
+            }
+          : {}),
         ...(dto.tags !== undefined ? { tags: normalizedTags } : {}),
         ...(dto.internalNotes !== undefined
           ? {
@@ -1115,7 +1180,7 @@ export class ActionsService {
           : {}),
         ...(dto.goalId !== undefined ? { goalId: dto.goalId ?? null } : {}),
         ...(dto.actionTypeId !== undefined ||
-        dto.peopleGroupId !== undefined ||
+        dto.peopleGroupIds !== undefined ||
         dto.targetEnrollmentId !== undefined
           ? {
               targetEnrollmentId: scope.targetEnrollmentId,
@@ -1132,14 +1197,13 @@ export class ActionsService {
     });
     if (
       dto.actionTypeId !== undefined ||
-      dto.peopleGroupId !== undefined ||
+      dto.peopleGroupIds !== undefined ||
       dto.targetEnrollmentId !== undefined
     ) {
       await this.syncParticipantPeopleGroupScope({
         tenantId: user.tenantId,
-        projectId,
         actionId: existing.id,
-        peopleGroupId: scope.peopleGroupId,
+        peopleGroupIds: scope.peopleGroupIds,
       });
     }
     return this.getProjectAction(user, projectId, existing.id);
@@ -1160,7 +1224,11 @@ export class ActionsService {
     // Fase 3: capturar quem tinha presenca PRESENT (e em que dia) antes de
     // apagar tudo, para reavaliar a presenca diaria depois.
     const presentAttendances = await this.prisma.meetingAttendance.findMany({
-      where: { tenantId: user.tenantId, actionId: existing.id, status: 'PRESENT' },
+      where: {
+        tenantId: user.tenantId,
+        actionId: existing.id,
+        status: 'PRESENT',
+      },
       select: {
         enrollment: { select: { personId: true } },
         occurrence: { select: { scheduledDate: true } },
@@ -1177,10 +1245,24 @@ export class ActionsService {
     await this.prisma.meetingAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
-    // Precisa vir depois da presença (FK occurrenceId é RESTRICT) e antes
-    // da própria ação (FK actionId do encontro também é RESTRICT) - achado
-    // ao implementar a Fase 3: excluir uma atividade com encontro já
-    // agendado (Fase 1/2) já falhava com erro de FK antes desta correção.
+    // Precisa vir depois da presença/grupos do encontro (FK occurrenceId é
+    // RESTRICT) e antes da própria ação (FK actionId do encontro também é
+    // RESTRICT) - achado ao implementar a Fase 3: excluir uma atividade com
+    // encontro já agendado (Fase 1/2) já falhava com erro de FK antes desta
+    // correção; o mesmo valia pros grupos do encontro (Ciclo 2 da Fase 4,
+    // 2026-11-16) e passou a ser limpo aqui também.
+    const occurrenceIds = (
+      await this.prisma.meeting.findMany({
+        where: { tenantId: user.tenantId, actionId: existing.id },
+        select: { id: true },
+      })
+    ).map((row) => row.id);
+    await this.prisma.actionOccurrenceTeamGroup.deleteMany({
+      where: { tenantId: user.tenantId, occurrenceId: { in: occurrenceIds } },
+    });
+    await this.prisma.actionOccurrencePeopleGroup.deleteMany({
+      where: { tenantId: user.tenantId, occurrenceId: { in: occurrenceIds } },
+    });
     await this.prisma.meeting.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
@@ -1437,7 +1519,9 @@ export class ActionsService {
       tenantId: user.tenantId,
       actionId,
       ...(query.status ? { status: query.status } : {}),
-      ...(query.peopleGroupId ? { peopleGroupId: query.peopleGroupId } : {}),
+      ...(query.peopleGroupId
+        ? { peopleGroups: { some: { peopleGroupId: query.peopleGroupId } } }
+        : {}),
       ...(from || to
         ? {
             scheduledDate: {
@@ -1460,7 +1544,7 @@ export class ActionsService {
     ]);
 
     return {
-      data,
+      data: data.map((item) => serializeMeeting(item)),
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };
   }
@@ -1474,13 +1558,13 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    if (dto.peopleGroupId) {
-      await this.ensurePeopleGroupBelongsToAction(
-        user.tenantId,
-        actionId,
-        dto.peopleGroupId,
-      );
-    }
+    const peopleGroupIds = dto.peopleGroupIds?.length
+      ? await this.ensureParticipantPeopleGroupsBelongToAction(
+          user.tenantId,
+          actionId,
+          dto.peopleGroupIds,
+        )
+      : [];
 
     const teamPeopleGroupIds = dto.teamPeopleGroupIds?.length
       ? await this.ensureTeamPeopleGroupsBelongToAction(
@@ -1508,7 +1592,6 @@ export class ActionsService {
       data: {
         tenantId: user.tenantId,
         actionId,
-        peopleGroupId: dto.peopleGroupId ?? null,
         scheduledDate,
         startTime,
         endTime,
@@ -1527,11 +1610,21 @@ export class ActionsService {
               },
             }
           : undefined,
+        peopleGroups: peopleGroupIds.length
+          ? {
+              createMany: {
+                data: peopleGroupIds.map((peopleGroupId) => ({
+                  tenantId: user.tenantId,
+                  peopleGroupId,
+                })),
+              },
+            }
+          : undefined,
       },
       include: actionOccurrenceInclude,
     });
 
-    return created;
+    return serializeMeeting(created);
   }
 
   async previewActionOccurrences(
@@ -1582,13 +1675,13 @@ export class ActionsService {
     await this.ensureProjectExists(user.tenantId, projectId);
     await this.ensureProjectActionExists(user, projectId, actionId);
 
-    if (dto.peopleGroupId) {
-      await this.ensurePeopleGroupBelongsToAction(
-        user.tenantId,
-        actionId,
-        dto.peopleGroupId,
-      );
-    }
+    const peopleGroupIds = dto.peopleGroupIds?.length
+      ? await this.ensureParticipantPeopleGroupsBelongToAction(
+          user.tenantId,
+          actionId,
+          dto.peopleGroupIds,
+        )
+      : [];
 
     const teamPeopleGroupIds = dto.teamPeopleGroupIds?.length
       ? await this.ensureTeamPeopleGroupsBelongToAction(
@@ -1650,7 +1743,6 @@ export class ActionsService {
       data: dates.map((scheduledDate) => ({
         tenantId: user.tenantId,
         actionId,
-        peopleGroupId: dto.peopleGroupId ?? null,
         scheduledDate,
         startTime: combineDateAndTime(scheduledDate, dto.startTime),
         endTime: endTimeOfDay
@@ -1665,16 +1757,28 @@ export class ActionsService {
       })),
     });
 
-    const createdOccurrenceIds = teamPeopleGroupIds.length
-      ? await this.prisma.meeting.findMany({
-          where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
-          select: { id: true },
-        })
-      : [];
+    const createdOccurrenceIds =
+      teamPeopleGroupIds.length || peopleGroupIds.length
+        ? await this.prisma.meeting.findMany({
+            where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
+            select: { id: true },
+          })
+        : [];
     if (teamPeopleGroupIds.length && createdOccurrenceIds.length) {
       await this.prisma.actionOccurrenceTeamGroup.createMany({
         data: createdOccurrenceIds.flatMap((occurrence) =>
           teamPeopleGroupIds.map((peopleGroupId) => ({
+            tenantId: user.tenantId,
+            occurrenceId: occurrence.id,
+            peopleGroupId,
+          })),
+        ),
+      });
+    }
+    if (peopleGroupIds.length && createdOccurrenceIds.length) {
+      await this.prisma.actionOccurrencePeopleGroup.createMany({
+        data: createdOccurrenceIds.flatMap((occurrence) =>
+          peopleGroupIds.map((peopleGroupId) => ({
             tenantId: user.tenantId,
             occurrenceId: occurrence.id,
             peopleGroupId,
@@ -1689,7 +1793,11 @@ export class ActionsService {
       orderBy: [{ scheduledDate: 'asc' }],
     });
 
-    return { recurrenceBatchId, created: created.length, data: created };
+    return {
+      recurrenceBatchId,
+      created: created.length,
+      data: created.map((item) => serializeMeeting(item)),
+    };
   }
 
   private async ensureActionOccurrenceExists(
@@ -1699,6 +1807,7 @@ export class ActionsService {
   ) {
     const occurrence = await this.prisma.meeting.findFirst({
       where: { id: occurrenceId, tenantId, actionId },
+      include: { peopleGroups: { select: { peopleGroupId: true } } },
     });
     if (!occurrence) throw new NotFoundException('Encontro nao encontrado');
     return occurrence;
@@ -1719,13 +1828,14 @@ export class ActionsService {
       occurrenceId,
     );
 
-    if (dto.peopleGroupId) {
-      await this.ensurePeopleGroupBelongsToAction(
-        user.tenantId,
-        actionId,
-        dto.peopleGroupId,
-      );
-    }
+    const peopleGroupIds =
+      dto.peopleGroupIds !== undefined
+        ? await this.ensureParticipantPeopleGroupsBelongToAction(
+            user.tenantId,
+            actionId,
+            dto.peopleGroupIds,
+          )
+        : undefined;
 
     const teamPeopleGroupIds =
       dto.teamPeopleGroupIds !== undefined
@@ -1776,8 +1886,6 @@ export class ActionsService {
         startTime,
         endTime,
         status: dto.status ?? undefined,
-        peopleGroupId:
-          dto.peopleGroupId === null ? null : (dto.peopleGroupId ?? undefined),
         notes:
           dto.notes === undefined
             ? undefined
@@ -1829,10 +1937,45 @@ export class ActionsService {
       ]);
     }
 
-    return this.prisma.meeting.findFirst({
+    if (peopleGroupIds !== undefined) {
+      const current = await this.prisma.actionOccurrencePeopleGroup.findMany({
+        where: { tenantId: user.tenantId, occurrenceId: existing.id },
+        select: { id: true, peopleGroupId: true },
+      });
+      const toRemove = current.filter(
+        (row) => !peopleGroupIds.includes(row.peopleGroupId),
+      );
+      const toAdd = peopleGroupIds.filter(
+        (peopleGroupId) =>
+          !current.some((row) => row.peopleGroupId === peopleGroupId),
+      );
+      await this.prisma.$transaction([
+        ...(toRemove.length
+          ? [
+              this.prisma.actionOccurrencePeopleGroup.deleteMany({
+                where: { id: { in: toRemove.map((row) => row.id) } },
+              }),
+            ]
+          : []),
+        ...(toAdd.length
+          ? [
+              this.prisma.actionOccurrencePeopleGroup.createMany({
+                data: toAdd.map((peopleGroupId) => ({
+                  tenantId: user.tenantId,
+                  occurrenceId: existing.id,
+                  peopleGroupId,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    const result = await this.prisma.meeting.findFirst({
       where: { id: updated.id },
       include: actionOccurrenceInclude,
     });
+    return result ? serializeMeeting(result) : result;
   }
 
   async updateActionOccurrenceBatch(
@@ -1896,10 +2039,17 @@ export class ActionsService {
       select: { enrollment: { select: { personId: true } } },
     });
 
-    // A FK de MeetingAttendance.occurrenceId é RESTRICT (mesmo padrão
-    // manual de cascade já usado em deleteActivity) - sem isso, excluir
-    // um encontro com presença já registrada falharia com erro de FK.
+    // As FKs de MeetingAttendance/ActionOccurrenceTeamGroup/
+    // ActionOccurrencePeopleGroup.occurrenceId sao RESTRICT (mesmo padrao
+    // manual de cascade ja usado em deleteActivity) - sem isso, excluir um
+    // encontro com presenca ou grupos vinculados falharia com erro de FK.
     await this.prisma.meetingAttendance.deleteMany({
+      where: { tenantId: user.tenantId, occurrenceId: existing.id },
+    });
+    await this.prisma.actionOccurrenceTeamGroup.deleteMany({
+      where: { tenantId: user.tenantId, occurrenceId: existing.id },
+    });
+    await this.prisma.actionOccurrencePeopleGroup.deleteMany({
       where: { tenantId: user.tenantId, occurrenceId: existing.id },
     });
     await this.prisma.meeting.delete({ where: { id: existing.id } });
@@ -2395,13 +2545,15 @@ export class ActionsService {
     });
 
     const q = normalizeString(query.q);
-    // O encontro pode ter seu próprio grupo-alvo (ex.: a atividade atende
-    // 3 grupos, mas este encontro específico é só pro grupo B) - prevalece
-    // sobre o grupo "principal" da atividade quando presente.
-    const scopedPeopleGroupId =
-      occurrence.peopleGroupId ??
-      resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ??
-      null;
+    // O encontro pode ter seus proprios grupos-alvo (ex.: a atividade atende
+    // 3 grupos, mas este encontro especifico e so pros grupos A e B) -
+    // prevalece sobre os grupos da atividade quando presente.
+    const occurrencePeopleGroupIds = occurrence.peopleGroups.map(
+      (row) => row.peopleGroupId,
+    );
+    const scopedPeopleGroupIds = occurrencePeopleGroupIds.length
+      ? occurrencePeopleGroupIds
+      : ((action.peopleGroupIds as string[] | undefined) ?? []);
 
     const where: Prisma.ProjectEnrollmentWhereInput = {
       tenantId: user.tenantId,
@@ -2427,13 +2579,13 @@ export class ActionsService {
             ],
           }
         : {}),
-      ...(scopedPeopleGroupId
+      ...(scopedPeopleGroupIds.length
         ? {
             person: {
               peopleGroupParticipations: {
                 some: {
                   tenantId: user.tenantId,
-                  peopleGroupId: scopedPeopleGroupId,
+                  peopleGroupId: { in: scopedPeopleGroupIds },
                   isActive: true,
                   deletedAt: null,
                 },
@@ -2515,16 +2667,245 @@ export class ActionsService {
       action: {
         id: action.id,
         title: action.title,
-        peopleGroupId:
-          resolvePrimaryActionPeopleGroup(action)?.peopleGroupId ?? null,
+        peopleGroupId: (action.peopleGroupId as string | null) ?? null,
         targetEnrollmentId: action.targetEnrollmentId ?? null,
       },
       occurrence: {
         id: occurrence.id,
         scheduledDate: occurrence.scheduledDate,
         status: occurrence.status,
-        peopleGroupId: occurrence.peopleGroupId,
+        peopleGroupId: occurrencePeopleGroupIds[0] ?? null,
       },
+      data,
+      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+    };
+  }
+
+  /**
+   * Resumo agregado por pessoa (aba "Participantes" da Atividade): soma
+   * todos os Encontros (nao so 1, como `listProjectActionAttendances`) para
+   * dar frequencia (%), media de avaliacao e contagem de ocorrencias
+   * (hardcoded 0 ate a Fase 5/Ocorrencia existir). So leitura - a edicao de
+   * presenca em si fica na aba "Presenca" do dialogo do Encontro.
+   */
+  async listProjectActionAttendanceSummary(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    query: ListProjectActionAttendanceSummaryQueryDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    const action = await this.ensureProjectActionExists(
+      user,
+      projectId,
+      actionId,
+    );
+
+    const { page, limit, skip, take } = resolvePagination({
+      page: query.page,
+      limit: query.limit,
+      all: false,
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
+
+    const q = normalizeString(query.q);
+    const from = parseDateInput(query.from);
+    const to = parseDateInput(query.to, { endOfDay: true });
+    const scopedPeopleGroupIds = (action.peopleGroupIds as string[]) ?? [];
+
+    const where: Prisma.ProjectEnrollmentWhereInput = {
+      tenantId: user.tenantId,
+      projectId,
+      status: 'ACTIVE',
+      ...(action.targetEnrollmentId ? { id: action.targetEnrollmentId } : {}),
+      ...(q
+        ? {
+            OR: [
+              { person: { fullName: { contains: q } } },
+              {
+                person: {
+                  peopleGroupParticipations: {
+                    some: {
+                      tenantId: user.tenantId,
+                      isActive: true,
+                      deletedAt: null,
+                      peopleGroup: { name: { contains: q } },
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+      ...(scopedPeopleGroupIds.length
+        ? {
+            person: {
+              peopleGroupParticipations: {
+                some: {
+                  tenantId: user.tenantId,
+                  peopleGroupId: { in: scopedPeopleGroupIds },
+                  isActive: true,
+                  deletedAt: null,
+                },
+              },
+            },
+          }
+        : {}),
+    };
+
+    const [enrollments, total] = await Promise.all([
+      this.prisma.projectEnrollment.findMany({
+        where,
+        include: {
+          person: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+              peopleGroupParticipations: {
+                where: { isActive: true, deletedAt: null },
+                select: {
+                  peopleGroup: {
+                    select: { id: true, name: true, category: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ person: { fullName: 'asc' } }],
+        skip,
+        take,
+      }),
+      this.prisma.projectEnrollment.count({ where }),
+    ]);
+
+    const meetings = await this.prisma.meeting.findMany({
+      where: {
+        tenantId: user.tenantId,
+        actionId,
+        status: { not: 'CANCELED' },
+        ...(from || to
+          ? {
+              scheduledDate: {
+                ...(from ? { gte: from } : {}),
+                ...(to ? { lte: to } : {}),
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        peopleGroups: { select: { peopleGroupId: true } },
+      },
+    });
+
+    if (!meetings.length || !enrollments.length) {
+      return {
+        action: { id: action.id, title: action.title },
+        data: enrollments.map((enrollment) => ({
+          enrollment: this.serializeEnrollment(enrollment as any),
+          totalMeetings: 0,
+          presentCount: 0,
+          attendanceRate: null as number | null,
+          averageQuality: null as number | null,
+          occurrencesCount: 0,
+        })),
+        pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+      };
+    }
+
+    const personIds = enrollments.map((row) => row.personId);
+    const personGroupRows = await this.prisma.peopleGroupParticipation.findMany(
+      {
+        where: {
+          tenantId: user.tenantId,
+          personId: { in: personIds },
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { personId: true, peopleGroupId: true },
+      },
+    );
+    const groupIdsByPerson = new Map<string, Set<string>>();
+    for (const row of personGroupRows) {
+      const set = groupIdsByPerson.get(row.personId) ?? new Set<string>();
+      set.add(row.peopleGroupId);
+      groupIdsByPerson.set(row.personId, set);
+    }
+
+    const isEligibleForMeeting = (
+      personId: string,
+      meeting: { peopleGroups: { peopleGroupId: string }[] },
+    ) => {
+      if (!meeting.peopleGroups.length) return true;
+      const personGroupIds =
+        groupIdsByPerson.get(personId) ?? new Set<string>();
+      return meeting.peopleGroups.some((row) =>
+        personGroupIds.has(row.peopleGroupId),
+      );
+    };
+
+    const attendanceRows = await this.prisma.meetingAttendance.findMany({
+      where: {
+        tenantId: user.tenantId,
+        occurrenceId: { in: meetings.map((row) => row.id) },
+        enrollmentId: { in: enrollments.map((row) => row.id) },
+      },
+      select: {
+        enrollmentId: true,
+        occurrenceId: true,
+        status: true,
+        qualityScore: true,
+      },
+    });
+    const attendanceByEnrollment = new Map<string, typeof attendanceRows>();
+    for (const row of attendanceRows) {
+      const list = attendanceByEnrollment.get(row.enrollmentId) ?? [];
+      list.push(row);
+      attendanceByEnrollment.set(row.enrollmentId, list);
+    }
+
+    const data = enrollments.map((enrollment) => {
+      const eligibleMeetings = meetings.filter((meeting) =>
+        isEligibleForMeeting(enrollment.personId, meeting),
+      );
+      const totalMeetings = eligibleMeetings.length;
+      const attendanceRowsForEnrollment =
+        attendanceByEnrollment.get(enrollment.id) ?? [];
+      const attendanceByMeeting = new Map(
+        attendanceRowsForEnrollment.map((row) => [row.occurrenceId, row]),
+      );
+
+      let presentCount = 0;
+      let scoreSum = 0;
+      let scoreCount = 0;
+      for (const meeting of eligibleMeetings) {
+        const attendance = attendanceByMeeting.get(meeting.id);
+        if (!attendance) continue;
+        if (attendance.status === 'PRESENT') presentCount += 1;
+        if (
+          attendance.qualityScore !== null &&
+          attendance.qualityScore !== undefined
+        ) {
+          scoreSum += attendance.qualityScore;
+          scoreCount += 1;
+        }
+      }
+
+      return {
+        enrollment: this.serializeEnrollment(enrollment as any),
+        totalMeetings,
+        presentCount,
+        attendanceRate: totalMeetings > 0 ? presentCount / totalMeetings : null,
+        averageQuality: scoreCount > 0 ? scoreSum / scoreCount : null,
+        occurrencesCount: 0,
+      };
+    });
+
+    return {
+      action: { id: action.id, title: action.title },
       data,
       pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
     };

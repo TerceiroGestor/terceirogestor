@@ -30,8 +30,9 @@ export class UpdateActionOccurrenceDto {
   endTime?: string | null;
 
   @IsOptional()
-  @IsUUID('4')
-  peopleGroupId?: string | null;
+  @IsArray()
+  @IsUUID('4', { each: true })
+  peopleGroupIds?: string[];
 
   @IsOptional()
   @IsArray()

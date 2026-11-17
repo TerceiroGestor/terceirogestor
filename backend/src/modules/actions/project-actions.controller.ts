@@ -31,6 +31,7 @@ import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action
 import { ListActionPeopleGroupsQueryDto } from './dto/list-action-people-groups-query.dto';
 import { ListActionOccurrencesQueryDto } from './dto/list-action-occurrences-query.dto';
 import { ListEligibleProjectActionPeopleQueryDto } from './dto/list-eligible-project-action-people-query.dto';
+import { ListProjectActionAttendanceSummaryQueryDto } from './dto/list-project-action-attendance-summary-query.dto';
 import { ListProjectActionAttendancesQueryDto } from './dto/list-project-action-attendances-query.dto';
 import { ListProjectActionPeopleParticipationsQueryDto } from './dto/list-project-action-people-participations-query.dto';
 import { ListProjectActionsQueryDto } from './dto/list-project-actions-query.dto';
@@ -192,6 +193,22 @@ export class ProjectActionsController {
       actionId,
       occurrenceId,
       dto,
+    );
+  }
+
+  @Get(':projectId/actions/:actionId/attendances-summary')
+  @Permissions('actions.read')
+  async listAttendancesSummary(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Query() query: ListProjectActionAttendanceSummaryQueryDto,
+  ) {
+    return this.service.listProjectActionAttendanceSummary(
+      user,
+      projectId,
+      actionId,
+      query,
     );
   }
 

@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
+  ActionAttendanceSummaryItem,
   ApiMeeting,
   ApiActivity,
   ApiProjectActionPeopleParticipation,
@@ -13,7 +15,6 @@ import type {
 } from "@/modules/actions/api";
 import {
   ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
-  ATTENDANCE_STATUS_OPTIONS,
   ACTION_STATUS_LABELS,
 } from "@/modules/actions/shared/domain/actions.constants";
 import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
@@ -21,15 +22,9 @@ import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/a
 import { ActionOccurrencesSection } from "@/modules/actions/features/manage/ui/action-occurrences-section";
 import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
 import {
-  AttendanceNotesDialog,
   QualityNotesDialog,
-  buildParticipantsColumns,
   buildQualityColumns,
   countAttendanceHighlights,
-  countDistinctAttendanceGroups,
-  type AttendanceDraft,
-  type AttendanceNotesDialogState,
-  type AttendanceStatusFilter,
   type QualityDraft,
   type QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
@@ -41,7 +36,10 @@ import {
   resolveAuditChangedFieldsSummary,
 } from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import type {
+  DetailHeaderActionConfig,
+  DetailLayoutConfig,
+} from "@/web-client/registry/types";
 
 const AUTO_SAVE_EDITING = {
   saveMode: "auto",
@@ -58,6 +56,7 @@ const fieldLabelClassName =
 const ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
   description: "Descrição",
+  pedagogicalPlanHtml: "Plano pedagógico",
   tags: "Tags",
   internalNotes: "Notas",
   planHtml: "Planejamento",
@@ -163,6 +162,82 @@ function filterTeamRows(
       .map((value) => String(value).toLocaleLowerCase("pt-BR"));
     return values.some((value) => value.includes(normalized));
   });
+}
+
+function filterAttendanceSummaryRows(rows: ActionAttendanceSummaryItem[], query: string) {
+  const normalized = query.trim().toLocaleLowerCase("pt-BR");
+  if (!normalized) return rows;
+  return rows.filter((row) => {
+    const values = [
+      row.enrollment.person.fullName,
+      ...row.enrollment.peopleGroups.map((group) => group.name),
+    ].map((value) => String(value).toLocaleLowerCase("pt-BR"));
+    return values.some((value) => value.includes(normalized));
+  });
+}
+
+function formatAttendanceRate(value: number | null) {
+  if (value === null) return "—";
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatAverageQuality(value: number | null) {
+  if (value === null) return "—";
+  return value.toFixed(1);
+}
+
+function buildAttendanceSummaryColumns(): import("@tanstack/react-table").ColumnDef<ActionAttendanceSummaryItem>[] {
+  return [
+    {
+      id: "person",
+      header: "Participante",
+      accessorFn: (row) => row.enrollment.person.fullName,
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <div className="font-medium text-foreground">
+            {row.original.enrollment.person.fullName}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "frequency",
+      header: "Frequência",
+      accessorFn: (row) => row.attendanceRate ?? -1,
+      cell: ({ row }) => {
+        const { attendanceRate, presentCount, totalMeetings } = row.original;
+        return (
+          <div className="space-y-0.5">
+            <div className="font-medium text-foreground">
+              {formatAttendanceRate(attendanceRate)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {totalMeetings > 0 ? `${presentCount}/${totalMeetings} encontros` : "Sem encontros no período"}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "quality",
+      header: "Média de avaliação",
+      accessorFn: (row) => row.averageQuality ?? -1,
+      cell: ({ row }) => formatAverageQuality(row.original.averageQuality),
+    },
+    {
+      id: "occurrences",
+      header: "Ocorrências",
+      accessorFn: (row) => row.occurrencesCount,
+      cell: ({ row }) => (
+        <span title="Disponível quando o registro de Ocorrência (Fase 5) existir">
+          {row.original.occurrencesCount || "—"}
+        </span>
+      ),
+    },
+  ];
 }
 
 function teamParticipationColumns({
@@ -334,21 +409,22 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   occurrenceId: string | null;
   occurrenceOptions: Array<{ label: string; value: string }>;
   onOccurrenceIdChange: (value: string) => void;
-  attendanceGroupId: string;
-  attendanceStatusFilter: AttendanceStatusFilter;
   attendanceGroupOptions: Array<{
     label: string;
     value: string;
   }>;
-  attendanceDrafts: Record<string, AttendanceDraft>;
-  attendanceSaving: boolean;
-  attendanceNotesDialog: AttendanceNotesDialogState | null;
   qualityGroupId: string;
   qualityDrafts: Record<string, QualityDraft>;
   qualitySaving: boolean;
   qualityNotesDialog: QualityNotesDialogState | null;
-  participantRows: MeetingAttendancesListItem[];
   qualityRows: MeetingAttendancesListItem[];
+  attendanceSummaryRows: ActionAttendanceSummaryItem[];
+  attendanceSummaryLoading: boolean;
+  attendanceSummaryError: string | null;
+  attendanceSummaryFrom: string;
+  attendanceSummaryTo: string;
+  onAttendanceSummaryFromChange: (value: string) => void;
+  onAttendanceSummaryToChange: (value: string) => void;
   onCommitField: <K extends keyof ActionMetadataDraft>(
     field: K,
     nextValue?: ActionMetadataDraft[K],
@@ -369,24 +445,6 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onActionLoaded: (action: ApiActivity) => void;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
-  onAttendanceGroupChange: (value: string) => void;
-  onAttendanceStatusFilterChange: (value: AttendanceStatusFilter) => void;
-  getAttendanceEffective: (row: MeetingAttendancesListItem) => {
-    status: import("@/modules/actions/api").AttendanceStatus | null;
-    notes: string | null;
-  };
-  setAttendanceRowDraft: (
-    row: MeetingAttendancesListItem,
-    patch: AttendanceDraft,
-    prune?: boolean,
-  ) => void;
-  applyAttendanceStatusToRows: (
-    rows: MeetingAttendancesListItem[],
-    status: import("@/modules/actions/api").AttendanceStatus,
-  ) => void;
-  saveAttendanceDrafts: () => void;
-  onAttendanceNotesDialogChange: (state: AttendanceNotesDialogState | null) => void;
-  applyAttendanceNotesDialog: (state: AttendanceNotesDialogState) => void;
   onQualityGroupChange: (value: string) => void;
   getQualityEffective: (row: MeetingAttendancesListItem) => {
     qualityScore: number | null;
@@ -405,8 +463,30 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
 
+// Fase 5 (Ocorrência) ainda não foi desenhada (modelo de dados, ciclo
+// registrada->em análise->desfecho) - este botão só reserva o lugar no
+// mesmo mecanismo genérico de ações de cabeçalho que o People já usa
+// ("Ver ficha completa"/"Árvore genealógica"), pra validar a navegação
+// sem adiantar a feature de verdade.
+const ACTIVITY_DETAIL_HEADER_ACTIONS: DetailHeaderActionConfig<ActionsDetailLayoutContext>[] =
+  [
+    {
+      key: "occurrence",
+      label: "Registrar ocorrência",
+      tooltip: "Em breve — Fase 5",
+      icon: <TriangleAlert className="h-4 w-4" />,
+      variant: "outline",
+      hidden: ({ mode }) => mode !== "edit",
+      disabled: () => true,
+    },
+  ];
+
 export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
+  header: {
+    actions: ACTIVITY_DETAIL_HEADER_ACTIONS,
+  },
+  mainTab: true,
   main: ({ mode, action, projectId, onActionLoaded }) => {
     return (
       <ActionCreateFormSection
@@ -424,151 +504,62 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: ACTION_RELATION_TEXT.participants.tabLabel,
       visible: ({ mode }) => mode === "edit",
       content: ({
-        attendanceNotesDialog,
-        canUpdate,
-        onAttendanceNotesDialogChange,
-        applyAttendanceNotesDialog,
+        attendanceSummaryFrom,
+        attendanceSummaryTo,
+        onAttendanceSummaryFromChange,
+        onAttendanceSummaryToChange,
       }) => (
-        <AttendanceNotesDialog
-          state={attendanceNotesDialog}
-          canUpdate={canUpdate}
-          onOpenChange={(open) => {
-            if (!open) onAttendanceNotesDialogChange(null);
-          }}
-          onStateChange={onAttendanceNotesDialogChange}
-          onConfirm={applyAttendanceNotesDialog}
-        />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              De
+            </div>
+            <Input
+              type="date"
+              value={attendanceSummaryFrom}
+              onChange={(event) => onAttendanceSummaryFromChange(event.target.value)}
+              className="h-9 w-[160px]"
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Até
+            </div>
+            <Input
+              type="date"
+              value={attendanceSummaryTo}
+              onChange={(event) => onAttendanceSummaryToChange(event.target.value)}
+              className="h-9 w-[160px]"
+            />
+          </div>
+        </div>
       ),
       relations: [
         {
-          key: "participants-attendance",
-          label: ACTION_RELATION_TEXT.participants.relationLabel,
-          variant: "operational",
-          loading: ({ reportLoading }) => reportLoading,
-          error: ({ reportError }) => reportError,
-          rows: ({ participantRows }) => participantRows,
-          columns: ({
-            canUpdate,
-            canReadPeople,
-            tenantSlug,
-            getAttendanceEffective,
-            setAttendanceRowDraft,
-            onAttendanceNotesDialogChange,
-          }) =>
-            buildParticipantsColumns({
-              canUpdate,
-              canReadPeople,
-              tenantSlug,
-              getEffective: getAttendanceEffective,
-              onSetRowDraft: setAttendanceRowDraft,
-              onOpenNotesDialog: (row) =>
-                onAttendanceNotesDialogChange({
-                  enrollmentId: row.enrollment.id,
-                  fullName: row.enrollment.person.fullName,
-                  status: getAttendanceEffective(row).status ?? "",
-                  notes: getAttendanceEffective(row).notes ?? "",
-                }),
-            }),
+          key: "participants-summary",
+          label: "Resumo de participação (todos os encontros do período)",
+          variant: "informational",
+          loading: ({ attendanceSummaryLoading }) => attendanceSummaryLoading,
+          error: ({ attendanceSummaryError }) => attendanceSummaryError,
+          rows: ({ attendanceSummaryRows }) => attendanceSummaryRows,
+          columns: () => buildAttendanceSummaryColumns(),
           getRowId: (row) => row.enrollment.id,
           searchable: true,
-          searchPlaceholder: ACTION_RELATION_TEXT.participants.searchPlaceholder,
-          filters: [
-            {
-              key: "occurrence",
-              label: "Encontro",
-              type: "select",
-              value: ({ occurrenceId }) => occurrenceId ?? "",
-              onChange: ({ onOccurrenceIdChange }, value) => onOccurrenceIdChange(value),
-              options: ({ occurrenceOptions }) => occurrenceOptions,
-            },
-            {
-              key: "group",
-              label: ACTION_RELATION_TEXT.participants.groupFilterLabel,
-              type: "select",
-              value: ({ attendanceGroupId }) => attendanceGroupId,
-              onChange: ({ onAttendanceGroupChange }, value) => onAttendanceGroupChange(value),
-              options: ({ attendanceGroupOptions }) => attendanceGroupOptions,
-            },
-            {
-              key: "status",
-              label: ACTION_RELATION_TEXT.participants.statusFilterLabel,
-              type: "select",
-              value: ({ attendanceStatusFilter }) => attendanceStatusFilter,
-              onChange: ({ onAttendanceStatusFilterChange }, value) =>
-                onAttendanceStatusFilterChange(value as AttendanceStatusFilter),
-              options: () => [
-                {
-                  label: ACTION_RELATION_TEXT.participants.allStatuses,
-                  value: "all",
-                },
-                {
-                  label: ACTION_RELATION_TEXT.participants.notRecorded,
-                  value: "not_recorded",
-                },
-                ...ATTENDANCE_STATUS_OPTIONS,
-              ],
-            },
-          ],
+          searchPlaceholder: "Pesquisar participante",
+          filterRows: (rows, query) => filterAttendanceSummaryRows(rows, query),
           stats: [
             {
               key: "total",
-              label: ACTION_RELATION_TEXT.participants.stats.total,
-              value: ({ reportRows }) => reportRows.length,
+              label: "Participantes",
+              value: ({ attendanceSummaryRows }) => attendanceSummaryRows.length,
             },
             {
               key: "filtered",
-              label: ACTION_RELATION_TEXT.participants.stats.filtered,
+              label: "Filtrados",
               value: (_context, rows) => rows.length,
             },
-            {
-              key: "groups",
-              label: ACTION_RELATION_TEXT.participants.stats.groups,
-              value: (_context, rows) => countDistinctAttendanceGroups(rows),
-            },
-            {
-              key: "changed",
-              label: ACTION_RELATION_TEXT.participants.stats.changed,
-              value: ({ attendanceDrafts }) => Object.keys(attendanceDrafts).length,
-            },
           ],
-          selection: {
-            mode: "toggle",
-            enabled: ({ canUpdate }) => canUpdate,
-            toggleLabel: (_context, active) =>
-              active
-                ? ACTION_RELATION_TEXT.participants.selectionOff
-                : ACTION_RELATION_TEXT.participants.selectionOn,
-            bulkActions: [
-              {
-                key: "present",
-                label: ACTION_RELATION_TEXT.participants.bulk.present,
-                onClick: ({ applyAttendanceStatusToRows }, rows) =>
-                  applyAttendanceStatusToRows(rows, "PRESENT"),
-              },
-              {
-                key: "absent",
-                label: ACTION_RELATION_TEXT.participants.bulk.absent,
-                variant: "outline",
-                onClick: ({ applyAttendanceStatusToRows }, rows) =>
-                  applyAttendanceStatusToRows(rows, "ABSENT"),
-              },
-              {
-                key: "excused",
-                label: ACTION_RELATION_TEXT.participants.bulk.excused,
-                variant: "secondary",
-                onClick: ({ applyAttendanceStatusToRows }, rows) =>
-                  applyAttendanceStatusToRows(rows, "EXCUSED"),
-              },
-            ],
-          },
-          primaryAction: {
-            label: ACTION_RELATION_TEXT.participants.save,
-            onClick: ({ saveAttendanceDrafts }) => saveAttendanceDrafts(),
-            hidden: ({ canUpdate }) => !canUpdate,
-            disabled: ({ attendanceDrafts, attendanceSaving }) =>
-              attendanceSaving || Object.keys(attendanceDrafts).length === 0,
-          },
-          emptyLabel: "Sem participantes.",
+          emptyLabel: "Sem participantes elegíveis no período selecionado.",
         },
       ],
       emptyLabel: "Sem participantes.",
@@ -715,24 +706,13 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
     },
     {
       key: "progress",
-      label: "Progresso",
-      visible: ({ mode }) => mode === "edit",
-      content: ({ action, readOnly, attachmentUploading, onSaveActionPatch }) => (
-        <ActionProgressSection
-          action={action}
-          readOnly={readOnly}
-          saving={attachmentUploading}
-          onSave={onSaveActionPatch}
-        />
-      ),
-      emptyLabel: "Sem progresso registrado.",
-    },
-    {
-      key: "report",
-      label: "Relatório",
+      label: "Progresso e Relatório",
       visible: ({ mode }) => mode === "edit",
       content: ({
         action,
+        readOnly,
+        attachmentUploading,
+        onSaveActionPatch,
         selectedOccurrence,
         reportRows,
         reportPeopleRows,
@@ -740,30 +720,38 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         reportError,
         canReadPeople,
       }) => (
-        <SectionCard title="Relatório">
-          {reportError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {reportError}
-            </div>
-          ) : null}
-          {reportLoading ? <p className="text-xs text-muted-foreground">Carregando...</p> : null}
-          {!reportLoading && !selectedOccurrence ? (
-            <p className="text-xs text-muted-foreground">
-              Nenhum encontro agendado ainda — o relatório é gerado a partir de um Encontro.
-            </p>
-          ) : null}
-          {action && selectedOccurrence ? (
-            <ActionReportPreview
-              action={action}
-              occurrence={selectedOccurrence}
-              rows={reportRows}
-              peopleParticipations={reportPeopleRows}
-              canShowPeople={canReadPeople}
-            />
-          ) : null}
-        </SectionCard>
+        <div className="space-y-6">
+          <ActionProgressSection
+            action={action}
+            readOnly={readOnly}
+            saving={attachmentUploading}
+            onSave={onSaveActionPatch}
+          />
+          <SectionCard title="Relatório">
+            {reportError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {reportError}
+              </div>
+            ) : null}
+            {reportLoading ? <p className="text-xs text-muted-foreground">Carregando...</p> : null}
+            {!reportLoading && !selectedOccurrence ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhum encontro agendado ainda — o relatório é gerado a partir de um Encontro.
+              </p>
+            ) : null}
+            {action && selectedOccurrence ? (
+              <ActionReportPreview
+                action={action}
+                occurrence={selectedOccurrence}
+                rows={reportRows}
+                peopleParticipations={reportPeopleRows}
+                canShowPeople={canReadPeople}
+              />
+            ) : null}
+          </SectionCard>
+        </div>
       ),
-      emptyLabel: "Sem relatório.",
+      emptyLabel: "Sem progresso registrado.",
     },
   ],
   side: ({
@@ -866,13 +854,16 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           key: "scope",
           label: "Escopo",
           value:
-            action?.peopleGroup?.name ??
-            action?.targetEnrollment?.person?.fullName ??
-            "Projeto",
+            action && action.peopleGroupIds.length > 1
+              ? `${action.peopleGroupIds.length} grupos`
+              : (action?.peopleGroup?.name ??
+                action?.targetEnrollment?.person?.fullName ??
+                "Projeto"),
         },
         { key: "period", label: "Período", value: formatPeriod(action?.plannedStartAt, action?.plannedEndAt) },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
+      tabOrder={["tags", "notes", "attachments", "comments", "activity", "history", "context"]}
       defaultTab="activity"
     />
   ),

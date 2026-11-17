@@ -25,6 +25,15 @@ type SectionDialogProps = {
   headerSlot?: ReactNode;
   showBackButton?: boolean;
   backLabel?: string;
+  /**
+   * Conteudo fixo no rodape (mensagem de erro + botoes de acao, por exemplo).
+   * Use para qualquer diálogo cujo formulário possa crescer o suficiente
+   * para rolar — sem isso, mensagens de erro e o botão de confirmar ficam
+   * dentro da área rolável e podem sair da tela visível sem o usuário notar
+   * (achado real: Fase 4 de Atendimento/Projetos, nov/2026). Só passe
+   * `children` sem `footer` em diálogos curtos que nunca precisam rolar.
+   */
+  footer?: ReactNode;
 };
 
 export function SectionDialog({
@@ -38,6 +47,7 @@ export function SectionDialog({
   headerSlot,
   showBackButton,
   backLabel = "Voltar",
+  footer,
 }: SectionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,6 +102,11 @@ export function SectionDialog({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
           {children}
         </div>
+        {footer ? (
+          <div className="sticky bottom-0 z-10 border-t border-border/50 bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+            {footer}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

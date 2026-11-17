@@ -125,17 +125,30 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
     [engineContext, fallbackMainSlot, layout],
   );
 
-  const tabsSlot = React.useMemo(
-    () =>
-      layout?.tabs?.(engineContext) ??
-      (layout?.tabTemplates?.length ? (
-        <DetailTabsRenderer
-          tabs={layout.tabTemplates}
-          context={engineContext}
-        />
-      ) : null),
-    [engineContext, layout],
-  );
+  const mainTabConfig = layout?.mainTab;
+  const resolvedMainTab = React.useMemo(() => {
+    if (!mainTabConfig) return null;
+    return mainTabConfig === true ? { key: "details", label: "Detalhes" } : mainTabConfig;
+  }, [mainTabConfig]);
+
+  const tabsSlot = React.useMemo(() => {
+    if (layout?.tabs) return layout.tabs(engineContext);
+    const templates = layout?.tabTemplates ?? [];
+    if (resolvedMainTab) {
+      const detailsTab = {
+        key: resolvedMainTab.key,
+        label: resolvedMainTab.label,
+        content: () => mainSlot,
+      };
+      if (!mainSlot && !templates.length) return null;
+      return (
+        <DetailTabsRenderer tabs={[detailsTab, ...templates]} context={engineContext} />
+      );
+    }
+    return templates.length ? (
+      <DetailTabsRenderer tabs={templates} context={engineContext} />
+    ) : null;
+  }, [engineContext, layout, mainSlot, resolvedMainTab]);
 
   const sideSlot = React.useMemo(
     () =>
@@ -179,11 +192,13 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
   const composedMainSlot = React.useMemo(
     () => (
       <>
-        {mainSlot}
-        {tabsSlot ? <div className="mt-4">{tabsSlot}</div> : null}
+        {resolvedMainTab ? null : mainSlot}
+        {tabsSlot ? (
+          <div className={resolvedMainTab ? undefined : "mt-4"}>{tabsSlot}</div>
+        ) : null}
       </>
     ),
-    [mainSlot, tabsSlot],
+    [mainSlot, tabsSlot, resolvedMainTab],
   );
 
   return (

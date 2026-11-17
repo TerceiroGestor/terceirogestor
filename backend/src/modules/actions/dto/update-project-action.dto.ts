@@ -27,6 +27,10 @@ export class UpdateProjectActionDto {
   description?: string | null;
 
   @IsOptional()
+  @IsString()
+  pedagogicalPlanHtml?: string | null;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -46,8 +50,9 @@ export class UpdateProjectActionDto {
   status?: ActionStatus;
 
   @IsOptional()
-  @IsUUID('4')
-  peopleGroupId?: string | null;
+  @IsArray()
+  @IsUUID('4', { each: true })
+  peopleGroupIds?: string[];
 
   @IsOptional()
   @IsUUID('4')

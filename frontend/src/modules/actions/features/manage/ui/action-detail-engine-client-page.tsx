@@ -15,6 +15,7 @@ import {
   deleteProjectActionComment,
   endProjectActionPeopleParticipation,
   getActivity,
+  listActionAttendanceSummary,
   listMeetings,
   listMeetingAttendances,
   listProjectActionPeopleParticipations,
@@ -36,12 +37,8 @@ import {
 import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
 import {
   buildAttendanceGroupOptions,
-  filterAttendanceRows,
   filterQualityRows,
   resolveDefaultOccurrenceId,
-  type AttendanceDraft,
-  type AttendanceNotesDialogState,
-  type AttendanceStatusFilter,
   type QualityDraft,
   type QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
@@ -148,17 +145,14 @@ export function ActionDetailEngineClientPage() {
   >([]);
   const [reportLoading, setReportLoading] = React.useState(false);
   const [reportError, setReportError] = React.useState<string | null>(null);
-  const [attendanceGroupId, setAttendanceGroupId] = React.useState<string>(
-    ACTION_RELATION_VALUES.allGroups,
-  );
-  const [attendanceStatusFilter, setAttendanceStatusFilter] =
-    React.useState<AttendanceStatusFilter>("all");
-  const [attendanceDrafts, setAttendanceDrafts] = React.useState<Record<string, AttendanceDraft>>(
-    {},
-  );
-  const [attendanceSaving, setAttendanceSaving] = React.useState(false);
-  const [attendanceNotesDialog, setAttendanceNotesDialog] =
-    React.useState<AttendanceNotesDialogState | null>(null);
+  const [attendanceSummaryRows, setAttendanceSummaryRows] = React.useState<
+    ActionsDetailLayoutContext["attendanceSummaryRows"]
+  >([]);
+  const [attendanceSummaryLoading, setAttendanceSummaryLoading] = React.useState(false);
+  const [attendanceSummaryError, setAttendanceSummaryError] = React.useState<string | null>(null);
+  const [attendanceSummaryFrom, setAttendanceSummaryFrom] = React.useState("");
+  const [attendanceSummaryTo, setAttendanceSummaryTo] = React.useState("");
+  const attendanceSummaryRequestIdRef = React.useRef(0);
   const [qualityGroupId, setQualityGroupId] = React.useState<string>(
     ACTION_RELATION_VALUES.allGroups,
   );
@@ -201,7 +195,6 @@ export function ActionDetailEngineClientPage() {
     if (!token || !projectId || !id || !canRead) return;
     setReportLoading(true);
     setReportError(null);
-    setAttendanceSaving(true);
     setQualitySaving(true);
     try {
       const [rows, people] = await Promise.all([
@@ -246,6 +239,49 @@ export function ActionDetailEngineClientPage() {
     }
   }, [canRead, id, projectId, token]);
 
+  const loadAttendanceSummary = React.useCallback(async () => {
+    if (!token || !projectId || !id || !canRead) return;
+    const requestId = ++attendanceSummaryRequestIdRef.current;
+    setAttendanceSummaryLoading(true);
+    setAttendanceSummaryError(null);
+    try {
+      const limit = 200;
+      let page = 1;
+      const all: ActionsDetailLayoutContext["attendanceSummaryRows"] = [];
+      while (true) {
+        const response = await listActionAttendanceSummary(token, projectId, id, {
+          page,
+          limit,
+          from: attendanceSummaryFrom || undefined,
+          to: attendanceSummaryTo || undefined,
+        });
+        all.push(...response.data);
+        const pages = response.pagination?.pages ?? page;
+        if (page >= pages) break;
+        page += 1;
+      }
+      // Requisicoes de "De"/"Ate" digitadas em sequencia rapida podem
+      // resolver fora de ordem - sem esse guard, uma resposta antiga (ex.:
+      // "De" sozinho, antes de "Ate" ser preenchido) pode sobrescrever o
+      // resultado correto da combinacao final (achado real testando com
+      // Playwright: filtro janeiro/2026 mostrava 100% por causa disso).
+      if (requestId !== attendanceSummaryRequestIdRef.current) return;
+      setAttendanceSummaryRows(all);
+    } catch (error) {
+      if (requestId !== attendanceSummaryRequestIdRef.current) return;
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao carregar resumo de participação.";
+      setAttendanceSummaryRows([]);
+      setAttendanceSummaryError(message);
+    } finally {
+      if (requestId === attendanceSummaryRequestIdRef.current) {
+        setAttendanceSummaryLoading(false);
+      }
+    }
+  }, [attendanceSummaryFrom, attendanceSummaryTo, canRead, id, projectId, token]);
+
   const applyLoadedAction = React.useCallback(
     (loaded: ApiActivity) => {
       const nextDraft = buildDraft(loaded);
@@ -261,11 +297,10 @@ export function ActionDetailEngineClientPage() {
     setCommentDraft(EMPTY_COMMENT_DRAFT);
     setOccurrences([]);
     setOccurrenceId(null);
-    setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
-    setAttendanceStatusFilter("all");
-    setAttendanceDrafts({});
-    setAttendanceSaving(false);
-    setAttendanceNotesDialog(null);
+    setAttendanceSummaryRows([]);
+    setAttendanceSummaryError(null);
+    setAttendanceSummaryFrom("");
+    setAttendanceSummaryTo("");
     setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
     setQualityDrafts({});
     setQualitySaving(false);
@@ -275,6 +310,10 @@ export function ActionDetailEngineClientPage() {
   React.useEffect(() => {
     void loadOccurrences();
   }, [loadOccurrences]);
+
+  React.useEffect(() => {
+    void loadAttendanceSummary();
+  }, [loadAttendanceSummary]);
 
   React.useEffect(() => {
     if (!token || !projectId || !canRead) {
@@ -458,22 +497,10 @@ export function ActionDetailEngineClientPage() {
   );
 
   React.useEffect(() => {
-    if (!attendanceGroupOptions.some((option) => option.value === attendanceGroupId)) {
-      setAttendanceGroupId(ACTION_RELATION_VALUES.allGroups);
-    }
     if (!attendanceGroupOptions.some((option) => option.value === qualityGroupId)) {
       setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
     }
-  }, [attendanceGroupId, attendanceGroupOptions, qualityGroupId]);
-
-  const participantRows = React.useMemo(
-    () =>
-      filterAttendanceRows(reportRows, {
-        groupId: attendanceGroupId,
-        status: attendanceStatusFilter,
-      }),
-    [attendanceGroupId, attendanceStatusFilter, reportRows],
-  );
+  }, [attendanceGroupOptions, qualityGroupId]);
 
   const qualityRows = React.useMemo(
     () =>
@@ -481,138 +508,6 @@ export function ActionDetailEngineClientPage() {
         groupId: qualityGroupId,
       }),
     [qualityGroupId, reportRows],
-  );
-
-  const getAttendanceEffective = React.useCallback(
-    (row: MeetingAttendancesListItem) => {
-      const draftEntry = attendanceDrafts[row.enrollment.id];
-      return {
-        status: (draftEntry?.status ?? row.attendance?.status ?? null) as AttendanceStatus | null,
-        notes:
-          draftEntry?.notes !== undefined
-            ? draftEntry.notes
-            : (row.attendance?.notes ?? null),
-      };
-    },
-    [attendanceDrafts],
-  );
-
-  const setAttendanceRowDraft = React.useCallback(
-    (
-      row: MeetingAttendancesListItem,
-      patch: AttendanceDraft,
-      prune = false,
-    ) => {
-      setAttendanceDrafts((previous) => {
-        const next = { ...previous };
-        const merged = { ...(previous[row.enrollment.id] ?? {}), ...patch };
-
-        if (prune) {
-          const originalStatus = row.attendance?.status ?? undefined;
-          const originalNotes = row.attendance?.notes ?? null;
-          const statusMatches =
-            merged.status === undefined || merged.status === originalStatus;
-          const notesMatches =
-            merged.notes === undefined || merged.notes === originalNotes;
-
-          if (statusMatches && notesMatches) {
-            delete next[row.enrollment.id];
-            return next;
-          }
-        }
-
-        next[row.enrollment.id] = merged;
-        return next;
-      });
-    },
-    [],
-  );
-
-  const applyAttendanceStatusToRows = React.useCallback(
-    (rows: MeetingAttendancesListItem[], status: AttendanceStatus) => {
-      rows.forEach((row) => {
-        setAttendanceRowDraft(row, { status }, true);
-      });
-    },
-    [setAttendanceRowDraft],
-  );
-
-  const saveAttendanceDrafts = React.useCallback(async () => {
-    if (!token || !projectId || !occurrenceId) return;
-
-    const items = Object.entries(attendanceDrafts).map(([enrollmentId, entry]) => {
-      const row = reportRows.find((item) => item.enrollment.id === enrollmentId);
-      return {
-        enrollmentId,
-        status: entry.status ?? row?.attendance?.status ?? null,
-        notes: entry.notes,
-      };
-    });
-
-    if (!items.length) return;
-
-    const missingStatus = items.find((item) => !item.status);
-    if (missingStatus) {
-      toast({
-        title: ACTION_RELATION_TEXT.participants.savePendingTitle,
-        description: ACTION_RELATION_TEXT.participants.savePendingDescription,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const result = await upsertMeetingAttendances(
-        token,
-        projectId,
-        id,
-        occurrenceId,
-        items.map((item) => ({
-          enrollmentId: item.enrollmentId,
-          status: item.status as AttendanceStatus,
-          ...(item.notes !== undefined ? { notes: item.notes } : {}),
-        })),
-      );
-      setAttendanceDrafts({});
-      setAttendanceNotesDialog(null);
-      toast({
-        title: ACTION_RELATION_TEXT.participants.saveOkTitle,
-        description: ACTION_RELATION_TEXT.participants.saveOkDescription(
-          result.created,
-          result.updated,
-        ),
-      });
-      await refreshReport();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao salvar presenças.";
-      toast({ variant: "destructive", title: "Falha ao salvar", description: message });
-    } finally {
-      setAttendanceSaving(false);
-    }
-  }, [attendanceDrafts, id, occurrenceId, projectId, refreshReport, reportRows, toast, token]);
-
-  const applyAttendanceNotesDialog = React.useCallback(
-    (state: AttendanceNotesDialogState) => {
-      const row = reportRows.find((item) => item.enrollment.id === state.enrollmentId);
-      if (!row) {
-        setAttendanceNotesDialog(null);
-        return;
-      }
-
-      setAttendanceRowDraft(
-        row,
-        {
-          ...(state.status ? { status: state.status as AttendanceStatus } : {}),
-          notes: state.notes.trim() ? state.notes.trim() : null,
-        },
-        true,
-      );
-      setAttendanceNotesDialog(null);
-    },
-    [reportRows, setAttendanceRowDraft],
   );
 
   const getQualityEffective = React.useCallback(
@@ -779,17 +674,18 @@ export function ActionDetailEngineClientPage() {
     occurrenceId,
     occurrenceOptions,
     onOccurrenceIdChange: setOccurrenceId,
-    attendanceGroupId,
-    attendanceStatusFilter,
     attendanceGroupOptions,
-    attendanceDrafts,
-    attendanceSaving,
-    attendanceNotesDialog,
+    attendanceSummaryRows,
+    attendanceSummaryLoading,
+    attendanceSummaryError,
+    attendanceSummaryFrom,
+    attendanceSummaryTo,
+    onAttendanceSummaryFromChange: setAttendanceSummaryFrom,
+    onAttendanceSummaryToChange: setAttendanceSummaryTo,
     qualityGroupId,
     qualityDrafts,
     qualitySaving,
     qualityNotesDialog,
-    participantRows,
     qualityRows,
     onCommitField: (field: keyof ActionMetadataDraft, nextValue?: ActionMetadataDraft[keyof ActionMetadataDraft]) =>
       void commitField(field, nextValue),
@@ -809,14 +705,6 @@ export function ActionDetailEngineClientPage() {
     onActionLoaded: applyLoadedAction,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
     onEndTeamParticipation: handleEndTeamParticipation,
-    onAttendanceGroupChange: setAttendanceGroupId,
-    onAttendanceStatusFilterChange: setAttendanceStatusFilter,
-    getAttendanceEffective,
-    setAttendanceRowDraft,
-    applyAttendanceStatusToRows,
-    saveAttendanceDrafts: () => void saveAttendanceDrafts(),
-    onAttendanceNotesDialogChange: setAttendanceNotesDialog,
-    applyAttendanceNotesDialog,
     onQualityGroupChange: setQualityGroupId,
     getQualityEffective,
     setQualityRowDraft,
@@ -852,7 +740,7 @@ export function ActionDetailEngineClientPage() {
           commentSubmitting ||
           attachmentUploading ||
           reportLoading ||
-          attendanceSaving ||
+          attendanceSummaryLoading ||
           qualitySaving
         }
         loading={loading || authLoading || userLoading}

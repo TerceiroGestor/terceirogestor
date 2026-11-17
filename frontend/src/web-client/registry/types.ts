@@ -749,6 +749,14 @@ export type DetailLayoutConfig<
   headerSlot?: (context: TContext) => React.ReactNode;
   main?: (context: TContext) => React.ReactNode;
   mainSlot?: (context: TContext) => React.ReactNode;
+  /**
+   * Quando definido, `main`/`mainSlot` deixa de ficar sempre visível acima
+   * das abas (`tabTemplates`) e vira a PRIMEIRA aba entre elas (mesmo
+   * padrão do People, que não tem formulário fixo - é só mais uma aba).
+   * `true` usa key="details"/label="Detalhes"; passe um objeto pra
+   * customizar. Reutilizável por qualquer módulo que queira esse modo.
+   */
+  mainTab?: boolean | { key: string; label: string };
   tabs?: (context: TContext) => React.ReactNode;
   tabTemplates?: DetailTabTemplate<TContext>[];
   bottom?: (context: TContext) => React.ReactNode;

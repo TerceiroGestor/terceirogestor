@@ -838,6 +838,437 @@ nunca foi salvo, então nada precisou ser revertido).
 atualizado: Fase 4 marcada `[x]`, evidência completa na seção da Fase 4
 do próprio documento.
 
+**Ajustes pós-teste manual da Fase 4, Grupo A concluído em 2026-11-16.**
+Usuário testou manualmente os passos sugeridos e reportou 6 pontos; 3
+deles (baixo risco, padrão já existente no projeto) corrigidos nesta
+mesma sessão:
+- **"Notas" não quebrava linha** (achado 2.8) — `TableCell` genérico
+  (`components/ui/table.tsx`) força `whitespace-nowrap` em toda célula de
+  toda tabela do sistema; a coluna "Notas" só tinha `line-clamp-1`, que
+  não sobrepõe isso. Corrigido só nessa célula (`action-occurrences-
+  section.tsx`, coluna `notes`): `<span>` com `max-w-[280px]
+  whitespace-normal break-words` — não mexi no `TableCell` genérico pra
+  não afetar nenhuma outra tela do sistema.
+- **`window.confirm`/`alert` cru** (achado 2.9, parte 1) — o projeto já
+  tem um padrão pronto pra isso (`useConfirm()` + `ConfirmActionDialog`,
+  montado globalmente em `AppProviders.tsx`, já usado em `project-goals-
+  section.tsx` etc.), só não estava sendo usado neste arquivo. Trocados
+  os 2 usos (`handleDelete` do Encontro individual, `handleCancelSeries`
+  da série) por `confirm({...})`.
+- **Mensagem de erro/botão fora da tela sem scroll** (achados 1.4 e
+  3.10 — provavelmente o mesmo bug: o formulário de "Agendar encontros"
+  era alto o suficiente pra precisar rolar, e a mensagem de erro ficava
+  no topo da área rolável enquanto o botão ficava no fim — se o usuário
+  já tinha rolado pra ver o botão, a mensagem de validação (ex.: campo
+  vazio) ficava fora da tela visível, parecendo que "nada aconteceu").
+  **Correção estrutural, não só neste diálogo:** `SectionDialog`
+  (`components/section-dialog.tsx`) ganhou um `footer` opcional, fixo
+  (sticky, mesmo princípio do header que já era sticky) — comentário no
+  próprio componente documenta a convenção pra diálogos futuros não
+  repetirem o problema. `BulkScheduleOccurrencesDialog` migrado pra usar
+  isso (mensagem de erro + botões sempre visíveis) e reorganizado em 2
+  colunas (Grupo/Equipe, além de De/Até e Início/Término que já eram)
+  pra reduzir a altura total.
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint`
+nos 2 arquivos tocados → 3 problemas, idêntico à baseline (mesma
+categoria já tolerada, `react-hooks/set-state-in-effect`, nenhum
+problema novo). Testado com navegador real (Playwright, backend e
+frontend de pé, login real): nota longa agora quebra em 3 linhas dentro
+da célula, sem empurrar a tabela pro lado; excluir um Encontro abre o
+diálogo estilizado "Excluir encontro" (confirmado: zero disparo de
+`window.confirm` nativo durante o teste); período invertido (Até antes
+de De) mostra a mensagem de erro já dentro do rodapé fixo, junto do
+botão, sem precisar rolar a tela. Re-testado também o fluxo de preview
+inteiro (13 datas geradas pra um trimestre, contador ao vivo "13 de
+13" → "12 de 13" ao desmarcar uma) pra confirmar que a reorganização em
+colunas não quebrou nada da Fase 4 original. **Achado durante o teste:**
+52 encontros de teste (sem nenhuma data excluída) foram encontrados na
+atividade — resíduo do teste manual do usuário no ponto 1.4, quando as
+checkboxes não apareciam pra ele; removidos via API antes de reiniciar o
+teste, `GET .../occurrences` confirmou `total: 0` depois da limpeza.
+**Grupo B concluído em 2026-11-16**, a partir das 3 decisões dadas pelo
+usuário (exclusão em massa deve excluir de verdade; grupos N:N só na
+Atividade por enquanto, Encontro continua com 1 grupo por vez; migration
+única sem expandir/contrair caso precisasse de schema novo):
+
+**4.14 — Atividade com múltiplos grupos-alvo.** Investigação encontrou a
+causa raiz exata: `ActivityPeopleGroup` já era N:N no schema, mas
+`syncParticipantPeopleGroupScope` (`actions.service.ts`) apagava todos os
+vínculos `PARTICIPANT` e recriava só 1 a cada criação/edição — regra de
+negócio deliberada, não lacuna de UI. **Sem migration nenhuma** (a tabela
+de junção já suportava N linhas; só a lógica de serviço/DTO/formulário
+impedia). `resolveScopeFromTarget`/`syncParticipantPeopleGroupScope`
+passaram a trabalhar com `peopleGroupIds: string[]` (valida cada id antes
+de escrever, evitando Atividade órfã se um id for inválido);
+`CreateProjectActionDto`/`UpdateProjectActionDto` trocaram
+`peopleGroupId?` por `peopleGroupIds?: string[]`; `serializeProjectAction`
+passou a expor `peopleGroupIds`/`peopleGroups` (lista completa) mantendo
+`peopleGroupId`/`peopleGroup` (primeiro grupo) para os 4 pontos do
+frontend que só exibem 1 nome (breadcrumb, coluna de lista, relatório) —
+nenhum deles precisou mudar. `listEligibleProjectActionPeople` (lista de
+elegíveis pra Encontro/presença) já agregava por `distinct peopleGroupId`
+— passa a refletir todos os grupos automaticamente, sem mudança própria.
+Frontend: `action-create-form-section.tsx` trocou o `<Select>` único de
+"Grupo de Pessoas" por uma lista de checkboxes (mesmo padrão do
+`TeamPeopleGroupPicker` já usado em Encontros).
+**Evidência:** backend `tsc --noEmit -p tsconfig.build.json` → 0 erros;
+`npm test` → 28 suítes/143 testes sem regressão; `eslint` nos 3 arquivos
+tocados → 139 problemas vs. 138 medidos na Fase 4 (net +1, mesma
+categoria já tolerada `@typescript-eslint/no-unsafe-*`, nenhuma categoria
+nova). Frontend `tsc --noEmit` → 0 erros; `npm run build` → ok. Testado
+de ponta a ponta com navegador real + Postgres real: criada a atividade
+"Teste multi-grupo" marcando C1M e C2M → os dois salvos; reaberta a tela
+de edição → os dois continuam marcados (confirma persistência e
+re-hidratação corretas); atividade de teste excluída via API ao final,
+contagem de atividades do projeto confirmada de volta a 3 (baseline do
+seed).
+
+**2.9 (parte 2) — exclusão em massa de Encontros.** `ListView` já tinha
+`enableRowSelection`/`onSelectionChange`/checkbox "selecionar todos"
+prontos (mesmo padrão de `project-enrollments-card.tsx`) — não precisou
+de componente novo, só reusar. Adicionados: barra de busca
+(`SearchBar`, mesmo componente das outras Relations) filtrando por
+data/status/grupo/notas, um `<Select>` de mês (calculado a partir das
+datas já carregadas) e um botão "Selecionar" que liga/desliga o modo de
+seleção (troca o clique de linha de "abrir encontro" para "marcar
+checkbox"); com 1+ selecionados aparece "Excluir selecionados", que
+confirma via `useConfirm()` e exclui um por um em lotes de 6
+(`Promise.allSettled`, mesmo helper `runInBatches` já duplicado em
+`project-enrollments-card.tsx`/`bulk-enrollment-dialog.tsx` — não criei
+endpoint de delete em lote no backend, o DELETE por id já existente
+basta). **Bug real achado e corrigido no caminho:** passar o `setState`
+bruto pra `onSelectionChange` entra em loop infinito ("Maximum update
+depth exceeded") — o efeito interno do `ListView` recalcula a seleção
+com `.map()` a cada render, sem memoização, e qualquer alteração de
+referência (mesmo com conteúdo igual) re-dispara o efeito indefinidamente.
+Contornado com um updater funcional que só troca a referência quando o
+conteúdo realmente muda; `ListView.tsx` em si não foi tocado (usado por
+mais 5 outras telas) — landmine registrada em `docs/backlog.md` pra
+quem for mexer nele de novo.
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `npm run build` → ok;
+`eslint` no arquivo tocado → 3 problemas, idêntico à baseline (mesma
+categoria já tolerada). Testado com navegador real + Postgres real:
+lote de 13 encontros (jan-mar/2027) criado via API; filtro "Fevereiro de
+2027" reduziu a lista a 4; "Selecionar" → checkbox "selecionar todos" →
+"Selecionados: 4" → "Excluir selecionados" → diálogo estilizado (não
+`alert()`) → confirmar → toast "Exclusão em massa concluída — Excluídos:
+4" → lista (ainda filtrada por fevereiro) mostrou "Nenhum encontro
+encontrado para esse filtro", confirmando que os 4 saíram de verdade, não
+só mudaram de status; zero erro de loop infinito ou de console depois do
+fix. Os 9 encontros de teste restantes (janeiro/março) excluídos via API
+ao final; `GET .../occurrences` confirmou `total: 0`.
+
+**Fase 4, Ciclo 2 de ajustes — itens #3 e #1 concluídos em 2026-11-16**
+(plano completo com os 10 pontos e as 4 decisões do usuário em
+`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`,
+seção "Fase 4 — Ciclo 2 de ajustes").
+
+**#3 — `MultiSelectBadges` (componente novo, reutilizável).** Não existia
+no projeto nenhum combobox-com-busca-e-badge-removível (confirmado por
+investigação — o mais próximo, `CompactMultiSelect`, não tem busca nem
+remove pelo badge). Criado `frontend/src/web-client/ui/MultiSelectBadges.tsx`
+sobre um novo primitivo `frontend/src/components/ui/popover.tsx`
+(`radix-ui` já tinha `Popover` disponível, só faltava o wrapper no padrão
+shadcn já usado pelos outros componentes de `components/ui/`). API:
+`options`/`selectedValues`/`onChange`, mais rótulos customizáveis. Aplicado
+em 2 lugares: seletor "Grupos de Pessoas" do formulário de Atividade
+(substituindo a lista de checkbox do ciclo 1, que o usuário achou
+"visualmente suja") e seletor "Grupos" do diálogo de Encontro (item novo
+#1 abaixo). **Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok;
+`eslint` nos arquivos novos → 0 problemas; testado com navegador real
+(popover abre, busca filtra, item vira badge, popover continua aberto pra
+adicionar mais um, "x" no badge remove direto sem reabrir o popover) nos
+dois formulários.
+
+**#1 — `Meeting` N:N `PeopleGroup`.** Regra do usuário: um Encontro
+"amplo" pode atender vários grupos ao mesmo tempo (evento que junta todas
+as turmas), não só 1. Schema: nova tabela `ActionOccurrencePeopleGroup`
+(mesmo padrão de `ActionOccurrenceTeamGroup`, já existente pra grupos de
+equipe do Encontro), migration `20261116220000_add_meeting_people_group_n_n`
+— `Meeting.peopleGroupId` (FK singular nullable) removido, com os dados
+existentes migrados pra tabela nova no mesmo passo (migration única, sem
+expandir/contrair, decisão já tomada no ciclo 1 pra esse tipo de mudança).
+**Achado ao gerar a migration:** havia 51 linhas reais com
+`peopleGroupId` preenchido em `ActionOccurrence` — resíduo de teste desta
+mesma sessão (não dado de produção) na atividade "Ensaio dos meninos da
+percussão"; migrados corretamente pra tabela nova e depois removidos via
+limpeza (confirmado `count: 51` migrado, depois `0` após a limpeza).
+**Bug pré-existente achado e corrigido no caminho:** `deleteActionOccurrence`
+e `deleteProjectAction` excluíam o(s) Encontro(s) sem antes limpar
+`ActionOccurrenceTeamGroup` — como essa FK já era `RESTRICT` (mesmo
+padrão manual de "cascade" do resto do projeto), excluir um Encontro ou
+uma Atividade com grupo de equipe vinculado já falhava com erro de FK
+*antes* desta sessão, só que nunca tinha sido exercitado por um teste
+real. Corrigido nos dois métodos (limpa `ActionOccurrenceTeamGroup` e o
+`ActionOccurrencePeopleGroup` novo antes de excluir o(s) Encontro(s)).
+Backend: `CreateActionOccurrenceDto`/`UpdateActionOccurrenceDto`/
+`BulkCreateActionOccurrencesDto` trocaram `peopleGroupId?` por
+`peopleGroupIds?: string[]`; `createActionOccurrence`/
+`bulkCreateActionOccurrences`/`updateActionOccurrence` passaram a validar
+e persistir a lista (mesmo padrão de `teamPeopleGroupIds`, incluindo o
+diff add/remove no update); `listProjectActionAttendances` (lista de
+presença de um Encontro específico) agora agrega participantes de todos
+os grupos do Encontro (ou os da Atividade, se o Encontro não tiver grupo
+próprio) em vez de só 1; resposta de Encontro ganhou `peopleGroupIds`
+(lista completa) mantendo `peopleGroupId`/`peopleGroup` (primeiro grupo)
+pros 1 ponto do frontend que só precisa de um nome pra rótulo compacto.
+**Evidência:** `npx prisma migrate deploy` → aplicada sem erro;
+`tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 28
+suítes/143 testes sem regressão; `npm run build` + `npm run build:seed` →
+ok; `eslint` nos 5 arquivos tocados → 143 problemas vs. 139 medidos antes
+deste item nesta mesma sessão (net +4, mesmas categorias já toleradas
+`@typescript-eslint/no-unsafe-*`, nenhuma categoria nova — os 2
+`no-unused-vars` do relatório são imports não tocados por este diff,
+confirmado). Frontend: `ApiMeeting` ganhou `peopleGroupIds`/`peopleGroups`;
+os 2 diálogos de Encontro (agendar em lote, editar 1) trocaram o
+`<Select>` único por `MultiSelectBadges`; coluna "Grupo" da lista, card do
+calendário e filtro de busca passaram a mostrar todos os grupos (não só
+o primeiro). `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint` → 3
+problemas, idêntico à baseline (mesma categoria já tolerada). **Testado
+de ponta a ponta contra Postgres real + navegador real:** criado 1
+Encontro via API com 2 grupos (C1M + C2M) → resposta confirmou os 2 em
+`peopleGroupIds`; `GET .../attendances` desse Encontro devolveu 3 pessoas
+— confirmado que vêm dos 2 grupos (Renata Vieira é só de C2M; Ricardo
+Nunes e Sabrina Melo são de C1M), provando a agregação N:N de verdade, não
+só o primeiro grupo. No navegador: diálogo "Agendar encontros" mostra
+"+ Adicionar grupo" → popover com busca → clicar em C1M vira badge e o
+popover continua aberto mostrando só C2M/C3M (sem C1M, já selecionado) →
+zero erro de console. Encontro de teste excluído via API ao final;
+`GET .../occurrences` confirmou `total: 0` na atividade de teste.
+
+**#2 — checkbox sempre visível na lista de Encontros, sem o toggle
+"Selecionar".** Achado ao investigar: o `ListView` genérico já ignora
+clique em checkbox/botão pra fins de "abrir a linha" (`shouldIgnoreRowClick`,
+via seletor `button,a,input,...`) — ou seja, dava pra manter
+`enableRowSelection` e `onRowClick` ligados ao mesmo tempo sem conflito,
+sem precisar investigar/mexer no motor compartilhado. Removido o state
+`selectionMode` e o botão "Selecionar"/"Cancelar seleção"; `enableRowSelection={!readOnly}`
+fica sempre ativo (some de vez quando o usuário só pode ler) e a barra
+"Selecionados: N — Excluir selecionados" aparece sozinha quando
+`selectedRows.length > 0`, sem precisar de um modo dedicado.
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint` →
+3 problemas, idêntico à baseline.
+
+**#10 — ação "Registrar ocorrência" (placeholder) no header da
+Atividade.** Achado ao investigar: o mecanismo genérico já existia
+(`DetailLayoutConfig.header.actions`, tipo `DetailHeaderActionConfig[]`)
+— é o mesmo que o People já usa pros botões "Ver ficha completa"/"Árvore
+genealógica" no topo do detalhe da pessoa. Adicionado
+`ACTIVITY_DETAIL_HEADER_ACTIONS` em `actions-detail-layout-contract.tsx`
+com 1 entrada (`disabled: () => true`, tooltip "Em breve — Fase 5") — a
+Fase 5 de verdade (modelo de dados, ciclo registrada→desfecho) continua
+sendo trabalho à parte, ainda não desenhado; isso só reserva o lugar no
+header pra validar a navegação. **Evidência:** `tsc --noEmit` → 0 erros;
+`npm run build` → ok; `eslint` → 1 problema pré-existente e não
+relacionado (efeito de `ActionProgressSection`, confirmado por linha/
+contexto, nada a ver com este diff). Testado com navegador real: botão
+aparece no canto superior direito do detalhe da Atividade, ao lado do
+botão de recolher a barra lateral, visivelmente desabilitado, com
+`title="Em breve — Fase 5"` já no DOM (confirmado via HTML capturado
+pelo Playwright).
+
+**#5 — Gestor/Educador reaproveitando papéis existentes + Plano
+pedagógico + remoção de Participante/Direcionamento.** Decisão do
+usuário: reaproveitar `ProjectActionPeopleParticipation` em vez de criar
+schema novo — Gestor = atalho de 1 pessoa com papel `RESPONSAVEL_TECNICO`,
+Educador/Executor = atalho de 1 pessoa com papel `FACILITADOR` (pra mais
+de 1 pessoa por função, a aba "Equipe" continua existindo). Novo
+componente `ActivityRolePicker` em `action-create-form-section.tsx` lê
+via `listProjectActionPeopleParticipations` e grava via
+`createProjectActionPeopleParticipation`/`endProjectActionPeopleParticipation`
+(encerra a participação ativa anterior antes de criar a nova, pra manter
+só 1 pessoa ativa por papel). Campo `description` (já existia) mantido;
+campo novo `pedagogicalPlanHtml` (rich text) adicionado — schema
+(`ProjectAction.pedagogicalPlanHtml String? @db.Text`), migration
+`20261117140000_add_activity_pedagogical_plan`, DTOs
+`CreateProjectActionDto`/`UpdateProjectActionDto`, serviço
+(`normalizeHtml()`, mesmo padrão dos outros campos rich text do módulo).
+Campos "Participante"/"Direcionamento" (ligados a
+`targetEnrollmentId`/`ActionTarget.ENROLLMENT`) removidos do formulário
+principal — tinham zero uso no seed e propósito não documentado; o tipo
+`ENROLLMENT` como `ActionTarget` continua existindo no schema (só não é
+mais editável por este formulário, nenhum dado existente foi afetado).
+**Evidência:** `npx prisma migrate deploy` → aplicada sem erro; backend
+`tsc --noEmit -p tsconfig.build.json` → 0 erros; frontend `tsc --noEmit` →
+0 erros; `npm run build` → ok.
+
+**#4/#6 — Formulário da Atividade reorganizado em seções + metadata
+reordenada.** Título movido pro topo, campo único em destaque (texto
+grande, borda inferior só, mesmo padrão visual já usado no formulário do
+People). Resto do formulário dividido em seções com `SectionHeading`
+(título + descrição opcional) e grid responsivo: "Organização" (projeto/
+tipo/status), "Direcionamento" (grupo de pessoas via `MultiSelectBadges`
+e meta do Plano de Trabalho), "Equipe responsável" (Gestor/Educador, #5
+acima), "Planejamento" (datas), "Descrição e plano pedagógico" (textarea
+e rich text). `StandardDetailMetadataSide` da Atividade ganhou
+`tabOrder={["tags","notes","attachments","comments","activity","history","context"]}`
+— mesma ordem conceitual do People (tags/notas/anexos primeiro), mantendo
+Comentários (decisão própria registrada no plano: é feature em uso, não
+metadado estático como tags/notas, não faz sentido esconder). **Evidência:**
+frontend `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint` nos 2
+arquivos tocados (`action-create-form-section.tsx` +
+`actions-detail-layout-contract.tsx`) → 4 problemas vs. 3 na baseline
+(`git show HEAD:<arquivo>`), net +1 — o novo efeito de carregamento do
+`ActivityRolePicker` (mesma categoria `react-hooks/set-state-in-effect`
+já tolerada 3x nestes mesmos arquivos antes desta sessão, nenhuma
+categoria nova). Testado com navegador real (Postgres real, atividade
+"Encontro do segmento C2M"): Título em destaque no topo, seções visíveis
+na ordem acima, "Plano pedagógico" renderiza o editor rich text vazio
+(sem valor no seed, como esperado), zero erro de console/página.
+
+**#7/#8.2 — Motor genérico de abas estendido (`mainTab`) + Progresso e
+Relatório unificados.** `DetailLayoutConfig` ganhou `mainTab?: boolean |
+{key,label}`; quando ligado, o `main` (formulário) deixa de ficar sempre
+visível acima das `tabTemplates` e vira a primeira aba entre elas — mesmo
+efeito visual do shell próprio do People (`Detalhes` como 1ª aba), sem
+duplicar esse shell pela 3ª vez (`DetailShellEngine.tsx`: novo memo
+`resolvedMainTab`, `tabsSlot`/`composedMainSlot` ajustados pra decidir
+entre os 2 modos; mudança puramente aditiva — nenhum outro módulo seta
+`mainTab`, então nenhum outro consumidor do motor é afetado). Atividade
+ganhou `mainTab: true` com label "Detalhes". Abas "Progresso" (só
+`completionPercent`) e "Relatório" (relatório de 1 Encontro selecionado)
+unificadas numa aba só, "Progresso e Relatório" (mesmo componente, só
+renderizado na mesma `tabTemplates` entry). **Evidência:** `tsc --noEmit`
+→ 0 erros; `npm run build` → ok; `eslint` em `DetailShellEngine.tsx`/
+`registry/types.ts` → 0 problemas. Testado com navegador real: abas da
+Atividade na ordem exata esperada — `["Detalhes","Participantes",
+"Encontros","Qualidade","Equipe","Progresso e Relatório"]` (capturado via
+Playwright, `getByRole('tab').allTextContents()`), "Detalhes" já vem
+selecionada por padrão, zero erro de console/página. **Observação:** o
+motor genérico não foi exercitado só por esta mudança — a sessão também
+confirmou (mesmo teste de navegador, módulo People) que as abas de People
+continuam intactas: `["Detalhes","Participantes","Encontros","Qualidade",
+"Equipe","Progresso e Relatório"]` é da Atividade; People tem seu próprio
+shell (`PeopleDetailMain`) e não seta `mainTab`, então não foi tocado por
+esta mudança — confirmado também por `tsc`/`build` completos do frontend
+sem erro.
+
+**#9 (parte A) — Presença inline na aba "Presença" do diálogo de
+Encontro.** Decisão do usuário: dentro do diálogo de Encontro, uma aba
+"Presença" com 1 linha por participante — presença, justificativa (só
+relevante se faltou), observação e avaliação (nota de participação) —
+tudo editável junto, salvo com 1 clique. Reaproveitados os 2 endpoints
+que já existiam desde antes desta sessão (`GET`/`PUT .../attendances`,
+usados até agora só pelas antigas abas "Participantes"/"Qualidade" da
+Atividade) — nenhuma mudança de backend. Frontend: `EditOccurrenceDialog`
+reestruturado com `Tabs` ("Detalhes"/"Presença"), erro + botões de ação
+movidos pro `footer` fixo do `SectionDialog` (mesma convenção já
+documentada no componente, usada por outros diálogos desta sessão).
+Novo componente `MeetingAttendanceInlineTable`: carrega via
+`listMeetingAttendances`, mantém um rascunho por `enrollmentId`
+(`Record<string, AttendanceDraftRow>`) e só envia ao `upsertMeetingAttendances`
+as linhas realmente alteradas (indicador visual de "não salvo" por
+linha). **Evidência:** `tsc --noEmit` → 0 erros (backend e frontend);
+`npm run build` (frontend) → ok; `eslint` no arquivo tocado → 4
+problemas, mesma categoria (`react-hooks/set-state-in-effect`) já
+presente 3x no arquivo antes desta mudança (confirmado rodando eslint na
+versão do `HEAD` antes desta sessão) — nenhuma categoria nova; o único
+aviso novo (`ATTENDANCE_STATUS_LABELS` importado sem uso) foi removido.
+**Testado de ponta a ponta contra Postgres real + navegador real:**
+login → Projeto Musica Manha → aba Atividades → 1ª atividade → aba
+Encontros → 1º encontro → aba "Presença" → tabela mostrou o registro real
+do seed (Renata Vieira, Presente, nota 5, observação do seed) → editada a
+observação → "Salvar presença" → toast "Presença salva — 1 registro(s)
+atualizado(s)" → valor persistiu após reload. **Dado de teste revertido
+ao original do seed ao final** (mesmo cuidado do incidente de poluição de
+dados registrado abaixo: a observação foi restaurada para
+`"Participacao ativa no encontro do segmento."`, texto exato de
+`prisma/seed.ts:1200`, confirmado via novo load mostrando o valor restaurado).
+
+**#9 (parte B) — resumo agregado na aba "Participantes" da Atividade.**
+A aba deixou de ser a tabela editável de presença por Encontro (essa
+edição já vive na aba "Presença" do diálogo, parte A acima) e virou um
+resumo só leitura, somando todos os Encontros da Atividade: frequência
+(%), média de avaliação e contagem de ocorrências (placeholder fixo em 0
+— só existe de verdade quando a Fase 5/Ocorrência for implementada), com
+busca por nome/grupo e filtro de período (De/Até). **Backend:** novo
+endpoint `GET /projects/:projectId/actions/:actionId/attendances-summary`
+(`ActionsController` → `ActionsService.listProjectActionAttendanceSummary`,
+DTO `ListProjectActionAttendanceSummaryQueryDto` com `q`/`from`/`to`/
+`page`/`limit`). Escopo de participantes elegíveis = mesma regra já usada
+pelo resto do módulo (`action.peopleGroupIds`/`targetEnrollmentId`, sem
+grupo → todo mundo do projeto). Para cada participante: busca todos os
+`Meeting` da Atividade dentro do período (exclui `CANCELED`), cruza com
+`PeopleGroupParticipation` pra saber se a pessoa pertencia ao(s) grupo(s)
+daquele Encontro especificamente (um Encontro sem grupo próprio conta pra
+todo mundo), soma presenças/notas só dos Encontros em que a pessoa
+contava como elegível. Tudo em memória (2-3 queries, sem agregação SQL) —
+decisão deliberada dado o tamanho de dado esperado (uma Atividade não
+passa de dezenas de participantes/Encontros); documentado aqui para não
+ser confundido com descuido caso o volume cresça. **Frontend:** nova
+função `listActionAttendanceSummary` + tipos `ActionAttendanceSummaryItem`/
+`ActionAttendanceSummaryResponse`; aba "Participantes" reescrita em
+`actions-detail-layout-contract.tsx` (`buildAttendanceSummaryColumns`/
+`filterAttendanceSummaryRows` novos, variant `informational` em vez de
+`operational` — sem seleção/ações em massa/botão salvar, é só leitura) +
+2 `<Input type="date">` De/Até no `content` do tab. **Limpeza de código
+morto no caminho** (TerceiroGestor já tem registrado em memória: não
+deixar código sinalizado como "não usa mais", remover de verdade):
+confirmado por grep em todo o frontend que `attendanceGroupId`/
+`attendanceStatusFilter`/`attendanceDrafts`/`attendanceSaving`/
+`attendanceNotesDialog`/`participantRows`/`getAttendanceEffective`/
+`setAttendanceRowDraft`/`applyAttendanceStatusToRows`/`saveAttendanceDrafts`/
+`applyAttendanceNotesDialog` (e seus `on*Change` correspondentes) só eram
+consumidos pela extinta aba editável — removidos do tipo
+`ActionsDetailLayoutContext`, do client page de edição e do stub do client
+page de criação. **Confirmado que NÃO eram dead code os irmãos usados por
+`project-action-attendances-card.tsx`** (`buildParticipantsColumns`,
+`countDistinctAttendanceGroups`, `AttendanceNotesDialog`, etc. em
+`action-operational-relations.tsx`) — card de nível de Projeto, consumidor
+totalmente separado; nada ali foi tocado. **Bug real achado e corrigido
+pelo próprio teste de navegador:** a 1ª versão do `loadAttendanceSummary`
+não tinha proteção contra respostas fora de ordem — digitar "De" e depois
+"Até" rapidamente dispara 2 requisições, e se a 1ª (só "De", sem "Até")
+responder depois da 2ª (com os dois), ela sobrescrevia o resultado correto
+com um intermediário errado (reproduzido de verdade: filtrar pra
+janeiro/2026 mostrava "100% / 1 de 1 encontros" em vez de "— / Sem
+encontros no período"). Corrigido com um `requestIdRef` que descarta
+qualquer resposta que não seja mais a última disparada. **Evidência:**
+backend `npx tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` →
+28 suítes/143 testes sem regressão; `eslint` no módulo `actions` inteiro
+→ 161 problemas vs. 141 na baseline pré-sessão (`git show HEAD:<arquivo>`,
+medida com todo o trabalho desta sessão revertido) — net +20, mesmas
+categorias já toleradas (`no-unsafe-*`, estilo `any`-heavy do Prisma já
+pervasivo no arquivo), nenhuma categoria nova. Frontend: `tsc --noEmit` →
+0 erros; `npm run build` → ok; `eslint` nos 3 arquivos de client
+page/contrato tocados → 7 problemas vs. 6 na baseline pré-sessão, net +1
+(o novo efeito de `loadAttendanceSummary`, mesma categoria
+`react-hooks/set-state-in-effect` já presente 5x nesses mesmos arquivos).
+**Testado de ponta a ponta contra Postgres real + navegador real:** aba
+"Participantes" da Atividade "Encontro do segmento C2M" mostrou Renata
+Vieira com "100% / 1/1 encontros" e nota "5.0" (bate com o 1 Encontro e a
+`MeetingAttendance` reais do seed); busca por "Renata" manteve a linha,
+busca por texto inexistente zerou a lista (sem erro de console); filtro
+"De 01/01/2026 Até 31/01/2026" (fora do mês do único Encontro, que é
+março) mudou corretamente pra "— / Sem encontros no período" depois do
+fix do race condition. Conferido que as abas "Qualidade"/"Equipe"/
+"Progresso e Relatório" (que compartilham bastante estado com a antiga
+aba "Participantes" removida) continuam funcionando sem erro de console
+depois de toda a limpeza — "Qualidade" mostrou a mesma Renata Vieira com
+nota 5, campo de observação, filtro de grupo intacto.
+
+**Achado e corrigido durante os testes destes 2 itens:** 2 das 3
+atividades do seed ("Ensaio dos meninos da percussão" e "Acolhimento de
+abertura") ficaram com grupos extras (C2M/C3M) que não são do seed —
+resíduo de testes anteriores desta mesma sessão que, via auto-save do
+formulário (`editing: AUTO_SAVE_EDITING`, grava a cada campo sem precisar
+de botão "Salvar"), gravaram cliques exploratórios de verdade no banco.
+Achado ao comparar o HTML que o navegador mostrou contra o que
+`prisma/seed.ts` realmente insere pra essas 2 atividades. Restaurado via
+API ("Ensaio...", cujo tipo é `PEOPLE_GROUP` — `PATCH` com os
+`peopleGroupIds` corretos funcionou normal) e via escrita direta no banco
+pra "Acolhimento..." (cujo tipo é `PROJECT` — a API corretamente recusa
+`peopleGroupIds` pra esse tipo, então a única forma de restaurar sem
+contornar a regra de negócio foi recriar os 2 registros originais do seed
+com os mesmos ids, do mesmo jeito que `prisma/seed.ts` já faz). Terceira
+atividade do projeto ("Encontro do segmento C2M") e a atividade do outro
+projeto ("Roda de conversa com famílias") conferidas e confirmadas
+intocadas (datas de atualização batendo com o seed original). **Acolhimento
+de abertura ter `ActivityPeopleGroup` apesar do tipo ser `PROJECT`** é uma
+inconsistência que já existia no `prisma/seed.ts` antes desta sessão —
+não é algo que esta sessão criou nem corrigiu (fora de escopo), só
+restaurado ao estado em que já estava.
+
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**
 - **ListView** (tela principal de um módulo — Pessoas, Grupos de Pessoas,

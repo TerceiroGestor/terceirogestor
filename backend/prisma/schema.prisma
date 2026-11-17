@@ -309,6 +309,7 @@ model Tenant {
   actionPeopleGroups                ActivityPeopleGroup[]
   actionOccurrences                 Meeting[]
   actionOccurrenceTeamGroups        ActionOccurrenceTeamGroup[]
+  actionOccurrencePeopleGroups      ActionOccurrencePeopleGroup[]
   projectActionAttendances          MeetingAttendance[]
   projectActionPeopleParticipations ProjectActionPeopleParticipation[]
   projectFundingSources             ProjectFundingSource[]
@@ -1312,12 +1313,12 @@ model PeopleGroup {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  tenant                     Tenant                      @relation(fields: [tenantId], references: [id])
-  participations             PeopleGroupParticipation[]
-  projectPeopleGroups        ProjectPeopleGroup[]
-  actionPeopleGroups         ActivityPeopleGroup[]
-  actionOccurrences          Meeting[]
-  actionOccurrenceTeamGroups ActionOccurrenceTeamGroup[]
+  tenant                       Tenant                        @relation(fields: [tenantId], references: [id])
+  participations               PeopleGroupParticipation[]
+  projectPeopleGroups          ProjectPeopleGroup[]
+  actionPeopleGroups           ActivityPeopleGroup[]
+  actionOccurrenceTeamGroups   ActionOccurrenceTeamGroup[]
+  actionOccurrencePeopleGroups ActionOccurrencePeopleGroup[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1423,25 +1424,26 @@ model ActivityType {
 }
 
 model Activity {
-  id                 String       @id @default(uuid()) @db.Char(36)
-  tenantId           String       @db.Char(36)
-  projectId          String       @db.Char(36)
-  createdByUserId    String?      @db.Char(36)
-  targetEnrollmentId String?      @db.Char(36)
-  actionTypeId       String       @db.Char(36)
-  goalId             String?      @db.Char(36)
-  title              String
-  description        String?      @db.Text
-  tags               String?      @db.Text
-  internalNotes      String?      @db.Text
-  completionPercent  Int?
-  status             ActionStatus @default(PLANNED)
-  plannedStartAt     DateTime?
-  plannedEndAt       DateTime?
-  executedStartAt    DateTime?
-  executedEndAt      DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id                  String       @id @default(uuid()) @db.Char(36)
+  tenantId            String       @db.Char(36)
+  projectId           String       @db.Char(36)
+  createdByUserId     String?      @db.Char(36)
+  targetEnrollmentId  String?      @db.Char(36)
+  actionTypeId        String       @db.Char(36)
+  goalId              String?      @db.Char(36)
+  title               String
+  description         String?      @db.Text
+  pedagogicalPlanHtml String?      @db.Text
+  tags                String?      @db.Text
+  internalNotes       String?      @db.Text
+  completionPercent   Int?
+  status              ActionStatus @default(PLANNED)
+  plannedStartAt      DateTime?
+  plannedEndAt        DateTime?
+  executedStartAt     DateTime?
+  executedEndAt       DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   tenant               Tenant                             @relation(fields: [tenantId], references: [id])
   project              Project                            @relation(fields: [projectId], references: [id])
@@ -1532,7 +1534,6 @@ model Meeting {
   id                String           @id @default(uuid()) @db.Char(36)
   tenantId          String           @db.Char(36)
   actionId          String           @db.Char(36)
-  peopleGroupId     String?          @db.Char(36)
   scheduledDate     DateTime         @db.Date
   startTime         DateTime
   endTime           DateTime?
@@ -1546,11 +1547,11 @@ model Meeting {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  tenant           Tenant                      @relation(fields: [tenantId], references: [id])
-  action           Activity                    @relation(fields: [actionId], references: [id])
-  peopleGroup      PeopleGroup?                @relation(fields: [peopleGroupId], references: [id])
+  tenant           Tenant                        @relation(fields: [tenantId], references: [id])
+  action           Activity                      @relation(fields: [actionId], references: [id])
   attendances      MeetingAttendance[]
   teamPeopleGroups ActionOccurrenceTeamGroup[]
+  peopleGroups     ActionOccurrencePeopleGroup[]
 
   @@index([tenantId, actionId])
   @@index([tenantId, scheduledDate])
@@ -1559,6 +1560,27 @@ model Meeting {
 }
 
 model ActionOccurrenceTeamGroup {
+  id            String   @id @default(uuid()) @db.Char(36)
+  tenantId      String   @db.Char(36)
+  occurrenceId  String   @db.Char(36)
+  peopleGroupId String   @db.Char(36)
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  occurrence  Meeting     @relation(fields: [occurrenceId], references: [id])
+  peopleGroup PeopleGroup @relation(fields: [peopleGroupId], references: [id])
+
+  @@unique([tenantId, occurrenceId, peopleGroupId])
+  @@index([tenantId])
+  @@index([occurrenceId])
+  @@index([peopleGroupId])
+}
+
+/// N:N Encontro<->Grupo (substitui o antigo Meeting.peopleGroupId singular,
+/// Ciclo 2 de ajustes da Fase 4, 2026-11-16): um Encontro pode atender N
+/// grupos de uma vez (evento amplo que junta todas as turmas), mesmo padrao
+/// de ActionOccurrenceTeamGroup, so que para participationKind PARTICIPANT.
+model ActionOccurrencePeopleGroup {
   id            String   @id @default(uuid()) @db.Char(36)
   tenantId      String   @db.Char(36)
   occurrenceId  String   @db.Char(36)

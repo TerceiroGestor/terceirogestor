@@ -466,6 +466,59 @@ dado de seed foi alterado (projeto "Projeto Musica Manha" confirmado com
 
 ---
 
+### Fase 4 — Ciclo 2 de ajustes (teste manual real, 2026-11-16) `[x]` concluído em 2026-11-17 — falta só o teste de aceite final do usuário
+
+Depois do Grupo A/B (ver acima), o usuário testou o formulário de
+Atividade e o módulo de Encontros de verdade e trouxe 10 pontos novos.
+Investigação (sem código ainda) feita nesta sessão achou, pra cada um,
+exatamente o que já existe hoje — vários pontos são retrabalho de UX em
+cima de funcionalidade que **já existe mas está mal nomeada/organizada**,
+não funcionalidade faltando do zero. Tabela de rastreio:
+
+| # | Pedido do usuário | Já existe? | Ação proposta |
+|---|---|---|---|
+| 1 | Encontro N:N Grupo (evento que atende vários grupos de uma vez) | Não — `Meeting.peopleGroupId` é FK única nullable | Nova tabela de junção `MeetingPeopleGroup`, migration única (sem dado de produção) |
+| 2 | Checkbox de seleção sempre visível na lista de Encontros (sem botão "Selecionar") | Parcial — ficou atrás de um toggle nesta mesma sessão | Tirar o toggle, `enableRowSelection` sempre ligado |
+| 3 | Multiselect de grupos na Atividade "sujo visualmente" → trocar por combobox+badge | A funcionalidade (`peopleGroupIds[]`) já existe (ciclo 1); só o componente visual (lista de checkbox) precisa trocar | Componente novo reutilizável `MultiSelectBadges` |
+| 4 | Formulário da Atividade mal organizado (Título não é o campo-âncora, falta hierarquia) | — | Reorganizar em seções com grid, Título em destaque, mesmo princípio do People |
+| 5 | Campos "Participante"/"Direcionamento" sem propósito claro; faltam Descrição ampliada, Plano pedagógico, Gestor, Educador/Executor | `targetEnrollmentId`/`ENROLLMENT` existe no schema mas **zero uso no seed**; `description` já existe; "Plano pedagógico" não existe; Gestor/Educador não existem como campo — mas `ProjectActionPeopleParticipation` (aba "Equipe" de hoje) já tem um catálogo de papéis (`PARTICIPANTE/FACILITADOR/APOIO/VOLUNTARIO/RESPONSAVEL_TECNICO/CONVIDADO`) | **Decidido:** reaproveitar os papéis existentes — Gestor = atalho pra pessoa com papel `RESPONSAVEL_TECNICO`, Educador = atalho pra pessoa com papel `FACILITADOR`, os dois lendo/escrevendo em `ProjectActionPeopleParticipation` (sem migration). Remover campos Participante/Direcionamento do formulário principal (o `ENROLLMENT` como `ActionTarget` fica só de leitura se algum tipo antigo usar). Adicionar campo novo `pedagogicalPlan` (texto longo) na Atividade |
+| 6 | Metadata da Atividade igual ao People (tags, notas, anexos, auditoria) | Já é o mesmo componente (`StandardDetailMetadataSide`) nos dois módulos — People só passa `tabOrder` restrito a 4 blocos; Atividade usa o conjunto maior (+ comentários, histórico, contexto) | **Decisão própria (cosmética, sinalizar se quiser mudar):** manter Comentários (feature já em uso, não é metadado "estático" como tags/notas) — só alinhar a ordem (`tags`, `notes`, `attachments`, `comments`, `activity`), igual ao espírito de People, sem remover nenhuma aba |
+| 7 | RelationView em cima, aba "Detalhes" inicial, igual People | People **não** usa o motor genérico de abas (`DetailLayoutConfig`/`tabTemplates`) que a Atividade usa hoje — tem shell próprio (`PeopleDetailMain`/`Tabs`) | **Decidido:** estender o motor genérico (`DetailLayoutConfig`/`DetailShellEngine`) com um modo novo onde o `main` (formulário) vira a primeira aba ("Detalhes") entre as `tabTemplates`, em vez de ficar sempre visível acima delas. Reutilizável por qualquer módulo depois — não duplica o shell próprio do People pela 3ª vez |
+| 8.1/9 | "Participantes" sem propósito claro + falta presença/avaliação no Encontro | Presença (aba "Participantes") e Qualidade (aba "Qualidade") já existem, mas separadas e no nível da Atividade (com filtro de Encontro) | **Decidido (refinado pelo usuário):** (a) dentro do **diálogo do Encontro**, nova aba "Presença" com tabela inline por participante — nome, presença, justificativa (se falta), observação, avaliação (nota) — uma única tela, não duas abas separadas; (b) a aba "Participantes" da Atividade deixa de ser editável e vira um **resumo agregado por pessoa**, somando todos os Encontros: frequência (%), média de avaliação, contagem de ocorrências (quando a Fase 5 existir — por ora fica 0/—), com busca e filtro por período (data de/até) |
+| 8.2 | Juntar "Progresso"+"Relatório"; repensar "Equipe" | Progresso = só `completionPercent`; Relatório = relatório de 1 Encontro selecionado | **Decidido:** juntar Progresso+Relatório numa aba só. "Equipe" continua existindo pro elenco maior (apoio/voluntários/convidados) — só Gestor/Educador sobem pra campo rápido no formulário principal (ver #5) |
+| 10 | Ação "Ocorrência" (Fase 5) num menu de ações no topo | **Já existe o mecanismo genérico** — `DetailLayoutConfig.header.actions` (`DetailHeaderActionConfig[]`), é exatamente o que o People já usa pros botões "Ver ficha completa" e "Árvore genealógica" no topo do detalhe da pessoa (`people-detail-layout-contract.tsx:691-715`) | **Decidido:** reaproveitar esse mesmo mecanismo (zero infra nova) — adicionar 1 entrada em `header.actions` da Atividade, "Registrar ocorrência", com `disabled: () => true` e tooltip "Em breve — Fase 5" (placeholder; o modelo de dados da Ocorrência em si continua sendo trabalho à parte, ainda não desenhado) |
+
+**Ordem de execução** (tudo já decidido, pode começar):
+
+1. `[x]` `MultiSelectBadges` (componente novo, reutilizável) + aplicar no
+   seletor de grupos da Atividade (#3). **Feito em 2026-11-16.**
+2. `[x]` `Meeting` N:N `PeopleGroup` (migration nova + DTOs + serviço +
+   agregação de presença, mesmo padrão já aplicado em Atividade no ciclo 1) —
+   Encontro passa a usar `MultiSelectBadges` também (#1). **Feito em
+   2026-11-16.**
+3. `[x]` Checkbox sempre visível na lista de Encontros, sem o toggle
+   "Selecionar" (#2). **Feito em 2026-11-17.**
+4. `[x]` Ação "Registrar ocorrência" (placeholder) no header da Atividade,
+   reaproveitando `header.actions` (#10). **Feito em 2026-11-17.**
+5. `[x]` Gestor/Educador como atalho de `ProjectActionPeopleParticipation`, Plano
+   pedagógico, remoção de Participante/Direcionamento (#5). **Feito em
+   2026-11-17.**
+6. `[x]` Reorganizar o formulário da Atividade em seções com grid, Título em destaque
+   (#4) — feito depois do #5 pra não reorganizar duas vezes os mesmos campos.
+   **Feito em 2026-11-17.**
+7. `[x]` Juntar Progresso+Relatório (#8.2) e reordenar a metadata (#6). **Feito em
+   2026-11-17.**
+8. `[x]` Estender o motor genérico de abas (#7) e migrar a Atividade pra ele (Detalhes
+   como 1ª aba). **Feito em 2026-11-17.**
+9. `[x]` Presença inline no diálogo do Encontro + resumo agregado na aba Participantes,
+   com busca e filtro de período (#8.1/#9) — por último, é o item mais trabalhoso
+   e depende do layout novo (#7) já estar no lugar. **Feito em 2026-11-17**
+   (parte A — presença inline no diálogo — e parte B — resumo agregado na
+   aba Participantes, com limpeza do código morto da antiga aba editável —
+   ambas concluídas e testadas).
+
+---
+
 ### **Fase 5 — Ocorrência** `[ não iniciada]`
 
 **Objetivo:** permitir registro rápido de fatos durante a atividade, com desfecho decidido depois.

@@ -17,30 +17,63 @@ import {
 import { RichText } from "@/components/ui/richtext/RichText";
 import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/confirm/use-confirm";
 import { resolveMediaUrl } from "@/lib/api";
 import { uploadActionPhoto } from "@/features/uploads/api";
 import {
   bulkCreateMeetings,
   deleteMeeting,
+  listMeetingAttendances,
   listMeetings,
   listActivityPeopleGroups,
   previewBulkMeetings,
   updateMeeting,
   updateMeetingBatch,
+  upsertMeetingAttendances,
   type ApiMeeting,
   type ApiActivityPeopleGroup,
+  type AttendanceStatus,
+  type MeetingAttendancesListItem,
   type OccurrenceStatus,
   type WeekDay,
 } from "@/modules/actions/api";
 import {
+  ATTENDANCE_STATUS_OPTIONS,
   OCCURRENCE_STATUS_LABELS,
   OCCURRENCE_STATUS_OPTIONS,
   WEEK_DAY_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
+import { SearchBar } from "@/web-client/control-panel/SearchBar";
+import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
 import { CalendarView } from "@/web-client/views/CalendarView";
 import { ListView } from "@/web-client/views/ListView";
+
+async function runInBatches<T>(
+  items: T[],
+  batchSize: number,
+  run: (item: T) => Promise<void>,
+) {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.allSettled(batch.map((item) => run(item)));
+  }
+}
+
+const ALL_MONTHS_VALUE = "__all__";
+
+function toMonthValue(scheduledDate: string) {
+  return scheduledDate.slice(0, 7); // "YYYY-MM"
+}
+
+function formatMonthLabel(monthValue: string) {
+  const [year, month] = monthValue.split("-");
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+  const label = date.toLocaleDateString("pt-BR", { timeZone: "UTC", month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 function TeamPeopleGroupPicker({
   groups,
@@ -88,8 +121,6 @@ function TeamPeopleGroupPicker({
     </div>
   );
 }
-
-const NO_GROUP_VALUE = "__none__";
 
 function resolveErrorMessage(err: unknown, fallback: string) {
   return err && typeof err === "object" && "message" in err
@@ -164,8 +195,11 @@ function buildOccurrenceColumns(params: {
     {
       id: "peopleGroup",
       header: "Grupo",
-      accessorFn: (row) => row.peopleGroup?.name ?? "",
-      cell: ({ row }) => row.original.peopleGroup?.name ?? "—",
+      accessorFn: (row) => row.peopleGroups.map((link) => link.peopleGroup.name).join(", "),
+      cell: ({ row }) =>
+        row.original.peopleGroups.length
+          ? row.original.peopleGroups.map((link) => link.peopleGroup.name).join(", ")
+          : "—",
     },
     {
       id: "status",
@@ -179,7 +213,9 @@ function buildOccurrenceColumns(params: {
       accessorFn: (row) => row.notes ?? "",
       cell: ({ row }) =>
         row.original.notes?.trim() ? (
-          <span className="line-clamp-1">{row.original.notes}</span>
+          <span className="block max-w-[280px] whitespace-normal break-words py-1">
+            {row.original.notes}
+          </span>
         ) : (
           "—"
         ),
@@ -227,7 +263,7 @@ function BulkScheduleOccurrencesDialog({
 }: BulkScheduleDialogProps) {
   const { toast } = useToast();
   const [step, setStep] = React.useState<"form" | "preview">("form");
-  const [peopleGroupId, setPeopleGroupId] = React.useState(NO_GROUP_VALUE);
+  const [peopleGroupIds, setPeopleGroupIds] = React.useState<string[]>([]);
   const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
@@ -244,7 +280,7 @@ function BulkScheduleOccurrencesDialog({
   React.useEffect(() => {
     if (!open) return;
     setStep("form");
-    setPeopleGroupId(NO_GROUP_VALUE);
+    setPeopleGroupIds([]);
     setTeamPeopleGroupIds([]);
     setStartDate("");
     setEndDate("");
@@ -306,7 +342,7 @@ function BulkScheduleOccurrencesDialog({
     setError(null);
     try {
       const result = await bulkCreateMeetings(token, projectId, actionId, {
-        peopleGroupId: peopleGroupId === NO_GROUP_VALUE ? null : peopleGroupId,
+        peopleGroupIds: peopleGroupIds.length ? peopleGroupIds : undefined,
         teamPeopleGroupIds: teamPeopleGroupIds.length ? teamPeopleGroupIds : undefined,
         startDate,
         endDate,
@@ -331,6 +367,12 @@ function BulkScheduleOccurrencesDialog({
 
   const includedCount = previewDates.length - excludedDates.size;
 
+  const errorBanner = error ? (
+    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      {error}
+    </div>
+  ) : null;
+
   return (
     <SectionDialog
       open={open}
@@ -341,43 +383,67 @@ function BulkScheduleOccurrencesDialog({
           ? "Gera os encontros de uma vez, a partir de um padrão semanal."
           : "Revise as datas geradas e desmarque feriados ou pontos facultativos antes de confirmar."
       }
-      contentClassName="max-w-[560px]"
+      contentClassName="max-w-[640px]"
+      footer={
+        step === "form" ? (
+          <div className="flex flex-col gap-3">
+            {errorBanner}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" disabled={loadingPreview} onClick={() => void handlePreview()}>
+                {loadingPreview ? "Calculando..." : "Ver datas geradas"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {errorBanner}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setStep("form")}>
+                Voltar
+              </Button>
+              <Button
+                type="button"
+                disabled={saving || includedCount === 0}
+                onClick={() => void handleConfirm()}
+              >
+                {saving ? "Agendando..." : `Confirmar e agendar (${includedCount})`}
+              </Button>
+            </div>
+          </div>
+        )
+      }
     >
       {step === "form" ? (
         <div className="flex flex-col gap-4">
-          {error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label>Grupos</Label>
+              <MultiSelectBadges
+                options={groups.map((link) => ({
+                  value: link.peopleGroupId,
+                  label: link.peopleGroup.name,
+                }))}
+                selectedValues={peopleGroupIds}
+                onChange={setPeopleGroupIds}
+                addLabel="Adicionar grupo"
+                searchPlaceholder="Pesquisar grupo..."
+                noOptionsLabel="Nenhum grupo vinculado a esta atividade."
+                emptyLabel="Sem grupo específico."
+              />
             </div>
-          ) : null}
 
-          <div className="flex flex-col gap-2">
-            <Label>Grupo</Label>
-            <Select value={peopleGroupId} onValueChange={setPeopleGroupId}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_GROUP_VALUE}>Sem grupo específico</SelectItem>
-                {groups.map((link) => (
-                  <SelectItem key={link.id} value={link.peopleGroupId}>
-                    {link.peopleGroup.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex flex-col gap-2">
+              <Label>Educadores/Equipe</Label>
+              <TeamPeopleGroupPicker
+                groups={teamGroups}
+                selectedIds={teamPeopleGroupIds}
+                onChange={setTeamPeopleGroupIds}
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <Label>Educadores/Equipe</Label>
-            <TeamPeopleGroupPicker
-              groups={teamGroups}
-              selectedIds={teamPeopleGroupIds}
-              onChange={setTeamPeopleGroupIds}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label>De</Label>
               <Input
@@ -392,6 +458,23 @@ function BulkScheduleOccurrencesDialog({
                 type="date"
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>Início</Label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Término (opcional)</Label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
               />
             </div>
           </div>
@@ -413,25 +496,6 @@ function BulkScheduleOccurrencesDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-2">
-              <Label>Início</Label>
-              <Input
-                type="time"
-                value={startTime}
-                onChange={(event) => setStartTime(event.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Término (opcional)</Label>
-              <Input
-                type="time"
-                value={endTime}
-                onChange={(event) => setEndTime(event.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="flex flex-col gap-2">
             <Label>Notas (opcional)</Label>
             <Textarea
@@ -440,24 +504,9 @@ function BulkScheduleOccurrencesDialog({
               onChange={(event) => setNotes(event.target.value)}
             />
           </div>
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" disabled={loadingPreview} onClick={() => void handlePreview()}>
-              {loadingPreview ? "Calculando..." : "Ver datas geradas"}
-            </Button>
-          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
-          ) : null}
-
           <p className="text-sm text-muted-foreground">
             {includedCount} de {previewDates.length} data(s) selecionada(s). Desmarque as
             que não devem gerar encontro (feriados, pontos facultativos etc.).
@@ -479,22 +528,238 @@ function BulkScheduleOccurrencesDialog({
               );
             })}
           </div>
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setStep("form")}>
-              Voltar
-            </Button>
-            <Button
-              type="button"
-              disabled={saving || includedCount === 0}
-              onClick={() => void handleConfirm()}
-            >
-              {saving ? "Agendando..." : `Confirmar e agendar (${includedCount})`}
-            </Button>
-          </div>
         </div>
       )}
     </SectionDialog>
+  );
+}
+
+type AttendanceDraftRow = {
+  status: AttendanceStatus;
+  notes: string;
+  qualityScore: string;
+  qualityNotes: string;
+};
+
+/**
+ * Presença inline por Encontro (Fase 4, Ciclo 2 de ajustes): uma linha por
+ * participante com presença, justificativa (reaproveita MeetingAttendance.notes),
+ * observação (reaproveita qualityNotes) e avaliação (qualityScore) - tudo
+ * editado junto, salvo com 1 clique. Reaproveita os mesmos 2 endpoints que já
+ * existiam pras antigas abas "Participantes"/"Qualidade" da Atividade
+ * (listMeetingAttendances/upsertMeetingAttendances), sem mudança de backend.
+ */
+function MeetingAttendanceInlineTable({
+  token,
+  projectId,
+  actionId,
+  occurrenceId,
+  canUpdate,
+}: {
+  token: string;
+  projectId: string;
+  actionId: string;
+  occurrenceId: string;
+  canUpdate: boolean;
+}) {
+  const { toast } = useToast();
+  const [rows, setRows] = React.useState<MeetingAttendancesListItem[]>([]);
+  const [drafts, setDrafts] = React.useState<Record<string, AttendanceDraftRow>>({});
+  const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await listMeetingAttendances(token, projectId, actionId, occurrenceId, {
+        limit: 200,
+      });
+      setRows(response.data);
+      setDrafts({});
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, projectId, actionId, occurrenceId]);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  const getEffective = React.useCallback(
+    (row: MeetingAttendancesListItem): AttendanceDraftRow =>
+      drafts[row.enrollment.id] ?? {
+        status: row.attendance?.status ?? "PRESENT",
+        notes: row.attendance?.notes ?? "",
+        qualityScore:
+          row.attendance?.qualityScore != null ? String(row.attendance.qualityScore) : "",
+        qualityNotes: row.attendance?.qualityNotes ?? "",
+      },
+    [drafts],
+  );
+
+  const updateDraft = (row: MeetingAttendancesListItem, patch: Partial<AttendanceDraftRow>) => {
+    setDrafts((previous) => ({
+      ...previous,
+      [row.enrollment.id]: { ...getEffective(row), ...patch },
+    }));
+  };
+
+  const handleSave = async () => {
+    const entries = Object.entries(drafts);
+    if (!entries.length) return;
+    setSaving(true);
+    try {
+      const items = entries.map(([enrollmentId, draft]) => ({
+        enrollmentId,
+        status: draft.status,
+        notes: draft.notes.trim() ? draft.notes.trim() : null,
+        qualityScore: draft.qualityScore.trim() ? Number(draft.qualityScore) : null,
+        qualityNotes: draft.qualityNotes.trim() ? draft.qualityNotes.trim() : null,
+      }));
+      const result = await upsertMeetingAttendances(token, projectId, actionId, occurrenceId, items);
+      toast({
+        title: "Presença salva",
+        description: `${result.created + result.updated} registro(s) atualizado(s).`,
+      });
+      await load();
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: resolveErrorMessage(err, "Falha ao salvar presença."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <p className="text-xs text-muted-foreground">Carregando...</p>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhum participante elegível pra este Encontro (confira os grupos vinculados).
+      </p>
+    );
+  }
+
+  const changedCount = Object.keys(drafts).length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="max-h-[360px] overflow-y-auto rounded-md border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-background">
+            <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+              <th className="px-3 py-2 font-medium">Participante</th>
+              <th className="px-3 py-2 font-medium">Presença</th>
+              <th className="px-3 py-2 font-medium">Justificativa</th>
+              <th className="px-3 py-2 font-medium">Observação</th>
+              <th className="px-3 py-2 font-medium">Avaliação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const effective = getEffective(row);
+              const changed = Boolean(drafts[row.enrollment.id]);
+              return (
+                <tr key={row.enrollment.id} className="border-b border-border/40 last:border-0">
+                  <td className="px-3 py-2 align-top">
+                    <span className="font-medium text-foreground">
+                      {row.enrollment.person.fullName}
+                    </span>
+                    {changed ? (
+                      <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" />
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <Select
+                      value={effective.status}
+                      onValueChange={(next) =>
+                        updateDraft(row, { status: next as AttendanceStatus })
+                      }
+                      disabled={!canUpdate || saving}
+                    >
+                      <SelectTrigger className="h-8 w-[130px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ATTENDANCE_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <Input
+                      value={effective.notes}
+                      onChange={(event) => updateDraft(row, { notes: event.target.value })}
+                      disabled={!canUpdate || saving}
+                      placeholder={
+                        effective.status === "PRESENT" ? "—" : "Motivo da falta/justificativa"
+                      }
+                      className="h-8 text-xs"
+                    />
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <Input
+                      value={effective.qualityNotes}
+                      onChange={(event) => updateDraft(row, { qualityNotes: event.target.value })}
+                      disabled={!canUpdate || saving}
+                      placeholder="Observação"
+                      className="h-8 text-xs"
+                    />
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <Select
+                      value={effective.qualityScore || "__none__"}
+                      onValueChange={(next) =>
+                        updateDraft(row, { qualityScore: next === "__none__" ? "" : next })
+                      }
+                      disabled={!canUpdate || saving}
+                    >
+                      <SelectTrigger className="h-8 w-[70px] text-xs">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <SelectItem key={score} value={String(score)}>
+                            {score}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {canUpdate ? (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {changedCount > 0 ? `${changedCount} alteração(ões) não salva(s)` : "Tudo salvo."}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || changedCount === 0}
+            onClick={() => void handleSave()}
+          >
+            {saving ? "Salvando..." : "Salvar presença"}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -522,10 +787,11 @@ function EditOccurrenceDialog({
   onSaved,
 }: EditOccurrenceDialogProps) {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [scheduledDate, setScheduledDate] = React.useState("");
   const [startTime, setStartTime] = React.useState("");
   const [endTime, setEndTime] = React.useState("");
-  const [peopleGroupId, setPeopleGroupId] = React.useState(NO_GROUP_VALUE);
+  const [peopleGroupIds, setPeopleGroupIds] = React.useState<string[]>([]);
   const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
   const [status, setStatus] = React.useState<OccurrenceStatus>("SCHEDULED");
   const [notes, setNotes] = React.useState("");
@@ -543,7 +809,7 @@ function EditOccurrenceDialog({
     setScheduledDate(toDateInputValue(occurrence.scheduledDate));
     setStartTime(toTimeInputValue(occurrence.startTime));
     setEndTime(occurrence.endTime ? toTimeInputValue(occurrence.endTime) : "");
-    setPeopleGroupId(occurrence.peopleGroupId ?? NO_GROUP_VALUE);
+    setPeopleGroupIds(occurrence.peopleGroups.map((link) => link.peopleGroupId));
     setTeamPeopleGroupIds(occurrence.teamPeopleGroups.map((link) => link.peopleGroupId));
     setStatus(occurrence.status);
     setNotes(occurrence.notes ?? "");
@@ -564,7 +830,7 @@ function EditOccurrenceDialog({
         scheduledDate,
         startTime,
         endTime: endTime || null,
-        peopleGroupId: peopleGroupId === NO_GROUP_VALUE ? null : peopleGroupId,
+        peopleGroupIds,
         teamPeopleGroupIds,
         status,
         notes: notes.trim() ? notes.trim() : null,
@@ -626,13 +892,14 @@ function EditOccurrenceDialog({
 
   const handleCancelSeries = async () => {
     if (!occurrence.recurrenceBatchId) return;
-    if (
-      !window.confirm(
+    const confirmed = await confirm({
+      title: "Cancelar série",
+      description:
         "Cancelar este e todos os próximos encontros desta série? Os encontros já passados não são afetados.",
-      )
-    ) {
-      return;
-    }
+      confirmLabel: "Cancelar série",
+      confirmVariant: "destructive",
+    });
+    if (!confirmed) return;
     setSaving(true);
     setError(null);
     try {
@@ -661,15 +928,49 @@ function EditOccurrenceDialog({
       open={Boolean(occurrence)}
       onOpenChange={onOpenChange}
       title="Encontro"
-      contentClassName="max-w-[720px] max-h-[85vh] overflow-y-auto"
-    >
-      <div className="flex flex-col gap-4">
-        {error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
+      contentClassName="max-w-[720px]"
+      footer={
+        <div className="flex flex-col gap-2">
+          {error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            {canUpdate && occurrence.recurrenceBatchId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={saving}
+                onClick={() => void handleCancelSeries()}
+              >
+                Cancelar esta e as próximas da série
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
+              {canUpdate ? (
+                <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+                  {saving ? "Salvando..." : "Salvar"}
+                </Button>
+              ) : null}
+            </div>
           </div>
-        ) : null}
+        </div>
+      }
+    >
+      <Tabs defaultValue="detalhes" className="flex flex-col gap-4">
+        <TabsList>
+          <TabsTrigger value="detalhes">Detalhes</TabsTrigger>
+          <TabsTrigger value="presenca">Presença</TabsTrigger>
+        </TabsList>
 
+        <TabsContent value="detalhes" className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-2">
             <Label>Data</Label>
@@ -723,24 +1024,20 @@ function EditOccurrenceDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label>Grupo</Label>
-          <Select
-            value={peopleGroupId}
-            onValueChange={setPeopleGroupId}
+          <Label>Grupos</Label>
+          <MultiSelectBadges
+            options={groups.map((link) => ({
+              value: link.peopleGroupId,
+              label: link.peopleGroup.name,
+            }))}
+            selectedValues={peopleGroupIds}
+            onChange={setPeopleGroupIds}
             disabled={!canUpdate}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_GROUP_VALUE}>Sem grupo específico</SelectItem>
-              {groups.map((link) => (
-                <SelectItem key={link.id} value={link.peopleGroupId}>
-                  {link.peopleGroup.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            addLabel="Adicionar grupo"
+            searchPlaceholder="Pesquisar grupo..."
+            noOptionsLabel="Nenhum grupo vinculado a esta atividade."
+            emptyLabel="Sem grupo específico — vale para qualquer participante da atividade."
+          />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -836,33 +1133,18 @@ function EditOccurrenceDialog({
             </div>
           )}
         </div>
+        </TabsContent>
 
-        <div className="flex items-center justify-between gap-2">
-          {canUpdate && occurrence.recurrenceBatchId ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={saving}
-              onClick={() => void handleCancelSeries()}
-            >
-              Cancelar esta e as próximas da série
-            </Button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Fechar
-            </Button>
-            {canUpdate ? (
-              <Button type="button" disabled={saving} onClick={() => void handleSave()}>
-                {saving ? "Salvando..." : "Salvar"}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
+        <TabsContent value="presenca" className="flex flex-col gap-4">
+          <MeetingAttendanceInlineTable
+            token={token}
+            projectId={projectId}
+            actionId={actionId}
+            occurrenceId={occurrence.id}
+            canUpdate={canUpdate}
+          />
+        </TabsContent>
+      </Tabs>
     </SectionDialog>
   );
 }
@@ -881,6 +1163,7 @@ export function ActionOccurrencesSection({
   readOnly,
 }: ActionOccurrencesSectionProps) {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [occurrences, setOccurrences] = React.useState<ApiMeeting[]>([]);
   const [groups, setGroups] = React.useState<ApiActivityPeopleGroup[]>([]);
   const [teamGroups, setTeamGroups] = React.useState<ApiActivityPeopleGroup[]>([]);
@@ -889,6 +1172,28 @@ export function ActionOccurrencesSection({
   const [view, setView] = React.useState<"list" | "calendar">("list");
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<ApiMeeting | null>(null);
+  const [searchText, setSearchText] = React.useState("");
+  const [monthFilter, setMonthFilter] = React.useState(ALL_MONTHS_VALUE);
+  const [selectedRows, setSelectedRows] = React.useState<ApiMeeting[]>([]);
+
+  // ListView recalcula a selecao (novo array, mesmo conteudo) a cada
+  // render e notifica via efeito - sem esse diff, setSelectedRows(novaRef)
+  // forca um re-render do pai a cada notificacao, que forca o ListView a
+  // renderizar de novo, que notifica de novo: loop infinito ("Maximum
+  // update depth exceeded"). O updater funcional devolve a mesma
+  // referencia quando o conteudo nao mudou, e o React pula o re-render.
+  const handleSelectionChange = React.useCallback((rows: ApiMeeting[]) => {
+    setSelectedRows((previous) => {
+      if (
+        previous.length === rows.length &&
+        previous.every((row, index) => row.id === rows[index]?.id)
+      ) {
+        return previous;
+      }
+      return rows;
+    });
+  }, []);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
 
   const loadOccurrences = React.useCallback(async () => {
     setLoading(true);
@@ -935,7 +1240,13 @@ export function ActionOccurrencesSection({
 
   const handleDelete = React.useCallback(
     async (occurrence: ApiMeeting) => {
-      if (!window.confirm("Excluir este encontro?")) return;
+      const confirmed = await confirm({
+        title: "Excluir encontro",
+        description: "Excluir este encontro? Essa ação não pode ser desfeita.",
+        confirmLabel: "Excluir",
+        confirmVariant: "destructive",
+      });
+      if (!confirmed) return;
       try {
         await deleteMeeting(token, projectId, actionId, occurrence.id);
         toast({ title: "Encontro excluído" });
@@ -948,8 +1259,66 @@ export function ActionOccurrencesSection({
         });
       }
     },
-    [token, projectId, actionId, toast, loadOccurrences],
+    [confirm, token, projectId, actionId, toast, loadOccurrences],
   );
+
+  const availableMonths = React.useMemo(() => {
+    const months = new Set(occurrences.map((item) => toMonthValue(item.scheduledDate)));
+    return Array.from(months).sort().reverse();
+  }, [occurrences]);
+
+  const filteredOccurrences = React.useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    return occurrences.filter((item) => {
+      if (monthFilter !== ALL_MONTHS_VALUE && toMonthValue(item.scheduledDate) !== monthFilter) {
+        return false;
+      }
+      if (!query) return true;
+      const haystack = [
+        formatDateOnly(item.scheduledDate),
+        OCCURRENCE_STATUS_LABELS[item.status],
+        item.peopleGroups.map((link) => link.peopleGroup.name).join(" "),
+        item.notes ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [occurrences, searchText, monthFilter]);
+
+  const handleBulkDelete = React.useCallback(async () => {
+    if (readOnly || selectedRows.length === 0) return;
+    const confirmed = await confirm({
+      title: "Excluir encontros selecionados",
+      description: `Excluir ${selectedRows.length} encontro(s) selecionado(s)? Essa ação não pode ser desfeita.`,
+      confirmLabel: "Excluir",
+      confirmVariant: "destructive",
+    });
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    let removed = 0;
+    let failed = 0;
+    try {
+      await runInBatches(selectedRows, 6, async (item) => {
+        try {
+          await deleteMeeting(token, projectId, actionId, item.id);
+          removed += 1;
+        } catch {
+          failed += 1;
+        }
+      });
+      toast({
+        title: "Exclusão em massa concluída",
+        description: `Excluídos: ${removed}${failed ? ` — Falharam: ${failed}` : ""}`,
+        variant: failed > 0 ? "destructive" : "default",
+      });
+      setSelectedRows([]);
+      void loadOccurrences();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [confirm, readOnly, selectedRows, token, projectId, actionId, toast, loadOccurrences]);
 
   const columns = React.useMemo(
     () => buildOccurrenceColumns({ onDelete: handleDelete, canUpdate: !readOnly }),
@@ -995,23 +1364,70 @@ export function ActionOccurrencesSection({
         </div>
       ) : null}
 
+      {occurrences.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-[200px] flex-1">
+            <SearchBar
+              value={searchText}
+              onChange={setSearchText}
+              placeholder="Pesquisar por data, status, grupo ou notas"
+            />
+          </div>
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="h-9 w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_MONTHS_VALUE}>Todos os meses</SelectItem>
+              {availableMonths.map((month) => (
+                <SelectItem key={month} value={month}>
+                  {formatMonthLabel(month)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!readOnly && selectedRows.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                Selecionados: <strong>{selectedRows.length}</strong>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={bulkDeleting}
+                onClick={() => void handleBulkDelete()}
+              >
+                {bulkDeleting ? "Excluindo..." : "Excluir selecionados"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {loading ? (
         <p className="text-xs text-muted-foreground">Carregando...</p>
       ) : occurrences.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nenhum encontro agendado ainda.
         </p>
+      ) : filteredOccurrences.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nenhum encontro encontrado para esse filtro.
+        </p>
       ) : view === "list" ? (
         <ListView<ApiMeeting>
-          data={occurrences}
+          data={filteredOccurrences}
           columns={columns}
           getRowId={(row) => row.id}
+          enableRowSelection={!readOnly}
+          onSelectionChange={handleSelectionChange}
           onRowClick={(row) => setEditTarget(row)}
           showColumnVisibilityButton={false}
         />
       ) : (
         <CalendarView<ApiMeeting>
-          items={occurrences}
+          items={filteredOccurrences}
           getDate={(item) => new Date(item.scheduledDate)}
           renderItem={(item) => (
             <button
@@ -1027,7 +1443,9 @@ export function ActionOccurrencesSection({
                 {resolveOccurrenceStatusBadge(item.status)}
               </div>
               <span className="text-xs text-muted-foreground">
-                {item.peopleGroup?.name ?? "Sem grupo específico"}
+                {item.peopleGroups.length
+                  ? item.peopleGroups.map((link) => link.peopleGroup.name).join(", ")
+                  : "Sem grupo específico"}
               </span>
             </button>
           )}

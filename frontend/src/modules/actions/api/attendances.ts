@@ -2,6 +2,7 @@
 
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
+  ActionAttendanceSummaryResponse,
   AttendanceStatus,
   MeetingAttendancesListResponse,
 } from "./types";
@@ -22,6 +23,26 @@ export async function listMeetingAttendances(
   const query = buildQuery(params);
   return apiRequest<MeetingAttendancesListResponse>(
     `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/attendances${query}`,
+    {},
+    token,
+  );
+}
+
+export async function listActionAttendanceSummary(
+  token: string,
+  projectId: string,
+  actionId: string,
+  params?: {
+    q?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  },
+) {
+  const query = buildQuery(params);
+  return apiRequest<ActionAttendanceSummaryResponse>(
+    `/projects/${projectId}/actions/${actionId}/attendances-summary${query}`,
     {},
     token,
   );

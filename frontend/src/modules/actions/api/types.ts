@@ -15,17 +15,33 @@ export type ApiActivityType = {
 
 export type ActionStatus = "PLANNED" | "EXECUTED" | "CANCELED";
 
+export type ApiActivityPeopleGroupLink = {
+  peopleGroupId: string;
+  peopleGroup?: {
+    id: string;
+    name: string;
+    category?: string | null;
+    description?: string | null;
+    ageMin?: number | null;
+    ageMax?: number | null;
+    isActive?: boolean;
+  } | null;
+};
+
 export type ApiActivity = {
   id: string;
   tenantId: string;
   projectId: string;
   createdByUserId: string | null;
   peopleGroupId: string | null;
+  peopleGroupIds: string[];
+  peopleGroups?: ApiActivityPeopleGroupLink[];
   targetEnrollmentId: string | null;
   actionTypeId: string;
   goalId: string | null;
   title: string;
   description: string | null;
+  pedagogicalPlanHtml: string | null;
   tags: string[];
   internalNotes: string | null;
   completionPercent: number | null;
@@ -118,11 +134,12 @@ export type ActivityInput = {
   actionTypeId: string;
   title: string;
   description?: string | null;
+  pedagogicalPlanHtml?: string | null;
   tags?: string[];
   internalNotes?: string | null;
   completionPercent?: number | null;
   status?: ActionStatus;
-  peopleGroupId?: string | null;
+  peopleGroupIds?: string[];
   targetEnrollmentId?: string | null;
   goalId?: string | null;
   plannedStartAt?: string | null;
@@ -182,6 +199,21 @@ export type MeetingAttendancesListResponse = {
     peopleGroupId: string | null;
   };
   data: MeetingAttendancesListItem[];
+  pagination: PaginationMeta;
+};
+
+export type ActionAttendanceSummaryItem = {
+  enrollment: import("@/modules/projects/api").ApiProjectEnrollment;
+  totalMeetings: number;
+  presentCount: number;
+  attendanceRate: number | null;
+  averageQuality: number | null;
+  occurrencesCount: number;
+};
+
+export type ActionAttendanceSummaryResponse = {
+  action: { id: string; title: string };
+  data: ActionAttendanceSummaryItem[];
   pagination: PaginationMeta;
 };
 
@@ -268,11 +300,18 @@ export type ApiActionOccurrenceTeamGroup = {
   peopleGroup: { id: string; name: string };
 };
 
+export type ApiActionOccurrencePeopleGroup = {
+  id: string;
+  peopleGroupId: string;
+  peopleGroup: { id: string; name: string };
+};
+
 export type ApiMeeting = {
   id: string;
   tenantId: string;
   actionId: string;
   peopleGroupId: string | null;
+  peopleGroupIds: string[];
   scheduledDate: string;
   startTime: string;
   endTime: string | null;
@@ -286,6 +325,7 @@ export type ApiMeeting = {
   createdAt: string;
   updatedAt: string;
   peopleGroup: { id: string; name: string } | null;
+  peopleGroups: ApiActionOccurrencePeopleGroup[];
   teamPeopleGroups: ApiActionOccurrenceTeamGroup[];
 };
 
@@ -298,7 +338,7 @@ export type MeetingInput = {
   scheduledDate: string;
   startTime: string;
   endTime?: string | null;
-  peopleGroupId?: string | null;
+  peopleGroupIds?: string[];
   teamPeopleGroupIds?: string[];
   notes?: string | null;
   planHtml?: string | null;
@@ -311,7 +351,7 @@ export type MeetingUpdateInput = {
   scheduledDate?: string;
   startTime?: string;
   endTime?: string | null;
-  peopleGroupId?: string | null;
+  peopleGroupIds?: string[];
   teamPeopleGroupIds?: string[];
   status?: OccurrenceStatus;
   notes?: string | null;
@@ -322,7 +362,7 @@ export type MeetingUpdateInput = {
 };
 
 export type BulkCreateMeetingsInput = {
-  peopleGroupId?: string | null;
+  peopleGroupIds?: string[];
   teamPeopleGroupIds?: string[];
   startDate: string;
   endDate: string;
