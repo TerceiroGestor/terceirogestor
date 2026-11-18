@@ -649,9 +649,24 @@ export type DetailRelationSelectFilterConfig<
   disabled?: (context: TContext) => boolean;
 };
 
+export type DetailRelationDateRangeFilterConfig<
+  TContext extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  key: string;
+  label: string;
+  type: "dateRange";
+  value: (context: TContext) => { from: string; to: string };
+  onChange: (context: TContext, range: { from: string; to: string }) => void;
+  placeholder?: string | ((context: TContext) => string);
+  hidden?: (context: TContext) => boolean;
+  disabled?: (context: TContext) => boolean;
+};
+
 export type DetailRelationFilterConfig<
   TContext extends Record<string, unknown> = Record<string, unknown>,
-> = DetailRelationSelectFilterConfig<TContext>;
+> =
+  | DetailRelationSelectFilterConfig<TContext>
+  | DetailRelationDateRangeFilterConfig<TContext>;
 
 export type DetailRelationStatConfig<
   TContext extends Record<string, unknown> = Record<string, unknown>,

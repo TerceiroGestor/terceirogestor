@@ -26,6 +26,7 @@ import {
   MODULE_TABS_LIST_CLASS_NAME,
   MODULE_TAB_TRIGGER_CLASS_NAME,
 } from "@/web-client/ui/ModulePrimitives";
+import { DateRangeFilterButton } from "@/web-client/ui/DateRangeFilterButton";
 import { ListView } from "@/web-client/views/ListView";
 
 function renderRelationActionButton<TContext extends Record<string, unknown>>({
@@ -182,6 +183,23 @@ function DetailRelationSection<
                     typeof filter.placeholder === "function"
                       ? filter.placeholder(context)
                       : filter.placeholder;
+
+                  if (filter.type === "dateRange") {
+                    return (
+                      <div key={filter.key} className="space-y-2">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                          {filter.label}
+                        </div>
+                        <DateRangeFilterButton
+                          value={filter.value(context)}
+                          onChange={(range) => filter.onChange(context, range)}
+                          placeholder={placeholder}
+                          disabled={filter.disabled?.(context) ?? false}
+                        />
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={filter.key} className="min-w-[220px] space-y-2">
                       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
