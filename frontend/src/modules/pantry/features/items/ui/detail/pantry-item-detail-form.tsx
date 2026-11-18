@@ -21,6 +21,7 @@ import {
   PANTRY_ITEM_GROUP,
   PANTRY_ITEM_UNIT,
 } from "@/modules/pantry/shared/domain/pantry.constants";
+import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 
 export type PantryItemDetailFormProps = {
   mode: PantryItemDetailMode;
@@ -79,10 +80,7 @@ export function PantryItemDetailForm({
     <div className="border-y border-border/60 bg-transparent py-4">
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Nome
-            </div>
+          <DetailSectionField label="Nome">
             <Input
               value={draft.name}
               onChange={(e) =>
@@ -93,12 +91,9 @@ export function PantryItemDetailForm({
               className={inputLineClassName}
               readOnly={readOnly}
             />
-          </div>
+          </DetailSectionField>
 
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Unidade
-            </div>
+          <DetailSectionField label="Unidade">
             <Select
               value={draft.unit}
               onValueChange={(value) => {
@@ -118,12 +113,9 @@ export function PantryItemDetailForm({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </DetailSectionField>
 
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Grupo de alimentos
-            </div>
+          <DetailSectionField label="Grupo de alimentos">
             <Select
               value={draft.group ?? "__none__"}
               onValueChange={(value) => {
@@ -145,12 +137,9 @@ export function PantryItemDetailForm({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </DetailSectionField>
 
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Setor
-            </div>
+          <DetailSectionField label="Setor">
             <div className="flex items-center gap-2">
               <Select
                 value={draft.defaultSector}
@@ -186,12 +175,9 @@ export function PantryItemDetailForm({
                 </Button>
               ) : null}
             </div>
-          </div>
+          </DetailSectionField>
 
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Estoque mínimo
-            </div>
+          <DetailSectionField label="Estoque mínimo">
             <Input
               type="number"
               value={String(draft.minStock)}
@@ -202,7 +188,7 @@ export function PantryItemDetailForm({
               className={inputLineClassName}
               readOnly={readOnly}
             />
-          </div>
+          </DetailSectionField>
         </div>
 
         {readOnly ? (
