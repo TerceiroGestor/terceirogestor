@@ -20,7 +20,7 @@ coluna "Falta"), `[ ]` não iniciada.
 | `[~]` | **2 — Registro ágil do Encontro** | Presença por participante, avaliação (nota 1-5 + observação), upload de foto — tudo já no `Meeting` (=`ActionOccorrence`) | Validar com usuário real o tempo de preenchimento (meta 3-5 min) — é teste de UX, não código novo a construir do zero |
 | `[x]` | **3 — Presença Diária derivada (`DailyAttendance`)** | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
 | `[x]` | **4 — Recorrência e geração automática de agenda** | Feito em 2026-11-16 — ver evidência em `PLAN.md` | — |
-| `[ ]` | **5 — Ocorrência** | nada | `Occurrence`, `OccurrencePeople`, ciclo registrada→em análise→desfecho |
+| `[x]` | **5 — Ocorrência** | Feito em 2026-11-18 — ver evidência abaixo | — |
 | `[ ]` | **6 — Atendimento (social/psicológico)** | nada | `Attendance`, `AttendancePeople`, `Benefit`, evoluções, abertura/encerramento |
 | `[ ]` | **7 — Encaminhamento** | nada | `Referral`, status com contrarreferência, dashboard de pendência |
 | `[ ]` | **8 — Caso (agrupador)** | nada | `Case`, vínculo opcional em `Attendance`/`Referral`, parecer consolidado |
@@ -519,7 +519,7 @@ não funcionalidade faltando do zero. Tabela de rastreio:
 
 ---
 
-### **Fase 5 — Ocorrência** `[ não iniciada]`
+### **Fase 5 — Ocorrência** `[x concluída]`
 
 **Objetivo:** permitir registro rápido de fatos durante a atividade, com desfecho decidido depois.
 
@@ -528,6 +528,100 @@ não funcionalidade faltando do zero. Tabela de rastreio:
 - Campo de desfecho (texto) e vínculo opcional a um `Attendance` gerado a partir dela.
 
 **✅ Critério de teste:** abrir 1 ocorrência durante um encontro simulado (2 pessoas envolvidas), depois abrir separadamente 1 ocorrência externa (sem encontro), e evoluir ambas até "desfecho definido".
+
+**Feito em 2026-11-18.** Duas decisões de escopo tomadas antes de codificar
+(registradas aqui, não perguntadas durante o plano porque são de
+implementação, não de produto):
+
+- **Colisão de nome:** `OccurrenceStatus` já existe no schema — é o status
+  do `Meeting` (Encontro), mapeado pra tabela física `ActionOccurrence`
+  (`SCHEDULED/DONE/CANCELED`). Os nomes de model `Occurrence`/
+  `OccurrencePeople` do plano não colidem (nenhum model tinha esse nome),
+  mas o enum de status precisou de um nome novo: `OccurrenceCaseStatus`
+  (`REGISTRADA/EM_ANALISE/DESFECHO_DEFINIDO`). O enum do Encontro não foi
+  tocado.
+- **`attendanceId` fora do escopo:** o texto da fase cita "vínculo opcional
+  a um `Attendance` gerado a partir dela", mas `Attendance` é Fase 6 e não
+  existe ainda. Fica de fora agora — entra como migration aditiva quando a
+  Fase 6 for feita (mesmo padrão já usado na Fase 1 com Goal/
+  FundingSource). `Occurrence` ganhou só `outcomeNotes` (texto livre) pro
+  desfecho, com o status só podendo fechar em "Desfecho definido" se
+  `outcomeNotes` estiver preenchido.
+- **Transição de status avanço-só:** `REGISTRADA → EM_ANALISE →
+  DESFECHO_DEFINIDO`, pode pular etapa, nunca volta — validado em
+  `assertOccurrenceStatusTransition` (nenhum outro status do projeto tinha
+  esse tipo de regra pra copiar, escrita do zero).
+- **`OccurrencePeople` sem soft-end:** diferente de
+  `ProjectActionPeopleParticipation` (vínculo que muda com o tempo, por
+  isso tem `isActive`/`startsAt`/`endsAt`), aqui é só o registro histórico
+  de quem estava envolvido — tabela de junção simples, adicionar/remover é
+  criar/apagar a linha.
+
+**Backend:** migration `20261118030114_add_occurrence` (models `Occurrence`
+e `OccurrencePeople`, enums `OccurrenceCaseStatus`/`OccurrencePersonRole`),
+aplicada sem drift. Módulo novo `backend/src/modules/occurrences/`
+(controller/service/DTOs), mesmo padrão de guard/decorator do módulo
+`actions` (`@Permissions`, `PermissionsGuard`). Permissões novas
+`occurrences.read/create/update/delete` em `core-permissions.ts`,
+adicionadas aos papéis Admin/Gestor/Atendimento (sync automático no boot
+via `PermissionsSyncService`, mas **os papéis já existentes num tenant
+precisam de reseed/atualização manual pra ganhar a permissão nova** — achado
+confirmado nesta sessão, registrado em `docs/backlog.md`). Auditoria é
+automática (extensão do Prisma já intercepta create/update/delete de
+qualquer model, nada configurado à mão). Pessoa elegível pro vínculo
+reaproveita o endpoint de `People` existente (`listPeople`), sem endpoint
+"eligible" novo — ocorrência pode ser 100% externa, sem projeto.
+**Evidência:** `npx prisma migrate dev` → aplicou sem drift; backend `tsc
+--noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 29 suítes/153
+testes (+1 suíte/+10 testes da Fase 5, provando filtro por tenant e as 2
+regras de transição de status) sem regressão; `npm run build` → ok;
+`eslint` no módulo novo → 0 problemas novos.
+
+**Frontend:** módulo canônico novo `frontend/src/modules/occurrences/`,
+copiado da estrutura de `people-groups` (mais novo e mais limpo na época,
+já tinha o padrão de aba de relação com papel + diálogo de picker). Usa o
+padrão visual fechado na sessão anterior (`DetailSectionHeading`/
+`DetailSectionField`, aba "Envolvidos" com coluna "Papel"). Dois pontos de
+entrada reais, cobrindo os dois casos do critério de teste: o botão
+"Registrar ocorrência" no header da Atividade (existia desabilitado desde
+a Fase 4 Ciclo 2, agora vira link real pra `/occurrences/new?projectId=&
+actionId=`) e um botão novo dentro do diálogo de edição do Encontro
+(`EditOccurrenceDialog`), que navega com `meetingId` do encontro atual —
+esse é o caminho que bate literalmente com "durante um encontro simulado".
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok, as 3 rotas
+novas (`/occurrences`, `/occurrences/new`, `/occurrences/[id]`) aparecem no
+build; `eslint` nos arquivos novos/tocados → só a categoria já tolerada em
+todo o projeto (`react-hooks/set-state-in-effect`), nenhuma categoria nova
+(2 problemas de memoização do React Compiler apareceram numa primeira
+leva e foram corrigidos adicionando os setters estáveis nas dependências
+dos `useCallback`, não ficou pendência).
+
+**Testado de ponta a ponta** via API direta e via navegador real
+(Playwright + Chromium, login real `admin@seed.local`, backend e frontend
+de pé): ocorrência criada durante um encontro simulado (Encontro do
+segmento C2M) com 2 pessoas envolvidas (Bianca Torres e Carlos Nunes),
+evoluída até "Desfecho definido"; ocorrência externa criada separadamente
+por `/occurrences/new` sem `meetingId`, evoluída até "Desfecho definido"
+também. Confirmado por API: tentar fechar sem `outcomeNotes` → `400`
+("Informe o desfecho antes de concluir a ocorrencia"); tentar voltar o
+status (`EM_ANALISE` → `REGISTRADA`) → `400` ("Nao e possivel voltar o
+status..."). No navegador: os dois pontos de entrada (header da Atividade
+e diálogo do Encontro) navegam corretamente pra `/occurrences/new` com
+`meetingId`/`actionId`/`projectId` preenchidos; achado e corrigido durante
+o teste — o campo "Origem" mostrava "Externa (sem encontro)" mesmo vindo
+com `meetingId` na URL (o `occurrence.meeting` só existe depois de salvar;
+corrigido pra mostrar "Vinculada a um encontro" nesse caso intermediário).
+Lista de Ocorrências mostra coluna "Envolvidos" (contagem) e status com
+badge colorido (azul/âmbar/verde conforme a etapa). Zero erro de console
+em todas as telas visitadas. Dados de teste (2 ocorrências) removidos via
+API ao final; nenhum dado de seed foi alterado.
+
+**Não feito nesta fase, sinalizado para depois:** a coluna "Ocorrências"
+(hoje sempre `0`) na aba agregada de Participantes da Atividade continua
+sendo um placeholder (`actions.service.ts:2813,2903`) — fechar isso de
+verdade exige uma agregação nova no backend (contar, por pessoa, quantas
+`Occurrence` ligadas aos `Meeting`s desta atividade a envolvem) e não fazia
+parte do critério de teste da Fase 5; registrado em `docs/backlog.md`.
 
 ---
 

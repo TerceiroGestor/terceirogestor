@@ -275,6 +275,33 @@ adiado sem gatilho. Formato do Alicerce.
   por uma tabela de junção `MeetingPeopleGroup` (mesmo padrão de
   `ActivityPeopleGroup`), migrando os dados existentes.
 
+- **Coluna "Ocorrências" sempre `0` na aba agregada de Participantes da
+  Atividade** — achado da Fase 5 (2026-11-18, `Occurrence`/
+  `OccurrencePeople` implementados). O valor está hardcoded em
+  `actions.service.ts:2813,2903` desde a Fase 4 Ciclo 2, quando a Fase 5
+  ainda não existia. Fechar de verdade exige uma agregação nova: contar,
+  por pessoa, quantas `Occurrence` ligadas aos `Meeting`s desta atividade a
+  envolvem (join `Occurrence` → `OccurrencePeople` → `personId`, filtrado
+  por `meeting.actionId`).
+  **Gatilho:** quando a aba de Participantes da Atividade precisar mostrar
+  esse número de verdade (ex.: relatório que cruza frequência com
+  ocorrências por pessoa) — não fazia parte do critério de teste da Fase 5.
+
+- **Permissões novas (`occurrences.*`) não chegam em papéis já existentes
+  de um tenant** — achado da Fase 5 (2026-11-18). O
+  `PermissionsSyncService` só faz upsert do catálogo (`Permission`) no
+  boot; a associação `RolePermission` dos papéis Admin/Gestor/Atendimento
+  só é recriada rodando o seed de novo (`npm run build:seed && npm run
+  db:seed`, que recompila o helper que lê `core-permissions.ts` em tempo
+  real). Num tenant real de produção isso significa que adicionar uma
+  permissão nova ao catálogo não dá acesso automático a ninguém — alguém
+  precisa editar o papel manualmente pela UI de Administração.
+  **Gatilho:** antes da Parte 4 (produção) — decidir se isso é aceitável
+  (admin ajusta papéis manualmente quando uma feature nova sai) ou se vale
+  a pena um mecanismo de sync de `RolePermission` pros papéis padrão
+  (`Admin`/`Gestor`/`Atendimento`/`Leitor`) rodar no boot também, não só o
+  catálogo de permissões.
+
 ## Infraestrutura de UI (web-client)
 
 - **`ListView.tsx` (`enableRowSelection`/`onSelectionChange`): o efeito
