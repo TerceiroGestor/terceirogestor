@@ -4,6 +4,110 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Item avulso — fechar Atividades/Encontros (2026-11-18)
+
+Pedido direto do usuário, fora da sequência de Partes 1-5 e fora do plano
+de módulos Atendimento/Projetos: antes de continuar copiando o padrão de
+Detail pros próximos módulos (Fase 6+), fechar de vez o módulo mais denso
+que já existe (Atividades/Encontros), porque é ele que expõe os problemas
+estruturais que os módulos mais simples escondem. 3 investigações
+(agentes `Explore`) rodaram sobre os 10 módulos já implementados; usuário
+decidiu escopo: só Atividades/Encontros + 2 bugs reais de autosave agora.
+O resto dos achados (Tasks sem cabeçalhos de seção, Pantry/Deposit com
+`canAudit` hardcoded, typos de gênero, "Doa??o" corrompido, Tasks com
+feed de histórico próprio) foi pro `docs/backlog.md` com gatilho.
+
+**Decisão nova de padrão, valendo pra frente (documentada em
+`docs/canonical-web-client-standard.md`, seção `sideSlot`):** painel
+lateral do Detail passa a ter só 4 abas — `Tags`/`Notas`/`Anexos`/
+`Auditoria` — sem `Comentários`/`Histórico`/`Contexto`. `Notas` cobre a
+necessidade de conversa/anotação que `Comentários` servia, via rich text
+com menção `@` (`richText`/`mentionUsers`, mesmo mecanismo que People já
+usava). Confirmado ao vivo que o dropdown de menção aparece com usuários
+reais do tenant antes de tirar `Comentários` da Atividade.
+
+**Bug 1 (confirmado e corrigido) — Atividade não tinha autosave no
+formulário principal.** `actionsDetailLayout.main` renderizava
+`ActionCreateFormSection` com estado 100% local, sem nenhuma chamada a
+`onCommitField`; só persistia no clique manual em "Salvar". Reescrito como
+`ActivityDetailMain` (novo componente em
+`actions-detail-layout-contract.tsx`), ligado a `draft`/`onCommitField`
+igual ao padrão de `ProjectsDetailMain`. Formulário principal encolhido
+pra Título + Organização (Projeto/Tipo/Status) + Direcionamento (Grupos
+de pessoas/Meta) + Descrição; Gestor/Educador saem (duplicavam a aba
+Equipe), Planejamento (Início/Fim) vai pro `header.slot` novo (Atividade
+era o único módulo de conteúdo sem header slot), Plano pedagógico vai
+pra dentro da aba renomeada "Planejamento e Relatório".
+
+**Bug 2 (achado pelos agentes, corrigido) — guarda de autosave travava
+pra sempre se o upload de anexo fosse cancelado.**
+`detail-media-autosave-guard.ts` é um singleton do módulo inteiro; a
+retomada só acontecia no `onChange` do `<input type="file">` — cancelar o
+seletor nativo sem escolher arquivo nunca disparava `change`, deixando
+`suspended=true` pelo resto da sessão (bloqueando autosave do app
+inteiro, não só do módulo). Corrigido com `input.oncancel = () =>
+resumeDetailAutoSave()` nos 3 pontos que não tinham (People, Projects,
+Activity) — mesmo padrão que Pantry/Deposit já usavam.
+
+**Bug 3 (Projeto preso em "Salvando...") — não reproduzido.** Diagnóstico
+ao vivo (PATCH real disparando num campo de Projeto real) voltou pra
+"Pronto" em menos de 1 segundo; a cadeia de código está estruturalmente
+igual à de People-Groups, que funciona. Pode ter sido algo pontual (ex.:
+hot-reload do backend durante o relato original). Fica em aberto —
+precisa de passos de reprodução mais específicos se persistir.
+
+**Achado extra durante a reescrita (corrigido):** a própria Atividade
+tinha o cabeçalho preso em "Salvando..." desde o primeiro carregamento,
+antes de qualquer edição — causa raiz era `refreshReport()` chamando
+`setQualitySaving(true)` sem nunca resetar (o `finally` da função só
+resetava `reportLoading`). Removida a linha errada (não era pra existir:
+`qualitySaving` só deveria ser gerido por `saveQualityDrafts`).
+
+**Achado extra (corrigido):** campo "Projeto" no formulário mostrava "-"
+porque `action.project` nunca é populado pelo backend (confirmado via
+curl direto — a resposta real omite o campo, apesar do tipo TS declarar
+opcional). Corrigido com um fetch dedicado (`getProject`) dentro de
+`ActivityDetailMain`.
+
+**Evidência:**
+
+```
+# backend (nenhum arquivo de backend mudou - rodado por seguranca)
+npx tsc --noEmit -p tsconfig.build.json   → 0 erros
+npm test                                  → 29 suites, 153 testes, todos passando
+npm run build                             → ok
+
+# frontend
+npx tsc --noEmit    → 0 erros
+npx eslint <5 arquivos tocados>  → só os erros ja existentes em
+                      projects-detail-engine-client-page.tsx
+                      (react-hooks/set-state-in-effect,
+                      preserve-manual-memoization), confirmados
+                      pre-existentes rodando eslint no mesmo arquivo
+                      em `develop` limpo (sem meu diff) antes de editar
+npm run build       → ok, todas as rotas
+```
+
+Testado de ponta a ponta no navegador (Playwright + Chromium, login real
+`admin@seed.local`, backend e frontend de pé):
+
+- Editar Título/Descrição da Atividade sem clicar em nada → PATCH real
+  dispara, cabeçalho mostra "Salvando..." e volta pra "Pronto" sozinho
+- Gestor/Educador só aparecem na aba Equipe; Início/Fim planejado no
+  cabeçalho; Plano pedagógico na aba "Planejamento e Relatório"
+- Painel lateral mostra só Tags/Notas/Anexos/Auditoria; digitar `@adm`
+  nas Notas mostra o dropdown de menção com "Administrador"/
+  `admin@seed.local` real
+- Cancelar o seletor de arquivo de anexo (simulado via evento `cancel`
+  nativo no `<input>`, já que o Chromium headless não abre diálogo de SO
+  de verdade) e depois editar o Título ainda dispara PATCH 200 — guarda
+  de autosave não trava mais
+- Abas Participantes/Encontros/Qualidade sem regressão visual
+- Dados de teste: edições feitas durante o teste (`description`/`title`
+  temporários na Atividade seed "Encontro do segmento C2M") foram
+  restauradas aos valores originais do seed ao final; servidores de
+  teste encerrados.
+
 ## Item avulso — padronização visual do Detail (2026-11-17)
 
 Pedido direto do usuário, fora da sequência de Partes 1-5 e fora do plano

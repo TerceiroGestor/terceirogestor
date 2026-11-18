@@ -323,3 +323,62 @@ adiado sem gatilho. Formato do Alicerce.
   para dentro do próprio componente (memoizar `selectedRows` com
   `useMemo` chaveado em algo estável, tipo os ids selecionados) em vez
   de depender de cada consumidor se proteger por conta própria.
+
+- **Projects preso em "Salvando..." — relatado pelo usuário, não
+  reproduzido ao vivo (2026-11-18).** Durante o item avulso "fechar
+  Atividades/Encontros" (ver `PLAN.md`), editei um campo real de um
+  Projeto existente com o backend/frontend de pé e observei o PATCH:
+  disparou, voltou 200, e o cabeçalho mostrou "Pronto" em menos de 1
+  segundo — a cadeia de código (`useDetailAutoSaveController`,
+  `ProjectsDetailMain`, `projects-detail-engine-client-page.tsx`) está
+  estruturalmente igual à de People-Groups, que funciona. A Atividade
+  tinha um bug parecido mas com causa raiz diferente e já identificada
+  (`refreshReport()` deixando `qualitySaving` preso em `true` — fixado
+  nesta mesma sessão), que pode ou não ser o que o usuário viu em
+  Projects.
+  **Gatilho:** se o travamento em Projects persistir, pedir ao usuário
+  passos de reprodução específicos (qual campo, qual projeto, em que
+  sequência de cliques) antes de investigar de novo — não adivinhar o
+  fix sem um repro real.
+
+- **Comentários/Histórico/Contexto ainda no `sideSlot` de Projects,
+  Programs, Tasks, Pantry e Deposit** — a partir de 2026-11-18 o padrão
+  canônico do `sideSlot` é só `Tags`/`Notas`/`Anexos`/`Auditoria` (ver
+  `docs/canonical-web-client-standard.md`, seção `sideSlot`); People e
+  Activity já seguem isso, os outros 5 módulos ainda não foram migrados
+  — decisão explícita do usuário foi fechar só a Atividade nesta rodada
+  e deixar o resto pra trás.
+  **Gatilho:** próxima vez que um desses 5 módulos for mexido por outro
+  motivo, ou quando a padronização dos módulos restantes entrar em
+  pauta por conta própria — migrar seguindo o mesmo padrão aplicado em
+  Activity (tirar `comments`/`history`/`contextItems` do `side`, dar
+  `richText`/`mentionUsers` pra `notes` se ainda não tiver).
+
+- **Achados de densidade visual/estrutural fora de escopo, por módulo
+  (investigação de 2026-11-18, não tocados por decisão do usuário):**
+  - Tasks: telas de Detail sem `DetailSectionHeading`/cabeçalho de
+    seção visual (campos soltos, sem agrupamento).
+  - Pantry e Deposit: `canAudit` hardcoded `true` no formulário de item
+    (toda ação aparenta ser auditável mesmo quando não é).
+  - Typos de gênero ("Novo fonte" em vez de "Nova fonte", "doador" sem
+    flexão de gênero em telas que deveriam concordar com o cadastro).
+  - Texto corrompido "Doa??o" (mojibake de "Doação") em pelo menos uma
+    tela do módulo de doações.
+  - Tasks: feed de histórico próprio (`history` customizado) em vez de
+    reaproveitar a Auditoria canônica.
+  **Gatilho:** da próxima vez que qualquer um desses módulos específicos
+  for mexido por outro motivo — ou quando o usuário pedir uma rodada de
+  padronização dedicada aos módulos restantes (nos moldes desta sessão e
+  da sessão de padronização visual de 2026-11-17).
+
+- **`docs/canonical-web-client-standard.md` com mojibake em boa parte
+  dos acentos** (ex.: "ObrigatÃ³rio", "nÃ£o", "Ã©") — o arquivo parece ter
+  sido salvo/editado em algum momento com encoding errado (UTF-8 lido
+  como Latin-1 ou vice-versa). As seções mais novas do arquivo ("Visual
+  do Detail", a edição de 2026-11-18 na seção `sideSlot`) já evitam o
+  problema escrevendo sem acentos de propósito. Não corrigido nesta
+  sessão por ser cosmético e fora do escopo (teria que revisar o
+  arquivo inteiro, não só a seção tocada).
+  **Gatilho:** da próxima vez que alguém for editar esse arquivo por
+  outro motivo, ou numa sessão dedicada a limpar encoding de docs —
+  reescrever o arquivo inteiro em UTF-8 correto de uma vez.

@@ -106,23 +106,34 @@ Regras:
 
 O `sideSlot` Ã© Ãºnico e padronizado.
 
-Abas canÃ´nicas:
+Abas canÃ´nicas (padrÃ£o a partir de 2026-11-18): **apenas 4**, nesta ordem:
 
-- `Auditoria`
-- `Comentarios`
-- `Notas`
 - `Tags`
+- `Notas`
 - `Anexos`
-- `Historico`
-- `Contexto`
+- `Auditoria`
 
 Regras:
 
 - `Tags` ficam somente no `sideSlot`
 - nÃ£o duplicar `Tags` no corpo principal
-- `Historico` deve nascer da auditoria canÃ´nica sempre que possÃ­vel
-- `Comentarios` usam menÃ§Ã£o por `@`
+- `Notas` usa rich text com mencao por `@` (`richText: true` + `mentionUsers`
+  no `StandardDetailMetadataSide`) - isso cobre a necessidade de conversa/
+  anotacao sobre o item, entao `Comentarios` nao existe mais como aba
+  separada
 - `Anexos` usam o fluxo padrÃ£o de upload e exclusÃ£o
+- `Auditoria` mostra o historico real do registro (quem mudou o que e
+  quando); nao existe mais uma aba `Historico` separada com feed proprio
+  por modulo, nem uma aba `Contexto` - o conteudo que elas mostravam (log
+  cru, metadados soltos) ou nao tinha uso real medido, ou pertence a
+  Auditoria
+
+**Legado ainda nÃ£o migrado:** People jÃ¡ segue o padrÃ£o de 4 abas; Activity
+foi migrado em 2026-11-18 (ver `PLAN.md`). Projects, Programs, Tasks,
+Pantry e Deposit ainda tem `Comentarios`/`Historico`/`Contexto` no
+`sideSlot` - fica registrado em `docs/backlog.md` com o gatilho "proxima
+vez que o modulo for mexido", nao e pra ser migrado em bloco so por causa
+desta regra.
 
 ### relationSlot
 
