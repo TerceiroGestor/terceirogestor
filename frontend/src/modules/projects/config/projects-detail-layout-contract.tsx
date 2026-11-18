@@ -28,6 +28,7 @@ import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.co
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { ProjectFundingSourcesSection } from "@/modules/projects/features/detail/ui/project-funding-sources-section";
 import { ProjectGoalsSection } from "@/modules/projects/features/detail/ui/project-goals-section";
+import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildGroupedAuditFeed,
@@ -455,9 +456,8 @@ function ProjectsDetailMain({
 >) {
   return (
     <div className={PROJECT_DETAIL_SECTION_CLASS}>
-      <div className="grid gap-3 md:grid-cols-[1.3fr_220px_220px] md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Nome</div>
+      <div className="grid gap-6 md:grid-cols-[1.3fr_220px_220px] md:items-end">
+        <DetailSectionField label="Nome">
           <Input
             value={draft.name}
             onChange={(event) =>
@@ -468,10 +468,9 @@ function ProjectsDetailMain({
             placeholder="Nome do projeto"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Programa</div>
+        <DetailSectionField label="Programa">
           <Select
             value={draft.programId}
             onValueChange={(value) => {
@@ -491,10 +490,9 @@ function ProjectsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Status</div>
+        <DetailSectionField label="Status">
           <Select
             value={draft.status}
             onValueChange={(value) => {
@@ -514,12 +512,11 @@ function ProjectsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Início</div>
+      <div className="mt-6 grid gap-6 md:grid-cols-2 md:items-end">
+        <DetailSectionField label="Início">
           <Input
             type="date"
             value={draft.startsAt}
@@ -531,10 +528,9 @@ function ProjectsDetailMain({
             title="Início"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Fim</div>
+        <DetailSectionField label="Fim">
           <Input
             type="date"
             value={draft.endsAt}
@@ -546,21 +542,22 @@ function ProjectsDetailMain({
             title="Fim"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
-        <Textarea
-          value={draft.description}
-          onChange={(event) =>
-            setDraft((previous) => ({ ...previous, description: event.target.value }))
-          }
-          onBlur={() => onCommitField("description")}
-          className={PROJECT_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descrição"
-          readOnly={readOnly}
-        />
+      <div className="mt-6">
+        <DetailSectionField label="Descrição">
+          <Textarea
+            value={draft.description}
+            onChange={(event) =>
+              setDraft((previous) => ({ ...previous, description: event.target.value }))
+            }
+            onBlur={() => onCommitField("description")}
+            className={PROJECT_DETAIL_TEXTAREA_CLASS}
+            placeholder="Descrição"
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
       </div>
 
     </div>
