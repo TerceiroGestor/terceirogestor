@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -17,29 +16,13 @@ import type {
   TaskChecklistItemMutationInput,
   TaskSubtaskMutationInput,
 } from "@/modules/tasks/shared/domain/types";
+import { DetailSectionField as Field } from "@/web-client/detail/DetailFormSection";
 
 const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
 
 const lineTextareaClassName =
   "min-h-[120px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-2 shadow-none focus-visible:border-primary focus-visible:ring-0";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </Label>
-      {children}
-    </div>
-  );
-}
 
 type AssignableProps<T extends { ownerUserId?: string | null; owner?: string | null }> = {
   value: T;
