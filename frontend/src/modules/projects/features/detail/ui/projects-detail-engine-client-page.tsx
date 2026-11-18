@@ -643,6 +643,9 @@ export function ProjectsDetailEngineClientPage() {
       onDeleteComment: handleDeleteComment,
       onUploadAttachment: () => {
         if (!canEdit || mode !== "edit") return;
+        if (attachmentInputRef.current) {
+          attachmentInputRef.current.oncancel = () => resumeDetailAutoSave();
+        }
         suspendDetailAutoSave();
         attachmentInputRef.current?.click();
       },

@@ -663,6 +663,9 @@ export function PeopleDetailEngineClientPage({
           attachmentUploading,
           onUploadAttachment: () => {
             if (!canUpdate || mode !== "edit") return;
+            if (attachmentInputRef.current) {
+              attachmentInputRef.current.oncancel = () => resumeDetailAutoSave();
+            }
             suspendDetailAutoSave();
             attachmentInputRef.current?.click();
           },
