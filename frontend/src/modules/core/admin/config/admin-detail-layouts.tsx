@@ -42,6 +42,10 @@ import type {
 } from "@/web-client/registry/types";
 import { ModuleMetricsStrip, type ModuleMetricItem } from "@/web-client/ui/ModuleMetricsStrip";
 import { ModuleEmptyState, ModuleSectionHeader, ModuleSurface } from "@/web-client/ui/ModulePrimitives";
+import {
+  DETAIL_FIELD_LABEL_CLASS_NAME as fieldLabelClassName,
+  DetailSectionField as SectionField,
+} from "@/web-client/detail/DetailFormSection";
 
 const AUTO_EDITING = {
   saveMode: "auto",
@@ -54,8 +58,6 @@ const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
 const lineTextareaClassName =
   "min-h-[120px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-3 shadow-none resize-none focus-visible:border-primary focus-visible:ring-0";
-const fieldLabelClassName =
-  "text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground";
 const summaryValueClassName = "text-sm text-foreground";
 
 function buildMetadataHistoryItems(
@@ -118,23 +120,6 @@ function BooleanBadge({
     >
       {value ? trueLabel : falseLabel}
     </Badge>
-  );
-}
-
-function SectionField({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("space-y-2", className)}>
-      <div className={fieldLabelClassName}>{label}</div>
-      {children}
-    </div>
   );
 }
 
