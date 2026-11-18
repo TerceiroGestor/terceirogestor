@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RichText } from "@/components/ui/richtext/RichText";
 import { useToast } from "@/components/ui/use-toast";
 import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
+import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
@@ -48,8 +49,6 @@ import { ACTION_CREATE_TEXT } from "../config/action-create.constants";
 const NONE_VALUE = "__none__";
 const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
-const fieldLabelClassName =
-  "text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground";
 
 type ActionCreateValues = {
   projectId: string;
@@ -63,36 +62,6 @@ type ActionCreateValues = {
   plannedStartAt: string;
   plannedEndAt: string;
 };
-
-function SectionField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className={fieldLabelClassName}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="space-y-1 border-b border-border/60 pb-2">
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
-    </div>
-  );
-}
 
 function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
   const primary = row.peopleGroup?.name ?? "";
@@ -469,7 +438,7 @@ export function ActionCreateFormSection({
 
   return (
     <div className="space-y-8 border-y border-border/60 bg-transparent px-0 py-4">
-      <SectionField label={ACTION_CREATE_TEXT.form.titleLabel}>
+      <DetailSectionField label={ACTION_CREATE_TEXT.form.titleLabel}>
         <Input
           value={values.title}
           onChange={(event) =>
@@ -479,12 +448,12 @@ export function ActionCreateFormSection({
           placeholder={ACTION_CREATE_TEXT.form.titlePlaceholder}
           readOnly={saving}
         />
-      </SectionField>
+      </DetailSectionField>
 
       <div className="space-y-4">
-        <SectionHeading title="Organização" />
+        <DetailSectionHeading title="Organização" />
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          <SectionField label={ACTION_CREATE_TEXT.form.projectLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.projectLabel}>
             <Select
               value={values.projectId}
               onValueChange={(next) =>
@@ -508,9 +477,9 @@ export function ActionCreateFormSection({
                 ))}
               </SelectContent>
             </Select>
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label={ACTION_CREATE_TEXT.form.typeLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.typeLabel}>
             <Select
               value={values.actionTypeId}
               onValueChange={(next) =>
@@ -534,9 +503,9 @@ export function ActionCreateFormSection({
                 ))}
               </SelectContent>
             </Select>
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label={ACTION_CREATE_TEXT.form.statusLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.statusLabel}>
             <Select
               value={values.status}
               onValueChange={(next) =>
@@ -555,17 +524,14 @@ export function ActionCreateFormSection({
                 ))}
               </SelectContent>
             </Select>
-          </SectionField>
+          </DetailSectionField>
         </div>
       </div>
 
       <div className="space-y-4">
-        <SectionHeading
-          title="Direcionamento"
-          description="Pra quem esta atividade é voltada e a que meta do Plano de Trabalho ela atende."
-        />
+        <DetailSectionHeading title="Direcionamento" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <SectionField label={ACTION_CREATE_TEXT.form.cycleLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.cycleLabel}>
             {selectedType?.target !== "PEOPLE_GROUP" ? (
               <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
                 {ACTION_CREATE_TEXT.form.cyclePlaceholder}
@@ -587,9 +553,9 @@ export function ActionCreateFormSection({
                 emptyLabel="Nenhum grupo selecionado."
               />
             )}
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label="Meta (Plano de Trabalho)">
+          <DetailSectionField label="Meta (Plano de Trabalho)">
             <Select
               value={values.goalId}
               onValueChange={(next) => setValues((previous) => ({ ...previous, goalId: next }))}
@@ -607,17 +573,14 @@ export function ActionCreateFormSection({
                 ))}
               </SelectContent>
             </Select>
-          </SectionField>
+          </DetailSectionField>
         </div>
       </div>
 
       <div className="space-y-4">
-        <SectionHeading
-          title="Equipe responsável"
-          description="Gestor e educador/executor vêm do grupo de equipe do Projeto (aba Equipe). Pra mais de 1 pessoa por função, use a aba Equipe."
-        />
+        <DetailSectionHeading title="Equipe responsável" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <SectionField label="Gestor">
+          <DetailSectionField label="Gestor">
             <ActivityRolePicker
               token={token ?? ""}
               projectId={values.projectId !== NONE_VALUE ? values.projectId : undefined}
@@ -626,9 +589,9 @@ export function ActionCreateFormSection({
               placeholder="Ninguém definido"
               disabled={saving}
             />
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label="Educador/Executor">
+          <DetailSectionField label="Educador/Executor">
             <ActivityRolePicker
               token={token ?? ""}
               projectId={values.projectId !== NONE_VALUE ? values.projectId : undefined}
@@ -637,14 +600,14 @@ export function ActionCreateFormSection({
               placeholder="Ninguém definido"
               disabled={saving}
             />
-          </SectionField>
+          </DetailSectionField>
         </div>
       </div>
 
       <div className="space-y-4">
-        <SectionHeading title="Planejamento" />
+        <DetailSectionHeading title="Planejamento" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <SectionField label={ACTION_CREATE_TEXT.form.plannedStartLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.plannedStartLabel}>
             <Input
               type="date"
               value={values.plannedStartAt}
@@ -654,9 +617,9 @@ export function ActionCreateFormSection({
               className={lineInputClassName}
               readOnly={saving}
             />
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label={ACTION_CREATE_TEXT.form.plannedEndLabel}>
+          <DetailSectionField label={ACTION_CREATE_TEXT.form.plannedEndLabel}>
             <Input
               type="date"
               value={values.plannedEndAt}
@@ -666,14 +629,14 @@ export function ActionCreateFormSection({
               className={lineInputClassName}
               readOnly={saving}
             />
-          </SectionField>
+          </DetailSectionField>
         </div>
       </div>
 
       <div className="space-y-4">
-        <SectionHeading title="Descrição e plano pedagógico" />
+        <DetailSectionHeading title="Descrição e plano pedagógico" />
         <div className="space-y-6">
-          <SectionField label="Descrição">
+          <DetailSectionField label="Descrição">
             <Textarea
               rows={3}
               value={values.description}
@@ -683,9 +646,9 @@ export function ActionCreateFormSection({
               disabled={saving}
               placeholder="Resumo curto sobre a atividade."
             />
-          </SectionField>
+          </DetailSectionField>
 
-          <SectionField label="Plano pedagógico">
+          <DetailSectionField label="Plano pedagógico">
             <RichText
               value={values.pedagogicalPlanHtml}
               onChange={(next) =>
@@ -693,7 +656,7 @@ export function ActionCreateFormSection({
               }
               disabled={saving}
             />
-          </SectionField>
+          </DetailSectionField>
         </div>
       </div>
 
