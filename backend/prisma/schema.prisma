@@ -109,6 +109,20 @@ enum ActionPeopleParticipationRole {
   CONVIDADO
 }
 
+/// Fase 5 (Ocorrencia). Nome do enum de status nao pode ser "OccurrenceStatus"
+/// - esse nome ja e usado pelo status do Encontro (Meeting, mapeado pra
+/// tabela ActionOccurrence). Sao conceitos diferentes.
+enum OccurrenceCaseStatus {
+  REGISTRADA
+  EM_ANALISE
+  DESFECHO_DEFINIDO
+}
+
+enum OccurrencePersonRole {
+  ENVOLVIDO
+  TESTEMUNHA
+}
+
 enum IncomeFrequency {
   MONTHLY
   WEEKLY
@@ -311,6 +325,8 @@ model Tenant {
   actionOccurrenceTeamGroups        ActionOccurrenceTeamGroup[]
   actionOccurrencePeopleGroups      ActionOccurrencePeopleGroup[]
   projectActionAttendances          MeetingAttendance[]
+  occurrenceCases                   Occurrence[]
+  occurrenceCasePeople              OccurrencePeople[]
   projectActionPeopleParticipations ProjectActionPeopleParticipation[]
   projectFundingSources             ProjectFundingSource[]
   goals                             Goal[]
@@ -490,6 +506,7 @@ model Person {
   peopleGroupParticipations  PeopleGroupParticipation[]
   actionPeopleParticipations ProjectActionPeopleParticipation[]
   dailyAttendances           DailyAttendance[]
+  occurrenceCaseLinks        OccurrencePeople[]
 
   @@index([tenantId])
   @@index([fullName])
@@ -1552,6 +1569,7 @@ model Meeting {
   attendances      MeetingAttendance[]
   teamPeopleGroups ActionOccurrenceTeamGroup[]
   peopleGroups     ActionOccurrencePeopleGroup[]
+  occurrenceCases  Occurrence[]
 
   @@index([tenantId, actionId])
   @@index([tenantId, scheduledDate])
@@ -1595,6 +1613,48 @@ model ActionOccurrencePeopleGroup {
   @@index([tenantId])
   @@index([occurrenceId])
   @@index([peopleGroupId])
+}
+
+/// Fase 5 (Ocorrencia): registro rapido de um fato/incidente, com origem
+/// opcional num Encontro (meetingId) ou registrada de forma independente
+/// (demanda externa, meetingId nulo). Ciclo de status e avanco-so (ver
+/// assertOccurrenceStatusTransition no service) - nao ha regressao.
+model Occurrence {
+  id           String               @id @default(uuid()) @db.Char(36)
+  tenantId     String               @db.Char(36)
+  meetingId    String?              @db.Char(36)
+  title        String
+  description  String?              @db.Text
+  status       OccurrenceCaseStatus @default(REGISTRADA)
+  outcomeNotes String?              @db.Text
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  tenant  Tenant              @relation(fields: [tenantId], references: [id])
+  meeting Meeting?            @relation(fields: [meetingId], references: [id])
+  people  OccurrencePeople[]
+
+  @@index([tenantId])
+  @@index([meetingId])
+  @@index([status])
+}
+
+model OccurrencePeople {
+  id           String               @id @default(uuid()) @db.Char(36)
+  tenantId     String               @db.Char(36)
+  occurrenceId String               @db.Char(36)
+  personId     String               @db.Char(36)
+  role         OccurrencePersonRole @default(ENVOLVIDO)
+  createdAt    DateTime             @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  occurrence Occurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id])
+
+  @@unique([occurrenceId, personId, role])
+  @@index([tenantId])
+  @@index([occurrenceId])
+  @@index([personId])
 }
 
 model MeetingAttendance {
