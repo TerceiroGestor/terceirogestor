@@ -215,3 +215,24 @@ Um mÃ³dulo sÃ³ Ã© canÃ´nico quando:
 - relation operacional usa `ListView`, nunca `grade tabular legada`
 - `SearchPanel` funciona igual aos outros mÃ³dulos
 - as mesmas views estÃ£o disponÃ­veis quando o domÃ­nio suporta
+
+## Visual do Detail
+
+Regras de estilo, para nao depender de releitura visual tela por tela.
+
+### Abas
+
+Toda aba de Detail (principal ou do painel lateral) usa `MODULE_TABS_LIST_CLASS_NAME` / `MODULE_TAB_TRIGGER_CLASS_NAME` de `web-client/ui/ModulePrimitives.tsx`. A aba ativa ganha fundo colorido (`bg-primary/10 text-primary font-semibold`), nunca so uma linha fina - isso e o que faz o usuario perceber qual aba esta aberta sem precisar ler o texto. Abas inativas tem hover (`hover:bg-muted/70`) para ficar obvio que sao clicaveis. Uma variante de cor diferente (ex.: ambar em "Documentos sensiveis" de People) e permitida quando a aba marca algo sensivel/especial - nesse caso o padrao e reaproveitado, so a cor muda.
+
+Nao criar um novo estilo de aba por modulo. Se o modulo precisar de um componente de abas proprio (como o de People, que tem icones e scroll), ele ainda usa essas duas constantes para o `className` do `TabsTrigger`.
+
+### FormulÃ¡rio principal (`detailSlot`)
+
+- Nao usar titulo + paragrafo descritivo em cabecalho de secao. Se o campo precisar de contexto, o contexto vai no `placeholder` ou em texto de ajuda inline no proprio campo - nunca um paragrafo de 1-2 linhas acima da secao.
+- Cabecalho de secao (quando o formulario tem mais de um grupo de campos) usa `DetailSectionHeading` de `web-client/detail/DetailFormSection.tsx`: titulo curto + barra de acento colorida a esquerda. Sem linha divisoria cinza, sem descricao.
+- Rotulo de campo usa `DetailSectionField` do mesmo arquivo: label pequeno em maiusculas acima do campo. Nao reimplementar esse label por modulo (varios modulos tinham a mesma constante `fieldLabelClassName`/`SectionField` copiada - foi consolidado).
+- Formulario com 1 grupo so de campos (sem sub-secoes) pode usar `DetailSectionField` direto, sem `DetailSectionHeading`.
+
+### Nao e regra do Detail
+
+`ModuleSectionHeader` (tambem em `ModulePrimitives.tsx`) continua existindo e pode usar `description` - ele e para cabecalho de lista/relation/overview, nao para o formulario principal do Detail. Nao confundir os dois.

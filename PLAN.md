@@ -4,6 +4,42 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Item avulso — padronização visual do Detail (2026-11-17)
+
+Pedido direto do usuário, fora da sequência de Partes 1-5 e fora do plano
+de módulos Atendimento/Projetos: o visual das telas de Detail estava
+"preto e branco" (abas sem cor perceptível no estado ativo, formulários
+com título + parágrafo descritivo repetidos por seção). Decisão e opções
+de estilo confirmadas com o usuário antes de mexer em código. Regra nova
+documentada em `docs/canonical-web-client-standard.md` (seção "Visual do
+Detail").
+
+**Mudança:** `web-client/ui/ModulePrimitives.tsx` (aba ativa vira pílula
+`bg-primary/10 text-primary`, hover nas inativas) — ponto único,
+consumido por `DetailLayoutSections`/`DetailSideTabs`, então vale pra
+toda tela de Detail de uma vez. Componente novo
+`web-client/detail/DetailFormSection.tsx` (`DetailSectionHeading`/
+`DetailSectionField`) substitui as várias cópias locais do mesmo label/
+cabeçalho de seção (`SectionField`/`SectionHeading`/`fieldLabelClassName`
+duplicados em Actions, People, Tasks, Admin) e remove os parágrafos
+descritivos que existiam nos cabeçalhos de seção da Atividade. Aplicado
+em Actions (piloto), People (+ aba lateral própria, que tinha estilo
+hardcoded — ganhou a mesma pílula, variante âmbar preservada em
+"Documentos sensíveis"), Projects, Programs, People-Groups, Tasks (2
+arquivos), Pantry e Deposit (formulário de item), Admin.
+
+**Evidência:** `tsc --noEmit` → 0 erros; `eslint` nos 13 arquivos tocados
+→ 0 problemas novos (só os 3 já existentes e tolerados em
+`action-create-form-section.tsx`, `react-hooks/set-state-in-effect`);
+`npm run build` → ok, todas as rotas. Testado de ponta a ponta no
+navegador (Playwright + Chromium, login real `admin@seed.local`, backend
+e frontend de pé): tela de Atividade (lista, detalhe com troca de aba,
+formulário de criação), Pessoa (detalhe com a aba lateral própria) e
+Projeto (detalhe) — aba ativa com fundo azul, demais com hover, seções
+com barra de acento colorida e sem texto descritivo, zero erro de
+console. Dev servers e dados de teste: nenhum dado foi alterado (só
+login e navegação); backend/frontend de teste encerrados ao final.
+
 ## Estado real (sincronizado em 2026-11-11)
 
 Este documento tinha ficado parado em "Parte 1 em andamento" enquanto o
