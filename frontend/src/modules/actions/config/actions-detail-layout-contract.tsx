@@ -2,20 +2,35 @@
 
 import * as React from "react";
 import { TriangleAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RichText } from "@/components/ui/richtext/RichText";
+import { formatDateTimePtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
   ActionAttendanceSummaryItem,
   ApiMeeting,
   ApiActivity,
+  ApiActivityType,
   ApiProjectActionPeopleParticipation,
   MeetingAttendancesListItem,
   ActivityInput,
+  ActionStatus,
 } from "@/modules/actions/api";
+import { listActivityTypes } from "@/modules/actions/api";
 import {
   ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
   ACTION_STATUS_LABELS,
+  ACTION_STATUS_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
 import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
 import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
@@ -28,13 +43,17 @@ import {
   type QualityDraft,
   type QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
-import { SectionCard } from "@/components/section-card";
-import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
-  buildGroupedAuditFeed,
-  resolveAuditActionLabel,
-  resolveAuditChangedFieldsSummary,
-} from "@/web-client/detail/audit-feed-utils";
+  getProject,
+  listProjectGoals,
+  listProjectPeopleGroups,
+  type ApiGoal,
+  type ApiProjectPeopleGroup,
+} from "@/modules/projects/api";
+import { SectionCard } from "@/components/section-card";
+import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
+import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
+import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type {
   DetailHeaderActionConfig,
@@ -48,10 +67,12 @@ const AUTO_SAVE_EDITING = {
   },
 } as const;
 
+const NONE_VALUE = "__none__";
+
 const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
-const fieldLabelClassName =
-  "text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground";
+
+const ACTION_DETAIL_SECTION_CLASS = "border-y border-border/60 bg-transparent px-0 py-4";
 
 const ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
@@ -89,24 +110,21 @@ const ACTION_ATTACHMENT_AUDIT_FIELD_LABELS = {
   updatedAt: "Atualizado em",
 } as const;
 
-function SectionField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className={fieldLabelClassName}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
 function formatStatus(value: string | null | undefined) {
   if (!value) return "-";
   return ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ?? value;
+}
+
+function resolveStatusBadge(status: ActionStatus) {
+  const label = formatStatus(status);
+  switch (status) {
+    case "EXECUTED":
+      return <Badge variant="secondary">{label}</Badge>;
+    case "CANCELED":
+      return <Badge variant="outline">{label}</Badge>;
+    default:
+      return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
+  }
 }
 
 function formatPeriod(start: string | null | undefined, end: string | null | undefined) {
@@ -114,35 +132,6 @@ function formatPeriod(start: string | null | undefined, end: string | null | und
   const to = end ? end.slice(0, 10) : "-";
   if (!start && !end) return "Não informado";
   return `${from} até ${to}`;
-}
-
-function buildActionHistoryItems(logs: NonNullable<ActionsDetailLayoutContext["detailAudit"]>["logs"]) {
-  return buildGroupedAuditFeed(logs).map((group) => {
-    const primarySource = group.sourceLabels[0] ?? "Registro";
-    const actorName =
-      group.logs[0]?.user?.name?.trim() ||
-      group.logs[0]?.user?.email?.trim() ||
-      "Sistema";
-    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
-    const changedLabel = changedFields.labels.length
-      ? changedFields.hiddenCount > 0
-        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
-        : changedFields.labels.join(", ")
-      : null;
-
-    return {
-      id: group.id,
-      title:
-        group.action === "CREATE"
-          ? `${primarySource} criado`
-          : group.action === "DELETE"
-            ? `${primarySource} removido`
-            : `${primarySource} atualizado`,
-      description: changedLabel ? `${primarySource}: ${changedLabel}` : group.sourceLabels.join(", "),
-      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
-      createdAt: group.createdAt,
-    };
-  });
 }
 
 function filterTeamRows(
@@ -232,7 +221,7 @@ function buildAttendanceSummaryColumns(): import("@tanstack/react-table").Column
       header: "Ocorrências",
       accessorFn: (row) => row.occurrencesCount,
       cell: ({ row }) => (
-        <span title="Disponível quando o registro de Ocorrência (Fase 5) existir">
+        <span title="Contagem direta de Ocorrencia (Fase 5) ainda nao existe aqui - ver docs/backlog.md">
           {row.original.occurrencesCount || "—"}
         </span>
       ),
@@ -303,6 +292,254 @@ function teamParticipationColumns({
   ];
 }
 
+export type ActivityDetailDraft = {
+  actionTypeId: string;
+  title: string;
+  status: ActionStatus;
+  peopleGroupIds: string[];
+  goalId: string;
+  description: string;
+  plannedStartAt: string;
+  plannedEndAt: string;
+  pedagogicalPlanHtml: string;
+  tags: string[];
+  internalNotes: string | null;
+};
+
+function ActivityDetailMain({
+  action,
+  draft,
+  setDraft,
+  readOnly,
+  onCommitField,
+  token,
+}: Pick<ActionsDetailLayoutContext, "action" | "draft" | "setDraft" | "readOnly" | "onCommitField" | "token">) {
+  const [actionTypes, setActionTypes] = React.useState<ApiActivityType[]>([]);
+  const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
+  const [goals, setGoals] = React.useState<ApiGoal[]>([]);
+  const [projectName, setProjectName] = React.useState<string | null>(null);
+  const projectId = action?.projectId ?? "";
+
+  React.useEffect(() => {
+    if (!token) return;
+    listActivityTypes(token, { isActive: true })
+      .then(setActionTypes)
+      .catch(() => setActionTypes([]));
+  }, [token]);
+
+  React.useEffect(() => {
+    if (!token || !projectId) {
+      setPeopleGroups([]);
+      setGoals([]);
+      setProjectName(null);
+      return;
+    }
+    Promise.all([
+      listProjectPeopleGroups(token, projectId, { participationKind: "PARTICIPANT" }),
+      listProjectGoals(token, projectId),
+      getProject(token, projectId),
+    ])
+      .then(([nextPeopleGroups, nextGoals, project]) => {
+        setPeopleGroups(nextPeopleGroups);
+        setGoals(nextGoals);
+        setProjectName(project.name);
+      })
+      .catch(() => {
+        setPeopleGroups([]);
+        setGoals([]);
+        setProjectName(null);
+      });
+  }, [token, projectId]);
+
+  const selectedType =
+    actionTypes.find((type) => type.id === draft.actionTypeId) ?? action?.actionType ?? null;
+  const isPeopleGroupTarget = selectedType?.target === "PEOPLE_GROUP";
+
+  return (
+    <div className={ACTION_DETAIL_SECTION_CLASS}>
+      <DetailSectionField label="Título">
+        <Input
+          value={draft.title}
+          onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
+          onBlur={() => onCommitField("title")}
+          className="h-12 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:border-primary focus-visible:ring-0"
+          readOnly={readOnly}
+        />
+      </DetailSectionField>
+
+      <div className="mt-6 space-y-4">
+        <DetailSectionHeading title="Organização" />
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          <DetailSectionField label="Projeto">
+            <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+              {projectName ?? "-"}
+            </div>
+          </DetailSectionField>
+
+          <DetailSectionField label="Tipo">
+            <Select
+              value={draft.actionTypeId}
+              onValueChange={(next) => {
+                setDraft((previous) => ({ ...previous, actionTypeId: next }));
+                onCommitField("actionTypeId", next);
+              }}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {actionTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </DetailSectionField>
+
+          <DetailSectionField label="Status">
+            <Select
+              value={draft.status}
+              onValueChange={(next) => {
+                const nextValue = next as ActionStatus;
+                setDraft((previous) => ({ ...previous, status: nextValue }));
+                onCommitField("status", nextValue);
+              }}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTION_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </DetailSectionField>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <DetailSectionHeading title="Direcionamento" />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <DetailSectionField label="Grupos de pessoas">
+            {!isPeopleGroupTarget ? (
+              <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+                Esse tipo de atividade não usa grupo de pessoas.
+              </div>
+            ) : (
+              <MultiSelectBadges
+                options={peopleGroups.map((row) => ({
+                  value: row.peopleGroupId,
+                  label: row.peopleGroup?.name ?? "",
+                }))}
+                selectedValues={draft.peopleGroupIds}
+                onChange={(next) => {
+                  setDraft((previous) => ({ ...previous, peopleGroupIds: next }));
+                  onCommitField("peopleGroupIds", next);
+                }}
+                disabled={readOnly}
+                addLabel="Adicionar grupo"
+                searchPlaceholder="Pesquisar grupo..."
+                noOptionsLabel="Nenhum grupo disponível neste projeto."
+                emptyLabel="Nenhum grupo selecionado."
+              />
+            )}
+          </DetailSectionField>
+
+          <DetailSectionField label="Meta (Plano de Trabalho)">
+            <Select
+              value={draft.goalId || NONE_VALUE}
+              onValueChange={(next) => {
+                const nextValue = next === NONE_VALUE ? "" : next;
+                setDraft((previous) => ({ ...previous, goalId: nextValue }));
+                onCommitField("goalId", nextValue);
+              }}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={lineInputClassName}>
+                <SelectValue placeholder="Sem meta vinculada" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>Sem meta vinculada</SelectItem>
+                {goals.map((goal) => (
+                  <SelectItem key={goal.id} value={goal.id}>
+                    {goal.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </DetailSectionField>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <DetailSectionField label="Descrição">
+          <Textarea
+            rows={3}
+            value={draft.description}
+            onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
+            onBlur={() => onCommitField("description")}
+            readOnly={readOnly}
+            placeholder="Resumo curto sobre a atividade."
+          />
+        </DetailSectionField>
+      </div>
+    </div>
+  );
+}
+
+function ActivityPlanningSection({
+  draft,
+  setDraft,
+  readOnly,
+  onCommitField,
+}: Pick<ActionsDetailLayoutContext, "draft" | "setDraft" | "readOnly" | "onCommitField">) {
+  return (
+    <div className="space-y-4">
+      <DetailSectionHeading title="Planejamento" />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <DetailSectionField label="Início planejado">
+          <Input
+            type="date"
+            value={draft.plannedStartAt}
+            onChange={(event) => setDraft((previous) => ({ ...previous, plannedStartAt: event.target.value }))}
+            onBlur={() => onCommitField("plannedStartAt")}
+            className={lineInputClassName}
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
+
+        <DetailSectionField label="Fim planejado">
+          <Input
+            type="date"
+            value={draft.plannedEndAt}
+            onChange={(event) => setDraft((previous) => ({ ...previous, plannedEndAt: event.target.value }))}
+            onBlur={() => onCommitField("plannedEndAt")}
+            className={lineInputClassName}
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
+      </div>
+
+      <DetailSectionField label="Plano pedagógico">
+        <RichText
+          value={draft.pedagogicalPlanHtml}
+          onChange={(next) => {
+            setDraft((previous) => ({ ...previous, pedagogicalPlanHtml: next }));
+          }}
+          onBlur={() => onCommitField("pedagogicalPlanHtml")}
+          disabled={readOnly}
+        />
+      </DetailSectionField>
+    </div>
+  );
+}
+
 function ActionProgressSection({
   action,
   readOnly,
@@ -314,7 +551,7 @@ function ActionProgressSection({
   saving: boolean;
   onSave: (patch: Partial<ActivityInput>) => Promise<void>;
 }) {
-  const [draft, setDraft] = React.useState({
+  const [progressDraft, setProgressDraft] = React.useState({
     completionPercent:
       action?.completionPercent === null || action?.completionPercent === undefined
         ? ""
@@ -322,7 +559,7 @@ function ActionProgressSection({
   });
 
   React.useEffect(() => {
-    setDraft({
+    setProgressDraft({
       completionPercent:
         action?.completionPercent === null || action?.completionPercent === undefined
           ? ""
@@ -331,21 +568,22 @@ function ActionProgressSection({
   }, [action]);
 
   return (
-    <div className="space-y-6 border-y border-border/60 bg-transparent px-0 py-4">
+    <div className="space-y-4">
+      <DetailSectionHeading title="Progresso" />
       <div className="grid gap-6 xl:grid-cols-[240px_1fr]">
-        <SectionField label="% atingido">
+        <DetailSectionField label="% atingido">
           <Input
             type="number"
             min="0"
             max="100"
-            value={draft.completionPercent}
+            value={progressDraft.completionPercent}
             onChange={(event) =>
-              setDraft((previous) => ({ ...previous, completionPercent: event.target.value }))
+              setProgressDraft((previous) => ({ ...previous, completionPercent: event.target.value }))
             }
             className={lineInputClassName}
             readOnly={readOnly || saving}
           />
-        </SectionField>
+        </DetailSectionField>
         <div />
       </div>
 
@@ -355,8 +593,8 @@ function ActionProgressSection({
             type="button"
             onClick={() =>
               void onSave({
-                completionPercent: draft.completionPercent.trim()
-                  ? Number(draft.completionPercent)
+                completionPercent: progressDraft.completionPercent.trim()
+                  ? Number(progressDraft.completionPercent)
                   : null,
               })
             }
@@ -369,11 +607,6 @@ function ActionProgressSection({
     </div>
   );
 }
-
-export type ActionMetadataDraft = {
-  tags: string[];
-  internalNotes: string | null;
-};
 
 export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   mode: "create" | "edit";
@@ -388,19 +621,14 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   projectId: string;
   action: ApiActivity | null;
   selectedOccurrence: ApiMeeting | null;
-  draft: ActionMetadataDraft;
-  setDraft: React.Dispatch<React.SetStateAction<ActionMetadataDraft>>;
+  draft: ActivityDetailDraft;
+  setDraft: React.Dispatch<React.SetStateAction<ActivityDetailDraft>>;
   mentionableUsers: Array<{
     id: string;
     name: string;
     email?: string | null;
     avatarUrl?: string | null;
   }>;
-  commentDraft: {
-    body: string;
-    mentionUserIds: string[];
-  };
-  commentSubmitting: boolean;
   attachmentUploading: boolean;
   reportRows: MeetingAttendancesListItem[];
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
@@ -425,22 +653,12 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   attendanceSummaryTo: string;
   onAttendanceSummaryFromChange: (value: string) => void;
   onAttendanceSummaryToChange: (value: string) => void;
-  onCommitField: <K extends keyof ActionMetadataDraft>(
+  onCommitField: <K extends keyof ActivityDetailDraft>(
     field: K,
-    nextValue?: ActionMetadataDraft[K],
+    nextValue?: ActivityDetailDraft[K],
   ) => void;
-  onCommentDraftChange: React.Dispatch<
-    React.SetStateAction<{
-      body: string;
-      mentionUserIds: string[];
-    }>
-  >;
-  onSubmitComment: () => void;
-  onDeleteComment: (commentId: string) => void;
   onUploadAttachment: () => void;
   onDeleteAttachment: (attachmentId: string) => void;
-  onNotesChange: (next: string | null) => void;
-  onNotesBlur: () => void;
   onSaveActionPatch: (patch: Partial<ActivityInput>) => Promise<void>;
   onActionLoaded: (action: ApiActivity) => void;
   onOpenTeamPicker: () => void;
@@ -481,16 +699,57 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
   editing: AUTO_SAVE_EDITING,
   header: {
     actions: ACTIVITY_DETAIL_HEADER_ACTIONS,
+    slot: ({ mode, action, draft }) => {
+      if (mode === "create") return null;
+      return (
+        <div className="border-y border-border/60 bg-transparent px-0 py-3">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Status</div>
+              <div>{resolveStatusBadge(draft.status)}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Tipo</div>
+              <div className="font-medium text-foreground">{action?.actionType?.name ?? "-"}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Período</div>
+              <div className="font-medium text-foreground">
+                {formatPeriod(draft.plannedStartAt || null, draft.plannedEndAt || null)}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-muted-foreground">Cadastro</div>
+              <div className="font-medium text-foreground">
+                {action?.createdAt ? formatDateTimePtBR(action.createdAt) : "-"}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    },
   },
   mainTab: true,
-  main: ({ mode, action, projectId, onActionLoaded }) => {
+  main: ({ mode, action, projectId, onActionLoaded, draft, setDraft, readOnly, onCommitField, token }) => {
+    if (mode === "create") {
+      return (
+        <ActionCreateFormSection
+          mode={mode}
+          action={action}
+          projectId={projectId}
+          actionId={action?.id}
+          onSaved={onActionLoaded}
+        />
+      );
+    }
     return (
-      <ActionCreateFormSection
-        mode={mode}
+      <ActivityDetailMain
         action={action}
-        projectId={projectId}
-        actionId={action?.id}
-        onSaved={onActionLoaded}
+        draft={draft}
+        setDraft={setDraft}
+        readOnly={readOnly}
+        onCommitField={onCommitField}
+        token={token}
       />
     );
   },
@@ -695,19 +954,22 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
             onClick: ({ onOpenTeamPicker }) => onOpenTeamPicker(),
             hidden: ({ canUpdate }) => !canUpdate,
           },
-          emptyLabel: "Nenhuma pessoa de apoio registrada.",
+          emptyLabel: "Nenhuma pessoa de apoio registrada. Gestor e Educador/Executor também entram por aqui (papéis Responsável técnico e Facilitador).",
         },
       ],
       emptyLabel: "Sem equipe.",
     },
     {
       key: "progress",
-      label: "Progresso e Relatório",
+      label: "Planejamento e Relatório",
       visible: ({ mode }) => mode === "edit",
       content: ({
         action,
+        draft,
+        setDraft,
         readOnly,
         attachmentUploading,
+        onCommitField,
         onSaveActionPatch,
         selectedOccurrence,
         reportRows,
@@ -717,6 +979,12 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         canReadPeople,
       }) => (
         <div className="space-y-6">
+          <ActivityPlanningSection
+            draft={draft}
+            setDraft={setDraft}
+            readOnly={readOnly}
+            onCommitField={onCommitField}
+          />
           <ActionProgressSection
             action={action}
             readOnly={readOnly}
@@ -761,17 +1029,10 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
     auditVisibleCount,
     onAuditVisibleCountChange,
     mentionableUsers,
-    commentDraft,
-    commentSubmitting,
     attachmentUploading,
     onCommitField,
-    onCommentDraftChange,
-    onSubmitComment,
-    onDeleteComment,
     onUploadAttachment,
     onDeleteAttachment,
-    onNotesChange,
-    onNotesBlur,
   }) => (
     <StandardDetailMetadataSide
       mode={mode}
@@ -780,25 +1041,14 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit={canAudit}
-      comments={{
-        items: action?.comments ?? [],
-        draft: commentDraft,
-        users: mentionableUsers,
-        onDraftChange: onCommentDraftChange,
-        onSubmit: onSubmitComment,
-        onDelete: mode === "edit" ? onDeleteComment : undefined,
-        submitting: commentSubmitting,
-        readOnly: readOnly || mode !== "edit",
-        emptyLabel:
-          mode === "create"
-            ? "Salve para habilitar comentários."
-            : "Nenhum comentário.",
-      }}
       notes={{
         value: draft.internalNotes,
-        onChange: onNotesChange,
-        onBlur: onNotesBlur,
+        onChange: (next) => setDraft((previous) => ({ ...previous, internalNotes: next })),
+        onBlur: () => onCommitField("internalNotes"),
         readOnly,
+        placeholder: "Notas sobre esta atividade. Use @ para mencionar alguém.",
+        richText: true,
+        mentionUsers: mentionableUsers,
       }}
       tags={{
         value: draft.tags,
@@ -836,30 +1086,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
               ? "Enviando anexo..."
               : "Nenhum anexo.",
       }}
-      history={{
-        items: buildActionHistoryItems(detailAudit?.logs ?? []),
-        emptyLabel:
-          mode === "create"
-            ? "Salve para habilitar histórico."
-            : "Nenhum histórico.",
-      }}
-      contextItems={[
-        { key: "status", label: "Status", value: formatStatus(action?.status) },
-        { key: "type", label: "Tipo", value: action?.actionType?.name ?? "-" },
-        {
-          key: "scope",
-          label: "Escopo",
-          value:
-            action && action.peopleGroupIds.length > 1
-              ? `${action.peopleGroupIds.length} grupos`
-              : (action?.peopleGroup?.name ??
-                action?.targetEnrollment?.person?.fullName ??
-                "Projeto"),
-        },
-        { key: "period", label: "Período", value: formatPeriod(action?.plannedStartAt, action?.plannedEndAt) },
-        { key: "tags", label: "Tags", value: draft.tags.length },
-      ]}
-      tabOrder={["tags", "notes", "attachments", "comments", "activity", "history", "context"]}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       defaultTab="activity"
     />
   ),

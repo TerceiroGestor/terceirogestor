@@ -9,10 +9,8 @@ import { useAuth } from "@/features/auth/auth-context";
 import { uploadActionAttachment } from "@/features/uploads/api";
 import {
   addProjectActionAttachment,
-  addProjectActionComment,
   createProjectActionPeopleParticipation,
   deleteProjectActionAttachment,
-  deleteProjectActionComment,
   endProjectActionPeopleParticipation,
   getActivity,
   listActionAttendanceSummary,
@@ -31,7 +29,7 @@ import {
   actionsDetailModuleDefinition,
 } from "@/modules/actions/config/actions-module-contract";
 import {
-  type ActionMetadataDraft,
+  type ActivityDetailDraft,
   type ActionsDetailLayoutContext,
 } from "@/modules/actions/config/actions-detail-layout-contract";
 import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
@@ -57,20 +55,33 @@ import {
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 
-function buildDraft(action?: ApiActivity | null): ActionMetadataDraft {
+function buildDraft(action?: ApiActivity | null): ActivityDetailDraft {
   return {
+    actionTypeId: action?.actionTypeId ?? "",
+    title: action?.title ?? "",
+    status: action?.status ?? "PLANNED",
+    peopleGroupIds: action?.peopleGroupIds ?? [],
+    goalId: action?.goalId ?? "",
+    description: action?.description ?? "",
+    plannedStartAt: action?.plannedStartAt?.slice(0, 10) ?? "",
+    plannedEndAt: action?.plannedEndAt?.slice(0, 10) ?? "",
+    pedagogicalPlanHtml: action?.pedagogicalPlanHtml ?? "",
     tags: action?.tags ?? [],
     internalNotes: action?.internalNotes ?? null,
   };
 }
 
-const EMPTY_COMMENT_DRAFT = {
-  body: "",
-  mentionUserIds: [] as string[],
-};
-
-function normalizeDraft(draft: ActionMetadataDraft): ActionMetadataDraft {
+function normalizeDraft(draft: ActivityDetailDraft): ActivityDetailDraft {
   return {
+    actionTypeId: draft.actionTypeId,
+    title: draft.title.trim(),
+    status: draft.status,
+    peopleGroupIds: draft.peopleGroupIds ?? [],
+    goalId: draft.goalId ?? "",
+    description: draft.description.trim(),
+    plannedStartAt: draft.plannedStartAt ?? "",
+    plannedEndAt: draft.plannedEndAt ?? "",
+    pedagogicalPlanHtml: draft.pedagogicalPlanHtml ?? "",
     tags: Array.from(new Set((draft.tags ?? []).map((tag) => tag.trim()).filter(Boolean))),
     internalNotes: draft.internalNotes?.trim() ? draft.internalNotes.trim() : null,
   };
@@ -126,10 +137,8 @@ export function ActionDetailEngineClientPage() {
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
 
   const [action, setAction] = React.useState<ApiActivity | null>(null);
-  const [draft, setDraft] = React.useState<ActionMetadataDraft>(buildDraft());
+  const [draft, setDraft] = React.useState<ActivityDetailDraft>(buildDraft());
   const [loading, setLoading] = React.useState(true);
-  const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
-  const [commentSubmitting, setCommentSubmitting] = React.useState(false);
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
@@ -163,10 +172,22 @@ export function ActionDetailEngineClientPage() {
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const persistDraft = React.useCallback(
-    async (nextDraft: ActionMetadataDraft) => {
+    async (nextDraft: ActivityDetailDraft) => {
       if (!token || !projectId) return nextDraft;
       const normalized = normalizeDraft(nextDraft);
-      const updated = await updateActivity(token, projectId, id, normalized);
+      const updated = await updateActivity(token, projectId, id, {
+        actionTypeId: normalized.actionTypeId,
+        title: normalized.title,
+        status: normalized.status,
+        peopleGroupIds: normalized.peopleGroupIds,
+        goalId: normalized.goalId || null,
+        description: normalized.description || null,
+        plannedStartAt: normalized.plannedStartAt || null,
+        plannedEndAt: normalized.plannedEndAt || null,
+        pedagogicalPlanHtml: normalized.pedagogicalPlanHtml || null,
+        tags: normalized.tags,
+        internalNotes: normalized.internalNotes,
+      });
       const savedDraft = buildDraft(updated);
       setAction(updated);
       setDraft(savedDraft);
@@ -175,7 +196,7 @@ export function ActionDetailEngineClientPage() {
     [id, projectId, token],
   );
 
-  const autoSave = useDetailAutoSaveController<ActionMetadataDraft>({
+  const autoSave = useDetailAutoSaveController<ActivityDetailDraft>({
     draft,
     enabled: Boolean(token && projectId && canEdit),
     config: getModuleDetailEditingConfig(actionsDetailModuleDefinition),
@@ -195,7 +216,6 @@ export function ActionDetailEngineClientPage() {
     if (!token || !projectId || !id || !canRead) return;
     setReportLoading(true);
     setReportError(null);
-    setQualitySaving(true);
     try {
       const [rows, people] = await Promise.all([
         occurrenceId
@@ -294,7 +314,6 @@ export function ActionDetailEngineClientPage() {
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
-    setCommentDraft(EMPTY_COMMENT_DRAFT);
     setOccurrences([]);
     setOccurrenceId(null);
     setAttendanceSummaryRows([]);
@@ -351,42 +370,6 @@ export function ActionDetailEngineClientPage() {
     },
     [applyLoadedAction, id, projectId, refreshReport, toast, token],
   );
-
-  const handleSubmitComment = React.useCallback(async () => {
-    if (!token || !projectId || !commentDraft.body.trim()) return;
-    setCommentSubmitting(true);
-    try {
-      const updated = await addProjectActionComment(token, projectId, id, commentDraft);
-      applyLoadedAction(updated);
-      setCommentDraft(EMPTY_COMMENT_DRAFT);
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao comentar na atividade.";
-      toast({ variant: "destructive", title: "Falha ao comentar", description: message });
-    } finally {
-      setCommentSubmitting(false);
-    }
-  }, [applyLoadedAction, commentDraft, id, projectId, toast, token]);
-
-  const handleDeleteComment = React.useCallback(async (commentId: string) => {
-    if (!token || !projectId) return;
-    if (!window.confirm("Excluir este comentário?")) return;
-    setCommentSubmitting(true);
-    try {
-      const updated = await deleteProjectActionComment(token, projectId, id, commentId);
-      applyLoadedAction(updated);
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao excluir comentário.";
-      toast({ variant: "destructive", title: "Falha ao excluir", description: message });
-    } finally {
-      setCommentSubmitting(false);
-    }
-  }, [applyLoadedAction, id, projectId, toast, token]);
 
   const handleSelectAttachment = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -664,8 +647,6 @@ export function ActionDetailEngineClientPage() {
     draft,
     setDraft,
     mentionableUsers,
-    commentDraft,
-    commentSubmitting,
     attachmentUploading,
     reportRows,
     reportPeopleRows,
@@ -687,20 +668,17 @@ export function ActionDetailEngineClientPage() {
     qualitySaving,
     qualityNotesDialog,
     qualityRows,
-    onCommitField: (field: keyof ActionMetadataDraft, nextValue?: ActionMetadataDraft[keyof ActionMetadataDraft]) =>
+    onCommitField: (field: keyof ActivityDetailDraft, nextValue?: ActivityDetailDraft[keyof ActivityDetailDraft]) =>
       void commitField(field, nextValue),
-    onCommentDraftChange: setCommentDraft,
-    onSubmitComment: handleSubmitComment,
-    onDeleteComment: handleDeleteComment,
     onUploadAttachment: () => {
       if (!canEdit) return;
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.oncancel = () => resumeDetailAutoSave();
+      }
       suspendDetailAutoSave();
       attachmentInputRef.current?.click();
     },
     onDeleteAttachment: handleDeleteAttachment,
-    onNotesChange: (next: string | null) =>
-      setDraft((previous) => ({ ...previous, internalNotes: next })),
-    onNotesBlur: () => void commitField("internalNotes"),
     onSaveActionPatch: handleSaveActionPatch,
     onActionLoaded: applyLoadedAction,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
@@ -713,7 +691,7 @@ export function ActionDetailEngineClientPage() {
     applyQualityNotesDialog,
     auditVisibleCount,
     onAuditVisibleCountChange: setAuditVisibleCount,
-  } satisfies ActionsDetailLayoutContext & { token: string };
+  } satisfies ActionsDetailLayoutContext;
 
   return (
     <>
@@ -737,7 +715,6 @@ export function ActionDetailEngineClientPage() {
         ]}
         saving={
           saving ||
-          commentSubmitting ||
           attachmentUploading ||
           reportLoading ||
           attendanceSummaryLoading ||
