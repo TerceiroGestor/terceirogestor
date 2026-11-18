@@ -643,6 +643,7 @@ export function ActionDetailEngineClientPage() {
     token: token ?? "",
     projectId,
     action,
+    occurrences,
     selectedOccurrence,
     draft,
     setDraft,

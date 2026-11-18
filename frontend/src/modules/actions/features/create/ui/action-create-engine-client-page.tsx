@@ -27,6 +27,7 @@ export function ActionCreateEngineClientPage() {
     token: "",
     projectId: "",
     action: null,
+    occurrences: [],
     selectedOccurrence: null,
     draft: {
       actionTypeId: "",

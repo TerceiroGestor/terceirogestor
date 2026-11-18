@@ -620,6 +620,7 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   token: string;
   projectId: string;
   action: ApiActivity | null;
+  occurrences: ApiMeeting[];
   selectedOccurrence: ApiMeeting | null;
   draft: ActivityDetailDraft;
   setDraft: React.Dispatch<React.SetStateAction<ActivityDetailDraft>>;
@@ -758,37 +759,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "participants",
       label: ACTION_RELATION_TEXT.participants.tabLabel,
       visible: ({ mode }) => mode === "edit",
-      content: ({
-        attendanceSummaryFrom,
-        attendanceSummaryTo,
-        onAttendanceSummaryFromChange,
-        onAttendanceSummaryToChange,
-      }) => (
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              De
-            </div>
-            <Input
-              type="date"
-              value={attendanceSummaryFrom}
-              onChange={(event) => onAttendanceSummaryFromChange(event.target.value)}
-              className="h-9 w-[160px]"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Até
-            </div>
-            <Input
-              type="date"
-              value={attendanceSummaryTo}
-              onChange={(event) => onAttendanceSummaryToChange(event.target.value)}
-              className="h-9 w-[160px]"
-            />
-          </div>
-        </div>
-      ),
+      badge: ({ attendanceSummaryRows }) => attendanceSummaryRows.length || undefined,
       relations: [
         {
           key: "participants-summary",
@@ -802,6 +773,21 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           searchable: true,
           searchPlaceholder: "Pesquisar participante",
           filterRows: (rows, query) => filterAttendanceSummaryRows(rows, query),
+          filters: [
+            {
+              key: "period",
+              label: "Período",
+              type: "dateRange",
+              value: ({ attendanceSummaryFrom, attendanceSummaryTo }) => ({
+                from: attendanceSummaryFrom,
+                to: attendanceSummaryTo,
+              }),
+              onChange: ({ onAttendanceSummaryFromChange, onAttendanceSummaryToChange }, range) => {
+                onAttendanceSummaryFromChange(range.from);
+                onAttendanceSummaryToChange(range.to);
+              },
+            },
+          ],
           stats: [
             {
               key: "total",
@@ -823,6 +809,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "occurrences",
       label: "Encontros",
       visible: ({ mode }) => mode === "edit",
+      badge: ({ occurrences }) => occurrences.length || undefined,
       content: ({ action, projectId, token, readOnly }) =>
         action ? (
           <ActionOccurrencesSection
@@ -838,6 +825,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "quality",
       label: ACTION_RELATION_TEXT.quality.tabLabel,
       visible: ({ mode }) => mode === "edit",
+      badge: ({ qualityRows }) => qualityRows.length || undefined,
       content: ({ qualityNotesDialog, canUpdate, onQualityNotesDialogChange, applyQualityNotesDialog }) => (
         <QualityNotesDialog
           state={qualityNotesDialog}
@@ -937,6 +925,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "team",
       label: "Equipe",
       visible: ({ mode }) => mode === "edit",
+      badge: ({ reportPeopleRows }) => reportPeopleRows.length || undefined,
       content: () => null,
       relations: [
         {
@@ -1093,7 +1082,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
   auditSources: {
     primaryEntity: {
       key: "action",
-      entity: "ProjectAction",
+      entity: "Activity",
       model: "audit.logs",
       label: "Atividade",
       fieldLabels: ACTION_AUDIT_FIELD_LABELS,
