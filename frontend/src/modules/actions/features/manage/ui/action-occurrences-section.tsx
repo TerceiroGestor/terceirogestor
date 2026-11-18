@@ -2,11 +2,14 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { usePathname, useRouter } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   Select,
   SelectContent,
@@ -788,6 +791,9 @@ function EditOccurrenceDialog({
 }: EditOccurrenceDialogProps) {
   const { toast } = useToast();
   const { confirm } = useConfirm();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tenantSlug = getTenantSlugFromPath(pathname) ?? "";
   const [scheduledDate, setScheduledDate] = React.useState("");
   const [startTime, setStartTime] = React.useState("");
   const [endTime, setEndTime] = React.useState("");
@@ -937,19 +943,38 @@ function EditOccurrenceDialog({
             </div>
           ) : null}
           <div className="flex items-center justify-between gap-2">
-            {canUpdate && occurrence.recurrenceBatchId ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={saving}
-                onClick={() => void handleCancelSeries()}
-              >
-                Cancelar esta e as próximas da série
-              </Button>
-            ) : (
-              <span />
-            )}
+            <div className="flex flex-wrap gap-2">
+              {canUpdate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => {
+                    const href = withTenantPath(
+                      `/occurrences/new?projectId=${projectId}&actionId=${actionId}&meetingId=${occurrence.id}`,
+                      tenantSlug,
+                    );
+                    onOpenChange(false);
+                    router.push(href);
+                  }}
+                >
+                  <TriangleAlert className="mr-2 h-4 w-4" />
+                  Registrar ocorrência
+                </Button>
+              ) : null}
+              {canUpdate && occurrence.recurrenceBatchId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => void handleCancelSeries()}
+                >
+                  Cancelar esta e as próximas da série
+                </Button>
+              ) : null}
+            </div>
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Fechar

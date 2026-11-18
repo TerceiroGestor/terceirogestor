@@ -463,21 +463,17 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
 
-// Fase 5 (Ocorrência) ainda não foi desenhada (modelo de dados, ciclo
-// registrada->em análise->desfecho) - este botão só reserva o lugar no
-// mesmo mecanismo genérico de ações de cabeçalho que o People já usa
-// ("Ver ficha completa"/"Árvore genealógica"), pra validar a navegação
-// sem adiantar a feature de verdade.
 const ACTIVITY_DETAIL_HEADER_ACTIONS: DetailHeaderActionConfig<ActionsDetailLayoutContext>[] =
   [
     {
       key: "occurrence",
       label: "Registrar ocorrência",
-      tooltip: "Em breve — Fase 5",
+      tooltip: "Registrar ocorrência vinculada a esta atividade",
       icon: <TriangleAlert className="h-4 w-4" />,
       variant: "outline",
       hidden: ({ mode }) => mode !== "edit",
-      disabled: () => true,
+      href: ({ projectId, action }) =>
+        `/occurrences/new?projectId=${projectId}&actionId=${action?.id ?? ""}`,
     },
   ];
 
