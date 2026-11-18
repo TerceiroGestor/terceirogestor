@@ -4,6 +4,96 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
+
+Continuação direta do item anterior (abaixo). Usuário pediu pra manter o
+escopo pequeno e fechar bem o módulo Atividades antes de generalizar
+qualquer padrão novo pros outros módulos. Rodei 4 investigações (`Explore`)
+em paralelo; 3 vieram com causa raiz confirmada, 1 (login) só com hipótese
+que não se confirmou ao vivo.
+
+**Bug 1 — login lento, precisa de F5: não reproduzido.** Testei em `next
+dev` (reproduzi demora real, mas era compilação sob demanda de rota — o
+usuário confirmou que o problema dele é em modo `start`, não `dev`) e em
+`next build && next start` do zero e já aquecido (3 tentativas, todas
+rápidas, sem travar). Não mexi em nenhum código de auth/dashboard — não ia
+adivinhar um fix sem conseguir ver o bug acontecer. Detalhe completo e
+candidato (service worker antigo de sessão `dev` anterior) em
+`docs/backlog.md`.
+
+**Bug 2 — Auditoria da Atividade vazia: corrigido.** Causa raiz:
+`backend/prisma/schema.prisma` tem `model Activity { @@map("ProjectAction") }`
+— o `@@map` só renomeia a tabela no banco, mas a extensão de auditoria
+(`backend/src/core/prisma/prisma.service.ts`) grava `entity` com o nome do
+model (`"Activity"`), não o mapeado. O frontend
+(`actions-detail-layout-contract.tsx:1096`) consultava `entity:
+"ProjectAction"` — nunca batia com nada. Fix: 1 linha, trocar a string pra
+`"Activity"`.
+
+**Melhoria 3 — filtro de data na aba Participantes: refeito dentro do
+toolbar.** As duas datas "De"/"Até" eram `<Input type="date">` soltos,
+acima da busca. Novo componente compartilhado
+`web-client/ui/DateRangeFilterButton.tsx` (botão com ícone de calendário +
+Popover com `Calendar` em modo `range`) plugado como novo `type:
+"dateRange"` em `DetailRelationFilterConfig` (`web-client/registry/types.ts`),
+renderizado por `DetailLayoutSections.tsx` no mesmo lugar que os filtros
+`select` já existentes (aba Qualidade). Achado extra ao testar ao vivo:
+`components/ui/calendar.tsx` nunca tinha sido usado de verdade no projeto —
+suas `classNames` eram todas do react-day-picker v8 (`head_row`,
+`day_selected`, etc.), mas o pacote instalado é v9 (chaves renomeadas pra
+`weekdays`, `selected`, etc.); as chaves antigas eram ignoradas em
+silêncio, sem erro — o calendário renderizava com o cabeçalho de dias da
+semana todo espremido e em inglês. Corrigido junto (chaves certas da v9 +
+`locale={ptBR}`), já que é o mesmo componente compartilhado que eu estava
+exercitando pela primeira vez.
+
+**Melhoria 4 — contagem nas abas: só precisou popular um campo que já
+existia.** `DetailTabTemplate.badge?: (context) => ReactNode` já existe na
+infra e já é usado pelo painel lateral (Tags/Notas/Anexos/Auditoria) desde
+antes — só faltava popular nas 4 abas principais da Atividade
+(Participantes/Encontros/Qualidade/Equipe), usando dados que o `context`
+já carrega sem fetch novo (`attendanceSummaryRows`, `occurrences` — este só
+precisou ser adicionado ao objeto `context`, o state já existia —,
+`qualityRows`, `reportPeopleRows`).
+
+**Evidência:**
+
+```
+# backend (nenhum arquivo de backend mudou)
+npx tsc --noEmit -p tsconfig.build.json   → 0 erros
+npm test                                  → 29 suites, 153 testes, todos passando
+npm run build                             → ok
+
+# frontend
+npx tsc --noEmit    → 0 erros
+npx eslint <6 arquivos tocados + 1 novo>  → só erros já existentes em
+                      action-detail-engine-client-page.tsx e
+                      actions-detail-layout-contract.tsx/DetailLayoutSections.tsx
+                      (react-hooks/set-state-in-effect), confirmados
+                      pre-existentes rodando eslint nos mesmos arquivos
+                      em `develop` limpo antes de editar
+npm run build       → ok, todas as rotas
+```
+
+Testado de ponta a ponta no navegador (Playwright + Chromium, login real
+`admin@seed.local`, **build de produção** — `npm run build` + `npm run
+start`, não `npm run dev`, porque o Bug 1 só se manifestaria lá):
+
+- Editar o Título da Atividade → PATCH real, aba Auditoria mostra a
+  entrada (antes mostrava "Nenhum evento de auditoria registrado." mesmo
+  com PATCH 200 confirmado)
+- Abas Participantes/Encontros/Qualidade mostram a contagem certa ao lado
+  do rótulo ("Participantes 1", "Encontros 1", "Qualidade 1"); Equipe
+  (vazia) e Detalhes (formulário) corretamente sem badge
+- Aba Participantes: sem inputs de data soltos acima da busca; botão
+  "Período" dentro do toolbar, abre popover com calendário em português,
+  seleção de intervalo funciona e re-filtra a lista de verdade (testado:
+  intervalo fora da data real do encontro → "Sem encontros no período"),
+  "Limpar" volta ao estado vazio
+- Dados de teste: título e descrição temporários usados no teste foram
+  restaurados ao valor original do seed ao final; servidores de teste
+  encerrados.
+
 ## Item avulso — fechar Atividades/Encontros (2026-11-18)
 
 Pedido direto do usuário, fora da sequência de Partes 1-5 e fora do plano

@@ -382,3 +382,32 @@ adiado sem gatilho. Formato do Alicerce.
   **Gatilho:** da próxima vez que alguém for editar esse arquivo por
   outro motivo, ou numa sessão dedicada a limpar encoding de docs —
   reescrever o arquivo inteiro em UTF-8 correto de uma vez.
+
+## Atividades — login lento após autenticar (não reproduzido, 2026-11-18)
+
+Usuário relatou: logo após logar, a tela de Dashboard fica presa em
+"Carregando dashboard..." e nenhuma outra tela carrega (nem clicando em
+outros itens do menu) até dar F5 — só acontece no primeiro acesso.
+Tentei reproduzir de 3 formas diferentes, todas sem sucesso:
+
+1. `next dev` logo após subir o servidor do zero: reproduzi uma demora real
+   (~24s), mas era compilação sob demanda de rota (Next dev recompila cada
+   rota na primeira visita da sessão) — o usuário confirmou que o problema
+   acontece em modo `start` (produção), não em `dev`.
+2. `next build && next start` do zero, primeiro login: completou em <2s.
+3. Mesmo build já aquecido, 3 tentativas seguidas (login → dashboard →
+   clique em Atividades): todas completaram em 1-3s, sem nenhum "Carregando"
+   preso.
+
+Candidato mais provável que não pude testar: o navegador real do usuário
+pode ter um service worker antigo (`public/sw.js`, registrado em sessão
+anterior rodando `next dev`) ainda ativo quando ele troca pra `next start`
+no mesmo endereço — o SW é um passthrough sem cache, mas intercepta toda
+`fetch`, incluindo as chamadas de navegação RSC do Next; não encontrei
+evidência direta de que ele cause o travamento, só não consegui descartar
+sem acesso ao navegador real.
+**Gatilho:** se acontecer de novo, abrir o DevTools (F12) antes de dar F5 —
+aba Application → Service Workers (tem algo registrado? deu erro?) e aba
+Network (alguma requisição amarela/vermelha, presa em "pending"?) — e
+registrar o que aparece. Isso decide se o próximo passo é mexer no
+registro do service worker ou procurar em outro lugar.

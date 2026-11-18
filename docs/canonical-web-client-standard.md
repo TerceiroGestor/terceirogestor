@@ -237,6 +237,38 @@ Toda aba de Detail (principal ou do painel lateral) usa `MODULE_TABS_LIST_CLASS_
 
 Nao criar um novo estilo de aba por modulo. Se o modulo precisar de um componente de abas proprio (como o de People, que tem icones e scroll), ele ainda usa essas duas constantes para o `className` do `TabsTrigger`.
 
+### Contagem nas abas (padrao a partir de 2026-11-18)
+
+`DetailTabTemplate.badge?: (context) => ReactNode` (e o equivalente do painel
+lateral, `DetailSideTabItem.badge`) ja existem na infra e ja sao renderizados
+por `DetailTabsRenderer`/`DetailSideTabs` exatamente da mesma forma (numero
+discreto ao lado do rotulo, some quando o valor e `0`/`undefined`). Usar
+`badge` em toda aba principal que representa uma lista, sempre que a
+contagem ja estiver disponivel no `context` sem fetch extra (ex.:
+`badge: (ctx) => ctx.algumaLista.length || undefined`). Nao forcar um
+pre-fetch so pra popular a contagem de uma aba que ainda nao foi aberta -
+nesse caso a aba simplesmente fica sem badge (campo opcional, "desativado"
+e so nao preencher). Abas que nao sao lista (ex.: um formulario) nunca
+ganham badge.
+
+### Filtro de periodo na relation (`dateRange`, padrao a partir de 2026-11-18)
+
+`DetailRelationFilterConfig` aceita `type: "dateRange"` alem de `type:
+"select"`, renderizado no mesmo lugar (barra de filtro ao lado da busca,
+dentro do toolbar do `relationSlot`) via `DateRangeFilterButton`
+(`web-client/ui/DateRangeFilterButton.tsx`): botao compacto com icone de
+calendario, mostra o intervalo formatado quando preenchido ou um texto
+placeholder quando vazio, abre um `Popover` com `Calendar` (shadcn,
+`mode="range"`) e um botao "Limpar". Nunca voltar a usar um par solto de
+`<Input type="date">` fora do toolbar da relation - isso e o que o filtro
+de periodo da Atividade (aba Participantes) tinha antes e foi substituido.
+`components/ui/calendar.tsx` foi corrigido nesta mesma rodada para as
+chaves de `classNames` da v9 do react-day-picker (a v8 usava
+`head_row`/`day_selected`/etc., a v9 renomeou pra `weekdays`/`selected`/etc.,
+e as chaves antigas sao ignoradas em silencio, sem erro, so o estilo
+quebra) e ganhou `locale={ptBR}` por padrao - qualquer novo uso do
+`Calendar` compartilhado ja herda os dois.
+
 ### FormulÃ¡rio principal (`detailSlot`)
 
 - Nao usar titulo + paragrafo descritivo em cabecalho de secao. Se o campo precisar de contexto, o contexto vai no `placeholder` ou em texto de ajuda inline no proprio campo - nunca um paragrafo de 1-2 linhas acima da secao.
