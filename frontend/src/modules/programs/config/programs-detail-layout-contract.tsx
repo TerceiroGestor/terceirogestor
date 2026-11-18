@@ -28,6 +28,7 @@ import {
 } from "@/modules/programs/shared/domain/programs.constants";
 import type { ApiProject } from "@/modules/projects/api/types/projects";
 import { PROJECT_STATUS_LABELS } from "@/modules/projects/shared/domain/projects.constants";
+import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildGroupedAuditFeed,
@@ -273,9 +274,8 @@ function ProgramsDetailMain({
 >) {
   return (
     <div className={PROGRAM_DETAIL_SECTION_CLASS}>
-      <div className="grid gap-3 md:grid-cols-[1.3fr_220px_220px] md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Nome</div>
+      <div className="grid gap-6 md:grid-cols-[1.3fr_220px_220px] md:items-end">
+        <DetailSectionField label="Nome">
           <Input
             value={draft.name}
             onChange={(event) =>
@@ -286,10 +286,9 @@ function ProgramsDetailMain({
             placeholder="Nome do programa"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Tipo</div>
+        <DetailSectionField label="Tipo">
           <Select
             value={draft.type}
             onValueChange={(value) => {
@@ -309,10 +308,9 @@ function ProgramsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Status</div>
+        <DetailSectionField label="Status">
           <Select
             value={draft.status}
             onValueChange={(value) => {
@@ -332,12 +330,11 @@ function ProgramsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Início</div>
+      <div className="mt-6 grid gap-6 md:grid-cols-2 md:items-end">
+        <DetailSectionField label="Início">
           <Input
             type="date"
             value={draft.startsAt}
@@ -349,10 +346,9 @@ function ProgramsDetailMain({
             title="Início"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
 
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Fim</div>
+        <DetailSectionField label="Fim">
           <Input
             type="date"
             value={draft.endsAt}
@@ -364,21 +360,22 @@ function ProgramsDetailMain({
             title="Fim"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
-        <Textarea
-          value={draft.description}
-          onChange={(event) =>
-            setDraft((previous) => ({ ...previous, description: event.target.value }))
-          }
-          onBlur={() => onCommitField("description")}
-          className={PROGRAM_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descrição, objetivo e contexto do programa"
-          readOnly={readOnly}
-        />
+      <div className="mt-6">
+        <DetailSectionField label="Descrição">
+          <Textarea
+            value={draft.description}
+            onChange={(event) =>
+              setDraft((previous) => ({ ...previous, description: event.target.value }))
+            }
+            onBlur={() => onCommitField("description")}
+            className={PROGRAM_DETAIL_TEXTAREA_CLASS}
+            placeholder="Descrição, objetivo e contexto do programa"
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
       </div>
 
     </div>
