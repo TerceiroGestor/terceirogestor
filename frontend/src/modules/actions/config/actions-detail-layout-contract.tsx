@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { TriangleAlert } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +13,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RichText } from "@/components/ui/richtext/RichText";
-import { formatDateTimePtBR } from "@/lib/date";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
   ActionAttendanceSummaryItem,
@@ -113,25 +111,6 @@ const ACTION_ATTACHMENT_AUDIT_FIELD_LABELS = {
 function formatStatus(value: string | null | undefined) {
   if (!value) return "-";
   return ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ?? value;
-}
-
-function resolveStatusBadge(status: ActionStatus) {
-  const label = formatStatus(status);
-  switch (status) {
-    case "EXECUTED":
-      return <Badge variant="secondary">{label}</Badge>;
-    case "CANCELED":
-      return <Badge variant="outline">{label}</Badge>;
-    default:
-      return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
-  }
-}
-
-function formatPeriod(start: string | null | undefined, end: string | null | undefined) {
-  const from = start ? start.slice(0, 10) : "-";
-  const to = end ? end.slice(0, 10) : "-";
-  if (!start && !end) return "Não informado";
-  return `${from} até ${to}`;
 }
 
 function filterTeamRows(
@@ -700,35 +679,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
   editing: AUTO_SAVE_EDITING,
   header: {
     actions: ACTIVITY_DETAIL_HEADER_ACTIONS,
-    slot: ({ mode, action, draft }) => {
-      if (mode === "create") return null;
-      return (
-        <div className="border-y border-border/60 bg-transparent px-0 py-3">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Status</div>
-              <div>{resolveStatusBadge(draft.status)}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">{action?.actionType?.name ?? "-"}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Período</div>
-              <div className="font-medium text-foreground">
-                {formatPeriod(draft.plannedStartAt || null, draft.plannedEndAt || null)}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Cadastro</div>
-              <div className="font-medium text-foreground">
-                {action?.createdAt ? formatDateTimePtBR(action.createdAt) : "-"}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    },
   },
   mainTab: true,
   main: ({ mode, action, projectId, onActionLoaded, draft, setDraft, readOnly, onCommitField, token }) => {

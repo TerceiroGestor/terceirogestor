@@ -411,3 +411,17 @@ aba Application → Service Workers (tem algo registrado? deu erro?) e aba
 Network (alguma requisição amarela/vermelha, presa em "pending"?) — e
 registrar o que aparece. Isso decide se o próximo passo é mexer no
 registro do service worker ou procurar em outro lugar.
+
+## Barra de Status/Tipo/Período/Cadastro no header do Detail (2026-11-18)
+
+Removida da Atividade a pedido do usuário ("suja a tela, quebra a lógica
+visual") — ver `PLAN.md`. Projects, Programs e People-Groups ainda têm
+essa mesma barra (`header.slot`) nos seus respectivos
+`*-detail-layout-contract.tsx`. Não foi uma decisão de generalizar o
+padrão, só de remover na Atividade por ora.
+**Gatilho:** se o usuário gostar do resultado na Atividade depois de usar
+por um tempo e pedir pra tirar dos outros módulos também — remover o
+`header.slot` dos outros 3 contracts do mesmo jeito (apagar a função que
+monta a barra, não só esconder) e atualizar
+`docs/canonical-web-client-standard.md` (seção `headSlot`) pra registrar
+que a barra deixou de ser obrigatória.

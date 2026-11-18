@@ -4,6 +4,45 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Item avulso — Atividades: mais melhorias item por item (2026-11-18)
+
+Usuário pediu pra continuar refinando o Detail da Atividade, mas resolver
+"item por item" em vez de levantar tudo de uma vez — a cada item, descreve
+o problema, eu confirmo o arquivo/trecho exato e só então implemento.
+
+### Item 1 — tirar a barra de Status/Tipo/Período/Cadastro do header
+
+Pedido do usuário: "Essa informação está sujando a tela e quebrando a
+lógica visual... ter somente o Header e logo embaixo colado as abas."
+Removido `header.slot` inteiro de `actionsDetailLayout`
+(`actions-detail-layout-contract.tsx`) — a função que renderizava essa
+barra (`resolveStatusBadge`/`formatPeriod`, e o import morto
+`formatDateTimePtBR`) foi apagada, não só escondida. `DetailShell.tsx`
+confirma que `headerInfoSlot` nulo não deixa nenhum espaço/margem —
+header e abas ficam coladas sem precisar de CSS extra.
+
+Essa barra existe nos outros módulos de conteúdo (Projects, Programs,
+People-Groups) também — por ora a remoção é só na Atividade, decisão
+deliberada de manter escopo pequeno; se o usuário gostar do resultado,
+pode virar pedido pra tirar dos outros módulos depois (registrado em
+`docs/backlog.md`).
+
+**Observação não bloqueante:** Status e Tipo continuam visíveis e
+editáveis na aba Detalhes (seção Organização); Período continua na aba
+Planejamento e Relatório. "Cadastro" (data de criação) não aparece mais
+em lugar nenhum do Detail — ainda é possível achar a data de criação
+abrindo a Auditoria (primeiro evento). Não perguntei se isso é aceitável
+porque o pedido foi explícito ("só o header e as abas, nada no meio");
+sinalizar se fizer falta.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint
+actions-detail-layout-contract.tsx` → 0 problemas; `npm run build` → ok.
+Testado ao vivo (Playwright, build de produção): screenshot confirma
+título seguido direto pelas abas, sem nenhuma barra no meio; "Pronto"/
+"Projeto Musica Manha" resolvem normalmente após o carregamento (um
+primeiro screenshot tirado cedo demais mostrou "Salvando..."/"-", era só
+timing do carregamento inicial, não regressão).
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o
