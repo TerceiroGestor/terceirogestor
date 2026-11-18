@@ -5,6 +5,11 @@ import {
   actionsListAction,
 } from "@/web-client/registry/actions/actions";
 import {
+  occurrencesCreateAction,
+  occurrencesDetailAction,
+  occurrencesListAction,
+} from "@/web-client/registry/actions/occurrences";
+import {
   adminAuditDetailAction,
   adminAuditListAction,
   adminInstitutionAction,
@@ -78,6 +83,10 @@ import {
   actionsSearchView,
 } from "@/web-client/registry/searchViews/actions";
 import {
+  occurrencesDetailSearchView,
+  occurrencesSearchView,
+} from "@/web-client/registry/searchViews/occurrences";
+import {
   pantryDonorsSearchView,
   pantryEntriesSearchView,
   pantryExitsSearchView,
@@ -122,6 +131,9 @@ const WINDOW_ACTIONS: WindowAction[] = [
   actionsListAction,
   actionsDetailAction,
   actionsCreateAction,
+  occurrencesListAction,
+  occurrencesDetailAction,
+  occurrencesCreateAction,
   adminOverviewAction,
   adminInstitutionAction,
   adminUsersListAction,
@@ -176,6 +188,8 @@ const WINDOW_ACTIONS: WindowAction[] = [
 const SEARCH_VIEWS: SearchViewDefinition[] = [
   actionsSearchView,
   actionsDetailSearchView,
+  occurrencesSearchView,
+  occurrencesDetailSearchView,
   adminSingletonSearchView,
   adminUsersSearchView,
   adminRolesSearchView,
