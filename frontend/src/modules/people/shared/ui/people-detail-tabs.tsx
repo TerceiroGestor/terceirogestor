@@ -88,7 +88,7 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
             : "overflow-x-auto pr-10 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         }
       >
-        <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start gap-1 rounded-none border-0 bg-transparent p-0">
+        <TabsList className="h-auto w-max min-w-full flex-nowrap justify-start gap-1.5 rounded-none border-0 bg-transparent p-0">
           {tabItems.map((item) => {
             const Icon = item.icon;
             const isSensitive = item.value === "documentos";
@@ -102,8 +102,8 @@ export function PeopleDetailTabs({ onValueChange }: PeopleDetailTabsProps) {
                 }
                 className={
                   isSensitive
-                    ? "group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-amber-700/80 shadow-none data-[state=active]:border-amber-500 data-[state=active]:bg-transparent data-[state=active]:text-amber-700 dark:text-amber-400/80 dark:data-[state=active]:text-amber-400"
-                    : "group relative h-11 shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
+                    ? "group relative h-9 shrink-0 whitespace-nowrap rounded-md border-0 px-3 text-sm font-medium text-amber-700/80 shadow-none transition-colors data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700 data-[state=active]:font-semibold data-[state=inactive]:hover:bg-muted/70 data-[state=inactive]:hover:text-amber-700 dark:text-amber-400/80 dark:data-[state=active]:bg-amber-400/10 dark:data-[state=active]:text-amber-400"
+                    : "group relative h-9 shrink-0 whitespace-nowrap rounded-md border-0 px-3 text-sm font-medium text-muted-foreground shadow-none transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=inactive]:hover:bg-muted/70 data-[state=inactive]:hover:text-foreground"
                 }
               >
                 <span className="flex items-center gap-2">

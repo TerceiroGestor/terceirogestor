@@ -52,6 +52,7 @@ import { PersonAddressSection } from "@/modules/people/shared/ui/person-address-
 import { PersonFullRecordDialog } from "@/modules/people/shared/ui/people-detail-sidebar";
 import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
+import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
 import { areTagsEqual } from "@/web-client/detail/tag-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
@@ -96,8 +97,6 @@ const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
 const lineTextareaClassName =
   "min-h-[120px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-3 shadow-none resize-none focus-visible:border-primary focus-visible:ring-0";
-const fieldLabelClassName =
-  "text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground";
 const AUTO_EDITING = {
   saveMode: "auto",
   autoSave: {
@@ -130,38 +129,6 @@ function getPersonStatusBadgeVariant(status?: string | null) {
   return "outline" as const;
 }
 
-function SectionField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className={fieldLabelClassName}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="space-y-1 border-b border-border/60 pb-2">
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      {description ? (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      ) : null}
-    </div>
-  );
-}
-
 function IdentificationFields({
   draft,
   readOnly,
@@ -175,7 +142,7 @@ function IdentificationFields({
 }) {
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <SectionField label="Nome">
+      <DetailSectionField label="Nome">
         <Input
           value={draft.fullName}
           onChange={(event) => onDraftChange((previous) => ({ ...previous, fullName: event.target.value }))}
@@ -183,8 +150,8 @@ function IdentificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
-      <SectionField label="Nome social">
+      </DetailSectionField>
+      <DetailSectionField label="Nome social">
         <Input
           value={draft.socialName ?? ""}
           onChange={(event) => onDraftChange((previous) => ({ ...previous, socialName: event.target.value }))}
@@ -192,8 +159,8 @@ function IdentificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
-      <SectionField label="Email">
+      </DetailSectionField>
+      <DetailSectionField label="Email">
         <Input
           value={draft.email ?? ""}
           onChange={(event) => onDraftChange((previous) => ({ ...previous, email: event.target.value }))}
@@ -201,8 +168,8 @@ function IdentificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
-      <SectionField label="Telefone">
+      </DetailSectionField>
+      <DetailSectionField label="Telefone">
         <Input
           value={draft.phone ?? ""}
           onChange={(event) => onDraftChange((previous) => ({ ...previous, phone: event.target.value }))}
@@ -210,8 +177,8 @@ function IdentificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
-      <SectionField label="Nascimento">
+      </DetailSectionField>
+      <DetailSectionField label="Nascimento">
         <Input
           type="date"
           value={draft.birthDate ?? ""}
@@ -223,7 +190,7 @@ function IdentificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
+      </DetailSectionField>
     </div>
   );
 }
@@ -241,7 +208,7 @@ function ClassificationFields({
 }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-      <SectionField label="Tipo">
+      <DetailSectionField label="Tipo">
         <Select
           value={draft.personType ?? "__empty__"}
           onValueChange={(next) => {
@@ -263,8 +230,8 @@ function ClassificationFields({
             ))}
           </SelectContent>
         </Select>
-      </SectionField>
-      <SectionField label="Sexo">
+      </DetailSectionField>
+      <DetailSectionField label="Sexo">
         <Select
           value={draft.sex ?? "__empty__"}
           onValueChange={(next) => {
@@ -286,8 +253,8 @@ function ClassificationFields({
             ))}
           </SelectContent>
         </Select>
-      </SectionField>
-      <SectionField label="Gênero">
+      </DetailSectionField>
+      <DetailSectionField label="Gênero">
         <Select
           value={draft.gender ?? "__empty__"}
           onValueChange={(next) => {
@@ -309,8 +276,8 @@ function ClassificationFields({
             ))}
           </SelectContent>
         </Select>
-      </SectionField>
-      <SectionField label="Raça/Cor">
+      </DetailSectionField>
+      <DetailSectionField label="Raça/Cor">
         <Select
           value={draft.raceColor ?? "__empty__"}
           onValueChange={(next) => {
@@ -332,8 +299,8 @@ function ClassificationFields({
             ))}
           </SelectContent>
         </Select>
-      </SectionField>
-      <SectionField label="Estado civil">
+      </DetailSectionField>
+      <DetailSectionField label="Estado civil">
         <Select
           value={draft.maritalStatus ?? "__empty__"}
           onValueChange={(next) => {
@@ -355,8 +322,8 @@ function ClassificationFields({
             ))}
           </SelectContent>
         </Select>
-      </SectionField>
-      <SectionField label="Nacionalidade">
+      </DetailSectionField>
+      <DetailSectionField label="Nacionalidade">
         <Input
           value={draft.nationality ?? ""}
           onChange={(event) => onDraftChange((previous) => ({ ...previous, nationality: event.target.value }))}
@@ -364,7 +331,7 @@ function ClassificationFields({
           className={lineInputClassName}
           readOnly={readOnly}
         />
-      </SectionField>
+      </DetailSectionField>
     </div>
   );
 }
@@ -383,7 +350,7 @@ function StatusFields({
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-2">
-        <SectionField label="Status">
+        <DetailSectionField label="Status">
           <Select
             value={draft.status ?? "__empty__"}
             onValueChange={(next) => {
@@ -405,11 +372,11 @@ function StatusFields({
               ))}
             </SelectContent>
           </Select>
-        </SectionField>
+        </DetailSectionField>
       </div>
 
       {draft.status === "Desligado" ? (
-        <SectionField label="Motivo do desligamento">
+        <DetailSectionField label="Motivo do desligamento">
           <Textarea
             value={draft.departureReason ?? ""}
             onChange={(event) => onDraftChange((previous) => ({ ...previous, departureReason: event.target.value }))}
@@ -417,7 +384,7 @@ function StatusFields({
             className={lineTextareaClassName}
             readOnly={readOnly}
           />
-        </SectionField>
+        </DetailSectionField>
       ) : null}
     </div>
   );
@@ -437,7 +404,7 @@ function BasicDataSection({
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <SectionHeading title="Identificação" />
+        <DetailSectionHeading title="Identificação" />
         <IdentificationFields
           draft={draft}
           readOnly={readOnly}
@@ -447,7 +414,7 @@ function BasicDataSection({
       </section>
 
       <section className="space-y-4">
-        <SectionHeading title="Classificação" />
+        <DetailSectionHeading title="Classificação" />
         <ClassificationFields
           draft={draft}
           readOnly={readOnly}
@@ -457,7 +424,7 @@ function BasicDataSection({
       </section>
 
       <section className="space-y-4">
-        <SectionHeading title="Status no cadastro" />
+        <DetailSectionHeading title="Status no cadastro" />
         <StatusFields
           draft={draft}
           readOnly={readOnly}
