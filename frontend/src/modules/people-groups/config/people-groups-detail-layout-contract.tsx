@@ -25,6 +25,7 @@ import {
   PEOPLE_GROUP_TYPE_OPTIONS,
 } from "@/modules/people-groups/shared/domain/people-groups.constants";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
+import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildGroupedAuditFeed,
@@ -205,9 +206,8 @@ function PeopleGroupsDetailMain({
 >) {
   return (
     <div className={PEOPLE_GROUP_DETAIL_SECTION_CLASS}>
-      <div className="grid gap-3 md:grid-cols-[1.4fr_200px_200px_180px] md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Nome</div>
+      <div className="grid gap-6 md:grid-cols-[1.4fr_200px_200px_180px] md:items-end">
+        <DetailSectionField label="Nome">
           <Input
             value={draft.name}
             onChange={(event) => setDraft((previous) => ({ ...previous, name: event.target.value }))}
@@ -216,9 +216,8 @@ function PeopleGroupsDetailMain({
             placeholder="Nome do grupo de pessoas"
             readOnly={readOnly}
           />
-        </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Tipo do grupo</div>
+        </DetailSectionField>
+        <DetailSectionField label="Tipo do grupo">
           <Select
             value={draft.groupType}
             onValueChange={(value) => {
@@ -239,9 +238,8 @@ function PeopleGroupsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Finalidade</div>
+        </DetailSectionField>
+        <DetailSectionField label="Finalidade">
           <Select
             value={draft.purpose}
             onValueChange={(value) => {
@@ -262,9 +260,8 @@ function PeopleGroupsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Status</div>
+        </DetailSectionField>
+        <DetailSectionField label="Status">
           <Select
             value={draft.isActive ? "active" : "inactive"}
             onValueChange={(value) => {
@@ -285,12 +282,11 @@ function PeopleGroupsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-3">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Categoria</div>
+      <div className="mt-6">
+        <DetailSectionField label="Categoria">
           <Select
             value={draft.category || "__empty__"}
             onValueChange={(value) => {
@@ -312,12 +308,11 @@ function PeopleGroupsDetailMain({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2 md:items-end">
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade mínima</div>
+      <div className="mt-6 grid gap-6 md:grid-cols-2 md:items-end">
+        <DetailSectionField label="Idade mínima">
           <Input
             type="number"
             min={0}
@@ -329,9 +324,8 @@ function PeopleGroupsDetailMain({
             placeholder="Ex.: 6"
             readOnly={readOnly}
           />
-        </div>
-        <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Idade máxima</div>
+        </DetailSectionField>
+        <DetailSectionField label="Idade máxima">
           <Input
             type="number"
             min={0}
@@ -343,19 +337,20 @@ function PeopleGroupsDetailMain({
             placeholder="Ex.: 14"
             readOnly={readOnly}
           />
-        </div>
+        </DetailSectionField>
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">Descrição</div>
-        <Textarea
-          value={draft.description}
-          onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
-          onBlur={() => onCommitField("description")}
-          className={PEOPLE_GROUP_DETAIL_TEXTAREA_CLASS}
-          placeholder="Descrição do grupo de pessoas"
-          readOnly={readOnly}
-        />
+      <div className="mt-6">
+        <DetailSectionField label="Descrição">
+          <Textarea
+            value={draft.description}
+            onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
+            onBlur={() => onCommitField("description")}
+            className={PEOPLE_GROUP_DETAIL_TEXTAREA_CLASS}
+            placeholder="Descrição do grupo de pessoas"
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
       </div>
     </div>
   );
