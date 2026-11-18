@@ -10,10 +10,10 @@ export const MODULE_MUTED_SURFACE_CLASS_NAME =
   "overflow-hidden rounded-lg border border-border/50 bg-muted/10";
 
 export const MODULE_TABS_LIST_CLASS_NAME =
-  "h-10 w-full justify-start gap-5 rounded-none border-0 border-b border-border/60 bg-transparent p-0";
+  "flex h-11 w-full flex-wrap items-center justify-start gap-1.5 rounded-none border-0 border-b border-border/60 bg-transparent p-0 pb-1.5";
 
 export const MODULE_TAB_TRIGGER_CLASS_NAME =
-  "h-10 rounded-none border-b-2 border-transparent bg-transparent px-0 text-sm font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=inactive]:hover:bg-transparent";
+  "h-8 rounded-md border-0 bg-transparent px-3 text-sm font-medium text-muted-foreground shadow-none transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none data-[state=inactive]:hover:bg-muted/70 data-[state=inactive]:hover:text-foreground";
 
 export function ModuleSurface({
   className,
