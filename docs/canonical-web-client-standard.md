@@ -405,6 +405,13 @@ Calendario), usar `RelationListHost` direto, igual a aba Encontros.
 
 ### FormulÃ¡rio principal (`detailSlot`)
 
+- **Primeira linha do formulario, sempre nesta ordem:** Titulo -
+  Status - Tipo - relacionamento principal/dependente do modulo (ex.:
+  Projeto, na Atividade). Sem heading "Organizacao" acima - os 4 campos
+  dividem um grid so (`md:grid-cols-[1.5fr_180px_200px_220px]` na
+  Atividade - Titulo mais largo, os outros compactos), mesmo estilo de
+  linha dos demais campos. Referencia: `ActivityDetailMain` em
+  `actions-detail-layout-contract.tsx`.
 - Nao usar titulo + paragrafo descritivo em cabecalho de secao. Se o campo precisar de contexto, o contexto vai no `placeholder` ou em texto de ajuda inline no proprio campo - nunca um paragrafo de 1-2 linhas acima da secao.
 - Cabecalho de secao (quando o formulario tem mais de um grupo de campos) usa `DetailSectionHeading` de `web-client/detail/DetailFormSection.tsx`: titulo curto + barra de acento colorida a esquerda. Sem linha divisoria cinza, sem descricao.
 - Rotulo de campo usa `DetailSectionField` do mesmo arquivo: label pequeno em maiusculas acima do campo. Nao reimplementar esse label por modulo (varios modulos tinham a mesma constante `fieldLabelClassName`/`SectionField` copiada - foi consolidado).
