@@ -614,7 +614,7 @@ export function ListView<TData>({
     return {
       id: "__select__",
       header: ({ table }) => (
-        <div className="flex items-center justify-center">
+        <div className="flex w-full items-center justify-center">
           <Checkbox
             checked={table.getIsAllPageRowsSelected()}
             onCheckedChange={(checked) => table.toggleAllPageRowsSelected(Boolean(checked))}
