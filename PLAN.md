@@ -86,6 +86,28 @@ confirma Título/Status/Tipo/Projeto na mesma linha, sem heading
 volta pra "Pronto" sozinho — autosave não quebrou com o reposicionamento
 dos campos. Dado de teste restaurado ao final.
 
+**Ajuste 2.1 — linha divisória acima do Título:** usuário confirmou o
+resultado do Item 2 ("Ficou bom!") e pediu pra tirar uma linha que sobrou
+logo acima do Título. Causa: `ACTION_DETAIL_SECTION_CLASS` tinha
+`border-y` (topo + base) no container do formulário inteiro — trocado
+pra `border-b` (só a de baixo, que separa o formulário do que vem
+depois). `tsc`/`eslint`/`build` → ok; conferido ao vivo via screenshot.
+
+**Ajuste 2.2 — Início/Fim/Plano pedagógico voltam pra Detalhes:** usuário
+reconsiderou a divisão em abas feita no item avulso anterior — "aba
+Planejamento e Relatório" não precisa separar esses 3 campos do resto do
+formulário. Move a chamada de `ActivityPlanningSection` (componente não
+mudou, só o lugar de onde é chamado) de dentro da aba "progress" pra
+dentro de `ActivityDetailMain`, logo depois da Descrição. A aba volta a
+se chamar "Progresso e Relatório" (nome de antes da divisão) já que só
+sobrou `ActionProgressSection` (% atingido) e o preview de Relatório lá.
+**Evidência:** `tsc`/`eslint` (mesmos 2 erros pré-existentes, nenhum
+novo)/`build` → ok. Testado ao vivo: screenshot da aba Detalhes mostra
+Planejamento (Início/Fim/Plano pedagógico) logo após Descrição; aba
+"Progresso e Relatório" mostra só Progresso+Relatório; editar o Plano
+pedagógico ainda dispara PATCH 200 e volta pra "Pronto" — autosave
+preservado. Dado de teste restaurado ao final.
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o
