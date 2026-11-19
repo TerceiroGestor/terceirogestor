@@ -23,17 +23,19 @@ header e abas ficam coladas sem precisar de CSS extra.
 
 Essa barra existe nos outros módulos de conteúdo (Projects, Programs,
 People-Groups) também — por ora a remoção é só na Atividade, decisão
-deliberada de manter escopo pequeno; se o usuário gostar do resultado,
-pode virar pedido pra tirar dos outros módulos depois (registrado em
-`docs/backlog.md`).
+deliberada de manter escopo pequeno. **Usuário confirmou gostar do
+resultado** ("Ficou bom!") e pediu pra documentar como padrão — feito em
+`docs/canonical-web-client-standard.md`, seção "Header colado nas abas".
+Migração dos outros 3 módulos registrada em `docs/backlog.md`, sem data —
+só quando esses módulos específicos forem revisados.
 
 **Observação não bloqueante:** Status e Tipo continuam visíveis e
-editáveis na aba Detalhes (seção Organização); Período continua na aba
-Planejamento e Relatório. "Cadastro" (data de criação) não aparece mais
-em lugar nenhum do Detail — ainda é possível achar a data de criação
-abrindo a Auditoria (primeiro evento). Não perguntei se isso é aceitável
-porque o pedido foi explícito ("só o header e as abas, nada no meio");
-sinalizar se fizer falta.
+editáveis na aba Detalhes; Período continua na aba Planejamento e
+Relatório. "Cadastro" (data de criação) não aparece mais em lugar nenhum
+do Detail — ainda é possível achar a data de criação abrindo a Auditoria
+(primeiro evento). Não perguntei se isso é aceitável porque o pedido foi
+explícito ("só o header e as abas, nada no meio"); sinalizar se fizer
+falta.
 
 **Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint
 actions-detail-layout-contract.tsx` → 0 problemas; `npm run build` → ok.
@@ -42,6 +44,47 @@ título seguido direto pelas abas, sem nenhuma barra no meio; "Pronto"/
 "Projeto Musica Manha" resolvem normalmente após o carregamento (um
 primeiro screenshot tirado cedo demais mostrou "Salvando..."/"-", era só
 timing do carregamento inicial, não regressão).
+
+### Item 2 — Título na mesma linha dos campos de organização
+
+Pedido do usuário: hoje o Título ocupa a primeira linha inteira sozinho;
+ele queria Título + campos de organização numa única primeira linha, na
+ordem **Título, Status, Tipo, relacionamento principal/dependente**
+(nesta Atividade: Projeto) — propôs isso como convenção candidata pra
+"todo módulo", já que teoricamente todo módulo tem esses 4 tipos de
+campo.
+
+Reescrito `ActivityDetailMain` (`actions-detail-layout-contract.tsx`): a
+seção "Organização" (que tinha Projeto/Tipo/Status num grid próprio,
+abaixo do Título) foi removida como bloco separado; os 4 campos agora
+dividem um único `grid gap-6 md:grid-cols-[1.5fr_180px_200px_220px]`
+(Título mais largo, os outros 3 compactos). O Título trocou o estilo
+grande (`h-12 text-xl font-semibold`) pelo mesmo `lineInputClassName`
+usado nos selects vizinhos — mesma largura de linha, sem destaque
+desproporcional. "Direcionamento" (Grupos de pessoas/Meta) e "Descrição"
+continuam abaixo, sem mudança.
+
+Achado ao olhar o código antes de implementar: esse exato padrão (título
+e campos compactos numa única linha, sem heading "Organização") **já
+existe** em Projects (`ProjectsDetailMain`, grid
+`[1.3fr_220px_220px]` com Nome/Programa/Status) — não é um padrão novo,
+é alinhar a Atividade a uma técnica que já tinha precedente, só com a
+ordem de campos que o usuário pediu (Projects está em Nome/relacionamento/
+Status, não na ordem Título/Status/Tipo/relacionamento proposta agora).
+
+**Ainda não documentado como convenção formal** — implementado e testado
+na Atividade, aguardando o usuário ver o resultado e confirmar antes de
+escrever a regra em `docs/canonical-web-client-standard.md` (mesmo fluxo
+do Item 1: implementar → confirmar → documentar).
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint
+actions-detail-layout-contract.tsx` → só os 2 erros pré-existentes
+(`react-hooks/set-state-in-effect`, longe do trecho editado); `npm run
+build` → ok. Testado ao vivo (Playwright, build de produção): screenshot
+confirma Título/Status/Tipo/Projeto na mesma linha, sem heading
+"Organização"; editar o Título ainda dispara PATCH 200 e o cabeçalho
+volta pra "Pronto" sozinho — autosave não quebrou com o reposicionamento
+dos campos. Dado de teste restaurado ao final.
 
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 

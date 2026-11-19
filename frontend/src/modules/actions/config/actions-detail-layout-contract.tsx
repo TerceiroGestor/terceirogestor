@@ -336,70 +336,67 @@ function ActivityDetailMain({
 
   return (
     <div className={ACTION_DETAIL_SECTION_CLASS}>
-      <DetailSectionField label="Título">
-        <Input
-          value={draft.title}
-          onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
-          onBlur={() => onCommitField("title")}
-          className="h-12 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:border-primary focus-visible:ring-0"
-          readOnly={readOnly}
-        />
-      </DetailSectionField>
+      <div className="grid gap-6 md:grid-cols-[1.5fr_180px_200px_220px] md:items-end">
+        <DetailSectionField label="Título">
+          <Input
+            value={draft.title}
+            onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
+            onBlur={() => onCommitField("title")}
+            className={lineInputClassName}
+            readOnly={readOnly}
+          />
+        </DetailSectionField>
 
-      <div className="mt-6 space-y-4">
-        <DetailSectionHeading title="Organização" />
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          <DetailSectionField label="Projeto">
-            <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
-              {projectName ?? "-"}
-            </div>
-          </DetailSectionField>
+        <DetailSectionField label="Status">
+          <Select
+            value={draft.status}
+            onValueChange={(next) => {
+              const nextValue = next as ActionStatus;
+              setDraft((previous) => ({ ...previous, status: nextValue }));
+              onCommitField("status", nextValue);
+            }}
+            disabled={readOnly}
+          >
+            <SelectTrigger className={lineInputClassName}>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTION_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </DetailSectionField>
 
-          <DetailSectionField label="Tipo">
-            <Select
-              value={draft.actionTypeId}
-              onValueChange={(next) => {
-                setDraft((previous) => ({ ...previous, actionTypeId: next }));
-                onCommitField("actionTypeId", next);
-              }}
-              disabled={readOnly}
-            >
-              <SelectTrigger className={lineInputClassName}>
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {actionTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </DetailSectionField>
+        <DetailSectionField label="Tipo">
+          <Select
+            value={draft.actionTypeId}
+            onValueChange={(next) => {
+              setDraft((previous) => ({ ...previous, actionTypeId: next }));
+              onCommitField("actionTypeId", next);
+            }}
+            disabled={readOnly}
+          >
+            <SelectTrigger className={lineInputClassName}>
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              {actionTypes.map((type) => (
+                <SelectItem key={type.id} value={type.id}>
+                  {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </DetailSectionField>
 
-          <DetailSectionField label="Status">
-            <Select
-              value={draft.status}
-              onValueChange={(next) => {
-                const nextValue = next as ActionStatus;
-                setDraft((previous) => ({ ...previous, status: nextValue }));
-                onCommitField("status", nextValue);
-              }}
-              disabled={readOnly}
-            >
-              <SelectTrigger className={lineInputClassName}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTION_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </DetailSectionField>
-        </div>
+        <DetailSectionField label="Projeto">
+          <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+            {projectName ?? "-"}
+          </div>
+        </DetailSectionField>
       </div>
 
       <div className="mt-6 space-y-4">
