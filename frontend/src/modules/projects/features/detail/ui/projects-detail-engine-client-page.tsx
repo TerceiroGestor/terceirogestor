@@ -493,7 +493,7 @@ export function ProjectsDetailEngineClientPage() {
             const message =
               error && typeof error === "object" && "message" in error
                 ? String((error as { message?: string }).message)
-                : "Falha ao adicionar grupo.";
+                : "Falha ao adicionar Grupos.";
             if (message.toLowerCase().includes("ja esta vinculado")) {
               alreadyLinked += 1;
               return;
@@ -521,8 +521,8 @@ export function ProjectsDetailEngineClientPage() {
       toast({
         title:
           peopleGroupPickerPurpose === "EQUIPE"
-            ? "Grupo de Equipe adicionado"
-            : "Grupo adicionado",
+            ? "Grupos de Equipe adicionado"
+            : "Grupos adicionado",
         description:
           peopleGroups.length > 1
             ? `Vinculados: ${created} • Ja vinculados: ${alreadyLinked}`
@@ -573,7 +573,7 @@ export function ProjectsDetailEngineClientPage() {
       if (!token || !id || !canManageEnrollments) return;
       const confirmed = await confirm({
         title: "Matricular/revisar membros",
-        description: `Matricular quem entrou no grupo "${row.peopleGroup.name}" e encerrar a matrícula de quem saiu dele. Continuar?`,
+        description: `Matricular quem entrou no Grupos "${row.peopleGroup.name}" e encerrar a matrícula de quem saiu dele. Continuar?`,
         confirmLabel: "Revisar",
         cancelLabel: "Cancelar",
       });
@@ -589,7 +589,7 @@ export function ProjectsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao revisar matrículas do grupo.";
+            : "Falha ao revisar matrículas do Grupos.";
         toast({ variant: "destructive", title: "Falha ao revisar", description: message });
       }
     },

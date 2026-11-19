@@ -248,10 +248,10 @@ function ActivityDetailMain({
       <div className="mt-6 space-y-4">
         <DetailSectionHeading title="Direcionamento" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <DetailSectionField label="Grupos de pessoas">
+          <DetailSectionField label="Grupos">
             {!isPeopleGroupTarget ? (
               <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
-                Esse tipo de atividade não usa Grupo.
+                Esse tipo de atividade não usa Grupos.
               </div>
             ) : (
               <MultiSelectBadges
@@ -265,10 +265,10 @@ function ActivityDetailMain({
                   onCommitField("peopleGroupIds", next);
                 }}
                 disabled={readOnly}
-                addLabel="Adicionar grupo"
-                searchPlaceholder="Pesquisar grupo..."
-                noOptionsLabel="Nenhum grupo disponível neste projeto."
-                emptyLabel="Nenhum grupo selecionado."
+                addLabel="Adicionar Grupos"
+                searchPlaceholder="Pesquisar Grupos..."
+                noOptionsLabel="Nenhum Grupos disponível neste projeto."
+                emptyLabel="Nenhum Grupos selecionado."
               />
             )}
           </DetailSectionField>

@@ -57,7 +57,7 @@ export const DEPOSIT_DONOR_TYPE_LABELS: Record<"PERSON" | "COMPANY", string> = {
 
 export const DEPOSIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   name: "Nome",
-  group: "Grupo de objetos",
+  group: "Grupos de objetos",
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
@@ -151,7 +151,7 @@ export const DEPOSIT_USAGE_TEXT = {
       {
         title: "Dados principais",
         items: [
-          "Edite nome, grupo, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
+          "Edite nome, Grupos, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
           "Use as abas Entradas, Saídas e Histórico para acompanhar o fluxo operacional do objeto.",
         ],
       },
@@ -166,7 +166,7 @@ export const DEPOSIT_USAGE_TEXT = {
         title: "Painel lateral",
         items: [
           "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
-          "O contexto resume saldo, grupo, setor padrão e status do objeto.",
+          "O contexto resume saldo, Grupos, setor padrão e status do objeto.",
         ],
       },
     ] satisfies UsageDocumentationSection[],

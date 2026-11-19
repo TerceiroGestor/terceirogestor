@@ -30,7 +30,7 @@ ALTER TABLE "ActionOccurrencePeopleGroup" ADD CONSTRAINT "ActionOccurrencePeople
 -- AddForeignKey
 ALTER TABLE "ActionOccurrencePeopleGroup" ADD CONSTRAINT "ActionOccurrencePeopleGroup_peopleGroupId_fkey" FOREIGN KEY ("peopleGroupId") REFERENCES "PeopleGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- DataMigration: copia o grupo singular (quando existia) do Encontro para a
+-- DataMigration: copia o Grupos singular (quando existia) do Encontro para a
 -- tabela de junção nova, antes de remover a coluna antiga. gen_random_uuid()
 -- já é usado em outras migrations deste projeto (extensão pgcrypto, sempre
 -- disponível no Postgres do Railway/local aqui).

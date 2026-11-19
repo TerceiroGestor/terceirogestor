@@ -117,7 +117,7 @@ export class PeopleGroupsService {
         },
       },
     });
-    if (!group) throw new NotFoundException('Grupo nao encontrado');
+    if (!group) throw new NotFoundException('Grupos nao encontrado');
     return group;
   }
 
@@ -166,7 +166,7 @@ export class PeopleGroupsService {
       where: { id, tenantId },
     });
     if (!existing)
-      throw new NotFoundException('Grupo nao encontrado');
+      throw new NotFoundException('Grupos nao encontrado');
 
     const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
     if (name !== undefined && !name) {
@@ -226,7 +226,7 @@ export class PeopleGroupsService {
       select: { id: true },
     });
     if (!existing)
-      throw new NotFoundException('Grupo nao encontrado');
+      throw new NotFoundException('Grupos nao encontrado');
 
     const [activeParticipations, projectUses, actionUses] =
       await this.prisma.$transaction([
@@ -248,7 +248,7 @@ export class PeopleGroupsService {
 
     if (activeParticipations > 0 || projectUses > 0 || actionUses > 0) {
       throw new BadRequestException(
-        'Nao e possivel excluir o Grupo: existem participacoes ou vinculos ativos',
+        'Nao e possivel excluir o Grupos: existem participacoes ou vinculos ativos',
       );
     }
 
@@ -339,7 +339,7 @@ export class PeopleGroupsService {
       },
     );
     if (existingActive) {
-      throw new BadRequestException('A pessoa ja participa deste grupo');
+      throw new BadRequestException('A pessoa ja participa deste Grupos');
     }
 
     return this.prisma.peopleGroupParticipation.create({
@@ -369,7 +369,7 @@ export class PeopleGroupsService {
       include: { person: true },
     });
     if (!participation)
-      throw new NotFoundException('Participacao do grupo nao encontrada');
+      throw new NotFoundException('Participacao do Grupos nao encontrada');
 
     if (!participation.isActive || participation.deletedAt) {
       return participation;
@@ -403,7 +403,7 @@ export class PeopleGroupsService {
       select: { id: true },
     });
     if (!peopleGroup)
-      throw new NotFoundException('Grupo nao encontrado');
+      throw new NotFoundException('Grupos nao encontrado');
     return peopleGroup;
   }
 }

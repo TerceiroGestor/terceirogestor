@@ -8,7 +8,7 @@ Consolidação de duas pesquisas (regras oficiais do SCFV/SISC/RMA e benchmarks 
 Pessoa/Família (People)
    └─ Prontuário Social (Atendimento + Encaminhamento + Ocorrência) [NOVO]
    └─ Matrícula em Projeto (ProjectEnrollment)
-         └─ Grupo (PeopleGroup, por faixa etária/ciclo)
+         └─ Grupos (PeopleGroup, por faixa etária/ciclo)
                └─ Atividade (ProjectAction, ex.: Coral) [relabel "Ação"→"Atividade"]
                      └─ Encontro (ActionOccurrence) [NOVO]
                            └─ Presença (ProjectActionAttendance, migrado para nível de Encontro)
@@ -30,26 +30,30 @@ Tudo converge para dois produtos finais: **(a)** a timeline/prontuário de 360°
 ## 3. Módulo Programas/Projetos/Atividades/Encontros
 
 ### 3.1 Hierarquia e papéis já cobertos
+
 - **Programa**: guarda-chuva (já existente, sem mudança).
 - **Projeto**: início/meio/fim, ligado ao Programa (já existente).
-- **Atividade** (relabel de "Ação" só na UI, model continua `ProjectAction`): serviço recorrente dentro do projeto (ex. Coral, Violão). Um ou mais profissionais (`ProjectActionPeopleParticipation`), um ou mais grupos-alvo (`ActionPeopleGroup`).
-- **Grupo de pessoas** (`PeopleGroup`): unidade central de organização do atendimento, com histórico de entrada/saída (`PeopleGroupParticipation`/`activeKey`).
+- **Atividade** (relabel de "Ação" só na UI, model continua `ProjectAction`): serviço recorrente dentro do projeto (ex. Coral, Violão). Um ou mais profissionais (`ProjectActionPeopleParticipation`), um ou mais Grupos-alvo (`ActionPeopleGroup`).
+- **Grupos de pessoas** (`PeopleGroup`): unidade central de organização do atendimento, com histórico de entrada/saída (`PeopleGroupParticipation`/`activeKey`).
 
 ### 3.2 Encontro — peça que falta hoje (model novo)
-`ActionOccurrence`: data, horário, grupo, status (`SCHEDULED/DONE/CANCELED`), profissionais herdados da atividade, geração em lote por recorrência (dias da semana + período), agrupados por `recurrenceBatchId` para edição/cancelamento em série.
+
+`ActionOccurrence`: data, horário, Grupos, status (`SCHEDULED/DONE/CANCELED`), profissionais herdados da atividade, geração em lote por recorrência (dias da semana + período), agrupados por `recurrenceBatchId` para edição/cancelamento em série.
 
 ### 3.3 Presença por encontro (migração de granularidade)
+
 `ProjectActionAttendance` passa a ser por `(occurrenceId, enrollmentId)` em vez de `(actionId, enrollmentId)` — permite frequência real dia a dia, exigida pelo RMA/SISC. Migração em 2 deploys (expandir→contrair), com backfill de histórico.
 
 ### 3.4 Regras de negócio oficiais do SCFV que o sistema precisa refletir
+
 | Regra | Campo/mecanismo proposto |
-|---|---|
-| Faixa etária do grupo com limite de carga horária diária (0-6: 1h30; 6-15: 4h; 15-17: 3h; 18+: sob demanda) | `ageBracket` no grupo + alerta (não bloqueio) na geração de encontros |
+| --- | --- |
+| Faixa etária do Grupos com limite de carga horária diária (0-6: 1h30; 6-15: 4h; 15-17: 3h; 18+: sob demanda) | `ageBracket` no Grupos + alerta (não bloqueio) na geração de encontros |
 | Público prioritário (trabalho infantil, BPC/PBF, medida protetiva, deficiência, fora da escola etc.) | `priorityCriteria[]` na matrícula/pessoa — alimenta fila e relatório |
-| Lista de espera por grupo/faixa etária | Status `WAITLIST` na matrícula (ou tabela própria) com data de entrada, para ordenação + priorização |
-| Motivo de desligamento do grupo (transferência de faixa, desistência, mudança de território, conclusão) | Campo na saída do `PeopleGroupParticipation`/`ProjectEnrollmentGroupMembership` |
+| Lista de espera por Grupos/faixa etária | Status `WAITLIST` na matrícula (ou tabela própria) com data de entrada, para ordenação + priorização |
+| Motivo de desligamento do Grupos (transferência de faixa, desistência, mudança de território, conclusão) | Campo na saída do `PeopleGroupParticipation`/`ProjectEnrollmentGroupMembership` |
 | Técnico de referência/encaminhador (diferente de quem executa o encontro) | Papel novo em `ProjectActionPeopleParticipation` ou campo na matrícula |
-| Avaliação periódica qualitativa do grupo (diário de bordo) | `GroupAssessment` (fase futura, baixo custo de adicionar depois) |
+| Avaliação periódica qualitativa do Grupos (diário de bordo) | `GroupAssessment` (fase futura, baixo custo de adicionar depois) |
 
 ## 4. Módulo de Atendimento Técnico (Social/Psicológico) — NOVO
 
@@ -79,7 +83,7 @@ Hoje não existe nenhum model equivalente — é o maior gap estrutural identifi
 
 Implementa a aba "Atendimentos" hoje desabilitada, reunindo em uma única linha do tempo filtrável:
 
-1. Matrículas em projetos e grupos.
+1. Matrículas em projetos e Grupos.
 2. Atividades e encontros (frequência, presença, agendados futuros).
 3. Atendimentos técnicos (social/psicológico/jurídico/saúde).
 4. Encaminhamentos e seus retornos.
@@ -92,31 +96,36 @@ Este é o "registro completo dos serviços prestados" — o maior diferencial co
 Os relatórios não são telas isoladas: devem aparecer **no contexto onde o gestor já está** (detalhe do Programa/Projeto/Pessoa) e sempre no formato "pronto para apresentar" — para o conselho, o financiador ou para digitar no sistema do governo.
 
 ### 9.1 Relatórios de estrutura (Programa/Projeto/Atividade)
+
 | Relatório | Dado-fonte | Onde aparece |
-|---|---|---|
+| --- | --- | --- |
 | Projetos por programa | `Project` agrupado por `programId` | Aba "Projetos" no detalhe do Programa |
 | Pessoas atendidas por projeto | `ProjectEnrollment` ativo, por projeto | Resumo no detalhe do Projeto |
 | Total de atividades por projeto | contagem de `ProjectAction` | Resumo no topo do Projeto |
 | Total de encontros (realizados/agendados) por atividade/projeto | contagem de `ActionOccurrence`, filtrável por período/status | Detalhe da Atividade e do Projeto |
 
 ### 9.2 Relatórios de compliance (RMA/SISC)
-- Export aproximado do formulário oficial: nº de grupos ativos por faixa etária, inseridos/desvinculados/lista de espera por grupo, carga horária semanal, encontros realizados no mês, público prioritário atendido.
+
+- Export aproximado do formulário oficial: nº de Grupos ativos por faixa etária, inseridos/desvinculados/lista de espera por Grupos, carga horária semanal, encontros realizados no mês, público prioritário atendido.
 - Não precisa integração direta com o sistema do governo — o valor está em entregar o relatório **pronto para digitar manualmente no SISC**, por período e por unidade.
 
 ### 9.3 Relatórios de gestão de casos (atendimento/encaminhamento/ocorrência)
+
 | Relatório | Fonte | Uso |
-|---|---|---|
+| --- | --- | --- |
 | Atendimentos por tipo/profissional/período | `PersonServiceRecord` | Gestão de equipe técnica |
 | Casos em aberto / encaminhamentos sem retorno | `status=OPEN` / `status≠RETURNED` + tempo decorrido | Gestão de risco — evita caso esquecido |
-| Ocorrências por categoria e gravidade | `PersonOccurrence` | Identifica padrões por grupo/território |
+| Ocorrências por categoria e gravidade | `PersonOccurrence` | Identifica padrões por Grupos/território |
 | Encaminhamentos por rede de destino | `Referral` agrupado por `targetNetwork` | Mostra ao financiador/conselho a articulação com a rede |
 
 ### 9.4 Relatório individual (prontuário para impressão/auditoria)
+
 - Timeline completa da seção 8, consolidada em um único documento por pessoa, com dados de identificação, matrículas, frequência, atendimentos, encaminhamentos e ocorrências.
 - Uso: resposta a auditoria, solicitação do Conselho Tutelar/Ministério Público, ou transferência de caso para outra unidade/rede.
 - Deve respeitar o controle de sigilo da seção 7: quem exporta só vê (e só consegue incluir no PDF) os registros confidenciais aos quais tem acesso.
 
 ### 9.5 Padrão de construção
+
 - Todos reaproveitam a camada de visualização (`GraphView`) já usada em outros módulos — sem necessidade de biblioteca nova.
 - Todos devem ser filtráveis por período, unidade/projeto e, quando aplicável, por profissional ou categoria.
 - Nenhum exige infraestrutura de agregação nova: são consultas diretas sobre os models propostos.
@@ -124,7 +133,7 @@ Os relatórios não são telas isoladas: devem aparecer **no contexto onde o ges
 ## 10. Roadmap de implementação sugerido
 
 | Fase | Entrega | Depende de |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Schema `ActionOccurrence` + endpoints + geração em lote | nada |
 | 2 | UI de Encontros (lista/calendário + agendamento) | Fase 1 |
 | 3 | Migração de presença para nível de Encontro (2 deploys) | Fase 1 |
@@ -139,7 +148,7 @@ Os relatórios não são telas isoladas: devem aparecer **no contexto onde o ges
 
 - Papéis exatos que acessam registro confidencial (quem é "psicólogo"/"coordenação técnica" no modelo de permissões atual).
 - Encaminhamento sempre nasce de um atendimento, ou pode ser direto?
-- Ocorrência é sempre de uma pessoa específica, ou pode ser coletiva (do grupo, sem identificar um único atendido)?
+- Ocorrência é sempre de uma pessoa específica, ou pode ser coletiva (do Grupos, sem identificar um único atendido)?
 - Override de profissional por encontro específico é necessário desde já, ou fica só herdado da atividade por enquanto?
 - Onde ficam os relatórios cross-projeto: dentro de Projeto/Programa (como proposto) ou módulo "Relatórios" separado?
 - Momento de implementação: tudo isso é "Parte 5 — Evolução de arquitetura" (pós go-live) ou entra à frente da Parte 4?

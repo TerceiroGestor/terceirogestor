@@ -71,7 +71,7 @@ export const PANTRY_DONOR_TYPE_LABELS: Record<"PERSON" | "COMPANY", string> = {
 
 export const PANTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   name: "Nome",
-  group: "Grupo de alimentos",
+  group: "Grupos de alimentos",
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
@@ -160,7 +160,7 @@ export const PANTRY_USAGE_TEXT = {
       {
         title: "Dados principais",
         items: [
-          "Edite nome, grupo, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
+          "Edite nome, Grupos, setor padrão, unidade e estoque mínimo diretamente no detalhe.",
           "Use as abas Entradas, Saídas e Histórico para acompanhar o fluxo operacional do alimento.",
         ],
       },
@@ -175,7 +175,7 @@ export const PANTRY_USAGE_TEXT = {
         title: "Painel lateral",
         items: [
           "Comentários, Notas, tags, anexos e auditoria ficam concentrados no painel lateral.",
-          "O contexto resume saldo, grupo, setor padrão e status do alimento.",
+          "O contexto resume saldo, Grupos, setor padrão e status do alimento.",
         ],
       },
     ] satisfies UsageDocumentationSection[],

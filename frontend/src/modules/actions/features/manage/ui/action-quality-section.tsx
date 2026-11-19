@@ -113,7 +113,7 @@ export function ActionQualitySection({
   const filterFields = React.useMemo<SearchFieldDefinition[]>(
     () => [
       { name: "occurrenceId", label: "Encontro", type: "select", options: occurrenceOptions },
-      { name: "peopleGroups", label: "Grupo", type: "select", options: groupOptions },
+      { name: "peopleGroups", label: "Grupos", type: "select", options: groupOptions },
       { name: "isHighlight", label: "Destaque", type: "select", options: HIGHLIGHT_FILTER_OPTIONS },
     ],
     [occurrenceOptions, groupOptions],
@@ -181,7 +181,7 @@ export function ActionQualitySection({
         onGroupByChange={setGroupBy}
         groupByOptions={[
           { field: "occurrenceId", label: "Encontro" },
-          { field: "peopleGroups", label: "Grupo" },
+          { field: "peopleGroups", label: "Grupos" },
         ]}
         searchPlaceholder="Pesquisar participantes"
         filteredCount={filteredRows.length}

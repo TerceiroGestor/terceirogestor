@@ -59,7 +59,7 @@ Fase 6 (regras SCFV: faixa etária, prioridade, espera) ──┘ │
   todos reaproveitando as permissões `actions.read/create/update/delete`
   já existentes (nenhuma chave nova), e todos com `tenantId` do usuário
   autenticado em toda consulta.
-- `peopleGroupId` do encontro só aceita grupo já vinculado à atividade via
+- `peopleGroupId` do encontro só aceita Grupos já vinculado à atividade via
   `ActionPeopleGroup` (`ensurePeopleGroupBelongsToAction`) — rejeita com
   400 caso contrário.
 - `tsc --noEmit`: 0 erros. `npm test`: 27 suítes, 136 testes (6 novos).
@@ -69,13 +69,13 @@ Fase 6 (regras SCFV: faixa etária, prioridade, espera) ──┘ │
   `npm run build`: ok.
 - Teste manual real (Postgres local, tenant "Urna Lab", ação "Ensaio dos
   meninos da percussao"): listar vazio → gerar 4 encontros semanais
-  (seg/qua, 2 semanas) → confirma as 4 datas certas → tentar com grupo não
+  (seg/qua, 2 semanas) → confirma as 4 datas certas → tentar com Grupos não
   vinculado à atividade → 400 → tentar com período invertido → 400 →
   cancelar a série a partir de uma data → confirma que só os 2 encontros
   futuros mudaram, os 2 passados continuaram `SCHEDULED` → editar 1
   encontro (status `DONE` + notas) → excluir 1 encontro → acessar com
   `projectId` errado para o mesmo `actionId` → 404 (isolamento). Dados de
-  teste removidos ao final (encontros excluídos, vínculo de grupo
+  teste removidos ao final (encontros excluídos, vínculo de Grupos
   removido) — tenant restaurado ao estado original.
 - **Não implementado nesta fase** (fica para a Fase 2): nenhuma tela de
   frontend — a Fase 1 é só a API, como o plano previa.
@@ -88,6 +88,7 @@ editar/cancelar 1 encontro sem afetar os outros. Ver seção 2.2 do plano
 anterior para o racional completo.
 
 ### Schema
+
 ```prisma
 model ActionOccurrence {
   id                String           @id @default(uuid()) @db.Char(36)
@@ -118,10 +119,12 @@ enum OccurrenceStatus {
   CANCELED
 }
 ```
+
 Migração aditiva pura (tabela nova) — sem risco para dado existente.
 `prisma migrate dev --name add_action_occurrence`.
 
 ### Backend
+
 - Novo módulo `backend/src/modules/actions/occurrences/` (ou sub-rota dentro
   de `actions`, seguindo o padrão de `project-actions.controller.ts`):
   - `POST /projects/:projectId/actions/:actionId/occurrences` — cria 1
@@ -141,18 +144,20 @@ Migração aditiva pura (tabela nova) — sem risco para dado existente.
   - Nova permissão: `actions.occurrences.read` / `.create` / `.update` /
     `.delete` (ou reaproveitar `actions.*` existentes — decidir na
     implementação; não acrescenta decisão de produto, só de granularidade).
-  - `peopleGroupId`, quando informado, **deve** estar entre os grupos já
+  - `peopleGroupId`, quando informado, **deve** estar entre os Grupos já
     ligados à atividade via `ActionPeopleGroup` (validação de serviço, 400 se
-    não estiver) — evita agendar encontro pra um grupo que a atividade nem
+    não estiver) — evita agendar encontro pra um Grupos que a atividade nem
     atende.
   - Toda query filtrada por `tenantId` (regra inviolável do projeto).
 
 ### Frontend
+
 - Nenhuma tela nova nesta fase — só a API. (Telas vêm na Fase 2, pra poder
   testar via Postman/Insomnia primeiro e isolar risco de schema vs. risco de
   UI.)
 
 ### Plano de teste
+
 1. `cd backend && npx prisma migrate dev --name add_action_occurrence`
 2. `npx tsc --noEmit -p tsconfig.build.json` → 0 erros.
 3. Testes automatizados novos: `occurrences.service.spec.ts` cobrindo —
@@ -189,9 +194,9 @@ detalhe da Atividade.
   `frontend/src/modules/actions/api/people-groups.ts`
   (`listActionPeopleGroups`, não existia no frontend ainda).
 - UI: alternância Lista (`ListView`)/Calendário (`CalendarView`) — nenhuma
-  biblioteca nova, como previsto; diálogo "Agendar encontros" (grupo
+  biblioteca nova, como previsto; diálogo "Agendar encontros" (Grupos
   restrito aos já vinculados à atividade, dias da semana, horário,
-  período); diálogo de edição de 1 encontro (data/horário/grupo/status/
+  período); diálogo de edição de 1 encontro (data/horário/Grupos/status/
   notas) com atalho "Cancelar esta e as próximas da série" (usa o
   endpoint de lote da Fase 1).
 - `tsc --noEmit`: 0 erros (frontend e backend). `npx eslint` nos arquivos
@@ -220,6 +225,7 @@ detalhe da Atividade.
   mas vale registrar — não foi corrigido aqui, fora do escopo da Fase 2.
 
 ### Frontend
+
 - Novo componente em
   `frontend/src/modules/actions/features/manage/ui/action-occurrences-card.tsx`
   (substitui/complementa `project-action-attendances-card.tsx` como ponto de
@@ -227,7 +233,7 @@ detalhe da Atividade.
   encontro, ver Fase 3).
 - Lista/calendário alternável reaproveitando `ListView`/`CalendarView` já
   existentes em `web-client/views/` — **sem biblioteca nova**.
-- Diálogo "Agendar encontros": grupo (só os já ligados à atividade via
+- Diálogo "Agendar encontros": Grupos (só os já ligados à atividade via
   `ActionPeopleGroup`) + dias da semana + horário + período → chama o bulk
   endpoint da Fase 1.
 - Clicar num encontro abre o detalhe (edição de 1 encontro + status).
@@ -235,6 +241,7 @@ detalhe da Atividade.
   que já existe.
 
 ### Plano de teste
+
 1. `cd frontend && npx tsc --noEmit` → 0 erros.
 2. `npx eslint src` → não aumenta o total de problemas pré-existentes
    (medir antes/depois, igual ao padrão usado nas últimas sessões).
@@ -278,7 +285,7 @@ presença por atividade inteira".
   antes de excluir a própria `ProjectAction` — já estava quebrado desde a
   Fase 1 (FK `RESTRICT`), só não tinha sido notado porque nada testava
   excluir uma atividade com encontro já criado. Corrigido junto (ordem:
-  presença → encontro → grupo-ação → participação/comentário/anexo →
+  presença → encontro → Grupos-ação → participação/comentário/anexo →
   ação). Também corrigido `deleteActionOccurrence`: precisa excluir a
   presença do encontro antes do próprio encontro (mesma razão).
 - **Achado e corrigido:** `scopedPeopleGroupId` em
@@ -286,8 +293,8 @@ presença por atividade inteira".
   num objeto que nunca teve esse campo (só existe depois de serializado)
   — sempre `undefined`, silenciosamente. Corrigido usando
   `resolvePrimaryActionPeopleGroup(action)` direto, e agora o
-  `peopleGroupId` do **encontro** (quando o encontro tem um grupo
-  específico) tem prioridade sobre o grupo "principal" da atividade.
+  `peopleGroupId` do **encontro** (quando o encontro tem um Grupos
+  específico) tem prioridade sobre o Grupos "principal" da atividade.
 - Endpoints: `GET/PUT /projects/:projectId/actions/:actionId/occurrences/
   :occurrenceId/attendances` substituem `GET/PUT .../attendances` (removido
   — decisão já registrada de tirar código não usado, não deixar como
@@ -331,7 +338,9 @@ presença por atividade inteira".
   é um problema novo); `npm run build` → ok.
 
 ### Schema (migração aditiva, 2 deploys — regra do `AGENTS.md`)
+
 **Deploy 1 (expandir):**
+
 ```prisma
 model ProjectActionAttendance {
   // ...campos atuais...
@@ -339,6 +348,7 @@ model ProjectActionAttendance {
   occurrence   ActionOccurrence? @relation(fields: [occurrenceId], references: [id])
 }
 ```
+
 Script de backfill (`backend/scripts/backfill-action-occurrences.js`, mesmo
 padrão de `migrate-upload-keys-to-tenant-scoped.js`): para cada
 `ProjectAction` com presença e **sem** nenhum `ActionOccurrence` ainda, criar
@@ -351,6 +361,7 @@ enrollmentId])` para `@@unique([tenantId, occurrenceId, enrollmentId])`;
 remover os endpoints/branches que ainda aceitam presença por `actionId` direto.
 
 ### Backend
+
 - `GET/PUT :occurrenceId/attendances` substitui `GET/PUT :actionId/attendances`
   (`project-actions.controller.ts` atual). Mesma forma de bulk-upsert, só
   troca a chave.
@@ -360,10 +371,12 @@ remover os endpoints/branches que ainda aceitam presença por `actionId` direto.
   final, só muda o join.
 
 ### Frontend
+
 - Tela de presença (hoje por atividade) passa a abrir por encontro
   (acessada a partir do card de um encontro específico, Fase 2).
 
 ### Plano de teste
+
 1. Deploy 1: `npx prisma migrate dev --name add_attendance_occurrence_id`
    → rodar backfill localmente → confirmar `occurrenceId` preenchido pra
    toda presença existente (`SELECT count(*) FROM "ProjectActionAttendance"
@@ -382,6 +395,7 @@ remover os endpoints/branches que ainda aceitam presença por `actionId` direto.
 em schema/rotas.
 
 ### Frontend
+
 - Todo texto visível do módulo `actions` (menu, breadcrumbs, títulos de
   botão, labels de formulário) troca "Ação"/"Ações" por "Atividade"/
   "Atividades". **Rotas (`/actions`, `/actions/new`) e nomes de componente
@@ -389,6 +403,7 @@ em schema/rotas.
   link salvo/favorito).
 
 ### Plano de teste
+
 1. `npx tsc --noEmit` (mudança só de string, não deveria quebrar nada).
 2. `npx eslint src` sem regressão.
 3. `npm run build`.
@@ -402,6 +417,7 @@ em schema/rotas.
 ## Fase 5 — Atendimento Técnico / Encaminhamento / Ocorrência (módulos novos)
 
 **Decisões necessárias antes de começar:**
+
 1. *Permissão de sigilo* — recomendo **não** criar papéis fixos
    ("Psicólogo", "Coordenação Técnica") no código. O RBAC do projeto já é
    baseado em chaves de permissão livres por tenant
@@ -415,11 +431,12 @@ em schema/rotas.
    Recomendo **opcional**: `Referral.sourceServiceRecordId` nullable — cobre
    os dois casos sem forçar um fluxo.
 3. *Ocorrência é sempre de uma pessoa específica, ou pode ser coletiva (do
-   grupo)?* Recomendo `PersonOccurrence.personId` **nullable** +
+   Grupos)?* Recomendo `PersonOccurrence.personId` **nullable** +
    `peopleGroupId` opcional — quando `personId` é nulo, é uma ocorrência do
-   grupo/encontro como um todo (ex. "briga generalizada no encontro").
+   Grupos/encontro como um todo (ex. "briga generalizada no encontro").
 
 ### Schema
+
 ```prisma
 enum ServiceRecordType { SOCIAL PSICOLOGICO JURIDICO SAUDE OUTRO }
 enum ServiceRecordModality { INDIVIDUAL FAMILIAR GRUPAL }
@@ -510,13 +527,16 @@ model PersonOccurrence {
   @@index([tenantId, category, severity])
 }
 ```
+
 (nomes de enum/campo sujeitos a ajuste fino na implementação; a forma
 estrutural é o que importa para o plano.)
 
 ### Backend
+
 Três módulos novos, mesmo padrão dos existentes (`controller` + `service` +
 `dto/`), um por entidade — **não fundir num módulo genérico "casos"**, já
 que cada um tem regras de validação e permissão próprias:
+
 - `backend/src/modules/service-records/`
 - `backend/src/modules/referrals/`
 - `backend/src/modules/occurrences/`
@@ -533,6 +553,7 @@ padrão já usado em `PersonRecordComment`/`PersonRecordAttachment`) para logar
 quem leu um registro confidencial.
 
 ### Frontend
+
 Três módulos novos (`frontend/src/modules/service-records/`,
 `referrals/`, `occurrences/`), seguindo o padrão canônico (`*-module-contract.tsx`,
 `ListView`, `EntityModuleShell`) — reaproveita toda a infraestrutura genérica
@@ -542,6 +563,7 @@ timeline 360°) e, para Ocorrência, uma entrada a partir do detalhe de um
 Encontro.
 
 ### Plano de teste
+
 1. Migração (3 tabelas novas, aditiva, zero risco a dado existente).
 2. `tsc` + testes de serviço novos por módulo (criação, filtro, sigilo:
    usuário sem a permissão `.confidential` não vê registro marcado
@@ -562,6 +584,7 @@ Encontro.
 motivo de desligamento — exigidos pelo RMA/SISC.
 
 ### Schema
+
 - `PeopleGroup.ageBracket` (enum ou faixa livre `ageMin`/`ageMax` já
   existem — só precisa de um enum `SCFVAgeBracket` opcional
   `{ CRIANCA_0_6, CRIANCA_6_15, ADOLESCENTE_15_17, ADULTO_18_MAIS }` pra
@@ -578,30 +601,33 @@ motivo de desligamento — exigidos pelo RMA/SISC.
   preenchido na saída.
 - Carga horária diária por faixa etária (1h30/4h/3h/sob demanda): **não** é
   campo de schema — é uma regra de validação no bulk-generate da Fase 1
-  (soma a duração dos encontros do dia pro grupo e emite **alerta**, não
+  (soma a duração dos encontros do dia pro Grupos e emite **alerta**, não
   bloqueio — o próprio documento-fonte pede alerta, não trava).
 
 ### Backend
+
 - Validação (alerta, não erro 400) no bulk-generate de encontros: se a soma
-  diária de horas do grupo passar do limite da faixa, devolver um `warnings[]`
+  diária de horas do Grupos passar do limite da faixa, devolver um `warnings[]`
   na resposta em vez de rejeitar.
 - Enrollment com `status=WAITLIST` não conta em "pessoas atendidas ativas"
   dos relatórios/dashboard — só no relatório específico de lista de espera.
 
 ### Frontend
+
 - Formulário de `PeopleGroup`: campo faixa etária SCFV.
 - Formulário de `Person`/matrícula: seleção de critérios de prioridade.
-- Fluxo de matrícula: opção "colocar em lista de espera" quando o grupo está
+- Fluxo de matrícula: opção "colocar em lista de espera" quando o Grupos está
   cheio (cheio = sem regra de capacidade máxima hoje — se quiser bloqueio
   por capacidade, é uma decisão nova, fora do que foi pedido; por ora só
   permite marcar manualmente).
-- Saída de um membro do grupo: campo obrigatório de motivo.
+- Saída de um membro do Grupos: campo obrigatório de motivo.
 
 ### Plano de teste
+
 1. `tsc` + testes de serviço (alerta de carga horária dispara certo nos 4
    limites de faixa; waitlist não entra na contagem de ativos).
 2. `npm test`.
-3. Teste manual: criar grupo 0-6 anos, agendar encontros somando mais de
+3. Teste manual: criar Grupos 0-6 anos, agendar encontros somando mais de
    1h30/dia → confirma alerta aparece sem bloquear; registrar pessoa em
    lista de espera → confirma não aparece como "atendido ativo" no
    dashboard.
@@ -615,20 +641,23 @@ motivo de desligamento — exigidos pelo RMA/SISC.
 encaminhamento e ocorrência numa linha do tempo só.
 
 ### Backend
+
 - Novo endpoint agregador `GET /people/:id/timeline` (filtro por período e
   tipo de evento) — monta e ordena por data os 5 tipos de evento (matrícula/
-  grupo, atividade/encontro+presença, atendimento, encaminhamento,
+  Grupos, atividade/encontro+presença, atendimento, encaminhamento,
   ocorrência), respeitando o filtro de sigilo (um evento confidencial sem
   permissão vem **omitido do array**, não como item "censurado" visível —
   evita até confirmar que existe).
 
 ### Frontend
+
 - Remove `disabled: true` do item `atendimentos` em `people-detail-tabs.tsx`.
 - Novo componente de timeline filtrável (reaproveita padrão visual já usado
   em `audit-timeline-page.tsx`, que já existe no projeto — não inventar
   layout novo).
 
 ### Plano de teste
+
 1. `tsc`.
 2. Teste de serviço: timeline mistura e ordena corretamente os 5 tipos;
    evento confidencial sem permissão não aparece no array (não só
@@ -644,7 +673,7 @@ encaminhamento e ocorrência numa linha do tempo só.
 
 **Objetivo:** seções 9.1-9.3 da especificação.
 
-**Decisão necessária:** relatórios cross-projeto (ex. "todos os grupos
+**Decisão necessária:** relatórios cross-projeto (ex. "todos os Grupos
 ativos por faixa etária" olhando o tenant inteiro, não um projeto
 específico) ficam dentro do detalhe de Programa/Projeto (como o documento
 propõe) ou precisam também de uma visão solta, tipo um módulo
@@ -654,22 +683,25 @@ solto** (9.2) à parte, porque ele é por tenant inteiro/período, não por
 projeto — não cabe bem dentro de um único detalhe.
 
 ### Backend
+
 - Endpoints simples, sem agregação nova de infraestrutura — consultas
   diretas (`groupBy`/`count`) sobre os models já existentes + os novos das
   Fases 1, 5 e 6:
   - `GET /programs/:id/projects-summary`
   - `GET /projects/:id/report` (pessoas atendidas, total de atividades,
     total de encontros realizados/agendados)
-  - `GET /reports/sisc?period=...` (grupos ativos por faixa, entradas/
-    saídas/lista de espera por grupo, carga horária semanal, público
+  - `GET /reports/sisc?period=...` (Grupos ativos por faixa, entradas/
+    saídas/lista de espera por Grupos, carga horária semanal, público
     prioritário)
 
 ### Frontend
+
 - Aba "Projetos" no detalhe do Programa; resumo no topo do Projeto
   (contadores); tela nova "Relatório SISC" (fora do contexto de projeto,
   só filtro de período) — reaproveitando `GraphView` já existente.
 
 ### Plano de teste
+
 1. `tsc`.
 2. Teste de serviço por endpoint (contagens corretas com dado conhecido de
    fixture).
@@ -685,17 +717,20 @@ projeto — não cabe bem dentro de um único detalhe.
 **Objetivo:** seção 9.4 — documento único por pessoa, respeitando sigilo.
 
 ### Backend
+
 - `GET /people/:id/record-export` — reaproveita o endpoint da Fase 7
   (timeline) + dados de identificação, já filtrado por sigilo do usuário que
   pediu a exportação.
 
 ### Frontend
+
 - Botão "Exportar prontuário" na aba Atendimentos → gera PDF/HTML
   imprimível (reaproveitar o mecanismo de impressão/PDF já usado em algum
   relatório existente, se houver um — se não houver, usar impressão nativa
   do navegador via CSS de print, sem biblioteca nova).
 
 ### Plano de teste
+
 1. Teste manual: exportar prontuário de pessoa com atendimento confidencial,
    logado como quem **não** tem a permissão → confirmar que o PDF/HTML
    gerado não contém o registro confidencial, nem uma linha "1 registro
@@ -710,7 +745,7 @@ projeto — não cabe bem dentro de um único detalhe.
 1. Fase 1: formato de recorrência = materializar datas (recomendado) —
    confirmar.
 2. Fase 5: nomes exatos das chaves de permissão de sigilo; encaminhamento
-   com origem opcional (recomendado); ocorrência com pessoa opcional/grupo
+   com origem opcional (recomendado); ocorrência com pessoa opcional/Grupos
    (recomendado).
 3. Fase 6: tabela de critério de prioridade com histórico (recomendado) vs.
    campo `Json` simples; limite de carga horária como alerta (já decidido

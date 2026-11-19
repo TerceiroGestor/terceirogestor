@@ -440,7 +440,7 @@ export class ActionsService {
       select: { id: true },
     });
     if (!peopleGroupLink)
-      throw new BadRequestException('Grupo invalido');
+      throw new BadRequestException('Grupos invalido');
   }
 
   private async ensureTeamPeopleGroupsBelongToAction(
@@ -498,7 +498,7 @@ export class ActionsService {
     });
     if (!peopleGroupLink)
       throw new BadRequestException(
-        'Grupo invalido para esta atividade',
+        'Grupos invalido para esta atividade',
       );
   }
 
@@ -685,7 +685,7 @@ export class ActionsService {
    * Chamar depois de validar `peopleGroupIds` (ensurePeopleGroupBelongsToProject
    * em cada um) - este metodo nao revalida, para nao escrever a Activity e
    * so depois falhar com um id invalido, deixando um registro orfao sem
-   * nenhum grupo-alvo.
+   * nenhum Grupos-alvo.
    */
   private async syncParticipantPeopleGroupScope(params: {
     tenantId: string;
@@ -954,7 +954,7 @@ export class ActionsService {
 
     if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
       throw new BadRequestException(
-        'Grupo e obrigatorio para este tipo de acao',
+        'Grupos e obrigatorio para este tipo de acao',
       );
     }
     if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
@@ -1073,7 +1073,7 @@ export class ActionsService {
 
     if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
       throw new BadRequestException(
-        'Grupo e obrigatorio para este tipo de acao',
+        'Grupos e obrigatorio para este tipo de acao',
       );
     }
     if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
@@ -1245,11 +1245,11 @@ export class ActionsService {
     await this.prisma.meetingAttendance.deleteMany({
       where: { tenantId: user.tenantId, actionId: existing.id },
     });
-    // Precisa vir depois da presença/grupos do encontro (FK occurrenceId é
+    // Precisa vir depois da presença/Grupos do encontro (FK occurrenceId é
     // RESTRICT) e antes da própria ação (FK actionId do encontro também é
     // RESTRICT) - achado ao implementar a Fase 3: excluir uma atividade com
     // encontro já agendado (Fase 1/2) já falhava com erro de FK antes desta
-    // correção; o mesmo valia pros grupos do encontro (Ciclo 2 da Fase 4,
+    // correção; o mesmo valia pros Grupos do encontro (Ciclo 2 da Fase 4,
     // 2026-11-16) e passou a ser limpo aqui também.
     const occurrenceIds = (
       await this.prisma.meeting.findMany({
@@ -1487,7 +1487,7 @@ export class ActionsService {
       select: { id: true },
     });
     if (!existing)
-      throw new NotFoundException('Vinculo do Grupo nao encontrado');
+      throw new NotFoundException('Vinculo do Grupos nao encontrado');
 
     await this.prisma.activityPeopleGroup.delete({
       where: { id: existing.id },
@@ -2042,7 +2042,7 @@ export class ActionsService {
     // As FKs de MeetingAttendance/ActionOccurrenceTeamGroup/
     // ActionOccurrencePeopleGroup.occurrenceId sao RESTRICT (mesmo padrao
     // manual de cascade ja usado em deleteActivity) - sem isso, excluir um
-    // encontro com presenca ou grupos vinculados falharia com erro de FK.
+    // encontro com presenca ou Grupos vinculados falharia com erro de FK.
     await this.prisma.meetingAttendance.deleteMany({
       where: { tenantId: user.tenantId, occurrenceId: existing.id },
     });
@@ -2545,9 +2545,9 @@ export class ActionsService {
     });
 
     const q = normalizeString(query.q);
-    // O encontro pode ter seus proprios grupos-alvo (ex.: a atividade atende
-    // 3 grupos, mas este encontro especifico e so pros grupos A e B) -
-    // prevalece sobre os grupos da atividade quando presente.
+    // O encontro pode ter seus proprios Grupos-alvo (ex.: a atividade atende
+    // 3 Grupos, mas este encontro especifico e so pros Grupos A e B) -
+    // prevalece sobre os Grupos da atividade quando presente.
     const occurrencePeopleGroupIds = occurrence.peopleGroups.map(
       (row) => row.peopleGroupId,
     );

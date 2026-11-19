@@ -22,7 +22,7 @@ export const peopleGroupsListAction = createModuleWindowAction({
   moduleDefinition: peopleGroupsListModuleDefinition,
   modulePermissionKey: "canRead",
   titleVariant: "list",
-  breadcrumbs: [{ label: "Grupos de Pessoas", href: PEOPLE_GROUPS_ROUTES.list }],
+  breadcrumbs: [{ label: "Grupos", href: PEOPLE_GROUPS_ROUTES.list }],
   render: () => <PeopleGroupsListModuleClientPage />,
 });
 
@@ -31,7 +31,7 @@ export const peopleGroupsDetailAction = createModuleWindowAction({
   moduleDefinition: peopleGroupsDetailModuleDefinition,
   moduleActionKey: "view",
   titleVariant: "detail",
-  breadcrumbs: [{ label: "Grupos de Pessoas", href: PEOPLE_GROUPS_ROUTES.list }],
+  breadcrumbs: [{ label: "Grupos", href: PEOPLE_GROUPS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <PeopleGroupsDetailEngineClientPage />,
 });
@@ -41,7 +41,7 @@ export const peopleGroupsCreateAction = createModuleWindowAction({
   moduleDefinition: peopleGroupsDetailModuleDefinition,
   moduleActionKey: "create",
   titleVariant: "create",
-  breadcrumbs: [{ label: "Grupos de Pessoas", href: PEOPLE_GROUPS_ROUTES.list }],
+  breadcrumbs: [{ label: "Grupos", href: PEOPLE_GROUPS_ROUTES.list }],
   hideBreadcrumb: true,
   render: () => <PeopleGroupsDetailEngineClientPage />,
 });

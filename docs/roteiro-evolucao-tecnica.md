@@ -122,7 +122,7 @@ alias de `/people-segments`, sem UI própria.
 
 `docs/historico/canonical-business-structure.md` (arquivado em
 2026-11-15 — descrevia `ProjectGroup` como conceito ativo, eliminado pela
-Fase R1 do redesenho de grupos; a parte sobre `PeopleGroup` continua
+Fase R1 do redesenho de Grupos; a parte sobre `PeopleGroup` continua
 factualmente certa) já modelava `PeopleGroup` como conceito de negócio
 real (agrupamento institucional, finalidades `PUBLICO`/`EQUIPE`) e o
 colocava **primeiro** na "Ordem de canonização" — ou seja, existe uma
@@ -139,7 +139,7 @@ UI para migrar.
 ### 1.6 Rota legada `/group` → redirect para `/projects/groups`
 
 `app/[tenant]/(modules)/group/*` existe só para redirecionar para a
-feature real (grupos de participantes de projeto, `ProjectGroup`). Código
+feature real (Grupos de participantes de projeto, `ProjectGroup`). Código
 morto de baixo risco — candidato a remover depois de confirmar (grep/
 analytics) que nada mais linka para `/group`.
 
@@ -336,7 +336,7 @@ para quando esses dois existirem.
 ## 4. Navegação — mapa atual
 
 Árvore de rotas sob `app/[tenant]/`: `login`, `forgot-password`,
-`reset-password` (públicas), e um grupo `(modules)/` com todas as telas
+`reset-password` (públicas), e um Grupos `(modules)/` com todas as telas
 autenticadas — `actions`, `admin/{audit-logs,permissions,roles,tenant,users}`,
 `auth/profile`, `dashboard`, `deposit/{donors,entries,exits,history,items,stock}`,
 `pantry/{...espelha deposit...}`, `people` (com a sub-árvore mais rica do
@@ -344,7 +344,7 @@ sistema: `[id]/{benefits,detentions,edit,education,family-relations,
 financial/{expenses,incomes,transfers},health-conditions,medications,tree}`),
 `people-groups` (fantasma, ver 1.5), `people-segments`, `programs`,
 `projects` (+ `[id]/{actions,enrollments,groups}`, `groups`), `settings`,
-`tasks`. Fora do grupo: `group` (legado, ver 1.6).
+`tasks`. Fora do Grupos: `group` (legado, ver 1.6).
 
 `src/proxy.ts` (ex-`middleware.ts`, convenção do Next 16 — migrado nesta
 sessão) resolve **só** o slug do tenant: reescreve prefixos legados

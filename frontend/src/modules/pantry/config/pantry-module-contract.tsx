@@ -373,14 +373,14 @@ const PANTRY_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
 const PANTRY_STOCK_DOMAIN_ADAPTER: RecordDomainAdapter = {
   entity: { singular: "Alimento", plural: "Estoque" },
   list: {
-    searchPlaceholder: "Pesquisar alimentos, grupos ou setores",
+    searchPlaceholder: "Pesquisar alimentos, Grupos ou setores",
     createActionLabel: "Novo",
     totalLabel: "Total",
     emptyStateLabel: "Nenhum resultado.",
   },
   fields: {
     name: { label: "Alimento", placeholder: "Ex: Arroz" },
-    group: { label: "Grupo", emptyValueLabel: "Sem grupo" },
+    group: { label: "Grupos", emptyValueLabel: "Sem Grupos" },
     sector: { label: "Setor", emptyValueLabel: "Geral" },
     sectorStock: { label: "Saldo (setor)", type: "number" },
     itemStock: { label: "Saldo (total)", type: "number" },
@@ -413,7 +413,7 @@ const PANTRY_HISTORY_DOMAIN_ADAPTER: RecordDomainAdapter = {
     eventName: { label: "Evento", emptyValueLabel: "Sem evento" },
     donorName: { label: "Doador", emptyValueLabel: "Sem doador" },
     itemName: { label: "Alimento" },
-    itemGroup: { label: "Grupo do alimento", emptyValueLabel: "Sem grupo" },
+    itemGroup: { label: "Grupos do alimento", emptyValueLabel: "Sem Grupos" },
     expiryDate: { label: "Validade", type: "date" },
     actor: { label: "Usuário", emptyValueLabel: "Sistema" },
     notes: { label: "Notas", emptyValueLabel: "Sem notas" },
@@ -646,7 +646,7 @@ const STOCK_VIEWS: ViewConfig[] = [
         fields: [
           { field: "name", label: "Alimento", kind: "dimension" },
           { field: "sector", label: "Setor", kind: "dimension", emptyValueLabel: "Geral" },
-          { field: "group", label: "Grupo", kind: "dimension", emptyValueLabel: "Sem grupo" },
+          { field: "group", label: "Grupos", kind: "dimension", emptyValueLabel: "Sem Grupos" },
           { field: "unit", label: "Unidade", kind: "dimension" },
           { field: "validityStatus", label: "Validade", kind: "dimension" },
           {
@@ -820,10 +820,10 @@ const HISTORY_VIEWS: ViewConfig[] = [
           },
           {
             field: "itemGroup",
-            label: "Grupo",
+            label: "Grupos",
             kind: "dimension",
             getValue: (row) =>
-              (row.item as { group?: string } | undefined)?.group ?? "Sem grupo",
+              (row.item as { group?: string } | undefined)?.group ?? "Sem Grupos",
           },
           { field: "eventName", label: "Evento", kind: "dimension", emptyValueLabel: "Sem evento" },
           { field: "donorName", label: "Doador", kind: "dimension", emptyValueLabel: "Sem doador" },
@@ -1273,18 +1273,18 @@ export type PantryModuleDefinition =
   | RecordModuleDefinition<PantryHistoryQueryState>
   | RecordModuleDefinition<PantryDonorsQueryState>
   | RecordModuleDefinition<
-      PantryDetailQueryState,
-      PantryItemDetailLayoutContext
-    >
+    PantryDetailQueryState,
+    PantryItemDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      PantryDetailQueryState,
-      PantryDonorDetailLayoutContext
-    >
+    PantryDetailQueryState,
+    PantryDonorDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      PantryDetailQueryState,
-      PantryEntryDetailLayoutContext
-    >
+    PantryDetailQueryState,
+    PantryEntryDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      PantryDetailQueryState,
-      PantryExitDetailLayoutContext
-    >;
+    PantryDetailQueryState,
+    PantryExitDetailLayoutContext
+  >;

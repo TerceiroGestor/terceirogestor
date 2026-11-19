@@ -86,7 +86,7 @@ function TeamPeopleGroupPicker({
   if (groups.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        Nenhum grupo de equipe vinculado a esta atividade.
+        Nenhum Grupos de equipe vinculado a esta atividade.
       </p>
     );
   }
@@ -188,7 +188,7 @@ function buildOccurrenceColumns(): ColumnDef<ApiMeeting>[] {
     },
     {
       id: "peopleGroup",
-      header: "Grupo",
+      header: "Grupos",
       accessorFn: (row) => row.peopleGroups.map((link) => link.peopleGroup.name).join(", "),
       cell: ({ row }) =>
         row.original.peopleGroups.length
@@ -405,10 +405,10 @@ function BulkScheduleOccurrencesDialog({
                 }))}
                 selectedValues={peopleGroupIds}
                 onChange={setPeopleGroupIds}
-                addLabel="Adicionar grupo"
-                searchPlaceholder="Pesquisar grupo..."
-                noOptionsLabel="Nenhum grupo vinculado a esta atividade."
-                emptyLabel="Sem grupo específico."
+                addLabel="Adicionar Grupos"
+                searchPlaceholder="Pesquisar Grupos..."
+                noOptionsLabel="Nenhum Grupos vinculado a esta atividade."
+                emptyLabel="Sem Grupos específico."
               />
             </div>
 
@@ -619,7 +619,7 @@ function MeetingAttendanceInlineTable({
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nenhum participante elegível pra este Encontro (confira os grupos vinculados).
+        Nenhum participante elegível pra este Encontro (confira os Grupos vinculados).
       </p>
     );
   }
@@ -1031,10 +1031,10 @@ function EditOccurrenceDialog({
               selectedValues={peopleGroupIds}
               onChange={setPeopleGroupIds}
               disabled={!canUpdate}
-              addLabel="Adicionar grupo"
-              searchPlaceholder="Pesquisar grupo..."
-              noOptionsLabel="Nenhum grupo vinculado a esta atividade."
-              emptyLabel="Sem grupo específico — vale para qualquer participante da atividade."
+              addLabel="Adicionar Grupos"
+              searchPlaceholder="Pesquisar Grupos..."
+              noOptionsLabel="Nenhum Grupos vinculado a esta atividade."
+              emptyLabel="Sem Grupos específico — vale para qualquer participante da atividade."
             />
           </div>
 
@@ -1275,7 +1275,7 @@ export function ActionOccurrencesSection({
       { name: "status", label: "Status", type: "select", options: OCCURRENCE_STATUS_OPTIONS },
       {
         name: "peopleGroups",
-        label: "Grupo",
+        label: "Grupos",
         type: "select",
         options: groups.map((link) => ({ value: link.peopleGroupId, label: link.peopleGroup.name })),
       },
@@ -1363,7 +1363,7 @@ export function ActionOccurrencesSection({
         onGroupByChange={setGroupBy}
         groupByOptions={[
           { field: "status", label: "Status" },
-          { field: "peopleGroups", label: "Grupo" },
+          { field: "peopleGroups", label: "Grupos" },
           { field: "scheduledDate", label: "Data" },
         ]}
         filterFields={filterFields}
@@ -1447,7 +1447,7 @@ export function ActionOccurrencesSection({
                 <span className="text-xs text-muted-foreground">
                   {item.peopleGroups.length
                     ? item.peopleGroups.map((link) => link.peopleGroup.name).join(", ")
-                    : "Sem grupo específico"}
+                    : "Sem Grupos específico"}
                 </span>
               </button>
             )}

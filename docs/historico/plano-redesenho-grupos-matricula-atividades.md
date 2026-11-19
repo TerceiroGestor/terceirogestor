@@ -1,9 +1,9 @@
 # Plano — Redesenho Programa → Projeto → Atividade → Encontro
 
 Levantamento feito em 2026-11-13, a pedido explícito do usuário, para
-consolidar o modelo de grupos (`ProjectGroup` vs `PeopleGroup`), tornar a
-matrícula orientada a grupo, dar ao Encontro um grupo de equipe/educadores
-além do grupo participante, renomear "Ação"→"Atividade" no código (não só
+consolidar o modelo de Grupos (`ProjectGroup` vs `PeopleGroup`), tornar a
+matrícula orientada a Grupos, dar ao Encontro um Grupos de equipe/educadores
+além do Grupos participante, renomear "Ação"→"Atividade" no código (não só
 na UI) e preparar relatórios em cascata (Encontro → Atividade → Projeto).
 Decisões confirmadas com o usuário antes de codificar: rename no código
 via `@@map` do Prisma (sem risco de migration de dado) e execução em fases
@@ -16,8 +16,8 @@ como referência histórica).
 ## Ordem de dependência
 
 ```
-Fase R1 (eliminar ProjectGroup) ──┬─→ Fase R2 (matrícula por grupo)
-                                   └─→ Fase R3 (Encontro + grupo de equipe)
+Fase R1 (eliminar ProjectGroup) ──┬─→ Fase R2 (matrícula por Grupos)
+                                   └─→ Fase R3 (Encontro + Grupos de equipe)
                                               │
                                               ↓
                                    Fase R4 (rename Ação→Atividade no código)
@@ -30,13 +30,14 @@ Fase R1 (eliminar ProjectGroup) ──┬─→ Fase R2 (matrícula por grupo)
 
 ## Fase R1 — Eliminar `ProjectGroup` (consolidar em `PeopleGroup`)
 
-**Objetivo:** hoje existem dois conceitos de "grupo" — `ProjectGroup`
+**Objetivo:** hoje existem dois conceitos de "Grupos" — `ProjectGroup`
 (ad-hoc, só nome, por projeto) e `PeopleGroup` (tenant-wide, ligado a
 pessoas reais via `PeopleGroupParticipation`, já com `purpose:
 PUBLICO|EQUIPE`). Eliminar o primeiro em favor do segundo, usado em todo
 lugar (projeto, atividade, encontro).
 
 ### Schema
+
 - Remover `model ProjectGroup` e `model ProjectEnrollmentGroupMembership`.
 - Remover `PROJECT_GROUP` do enum `ActionTarget` (fica
   `PROJECT | PEOPLE_GROUP | ENROLLMENT`).
@@ -45,6 +46,7 @@ lugar (projeto, atividade, encontro).
   só de remoção, sem backfill.
 
 ### Backend
+
 - `backend/src/modules/project-structure/project-structure.service.ts` e
   `.controller.ts`: remover CRUD de `ProjectGroup`
   (`listGroups`/`createGroup`/`updateGroup`/`deleteGroup`) e o fluxo de
@@ -57,6 +59,7 @@ lugar (projeto, atividade, encontro).
 - DTOs `create/update-project-action.dto.ts`: remover `projectGroupId`.
 
 ### Frontend
+
 - Remover a tela/picker de `ProjectGroup` (CRUD próprio) e a opção
   `PROJECT_GROUP` do seletor de `target` nos formulários de `ActionType`/
   Atividade.
@@ -64,6 +67,7 @@ lugar (projeto, atividade, encontro).
   tipos de `src/modules/actions/api/types.ts` e `src/modules/projects/api/`.
 
 ### Plano de teste
+
 1. `npx prisma migrate dev` (remoção) → `npx tsc --noEmit` nos dois apps
    → 0 erros.
 2. `npm test` (backend) sem regressão.
@@ -105,7 +109,7 @@ lugar (projeto, atividade, encontro).
   `action-create.constants.ts`), `actions-list-module-client-page.tsx`,
   `action-report-preview.tsx`, `actions-detail-layout-contract.tsx`,
   `projects-detail-layout-contract.tsx` (removeu a tab "Grupos de
-  Participantes" inteira, que duplicava a tab "Grupos de Pessoas" já
+  Participantes" inteira, que duplicava a tab "Grupos" já
   baseada em `PeopleGroup`), `rest/actions.ts`, `rest/provider.ts`,
   `searchViews/actions.ts`, `module-standard-smoke.ts` e
   `audit/domain/labels.ts`. `tsc --noEmit` revelou mais 7 arquivos com
@@ -126,21 +130,22 @@ lugar (projeto, atividade, encontro).
 
 ---
 
-## Fase R2 — Matrícula por grupo
+## Fase R2 — Matrícula por Grupos
 
 **Objetivo:** hoje matricular (`ProjectEnrollment`) é estritamente
 pessoa-por-pessoa. Adicionar um atalho de matricular/revisar todos os
-membros de um `PeopleGroup` de uma vez — a "matrícula por grupo" e a
+membros de um `PeopleGroup` de uma vez — a "matrícula por Grupos" e a
 "revisão anual" descritas pelo usuário.
 
 ### Backend
+
 - Novo endpoint em `project-structure` (ex.:
   `POST /:projectId/people-groups/:peopleGroupId/sync-enrollments`):
-  calcula o diff entre `PeopleGroupParticipation` ativas do grupo e
+  calcula o diff entre `PeopleGroupParticipation` ativas do Grupos e
   `ProjectEnrollment` já existentes nesse projeto para essas pessoas →
   cria as que faltam (herdando `role`/`participationKind` do
-  `ProjectPeopleGroup` que liga o grupo ao projeto) → encerra
-  (`status=ENDED`) as de pessoas que já não estão mais no grupo. Devolve
+  `ProjectPeopleGroup` que liga o Grupos ao projeto) → encerra
+  (`status=ENDED`) as de pessoas que já não estão mais no Grupos. Devolve
   um resumo (`{ enrolled: [...], ended: [...] }`) em vez de aplicar
   silenciosamente — é uma ação explícita do usuário, não automática.
 - Reaproveitar `createEnrollment` existente
@@ -148,26 +153,28 @@ membros de um `PeopleGroup` de uma vez — a "matrícula por grupo" e a
   duplicar a lógica de validação.
 
 ### Frontend
-- Na tab "Grupos de Pessoas" do detalhe do Projeto (onde já existe
+
+- Na tab "Grupos" do detalhe do Projeto (onde já existe
   `ProjectPeopleGroupPickerDialog`), adicionar ação "Matricular/revisar
-  membros" por grupo, mostrando o resumo do diff antes de confirmar.
+  membros" por Grupos, mostrando o resumo do diff antes de confirmar.
 
 ### Plano de teste
+
 1. `tsc` + `npm test`.
-2. Teste de serviço: grupo com 3 pessoas, 1 já matriculada, 1 nova, 1 que
-   saiu do grupo mas continua com matrícula ativa → confirma que o sync
+2. Teste de serviço: Grupos com 3 pessoas, 1 já matriculada, 1 nova, 1 que
+   saiu do Grupos mas continua com matrícula ativa → confirma que o sync
    cria 1, encerra 1, mantém 1.
-3. Teste manual: criar grupo, matricular pessoas no grupo, rodar o sync
-   no projeto → confirma matrícula criada; remover uma pessoa do grupo →
+3. Teste manual: criar Grupos, matricular pessoas no Grupos, rodar o sync
+   no projeto → confirma matrícula criada; remover uma pessoa do Grupos →
    rodar de novo → confirma matrícula encerrada.
 
 ### Status: concluída (2026-11-13)
 
 - **Sem migration de schema** — a "revisão" é computada em cima do que já
-  existe: "a matricular" = `PeopleGroupParticipation` ativa no grupo sem
+  existe: "a matricular" = `PeopleGroupParticipation` ativa no Grupos sem
   `ProjectEnrollment` ativa no projeto; "a encerrar" = tinha alguma
-  `PeopleGroupParticipation` nesse grupo (ativa ou não — assim não precisa
-  de coluna nova pra saber "já foi desse grupo") mas não está mais ativa
+  `PeopleGroupParticipation` nesse Grupos (ativa ou não — assim não precisa
+  de coluna nova pra saber "já foi desse Grupos") mas não está mais ativa
   nele, e ainda tem `ProjectEnrollment` ativa no projeto.
 - **Backend:** `project-structure.service.ts#syncPeopleGroupEnrollments` +
   rota `POST :projectId/people-groups/:peopleGroupId/sync-enrollments`
@@ -179,27 +186,27 @@ membros de um `PeopleGroup` de uma vez — a "matrícula por grupo" e a
   `prettier/prettier` de quebra de linha, corrigidos com `--fix`).
 - **Frontend:** `syncProjectPeopleGroupEnrollments` em
   `project-structure.ts`; botão "Matricular/revisar membros" por linha na
-  tab "Grupos de Pessoas" do Projeto (só pra grupos `PARTICIPANT` —
-  grupos de equipe não matriculam público), com confirmação via
+  tab "Grupos" do Projeto (só pra Grupos `PARTICIPANT` —
+  Grupos de equipe não matriculam público), com confirmação via
   `useConfirm()` e toast de resumo. **Evidência:** `tsc --noEmit` → 0
   erros; `eslint` nos 4 arquivos tocados → 6 problemas, igual à baseline
   (zero novo); `npm run build` → sucesso.
 - **Teste manual real** (API direta + browser, Chrome já instalado +
   Playwright, sem baixar nada): endpoint testado no projeto "Projeto
-  Alvorada"/grupo "C1M" com dado real — removida a participação ativa de
-  1 pessoa do grupo e adicionada 1 pessoa nova; rodado o sync via API →
+  Alvorada"/Grupos "C1M" com dado real — removida a participação ativa de
+  1 pessoa do Grupos e adicionada 1 pessoa nova; rodado o sync via API →
   resultado exato `{ enrolled: [Bianca Torres], ended: [Sabrina Melo] }`,
   confirmando a lógica de diff. No browser: botão aparece corretamente só
-  nas linhas de grupos `PARTICIPANT`, abre o diálogo de confirmação com o
+  nas linhas de Grupos `PARTICIPANT`, abre o diálogo de confirmação com o
   texto certo, e o toast final mostra a contagem. Banco resetado via
   `npm run db:seed` depois do teste pra não deixar dado de teste no dev.
 
 ---
 
-## Fase R3 — Encontro ganha planejamento/relatório/fotos + grupo de equipe
+## Fase R3 — Encontro ganha planejamento/relatório/fotos + Grupos de equipe
 
 **Objetivo (escopo ampliado em 2026-11-13, a pedido do usuário):**
-originalmente esta fase só previa adicionar grupo(s) de equipe/
+originalmente esta fase só previa adicionar Grupos(s) de equipe/
 educadores ao Encontro. Ao descrever o fluxo completo de Atividade →
 Encontro, o usuário deixou claro que **todo o conteúdo operacional**
 ("relatório, planejamento, anotações, presenças, observações de cada
@@ -209,26 +216,28 @@ observação por participante e nota de qualidade (1-5) **já existem no
 Encontro** desde a Fase 3 do SCFV — não é trabalho novo. O que falta:
 planejamento/relatório/fotos (hoje só na Atividade, via `planHtml`/
 `executedHtml`/`conclusionHtml`/`photoPaths` em `ProjectAction`) e
-grupo(s) de equipe (hoje o Encontro só aceita 1 grupo participante).
+Grupos(s) de equipe (hoje o Encontro só aceita 1 Grupos participante).
 Perguntado explicitamente, o usuário escolheu **mover** esses 4 campos
 pra Encontro (não duplicar nos dois níveis). `completionPercent` fica na
 Atividade — é um indicador manual de progresso geral, independente do
 conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
 
 ### Schema (1 migration, dev-only)
+
 - `ActionOccurrence` ganha `planHtml`/`executedHtml`/`conclusionHtml`
   (`Text?`) e `photoPaths` (`Json?`) — mesmo tipo que tinham em
   `ProjectAction`. `ProjectAction` perde essas 4 colunas (mantém
   `completionPercent`).
 - Nova tabela `ActionOccurrenceTeamGroup` (`tenantId`, `occurrenceId`,
   `peopleGroupId`), mesma forma de `ActionPeopleGroup` mas no nível do
-  Encontro, sem `participationKind` (toda linha já é equipe) — N grupos
+  Encontro, sem `participationKind` (toda linha já é equipe) — N Grupos
   de equipe por encontro.
 - `prisma/seed.ts`: mover o conteúdo de plan/executed/conclusion/fotos
   das fixtures de `ProjectAction` pras fixtures de `ActionOccurrence`
   correspondentes.
 
 ### Backend
+
 - `ensurePeopleGroupBelongsToAction` ganha parâmetro
   `participationKind` (hoje hardcoded em `PARTICIPANT`) — reaproveitado
   pra validar `teamPeopleGroupIds`.
@@ -240,6 +249,7 @@ conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
   campos; `serializeProjectAction` para de devolvê-los.
 
 ### Frontend
+
 - `action-occurrences-section.tsx` → `EditOccurrenceDialog` ganha 3
   campos `<RichText>` (planejamento/relato/conclusão), um editor de
   fotos (migrado de `ActionPhotosSection`/`action-detail-engine-client-page.tsx`,
@@ -254,10 +264,11 @@ conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
   `resolveDefaultOccurrenceId`, já existentes), não mais da Atividade.
 
 ### Plano de teste
+
 1. `tsc` + `npm test`.
-2. Teste de serviço: grupo de equipe que não pertence à Atividade → 400;
-   grupo de equipe válido → aceito e devolvido no GET do encontro.
-3. Teste manual: agendar encontro com 1 grupo participante + 2 grupos de
+2. Teste de serviço: Grupos de equipe que não pertence à Atividade → 400;
+   Grupos de equipe válido → aceito e devolvido no GET do encontro.
+3. Teste manual: agendar encontro com 1 Grupos participante + 2 Grupos de
    equipe, preencher planejamento/relatório, subir foto, marcar
    presença → confirma tudo certo na edição e no `action-report-preview`.
 
@@ -285,7 +296,7 @@ conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
   problemas.
 - **Frontend:** tipos (`ApiActionOccurrence`/`ActionOccurrenceInput`/etc.)
   atualizados; `action-occurrences-section.tsx` (`EditOccurrenceDialog`)
-  ganha seletor de grupos de equipe, 3 campos `<RichText>`
+  ganha seletor de Grupos de equipe, 3 campos `<RichText>`
   (planejamento/relato/conclusão) e editor de fotos (upload/exclusão
   próprios, sem depender mais da Atividade);
   `actions-detail-layout-contract.tsx` troca as abas antigas
@@ -300,7 +311,7 @@ conteúdo de uma sessão específica, e é usado no Gantt via `progressField`.
 - **Teste manual real** (browser via Chrome já instalado + Playwright,
   sem baixar nada): aberto o Encontro "Acolhimento de abertura" (projeto
   "Projeto Música Manhã") com dado de seed — diálogo de edição já chega
-  com os grupos de equipe "Funcionarios"/"Voluntarios" marcados e os
+  com os Grupos de equipe "Funcionarios"/"Voluntarios" marcados e os
   campos de planejamento/relato/conclusão preenchidos com o conteúdo
   migrado do seed; upload de foto testado ao vivo (1/5 fotos, thumbnail
   renderizado) e salvo com sucesso (toast "Encontro atualizado"); aba
@@ -318,6 +329,7 @@ o código interno também passa a usar "Activity" em vez de "Action", via
 só o nome que o Prisma Client e o TypeScript usam.
 
 ### Schema
+
 ```prisma
 model Activity { ... }               @@map("ProjectAction")
 model ActivityType { ... }           @@map("ActionType")
@@ -325,11 +337,13 @@ model ActivityOccurrence { ... }     @@map("ActionOccurrence")
 model ActivityAttendance { ... }     @@map("ProjectActionAttendance")
 model ActivityPeopleGroup { ... }    @@map("ActionPeopleGroup")
 ```
+
 Feito por último de propósito: é refactor mecânico de nome, sem mudança
 de comportamento — mais seguro depois que R1-R3 já estabilizaram o
 modelo (menos coisa para renomear duas vezes).
 
 ### Backend
+
 - `backend/src/modules/actions/**` → avaliar mover para
   `backend/src/modules/activities/**` (rotas HTTP continuam `/actions`,
   só o código interno muda de nome/pasta).
@@ -341,12 +355,14 @@ modelo (menos coisa para renomear duas vezes).
   não compila.
 
 ### Frontend
+
 - Mesma troca nos tipos (`ApiProjectAction`→`ApiActivity` etc.) e nos
   textos visíveis em toda a UI (absorve a Fase 4 original do SCFV).
   Rotas (`/actions`) continuam iguais de propósito, para não quebrar
   link salvo/favorito — só o nome interno do código muda.
 
 ### Plano de teste
+
 1. `tsc --noEmit` nos dois apps → 0 erros (principal rede de segurança
    desse refactor).
 2. `npm test` + `npm run build` sem regressão.
@@ -361,6 +377,7 @@ modelo (menos coisa para renomear duas vezes).
 Encontros do mês; Projeto agrega as Atividades do mês/ano.
 
 ### Backend
+
 - Estender o padrão de agregação já usado no relatório por 1 Encontro
   (`action-report-preview.tsx`, hoje consumindo
   `listProjectActionAttendances` por `occurrenceId`) para aceitar um
@@ -371,6 +388,7 @@ Encontros do mês; Projeto agrega as Atividades do mês/ano.
   realizados/agendados, destaques/qualidade).
 
 ### Frontend
+
 - Tab "Relatório" da Atividade ganha seletor de período (hoje é só 1
   Encontro).
 - Tab nova "Relatório" no Projeto usando `GroupedListView.tsx` (hoje sem
@@ -378,10 +396,12 @@ Encontros do mês; Projeto agrega as Atividades do mês/ano.
   Atividade/Encontro.
 
 ### Fora de escopo nesta rodada
+
 - Avaliação mensal por atendido (mencionada como "talvez" pelo usuário):
   registrar em `docs/backlog.md` com gatilho, não implementar agora.
 
 ### Plano de teste
+
 1. `tsc` + `npm test`.
 2. Teste manual: comparar o número mostrado no relatório mensal/anual com
    uma contagem manual no banco, para pelo menos 1 Atividade e 1 Projeto.

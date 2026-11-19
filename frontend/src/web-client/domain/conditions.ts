@@ -51,7 +51,7 @@ export function removeConditionAtIndex(
  * por "and", preservando as outras condições - usado pelos atalhos rápidos
  * do `SearchPanelMenu` (ex.: período de uma vez, sem abrir o construtor de
  * filtro completo). Quando o domínio atual não é decomponível em "and"
- * (ex.: já tem um grupo "or"), não arrisca reescrever a árvore inteira: só
+ * (ex.: já tem um Grupos "or"), não arrisca reescrever a árvore inteira: só
  * agrupa a condição nova ao lado do que já existe.
  */
 export function upsertAndCondition(

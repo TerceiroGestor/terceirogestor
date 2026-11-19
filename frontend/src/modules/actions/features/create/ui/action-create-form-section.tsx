@@ -76,7 +76,7 @@ function formatPeopleGroupOptionLabel(row: ApiProjectPeopleGroup) {
  * Atalho de 1 pessoa por papel (Gestor = RESPONSAVEL_TECNICO, Educador =
  * FACILITADOR), lendo/gravando em ProjectActionPeopleParticipation - o
  * mesmo cadastro que a aba "Equipe" já usa, sem campo/tabela nova. A
- * pessoa elegível vem do grupo de equipe do Projeto (participationKind
+ * pessoa elegível vem do Grupos de equipe do Projeto (participationKind
  * "TEAM"), igual ao que a aba Equipe já oferece.
  */
 function ActivityRolePicker({
@@ -167,13 +167,13 @@ function ActivityRolePicker({
   const options =
     current && !eligible.some((item) => item.personId === current.personId)
       ? [
-          {
-            personId: current.personId,
-            fullName: current.person.fullName,
-            enrollmentId: current.enrollmentId,
-          },
-          ...eligible,
-        ]
+        {
+          personId: current.personId,
+          fullName: current.person.fullName,
+          enrollmentId: current.enrollmentId,
+        },
+        ...eligible,
+      ]
       : eligible;
 
   return (
@@ -547,10 +547,10 @@ export function ActionCreateFormSection({
                   setValues((previous) => ({ ...previous, peopleGroupIds: next }))
                 }
                 disabled={saving}
-                addLabel="Adicionar grupo"
-                searchPlaceholder="Pesquisar grupo..."
-                noOptionsLabel="Nenhum grupo disponível neste projeto."
-                emptyLabel="Nenhum grupo selecionado."
+                addLabel="Adicionar Grupos"
+                searchPlaceholder="Pesquisar Grupos..."
+                noOptionsLabel="Nenhum Grupos disponível neste projeto."
+                emptyLabel="Nenhum Grupos selecionado."
               />
             )}
           </DetailSectionField>

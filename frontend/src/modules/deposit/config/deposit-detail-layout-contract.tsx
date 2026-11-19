@@ -886,7 +886,7 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
         }}
         contextItems={[
           { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
-          { key: "group", label: "Grupo", value: item?.group ?? "Sem grupo" },
+          { key: "group", label: "Grupos", value: item?.group ?? "Sem Grupos" },
           { key: "sector", label: "Setor padrão", value: item?.defaultSector ?? DEPOSIT_DEFAULT_SECTOR },
           { key: "status", label: "Status", value: item?.validityStatus ?? "Sem status" },
         ]}
@@ -1922,12 +1922,12 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
       rows: ({ mode, exit, entryById }) =>
         mode === "edit"
           ? (exit?.allocations ?? []).map((allocation) => ({
-              entryId: allocation.entryId,
-              quantity: Number(allocation.quantity ?? 0),
-              expiryDate: allocation.expiryDate ?? null,
-              sector: allocation.sector ?? DEPOSIT_DEFAULT_SECTOR,
-              entryDate: entryById[allocation.entryId]?.entryDate ?? "",
-            }))
+            entryId: allocation.entryId,
+            quantity: Number(allocation.quantity ?? 0),
+            expiryDate: allocation.expiryDate ?? null,
+            sector: allocation.sector ?? DEPOSIT_DEFAULT_SECTOR,
+            entryDate: entryById[allocation.entryId]?.entryDate ?? "",
+          }))
           : [],
       columns: depositExitAllocationColumns,
       getRowId: (row) => row.entryId,

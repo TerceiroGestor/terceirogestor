@@ -115,7 +115,7 @@ export function DepositItemDetailForm({
             </Select>
           </DetailSectionField>
 
-          <DetailSectionField label="Grupo de objetos">
+          <DetailSectionField label="Grupos de objetos">
             <Select
               value={draft.group ?? "__none__"}
               onValueChange={(value) => {
@@ -126,10 +126,10 @@ export function DepositItemDetailForm({
               disabled={readOnly}
             >
               <SelectTrigger className={inputLineClassName}>
-                <SelectValue placeholder="Sem grupo" />
+                <SelectValue placeholder="Sem Grupos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Sem grupo</SelectItem>
+                <SelectItem value="__none__">Sem Grupos</SelectItem>
                 {groupOptions.map((group) => (
                   <SelectItem key={group.value} value={group.value}>
                     {group.label}

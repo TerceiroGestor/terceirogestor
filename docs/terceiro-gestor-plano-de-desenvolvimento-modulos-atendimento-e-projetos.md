@@ -2,7 +2,7 @@
 
 ### Módulos "Atendimento" e "Gestão de Projetos" — Fases testáveis
 
-> Base: People/PeopleGroup já implementado (hub central de pessoas, papéis e grupos com histórico via IsActive).
+> Base: People/PeopleGroup já implementado (hub central de pessoas, papéis e Grupos com histórico via IsActive).
 > Objetivo geral: tornar o registro do dia a dia (encontro, atendimento, ocorrência) tão rápido que ele deixa de ser visto como "burocracia" e passa a alimentar automaticamente todos os relatórios obrigatórios.
 
 ## Índice de implementação
@@ -14,7 +14,7 @@ para `PLAN.md`, como de costume. Legenda: `[x]` feita, `[~]` parcial (ver
 coluna "Falta"), `[ ]` não iniciada.
 
 | | Fase | O que já existe | Falta |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `[x]` | **1.0 — Rename no código** (pré-requisito) | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
 | `[x]` | **1 — Estrutura básica de Projetos** | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
 | `[~]` | **2 — Registro ágil do Encontro** | Presença por participante, avaliação (nota 1-5 + observação), upload de foto — tudo já no `Meeting` (=`ActionOccorrence`) | Validar com usuário real o tempo de preenchimento (meta 3-5 min) — é teste de UX, não código novo a construir do zero |
@@ -38,7 +38,7 @@ raciocínio técnico e das decisões já tomadas, não como plano ativo):
   UI, presença por encontro) **já implementadas**; Fases 4-9 superadas por
   este documento.
 - `docs/historico/especificacao-completa-saas-para-ongs-de-scfv.md` (13/11).
-- `docs/historico/plano-redesenho-grupos-matricula-atividades.md` (13/11) —
+- `docs/historico/plano-redesenho-Grupos-matricula-atividades.md` (13/11) —
   Fases R1-R3 **já implementadas**; R4 e R5 dobram neste documento (ver
   "Mapeamento" abaixo).
 
@@ -57,14 +57,14 @@ este texto.
 ### Mapeamento — o que este plano chama de X já existe no código como Y
 
 | Neste documento | Já implementado como | Fase correspondente | Situação |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `Program` | `Program` | Fase 1 | ✅ idêntico, já existe |
 | `Project` (`funding_source`) | `Project` | Fase 1 | ✅ já existe (campo de fonte de financiamento a confirmar no schema real antes de assumir pronto) |
 | `Activity` | `ProjectAction` | Fase 1 | ✅ rename físico no código (Fase 1.0) e relabel visual "Ação"→"Atividade" (2026-11-15) — os dois confirmados por teste real de navegador. A Fase 4 do plano SCFV antigo (relabel visual, nunca executada apesar de estar registrada como trivial) foi absorvida e fechada aqui |
 | `Meeting` (Encontro) | `ActionOccurrence` | Fase 1-2 | ✅ já existe, com geração em lote por recorrência (dias da semana + período), calendário/lista, edição/cancelamento em série |
 | `MeetingAttendance` | `ProjectActionAttendance` (chave por `occurrenceId`) | Fase 2-3 | ✅ já existe — presença já é por encontro, não por atividade inteira |
 | `MeetingEvaluation` (nota/conceito por participante) | campo de avaliação em `ActionOccurrence`/presença (Fase R3 do plano anterior) | Fase 2 | ✅ já existe (nota 1-5 + observação por participante) |
-| Planejamento/relatório/fotos do Encontro | `planHtml`/`executedHtml`/`conclusionHtml`/`photoPaths` em `ActionOccurrence` + grupo de equipe (`ActionOccurrenceTeamGroup`) | Fase 2 | ✅ já existe (Fase R3 do plano anterior) |
+| Planejamento/relatório/fotos do Encontro | `planHtml`/`executedHtml`/`conclusionHtml`/`photoPaths` em `ActionOccurrence` + Grupos de equipe (`ActionOccurrenceTeamGroup`) | Fase 2 | ✅ já existe (Fase R3 do plano anterior) |
 | `DailyAttendance` (derivada, dedup por dia) | **não existe** | Fase 3 | ❌ trabalho novo de verdade — é o único ponto real da Fase 3 |
 | Geração automática de agenda anual + preview | geração em lote já existe; **preview antes de confirmar** e exceções/feriados não foram confirmados como implementados | Fase 4 | ⚠️ confirmar o que falta exatamente antes de iniciar (ver Fase 4) |
 | `Attendance`/`AttendancePeople`/`Benefit`/`Referral`/`Occurrence`/`OccurrencePeople`/`Case` | **não existem** | Fases 5-8 | ❌ trabalho novo — módulo de Atendimento inteiro |
@@ -114,7 +114,7 @@ dois pontos pré-existentes e intencionalmente não tocados — a string
 gravação real de audit log hoje (nenhum código escreve esse valor fora do
 seed), então não é um tipo/identificador de código — decisão de deixar
 como está. Plano de teste original: ver Fase R4 em
-`docs/historico/plano-redesenho-grupos-matricula-atividades.md`.
+`docs/historico/plano-redesenho-Grupos-matricula-atividades.md`.
 
 **Achado incidental, fora do escopo desta fase:**
 `backend/scripts/migrate-upload-keys-to-tenant-scoped.js#migrateProjectActionPhotoPaths`
@@ -134,7 +134,7 @@ para `meeting.photoPaths` ou se a lógica já é redundante.
 A Fase 9 abaixo (relatórios por financiador) e a antiga "Fase R5"
 (relatórios em cascata Encontro→Atividade→Projeto) são o mesmo trabalho
 descrito em dois documentos diferentes — unificadas aqui. Ver Fase R5 em
-`docs/historico/plano-redesenho-grupos-matricula-atividades.md` para o
+`docs/historico/plano-redesenho-Grupos-matricula-atividades.md` para o
 detalhe de agregação por período (mês/ano) já desenhado.
 
 ---
@@ -214,7 +214,7 @@ PEOPLE (hub central — já implementado)
 - Cadastro de `Meeting` (encontro) manual, vinculado a uma `Activity` e a uma data.
 - Vínculo de uma turma (reaproveitar `PeopleGroup` já existente) à `Activity`.
 
-**✅ Critério de teste:** criar 1 projeto, 1 atividade vinculada a 1 meta, e cadastrar manualmente 3 encontros numa semana, cada um puxando a lista de participantes do grupo vinculado.
+**✅ Critério de teste:** criar 1 projeto, 1 atividade vinculada a 1 meta, e cadastrar manualmente 3 encontros numa semana, cada um puxando a lista de participantes do Grupos vinculado.
 
 **Feito em 2026-11-15.** `Program`/`Activity`/`Meeting`/turma vinculada já
 existiam (ver tabela de mapeamento no topo). Os dois gaps reais:
@@ -409,7 +409,7 @@ reais identificados no índice deste documento, resolvidos agora:
 `daysOfWeek`) e `previewActionOccurrences` em `actions.service.ts`
 (mesma validação de período/limite de 200 do bulk-create, sem
 `peopleGroupId`/`teamPeopleGroupIds` — preview não precisa validar
-vínculo de grupo, só calcular datas). `BulkCreateActionOccurrencesDto`
+vínculo de Grupos, só calcular datas). `BulkCreateActionOccurrencesDto`
 ganhou `excludedDates?: string[]`; `bulkCreateActionOccurrences` filtra
 as datas geradas por esse conjunto antes de aplicar o limite de 200 e
 criar — excluir todas as datas geradas vira `400` com mensagem
@@ -468,7 +468,7 @@ dado de seed foi alterado (projeto "Projeto Musica Manha" confirmado com
 
 ### Fase 4 — Ciclo 2 de ajustes (teste manual real, 2026-11-16) `[x]` concluído em 2026-11-17 — falta só o teste de aceite final do usuário
 
-Depois do Grupo A/B (ver acima), o usuário testou o formulário de
+Depois do Grupos A/B (ver acima), o usuário testou o formulário de
 Atividade e o módulo de Encontros de verdade e trouxe 10 pontos novos.
 Investigação (sem código ainda) feita nesta sessão achou, pra cada um,
 exatamente o que já existe hoje — vários pontos são retrabalho de UX em
@@ -476,10 +476,10 @@ cima de funcionalidade que **já existe mas está mal nomeada/organizada**,
 não funcionalidade faltando do zero. Tabela de rastreio:
 
 | # | Pedido do usuário | Já existe? | Ação proposta |
-|---|---|---|---|
-| 1 | Encontro N:N Grupo (evento que atende vários grupos de uma vez) | Não — `Meeting.peopleGroupId` é FK única nullable | Nova tabela de junção `MeetingPeopleGroup`, migration única (sem dado de produção) |
+| --- | --- | --- | --- |
+| 1 | Encontro N:N Grupos (evento que atende vários Grupos de uma vez) | Não — `Meeting.peopleGroupId` é FK única nullable | Nova tabela de junção `MeetingPeopleGroup`, migration única (sem dado de produção) |
 | 2 | Checkbox de seleção sempre visível na lista de Encontros (sem botão "Selecionar") | Parcial — ficou atrás de um toggle nesta mesma sessão | Tirar o toggle, `enableRowSelection` sempre ligado |
-| 3 | Multiselect de grupos na Atividade "sujo visualmente" → trocar por combobox+badge | A funcionalidade (`peopleGroupIds[]`) já existe (ciclo 1); só o componente visual (lista de checkbox) precisa trocar | Componente novo reutilizável `MultiSelectBadges` |
+| 3 | Multiselect de Grupos na Atividade "sujo visualmente" → trocar por combobox+badge | A funcionalidade (`peopleGroupIds[]`) já existe (ciclo 1); só o componente visual (lista de checkbox) precisa trocar | Componente novo reutilizável `MultiSelectBadges` |
 | 4 | Formulário da Atividade mal organizado (Título não é o campo-âncora, falta hierarquia) | — | Reorganizar em seções com grid, Título em destaque, mesmo princípio do People |
 | 5 | Campos "Participante"/"Direcionamento" sem propósito claro; faltam Descrição ampliada, Plano pedagógico, Gestor, Educador/Executor | `targetEnrollmentId`/`ENROLLMENT` existe no schema mas **zero uso no seed**; `description` já existe; "Plano pedagógico" não existe; Gestor/Educador não existem como campo — mas `ProjectActionPeopleParticipation` (aba "Equipe" de hoje) já tem um catálogo de papéis (`PARTICIPANTE/FACILITADOR/APOIO/VOLUNTARIO/RESPONSAVEL_TECNICO/CONVIDADO`) | **Decidido:** reaproveitar os papéis existentes — Gestor = atalho pra pessoa com papel `RESPONSAVEL_TECNICO`, Educador = atalho pra pessoa com papel `FACILITADOR`, os dois lendo/escrevendo em `ProjectActionPeopleParticipation` (sem migration). Remover campos Participante/Direcionamento do formulário principal (o `ENROLLMENT` como `ActionTarget` fica só de leitura se algum tipo antigo usar). Adicionar campo novo `pedagogicalPlan` (texto longo) na Atividade |
 | 6 | Metadata da Atividade igual ao People (tags, notas, anexos, auditoria) | Já é o mesmo componente (`StandardDetailMetadataSide`) nos dois módulos — People só passa `tabOrder` restrito a 4 blocos; Atividade usa o conjunto maior (+ comentários, histórico, contexto) | **Decisão própria (cosmética, sinalizar se quiser mudar):** manter Comentários (feature já em uso, não é metadado "estático" como tags/notas) — só alinhar a ordem (`tags`, `notes`, `attachments`, `comments`, `activity`), igual ao espírito de People, sem remover nenhuma aba |
@@ -491,7 +491,7 @@ não funcionalidade faltando do zero. Tabela de rastreio:
 **Ordem de execução** (tudo já decidido, pode começar):
 
 1. `[x]` `MultiSelectBadges` (componente novo, reutilizável) + aplicar no
-   seletor de grupos da Atividade (#3). **Feito em 2026-11-16.**
+   seletor de Grupos da Atividade (#3). **Feito em 2026-11-16.**
 2. `[x]` `Meeting` N:N `PeopleGroup` (migration nova + DTOs + serviço +
    agregação de presença, mesmo padrão já aplicado em Atividade no ciclo 1) —
    Encontro passa a usar `MultiSelectBadges` também (#1). **Feito em

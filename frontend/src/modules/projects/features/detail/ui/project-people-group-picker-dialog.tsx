@@ -55,7 +55,7 @@ export function ProjectPeopleGroupPickerDialog({
   const [search, setSearch] = React.useState("");
 
   const resolvedTitle =
-    title ?? (purpose === "EQUIPE" ? "Vincular grupo de equipe" : "Vincular Grupo");
+    title ?? (purpose === "EQUIPE" ? "Vincular Grupos de equipe" : "Vincular Grupos");
   const resolvedActionLabel = actionLabel ?? "Vincular";
 
   const handlePickOne = React.useCallback(
@@ -84,7 +84,7 @@ export function ProjectPeopleGroupPickerDialog({
                     : previous.filter((group) => !rows.some((row) => row.id === group.id)),
                 );
               }}
-              aria-label="Selecionar grupos da pagina"
+              aria-label="Selecionar Grupos da pagina"
             />
           );
         },
@@ -108,7 +108,7 @@ export function ProjectPeopleGroupPickerDialog({
       },
       {
         accessorKey: "name",
-        header: "Grupo institucional",
+        header: "Grupos institucional",
         cell: ({ row }) => (
           <div className="space-y-0.5">
             <p className="text-xs font-semibold text-foreground">{row.original.name}</p>
@@ -191,7 +191,7 @@ export function ProjectPeopleGroupPickerDialog({
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
           ? String((nextError as { message?: string }).message)
-          : "Falha ao carregar grupos de pessoas.";
+          : "Falha ao carregar Grupos.";
       setError(message);
       setRows([]);
       setPageCount(0);

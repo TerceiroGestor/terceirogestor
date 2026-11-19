@@ -174,7 +174,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao salvar Grupo.";
+          : "Falha ao salvar Grupos.";
       toast({ variant: "destructive", title: "Falha ao salvar", description: message });
     },
   });
@@ -204,7 +204,7 @@ export function PeopleGroupsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao carregar Grupo.";
+            : "Falha ao carregar Grupos.";
         toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       })
       .finally(() => setLoading(false));
@@ -221,7 +221,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       toast({
         variant: "destructive",
         title: "Dados inválidos",
-        description: "Informe o nome do Grupo.",
+        description: "Informe o nome do Grupos.",
       });
       return;
     }
@@ -232,13 +232,13 @@ export function PeopleGroupsDetailEngineClientPage() {
         "people-groups.detail",
         payload,
       );
-      toast({ variant: "success", title: "Grupo criado" });
+      toast({ variant: "success", title: "Grupos criado" });
       router.replace(withTenantPath(`${PEOPLE_GROUPS_ROUTES.detail}/${created.id}`, tenantSlug));
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao criar Grupo.";
+          : "Falha ao criar Grupos.";
       toast({ variant: "destructive", title: "Falha ao criar", description: message });
     } finally {
       setBusy(false);
@@ -260,7 +260,7 @@ export function PeopleGroupsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-            : "Falha ao adicionar participante ao grupo.";
+            : "Falha ao adicionar participante ao Grupos.";
         toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
     },
@@ -284,7 +284,7 @@ export function PeopleGroupsDetailEngineClientPage() {
           const message =
             error && typeof error === "object" && "message" in error
               ? String((error as { message?: string }).message)
-              : "Falha ao adicionar participante ao grupo.";
+              : "Falha ao adicionar participante ao Grupos.";
           errors.push(`${person.fullName}: ${message}`);
         }
       }
@@ -318,7 +318,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       if (!token || !id || !canManageParticipations) return;
       const confirmed = await confirm({
         title: "Encerrar vínculo",
-        description: `Encerrar o vínculo de "${participation.person.fullName}" com este Grupo preservando o histórico?`,
+        description: `Encerrar o vínculo de "${participation.person.fullName}" com este Grupos preservando o histórico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
@@ -388,8 +388,8 @@ export function PeopleGroupsDetailEngineClientPage() {
 
   const headerTitle =
     mode === "create"
-      ? "Novo Grupo"
-      : group?.name || draft.name || "Grupo";
+      ? "Novo Grupos"
+      : group?.name || draft.name || "Grupos";
 
   return (
     <>
@@ -407,7 +407,7 @@ export function PeopleGroupsDetailEngineClientPage() {
         onClose={() => router.push(withTenantPath(PEOPLE_GROUPS_ROUTES.list, tenantSlug))}
         breadcrumbTitle={headerTitle}
         breadcrumbItems={[
-          { label: "Grupos de Pessoas", href: PEOPLE_GROUPS_ROUTES.list },
+          { label: "Grupos", href: PEOPLE_GROUPS_ROUTES.list },
           ...(mode === "edit" ? [{ label: headerTitle }] : []),
         ]}
       />

@@ -124,7 +124,7 @@ export function ProjectEnrollmentManageDialog({
 
   const peopleGroupsLabel =
     enrollment.peopleGroups.map((group) => group.name).join(", ") ||
-    "Sem Grupo";
+    "Sem Grupos";
 
   return (
     <SectionDialog
@@ -152,7 +152,7 @@ export function ProjectEnrollmentManageDialog({
         </div>
         <div className="space-y-1">
           <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Grupos de Pessoas
+            Grupos
           </div>
           <div className="text-sm text-foreground">{peopleGroupsLabel}</div>
         </div>

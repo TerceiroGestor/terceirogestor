@@ -200,7 +200,7 @@ export function ProjectsDetailRouteClientPage({
                   <strong>
                     {project.program?.type
                       ? PROGRAM_TYPE_LABELS[project.program.type] ??
-                        project.program.type
+                      project.program.type
                       : "-"}
                   </strong>
                 </span>
@@ -209,7 +209,7 @@ export function ProjectsDetailRouteClientPage({
                   <strong>
                     {project.program?.status
                       ? PROGRAM_STATUS_LABELS[project.program.status] ??
-                        project.program.status
+                      project.program.status
                       : "-"}
                   </strong>
                 </span>
@@ -218,8 +218,8 @@ export function ProjectsDetailRouteClientPage({
                   <strong>
                     {project.startsAt || project.endsAt
                       ? `${formatDate(project.startsAt)} — ${formatDate(
-                          project.endsAt,
-                        )}`
+                        project.endsAt,
+                      )}`
                       : "Não informada"}
                   </strong>
                 </span>

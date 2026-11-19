@@ -162,9 +162,9 @@ const parseQueryState = (
     groupParam === "none"
       ? []
       : (groupParam ?? "")
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = parsePositiveInt(params.get("limit"), 50);
 
@@ -239,7 +239,7 @@ function resolveGroupValue(row: ApiPantryHistoryMovement, field: string) {
     case "itemId":
       return row.item?.name?.trim() || "Item";
     case "itemGroup":
-      return row.item?.group?.trim() || "Sem grupo";
+      return row.item?.group?.trim() || "Sem Grupos";
     case "movementDate":
       return formatDateOnlyPtBR(row.movementDate);
     case "expiryDate":
@@ -500,7 +500,7 @@ export function PantryHistoryModuleClientPage() {
       },
       {
         id: "itemGroup",
-        header: "Grupo",
+        header: "Grupos",
         accessorFn: (row) => row.item?.group ?? "",
         cell: ({ row }) => (
           <div className="truncate text-sm text-muted-foreground">
@@ -942,10 +942,10 @@ export function PantryHistoryModuleClientPage() {
     () =>
       historyGraphBuilder
         ? buildGraphViewModel(
-            viewRows as Array<Record<string, unknown>>,
-            state.graph,
-            historyGraphBuilder,
-          )
+          viewRows as Array<Record<string, unknown>>,
+          state.graph,
+          historyGraphBuilder,
+        )
         : null,
     [state.graph, viewRows],
   );
@@ -1150,7 +1150,7 @@ export function PantryHistoryModuleClientPage() {
                 if (field === "sector") return String(value ?? "").trim() || "Geral";
                 if (field === "type") return typeof value === "string" ? resolveExitTypeLabel(value) : "Sem tipo";
                 if (field === "itemId") return itemLabelById.get(String(value ?? "")) ?? "Item";
-                if (field === "itemGroup") return String(value ?? "").trim() || "Sem grupo";
+                if (field === "itemGroup") return String(value ?? "").trim() || "Sem Grupos";
                 if (field === "eventName") return String(value ?? "").trim() || "Sem evento";
                 if (field === "donorName") return String(value ?? "").trim() || "Sem doador";
                 if (field === "quantity") {

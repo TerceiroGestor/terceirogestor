@@ -881,7 +881,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         }}
         contextItems={[
           { key: "stock", label: "Saldo total", value: Number(item?.stock ?? 0).toLocaleString("pt-BR") },
-          { key: "group", label: "Grupo", value: item?.group ?? "Sem grupo" },
+          { key: "group", label: "Grupos", value: item?.group ?? "Sem Grupos" },
           { key: "sector", label: "Setor padrão", value: item?.defaultSector ?? PANTRY_DEFAULT_SECTOR },
           { key: "status", label: "Status", value: item?.validityStatus ?? "Sem status" },
         ]}
@@ -1623,240 +1623,240 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
     onCommitField,
     onPatch,
     onOpenNewSector,
-  }) => (    <div className={PANTRY_DETAIL_SECTION_CLASS}>
-      <div className="mt-3">
-        <div className="max-w-4xl">
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Entrada de origem
-          </div>
-          <Select
-            value={draft.entryId || PANTRY_EXIT_ENTRY_AUTO_VALUE}
-            onValueChange={(value) => {
-              const nextEntryId = value === PANTRY_EXIT_ENTRY_AUTO_VALUE ? "" : value;
-              const nextEntry = entries.find((row) => row.id === nextEntryId) ?? null;
-              setDraft((prev) => ({
-                ...prev,
-                entryId: nextEntryId,
-                sector: nextEntry?.sector ?? prev.sector ?? PANTRY_DEFAULT_SECTOR,
-                unit: nextEntry?.unit ?? prev.unit,
-              }));
-              onPatch({ entryId: nextEntryId });
-            }}
-            disabled={saving || readOnly || entryLocked}
-          >
-            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder={entriesLoading ? "Carregando..." : "Entrada de origem"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={PANTRY_EXIT_ENTRY_AUTO_VALUE}>Automático</SelectItem>
-              {entries.map((entry) => {
-                const remaining =
-                  typeof entry.remaining === "number"
-                    ? entry.remaining
-                    : entry.quantity - (entry.allocatedTotal ?? 0);
-                const expiry = entry.expiryDate ? formatDateOnlyPtBR(entry.expiryDate) : "Sem validade";
-                return (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {`Entrada ${formatDateOnlyPtBR(entry.entryDate)} - ${expiry} - ${entry.sector || PANTRY_DEFAULT_SECTOR} - ${Number(remaining).toLocaleString("pt-BR")} ${entry.unit}`}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {selectedEntry ? (
-              <>
-                Saindo a partir da entrada{" "}
-                <span className="font-medium text-foreground">
-                  {selectedEntry.entryDate
-                    ? formatDateOnlyPtBR(selectedEntry.entryDate)
-                    : "—"}
-                </span>
-                {" - "}
-                <span className="font-medium text-foreground">
-                  {selectedEntry.sector || PANTRY_DEFAULT_SECTOR}
-                </span>
-                {" - saldo "}
-                <span className="font-mono font-medium text-foreground">
-                  {Number(
-                    typeof selectedEntry.remaining === "number"
-                      ? selectedEntry.remaining
-                      : selectedEntry.quantity - (selectedEntry.allocatedTotal ?? 0),
-                  ).toLocaleString("pt-BR")}{" "}
-                  {selectedEntry.unit}
-                </span>
-              </>
-            ) : (
-              "Automático: usa a entrada com validade mais próxima disponível."
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_1fr] md:items-end">
-        <div>
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Quantidade
-          </div>
-          <Input
-            value={String(draft.quantity)}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
-            }
-            onBlur={() => onCommitField("quantity")}
-            className={PANTRY_DETAIL_INPUT_CLASS}
-            inputMode="numeric"
-            placeholder="Qtd."
-            readOnly={saving || readOnly}
-          />
-        </div>
-
-        <div>
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Unidade
-          </div>
-          <Select
-            value={draft.unit}
-            onValueChange={(value) => {
-              setDraft((prev) => ({ ...prev, unit: value }));
-              onPatch({ unit: value });
-            }}
-            disabled={saving || readOnly}
-          >
-            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder="Unidade" />
-            </SelectTrigger>
-            <SelectContent>
-              {PANTRY_ITEM_UNIT.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Setor
-          </div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={draft.sector}
-              onValueChange={(value) => {
-                setDraft((prev) => ({ ...prev, sector: value }));
-                onPatch({ sector: value });
-              }}
-              disabled={saving || readOnly || Boolean(selectedEntry)}
-            >
-              <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-                <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
-              </SelectTrigger>
-              <SelectContent>
-                {sectorOptions.map((sector) => (
-                  <SelectItem key={sector} value={sector}>
-                    {sector}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 shrink-0"
-              title="Novo setor"
-              aria-label="Novo setor"
-              onClick={onOpenNewSector}
-              disabled={saving || readOnly || Boolean(selectedEntry)}
-            >
-              <Plus className="size-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-end">
-        <div>
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Data da saída
-          </div>
-          <Input
-            type="date"
-            value={draft.exitDate}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, exitDate: event.target.value }))
-            }
-            onBlur={() => onCommitField("exitDate")}
-            className={PANTRY_DETAIL_INPUT_CLASS}
-            readOnly={saving || readOnly}
-            title="Data da saída"
-          />
-        </div>
-
-        <div>
-          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            Tipo de saída
-          </div>
-          <Select
-            value={draft.type}
-            onValueChange={(value) => {
-              const nextType = value as PantryExitDraft["type"];
-              setDraft((prev) => ({ ...prev, type: nextType }));
-              onPatch({ type: nextType });
-            }}
-            disabled={saving || readOnly}
-          >
-            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder="Tipo de saída" />
-            </SelectTrigger>
-            <SelectContent>
-              {PANTRY_EXIT_TYPE_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {resolveExitTypeLabel(option)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {draft.type === "EVENT" ? (
-        <div className="mt-4">
-          <div className="max-w-xl">
-            <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Nome do evento
-            </div>
-            <Input
-              value={draft.eventName}
-              onChange={(event) =>
-                setDraft((prev) => ({ ...prev, eventName: event.target.value }))
-              }
-              onBlur={() => onCommitField("eventName")}
-              className={PANTRY_DETAIL_INPUT_CLASS}
-              placeholder="Nome do evento"
-              readOnly={saving || readOnly}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-4">
+  }) => (<div className={PANTRY_DETAIL_SECTION_CLASS}>
+    <div className="mt-3">
+      <div className="max-w-4xl">
         <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Notas
+          Entrada de origem
+        </div>
+        <Select
+          value={draft.entryId || PANTRY_EXIT_ENTRY_AUTO_VALUE}
+          onValueChange={(value) => {
+            const nextEntryId = value === PANTRY_EXIT_ENTRY_AUTO_VALUE ? "" : value;
+            const nextEntry = entries.find((row) => row.id === nextEntryId) ?? null;
+            setDraft((prev) => ({
+              ...prev,
+              entryId: nextEntryId,
+              sector: nextEntry?.sector ?? prev.sector ?? PANTRY_DEFAULT_SECTOR,
+              unit: nextEntry?.unit ?? prev.unit,
+            }));
+            onPatch({ entryId: nextEntryId });
+          }}
+          disabled={saving || readOnly || entryLocked}
+        >
+          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+            <SelectValue placeholder={entriesLoading ? "Carregando..." : "Entrada de origem"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={PANTRY_EXIT_ENTRY_AUTO_VALUE}>Automático</SelectItem>
+            {entries.map((entry) => {
+              const remaining =
+                typeof entry.remaining === "number"
+                  ? entry.remaining
+                  : entry.quantity - (entry.allocatedTotal ?? 0);
+              const expiry = entry.expiryDate ? formatDateOnlyPtBR(entry.expiryDate) : "Sem validade";
+              return (
+                <SelectItem key={entry.id} value={entry.id}>
+                  {`Entrada ${formatDateOnlyPtBR(entry.entryDate)} - ${expiry} - ${entry.sector || PANTRY_DEFAULT_SECTOR} - ${Number(remaining).toLocaleString("pt-BR")} ${entry.unit}`}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          {selectedEntry ? (
+            <>
+              Saindo a partir da entrada{" "}
+              <span className="font-medium text-foreground">
+                {selectedEntry.entryDate
+                  ? formatDateOnlyPtBR(selectedEntry.entryDate)
+                  : "—"}
+              </span>
+              {" - "}
+              <span className="font-medium text-foreground">
+                {selectedEntry.sector || PANTRY_DEFAULT_SECTOR}
+              </span>
+              {" - saldo "}
+              <span className="font-mono font-medium text-foreground">
+                {Number(
+                  typeof selectedEntry.remaining === "number"
+                    ? selectedEntry.remaining
+                    : selectedEntry.quantity - (selectedEntry.allocatedTotal ?? 0),
+                ).toLocaleString("pt-BR")}{" "}
+                {selectedEntry.unit}
+              </span>
+            </>
+          ) : (
+            "Automático: usa a entrada com validade mais próxima disponível."
+          )}
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr_1fr] md:items-end">
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Quantidade
         </div>
         <Input
-          value={draft.notes}
-          onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
-          onBlur={() => onCommitField("notes")}
+          value={String(draft.quantity)}
+          onChange={(event) =>
+            setDraft((prev) => ({ ...prev, quantity: Number(event.target.value) }))
+          }
+          onBlur={() => onCommitField("quantity")}
           className={PANTRY_DETAIL_INPUT_CLASS}
-          placeholder="Notas (opcional)"
+          inputMode="numeric"
+          placeholder="Qtd."
           readOnly={saving || readOnly}
         />
       </div>
-    </div>  ),
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Unidade
+        </div>
+        <Select
+          value={draft.unit}
+          onValueChange={(value) => {
+            setDraft((prev) => ({ ...prev, unit: value }));
+            onPatch({ unit: value });
+          }}
+          disabled={saving || readOnly}
+        >
+          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+            <SelectValue placeholder="Unidade" />
+          </SelectTrigger>
+          <SelectContent>
+            {PANTRY_ITEM_UNIT.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Setor
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={draft.sector}
+            onValueChange={(value) => {
+              setDraft((prev) => ({ ...prev, sector: value }));
+              onPatch({ sector: value });
+            }}
+            disabled={saving || readOnly || Boolean(selectedEntry)}
+          >
+            <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+              <SelectValue placeholder={sectorsLoading ? "Carregando..." : "Setor"} />
+            </SelectTrigger>
+            <SelectContent>
+              {sectorOptions.map((sector) => (
+                <SelectItem key={sector} value={sector}>
+                  {sector}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0"
+            title="Novo setor"
+            aria-label="Novo setor"
+            onClick={onOpenNewSector}
+            disabled={saving || readOnly || Boolean(selectedEntry)}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-end">
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Data da saída
+        </div>
+        <Input
+          type="date"
+          value={draft.exitDate}
+          onChange={(event) =>
+            setDraft((prev) => ({ ...prev, exitDate: event.target.value }))
+          }
+          onBlur={() => onCommitField("exitDate")}
+          className={PANTRY_DETAIL_INPUT_CLASS}
+          readOnly={saving || readOnly}
+          title="Data da saída"
+        />
+      </div>
+
+      <div>
+        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Tipo de saída
+        </div>
+        <Select
+          value={draft.type}
+          onValueChange={(value) => {
+            const nextType = value as PantryExitDraft["type"];
+            setDraft((prev) => ({ ...prev, type: nextType }));
+            onPatch({ type: nextType });
+          }}
+          disabled={saving || readOnly}
+        >
+          <SelectTrigger className={PANTRY_DETAIL_INPUT_CLASS}>
+            <SelectValue placeholder="Tipo de saída" />
+          </SelectTrigger>
+          <SelectContent>
+            {PANTRY_EXIT_TYPE_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {resolveExitTypeLabel(option)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    {draft.type === "EVENT" ? (
+      <div className="mt-4">
+        <div className="max-w-xl">
+          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Nome do evento
+          </div>
+          <Input
+            value={draft.eventName}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, eventName: event.target.value }))
+            }
+            onBlur={() => onCommitField("eventName")}
+            className={PANTRY_DETAIL_INPUT_CLASS}
+            placeholder="Nome do evento"
+            readOnly={saving || readOnly}
+          />
+        </div>
+      </div>
+    ) : null}
+
+    <div className="mt-4">
+      <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        Notas
+      </div>
+      <Input
+        value={draft.notes}
+        onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
+        onBlur={() => onCommitField("notes")}
+        className={PANTRY_DETAIL_INPUT_CLASS}
+        placeholder="Notas (opcional)"
+        readOnly={saving || readOnly}
+      />
+    </div>
+  </div>),
   bottomRelations: [
     {
       key: "exit.allocations",
@@ -1864,12 +1864,12 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
       rows: ({ mode, exit, entryById }) =>
         mode === "edit"
           ? (exit?.allocations ?? []).map((allocation) => ({
-              entryId: allocation.entryId,
-              quantity: Number(allocation.quantity ?? 0),
-              expiryDate: allocation.expiryDate ?? null,
-              sector: allocation.sector ?? PANTRY_DEFAULT_SECTOR,
-              entryDate: entryById[allocation.entryId]?.entryDate ?? "",
-            }))
+            entryId: allocation.entryId,
+            quantity: Number(allocation.quantity ?? 0),
+            expiryDate: allocation.expiryDate ?? null,
+            sector: allocation.sector ?? PANTRY_DEFAULT_SECTOR,
+            entryDate: entryById[allocation.entryId]?.entryDate ?? "",
+          }))
           : [],
       columns: pantryExitAllocationColumns,
       getRowId: (row) => row.entryId,

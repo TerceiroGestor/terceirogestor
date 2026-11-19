@@ -13,7 +13,7 @@ Finalidades:
 
 O projeto define:
 
-- quais `Grupos de Pessoas` atende
+- quais `Grupos` atende
 - quais `Grupos de Equipe` participam do projeto
 - quais participantes estão matriculados
 - quais `Grupos de Participantes` existem dentro do projeto
@@ -26,7 +26,7 @@ Ele organiza participantes já vinculados ao projeto.
 
 Nome visível:
 
-- `Grupo de Participantes`
+- `Grupos de Participantes`
 
 ## Action
 

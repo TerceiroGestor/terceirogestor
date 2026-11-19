@@ -39,7 +39,7 @@ type MultiSelectBadgesProps = {
  * Seletor reutilizável: busca contra uma lista de opções e cada item
  * escolhido vira um badge removível diretamente (sem precisar reabrir o
  * popover). Pensado para substituir listas de checkbox em formulários
- * (ex.: grupos de pessoas de uma Atividade/Encontro) por algo mais
+ * (ex.: Grupos de uma Atividade/Encontro) por algo mais
  * compacto e menos "poluído" visualmente.
  */
 export function MultiSelectBadges({

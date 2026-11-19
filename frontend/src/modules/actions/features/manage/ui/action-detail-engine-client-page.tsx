@@ -114,7 +114,7 @@ async function fetchAllAttendances(params: {
 }
 
 // Qualidade mostra a presenca de todos os Encontros juntos (Encontro virou
-// um filtro/agrupamento normal, como Grupo), entao busca cada Encontro em
+// um filtro/agrupamento normal, como Grupos), entao busca cada Encontro em
 // paralelo (concorrencia limitada pra nao disparar uma chamada por Encontro
 // de uma vez) e marca cada linha com o Encontro de origem.
 async function fetchAllQualityAttendances(params: {

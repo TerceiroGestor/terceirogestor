@@ -98,7 +98,7 @@ function columns(): ColumnDef<ApiPeopleGroup>[] {
   return [
     {
       accessorKey: "name",
-      header: "Grupo",
+      header: "Grupos",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.name}</div>
@@ -184,7 +184,7 @@ export function PeopleGroupsListModuleClientPage() {
         const message =
           nextError && typeof nextError === "object" && "message" in nextError
             ? String((nextError as { message?: string }).message)
-            : "Falha ao carregar grupos de pessoas.";
+            : "Falha ao carregar Grupos.";
         setRows([]);
         setError(message);
       })
@@ -278,7 +278,7 @@ export function PeopleGroupsListModuleClientPage() {
   if (!authLoading && !userLoading && !canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
-        Você não tem acesso a grupos de pessoas.
+        Você não tem acesso a Grupos.
       </div>
     );
   }

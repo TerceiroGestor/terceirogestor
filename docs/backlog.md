@@ -125,7 +125,7 @@ adiado sem gatilho. Formato do Alicerce.
   o commit da reorganização da chave física (item 3.2 do `PLAN.md`).
 
 - **`migrate-upload-keys-to-tenant-scoped.js#migrateProjectActionPhotoPaths`
-  está quebrado desde 2026-11-14** — a Fase R3 do redesenho de grupos moveu
+  está quebrado desde 2026-11-14** — a Fase R3 do redesenho de Grupos moveu
   `photoPaths` de `ProjectAction`/`Activity` para `ActionOccurrence`/
   `Meeting`, mas a função continua filtrando `activity.findMany({ where: {
   photoPaths: ... } })`, campo que não existe mais nesse model (vai falhar
@@ -230,7 +230,7 @@ adiado sem gatilho. Formato do Alicerce.
   decisão de sequenciamento — ver evidência em
   `docs/historico/plano-implementacao-scfv.md` e o desvio registrado no
   topo do `PLAN.md`. Também já implementadas: Fases R1-R3 do redesenho de
-  grupos/matrícula/Encontro (ver `docs/historico/plano-redesenho-grupos-matricula-atividades.md`).
+  Grupos/matrícula/Encontro (ver `docs/historico/plano-redesenho-Grupos-matricula-atividades.md`).
   Tudo que continua sem implementar — presença diária derivada, rename de
   nomenclatura, Ocorrência/Atendimento/Encaminhamento/Caso, relatórios por
   financiador — está mapeado no plano mestre atual.
@@ -263,14 +263,14 @@ adiado sem gatilho. Formato do Alicerce.
 
 ## Módulos Atendimento / Gestão de Projetos
 
-- **Encontro (`Meeting`) com múltiplos grupos de uma vez (N:N), para
+- **Encontro (`Meeting`) com múltiplos Grupos de uma vez (N:N), para
   eventos especiais** — achado 4.14 do teste manual da Fase 4
   (2026-11-16). Decisão do usuário: por ora só a Atividade ganha
-  múltiplos grupos-alvo (multiselect); o Encontro continua escolhendo 1
-  grupo por vez dentre os vinculados à Atividade — cobre o caso do dia a
+  múltiplos Grupos-alvo (multiselect); o Encontro continua escolhendo 1
+  Grupos por vez dentre os vinculados à Atividade — cobre o caso do dia a
   dia. `Meeting.peopleGroupId` continua FK singular nullable.
   **Gatilho:** quando aparecer a necessidade real de registrar 1 único
-  Encontro que juntou vários grupos simultaneamente (ex.: um evento
+  Encontro que juntou vários Grupos simultaneamente (ex.: um evento
   especial com todas as turmas) — nesse ponto, trocar `peopleGroupId`
   por uma tabela de junção `MeetingPeopleGroup` (mesmo padrão de
   `ActivityPeopleGroup`), migrando os dados existentes.

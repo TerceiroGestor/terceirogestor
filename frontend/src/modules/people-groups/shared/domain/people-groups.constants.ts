@@ -3,7 +3,7 @@ import type { UsageDocumentationSection } from "@/components/UsageDocumentation/
 
 export const PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
   name: "Nome",
-  groupType: "Tipo do grupo",
+  groupType: "Tipo do Grupos",
   purpose: "Finalidade",
   category: "Categoria",
   description: "Descrição",
@@ -39,14 +39,14 @@ export const PEOPLE_GROUP_CATEGORY_OPTIONS: SelectOption[] = [
 
 export const PEOPLE_GROUP_USAGE_TEXT = {
   detail: {
-    title: "Grupos de Pessoas",
+    title: "Grupos",
     sections: [
       {
         title: "Dados principais",
         items: [
-          "Edite nome, tipo do grupo, finalidade, categoria e status diretamente no detalhe.",
+          "Edite nome, tipo do Grupos, finalidade, categoria e status diretamente no detalhe.",
           "Use o tipo 'Ciclo/Turma' para turmas escolares e ciclos que participam de atividades.",
-          "Preencha a faixa etária apenas quando ela fizer parte da regra do grupo.",
+          "Preencha a faixa etária apenas quando ela fizer parte da regra do Grupos.",
         ],
       },
       {
@@ -59,8 +59,8 @@ export const PEOPLE_GROUP_USAGE_TEXT = {
       {
         title: "Painel lateral",
         items: [
-          "Notas, histórico e contexto apoiam a consulta operacional do grupo.",
-          "A auditoria reúne as alterações do grupo e dos vínculos.",
+          "Notas, histórico e contexto apoiam a consulta operacional do Grupos.",
+          "A auditoria reúne as alterações do Grupos e dos vínculos.",
         ],
       },
     ] satisfies UsageDocumentationSection[],

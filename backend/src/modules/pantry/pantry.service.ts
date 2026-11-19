@@ -119,12 +119,12 @@ const serializeTags = (tags?: string[] | null) => {
 const parseMentionUserIds = (value: Prisma.JsonValue | null | undefined) =>
   Array.isArray(value)
     ? Array.from(
-        new Set(
-          value
-            .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-            .filter(Boolean),
-        ),
-      )
+      new Set(
+        value
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+          .filter(Boolean),
+      ),
+    )
     : [];
 
 const formatBytes = (value?: number | null) => {
@@ -136,7 +136,7 @@ const formatBytes = (value?: number | null) => {
 
 @Injectable()
 export class PantryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private serializeCommentAuthor(
     authorUser?: {
@@ -880,12 +880,12 @@ export class PantryService {
       tenantId,
       ...(search
         ? {
-            OR: [
-              { name: { contains: search } },
-              { group: { contains: search } },
-              { tags: { contains: search } },
-            ],
-          }
+          OR: [
+            { name: { contains: search } },
+            { group: { contains: search } },
+            { tags: { contains: search } },
+          ],
+        }
         : {}),
     };
 
@@ -1042,19 +1042,19 @@ export class PantryService {
         },
         ...(entryIds.length
           ? [
-              {
-                entity: 'PantryEntry',
-                entityId: { in: entryIds },
-              } satisfies Prisma.AuditLogWhereInput,
-            ]
+            {
+              entity: 'PantryEntry',
+              entityId: { in: entryIds },
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
           : []),
         ...(exitIds.length
           ? [
-              {
-                entity: 'PantryExit',
-                entityId: { in: exitIds },
-              } satisfies Prisma.AuditLogWhereInput,
-            ]
+            {
+              entity: 'PantryExit',
+              entityId: { in: exitIds },
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
           : []),
       ],
     };
@@ -1188,12 +1188,12 @@ export class PantryService {
       tenantId,
       ...(search
         ? {
-            OR: [
-              { name: { contains: search } },
-              { contact: { contains: search } },
-              { tags: { contains: search } },
-            ],
-          }
+          OR: [
+            { name: { contains: search } },
+            { contact: { contains: search } },
+            { tags: { contains: search } },
+          ],
+        }
         : {}),
     };
 
@@ -1309,11 +1309,11 @@ export class PantryService {
         },
         ...(entryIds.length
           ? [
-              {
-                entity: 'PantryEntry',
-                entityId: { in: entryIds },
-              } satisfies Prisma.AuditLogWhereInput,
-            ]
+            {
+              entity: 'PantryEntry',
+              entityId: { in: entryIds },
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
           : []),
       ],
     };
@@ -1374,11 +1374,11 @@ export class PantryService {
         },
         ...(exitIds.length
           ? [
-              {
-                entity: 'PantryExit',
-                entityId: { in: exitIds },
-              } satisfies Prisma.AuditLogWhereInput,
-            ]
+            {
+              entity: 'PantryExit',
+              entityId: { in: exitIds },
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
           : []),
       ],
     };
@@ -1438,11 +1438,11 @@ export class PantryService {
         },
         ...(entryIds.length
           ? [
-              {
-                entity: 'PantryEntry',
-                entityId: { in: entryIds },
-              } satisfies Prisma.AuditLogWhereInput,
-            ]
+            {
+              entity: 'PantryEntry',
+              entityId: { in: entryIds },
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
           : []),
       ],
     };
@@ -1557,21 +1557,21 @@ export class PantryService {
       ...(params?.donorId ? { donorId: params.donorId } : {}),
       ...(fromDate || toDate
         ? {
-            entryDate: {
-              ...(fromDate ? { gte: fromDate } : {}),
-              ...(toDate ? { lte: toDate } : {}),
-            },
-          }
+          entryDate: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
+          },
+        }
         : {}),
       ...(search
         ? {
-            OR: [
-              { item: { name: { contains: search } } },
-              { donor: { name: { contains: search } } },
-              { tags: { contains: search } },
-              { internalNotes: { contains: search } },
-            ],
-          }
+          OR: [
+            { item: { name: { contains: search } } },
+            { donor: { name: { contains: search } } },
+            { tags: { contains: search } },
+            { internalNotes: { contains: search } },
+          ],
+        }
         : {}),
     };
 
@@ -1800,21 +1800,21 @@ export class PantryService {
       ...(params?.type ? { type: params.type as any } : {}),
       ...(fromDate || toDate
         ? {
-            exitDate: {
-              ...(fromDate ? { gte: fromDate } : {}),
-              ...(toDate ? { lte: toDate } : {}),
-            },
-          }
+          exitDate: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
+          },
+        }
         : {}),
       ...(search
         ? {
-            OR: [
-              { item: { name: { contains: search } } },
-              { eventName: { contains: search } },
-              { tags: { contains: search } },
-              { internalNotes: { contains: search } },
-            ],
-          }
+          OR: [
+            { item: { name: { contains: search } } },
+            { eventName: { contains: search } },
+            { tags: { contains: search } },
+            { internalNotes: { contains: search } },
+          ],
+        }
         : {}),
     };
 
@@ -2624,17 +2624,17 @@ export class PantryService {
     const [itemsForExit, donorsForEntry] = await Promise.all([
       itemIds.length
         ? this.prisma.pantryItem.findMany({
-            where: { tenantId, id: { in: itemIds } },
-            select: { id: true, name: true, unit: true },
-          })
+          where: { tenantId, id: { in: itemIds } },
+          select: { id: true, name: true, unit: true },
+        })
         : Promise.resolve(
-            [] as Array<{ id: string; name: string; unit: string }>,
-          ),
+          [] as Array<{ id: string; name: string; unit: string }>,
+        ),
       donorIds.length
         ? this.prisma.pantryDonor.findMany({
-            where: { tenantId, id: { in: donorIds } },
-            select: { id: true, name: true },
-          })
+          where: { tenantId, id: { in: donorIds } },
+          select: { id: true, name: true },
+        })
         : Promise.resolve([] as Array<{ id: string; name: string }>),
     ]);
 
@@ -3099,7 +3099,7 @@ export class PantryService {
 
     const resolveDimension = (exit: (typeof exits)[number]) => {
       if (view === 'group') {
-        const label = (exit.item.group ?? 'Sem grupo').trim() || 'Sem grupo';
+        const label = (exit.item.group ?? 'Sem Grupos').trim() || 'Sem Grupos';
         return { key: `group:${label}`, label };
       }
       return { key: exit.item.id, label: exit.item.name };

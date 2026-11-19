@@ -54,7 +54,7 @@ O padrÃ£o canÃ´nico permite:
 - refresh
 - contador
 
-Se o mÃ³dulo precisar de filtros por `Projeto`, `Grupo`, `Status` ou qualquer outro campo, isso entra no prÃ³prio `SearchPanelMenu`.
+Se o mÃ³dulo precisar de filtros por `Projeto`, `Grupos`, `Status` ou qualquer outro campo, isso entra no prÃ³prio `SearchPanelMenu`.
 
 ### Typeviews padrÃ£o
 
@@ -632,7 +632,7 @@ comportamento condicional que Encontros ja tinha).
 ### Preferir filtro/agrupamento real a um controle solto (padrao a partir de 2026-11-19)
 
 Quando um controle existe so pra restringir ou agrupar quais linhas
-aparecem (um select de "Grupo", um seletor de periodo, um seletor de
+aparecem (um select de "Grupos", um seletor de periodo, um seletor de
 "qual registro-pai mostrar"), o padrao e virar `filterFields`/
 `groupByOptions` dentro do painel de Filtros - **nunca** um select solto
 no `viewSwitcherSlot`, mesmo que isso signifique mudar a forma como os
@@ -641,12 +641,12 @@ mais trabalhosa que so mover o componente de lugar.
 
 Caso de referencia: a aba Qualidade da Atividade tinha dois selects soltos,
 "Encontro" (controlava **qual Encontro era buscado do backend** - 1
-fetch por vez, `occurrenceId`) e "Grupo" (ja filtrava em memoria, so
+fetch por vez, `occurrenceId`) e "Grupos" (ja filtrava em memoria, so
 nao estava em `filterFields`). Os dois viraram filtro/agrupamento de
 verdade em 2026-11-19 (`action-quality-section.tsx` +
 `action-detail-engine-client-page.tsx`):
 
-- **Grupo** foi direto - ja era filtro client-side, so precisou virar
+- **Grupos** foi direto - ja era filtro client-side, so precisou virar
   `filterFields`/`buildSearchRecord` em vez de um `qualityGroupId`
   mantido no componente pai.
 - **Encontro** exigiu mudar a busca: em vez de 1 fetch por Encontro
@@ -702,7 +702,7 @@ algo que antes trocava.
   (`components/record-browser/RecordBrowserViewSwitcher.tsx`) com icones
   de `getStandardViewIcon` (`web-client/registry/view-icons.tsx`) - nunca
   um par de `<Button>` de texto tipo "Lista"/"Calendario". Sem borda nem
-  fundo ao redor do grupo de icones (`border-0 bg-transparent p-0` no
+  fundo ao redor do Grupos de icones (`border-0 bg-transparent p-0` no
   `ToggleGroup`) - os icones ficam soltos, parecendo um controle so; cada
   opcao ja se distingue pelo sublinhado (`border-b-2`) quando ativa.
 - Botao de criar e sempre "Novo", sempre `Button` solido (`variant`
@@ -741,13 +741,13 @@ algo que antes trocava.
   Tasks/Programs/Projects/Deposit/Pantry/Admin, `analysisKind`
   `time`/`metric`/`chart`/`sort`) e um esquema **separado**, com paleta
   propria ja estabelecida (sky/emerald/cyan/amber/primario) - nao mudar
-  junto, nao e a mesma coisa que o badge de filtro/grupo do toolbar
+  junto, nao e a mesma coisa que o badge de filtro/Grupos do toolbar
   padrao.
 - Agrupamento: todo campo que pode ter valores repetidos deveria estar
   disponivel em `groupByOptions`. Quando o campo nao e uma propriedade
-  plana (ex.: uma lista de objetos relacionados, como grupos de pessoas),
+  plana (ex.: uma lista de objetos relacionados, como Grupos),
   o `ListView` recebe `resolveGroupValue` (um calculo), nao so o nome do
-  campo - ver `ListView.tsx`. Mostrar a contagem de cada grupo como uma
+  campo - ver `ListView.tsx`. Mostrar a contagem de cada Grupos como uma
   pilula (`rounded-full bg-muted`) do lado do rotulo, nunca so um numero
   solto no canto da linha.
 - Qualquer campo `type: "date"` em `filterFields` ganha automaticamente
@@ -795,7 +795,7 @@ algo que antes trocava.
 Vale pra List Principal, Detail e relation - qualquer texto que o
 usuario le. Dois bugs reais motivaram esta secao: o badge de
 agrupamento de uma relation (`RelationListHost`) mostrando o nome bruto
-do campo em ingles (`peopleGroups` em vez de "Grupo de pessoas") porque
+do campo em ingles (`peopleGroups` em vez de "Grupos de pessoas") porque
 o `searchView` usado pro calculo do label nao tinha `groupBy`
 preenchido; e o badge de um filtro de periodo ficando grande demais e
 cortando o texto porque a data aparecia em ISO cru (`2026-01-01`) em vez
@@ -803,10 +803,10 @@ do formato pt-BR, e o `max-width` do chip era pequeno demais pro
 conteudo real.
 
 **Por que isso escapa de revisao visual normal:** um campo de busca ou
-de grupo quase sempre esta correto na tela onde o usuario o configurou
+de Grupos quase sempre esta correto na tela onde o usuario o configurou
 (ex.: o menu "Agrupar por" mostra o `label` certo, porque ele vem direto
 de `groupByOptions`) - o texto errado so aparece *depois*, no badge/chip
-que representa esse filtro/grupo *ja aplicado*, calculado por um
+que representa esse filtro/Grupos *ja aplicado*, calculado por um
 caminho de codigo diferente (`queryFacets.tsx`, nao o menu em si). Ao
 revisar um filtro/agrupamento/coluna novo, **sempre aplicar de verdade e
 olhar o badge resultado na barra de busca**, nao so abrir o menu e
@@ -834,7 +834,7 @@ Regras:
   (`@/lib/date.ts`)**, nunca ISO cru (`YYYY-MM-DD`) nem um `.slice()`
   manual - vale pra badges/chips, nao so pra campos de formulario (que
   ja seguiam isso). `describeValue` em `queryFacets.tsx` e a referencia.
-- **Badge/chip de filtro ou grupo ativo** (`SearchBar.tsx`,
+- **Badge/chip de filtro ou Grupos ativo** (`SearchBar.tsx`,
   `getFacetClasses`): o texto usa `max-w-[18rem] truncate` - largo o
   bastante pra um "Campo entre DD/MM/AAAA → DD/MM/AAAA" inteiro sem
   cortar, mas ainda com um teto pra textos realmente longos (ex.: um
@@ -854,9 +854,9 @@ Regras:
   linha dos demais campos. Referencia: `ActivityDetailMain` em
   `actions-detail-layout-contract.tsx`.
 - Nao usar titulo + paragrafo descritivo em cabecalho de secao. Se o campo precisar de contexto, o contexto vai no `placeholder` ou em texto de ajuda inline no proprio campo - nunca um paragrafo de 1-2 linhas acima da secao.
-- Cabecalho de secao (quando o formulario tem mais de um grupo de campos) usa `DetailSectionHeading` de `web-client/detail/DetailFormSection.tsx`: titulo curto + barra de acento colorida a esquerda. Sem linha divisoria cinza, sem descricao.
+- Cabecalho de secao (quando o formulario tem mais de um Grupos de campos) usa `DetailSectionHeading` de `web-client/detail/DetailFormSection.tsx`: titulo curto + barra de acento colorida a esquerda. Sem linha divisoria cinza, sem descricao.
 - Rotulo de campo usa `DetailSectionField` do mesmo arquivo: label pequeno em maiusculas acima do campo. Nao reimplementar esse label por modulo (varios modulos tinham a mesma constante `fieldLabelClassName`/`SectionField` copiada - foi consolidado).
-- Formulario com 1 grupo so de campos (sem sub-secoes) pode usar `DetailSectionField` direto, sem `DetailSectionHeading`.
+- Formulario com 1 Grupos so de campos (sem sub-secoes) pode usar `DetailSectionField` direto, sem `DetailSectionHeading`.
 - **Todo campo que recebe dado (`Input`, `Select`, data, numero, texto) usa `DETAIL_LINE_INPUT_CLASS_NAME`** - e pra `Textarea`, `DETAIL_LINE_TEXTAREA_CLASS_NAME` - os dois exportados de `web-client/detail/DetailFormSection.tsx`: so borda embaixo, sem caixa, sem sombra. Essa e a unica fonte - nunca escrever essa `className` de novo num modulo (3 copias dessa mesma string ja existiram, com a opacidade da borda ate divergindo entre elas - `border-border/60` vs `/70`). Tamanho proprio do campo (`h-8` num filtro compacto, `min-h-[Npx]` numa `Textarea` maior) e um `cn(DETAIL_LINE_INPUT_CLASS_NAME, "...")` por cima, nunca reescrever a base. Vale pro formulario principal do Detail **e** pros filtros de uma relation (ex.: `QuickDateRangeFilter` em `SearchPanelMenu.tsx`) - qualquer lugar do sistema que peca um valor ao usuario.
 
 ### Nao e regra do Detail

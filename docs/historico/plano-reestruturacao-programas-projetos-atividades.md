@@ -3,7 +3,7 @@
 Levantamento feito em 2026-11-12. **Isto é só um plano — nada aqui foi
 implementado.** Cobre o pedido do usuário: revisar a estrutura de Programa →
 Projeto → Ação para refletir a regra de negócio real (Programa → Projeto →
-Atividade → Encontro), com profissionais, grupos de pessoas, agendamento
+Atividade → Encontro), com profissionais, Grupos, agendamento
 recorrente e relatórios.
 
 ## Resumo da regra de negócio (como o usuário descreveu)
@@ -18,8 +18,8 @@ recorrente e relatórios.
 - **Encontro é realizado por profissionais** (professor, educador) **para
   atendidos** (pessoas atendidas).
 - Uma atividade pode ter **um ou mais profissionais** e ser direcionada a
-  **um ou mais grupos de pessoas** (facilita gerir quem vai participar no
-  futuro). Encontros são organizados por **grupo e horário**.
+  **um ou mais Grupos** (facilita gerir quem vai participar no
+  futuro). Encontros são organizados por **Grupos e horário**.
 - Relatórios esperados: projetos por programa, pessoas atendidas por
   projeto, total de atividades no projeto, total de encontros.
 - No detalhe de Pessoa: ver em quais projetos/atividades/encontros a pessoa
@@ -28,22 +28,22 @@ recorrente e relatórios.
 ## 1. O que já existe hoje (mapeado no código, não suposição)
 
 | Conceito do usuário | O que existe hoje | Nível de atendimento |
-|---|---|---|
+| --- | --- | --- |
 | Programa | `Program` (`schema.prisma:1101`) — nome, tipo, status, período | ✅ já corresponde |
 | Projeto | `Project` (`schema.prisma:1165`) — `programId`, período (`startsAt/endsAt`) | ✅ já corresponde |
 | Atividade | `ProjectAction` (`schema.prisma:1403`) — **hoje é tratada como um evento único**: um `plannedStartAt/plannedEndAt` e um `executedStartAt/executedEndAt`, sem repetição | ⚠️ existe mas no nível errado de granularidade |
 | Encontro | **não existe nenhum modelo.** Não há `Occurrence`/`Meeting`/recorrência em lugar nenhum do schema (confirmado por grep) | ❌ não existe |
 | Profissional na atividade | `ProjectActionPeopleParticipation` (`schema.prisma:1534`) — pessoa + papel (`FACILITADOR`, `APOIO`, `RESPONSAVEL_TECNICO`...), já com histórico temporal (`startsAt/endsAt/activeKey`) | ✅ já existe, só falta ligar ao Encontro |
-| Grupo de pessoas → atividade | `ActionPeopleGroup` (`schema.prisma:1490`) — liga `PeopleGroup` a uma `ProjectAction` | ✅ já existe |
-| Grupo de pessoas → projeto | `ProjectPeopleGroup` (`schema.prisma:1310`) | ✅ já existe |
+| Grupos de pessoas → atividade | `ActionPeopleGroup` (`schema.prisma:1490`) — liga `PeopleGroup` a uma `ProjectAction` | ✅ já existe |
+| Grupos de pessoas → projeto | `ProjectPeopleGroup` (`schema.prisma:1310`) | ✅ já existe |
 | Presença no encontro | `ProjectActionAttendance` (`schema.prisma:1510`) — **1 registro por `(actionId, enrollmentId)`**, ou seja, 1 presença por atividade inteira, não por data | ⚠️ existe mas no nível errado |
 | Matrícula da pessoa no projeto | `ProjectEnrollment` (`schema.prisma:1330`) — inclui papéis de equipe (`EQUIPE_TECNICA`, `OFICINEIRO`...) | ✅ já existe |
-| Turma/grupo dentro do projeto | `ProjectGroup` (`schema.prisma:1289`) + `ProjectEnrollmentGroupMembership` (histórico de entrada/saída) | ✅ já existe |
-| Relatórios do dashboard | `DashboardService.getOverview` (`dashboard.service.ts:76`) — **só agrega por `ProjectAction`/`ProjectActionAttendance`**, nunca por `Program`/`Project`/grupo | ❌ nada por programa/projeto hoje |
+| Turma/Grupos dentro do projeto | `ProjectGroup` (`schema.prisma:1289`) + `ProjectEnrollmentGroupMembership` (histórico de entrada/saída) | ✅ já existe |
+| Relatórios do dashboard | `DashboardService.getOverview` (`dashboard.service.ts:76`) — **só agrega por `ProjectAction`/`ProjectActionAttendance`**, nunca por `Program`/`Project`/Grupos | ❌ nada por programa/projeto hoje |
 | Aba "Atendimentos" no detalhe de Pessoa | `people-detail-tabs.tsx:45` — **existe no enum da UI, mas `disabled: true` e sem componente nenhum** (`people-detail-engine-client-page.tsx:227`) | ❌ placeholder vazio |
 
 **Conclusão central:** a estrutura de dados já tem quase tudo (profissionais,
-grupos, matrícula) — falta exatamente **uma camada**: separar "Atividade"
+Grupos, matrícula) — falta exatamente **uma camada**: separar "Atividade"
 (o serviço recorrente, ex. Coral) de "Encontro" (a ocorrência concreta de
 uma data). Hoje as duas coisas estão fundidas em `ProjectAction`, o que
 impede agendar recorrência e registrar presença por data.
@@ -72,7 +72,7 @@ model ActionOccurrence {
   id            String             @id @default(uuid()) @db.Char(36)
   tenantId      String             @db.Char(36)
   actionId      String             @db.Char(36)   // a Atividade (ProjectAction)
-  peopleGroupId String?            @db.Char(36)   // qual grupo este encontro atende
+  peopleGroupId String?            @db.Char(36)   // qual Grupos este encontro atende
   scheduledDate DateTime           @db.Date
   startTime     DateTime           // hora de início (combinada com scheduledDate na app)
   endTime       DateTime?
@@ -99,11 +99,11 @@ model ActionOccurrence {
   já mostra Maria sem precisar reatribuir). Uma tabela de override por
   encontro (substituição pontual) **fica como melhoria futura**, só se
   virar necessidade real — evita construir algo especulativo agora.
-- **Grupo do encontro**: `peopleGroupId` aponta pra um dos grupos já
+- **Grupos do encontro**: `peopleGroupId` aponta pra um dos Grupos já
   vinculados à atividade via `ActionPeopleGroup` (o formulário de criação
-  de encontro só oferece os grupos já associados à atividade). Isso cobre
-  "os encontros são organizados por grupo e horário": uma atividade com 2
-  grupos (ex. Coral-Infantil e Coral-Adulto) gera duas séries de encontros
+  de encontro só oferece os Grupos já associados à atividade). Isso cobre
+  "os encontros são organizados por Grupos e horário": uma atividade com 2
+  Grupos (ex. Coral-Infantil e Coral-Adulto) gera duas séries de encontros
   em horários diferentes.
 - **Geração em lote (agendamento fácil)**: endpoint
   `POST /projects/:projectId/actions/:actionId/occurrences/bulk` recebe
@@ -161,19 +161,19 @@ enum OccurrenceStatus {
 - **Nova sub-feature "Encontros"**, dentro do detalhe da Atividade (como
   hoje existe `project-action-attendances-card.tsx`, essa tela passa a
   listar **encontros** em vez de presença direta):
-  - Lista de encontros (data, horário, grupo, status, profissionais
+  - Lista de encontros (data, horário, Grupos, status, profissionais
     herdados) com calendário/lista alternável (o `web-client` já tem
     `CalendarView` reutilizável, mesmo padrão usado no Dashboard/outros
     módulos — não precisa de biblioteca nova).
   - Botão "Agendar encontros" → abre o formulário de geração em lote
-    (grupo + padrão de recorrência + horário).
+    (Grupos + padrão de recorrência + horário).
   - Clicar num encontro abre a tela de presença **daquele dia** (reaproveita
     o componente de attendance já existente, só troca a chave de
     `actionId` pra `occurrenceId`).
 - **Pessoa → aba "Atendimentos"** (`people-detail-tabs.tsx:45`): implementar
   o conteúdo que falta — remover `disabled: true`, criar o componente que
   busca, por pessoa: projetos matriculados (`ProjectEnrollment`) → atividades
-  do projeto em que a pessoa está no grupo-alvo → encontros/presenças dessa
+  do projeto em que a pessoa está no Grupos-alvo → encontros/presenças dessa
   pessoa (histórico + próximos agendados). Isso dá "o registro completo dos
   serviços prestados" pedido.
 
@@ -186,7 +186,7 @@ reaproveitando o `GraphView`/`graph builder` que já existe no `web-client`
 visualização nova):
 
 | Relatório pedido | Fonte de dado | Onde expor |
-|---|---|---|
+| --- | --- | --- |
 | Projetos realizados por programa | `Project.groupBy(['programId'])` | Detalhe do Programa, nova aba "Projetos" com contagem/lista |
 | Pessoas atendidas pelo projeto | `ProjectEnrollment` filtrando `status=ACTIVE, participationKind=PARTICIPANT` por `projectId` | Detalhe do Projeto, já tem a aba Matrículas — só adicionar contador/resumo |
 | Total de atividades no projeto | `count(ProjectAction) where projectId` | Detalhe do Projeto, resumo no topo |
@@ -217,11 +217,11 @@ item existir.
   override por encontro" é suficiente pra agora (substituição pontual de
   professor fica pra depois, registrada no backlog) — ou já precisa de
   override desde o início?
-- **Múltiplos grupos por atividade com horários diferentes**: confirmar
-  que o modelo "cada leva de encontros tem 1 grupo" (uma atividade com 2
-  grupos gera 2 levas de agendamento, cada uma com seu horário) é como você
-  imagina "organizados por grupo e horário" — ou a ideia é outra (ex.: um
-  mesmo encontro podendo ter mais de um grupo simultaneamente)?
+- **Múltiplos Grupos por atividade com horários diferentes**: confirmar
+  que o modelo "cada leva de encontros tem 1 Grupos" (uma atividade com 2
+  Grupos gera 2 levas de agendamento, cada uma com seu horário) é como você
+  imagina "organizados por Grupos e horário" — ou a ideia é outra (ex.: um
+  mesmo encontro podendo ter mais de um Grupos simultaneamente)?
 - **Renomear "Ação" → "Atividade" na URL** (`/actions` → `/activities`) ou
   manter a URL e só mudar o texto visível? (recomendo manter a URL, ver
   seção 3)

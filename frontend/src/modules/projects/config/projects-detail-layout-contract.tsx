@@ -77,7 +77,7 @@ const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
 } as const;
 
 const PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
-  peopleGroupId: "Grupo",
+  peopleGroupId: "Grupos",
   participationKind: "Participação",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -87,8 +87,8 @@ const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
   status: "Status",
   actionTypeId: "Tipo",
-  groupId: "Grupo",
-  peopleGroupId: "Grupo",
+  groupId: "Grupos",
+  peopleGroupId: "Grupos",
   plannedStartAt: "Início planejado",
   plannedEndAt: "Fim planejado",
   executedAt: "Executada em",
@@ -179,10 +179,10 @@ function enrollmentRelationColumns({
     },
     {
       accessorKey: "peopleGroups",
-      header: "Grupo",
+      header: "Grupos",
       cell: ({ row }) => {
         const label = row.original.peopleGroups.map((peopleGroup) => peopleGroup.name).join(", ");
-        return <span>{label || "Sem Grupo"}</span>;
+        return <span>{label || "Sem Grupos"}</span>;
       },
     },
     {
@@ -296,14 +296,14 @@ function peopleGroupRelationColumns({
   return [
     {
       accessorKey: "peopleGroup.name",
-      header: "Grupo",
+      header: "Grupos",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.peopleGroup.name}</div>
           <div className="text-xs text-muted-foreground">
             {row.original.peopleGroup.description?.trim() ||
               row.original.peopleGroup.category?.trim() ||
-              "Grupo institucional"}
+              "Grupos institucional"}
           </div>
         </div>
       ),
@@ -705,7 +705,7 @@ function ProjectsDetailSide({
         { key: "programType", label: "Tipo do programa", value: formatProgramType(selectedProgram?.type ?? null) },
         { key: "status", label: "Status", value: formatProjectStatus(draft.status) },
         { key: "participants", label: "Participantes", value: enrollmentRows.length },
-        { key: "publicPeopleGroups", label: "Grupos de Pessoas", value: publicPeopleGroupRows.length },
+        { key: "publicPeopleGroups", label: "Grupos", value: publicPeopleGroupRows.length },
         { key: "teamPeopleGroups", label: "Grupos de Equipe", value: teamPeopleGroupRows.length },
         { key: "actions", label: "Atividades", value: actionRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
@@ -810,12 +810,12 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
   tabTemplates: [
     {
       key: "peopleGroups",
-      label: "Grupos de Pessoas",
+      label: "Grupos",
       badge: ({ publicPeopleGroupRows }) => publicPeopleGroupRows.length,
       relations: [
         {
           key: "project.people-groups",
-          label: "Grupos de Pessoas",
+          label: "Grupos",
           loading: ({ relationsLoading }) => relationsLoading,
           rows: ({ mode, publicPeopleGroupRows }) => (mode === "edit" ? publicPeopleGroupRows : []),
           columns: (context) =>
@@ -843,7 +843,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           onRowClick: (row, context) =>
             context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Vincular Grupo",
+            label: "Vincular Grupos",
             onClick: (context) => context.onCreatePublicPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
@@ -889,7 +889,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           searchPlaceholder: "Pesquisar",
           onRowClick: (row, context) => context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Vincular grupo de equipe",
+            label: "Vincular Grupos de equipe",
             onClick: (context) => context.onCreateTeamPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
@@ -1046,7 +1046,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         key: "projectPeopleGroup",
         entity: "ProjectPeopleGroup",
         model: "audit.logs",
-        label: "Grupo",
+        label: "Grupos",
         fieldLabels: PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS,
         valueFormatters: {
           participationKind: (value) =>

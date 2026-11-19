@@ -213,11 +213,11 @@ function PeopleGroupsDetailMain({
             onChange={(event) => setDraft((previous) => ({ ...previous, name: event.target.value }))}
             onBlur={() => onCommitField("name")}
             className={PEOPLE_GROUP_DETAIL_INPUT_CLASS}
-            placeholder="Nome do Grupo"
+            placeholder="Nome do Grupos"
             readOnly={readOnly}
           />
         </DetailSectionField>
-        <DetailSectionField label="Tipo do grupo">
+        <DetailSectionField label="Tipo do Grupos">
           <Select
             value={draft.groupType}
             onValueChange={(value) => {
@@ -228,7 +228,7 @@ function PeopleGroupsDetailMain({
             disabled={readOnly}
           >
             <SelectTrigger className={PEOPLE_GROUP_DETAIL_INPUT_CLASS}>
-              <SelectValue placeholder="Tipo do grupo" />
+              <SelectValue placeholder="Tipo do Grupos" />
             </SelectTrigger>
             <SelectContent>
               {PEOPLE_GROUP_TYPE_OPTIONS.map((option) => (
@@ -347,7 +347,7 @@ function PeopleGroupsDetailMain({
             onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
             onBlur={() => onCommitField("description")}
             className={PEOPLE_GROUP_DETAIL_TEXTAREA_CLASS}
-            placeholder="Descrição do Grupo"
+            placeholder="Descrição do Grupos"
             readOnly={readOnly}
           />
         </DetailSectionField>
@@ -392,8 +392,8 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
   header: {
     title: ({ group, draft, mode }) =>
       mode === "create"
-        ? "Novo Grupo"
-        : ((group?.name ?? draft.name) || "Grupo"),
+        ? "Novo Grupos"
+        : ((group?.name ?? draft.name) || "Grupos"),
     slot: ({ draft, participations }) => (
       <div className="border-y border-border/60 bg-transparent px-0 py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
@@ -466,8 +466,8 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
         items: buildPeopleGroupsHistoryItems(detailAudit?.logs ?? []),
         emptyLabel:
           mode === "create"
-            ? "O histórico aparece após salvar o Grupo."
-            : "Nenhum histórico disponível para este Grupo.",
+            ? "O histórico aparece após salvar o Grupos."
+            : "Nenhum histórico disponível para este Grupos.",
       }}
       contextItems={[
         { key: "groupType", label: "Tipo", value: resolveGroupTypeLabel(draft.groupType) },
@@ -533,7 +533,7 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
           },
           emptyLabel: ({ mode }) =>
             mode === "create"
-              ? "Salve o Grupo para gerenciar participantes."
+              ? "Salve o Grupos para gerenciar participantes."
               : "Nenhuma pessoa vinculada.",
         },
       ],
@@ -544,7 +544,7 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
       key: "peopleGroup",
       entity: "PeopleGroup",
       model: "audit.logs",
-      label: "Grupo",
+      label: "Grupos",
       fieldLabels: PEOPLE_GROUP_AUDIT_FIELD_LABELS,
       valueFormatters: {
         groupType: (value) => resolveGroupTypeLabel(value as ApiPeopleGroup["groupType"]),

@@ -70,7 +70,7 @@ export const pantryHistorySearchView: SearchViewDefinition = {
     },
     {
       name: "itemGroup",
-      label: "Grupo do alimento",
+      label: "Grupos do alimento",
       type: "text",
       operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
     },
@@ -104,7 +104,7 @@ export const pantryHistorySearchView: SearchViewDefinition = {
     { field: "sector", label: "Setor" },
     { field: "type", label: "Tipo de saída" },
     { field: "itemId", label: "Alimento" },
-    { field: "itemGroup", label: "Grupo" },
+    { field: "itemGroup", label: "Grupos" },
     { field: "eventName", label: "Evento" },
     { field: "donorName", label: "Doador" },
     { field: "quantity", label: "Quantidade" },
@@ -249,7 +249,7 @@ export const pantryExitsSearchView: SearchViewDefinition = {
 export const pantryStockSearchView: SearchViewDefinition = {
   id: "pantry.stock.search",
   model: "pantry.stock",
-  searchPlaceholder: "Pesquisar alimentos, grupos ou setores",
+  searchPlaceholder: "Pesquisar alimentos, Grupos ou setores",
   features: {
     favorites: true,
     presets: true,
@@ -282,7 +282,7 @@ export const pantryStockSearchView: SearchViewDefinition = {
     },
     {
       name: "group",
-      label: "Grupo",
+      label: "Grupos",
       type: "text",
     },
     {
@@ -328,7 +328,7 @@ export const pantryStockSearchView: SearchViewDefinition = {
     { field: "name", label: "Alimento" },
     { field: "tags", label: "Tags" },
     { field: "sector", label: "Setor" },
-    { field: "group", label: "Grupo" },
+    { field: "group", label: "Grupos" },
     { field: "sectorStock", label: "Saldo (setor)" },
     { field: "itemStock", label: "Saldo (total)" },
     { field: "unit", label: "Un." },

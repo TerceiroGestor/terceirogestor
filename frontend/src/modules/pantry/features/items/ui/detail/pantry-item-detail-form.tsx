@@ -115,7 +115,7 @@ export function PantryItemDetailForm({
             </Select>
           </DetailSectionField>
 
-          <DetailSectionField label="Grupo de alimentos">
+          <DetailSectionField label="Grupos de alimentos">
             <Select
               value={draft.group ?? "__none__"}
               onValueChange={(value) => {
@@ -126,10 +126,10 @@ export function PantryItemDetailForm({
               disabled={readOnly}
             >
               <SelectTrigger className={inputLineClassName}>
-                <SelectValue placeholder="Sem grupo" />
+                <SelectValue placeholder="Sem Grupos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Sem grupo</SelectItem>
+                <SelectItem value="__none__">Sem Grupos</SelectItem>
                 {groupOptions.map((group) => (
                   <SelectItem key={group.value} value={group.value}>
                     {group.label}

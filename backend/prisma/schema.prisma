@@ -1594,9 +1594,9 @@ model ActionOccurrenceTeamGroup {
   @@index([peopleGroupId])
 }
 
-/// N:N Encontro<->Grupo (substitui o antigo Meeting.peopleGroupId singular,
+/// N:N Encontro<->Grupos (substitui o antigo Meeting.peopleGroupId singular,
 /// Ciclo 2 de ajustes da Fase 4, 2026-11-16): um Encontro pode atender N
-/// grupos de uma vez (evento amplo que junta todas as turmas), mesmo padrao
+/// Grupos de uma vez (evento amplo que junta todas as turmas), mesmo padrao
 /// de ActionOccurrenceTeamGroup, so que para participationKind PARTICIPANT.
 model ActionOccurrencePeopleGroup {
   id            String   @id @default(uuid()) @db.Char(36)
@@ -1630,8 +1630,8 @@ model Occurrence {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
-  tenant  Tenant              @relation(fields: [tenantId], references: [id])
-  meeting Meeting?            @relation(fields: [meetingId], references: [id])
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  meeting Meeting?           @relation(fields: [meetingId], references: [id])
   people  OccurrencePeople[]
 
   @@index([tenantId])

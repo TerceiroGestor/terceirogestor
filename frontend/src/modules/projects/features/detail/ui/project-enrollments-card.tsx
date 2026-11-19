@@ -250,11 +250,11 @@ export function ProjectEnrollmentsCard({
         },
         {
           id: "peopleGroups",
-          header: "Grupo",
+          header: "Grupos",
           accessorFn: (item) => item.peopleGroups?.map((peopleGroup) => peopleGroup.name) ?? [],
           cell: ({ row }) => {
             const label = row.original.peopleGroups?.map((peopleGroup) => peopleGroup.name).join(", ") ?? "";
-            return <span className="text-xs">{label || "Sem Grupo"}</span>;
+            return <span className="text-xs">{label || "Sem Grupos"}</span>;
           },
         },
       ];
@@ -651,7 +651,7 @@ export function ProjectEnrollmentsCard({
   return (
     <SectionCard
       title="Participantes"
-      subtitle="Vincule pessoas ao projeto e organize os grupos nas telas de gestao."
+      subtitle="Vincule pessoas ao projeto e organize os Grupos nas telas de gestao."
       actions={
         canCreate ? (
           <div className="flex flex-wrap items-center gap-2">

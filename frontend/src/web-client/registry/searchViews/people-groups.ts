@@ -17,7 +17,7 @@ export const peopleGroupsSearchView: SearchViewDefinition = {
   fields: [
     {
       name: "groupType",
-      label: "Tipo do grupo",
+      label: "Tipo do Grupos",
       type: "select",
       operators: ["="],
       options: PEOPLE_GROUP_TYPE_OPTIONS,
@@ -52,7 +52,7 @@ export const peopleGroupsSearchView: SearchViewDefinition = {
     },
   ],
   groupBy: [
-    { field: "groupType", label: "Tipo do grupo" },
+    { field: "groupType", label: "Tipo do Grupos" },
     { field: "purpose", label: "Finalidade" },
     { field: "category", label: "Categoria" },
     { field: "createdAt", label: "Cadastro" },

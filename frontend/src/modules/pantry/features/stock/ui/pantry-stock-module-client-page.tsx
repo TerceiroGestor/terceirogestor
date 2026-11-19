@@ -170,9 +170,9 @@ const parseQueryState = (
     groupParam === "none"
       ? []
       : (groupParam ?? "")
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
   const page = parsePositiveInt(params.get("page"), 1);
   const limit = parsePositiveInt(params.get("limit"), 20);
 
@@ -218,7 +218,7 @@ function resolveGroupValue(row: StockRow, field: string) {
     case "sector":
       return row.sector?.trim() || "Geral";
     case "group":
-      return row.group?.trim() || "Sem grupo";
+      return row.group?.trim() || "Sem Grupos";
     case "validityStatus":
       return row.validityStatus;
     case "isBelowMin":
@@ -501,9 +501,9 @@ export function PantryStockModuleClientPage() {
       },
       {
         accessorKey: "group",
-        header: "Grupo",
+        header: "Grupos",
         cell: ({ row }) => (
-          <div className="min-w-0 truncate">{row.original.group || "Sem grupo"}</div>
+          <div className="min-w-0 truncate">{row.original.group || "Sem Grupos"}</div>
         ),
       },
       {
@@ -561,7 +561,7 @@ export function PantryStockModuleClientPage() {
         cell: ({ row }) => (
           <div className="font-mono tabular-nums">
             {row.original.daysToExpire === null ||
-            row.original.daysToExpire === undefined
+              row.original.daysToExpire === undefined
               ? "—"
               : Number(row.original.daysToExpire).toLocaleString("pt-BR")}
           </div>
@@ -1039,7 +1039,7 @@ export function PantryStockModuleClientPage() {
                         {row.name}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {row.group || "Sem grupo"} • {row.sector || "Geral"}
+                        {row.group || "Sem Grupos"} • {row.sector || "Geral"}
                       </div>
                     </div>
                     <div className="text-right">
@@ -1108,7 +1108,7 @@ export function PantryStockModuleClientPage() {
                     {row.name}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {row.sector || "Geral"} • {row.group || "Sem grupo"}
+                    {row.sector || "Geral"} • {row.group || "Sem Grupos"}
                   </div>
                 </div>
               )}
@@ -1121,7 +1121,7 @@ export function PantryStockModuleClientPage() {
               renderTitle={(row) => row.name}
               renderBody={(row) => (
                 <span>
-                  {row.sector || "Geral"} • {row.group || "Sem grupo"} • saldo{" "}
+                  {row.sector || "Geral"} • {row.group || "Sem Grupos"} • saldo{" "}
                   {Number(row.sectorStock).toLocaleString("pt-BR")} {row.unit}
                 </span>
               )}
@@ -1145,7 +1145,7 @@ export function PantryStockModuleClientPage() {
               groupByFields={state.groupBy}
               resolveGroupLabel={(field, value) => {
                 if (field === "sector") return String(value ?? "").trim() || "Geral";
-                if (field === "group") return String(value ?? "").trim() || "Sem grupo";
+                if (field === "group") return String(value ?? "").trim() || "Sem Grupos";
                 if (field === "validityStatus") return String(value ?? "").trim() || "Sem validade";
                 if (field === "isBelowMin") {
                   return String(value ?? "").includes("true")

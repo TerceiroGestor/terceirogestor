@@ -61,7 +61,7 @@ dividem um único `grid gap-6 md:grid-cols-[1.5fr_180px_200px_220px]`
 (Título mais largo, os outros 3 compactos). O Título trocou o estilo
 grande (`h-12 text-xl font-semibold`) pelo mesmo `lineInputClassName`
 usado nos selects vizinhos — mesma largura de linha, sem destaque
-desproporcional. "Direcionamento" (Grupos de pessoas/Meta) e "Descrição"
+desproporcional. "Direcionamento" (Grupos/Meta) e "Descrição"
 continuam abaixo, sem mudança.
 
 Achado ao olhar o código antes de implementar: esse exato padrão (título
@@ -145,7 +145,7 @@ ele estava usando — todo checkpoint desta seção é só `tsc`/`eslint`/
 
 1. **Filtro de data, agrupamento, colunas** — trocados o `Select` de mês
    e o toggle de texto Lista/Calendário por filtros de verdade (Status/
-   Grupo/Data via `Domain`) e `RecordBrowserViewSwitcher` com ícones de
+   Grupos/Data via `Domain`) e `RecordBrowserViewSwitcher` com ícones de
    `getStandardViewIcon`.
 2. **Layout numa linha só + botão "Novo" padronizado** — seletor de view
    movido pra dentro do toolbar do `RelationListHost` via novo prop
@@ -169,15 +169,15 @@ ele estava usando — todo checkpoint desta seção é só `tsc`/`eslint`/
 5. **Coluna de Ações removida + agrupamento ampliado + atalho de data
    nos Filtros** — "Excluir" por linha saiu (clicar na linha já edita,
    checkbox + "Excluir selecionados" já exclui); `ListView` ganhou
-   `resolveGroupValue` (campo computado, não só leitura direta — "Grupo
+   `resolveGroupValue` (campo computado, não só leitura direta — "Grupos
    de pessoas" não é um campo plano) pra permitir agrupar por Status/
-   Grupo/Data; `SearchPanelMenu` ganhou um atalho De/Até automático no
+   Grupos/Data; `SearchPanelMenu` ganhou um atalho De/Até automático no
    painel de Filtros pra todo campo `type: "date"` declarado (escreve no
    mesmo `Domain` que o filtro personalizado usa — `upsertAndCondition`,
    novo em `web-client/domain/conditions.ts`).
-6. **Contagem do grupo pouco visível + De/Até fora do padrão visual** —
+6. **Contagem do Grupos pouco visível + De/Até fora do padrão visual** —
    contagem (`node.count`, já existia) movida pra uma pílula ao lado do
-   rótulo do grupo em vez de um número solto à direita; campos De/Até do
+   rótulo do Grupos em vez de um número solto à direita; campos De/Até do
    atalho de data trocados pro estilo linha (só borda de baixo) e
    empilhados (De em cima, Até embaixo) em vez de lado a lado numa caixa.
 
@@ -211,7 +211,7 @@ que mexi por último) e achei 2 pontos reais, nenhum bug, mas dois
 riscos de manutenção:
 
 1. Nomes de campo divergentes dentro do próprio Encontros — o filtro
-   (`buildSearchRecord`) usava `status`/`grupo`/`data` (sintéticos, em
+   (`buildSearchRecord`) usava `status`/`Grupos`/`data` (sintéticos, em
    português) e o agrupamento (`resolveGroupValue`) usava `status`/
    `peopleGroups`/`scheduledDate` (nome real da propriedade). Corrigido:
    unificado em `status`/`peopleGroups`/`scheduledDate` (o nome real) nos
@@ -505,7 +505,7 @@ direto + `ListView`, iguais a `ActionOccurrencesSection`:
   filtro cliente) foi pro `viewSwitcherSlot` via `DateRangeFilterButton`
   (já existia, só mudou de lugar). Sem "Novo" (não é um fluxo de
   criação).
-- `action-quality-section.tsx` — Encontro/Grupo (ambos state externo,
+- `action-quality-section.tsx` — Encontro/Grupos (ambos state externo,
   não filtro cliente do `RelationListHost`) + botão "Salvar" também no
   `viewSwitcherSlot`. `buildQualityColumns`/`QualityNotesDialog`
   reaproveitados sem mudança (edição inline de nota/destaque continua
@@ -569,7 +569,7 @@ Status mostra badge "Status" verde com ícone `Layers`; filtro de
 Cadastro por período mostra badge azul — os dois lado a lado na mesma
 barra, confirmados por screenshot.
 
-**4.14 — badge de filtro/grupo cortando texto + nomes de campo em
+**4.14 — badge de filtro/Grupos cortando texto + nomes de campo em
 inglês vazando na aba Encontros (2026-11-19).** Dois bugs reais,
 raiz em componentes compartilhados (`RelationListHost`/`queryFacets.tsx`/
 `SearchBar.tsx`) — corrigidos uma vez só, valem pra qualquer módulo:
@@ -595,7 +595,7 @@ raiz em componentes compartilhados (`RelationListHost`/`queryFacets.tsx`/
 
 **Convenção formalizada** em `docs/canonical-web-client-standard.md`
 ("Textos visíveis ao usuário: idioma e tamanho"): o motivo de isso
-escapar de revisão normal é que o badge/chip de um filtro/grupo *já
+escapar de revisão normal é que o badge/chip de um filtro/Grupos *já
 aplicado* usa um caminho de código diferente do menu onde ele foi
 configurado — o menu pode estar perfeito e o badge ainda assim errado.
 Regra prática pra criar/revisar módulo novo: sempre aplicar o
@@ -604,7 +604,7 @@ só abrir o menu e conferir as opções.
 
 **Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → só os 2
 erros pré-existentes de sempre em `SearchBar.tsx`. Testado ao vivo (dev
-server próprio, encerrado ao final): agrupar Encontros por "Grupo de
+server próprio, encerrado ao final): agrupar Encontros por "Grupos de
 pessoas" mostra o badge certo (antes: `peopleGroups`); filtro de Data
 por período mostra "Data entre 01/01/2026 → 31/03/2026" completo, sem
 cortar — confirmado por screenshot nos dois casos.
@@ -655,12 +655,12 @@ Colunas + Filtros + typeview + Novo, idêntico a Encontros visualmente;
 Colunas abre o menu de colunas visíveis e funciona; Filtros abre o painel
 colorido (azul/verde/roxo) e funciona.
 
-**4.17 — Período/Encontro/Grupo: de controle solto pra filtro/
+**4.17 — Período/Encontro/Grupos: de controle solto pra filtro/
 agrupamento real dentro do painel (2026-11-19).** Usuário pediu pra
 remover os controles soltos que ainda sobravam no `viewSwitcherSlot`
-(Período em Participantes; Encontro + Grupo em Qualidade) e virar
+(Período em Participantes; Encontro + Grupos em Qualidade) e virar
 filtro/agrupamento normal no painel de Filtros, do mesmo jeito que
-Encontros já fazia com Status/Data/Grupo.
+Encontros já fazia com Status/Data/Grupos.
 
 - **Participantes:** botão "Período" (`DateRangeFilterButton`, from/to)
   removido sem substituto — não existe campo de data por linha nesse
@@ -669,10 +669,10 @@ Encontros já fazia com Status/Data/Grupo.
   Isso tornou `attendanceSummaryFrom`/`attendanceSummaryTo` e os
   callbacks associados mortos — removidos de
   `action-detail-engine-client-page.tsx`, `actions-detail-layout-contract.tsx`
-  e `action-create-engine-client-page.tsx` (não só escondidos). Grupo de
+  e `action-create-engine-client-page.tsx` (não só escondidos). Grupos de
   pessoas, que já era filtro, ganhou também `groupByOptions` (agrupamento
   real, com `resolveGroupValue`/`resolveGroupLabel` no `ListView`).
-- **Qualidade:** selects soltos "Encontro" e "Grupo" removidos —
+- **Qualidade:** selects soltos "Encontro" e "Grupos" removidos —
   perguntei antes ao usuário como tratar "Encontro" especificamente,
   porque ele não era um filtro client-side: controlava qual Encontro era
   buscado no backend (`occurrenceId` -> 1 fetch por vez). Usuário optou
@@ -690,7 +690,7 @@ Encontros já fazia com Status/Data/Grupo.
   chamar `upsertMeetingAttendances` (1 chamada por Encontro, em
   paralelo), porque o endpoint ainda é por Encontro. Nova coluna
   "Encontro" na tabela pra identificar a linha quando várias datas
-  aparecem juntas. "Grupo" virou filtro/agrupamento via `peopleGroups`,
+  aparecem juntas. "Grupos" virou filtro/agrupamento via `peopleGroups`,
   igual Participantes.
 - **Efeito colateral necessário, fora do pedido original:** a aba
   Progresso e Relatório usava esse mesmo seletor "Encontro" (estado
@@ -713,7 +713,7 @@ eslint` nos 7 arquivos tocados → mesma contagem de erros pré-existentes
 de antes (8 `react-hooks/set-state-in-effect`, mesmo padrão já presente
 no arquivo, nenhum novo). Testado ao vivo (dev server próprio): toolbar
 de Participantes e Qualidade sem os controles soltos; painel "Agrupar
-por" de Qualidade mostra "Encontro"/"Grupo de pessoas" com rótulo certo;
+por" de Qualidade mostra "Encontro"/"Grupos de pessoas" com rótulo certo;
 alternar o toggle "Destaque" + "Salvar" mostra toast "Qualidade salva" e
 o estado persiste após recarregar as linhas; aba Progresso e Relatório
 mantém o seletor de Encontro funcionando.
@@ -1060,7 +1060,7 @@ Parte por Parte:
       e o driver local passaram a receber `tenantId`; a URL assinada
       virou `/uploads/<categoria>/<tenantId>/<arquivo>?sig=...`.
     - `UPLOAD_PATH_PATTERN` (`upload-paths.ts`) passou de 2 pra 3
-      grupos; `SignUploadsInterceptor` (que assina qualquer
+      Grupos; `SignUploadsInterceptor` (que assina qualquer
       `/uploads/<categoria>/<tenantId>/<arquivo>` cru numa resposta)
       agora também confere que o `tenantId` embutido no caminho bate
       com o do usuário autenticado antes de assinar — nunca deveria
@@ -1357,22 +1357,23 @@ Railway existir.
 Fases 1, 2 e 3 do plano SCFV (então em `docs/plano-implementacao-scfv.md`,
 hoje `docs/historico/plano-implementacao-scfv.md` — ver nota de
 2026-11-15 abaixo) foram iniciadas antes da Parte 4/5. Fase 1: model `ActionOccurrence` (Encontro)
-+ endpoints (CRUD, geração em lote por recorrência semanal, cancelamento
+
+- endpoints (CRUD, geração em lote por recorrência semanal, cancelamento
 em série). Fase 2: aba "Encontros" no detalhe da Atividade (lista/
 calendário, agendamento em lote, edição/cancelamento) — testada de ponta
 a ponta com navegador real. Fase 3: presença/qualidade migraram de
 "por Atividade" para "por Encontro" (migration em 2 passos + backfill
-+ seletor de Encontro no frontend, reaproveitando as abas existentes).
+- seletor de Encontro no frontend, reaproveitando as abas existentes).
 Todas implementadas e testadas (ver evidência nas seções "Fase 1"/
 "Fase 2"/"Fase 3" desse plano). Não bloqueia a Parte 4; é trabalho
 adicional em paralelo.
 
 **Novo desvio, a pedido explícito do usuário em 2026-11-13:**
 redesenho de Programa→Projeto→Atividade→Encontro (consolidar
-`ProjectGroup`/`PeopleGroup`, matrícula por grupo, Encontro com grupo de
+`ProjectGroup`/`PeopleGroup`, matrícula por Grupos, Encontro com Grupos de
 equipe, rename Ação→Atividade no código via `@@map`, relatórios em
 cascata) — plano completo em
-`docs/historico/plano-redesenho-grupos-matricula-atividades.md` (movido
+`docs/historico/plano-redesenho-Grupos-matricula-atividades.md` (movido
 para `historico` em 2026-11-15, ver nota abaixo), em fases R1-R5.
 
 Fase R1 (eliminar `ProjectGroup`, consolidar em `PeopleGroup`) concluída:
@@ -1384,7 +1385,7 @@ limpo (módulo standalone + 4 window actions + search view removidos via
 `git rm`; `tsc` 0 erros; `eslint` 211 problemas vs. baseline 217 via `git
 stash`, net -6, nenhuma categoria nova; `npm run build` sucesso). Detalhe
 completo na seção "Status" da Fase R1 em
-`docs/historico/plano-redesenho-grupos-matricula-atividades.md`.
+`docs/historico/plano-redesenho-Grupos-matricula-atividades.md`.
 
 Correção do seletor de colunas/Painel Search (fora da numeração R1-R5,
 mas no mesmo desvio): causa raiz era estrutural
@@ -1395,24 +1396,24 @@ passam a nunca mostrar o seletor. Verificado com browser real (Chrome já
 instalado + Playwright, sem baixar nada). Detalhe completo já registrado
 nesta seção anteriormente.
 
-Fase R2 (matrícula por grupo) concluída: sem migration — a revisão é
+Fase R2 (matrícula por Grupos) concluída: sem migration — a revisão é
 computada em cima de `PeopleGroupParticipation`/`ProjectEnrollment`
 existentes (ver "Status" da Fase R2 no plano). Backend:
 `syncPeopleGroupEnrollments` + rota `POST .../sync-enrollments`; `tsc` 0
 erros, `npm test` 28/143 sem regressão, `eslint` igual à baseline (3
 diffs de quebra de linha corrigidos com `--fix`). Frontend: botão
-"Matricular/revisar membros" na tab Grupos de Pessoas do Projeto; `tsc` 0
+"Matricular/revisar membros" na tab Grupos do Projeto; `tsc` 0
 erros, `eslint` igual à baseline, `npm run build` sucesso. Testado com
-dado real via API direta no projeto "Projeto Alvorada"/grupo "C1M":
+dado real via API direta no projeto "Projeto Alvorada"/Grupos "C1M":
 removida 1 participação ativa + adicionada 1 pessoa nova → resultado
 exato `enrolled: [Bianca Torres], ended: [Sabrina Melo]`; testado
-também no browser (botão aparece só nos grupos PARTICIPANT, diálogo de
+também no browser (botão aparece só nos Grupos PARTICIPANT, diálogo de
 confirmação, toast de resumo). Banco resetado via `npm run db:seed`
 depois do teste. Seguindo para a Fase R3 (Encontro ganha planejamento/
-relatório/fotos + grupo de equipe — escopo ampliado nesta sessão, ver o
+relatório/fotos + Grupos de equipe — escopo ampliado nesta sessão, ver o
 plano).
 
-Fase R3 (Encontro ganha planejamento/relatório/fotos + grupo de equipe)
+Fase R3 (Encontro ganha planejamento/relatório/fotos + Grupos de equipe)
 concluída: migration `20261114013300_move_plan_report_to_occurrence_add_team_group`
 move `planHtml`/`executedHtml`/`conclusionHtml`/`photoPaths` de
 `ProjectAction` pra `ActionOccurrence` (mantém `completionPercent` na
@@ -1425,19 +1426,19 @@ Backend: `actions.service.ts` valida e persiste os 4 campos +
 problemas vs. 137 na baseline (+2 do mesmo
 `@typescript-eslint/no-unsafe-assignment` já existente, nenhuma
 categoria nova); DTOs tocados → 0 problemas. Frontend: diálogo de
-edição do Encontro ganha seletor de grupos de equipe, 3 campos
+edição do Encontro ganha seletor de Grupos de equipe, 3 campos
 `<RichText>` e editor de fotos próprio; aba da Atividade troca
 executado/conclusão/fotos por uma aba "Progresso" só com
 `completionPercent`; "Relatório" passa a ler do Encontro selecionado.
 `tsc` 0 erros, `eslint` nos 8 arquivos tocados → 11 problemas vs. 12 na
 baseline (mesma categoria, contagem menor), `npm run build` sucesso.
 Testado no browser com dado de seed (Encontro "Acolhimento de abertura"
-do "Projeto Música Manhã"): diálogo já chega com grupos de equipe
+do "Projeto Música Manhã"): diálogo já chega com Grupos de equipe
 marcados e conteúdo migrado preenchido; upload de foto ao vivo
 funcionou (1/5 fotos) e salvou (toast "Encontro atualizado"); aba
 Relatório confirma o mesmo conteúdo vindo do Encontro, não mais da
 Atividade. Detalhe completo na seção "Status" da Fase R3 em
-`docs/historico/plano-redesenho-grupos-matricula-atividades.md`. Fases R4
+`docs/historico/plano-redesenho-Grupos-matricula-atividades.md`. Fases R4
 (rename Ação→Atividade via `@@map`) e R5 (relatórios em cascata) ainda
 não retomadas — absorvidas em 2026-11-15 pelo novo plano mestre (ver nota
 abaixo), como "Fase 1.0" e "Fase 9" respectivamente.
@@ -1451,7 +1452,7 @@ do usuário: esse documento novo é **o plano mestre** para esses dois
 módulos daqui pra frente, substituindo
 `docs/plano-implementacao-scfv.md`,
 `docs/especificacao-completa-saas-para-ongs-de-scfv.md` e as Fases R4/R5
-de `docs/plano-redesenho-grupos-matricula-atividades.md` (os três movidos
+de `docs/plano-redesenho-Grupos-matricula-atividades.md` (os três movidos
 para `docs/historico/`, mantidos como registro histórico — Fases 1-3/R1-R3
 já implementadas continuam com evidência preservada lá). A nomenclatura do
 documento novo (`Meeting`/`Attendance`/`Benefit`/`Referral`/`Occurrence`/
@@ -1535,6 +1536,7 @@ escopo desta fase.
 2026-11-15,** a pedido explícito do usuário. Dos 5 itens da fase,
 `Program`/`Activity`/`Meeting` manual/turma vinculada já existiam; os 2
 gaps reais, resolvidos agora:
+
 - **Decisão do usuário sobre `funding_source`:** não é campo único no
   `Project` — a dor de "financiamento misto" (seção 1.2 do plano mestre)
   é real, então criei `ProjectFundingSource` (N por projeto: `source`
@@ -1782,10 +1784,11 @@ nunca foi salvo, então nada precisou ser revertido).
 atualizado: Fase 4 marcada `[x]`, evidência completa na seção da Fase 4
 do próprio documento.
 
-**Ajustes pós-teste manual da Fase 4, Grupo A concluído em 2026-11-16.**
+**Ajustes pós-teste manual da Fase 4, Grupos A concluído em 2026-11-16.**
 Usuário testou manualmente os passos sugeridos e reportou 6 pontos; 3
 deles (baixo risco, padrão já existente no projeto) corrigidos nesta
 mesma sessão:
+
 - **"Notas" não quebrava linha** (achado 2.8) — `TableCell` genérico
   (`components/ui/table.tsx`) força `whitespace-nowrap` em toda célula de
   toda tabela do sistema; a coluna "Notas" só tinha `line-clamp-1`, que
@@ -1811,7 +1814,7 @@ mesma sessão:
   próprio componente documenta a convenção pra diálogos futuros não
   repetirem o problema. `BulkScheduleOccurrencesDialog` migrado pra usar
   isso (mensagem de erro + botões sempre visíveis) e reorganizado em 2
-  colunas (Grupo/Equipe, além de De/Até e Início/Término que já eram)
+  colunas (Grupos/Equipe, além de De/Até e Início/Término que já eram)
   pra reduzir a altura total.
 **Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint`
 nos 2 arquivos tocados → 3 problemas, idêntico à baseline (mesma
@@ -1830,12 +1833,12 @@ colunas não quebrou nada da Fase 4 original. **Achado durante o teste:**
 atividade — resíduo do teste manual do usuário no ponto 1.4, quando as
 checkboxes não apareciam pra ele; removidos via API antes de reiniciar o
 teste, `GET .../occurrences` confirmou `total: 0` depois da limpeza.
-**Grupo B concluído em 2026-11-16**, a partir das 3 decisões dadas pelo
-usuário (exclusão em massa deve excluir de verdade; grupos N:N só na
-Atividade por enquanto, Encontro continua com 1 grupo por vez; migration
+**Grupos B concluído em 2026-11-16**, a partir das 3 decisões dadas pelo
+usuário (exclusão em massa deve excluir de verdade; Grupos N:N só na
+Atividade por enquanto, Encontro continua com 1 Grupos por vez; migration
 única sem expandir/contrair caso precisasse de schema novo):
 
-**4.14 — Atividade com múltiplos grupos-alvo.** Investigação encontrou a
+**4.14 — Atividade com múltiplos Grupos-alvo.** Investigação encontrou a
 causa raiz exata: `ActivityPeopleGroup` já era N:N no schema, mas
 `syncParticipantPeopleGroupScope` (`actions.service.ts`) apagava todos os
 vínculos `PARTICIPANT` e recriava só 1 a cada criação/edição — regra de
@@ -1847,13 +1850,13 @@ de escrever, evitando Atividade órfã se um id for inválido);
 `CreateProjectActionDto`/`UpdateProjectActionDto` trocaram
 `peopleGroupId?` por `peopleGroupIds?: string[]`; `serializeProjectAction`
 passou a expor `peopleGroupIds`/`peopleGroups` (lista completa) mantendo
-`peopleGroupId`/`peopleGroup` (primeiro grupo) para os 4 pontos do
+`peopleGroupId`/`peopleGroup` (primeiro Grupos) para os 4 pontos do
 frontend que só exibem 1 nome (breadcrumb, coluna de lista, relatório) —
 nenhum deles precisou mudar. `listEligibleProjectActionPeople` (lista de
 elegíveis pra Encontro/presença) já agregava por `distinct peopleGroupId`
-— passa a refletir todos os grupos automaticamente, sem mudança própria.
+— passa a refletir todos os Grupos automaticamente, sem mudança própria.
 Frontend: `action-create-form-section.tsx` trocou o `<Select>` único de
-"Grupo de Pessoas" por uma lista de checkboxes (mesmo padrão do
+"Grupos de Pessoas" por uma lista de checkboxes (mesmo padrão do
 `TeamPeopleGroupPicker` já usado em Encontros).
 **Evidência:** backend `tsc --noEmit -p tsconfig.build.json` → 0 erros;
 `npm test` → 28 suítes/143 testes sem regressão; `eslint` nos 3 arquivos
@@ -1861,7 +1864,7 @@ tocados → 139 problemas vs. 138 medidos na Fase 4 (net +1, mesma
 categoria já tolerada `@typescript-eslint/no-unsafe-*`, nenhuma categoria
 nova). Frontend `tsc --noEmit` → 0 erros; `npm run build` → ok. Testado
 de ponta a ponta com navegador real + Postgres real: criada a atividade
-"Teste multi-grupo" marcando C1M e C2M → os dois salvos; reaberta a tela
+"Teste multi-Grupos" marcando C1M e C2M → os dois salvos; reaberta a tela
 de edição → os dois continuam marcados (confirma persistência e
 re-hidratação corretas); atividade de teste excluída via API ao final,
 contagem de atividades do projeto confirmada de volta a 3 (baseline do
@@ -1872,7 +1875,7 @@ seed).
 prontos (mesmo padrão de `project-enrollments-card.tsx`) — não precisou
 de componente novo, só reusar. Adicionados: barra de busca
 (`SearchBar`, mesmo componente das outras Relations) filtrando por
-data/status/grupo/notas, um `<Select>` de mês (calculado a partir das
+data/status/Grupos/notas, um `<Select>` de mês (calculado a partir das
 datas já carregadas) e um botão "Selecionar" que liga/desliga o modo de
 seleção (troca o clique de linha de "abrir encontro" para "marcar
 checkbox"); com 1+ selecionados aparece "Excluir selecionados", que
@@ -1915,19 +1918,21 @@ sobre um novo primitivo `frontend/src/components/ui/popover.tsx`
 (`radix-ui` já tinha `Popover` disponível, só faltava o wrapper no padrão
 shadcn já usado pelos outros componentes de `components/ui/`). API:
 `options`/`selectedValues`/`onChange`, mais rótulos customizáveis. Aplicado
-em 2 lugares: seletor "Grupos de Pessoas" do formulário de Atividade
+em 2 lugares: seletor "Grupos" do formulário de Atividade
 (substituindo a lista de checkbox do ciclo 1, que o usuário achou
 "visualmente suja") e seletor "Grupos" do diálogo de Encontro (item novo
-#1 abaixo). **Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok;
+
+# 1 abaixo). **Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok
+
 `eslint` nos arquivos novos → 0 problemas; testado com navegador real
 (popover abre, busca filtra, item vira badge, popover continua aberto pra
 adicionar mais um, "x" no badge remove direto sem reabrir o popover) nos
 dois formulários.
 
 **#1 — `Meeting` N:N `PeopleGroup`.** Regra do usuário: um Encontro
-"amplo" pode atender vários grupos ao mesmo tempo (evento que junta todas
+"amplo" pode atender vários Grupos ao mesmo tempo (evento que junta todas
 as turmas), não só 1. Schema: nova tabela `ActionOccurrencePeopleGroup`
-(mesmo padrão de `ActionOccurrenceTeamGroup`, já existente pra grupos de
+(mesmo padrão de `ActionOccurrenceTeamGroup`, já existente pra Grupos de
 equipe do Encontro), migration `20261116220000_add_meeting_people_group_n_n`
 — `Meeting.peopleGroupId` (FK singular nullable) removido, com os dados
 existentes migrados pra tabela nova no mesmo passo (migration única, sem
@@ -1941,7 +1946,7 @@ limpeza (confirmado `count: 51` migrado, depois `0` após a limpeza).
 e `deleteProjectAction` excluíam o(s) Encontro(s) sem antes limpar
 `ActionOccurrenceTeamGroup` — como essa FK já era `RESTRICT` (mesmo
 padrão manual de "cascade" do resto do projeto), excluir um Encontro ou
-uma Atividade com grupo de equipe vinculado já falhava com erro de FK
+uma Atividade com Grupos de equipe vinculado já falhava com erro de FK
 *antes* desta sessão, só que nunca tinha sido exercitado por um teste
 real. Corrigido nos dois métodos (limpa `ActionOccurrenceTeamGroup` e o
 `ActionOccurrencePeopleGroup` novo antes de excluir o(s) Encontro(s)).
@@ -1952,9 +1957,9 @@ Backend: `CreateActionOccurrenceDto`/`UpdateActionOccurrenceDto`/
 e persistir a lista (mesmo padrão de `teamPeopleGroupIds`, incluindo o
 diff add/remove no update); `listProjectActionAttendances` (lista de
 presença de um Encontro específico) agora agrega participantes de todos
-os grupos do Encontro (ou os da Atividade, se o Encontro não tiver grupo
+os Grupos do Encontro (ou os da Atividade, se o Encontro não tiver Grupos
 próprio) em vez de só 1; resposta de Encontro ganhou `peopleGroupIds`
-(lista completa) mantendo `peopleGroupId`/`peopleGroup` (primeiro grupo)
+(lista completa) mantendo `peopleGroupId`/`peopleGroup` (primeiro Grupos)
 pros 1 ponto do frontend que só precisa de um nome pra rótulo compacto.
 **Evidência:** `npx prisma migrate deploy` → aplicada sem erro;
 `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 28
@@ -1965,17 +1970,17 @@ deste item nesta mesma sessão (net +4, mesmas categorias já toleradas
 `no-unused-vars` do relatório são imports não tocados por este diff,
 confirmado). Frontend: `ApiMeeting` ganhou `peopleGroupIds`/`peopleGroups`;
 os 2 diálogos de Encontro (agendar em lote, editar 1) trocaram o
-`<Select>` único por `MultiSelectBadges`; coluna "Grupo" da lista, card do
-calendário e filtro de busca passaram a mostrar todos os grupos (não só
+`<Select>` único por `MultiSelectBadges`; coluna "Grupos" da lista, card do
+calendário e filtro de busca passaram a mostrar todos os Grupos (não só
 o primeiro). `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint` → 3
 problemas, idêntico à baseline (mesma categoria já tolerada). **Testado
 de ponta a ponta contra Postgres real + navegador real:** criado 1
-Encontro via API com 2 grupos (C1M + C2M) → resposta confirmou os 2 em
+Encontro via API com 2 Grupos (C1M + C2M) → resposta confirmou os 2 em
 `peopleGroupIds`; `GET .../attendances` desse Encontro devolveu 3 pessoas
-— confirmado que vêm dos 2 grupos (Renata Vieira é só de C2M; Ricardo
+— confirmado que vêm dos 2 Grupos (Renata Vieira é só de C2M; Ricardo
 Nunes e Sabrina Melo são de C1M), provando a agregação N:N de verdade, não
-só o primeiro grupo. No navegador: diálogo "Agendar encontros" mostra
-"+ Adicionar grupo" → popover com busca → clicar em C1M vira badge e o
+só o primeiro Grupos. No navegador: diálogo "Agendar encontros" mostra
+"+ Adicionar Grupos" → popover com busca → clicar em C1M vira badge e o
 popover continua aberto mostrando só C2M/C3M (sem C1M, já selecionado) →
 zero erro de console. Encontro de teste excluído via API ao final;
 `GET .../occurrences` confirmou `total: 0` na atividade de teste.
@@ -2041,7 +2046,7 @@ reordenada.** Título movido pro topo, campo único em destaque (texto
 grande, borda inferior só, mesmo padrão visual já usado no formulário do
 People). Resto do formulário dividido em seções com `SectionHeading`
 (título + descrição opcional) e grid responsivo: "Organização" (projeto/
-tipo/status), "Direcionamento" (grupo de pessoas via `MultiSelectBadges`
+tipo/status), "Direcionamento" (Grupos de pessoas via `MultiSelectBadges`
 e meta do Plano de Trabalho), "Equipe responsável" (Gestor/Educador, #5
 acima), "Planejamento" (datas), "Descrição e plano pedagógico" (textarea
 e rich text). `StandardDetailMetadataSide` da Atividade ganhou
@@ -2125,16 +2130,16 @@ edição já vive na aba "Presença" do diálogo, parte A acima) e virou um
 resumo só leitura, somando todos os Encontros da Atividade: frequência
 (%), média de avaliação e contagem de ocorrências (placeholder fixo em 0
 — só existe de verdade quando a Fase 5/Ocorrência for implementada), com
-busca por nome/grupo e filtro de período (De/Até). **Backend:** novo
+busca por nome/Grupos e filtro de período (De/Até). **Backend:** novo
 endpoint `GET /projects/:projectId/actions/:actionId/attendances-summary`
 (`ActionsController` → `ActionsService.listProjectActionAttendanceSummary`,
 DTO `ListProjectActionAttendanceSummaryQueryDto` com `q`/`from`/`to`/
 `page`/`limit`). Escopo de participantes elegíveis = mesma regra já usada
 pelo resto do módulo (`action.peopleGroupIds`/`targetEnrollmentId`, sem
-grupo → todo mundo do projeto). Para cada participante: busca todos os
+Grupos → todo mundo do projeto). Para cada participante: busca todos os
 `Meeting` da Atividade dentro do período (exclui `CANCELED`), cruza com
-`PeopleGroupParticipation` pra saber se a pessoa pertencia ao(s) grupo(s)
-daquele Encontro especificamente (um Encontro sem grupo próprio conta pra
+`PeopleGroupParticipation` pra saber se a pessoa pertencia ao(s) Grupos(s)
+daquele Encontro especificamente (um Encontro sem Grupos próprio conta pra
 todo mundo), soma presenças/notas só dos Encontros em que a pessoa
 contava como elegível. Tudo em memória (2-3 queries, sem agregação SQL) —
 decisão deliberada dado o tamanho de dado esperado (uma Atividade não
@@ -2189,11 +2194,11 @@ fix do race condition. Conferido que as abas "Qualidade"/"Equipe"/
 "Progresso e Relatório" (que compartilham bastante estado com a antiga
 aba "Participantes" removida) continuam funcionando sem erro de console
 depois de toda a limpeza — "Qualidade" mostrou a mesma Renata Vieira com
-nota 5, campo de observação, filtro de grupo intacto.
+nota 5, campo de observação, filtro de Grupos intacto.
 
 **Achado e corrigido durante os testes destes 2 itens:** 2 das 3
 atividades do seed ("Ensaio dos meninos da percussão" e "Acolhimento de
-abertura") ficaram com grupos extras (C2M/C3M) que não são do seed —
+abertura") ficaram com Grupos extras (C2M/C3M) que não são do seed —
 resíduo de testes anteriores desta mesma sessão que, via auto-save do
 formulário (`editing: AUTO_SAVE_EDITING`, grava a cada campo sem precisar
 de botão "Salvar"), gravaram cliques exploratórios de verdade no banco.
@@ -2215,19 +2220,20 @@ restaurado ao estado em que já estava.
 
 **Convenção de UI fixada em 2026-11-13, a pedido explícito do usuário —
 seletor de colunas ("Colunas") por tipo de tela:**
-- **ListView** (tela principal de um módulo — Pessoas, Grupos de Pessoas,
+
+- **ListView** (tela principal de um módulo — Pessoas, Grupos,
   Programas, Projetos, Ações, Tarefas, Admin, Pantry/Despensa): o botão
   "Colunas" fica **dentro do Painel Search**, na barra de busca, ao lado
   do botão de Filtros — nunca solto acima da tabela.
 - **RelationView** (tabela de relação embutida numa aba de Detail — ex.:
-  "Grupos de Pessoas"/"Participantes"/"Ações" dentro do Projeto — e
+  "Grupos"/"Participantes"/"Ações" dentro do Projeto — e
   diálogos de vínculo/picker como `ProjectPeopleGroupPickerDialog`/
   `BulkEnrollmentDialog`): o Painel Search é a **versão mínima** — só a
   barra de busca, pesquisando em qualquer coluna/valor (nome, número,
   o que for). **Sem seletor de colunas em nenhum lugar.**
 
 Bug corrigido: o botão "Colunas" não aparecia em nenhum lugar em Pessoas/
-Grupos de Pessoas, e aparecia solto acima da tabela (fora do Painel
+Grupos, e aparecia solto acima da tabela (fora do Painel
 Search) em Programas/Projetos/Ações — e o mesmo acontecia nas tabelas de
 Relation, violando a regra acima. Causa raiz dupla: (1) `PageControlPanel`
 não renderiza seus slots localmente — só registra as props num
@@ -2246,8 +2252,8 @@ browser real (Playwright + Chrome já instalado, sem baixar nada): botão
 aparece dentro da busca nas 6 telas principais testadas (Pessoas, Grupos
 de Pessoas, Programas, Projetos, Ações, Tarefas) e funciona (abre o menu,
 esconde/mostra coluna, persiste); zero botão de coluna nas Relations e
-diálogos testados (aba "Grupos de Pessoas" do Projeto, diálogo de
-vincular grupo, aba "Participantes"). `tsc` 0 erros; `eslint` 210
+diálogos testados (aba "Grupos" do Projeto, diálogo de
+vincular Grupos, aba "Participantes"). `tsc` 0 erros; `eslint` 210
 problemas vs. baseline 212, net -2 (apagado `person-picker-dialog.tsx`,
 não usado em lugar nenhum); `npm run build` sucesso.
 

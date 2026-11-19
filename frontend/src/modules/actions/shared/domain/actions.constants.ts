@@ -36,7 +36,7 @@ export const ATTENDANCE_STATUS_OPTIONS = [
 
 export const ACTION_TARGET_LABELS: Record<ActionTarget, string> = {
   PROJECT: "Projeto",
-  PEOPLE_GROUP: "Grupo",
+  PEOPLE_GROUP: "Grupos",
   ENROLLMENT: "Participante",
 };
 

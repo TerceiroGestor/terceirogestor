@@ -61,10 +61,13 @@ Backend (modulos atuais):
 2. Publicar planilha de auditoria por modulo e tela.
 3. Definir donos por trilha:
 4. Trilhas:
+
 - `Frontend Canonico`
 - `Backend Contratos`
 - `Banco e Migracoes`
-5. Definir gates obrigatorios no merge:
+
+1. Definir gates obrigatorios no merge:
+
 - smoke de modulo
 - lint frontend/backend
 - build frontend/backend
@@ -82,6 +85,7 @@ Entregaveis da fase:
 3. Mapear divergencias de cardinalidade por relacao.
 4. Mapear divergencias API x UI x schema.
 5. Classificar cada pendencia:
+
 - `Critica`
 - `Alta`
 - `Media`
@@ -97,13 +101,16 @@ Entregaveis da fase:
 ### Frontend
 
 1. Expandir validacao de contratos de modulo para incluir:
+
 - regras de list/detail/side
 - regras de relations
 - regras de `relation operacional`
 - metadados de cardinalidade
-2. Criar starter canonico para modulo novo (list + detail + relations + side).
-3. Padronizar componentes de relation para `1:1`, `1:N`, `N:1`, `N:N`.
-4. Expandir `ListView` e contratos relacionais para cobrir:
+
+1. Criar starter canonico para modulo novo (list + detail + relations + side).
+2. Padronizar componentes de relation para `1:1`, `1:N`, `N:1`, `N:N`.
+3. Expandir `ListView` e contratos relacionais para cobrir:
+
 - filtros no slot relacional
 - selecao em lote
 - acoes por linha
@@ -113,20 +120,24 @@ Entregaveis da fase:
 ### Backend
 
 1. Padronizar DTOs e endpoints por tipo de relacao:
+
 - `upsert` para `1:1`
 - `create/list by parent` para `1:N`
 - `attach/detach` ou `create/end` para `N:N`
-2. Garantir respostas consistentes para UI canonica.
-3. Unificar mensagens de erro e validacao de integridade relacional.
+
+1. Garantir respostas consistentes para UI canonica.
+2. Unificar mensagens de erro e validacao de integridade relacional.
 
 ### Banco
 
 1. Auditar constraints de todas as relacoes.
 2. Criar plano de migracoes para:
+
 - FK unica em `1:1`
 - indices obrigatorios em `1:N` e `N:1`
 - entidade associativa explicita em `N:N`
-3. Planejar backfill quando houver reestruturacao.
+
+1. Planejar backfill quando houver reestruturacao.
 
 Entregaveis da fase:
 
@@ -170,7 +181,7 @@ Evidencias do fechamento da `Onda C` em `2026-03-27`:
 - matriz `docs/marco-zero-1.0-audit-matrix.csv` sem `FALHA` na onda `C`
 - `frontend build` executado com sucesso em `2026-03-27`
 - `backend build` executado com sucesso em `2026-03-27`
-- frontend de `people`, `projects` e `actions` canonizado nas rotas ativas, com elegiveis, grupos e presencas operando sobre `people groups` e `project groups`
+- frontend de `people`, `projects` e `actions` canonizado nas rotas ativas, com elegiveis, Grupos e presencas operando sobre `people groups` e `project groups`
 - fluxo ativo de `actions` e `project-structure` deixou de depender da estrutura legada removida para selecao, matricula e presenca
 - a estrutura legada removida deixou de bloquear o fechamento do fluxo institucional canonico
 
@@ -280,11 +291,13 @@ Itens:
 Passos:
 
 1. Classificar cada item como:
+
 - remover
 - isolar como legado fora do fluxo canonico
 - migrar para modulo canonico equivalente
-2. Remover referencias no registro de modulo/acoes de janela quando aplicavel.
-3. Eliminar dependencia ativa em telas de producao.
+
+1. Remover referencias no registro de modulo/acoes de janela quando aplicavel.
+2. Eliminar dependencia ativa em telas de producao.
 
 ## Onda E: Relation operacional e padrao de actions
 
@@ -314,15 +327,22 @@ Passos:
 Para cada modulo, executar sempre nesta ordem:
 
 1. Banco:
+
 - corrigir schema e migracoes
 - aplicar backfill
-2. Backend:
+
+1. Backend:
+
 - ajustar DTO/controller/service
 - validar regras de cardinalidade
-3. Frontend:
+
+1. Frontend:
+
 - ajustar contratos de modulo e telas
 - alinhar relations com matriz canonica
-4. Qualidade:
+
+1. Qualidade:
+
 - checklist `PASSA/FALHA`
 - smoke, lint e build
 
@@ -402,7 +422,3 @@ Liberar o `Marco Zero 1.0` somente quando:
 - relatorio final de auditoria assinado
 - frontend, backend e banco validados no fluxo canonico
 - backlog transversal `pos_1_0` formalizado apenas quando nao impactar o contrato canonico liberado
-
-
-
-

@@ -91,7 +91,7 @@ export class ProjectStructureService {
       },
     });
     if (!peopleGroup)
-      throw new BadRequestException('Grupo invalido');
+      throw new BadRequestException('Grupos invalido');
     return peopleGroup;
   }
 
@@ -143,7 +143,7 @@ export class ProjectStructureService {
     });
     if (existing) {
       throw new BadRequestException(
-        'Grupo ja esta vinculado ao projeto com essa finalidade.',
+        'Grupos ja esta vinculado ao projeto com essa finalidade.',
       );
     }
 
@@ -168,7 +168,7 @@ export class ProjectStructureService {
       select: { id: true, peopleGroupId: true, participationKind: true },
     });
     if (!existing)
-      throw new NotFoundException('Vinculo do Grupo nao encontrado');
+      throw new NotFoundException('Vinculo do Grupos nao encontrado');
 
     const actionsCount = await this.prisma.activityPeopleGroup.count({
       where: {
@@ -180,7 +180,7 @@ export class ProjectStructureService {
     });
     if (actionsCount > 0) {
       throw new BadRequestException(
-        'Nao e possivel remover o Grupo: existem acoes vinculadas',
+        'Nao e possivel remover o Grupos: existem acoes vinculadas',
       );
     }
 
@@ -347,7 +347,7 @@ export class ProjectStructureService {
     });
     if (!projectPeopleGroup) {
       throw new BadRequestException(
-        'Grupo nao esta vinculado a este projeto como grupo de participantes.',
+        'Grupos nao esta vinculado a este projeto como Grupos de participantes.',
       );
     }
 

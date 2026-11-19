@@ -380,7 +380,7 @@ export function BulkEnrollmentDialog({
       },
       {
         id: "eligibility",
-        header: "Grupos de Pessoas",
+        header: "Grupos",
         accessorFn: (row) =>
           resolveEligiblePeopleGroups(row)
             .map((peopleGroup) => peopleGroup.name)
@@ -481,7 +481,7 @@ export function BulkEnrollmentDialog({
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                          Grupo
+                          Grupos
                         </div>
                         <Select value={peopleGroupFilter} onValueChange={setPeopleGroupFilter}>
                           <SelectTrigger className="h-9 rounded-none border-x-0 border-t-0 border-border/70 bg-transparent px-0 text-sm shadow-none focus:ring-0">

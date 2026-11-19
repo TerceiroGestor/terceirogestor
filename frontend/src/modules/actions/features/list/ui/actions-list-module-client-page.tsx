@@ -282,7 +282,7 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
     },
     {
       id: "peopleGroup",
-      header: "Grupo",
+      header: "Grupos",
       accessorFn: (row) => resolvePeopleGroupLabel(row),
       cell: ({ row }) => (
         <div className="flex items-center gap-2 text-sm text-foreground">

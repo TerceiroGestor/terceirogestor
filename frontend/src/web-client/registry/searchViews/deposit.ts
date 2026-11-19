@@ -70,7 +70,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
     },
     {
       name: "itemGroup",
-      label: "Grupo do objeto",
+      label: "Grupos do objeto",
       type: "text",
       operators: ["ilike", "contains", "=", "starts_with", "ends_with"],
     },
@@ -104,7 +104,7 @@ export const depositHistorySearchView: SearchViewDefinition = {
     { field: "sector", label: "Setor" },
     { field: "type", label: "Tipo de saida" },
     { field: "itemId", label: "Objeto" },
-    { field: "itemGroup", label: "Grupo" },
+    { field: "itemGroup", label: "Grupos" },
     { field: "eventName", label: "Evento" },
     { field: "donorName", label: "Origem" },
     { field: "quantity", label: "Quantidade" },
@@ -249,7 +249,7 @@ export const depositExitsSearchView: SearchViewDefinition = {
 export const depositStockSearchView: SearchViewDefinition = {
   id: "deposit.stock.search",
   model: "deposit.stock",
-  searchPlaceholder: "Pesquisar objetos, grupos ou setores",
+  searchPlaceholder: "Pesquisar objetos, Grupos ou setores",
   features: {
     favorites: true,
     presets: true,
@@ -282,7 +282,7 @@ export const depositStockSearchView: SearchViewDefinition = {
     },
     {
       name: "group",
-      label: "Grupo",
+      label: "Grupos",
       type: "text",
     },
     {
@@ -328,7 +328,7 @@ export const depositStockSearchView: SearchViewDefinition = {
     { field: "name", label: "Objeto" },
     { field: "tags", label: "Tags" },
     { field: "sector", label: "Setor" },
-    { field: "group", label: "Grupo" },
+    { field: "group", label: "Grupos" },
     { field: "sectorStock", label: "Saldo (setor)" },
     { field: "itemStock", label: "Saldo (total)" },
     { field: "unit", label: "Un." },

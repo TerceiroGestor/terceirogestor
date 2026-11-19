@@ -106,7 +106,7 @@ export function ActionParticipantsSection({
 
   const filterFields = React.useMemo<SearchFieldDefinition[]>(
     () => [
-      { name: "peopleGroups", label: "Grupo", type: "select", options: groupOptions },
+      { name: "peopleGroups", label: "Grupos", type: "select", options: groupOptions },
     ],
     [groupOptions],
   );
@@ -121,7 +121,7 @@ export function ActionParticipantsSection({
 
   const resolveGroupLabel = React.useCallback((_field: string, value: unknown): string => {
     const label = String(value ?? "").trim();
-    return label ? label : "Sem grupo";
+    return label ? label : "Sem Grupos";
   }, []);
 
   const buildSearchRecord = React.useCallback(
@@ -163,7 +163,7 @@ export function ActionParticipantsSection({
         onDomainChange={setDomain}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
-        groupByOptions={[{ field: "peopleGroups", label: "Grupo" }]}
+        groupByOptions={[{ field: "peopleGroups", label: "Grupos" }]}
         searchPlaceholder="Pesquisar participante"
         filteredCount={filteredRows.length}
         filterFields={filterFields}

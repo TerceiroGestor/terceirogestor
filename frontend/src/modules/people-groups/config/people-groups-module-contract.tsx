@@ -62,7 +62,7 @@ const PEOPLE_GROUPS_PERMISSIONS = {
 const PEOPLE_GROUPS_LIST_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Abrir Grupo",
+    label: "Abrir Grupos",
     permissionKey: "canRead",
     scope: "row",
     requiresReturnTo: true,
@@ -84,13 +84,13 @@ const PEOPLE_GROUPS_LIST_ACTIONS: RecordModuleActionMap = {
 const PEOPLE_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar Grupo",
+    label: "Visualizar Grupos",
     permissionKey: "canRead",
     scope: "detail",
   },
   create: {
     key: "create",
-    label: "Novo Grupo",
+    label: "Novo Grupos",
     permissionKey: "canCreate",
     scope: "detail",
   },
@@ -102,7 +102,7 @@ const PEOPLE_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   delete: {
     key: "delete",
-    label: "Excluir Grupo",
+    label: "Excluir Grupos",
     permissionKey: "canDelete",
     scope: "detail",
   },
@@ -132,19 +132,19 @@ export const peopleGroupsListModuleDefinition =
       detailDataProvider: { model: "people-groups.detail" },
     },
     domainAdapter: {
-      entity: { singular: "Grupo", plural: "Grupos de Pessoas" },
+      entity: { singular: "Grupos", plural: "Grupos" },
       list: {
         searchPlaceholder: "Pesquisar",
         createActionLabel: "Novo",
         totalLabel: "Total",
-        emptyStateLabel: "Nenhum Grupo encontrado.",
+        emptyStateLabel: "Nenhum Grupos encontrado.",
       },
       detail: {
-        fallbackTitle: "Grupo",
+        fallbackTitle: "Grupos",
       },
       fields: {
-        name: { label: "Grupo" },
-        groupType: { label: "Tipo do grupo" },
+        name: { label: "Grupos" },
+        groupType: { label: "Tipo do Grupos" },
         purpose: { label: "Finalidade" },
         category: { label: "Categoria" },
         createdAt: { label: "Cadastro" },
@@ -186,7 +186,7 @@ export const peopleGroupsListModuleDefinition =
         params: {
           builder: {
             fields: [
-              { field: "groupType", label: "Tipo do grupo", kind: "dimension" },
+              { field: "groupType", label: "Tipo do Grupos", kind: "dimension" },
               { field: "category", label: "Categoria", kind: "dimension" },
               { field: "purpose", label: "Finalidade", kind: "dimension" },
               { field: "isActive", label: "Status", kind: "dimension" },
@@ -200,7 +200,7 @@ export const peopleGroupsListModuleDefinition =
               filters: {},
             },
             maxGroups: 8,
-            downloadFileName: "grupos-de-pessoas",
+            downloadFileName: "Grupos-de-pessoas",
           },
         },
       },
@@ -244,14 +244,14 @@ export const peopleGroupsDetailModuleDefinition =
       auditDataProvider: { model: "audit.logs" },
     },
     domainAdapter: {
-      entity: { singular: "Grupo", plural: "Grupos de Pessoas" },
+      entity: { singular: "Grupos", plural: "Grupos" },
       detail: {
-        createTitle: "Novo Grupo",
-        fallbackTitle: "Grupo",
+        createTitle: "Novo Grupos",
+        fallbackTitle: "Grupos",
       },
       fields: {
-        name: { label: "Grupo" },
-        groupType: { label: "Tipo do grupo" },
+        name: { label: "Grupos" },
+        groupType: { label: "Tipo do Grupos" },
         purpose: { label: "Finalidade" },
         category: { label: "Categoria" },
         createdAt: { label: "Cadastro" },

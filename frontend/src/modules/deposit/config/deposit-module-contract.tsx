@@ -373,14 +373,14 @@ const DEPOSIT_EXIT_DETAIL_ACTIONS: RecordModuleActionMap = {
 const DEPOSIT_STOCK_DOMAIN_ADAPTER: RecordDomainAdapter = {
   entity: { singular: "Objeto", plural: "Estoque" },
   list: {
-    searchPlaceholder: "Pesquisar objetos, grupos ou setores",
+    searchPlaceholder: "Pesquisar objetos, Grupos ou setores",
     createActionLabel: "Novo",
     totalLabel: "Total",
     emptyStateLabel: "Nenhum resultado.",
   },
   fields: {
     name: { label: "Objeto", placeholder: "Ex: Arroz" },
-    group: { label: "Grupo", emptyValueLabel: "Sem grupo" },
+    group: { label: "Grupos", emptyValueLabel: "Sem Grupos" },
     sector: { label: "Setor", emptyValueLabel: "Geral" },
     sectorStock: { label: "Saldo (setor)", type: "number" },
     itemStock: { label: "Saldo (total)", type: "number" },
@@ -413,7 +413,7 @@ const DEPOSIT_HISTORY_DOMAIN_ADAPTER: RecordDomainAdapter = {
     destinationName: { label: "Destino", emptyValueLabel: "Sem destino" },
     donorName: { label: "Fonte", emptyValueLabel: "Sem fonte" },
     itemName: { label: "Objeto" },
-    itemGroup: { label: "Grupo do objeto", emptyValueLabel: "Sem grupo" },
+    itemGroup: { label: "Grupos do objeto", emptyValueLabel: "Sem Grupos" },
     expiryDate: { label: "Data limite", type: "date" },
     actor: { label: "Usuário", emptyValueLabel: "Sistema" },
     notes: { label: "Notas", emptyValueLabel: "Sem notas" },
@@ -646,7 +646,7 @@ const STOCK_VIEWS: ViewConfig[] = [
         fields: [
           { field: "name", label: "Objeto", kind: "dimension" },
           { field: "sector", label: "Setor", kind: "dimension", emptyValueLabel: "Geral" },
-          { field: "group", label: "Grupo", kind: "dimension", emptyValueLabel: "Sem grupo" },
+          { field: "group", label: "Grupos", kind: "dimension", emptyValueLabel: "Sem Grupos" },
           { field: "unit", label: "Unidade", kind: "dimension" },
           { field: "validityStatus", label: "Status", kind: "dimension" },
           {
@@ -820,10 +820,10 @@ const HISTORY_VIEWS: ViewConfig[] = [
           },
           {
             field: "itemGroup",
-            label: "Grupo",
+            label: "Grupos",
             kind: "dimension",
             getValue: (row) =>
-              (row.item as { group?: string } | undefined)?.group ?? "Sem grupo",
+              (row.item as { group?: string } | undefined)?.group ?? "Sem Grupos",
           },
           { field: "destinationName", label: "Destino", kind: "dimension", emptyValueLabel: "Sem destino" },
           { field: "donorName", label: "Fonte", kind: "dimension", emptyValueLabel: "Sem fonte" },
@@ -1273,19 +1273,19 @@ export type DepositModuleDefinition =
   | RecordModuleDefinition<DepositHistoryQueryState>
   | RecordModuleDefinition<DepositDonorsQueryState>
   | RecordModuleDefinition<
-      DepositDetailQueryState,
-      DepositItemDetailLayoutContext
-    >
+    DepositDetailQueryState,
+    DepositItemDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      DepositDetailQueryState,
-      DepositDonorDetailLayoutContext
-    >
+    DepositDetailQueryState,
+    DepositDonorDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      DepositDetailQueryState,
-      DepositEntryDetailLayoutContext
-    >
+    DepositDetailQueryState,
+    DepositEntryDetailLayoutContext
+  >
   | RecordModuleDefinition<
-      DepositDetailQueryState,
-      DepositExitDetailLayoutContext
-    >;
+    DepositDetailQueryState,
+    DepositExitDetailLayoutContext
+  >;
 
