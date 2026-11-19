@@ -535,6 +535,7 @@ export function ListView<TData>({
   columnVisibility: controlledColumnVisibility,
   onColumnVisibilityChange,
   bordered = true,
+  stickyHeaderOffsetClassName,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -580,6 +581,16 @@ export function ListView<TData>({
    * preserva o visual de sempre em todo List Principal.
    */
   bordered?: boolean;
+  /**
+   * Sobrescreve o `top-0` do cabecalho sticky da tabela (ex.: `"top-[117px]"`)
+   * - necessario quando esse `ListView` fica dentro de uma relation
+   * `flushToolbar` (ex.: Encontros, via `RelationListHost`), onde ja existem
+   * a barra de abas e a toolbar da relation grudadas (sticky) acima do
+   * cabecalho, no mesmo contexto de scroll. Sem isso o cabecalho tenta
+   * grudar em `top-0` tambem e passa por cima das duas. Nao usar fora
+   * desse cenario - o padrao (`top-0`) esta correto em todo List Principal.
+   */
+  stickyHeaderOffsetClassName?: string;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -713,6 +724,10 @@ export function ListView<TData>({
       className={cn(
         "flex h-full min-h-0 flex-col",
         !bordered && "rounded-none border-0 bg-transparent",
+        // MODULE_SURFACE_CLASS_NAME tem overflow-hidden fixo, que tambem
+        // quebra o sticky do cabecalho (mesmo motivo documentado acima) -
+        // precisa ser cancelado aqui tambem, nao só nos wrappers internos.
+        stickyHeaderOffsetClassName && "overflow-visible",
         className,
       )}
     >
@@ -805,8 +820,23 @@ export function ListView<TData>({
         </div>
       ) : null}
 
-      <div className={cn("min-h-0 flex-1 overflow-auto", renderCard ? "hidden md:block" : undefined)}>
+      <div
+        className={cn(
+          "min-h-0 flex-1",
+          // overflow-auto quebra position:sticky do cabecalho quando esse
+          // ListView vive dentro de um scroll externo ja sticky (mesmo
+          // motivo do stickyHeaderOffsetClassName acima) - so fica
+          // overflow-visible nesse cenario; o padrao continua auto.
+          stickyHeaderOffsetClassName ? "overflow-visible" : "overflow-auto",
+          renderCard ? "hidden md:block" : undefined,
+        )}
+      >
         <UiTable
+          // overflow-x-auto do container padrao do Table tambem quebra o
+          // sticky do cabecalho (mesmo motivo documentado acima) - some
+          // nesse cenario; a troca e aceita porque essas relations nao
+          // tem colunas suficientes pra precisar de scroll horizontal.
+          containerClassName={stickyHeaderOffsetClassName ? "overflow-visible" : undefined}
           className={cn(
             "[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]",
             bordered
@@ -814,7 +844,12 @@ export function ListView<TData>({
               : "[&_thead_th]:border-b-0 [&_tbody_tr]:border-b-0",
           )}
         >
-          <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <TableHeader
+            className={cn(
+              "sticky z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+              stickyHeaderOffsetClassName ?? "top-0",
+            )}
+          >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {

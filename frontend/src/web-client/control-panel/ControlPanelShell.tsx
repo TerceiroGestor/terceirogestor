@@ -61,24 +61,34 @@ export function ControlPanelShell() {
     return null;
   }
 
-  return (
-    <div className="border-b border-border/60 bg-background/90 px-4 backdrop-blur">
-      <div className="grid grid-cols-1 gap-3 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          {createButtonNode}
-          {actionSlot}
-          {controlPanel.leftSlot ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {controlPanel.leftSlot}
-            </div>
-          ) : null}
-        </div>
+  const hasLeftContent = Boolean(actionSlot || controlPanel.leftSlot);
 
-        <div className="flex min-w-0 items-center justify-center gap-2">
+  return (
+    <div
+      data-slot="control-panel-shell"
+      className="border-b border-border/60 bg-toolbar px-4"
+    >
+      <div
+        className={`grid grid-cols-1 gap-3 py-3 lg:items-center lg:gap-4 lg:py-2.5 ${
+          hasLeftContent
+            ? "lg:grid-cols-[auto_minmax(0,1fr)_auto]"
+            : "lg:grid-cols-[minmax(0,1fr)_auto]"
+        }`}
+      >
+        {hasLeftContent ? (
+          <div className="flex min-w-0 items-center gap-2">
+            {actionSlot}
+            {controlPanel.leftSlot ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {controlPanel.leftSlot}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-center gap-2">
           {controlPanel.searchSlot ? (
-            <div className="w-full max-w-[860px] flex-1 xl:max-w-[980px]">
-              {controlPanel.searchSlot}
-            </div>
+            <div className="w-full flex-1">{controlPanel.searchSlot}</div>
           ) : null}
           {controlPanel.filterSlot}
           {controlPanel.groupBySlot}
@@ -88,6 +98,7 @@ export function ControlPanelShell() {
         <div className="flex items-center justify-end gap-2">
           {controlPanel.viewSwitcherSlot}
           {controlPanel.rightSlot}
+          {createButtonNode}
         </div>
       </div>
       {controlPanel.viewControlsSlot ? (

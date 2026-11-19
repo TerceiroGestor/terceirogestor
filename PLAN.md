@@ -239,6 +239,256 @@ reescrever a string).
 tocados → só os erros pré-existentes já confirmados (nenhum novo); `npm
 run build` → ok.
 
+### Item 4 — metadata/header do Detail + toolbar do typeview (2026-11-19)
+
+Sequência de ajustes visuais pequenos, cada um confirmado ao vivo
+(Playwright headless contra o dev server, login real `admin@seed.local`)
+antes de ir pro próximo.
+
+**4.1 — metadata (4 abas + SplitView) já batia com People.** Revisão
+pedida pelo usuário: as 4 abas (Tags/Notas/Anexos/Auditoria,
+`tabOrder={["tags","notes","attachments","activity"]}`) e o painel
+lateral redimensionável já eram idênticos entre Activity e People —
+nenhuma mudança de código, só documentação. A convenção das 4 abas já
+estava escrita; o redimensionamento (`DetailShell.tsx`) não estava —
+registrado em "Redimensionamento do painel lateral" em
+`docs/canonical-web-client-standard.md`.
+
+**4.2 — cor do botão de ação extra do header.** "Registrar ocorrência"
+(`actions-detail-layout-contract.tsx`) já era ícone+tooltip sem label;
+só a cor mudou de `variant: "outline"` pra `variant: "default"` (azul,
+igual "Novo"). O equivalente em People (`family-tree`, `variant:
+"action"`, laranja) ficou de fora por decisão do usuário — registrado em
+`docs/backlog.md` com gatilho "quando People for revisado".
+
+**4.3 — badge de autosave.** Trocado texto puro ("Pronto"/"Salvando...")
+por ícone colorido (`CheckCircle2` verde / `Loader2` azul girando) dentro
+de um `Badge` sem borda, com `translate-y-[9px]` pra compensar o
+line-height do `h1` (o centro geométrico da caixa de texto não coincide
+com o centro óptico do glifo). Botão X de fechar removido — já dá pra
+voltar pelo breadcrumb. `onClose` continua na prop/plumbing de ~25
+arquivos por decisão do usuário (limpeza registrada em
+`docs/backlog.md`).
+
+**4.4 — barra do typeview principal alinhada à da relation.** O list
+principal (`ControlPanelShell.tsx`) tinha "Novo — Busca — typeview";
+virou "Busca — typeview — Novo", igual ao padrão que `RelationListHost`
+já usava (comentário no próprio código já dizia isso). Como
+`ControlPanelShell` é compartilhado, a mudança vale pra todo list
+principal, não só Atividades. Busca passou a ocupar toda a largura
+restante (removido `max-w-[860px]`/`justify-center`; coluna esquerda só
+existe no grid quando tem conteúdo real).
+
+**4.5 — token `--toolbar` + contraste de hover/active.** Usuário pediu
+uma cor de fundo pra diferenciar a barra de ferramentas do resto da
+tela; testei 5 candidatos (neutro sutil, neutro médio, 2 tons de azul,
+neutro mais escuro) direto na tela real antes de perguntar — usuário
+escolheu neutro, intensidade média, como token formal. Criado
+`--toolbar`/`--toolbar-foreground` em `globals.css` (light+dark, usuário
+ajustou o valor final manualmente depois). Isso expôs um problema:
+`hover:bg-accent` (botões `ghost`) e `hover:bg-muted/70` (abas) ficam
+quase invisíveis contra `--toolbar` porque têm luminosidade parecida —
+corrigido pra `hover:bg-background` nos dois lugares (mais claro que
+`--toolbar`, "acende" visivelmente).
+
+**4.6 — `bg-toolbar` espalhado pros outros 2 lugares que o usuário
+pediu:** lista de abas principal do Detail (`DetailTabsRenderer`, sangra
+borda a borda com `-mx-4 px-4`, mesma técnica do `headerBlock`) e a
+barra de ferramentas da relation Encontros (`RelationListHost`, vira
+`rounded-lg bg-toolbar px-3 py-2`, já que não está colada em nenhuma
+borda externa). Confirmado com o painel lateral aberto que a faixa das
+abas encosta exatamente na alça de redimensionamento, sem sobrepor.
+Tudo documentado em `docs/canonical-web-client-standard.md` ("Fundo das
+áreas de ferramentas" e "Contraste de hover/active sobre `bg-toolbar`").
+Abas laterais (Tags/Notas/Anexos/Auditoria) ficaram de fora por enquanto
+— não pedidas nesta rodada.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros em cada etapa; `npx eslint`
+nos arquivos tocados → só os erros pré-existentes de sempre
+(`react-hooks/set-state-in-effect`, confirmados via `git stash` como
+já existentes antes de cada mudança, nenhum novo introduzido). Testado
+ao vivo em todas as etapas (login real, screenshots antes/depois de
+cada ajuste, inclusive hover/active/focus de cada elemento). Dev
+servers não foram encerrados (usuário pediu pra manter rodando).
+
+**4.7 — Header + Abas + Painel Relation virando um bloco único
+(2026-11-19).** Usuário tentou ajustar manualmente os 3 pontos e não
+conseguiu o resultado ("não ficou bom") — pediu os arquivos exatos, eu
+apontei, e na sequência pediu pra eu aplicar direto. Problemas e correção:
+
+1. **Header** (`DetailShell.tsx`) — o usuário já tinha trocado pra
+   `bg-toolbar`, mas sem `-mx-4`/`px-4` current, então a cor ficava presa
+   dentro do padding do container pai (margem nas laterais, não
+   encostava na borda). Corrigido pra `-mx-4 px-4 pb-2 pt-2 bg-toolbar`
+   — mesma técnica de sangria do `headerBlock` original.
+2. **Abas** (`DetailLayoutSections.tsx`) — usuário já tinha adicionado
+   borda direita azul (`border-r-3 border-blue-600`) e badge azul, mas
+   não conseguia tirar o `rounded-md`/`gap-1.5` herdados de
+   `MODULE_TAB_TRIGGER_CLASS_NAME`/`MODULE_TABS_LIST_CLASS_NAME`
+   (constantes compartilhadas com as abas laterais). Resolvido com
+   override local via `cn(...)` só no `TabsList`/`TabsTrigger` do
+   `DetailTabsRenderer` (`gap-0`, `rounded-none`), sem tocar nas
+   constantes — não afeta `DetailSideTabs.tsx`.
+3. **Painel Relation (Encontros)** — pedido era sem margem com as abas,
+   só padding, e sem margem lateral. Como `RelationListHost.tsx` é
+   compartilhado com 7+ painéis de People (`DetailRelationTablePanel` —
+   contatos, educação, saúde, medicações etc., todos com o visual de
+   "cartão" `rounded-lg` que já estava certo pra eles), a mudança não
+   podia ser incondicional. Criada prop opt-in `flushToolbar` (default
+   `false` = cartão atual intacto; `true` = sangra com `-mx-4 px-4`, sem
+   `rounded-lg`) — só a aba Encontros passa `flushToolbar`. Pra matar o
+   `mt-4` que o `TabsContent` do `DetailTabsRenderer` sempre aplicava
+   entre a barra de abas e o conteúdo (criava uma faixa sem cor mesmo com
+   a sangria lateral certa — `overflow-hidden` no `TabsContent` impede
+   truque de margem negativa pra "puxar" o conteúdo pra cima), criado
+   `DetailTabTemplate.flushContent` (`web-client/registry/types.ts`):
+   quando `true`, `TabsContent` usa `mt-0` em vez de `mt-4`. Só a aba
+   Encontros (`actions-detail-layout-contract.tsx`) marca
+   `flushContent: true`; as outras 5 abas da Atividade continuam com o
+   respiro de `mt-4` padrão.
+
+Resultado: Header, lista de abas e barra de Encontros formam um bloco
+`bg-toolbar` único e contínuo, sem nenhuma emenda de cor visível, com o
+painel lateral aberto ou fechado. Hover de uma aba inativa agora
+preenche 100% da célula (sem sobra de canto arredondado nem gap vazio).
+Documentado em `docs/canonical-web-client-standard.md` ("Fundo das áreas
+de ferramentas" atualizada com os 2 props opt-in).
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` nos 6 arquivos
+tocados (`DetailShell.tsx`, `DetailLayoutSections.tsx`,
+`registry/types.ts`, `RelationListHost.tsx`,
+`action-occurrences-section.tsx`, `actions-detail-layout-contract.tsx`)
+→ só os erros pré-existentes de sempre, confirmados via `git stash`
+(inclusive os 4 já existentes em `action-occurrences-section.tsx`, que
+eu ainda não tinha tocado antes desta sub-etapa). Testado ao vivo: aba
+Detalhes (header+abas coladas), aba Encontros (as 3 áreas coladas), e
+hover de uma aba inativa (preenchimento completo, sem gap/rounded).
+
+**4.8 — 2 ajustes finos no bloco Header/Abas/Encontros (2026-11-19).**
+Usuário aprovou o 4.7 mas achou 2 detalhes:
+
+1. **Margem lateral direita ainda sobrava** nas Abas e no painel de
+   Encontros (não no Header). Causa raiz: o wrapper do conteúdo principal
+   em `DetailShell.tsx` tem `lg:pr-2` (reserva de 8px, provavelmente pra
+   scroll) — o Header fica fora desse wrapper (não sofre), mas
+   `DetailTabsRenderer`/`RelationListHost` ficam dentro, então o
+   `-mx-4 px-4` (que só cancela o `px-4` do container maior) deixava 8px
+   de sobra na direita em telas `lg:`. Corrigido com `lg:-mr-6` adicional
+   nos dois lugares (soma com o `-mx-4` existente, só nessa breakpoint) —
+   comentário no código explica a dependência com o `lg:pr-2`, caso
+   mude no futuro.
+2. **Divisor azul das abas ocupava 100% da altura** (`border-r-3`),
+   parecendo um "risco" no meio da aba. Trocado por um pseudo-elemento
+   (`after:...`) de 3px de largura e 50% da altura, centralizado
+   verticalmente (`top-1/2 -translate-y-1/2 h-1/2`) — um traço curto em
+   vez de uma borda inteira (CSS `border` não permite altura parcial).
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` nos 2 arquivos
+→ só o erro pré-existente de sempre em `DetailLayoutSections.tsx`
+(linha 109, já confirmado antes). Testado ao vivo: bounding box das 3
+faixas `bg-toolbar` medido via `getBoundingClientRect()` — as 3 chegam
+exatamente em `right: 1440` (viewport inteiro, 0 sobra); screenshot
+confirma o divisor como traço curto centralizado entre as abas.
+
+**4.9 — margem residual + cabeçalho da tabela sobrepondo Abas/Painel
+(2026-11-19).** Usuário reportou dois problemas: ~4-8px de margem
+residual à direita no Painel (voltou porque o usuário removeu o
+`lg:-mr-2` que eu tinha aplicado, enquanto investigava algo), e — ao
+tentar o pedido anterior de deixar o painel "fixo" (sticky) — o
+cabeçalho da tabela (linha com os nomes das colunas) passava por cima
+do Painel/Abas ao rolar.
+
+Como os servidores tinham caído (não fui eu que derrubei), e o usuário
+pediu explicitamente pra eu subir um dev server só pra testes e não
+soltar mais nada sem validar ao vivo, usei esse processo: a cada
+hipótese, media via `getBoundingClientRect()`/`getComputedStyle()` real
+no navegador antes de declarar resolvido, inclusive criando/apagando
+dados de teste reais (90 encontros via "Agendar encontros") pra ter
+linhas suficientes pra rolar.
+
+Causa raiz, descoberta por eliminação (mapeando a cadeia de ancestrais
+do `<thead>` até o scroll real): **3 wrappers diferentes** entre o
+cabeçalho sticky da tabela e o contêiner de scroll real tinham
+`overflow` != `visible` — cada um quebra `position: sticky` dos
+descendentes (regra do CSS, não bug do React):
+
+1. `TabsContent`/wrapper do conteúdo da aba (`overflow-hidden`/
+   `lg:overflow-y-auto`) — já corrigido no item 4.7 (`flushContent`).
+2. O wrapper interno do `ListView` (`overflow-auto`) e o container do
+   componente base `Table` (`overflow-x-auto`, hardcoded, sem prop pra
+   sobrescrever) — ambos novos, descobertos agora.
+3. `ListView` embrulha tudo num `<ModuleSurface>`
+   (`MODULE_SURFACE_CLASS_NAME` tem `overflow-hidden` fixo) — o
+   `bordered={false}` já usado por Encontros sobrescrevia cor/borda/
+   raio, mas nunca o `overflow`.
+
+Corrigido com o mesmo padrão opt-in das rodadas anteriores (nada muda
+por padrão em nenhum outro lugar que usa `ListView`/`Table`):
+
+- `RelationListHost.tsx`: toolbar voltou a ter `lg:-mr-2` + ganhou
+  `sticky top-11 z-10` (gruda logo abaixo das Abas, que já são
+  `sticky top-0`).
+- `components/ui/table.tsx`: nova prop `containerClassName` no `Table`
+  base (sem uso = comportamento igual a sempre).
+- `web-client/views/ListView.tsx`: nova prop
+  `stickyHeaderOffsetClassName` - quando informada, sobrescreve o
+  `top-0` do `<TableHeader>` E vira o sinal pra também soltar o
+  `overflow-auto` do wrapper interno, o `overflow-x-auto` do `Table`
+  (via `containerClassName`) e o `overflow-hidden` do `ModuleSurface`.
+- `action-occurrences-section.tsx`: único uso real até agora -
+  `stickyHeaderOffsetClassName="top-[117px]"` (44px das Abas + 73px da
+  toolbar do Painel, `flushToolbar` com `py-4`).
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` nos 6 arquivos
+→ só os erros pré-existentes de sempre (confirmados antes desta rodada).
+Testado ao vivo com dev server próprio (parado ao final): criei 90
+encontros reais via UI, rolei o contêiner de scroll de verdade (não
+simulado), medi `theadRect.top` depois do scroll - bateu exatamente
+`226.39px`, igual a `toolbarBottom` (44+73=117px, a conta fechou),
+confirmando que o cabeçalho gruda exatamente abaixo da toolbar, sem
+sobrepor nada. Dados de teste apagados via "Excluir selecionados" ao
+final (confirmado 0 linhas restantes).
+
+**4.10 — padding de volta no conteúdo das abas não-flush (2026-11-19).**
+Efeito colateral da remoção do `px-4` do container pai em
+`DetailShell.tsx` (item 4 anterior, decisão do usuário): o formulário da
+aba Detalhes (TÍTULO/STATUS/TIPO/PROJETO) e o conteúdo das abas
+Participantes/Qualidade/Equipe/Progresso e Relatório ficaram sem respiro
+nas bordas (texto colado na borda esquerda). Já tinha sinalizado isso
+antes; usuário confirmou que precisava do padding de volta.
+Corrigido com uma linha em `DetailTabsRenderer`
+(`DetailLayoutSections.tsx`): `px-4` no `TabsContent`, só quando
+`!tab.flushContent` — Encontros (único `flushContent: true` hoje)
+continua colado nas bordas como antes, sem nenhuma mudança.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → só o erro
+pré-existente de sempre. Testado ao vivo (dev server próprio, encerrado
+ao final): Detalhes e Participantes com padding correto nas bordas;
+Encontros conferido sem nenhuma regressão (continua colado).
+
+**4.11 — consolidação final em documentação (2026-11-19).** Usuário
+pediu pra virar padrão oficial de todas as telas, não só Atividades.
+Reescrevi `docs/canonical-web-client-standard.md` (seção "Visual do
+List e do Detail", renomeada de "Visual do Detail" já que agora cobre
+os dois): nova subseção "O que é automático vs o que é por módulo"
+deixando explícito que a maior parte (fundo `bg-toolbar`, ordem
+Busca→typeview→Novo, contraste de hover/active, abas sem gap/rounded)
+já vale pra **todo** módulo canônico automaticamente, porque mora em
+componentes compartilhados — não existe "módulo X ainda não migrou"
+pra essas partes, é bug se não estiver assim. As exceções genuinamente
+opt-in (`flushToolbar`/`flushContent`/`stickyHeaderOffsetClassName`,
+pro padrão "relation é a aba inteira", referência Encontros) ficaram
+marcadas à parte. Corrigi também valores que tinham ficado
+desatualizados na doc (`lg:-mr-6`→`lg:-mr-2`, `py-2`→`py-4`, `-mx-4`
+removido do header/abas — conferidos direto no código antes de
+escrever) e documentei como lição reaproveitável a regra do CSS
+("`position: sticky` quebra com qualquer ancestral `overflow` ≠
+`visible` no caminho até o scroll real") e as novas props
+(`stickyHeaderOffsetClassName`, `containerClassName`). Nova seção
+"Ordem da barra do List Principal" também criada — não existia detalhe
+técnico registrado sobre o reordenamento Busca→typeview→Novo antes
+desta rodada.
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o

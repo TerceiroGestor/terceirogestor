@@ -70,9 +70,9 @@ function DetailRelationSection<
       ? relation.primaryAction
       : action && !actionHidden
         ? {
-            ...action,
-            disabled: () => actionDisabled,
-          }
+          ...action,
+          disabled: () => actionDisabled,
+        }
         : null;
   const secondaryActions = (relation.secondaryActions ?? []).filter(
     (entry) => !(entry.hidden?.(context) ?? false),
@@ -284,24 +284,24 @@ function DetailRelationSection<
               bulkActions={
                 selectionAllowed && selectionEnabled && selectionConfig?.bulkActions?.length
                   ? (selectedRows) => (
-                      <>
-                        {selectionConfig.bulkActions
-                          ?.filter((entry) => !(entry.hidden?.(context, selectedRows) ?? false))
-                          .map((entry) => (
-                            <Button
-                              key={entry.key}
-                              type="button"
-                              size="sm"
-                              variant={entry.variant ?? "secondary"}
-                              onClick={() => entry.onClick(context, selectedRows)}
-                              disabled={entry.disabled?.(context, selectedRows) ?? false}
-                            >
-                              {entry.icon}
-                              {entry.label}
-                            </Button>
-                          ))}
-                      </>
-                    )
+                    <>
+                      {selectionConfig.bulkActions
+                        ?.filter((entry) => !(entry.hidden?.(context, selectedRows) ?? false))
+                        .map((entry) => (
+                          <Button
+                            key={entry.key}
+                            type="button"
+                            size="sm"
+                            variant={entry.variant ?? "secondary"}
+                            onClick={() => entry.onClick(context, selectedRows)}
+                            disabled={entry.disabled?.(context, selectedRows) ?? false}
+                          >
+                            {entry.icon}
+                            {entry.label}
+                          </Button>
+                        ))}
+                    </>
+                  )
                   : undefined
               }
               renderCard={
@@ -456,16 +456,32 @@ export function DetailTabsRenderer<
 
   return (
     <Tabs defaultValue={defaultTab} className="flex h-full min-h-0 flex-col">
-      <TabsList className={`${MODULE_TABS_LIST_CLASS_NAME} sticky top-0 z-10 bg-background`}>
+      <TabsList
+        className={cn(
+          MODULE_TABS_LIST_CLASS_NAME,
+          // O container pai (DetailShell.tsx) nao tem mais padding
+          // horizontal proprio - cada bloco (header/abas/relation) cuida
+          // do seu px-4 sozinho, sem depender/cancelar padding do pai.
+          // lg:-mr-2 so cancela o lg:pr-2 (reserva de scroll) do wrapper
+          // imediato em DetailShell.tsx ("lg:min-h-0 lg:flex-1 lg:pr-2") -
+          // sem isso a faixa bg-toolbar fica 8px curta da borda direita
+          // real em telas >=lg. Se esse pr-2 mudar, ajustar aqui junto.
+          "sticky top-0 z-10 w-auto gap-0 bg-toolbar px-4 lg:-mr-2",
+        )}
+      >
         {visibleTabs.map((tab) => (
           <TabsTrigger
             key={tab.key}
             value={tab.key}
-            className={MODULE_TAB_TRIGGER_CLASS_NAME}
+            className={cn(
+              MODULE_TAB_TRIGGER_CLASS_NAME,
+              "relative rounded-none data-[state=inactive]:hover:bg-background/80",
+              "after:absolute after:right-0 after:top-1/2 after:h-1/2 after:w-[2px] after:-translate-y-1/2 after:bg-blue-600 after:content-['']",
+            )}
           >
             <span>{tab.label}</span>
             {tab.badge ? (
-              <span className="ml-2 text-[11px] font-medium tabular-nums text-muted-foreground">
+              <span className="ml-2 text-[11px] font-medium tabular-nums text-blue-600">
                 {tab.badge(context)}
               </span>
             ) : null}
@@ -479,10 +495,29 @@ export function DetailTabsRenderer<
         const hasVisibleContent = Boolean(content);
 
         return (
-          <TabsContent key={tab.key} value={tab.key} className="mt-4 min-h-0 flex-1 overflow-hidden">
+          <TabsContent
+            key={tab.key}
+            value={tab.key}
+            className={cn(
+              "min-h-0 flex-1",
+              // overflow-hidden quebra position:sticky dos descendentes
+              // (CSS: sticky nao funciona se algum ancestral entre o
+              // elemento e o scroll container tiver overflow != visible)
+              // - abas flushContent (ex.: Encontros) precisam do toolbar
+              // sticky, entao ficam sem overflow-hidden aqui.
+              tab.flushContent ? "mt-0 overflow-visible" : "mt-4 overflow-hidden px-4",
+            )}
+          >
             <div className="flex h-full min-h-0 flex-col space-y-4">
               {hasVisibleContent ? (
-                <div className="lg:min-h-0 lg:shrink-0 lg:overflow-y-auto">{content}</div>
+                <div
+                  className={cn(
+                    "lg:min-h-0 lg:shrink-0",
+                    tab.flushContent ? "lg:overflow-visible" : "lg:overflow-y-auto",
+                  )}
+                >
+                  {content}
+                </div>
               ) : null}
               {hasRelations ? (
                 <div className="min-h-0 flex-1 overflow-hidden">

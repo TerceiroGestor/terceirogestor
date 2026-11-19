@@ -1353,6 +1353,7 @@ export function ActionOccurrencesSection({
       ) : null}
 
       <RelationListHost<ApiMeeting>
+        flushToolbar
         data={occurrences}
         searchText={searchText}
         onSearchTextChange={setSearchText}
@@ -1420,6 +1421,11 @@ export function ActionOccurrencesSection({
             resolveGroupValue={resolveOccurrenceGroupValue}
             resolveGroupLabel={resolveOccurrenceGroupLabel}
             bordered={false}
+            // Abas (44px) + toolbar da relation (flushToolbar, ~73px com
+            // py-4) ja ficam sticky acima, no mesmo contexto de scroll -
+            // sem isso o cabecalho da tabela tenta grudar em top-0 e passa
+            // por cima das duas. Ajustar se a altura de alguma delas mudar.
+            stickyHeaderOffsetClassName="top-[117px]"
           />
         ) : (
           <CalendarView<ApiMeeting>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
@@ -21,7 +22,8 @@ import {
 
 type RelationGroupByOption = { field: string; label: string };
 
-const CONTROL_BUTTON_CLASS_NAME = "h-8 w-8 text-muted-foreground hover:text-foreground";
+const CONTROL_BUTTON_CLASS_NAME =
+  "h-8 w-8 text-muted-foreground hover:bg-background hover:text-foreground";
 
 type RelationListHostProps<TData> = {
   title?: string;
@@ -57,6 +59,13 @@ type RelationListHostProps<TData> = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns?: ColumnDef<any, unknown>[];
+  /**
+   * true quando a relation e o conteudo inteiro da aba (ex.: Encontros) e
+   * a barra `bg-toolbar` deve encostar nas bordas reais do Detail (sem
+   * `rounded-lg`, sangrando com `-mx-4`) em vez do "cartao" com cantos
+   * arredondados usado quando a relation convive com outro conteudo.
+   */
+  flushToolbar?: boolean;
   children: React.ReactNode;
 };
 
@@ -82,6 +91,7 @@ export function RelationListHost<TData>({
   onAdd,
   viewSwitcherSlot,
   columns,
+  flushToolbar = false,
   children,
 }: RelationListHostProps<TData>) {
   const resolvedSearchView = React.useMemo<SearchViewDefinition | null>(() => {
@@ -101,13 +111,13 @@ export function RelationListHost<TData>({
     () =>
       resolvedSearchView
         ? buildQueryFacets({
-            domain,
-            groupBy,
-            searchView: resolvedSearchView,
-            onClearGroupBy: () => onGroupByChange?.([]),
-            onClearDomain: () => onDomainChange(null),
-            onRemoveDomainCondition: removeDomainCondition,
-          })
+          domain,
+          groupBy,
+          searchView: resolvedSearchView,
+          onClearGroupBy: () => onGroupByChange?.([]),
+          onClearDomain: () => onDomainChange(null),
+          onRemoveDomainCondition: removeDomainCondition,
+        })
         : [],
     [domain, groupBy, onDomainChange, onGroupByChange, removeDomainCondition, resolvedSearchView],
   );
@@ -138,12 +148,18 @@ export function RelationListHost<TData>({
 
   const content = (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3 bg-toolbar",
+          flushToolbar ? "sticky top-11 z-10 px-4 py-4 lg:-mr-2" : "rounded-lg px-3 py-2",
+        )}
+      >
         <div className="min-w-[200px] flex-1">
           <SearchBar
             value={searchText}
             onChange={onSearchTextChange}
             placeholder={searchPlaceholder}
+            className="border-border"
             facets={queryFacets}
             rightSlot={
               <div className="flex items-center gap-2">

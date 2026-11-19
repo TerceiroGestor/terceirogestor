@@ -771,6 +771,7 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: "Encontros",
       visible: ({ mode }) => mode === "edit",
       badge: ({ occurrences }) => occurrences.length || undefined,
+      flushContent: true,
       content: ({ action, projectId, token, readOnly }) =>
         action ? (
           <ActionOccurrencesSection

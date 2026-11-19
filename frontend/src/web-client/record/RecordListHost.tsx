@@ -74,7 +74,8 @@ export type RecordListHostProps<
   columns?: ColumnDef<any, unknown>[];
 };
 
-const BASE_CONTROL_BUTTON_CLASS = "h-8 w-8 text-muted-foreground hover:text-foreground";
+const BASE_CONTROL_BUTTON_CLASS =
+  "h-8 w-8 text-muted-foreground hover:bg-background hover:text-foreground";
 
 const FACET_TONE_PRIORITY: Record<NonNullable<SearchFacet["tone"]>, number> = {
   default: 0,
@@ -328,6 +329,7 @@ export function RecordListHost<
               onStateChange((previous) => ({ ...previous, searchText: next, pageIndex: 0 }))
             }
             placeholder={resolvedSearchBarPlaceholder}
+            className="border-border"
             facets={mergedFacets}
             rightSlot={
               <div className="flex items-center gap-0.5">

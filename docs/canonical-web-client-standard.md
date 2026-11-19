@@ -18,10 +18,12 @@ Cada mÃ³dulo canÃ´nico tem:
 
 O list principal Ã© sempre construÃ­do no mesmo padrÃ£o:
 
-- botÃ£o principal `Novo`
-- `SearchPanel` Ãºnico do sistema
+- `SearchPanel` Ãºnico do sistema, ocupando toda a largura disponivel
 - `Filter` e `Group` no menu do painel
 - `typeviews` no mesmo conjunto padrÃ£o
+- botÃ£o principal `Novo`, **no final, a direita** (depois do typeview -
+  ver "Visual do List e do Detail" pro detalhe visual completo: fundo
+  `bg-toolbar`, contraste de hover, ordem dos elementos)
 - colunas base comuns do mÃ³dulo
 
 ### SearchPanel
@@ -232,9 +234,39 @@ Um mÃ³dulo sÃ³ Ã© canÃ´nico quando:
 - `SearchPanel` funciona igual aos outros mÃ³dulos
 - as mesmas views estÃ£o disponÃ­veis quando o domÃ­nio suporta
 
-## Visual do Detail
+## Visual do List e do Detail
 
 Regras de estilo, para nao depender de releitura visual tela por tela.
+Cobre tanto o List Principal (`ControlPanelShell`) quanto o Detail
+(`DetailShell`/`DetailTabsRenderer`/`RelationListHost`) porque, a partir
+de 2026-11-19, os dois usam o mesmo vocabulario visual (`bg-toolbar`,
+mesma ordem de elementos, mesmo contraste de hover) - uma tela nao deve
+parecer de um sistema diferente da outra.
+
+### O que e automatico vs o que e por modulo
+
+A maior parte das regras desta secao vive em **componentes
+compartilhados** (`ControlPanelShell.tsx`, `DetailShell.tsx`,
+`DetailTabsRenderer`/`DetailLayoutSections.tsx`, `RecordListHost.tsx`,
+`SearchBar.tsx`, `RecordBrowserViewSwitcher.tsx`,
+`components/ui/toggle-group.tsx`) - isso significa que **todo modulo
+canonico ja segue automaticamente**, sem precisar de nenhuma mudanca no
+layout contract do modulo: fundo `bg-toolbar` do list principal e do
+header/abas do Detail, ordem Busca→typeview→Novo, busca ocupando a
+largura toda, contraste de hover/active, abas sem `gap`/`rounded` com
+divisor azul curto. Nao existe "modulo X ainda nao migrou" pra essas
+partes - se alguma tela nao estiver assim, e bug, nao pendencia de
+rollout.
+
+As excecoes, que **sao** opt-in e precisam de uma decisao por modulo/aba,
+estao marcadas explicitamente mais abaixo: `flushToolbar`
+(`RelationListHost`) + `flushContent` (`DetailTabTemplate`) +
+`stickyHeaderOffsetClassName` (`ListView`) - usar so quando uma relation
+e o conteudo inteiro de uma aba e deve ficar com a barra (e,
+opcionalmente, o cabecalho da tabela) fixa, colada nas abas acima -
+referencia: aba Encontros da Atividade. O variant de cor do botao de
+acao extra do header (`variant: "default"` azul vs `variant: "action"`
+laranja) tambem e decisao por modulo - ver `docs/backlog.md`.
 
 ### Header colado nas abas (padrao a partir de 2026-11-18)
 
@@ -253,13 +285,30 @@ Aplicado em Activity (`actions-detail-layout-contract.tsx`) em
 2026-11-18. Projects, Programs e People-Groups ainda tem essa barra nos
 seus `header.slot` - migrar quando esses modulos forem revisados (ver
 `docs/backlog.md`), removendo a funcao que monta a barra por inteiro, nao
-so escondendo.
+so escondendo. **Isso nao afeta o fundo do header** (`bg-toolbar`,
+proxima secao) - esse ja e automatico pra todo modulo, inclusive os 3
+que ainda tem a barra antiga; a barra antiga so fica visualmente mais
+cheia dentro do mesmo fundo, ate ser migrada.
 
 ### Abas
 
 Toda aba de Detail (principal ou do painel lateral) usa `MODULE_TABS_LIST_CLASS_NAME` / `MODULE_TAB_TRIGGER_CLASS_NAME` de `web-client/ui/ModulePrimitives.tsx`. A aba ativa ganha fundo colorido (`bg-primary/10 text-primary font-semibold`), nunca so uma linha fina - isso e o que faz o usuario perceber qual aba esta aberta sem precisar ler o texto. Abas inativas tem hover (`hover:bg-muted/70`) para ficar obvio que sao clicaveis. Uma variante de cor diferente (ex.: ambar em "Documentos sensiveis" de People) e permitida quando a aba marca algo sensivel/especial - nesse caso o padrao e reaproveitado, so a cor muda.
 
 Nao criar um novo estilo de aba por modulo. Se o modulo precisar de um componente de abas proprio (como o de People, que tem icones e scroll), ele ainda usa essas duas constantes para o `className` do `TabsTrigger`.
+
+**Abas principais (nao as laterais) tem 3 reforcos a mais, automaticos**
+(vem de `DetailTabsRenderer`, nao das constantes `MODULE_TABS_LIST_CLASS_NAME`/
+`MODULE_TAB_TRIGGER_CLASS_NAME` em si - ver "Fundo das areas de
+ferramentas" pra detalhe completo): `gap-0` entre abas + `rounded-none`
+nas triggers (em vez do `gap-1.5`/`rounded-md` padrao das constantes) pra
+cada aba preencher 100% do espaco no hover/active sem sobra de cor atras;
+um divisor azul curto (pseudo-elemento, nao `border-r`) entre cada aba; e
+`hover:bg-background/80` por cima do `hover:bg-muted/70` padrao, porque
+as abas principais agora ficam sobre `bg-toolbar`. As abas **laterais**
+(`DetailSideTabs.tsx`) continuam exatamente como este paragrafo descreve
+acima, sem nenhum dos 3 reforcos - fundo diferente (`bg-background`/
+`bg-card`), entao `hover:bg-muted/70` e `gap-1.5`/`rounded-md` ja tem
+contraste correto ali.
 
 ### Contagem nas abas (padrao a partir de 2026-11-18)
 
@@ -289,6 +338,193 @@ codigo proprio pra isso. Nao reimplementar esse comportamento dentro de
 um layout contract de modulo; se faltar o divisor em algum lugar, o
 problema esta em `hasSideSlot`/`sideOpen` nao estarem true, nao na falta
 de um componente de resize novo.
+
+### Ordem da barra do List Principal (padrao a partir de 2026-11-19)
+
+`ControlPanelShell.tsx` e um grid de 3 colunas
+(`[auto_minmax(0,1fr)_auto]`): esquerda (`actionSlot`/`leftSlot` - hoje
+vazia em todo modulo, nenhum usa), centro (busca + filtro + agrupamento +
+favoritos), direita (`viewSwitcherSlot` + `rightSlot` + o botao "Novo").
+**"Novo" fica no final da direita, depois do typeview** - nao mais no
+inicio a esquerda. Mesma ordem que `RelationListHost.tsx` ja usava
+("busca → typeview → Novo", comentario no proprio codigo). A busca ocupa
+toda a largura restante (sem `max-w-*`, sem `justify-center`) - antes
+tinha um teto de largura e ficava centralizada, mesmo sobrando espaco
+vazio dos dois lados. A coluna esquerda so entra no grid
+(`lg:grid-cols-[auto_minmax(0,1fr)_auto]`) quando tem conteudo de fato;
+caso contrario o grid vira 2 colunas
+(`lg:grid-cols-[minmax(0,1fr)_auto]`) pra busca comecar colada na borda
+esquerda, sem o gap morto que uma coluna vazia deixaria.
+
+### Fundo das "areas de ferramentas" (`bg-toolbar`, padrao a partir de 2026-11-19)
+
+Toda barra que agrupa busca + Colunas + Filtros + typeview + "Novo" -
+seja a barra do list principal (`ControlPanelShell.tsx`), a lista de abas
+do Detail (`DetailTabsRenderer`, `DetailLayoutSections.tsx`) ou a barra de
+uma `relation` (`RelationListHost.tsx`) - usa o token `--toolbar` /
+`--color-toolbar` (`globals.css`, light+dark) como fundo, nunca
+`bg-background`/`bg-muted` direto. A intencao e o usuario reconhecer de
+relance "isso e uma ferramenta" so pelo tom de cinza, em qualquer tela.
+Nao criar um tom novo por modulo - sempre `bg-toolbar`.
+
+Onde aplicar (valores conferidos no codigo em 2026-11-19, apos a rodada
+final de ajuste - se o `px-4` do container pai de `DetailShell.tsx`
+("w-full pb-3 pt-0 ...") for reintroduzido algum dia, todo `-mx-4`/`-mr-*`
+abaixo precisa ser revisado, porque hoje nenhum deles cancela esse
+`px-4` - ele nao existe mais):
+
+- `ControlPanelShell.tsx`: a div raiz do shell inteiro (`bg-toolbar`, sem
+  `backdrop-blur` - o fundo e solido, o blur so fazia sentido quando
+  simulava transparencia sobre `bg-background/90`).
+- `headerBlock` do Detail (`DetailShell.tsx`): `"sticky top-0 px-4 z-20
+  pb-2 pt-2 bg-toolbar"` - so `px-4` direto (sem `-mx-4`, porque o
+  container pai nao tem padding proprio pra cancelar), **sem** margem
+  (`mb-*`) entre ele e a lista de abas logo abaixo, pra virar um unico
+  bloco continuo com a mesma cor, nao duas faixas separadas.
+- `DetailTabsRenderer` (`DetailLayoutSections.tsx`): o `TabsList`
+  principal do Detail usa `"sticky top-0 z-10 w-auto gap-0 bg-toolbar
+  px-4 lg:-mr-2"`. O `lg:-mr-2` cancela o `lg:pr-2` que o wrapper
+  imediato do conteudo (`"lg:min-h-0 lg:flex-1 lg:pr-2 lg:overflow-y-auto"`
+  em `DetailShell.tsx`) reserva pra scroll - sem ele sobra uma tira de
+  8px sem `bg-toolbar` na borda direita em telas `lg:`; se esse `pr-2`
+  mudar de valor algum dia, o `-mr-2` precisa acompanhar. Quando o
+  painel lateral esta aberto, a faixa encosta exatamente na alca de
+  redimensionamento, sem sobrepor. `gap-1.5` do
+  `MODULE_TABS_LIST_CLASS_NAME` e sobrescrito pra `gap-0` e `rounded-md`
+  do `MODULE_TAB_TRIGGER_CLASS_NAME` pra `rounded-none` (via `cn(...)`
+  local, constantes compartilhadas intocadas - ver secao "Abas") pra
+  cada aba preencher 100% do espaco no hover/active, sem sobra de cor de
+  fundo entre elas. Cada aba tambem ganha um divisor azul entre abas
+  (inclusive depois da ultima) - **nao** e um `border-r`, que ocuparia
+  100% da altura e vira um "risco" visual grande; e um pseudo-elemento
+  (`after:...`) de 3px de largura por 50% da altura, centralizado
+  verticalmente (`relative` na trigger, `after:absolute after:top-1/2
+  after:-translate-y-1/2 after:h-1/2`) - um traco curto, nao uma borda
+  inteira. O badge de contagem (`tab.badge`) usa `text-blue-600` em vez
+  de `text-muted-foreground`. Quando `tab.flushContent` e falso (a
+  maioria das abas), o `TabsContent` ganha `px-4` (alem do `mt-4` ja
+  existente) - sem isso o conteudo da aba (formulario, relation antiga)
+  fica colado nas bordas junto com a faixa `bg-toolbar`, o que nao e
+  desejado fora da propria faixa de ferramentas.
+- `RelationListHost.tsx`: tem 2 variantes, controladas pela prop
+  `flushToolbar` (default `false`):
+  - `flushToolbar=false` (padrao, usado por todo `DetailRelationTablePanel`
+    - paineis de pessoa como contatos/educacao/saude/etc.): barra
+    `rounded-lg bg-toolbar px-3 py-2`, um "cartao" de ferramentas solto
+    dentro do conteudo da aba. **Nao mudar esse padrao** sem revisar
+    esses paineis especificamente.
+  - `flushToolbar=true` (usado so por Encontros ate agora): barra
+    `"sticky top-11 z-10 px-4 py-4 lg:-mr-2 bg-toolbar"` - sem
+    `rounded-lg`, sangrando ate a borda real igual as abas (mesmo
+    `lg:-mr-2` e pela mesma razao do `TabsList` acima). `sticky top-11`
+    (44px = altura fixa do `TabsList`, `h-11`) gruda a barra logo abaixo
+    da lista de abas (que ja e `sticky top-0` no mesmo contexto de
+    scroll) - so os dados de `children` (a tabela) rolam por baixo. Usar
+    quando a relation e o conteudo inteiro da aba e deve "colar"
+    visualmente nas abas acima **e** ficar fixa durante o scroll.
+  - Quando `flushToolbar=true`, a aba correspondente em
+    `DetailTabTemplate` (`web-client/registry/types.ts`) tambem precisa de
+    `flushContent: true` - isso tira o `mt-4`/`px-4`/`overflow-hidden` que
+    o `TabsContent` (`DetailTabsRenderer`) usa por padrao entre a barra
+    de abas e o conteudo (sem isso, sobra uma faixa sem cor entre as
+    abas e a toolbar da relation, e o `overflow-hidden` quebra o
+    `sticky` - ver "Por que `position: sticky` as vezes nao gruda"
+    abaixo).
+- Side tabs (`StandardDetailMetadataSide`/`DetailSideTabs.tsx`) **nao**
+  mudam por enquanto - ficam de fora ate serem revisadas especificamente.
+
+**Resultado esperado:** Header + lista de abas + (quando `flushToolbar`)
+a barra da relation formam um unico bloco `bg-toolbar` sem nenhuma quebra
+de cor entre eles - e a razao de existirem `flushContent`/`flushToolbar`
+como opt-in, em vez de mudar o comportamento padrao pra todo mundo.
+
+### Cabecalho de tabela fixo dentro de uma relation `flushToolbar`
+
+Quando a relation `flushToolbar` tem muitos registros e a tabela rola, o
+cabecalho de colunas (`<thead>`) tambem deveria ficar fixo, logo abaixo
+da toolbar - senao ele rola junto com as linhas e passa por baixo (ou,
+sem o ajuste certo, por cima) da toolbar/abas. Mecanismo (`ListView.tsx`):
+
+- Prop `stickyHeaderOffsetClassName` no `ListView` - quando informada,
+  substitui o `top-0` padrao do `<TableHeader>` por um offset customizado
+  (ex.: `"top-[117px]"` = 44px das Abas + 73px da toolbar `flushToolbar`
+  com `py-4`). So usar quando o `ListView` estiver dentro de uma relation
+  `flushToolbar`; em qualquer outro lugar (List Principal, relations
+  normais) o padrao (`top-0`, sem a prop) continua certo.
+- Passar essa prop tambem muda automaticamente, dentro do `ListView`, o
+  `overflow` de 3 wrappers internos pra `visible` (o wrapper proprio, o
+  container do componente base `Table` via nova prop `containerClassName`
+  em `components/ui/table.tsx`, e o `ModuleSurface` que embrulha o
+  `ListView` inteiro) - necessario pelo motivo da proxima secao. Nenhum
+  desses 3 muda quando a prop nao e passada - zero efeito em qualquer
+  outro uso de `ListView`/`Table`.
+- Referencia completa: `action-occurrences-section.tsx` (Encontros),
+  unico uso ate agora.
+
+### Por que `position: sticky` as vezes nao gruda
+
+Licao reutilizavel, nao especifica de Encontros: **`position: sticky`
+para de funcionar se qualquer ancestral entre o elemento e o verdadeiro
+contêiner de scroll tiver `overflow` diferente de `visible`** - mesmo
+que esse ancestral nao esteja de fato cortando nada no momento (a mera
+presenca de `overflow: hidden/auto/scroll` ja quebra, nao precisa estar
+"ativo"). Isso vale pra `overflow-x` sozinho tambem, porque o navegador
+forca o `overflow-y` correspondente a sair de `visible` quando um dos
+dois eixos nao e `visible` (regra do proprio CSS Overflow).
+
+Pra achar a causa quando um `sticky` nao gruda: no DevTools, suba a
+arvore de ancestrais a partir do elemento sticky ate o contêiner de
+scroll real (ou via `getComputedStyle(el).overflow` em cada nivel) e
+procure o primeiro `overflow` != `visible` no caminho - **esse** e quem
+esta quebrando, nao necessariamente o pai direto. Neste modulo ja
+apareceu em 3 niveis diferentes ao mesmo tempo (`TabsContent`, o wrapper
+interno do `ListView`, o container do `Table`, e o `ModuleSurface`) -
+corrigir so um nao resolve se outro, mais acima ou mais abaixo na
+cadeia, continuar quebrando.
+
+### Contraste de hover/active sobre `bg-toolbar` (padrao a partir de 2026-11-19)
+
+`bg-toolbar` e visivelmente mais escuro que `bg-background`/`bg-muted`
+(era a lacuna original: o hover `hover:bg-accent` do botao `ghost` e o
+`hover:bg-muted/70` das abas quase desapareciam contra o novo fundo,
+porque `--accent`/`--muted` tem luminosidade quase igual a `--toolbar`).
+A correcao usada em todo lugar: hover/estado ativo usam `bg-background`
+(mais claro que `--toolbar`) pra "acender" visivelmente o elemento, nunca
+`bg-accent`/`bg-muted` dentro de uma area `bg-toolbar`.
+
+- Botoes `ghost` icon-only da toolbar (Atualizar/Colunas/Filtros):
+  `BASE_CONTROL_BUTTON_CLASS` (`RecordListHost.tsx`) e
+  `CONTROL_BUTTON_CLASS_NAME` (`RelationListHost.tsx`, mesmo valor) ganham
+  `hover:bg-background` - essas duas constantes tem que continuar iguais
+  entre si.
+- Typeview (`RecordBrowserViewSwitcher.tsx`, usado por `ViewSwitcher` em
+  ambas as toolbars): nao precisou de override custom de cor - o
+  `ToggleGroupItem` base (`components/ui/toggle-group.tsx`) ja tem
+  `hover:bg-background/60` e `data-[state=on]:bg-background
+  data-[state=on]:shadow-sm` prontos; o unico ajuste foi parar de
+  sobrescrever isso com um estilo proprio (borda inferior colorida) e so
+  reforcar o hover pra `hover:bg-background/80`. Preferir sempre o
+  comportamento padrao do componente base a inventar um estilo de
+  selecao novo.
+- Abas do Detail (`MODULE_TAB_TRIGGER_CLASS_NAME`): o hover inativo
+  (`data-[state=inactive]:hover:bg-muted/70`, definido em
+  `ModulePrimitives.tsx`) **nao foi alterado na constante compartilhada**
+  porque ela tambem atende as abas laterais (ainda em `bg-background`/
+  `bg-card`, onde `bg-muted/70` continua com contraste correto). Em vez
+  disso, `DetailTabsRenderer` acrescenta
+  `data-[state=inactive]:hover:bg-background/80` por cima, via `cn(...)`,
+  só nas abas principais (que já estão sobre `bg-toolbar`). Se outro
+  lugar precisar da mesma cor de hover de `MODULE_TAB_TRIGGER_CLASS_NAME`
+  sobre um fundo `bg-toolbar`, repetir esse padrão de override local -
+  não mudar a constante global.
+- Linha inferior da busca (`SearchBar.tsx`): o `className` passado pelo
+  chamador agora chega ate a `div` com a borda em **todos** os casos (tinha
+  um caso - busca com `facets`/`rightSlot` - que silenciosamente ignorava
+  o `className`; corrigido). `RecordListHost.tsx` e `RelationListHost.tsx`
+  passam `className="border-border"` (opacidade cheia, em vez de
+  `border-border/60`) especificamente por estarem dentro de `bg-toolbar` -
+  outros usos de `SearchBar` (dialogs de picker, fundo branco) continuam
+  sem essa prop, usando o `border-border/60` padrao do componente.
 
 ### Filtro de periodo na relation (`dateRange`, 2026-11-18, legado)
 

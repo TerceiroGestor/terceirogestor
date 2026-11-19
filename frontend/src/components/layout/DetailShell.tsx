@@ -235,7 +235,7 @@ export function DetailShell({
   ) : null;
 
   const headerBlock = (
-    <div className="sticky top-0 z-20 -mx-4 mb-2 border-b border-border/60 bg-background/95 px-4 pb-2 pt-0 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+    <div className="sticky top-0 px-4 z-20 pb-2 pt-2 bg-toolbar">
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2.5">
@@ -305,7 +305,7 @@ export function DetailShell({
 
       <div
         className={cn(
-          "w-full px-4 pb-3 pt-0 lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))] lg:overflow-hidden",
+          "w-full pb-3 pt-0 lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))] lg:overflow-hidden",
           className,
         )}
       >

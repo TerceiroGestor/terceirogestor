@@ -47,9 +47,9 @@ export function RecordBrowserViewSwitcher<V extends string>({
           title={option.label}
           aria-label={option.label}
           className={cn(
-            "rounded-none border-b-2 border-transparent bg-transparent px-2 text-muted-foreground shadow-none",
-            "data-[state=on]:border-primary data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:shadow-none",
-            "hover:bg-transparent hover:text-foreground",
+            "border-transparent bg-transparent px-2 text-muted-foreground shadow-none",
+            "data-[state=on]:text-foreground data-[state=on]:shadow-none",
+            "hover:bg-background/80 hover:text-foreground",
             itemClassName,
           )}
         >

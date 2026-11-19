@@ -747,6 +747,13 @@ export type DetailTabTemplate<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   relations?: DetailRelationConfig<TContext, any>[];
   emptyLabel?: string;
+  /**
+   * true quando `content` ja renderiza seu proprio `bg-toolbar` colado
+   * (ex.: `RelationListHost` com `flushToolbar`) - remove o respiro padrao
+   * (`mt-4`) entre a barra de abas e o conteudo, pra nao deixar uma faixa
+   * sem cor entre os dois.
+   */
+  flushContent?: boolean;
 };
 
 export type DetailLayoutConfig<

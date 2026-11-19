@@ -202,8 +202,13 @@ export function SearchBar({
 
   if (showFacets || showRight) {
     return (
-      <div className={cn("w-full", className)}>
-        <div className="flex min-h-10 w-full items-center gap-2 border-b border-border/60 bg-transparent px-0 py-1 transition-colors focus-within:border-primary">
+      <div className="w-full">
+        <div
+          className={cn(
+            "flex min-h-10 w-full items-center gap-2 border-b border-border/60 bg-transparent px-0 py-1 transition-colors focus-within:border-primary",
+            className,
+          )}
+        >
           <Search className="size-4 shrink-0 text-muted-foreground" />
 
           {showFacets ? (
