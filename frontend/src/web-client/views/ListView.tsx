@@ -281,6 +281,10 @@ function defaultGroupLabel(_field: string, value: unknown) {
   return label ? label : "Sem valor";
 }
 
+function defaultResolveGroupValue(field: string, row: unknown) {
+  return (row as Record<string, unknown>)[field];
+}
+
 function resolveGroupValues(value: unknown) {
   if (!Array.isArray(value)) {
     return [value];
@@ -311,12 +315,14 @@ function buildGroupNodes<TData>({
   depth,
   parentKey,
   resolveGroupLabel,
+  resolveGroupValue,
 }: {
   rows: Row<TData>[];
   fields: string[];
   depth: number;
   parentKey: string;
   resolveGroupLabel: (field: string, value: unknown) => string;
+  resolveGroupValue: (field: string, row: TData) => unknown;
 }): GroupNode<TData>[] {
   if (!fields.length) return [];
 
@@ -324,8 +330,7 @@ function buildGroupNodes<TData>({
   const map = new Map<string, { key: string; value: unknown; label: string; rows: Row<TData>[] }>();
 
   rows.forEach((row) => {
-    const raw = row.original as Record<string, unknown>;
-    const values = resolveGroupValues(raw[field]);
+    const values = resolveGroupValues(resolveGroupValue(field, row.original));
 
     values.forEach((value) => {
       const label = resolveGroupLabel(field, value);
@@ -350,6 +355,7 @@ function buildGroupNodes<TData>({
               depth: depth + 1,
               parentKey: group.key,
               resolveGroupLabel,
+              resolveGroupValue,
             })
           : null;
 
@@ -521,6 +527,7 @@ export function ListView<TData>({
   getRowId,
   groupByFields,
   resolveGroupLabel = defaultGroupLabel,
+  resolveGroupValue = defaultResolveGroupValue,
   enableColumnTools = true,
   showColumnVisibilityButton = true,
   initialColumnPinning,
@@ -540,6 +547,13 @@ export function ListView<TData>({
   getRowId?: (row: TData, index: number) => string;
   groupByFields?: string[] | null;
   resolveGroupLabel?: (field: string, groupValue: unknown) => string;
+  /**
+   * De onde tirar o valor de agrupamento para um campo - por padrão lê
+   * `row[field]` diretamente. Informe quando o campo não é uma propriedade
+   * plana (ex.: uma lista de objetos relacionados) e precisa de um cálculo
+   * (ex.: `row.peopleGroups.map(g => g.peopleGroup.name)`).
+   */
+  resolveGroupValue?: (field: string, row: TData) => unknown;
   enableColumnTools?: boolean;
   /**
    * Mostra o botão "Colunas" dentro da própria lista. Desative quando o
@@ -679,8 +693,9 @@ export function ListView<TData>({
       depth: 0,
       parentKey: "",
       resolveGroupLabel,
+      resolveGroupValue,
     });
-  }, [groupFields, resolveGroupLabel, table]);
+  }, [groupFields, resolveGroupLabel, resolveGroupValue, table]);
 
   const [openByKey, setOpenByKey] = React.useState<Record<string, boolean>>({});
   const isOpen = React.useCallback((key: string) => openByKey[key] ?? true, [openByKey]);

@@ -168,10 +168,7 @@ function resolveOccurrenceStatusBadge(status: OccurrenceStatus) {
   return <Badge variant="secondary">{label}</Badge>;
 }
 
-function buildOccurrenceColumns(params: {
-  onDelete: (occurrence: ApiMeeting) => void;
-  canUpdate: boolean;
-}): ColumnDef<ApiMeeting>[] {
+function buildOccurrenceColumns(): ColumnDef<ApiMeeting>[] {
   return [
     {
       id: "scheduledDate",
@@ -216,23 +213,6 @@ function buildOccurrenceColumns(params: {
         ) : (
           "—"
         ),
-    },
-    {
-      id: "actions",
-      header: "",
-      enableHiding: false,
-      cell: ({ row }) =>
-        params.canUpdate ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            onClick={() => params.onDelete(row.original)}
-          >
-            Excluir
-          </Button>
-        ) : null,
     },
   ];
 }
@@ -1258,30 +1238,6 @@ export function ActionOccurrencesSection({
     void loadTeamGroups();
   }, [loadOccurrences, loadGroups, loadTeamGroups]);
 
-  const handleDelete = React.useCallback(
-    async (occurrence: ApiMeeting) => {
-      const confirmed = await confirm({
-        title: "Excluir encontro",
-        description: "Excluir este encontro? Essa ação não pode ser desfeita.",
-        confirmLabel: "Excluir",
-        confirmVariant: "destructive",
-      });
-      if (!confirmed) return;
-      try {
-        await deleteMeeting(token, projectId, actionId, occurrence.id);
-        toast({ title: "Encontro excluído" });
-        void loadOccurrences();
-      } catch (err) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: resolveErrorMessage(err, "Falha ao excluir o encontro."),
-        });
-      }
-    },
-    [confirm, token, projectId, actionId, toast, loadOccurrences],
-  );
-
   const buildOccurrenceSearchRecord = React.useCallback(
     (item: ApiMeeting) => ({
       status: item.status,
@@ -1290,6 +1246,30 @@ export function ActionOccurrencesSection({
     }),
     [],
   );
+
+  const resolveOccurrenceGroupValue = React.useCallback((field: string, row: ApiMeeting): unknown => {
+    switch (field) {
+      case "status":
+        return row.status;
+      case "peopleGroups":
+        return row.peopleGroups.map((link) => link.peopleGroup.name);
+      case "scheduledDate":
+        return row.scheduledDate.slice(0, 10);
+      default:
+        return undefined;
+    }
+  }, []);
+
+  const resolveOccurrenceGroupLabel = React.useCallback((field: string, value: unknown): string => {
+    if (field === "status") {
+      return OCCURRENCE_STATUS_LABELS[value as OccurrenceStatus] ?? "Sem valor";
+    }
+    if (field === "scheduledDate") {
+      return typeof value === "string" && value ? formatDateOnly(value) : "Sem valor";
+    }
+    const label = String(value ?? "").trim();
+    return label ? label : "Sem valor";
+  }, []);
 
   const filterFields = React.useMemo<SearchFieldDefinition[]>(
     () => [
@@ -1358,10 +1338,7 @@ export function ActionOccurrencesSection({
     }
   }, [confirm, readOnly, selectedRows, token, projectId, actionId, toast, loadOccurrences]);
 
-  const columns = React.useMemo(
-    () => buildOccurrenceColumns({ onDelete: handleDelete, canUpdate: !readOnly }),
-    [handleDelete, readOnly],
-  );
+  const columns = React.useMemo(() => buildOccurrenceColumns(), []);
 
   const viewOptions: RecordBrowserViewOption<"list" | "calendar">[] = [
     { value: "list", label: "Lista", icon: getStandardViewIcon("list") },
@@ -1384,7 +1361,11 @@ export function ActionOccurrencesSection({
         onDomainChange={setDomain}
         groupBy={groupBy}
         onGroupByChange={setGroupBy}
-        groupByOptions={[{ field: "status", label: "Status" }]}
+        groupByOptions={[
+          { field: "status", label: "Status" },
+          { field: "peopleGroups", label: "Grupo de pessoas" },
+          { field: "scheduledDate", label: "Data" },
+        ]}
         filterFields={filterFields}
         buildSearchRecord={buildOccurrenceSearchRecord}
         searchActionId="activity.occurrences"
@@ -1437,6 +1418,8 @@ export function ActionOccurrencesSection({
             onRowClick={(row) => setEditTarget(row)}
             showColumnVisibilityButton={false}
             groupByFields={groupBy}
+            resolveGroupValue={resolveOccurrenceGroupValue}
+            resolveGroupLabel={resolveOccurrenceGroupLabel}
             bordered={false}
           />
         ) : (
