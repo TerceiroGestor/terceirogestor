@@ -465,6 +465,15 @@ function ActivityDetailMain({
           />
         </DetailSectionField>
       </div>
+
+      <div className="mt-6">
+        <ActivityPlanningSection
+          draft={draft}
+          setDraft={setDraft}
+          readOnly={readOnly}
+          onCommitField={onCommitField}
+        />
+      </div>
     </div>
   );
 }
@@ -897,15 +906,12 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
     },
     {
       key: "progress",
-      label: "Planejamento e Relatório",
+      label: "Progresso e Relatório",
       visible: ({ mode }) => mode === "edit",
       content: ({
         action,
-        draft,
-        setDraft,
         readOnly,
         attachmentUploading,
-        onCommitField,
         onSaveActionPatch,
         selectedOccurrence,
         reportRows,
@@ -915,12 +921,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         canReadPeople,
       }) => (
         <div className="space-y-6">
-          <ActivityPlanningSection
-            draft={draft}
-            setDraft={setDraft}
-            readOnly={readOnly}
-            onCommitField={onCommitField}
-          />
           <ActionProgressSection
             action={action}
             readOnly={readOnly}
