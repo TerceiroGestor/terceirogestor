@@ -231,6 +231,25 @@ Um mÃ³dulo sÃ³ Ã© canÃ´nico quando:
 
 Regras de estilo, para nao depender de releitura visual tela por tela.
 
+### Header colado nas abas (padrao a partir de 2026-11-18)
+
+Nao usar `header.slot` pra mostrar uma barra de campos (Status/Tipo/
+Periodo/Cadastro etc.) entre o titulo e as abas - isso suja a tela e
+quebra a leitura visual sem agregar nada que o formulario principal ja
+nao mostre. O cabecalho do Detail fica só com titulo + acoes de topo;
+logo abaixo, colado, vem a lista de abas (sem nenhum espaco/elemento no
+meio - `DetailShell.tsx` confirma que `headerInfoSlot` vazio nao deixa
+margem nenhuma). Os campos que apareciam nessa barra (Status, Tipo,
+relacionamento principal) voltam pro formulario principal, na primeira
+linha dele (ver secao seguinte); um campo que nao tenha outro lugar
+natural (ex.: data de cadastro) fica disponivel so via Auditoria.
+
+Aplicado em Activity (`actions-detail-layout-contract.tsx`) em
+2026-11-18. Projects, Programs e People-Groups ainda tem essa barra nos
+seus `header.slot` - migrar quando esses modulos forem revisados (ver
+`docs/backlog.md`), removendo a funcao que monta a barra por inteiro, nao
+so escondendo.
+
 ### Abas
 
 Toda aba de Detail (principal ou do painel lateral) usa `MODULE_TABS_LIST_CLASS_NAME` / `MODULE_TAB_TRIGGER_CLASS_NAME` de `web-client/ui/ModulePrimitives.tsx`. A aba ativa ganha fundo colorido (`bg-primary/10 text-primary font-semibold`), nunca so uma linha fina - isso e o que faz o usuario perceber qual aba esta aberta sem precisar ler o texto. Abas inativas tem hover (`hover:bg-muted/70`) para ficar obvio que sao clicaveis. Uma variante de cor diferente (ex.: ambar em "Documentos sensiveis" de People) e permitida quando a aba marca algo sensivel/especial - nesse caso o padrao e reaproveitado, so a cor muda.

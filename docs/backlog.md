@@ -415,13 +415,15 @@ registro do service worker ou procurar em outro lugar.
 ## Barra de Status/Tipo/Período/Cadastro no header do Detail (2026-11-18)
 
 Removida da Atividade a pedido do usuário ("suja a tela, quebra a lógica
-visual") — ver `PLAN.md`. Projects, Programs e People-Groups ainda têm
-essa mesma barra (`header.slot`) nos seus respectivos
-`*-detail-layout-contract.tsx`. Não foi uma decisão de generalizar o
-padrão, só de remover na Atividade por ora.
-**Gatilho:** se o usuário gostar do resultado na Atividade depois de usar
-por um tempo e pedir pra tirar dos outros módulos também — remover o
-`header.slot` dos outros 3 contracts do mesmo jeito (apagar a função que
-monta a barra, não só esconder) e atualizar
-`docs/canonical-web-client-standard.md` (seção `headSlot`) pra registrar
-que a barra deixou de ser obrigatória.
+visual") — ver `PLAN.md`. Usuário confirmou gostar do resultado e pediu
+pra documentar como padrão (feito em
+`docs/canonical-web-client-standard.md`, seção "Header colado nas
+abas"). Projects, Programs e People-Groups ainda têm essa mesma barra
+(`header.slot`) nos seus respectivos `*-detail-layout-contract.tsx` —
+ainda não migrados.
+**Gatilho:** quando o usuário pedir pra revisar um desses 3 módulos
+especificamente (igual está fazendo com Atividades agora) — remover o
+`header.slot` do contract correspondente do mesmo jeito (apagar a função
+que monta a barra, não só esconder) e levar os campos que ela mostrava
+pro formulário principal, seguindo a mesma convenção de primeira linha
+(Título/Status/Tipo/relacionamento principal) adotada na Atividade.
