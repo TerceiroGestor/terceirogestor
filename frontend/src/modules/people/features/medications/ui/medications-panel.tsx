@@ -137,7 +137,6 @@ export function MedicationsPanel({ personId }: { personId: string }) {
       searchPlaceholder="Pesquisar medicacoes"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleMedicationPath(personId), tenantSlug)}
-      addLabel="Nova medicacao"
       loading={isLoading}
       error={error}
       emptyMessage="Nenhuma medicacao cadastrada."

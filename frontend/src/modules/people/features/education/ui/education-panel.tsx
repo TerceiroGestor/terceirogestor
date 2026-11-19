@@ -117,7 +117,6 @@ export function EducationPanel({ personId }: { personId: string }) {
       searchPlaceholder="Pesquisar escolaridade"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleEducationPath(personId), tenantSlug)}
-      addLabel="Novo registro"
       loading={isLoading}
       error={error}
       emptyMessage="Nenhum registro de escolaridade."

@@ -18,7 +18,6 @@ type DetailRelationTablePanelProps<TData> = {
   filterRow?: (row: TData, query: string) => boolean;
   onAdd?: () => void;
   addHref?: string;
-  addLabel?: string;
   loading?: boolean;
   error?: string | null;
   emptyMessage?: string;
@@ -40,7 +39,6 @@ export function DetailRelationTablePanel<TData>({
   filterRow,
   onAdd,
   addHref,
-  addLabel = "Novo registro",
   loading = false,
   error = null,
   emptyMessage = "Nenhum registro encontrado.",
@@ -93,7 +91,6 @@ export function DetailRelationTablePanel<TData>({
       searchPlaceholder={searchPlaceholder}
       filteredCount={filteredRows.length}
       addHref={addHref}
-      addLabel={addLabel}
       onAdd={onAdd}
     >
       {error ? (

@@ -177,7 +177,6 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
       searchPlaceholder="Pesquisar financeiro"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleFinancialEntryPath(personId), tenantSlug)}
-      addLabel="Novo registro"
       loading={isLoading}
       error={error}
       emptyMessage="Nenhum registro financeiro cadastrado."

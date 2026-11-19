@@ -104,7 +104,6 @@ export function DetentionsPanel({ personId }: { personId: string }) {
       searchPlaceholder="Pesquisar registros"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleDetentionPath(personId), tenantSlug)}
-      addLabel="Novo registro"
       loading={isLoading}
       error={error}
       emptyMessage="Nenhum registro de reclusao."

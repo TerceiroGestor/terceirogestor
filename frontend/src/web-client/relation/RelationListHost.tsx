@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
@@ -39,8 +39,13 @@ type RelationListHostProps<TData> = {
   searchPlaceholder?: string;
   filteredCount: number;
   addHref?: string;
-  addLabel?: string;
   onAdd?: () => void;
+  /**
+   * Renderizado entre a busca e o botão "Novo" - ex.: um seletor de
+   * visualização (Lista/Calendário) com `RecordBrowserViewSwitcher`. Fica
+   * na mesma linha, não é um slot separado abaixo da busca.
+   */
+  viewSwitcherSlot?: React.ReactNode;
   /**
    * Quando informado, mostra o botão "Colunas" na mesma barra do filtro
    * (via `ColumnVisibilityMenu`/`ColumnVisibilityProvider`,
@@ -71,19 +76,19 @@ export function RelationListHost<TData>({
   searchPlaceholder = "Pesquisar registros",
   filteredCount,
   addHref,
-  addLabel = "Novo registro",
   onAdd,
+  viewSwitcherSlot,
   columns,
   children,
 }: RelationListHostProps<TData>) {
   const resolvedSearchView = React.useMemo<SearchViewDefinition | null>(() => {
     if (!filterFields?.length) return null;
     return {
-      id: searchActionId ?? `detail-relation:${title ?? addLabel ?? "records"}`,
+      id: searchActionId ?? `detail-relation:${title ?? "records"}`,
       model: "detail.relation",
       fields: filterFields,
     };
-  }, [addLabel, filterFields, searchActionId, title]);
+  }, [filterFields, searchActionId, title]);
 
   const removeDomainCondition = React.useCallback((index: number) => {
     onDomainChange(removeConditionAtIndex(domain, "and", index));
@@ -130,7 +135,7 @@ export function RelationListHost<TData>({
   const content = (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[280px] flex-1">
+        <div className="min-w-[200px] max-w-[360px] flex-1">
           <SearchBar
             value={searchText}
             onChange={onSearchTextChange}
@@ -177,23 +182,15 @@ export function RelationListHost<TData>({
             }
           />
         </div>
+        {viewSwitcherSlot ? <div className="shrink-0">{viewSwitcherSlot}</div> : null}
         {addHref ? (
-          <Link
-            href={addHref}
-            className="inline-flex h-10 shrink-0 items-center justify-end gap-1 border-b border-transparent px-0 text-base font-medium text-foreground transition hover:text-primary"
-          >
-            <span>{addLabel}</span>
-            <ChevronRight className="size-4" />
-          </Link>
+          <Button type="button" size="sm" className="shrink-0" asChild>
+            <Link href={addHref}>Novo</Link>
+          </Button>
         ) : onAdd ? (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="inline-flex h-10 shrink-0 items-center justify-end gap-1 border-b border-transparent px-0 text-base font-medium text-foreground transition hover:text-primary"
-          >
-            <span>{addLabel}</span>
-            <ChevronRight className="size-4" />
-          </button>
+          <Button type="button" size="sm" className="shrink-0" onClick={onAdd}>
+            Novo
+          </Button>
         ) : null}
       </div>
 

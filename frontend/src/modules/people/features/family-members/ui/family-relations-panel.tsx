@@ -209,7 +209,6 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
       searchPlaceholder="Pesquisar familiares"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleFamilyRelationPath(personId), tenantSlug)}
-      addLabel="Novo vinculo"
       loading={detailedLoading}
       error={detailedError}
       emptyMessage="Nenhum vinculo familiar cadastrado."

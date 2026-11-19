@@ -130,7 +130,6 @@ export function HealthConditionsPanel({ personId }: { personId: string }) {
       searchPlaceholder="Pesquisar condicoes"
       filterRow={filterRow}
       addHref={withTenantPath(buildPeopleHealthConditionPath(personId), tenantSlug)}
-      addLabel="Nova condicao"
       loading={isLoading}
       error={error}
       emptyMessage="Nenhuma condicao cadastrada."

@@ -415,7 +415,6 @@ export function PersonContactsPanel({
         searchPlaceholder="Pesquisar contatos"
         filterRow={filterRow}
         onAdd={readOnly ? undefined : () => openCreateDialog()}
-        addLabel="Novo contato"
         loading={loading}
         emptyMessage="Nenhum contato cadastrado."
         tableMinWidthClassName="min-w-[760px]"
