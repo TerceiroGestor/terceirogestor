@@ -57,8 +57,19 @@ export type QualityDraft = {
 
 export type QualityNotesDialogState = {
   enrollmentId: string;
+  occurrenceId: string;
   fullName: string;
   qualityNotes: string;
+};
+
+// Qualidade agora mostra a presenca de TODOS os Encontros de uma vez (filtro
+// de "Encontro" virou um filtro/agrupamento normal, como os demais) - cada
+// linha precisa saber de qual Encontro ela veio, porque o mesmo enrollment
+// aparece uma vez por Encontro (enrollment.id sozinho nao e mais uma chave
+// unica de linha).
+export type QualityAttendanceRow = MeetingAttendancesListItem & {
+  occurrenceId: string;
+  scheduledDate: string;
 };
 
 export type RelationGroupOption = {
@@ -164,19 +175,6 @@ export function filterAttendanceRows(
     if (filters.status === "all") return true;
     if (filters.status === "not_recorded") return row.attendance === null;
     return row.attendance?.status === filters.status;
-  });
-}
-
-export function filterQualityRows(
-  rows: MeetingAttendancesListItem[],
-  filters: {
-    groupId: string;
-  },
-) {
-  return rows.filter((row) => {
-    if (row.attendance === null) return false;
-    if (filters.groupId === ACTION_RELATION_VALUES.allGroups) return true;
-    return row.enrollment.peopleGroups.some((group) => group.id === filters.groupId);
   });
 }
 
@@ -375,14 +373,14 @@ export function buildQualityColumns({
   canUpdate: boolean;
   canReadPeople: boolean;
   tenantSlug: string;
-  getEffective: (row: MeetingAttendancesListItem) => QualityEffectiveState;
+  getEffective: (row: QualityAttendanceRow) => QualityEffectiveState;
   onSetRowDraft: (
-    row: MeetingAttendancesListItem,
+    row: QualityAttendanceRow,
     patch: QualityDraft,
     prune?: boolean,
   ) => void;
-  onOpenNotesDialog: (row: MeetingAttendancesListItem) => void;
-}): ColumnDef<MeetingAttendancesListItem>[] {
+  onOpenNotesDialog: (row: QualityAttendanceRow) => void;
+}): ColumnDef<QualityAttendanceRow>[] {
   return [
     {
       id: "person",
@@ -394,6 +392,13 @@ export function buildQualityColumns({
           tenantSlug,
           canReadPeople,
         }),
+    },
+    {
+      id: "occurrence",
+      header: "Encontro",
+      accessorFn: (row) => row.scheduledDate,
+      cell: ({ row }) =>
+        new Date(row.original.scheduledDate).toLocaleDateString("pt-BR", { timeZone: "UTC" }),
     },
     {
       id: "score",

@@ -7,6 +7,14 @@ import type { ApiProjectActionPeopleParticipation } from "@/modules/actions/api"
 import { ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS } from "@/modules/actions/shared/domain/actions.constants";
 import { RelationListHost } from "@/web-client/relation/RelationListHost";
 import { ListView } from "@/web-client/views/ListView";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
+import type { Domain } from "@/web-client/domain/types";
+import type { SearchFieldDefinition } from "@/web-client/search/types";
+import {
+  RecordBrowserViewSwitcher,
+  type RecordBrowserViewOption,
+} from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { getStandardViewIcon } from "@/web-client/registry/view-icons";
 
 function filterTeamRows(rows: ApiProjectActionPeopleParticipation[], query: string) {
   const normalized = query.trim().toLocaleLowerCase("pt-BR");
@@ -87,6 +95,14 @@ function teamParticipationColumns({
   ];
 }
 
+const VIEW_OPTIONS: RecordBrowserViewOption<"list">[] = [
+  { value: "list", label: "Lista", icon: getStandardViewIcon("list") },
+];
+
+const ROLE_FILTER_OPTIONS = Object.entries(ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS).map(
+  ([value, label]) => ({ value, label }),
+);
+
 export function ActionTeamSection({
   rows,
   canUpdate,
@@ -99,14 +115,28 @@ export function ActionTeamSection({
   onOpenTeamPicker: () => void;
 }) {
   const [searchText, setSearchText] = React.useState("");
+  const [domain, setDomain] = React.useState<Domain>(null);
   const columns = React.useMemo(
     () => teamParticipationColumns({ canUpdate, onEndTeamParticipation }),
     [canUpdate, onEndTeamParticipation],
   );
-  const filteredRows = React.useMemo(
-    () => filterTeamRows(rows, searchText),
-    [rows, searchText],
+
+  const filterFields = React.useMemo<SearchFieldDefinition[]>(
+    () => [{ name: "role", label: "Papel", type: "select", options: ROLE_FILTER_OPTIONS }],
+    [],
   );
+
+  const buildSearchRecord = React.useCallback(
+    (row: ApiProjectActionPeopleParticipation) => ({ role: row.role }),
+    [],
+  );
+
+  const filteredRows = React.useMemo(() => {
+    const matchedByDomain = rows.filter((row) =>
+      matchesDomainRecord(buildSearchRecord(row), domain, (record, field) => record[field as keyof typeof record]),
+    );
+    return filterTeamRows(matchedByDomain, searchText);
+  }, [rows, searchText, domain, buildSearchRecord]);
 
   return (
     <RelationListHost<ApiProjectActionPeopleParticipation>
@@ -114,11 +144,18 @@ export function ActionTeamSection({
       data={filteredRows}
       searchText={searchText}
       onSearchTextChange={setSearchText}
-      domain={null}
-      onDomainChange={() => undefined}
+      domain={domain}
+      onDomainChange={setDomain}
       searchPlaceholder="Pesquisar equipe"
       filteredCount={filteredRows.length}
+      filterFields={filterFields}
+      buildSearchRecord={buildSearchRecord}
+      searchActionId="activity.team"
+      columns={columns}
       onAdd={canUpdate ? onOpenTeamPicker : undefined}
+      viewSwitcherSlot={
+        <RecordBrowserViewSwitcher<"list"> value="list" options={VIEW_OPTIONS} onChange={() => undefined} />
+      }
     >
       {filteredRows.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">

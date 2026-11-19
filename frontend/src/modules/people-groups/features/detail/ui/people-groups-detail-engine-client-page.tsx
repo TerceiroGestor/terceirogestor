@@ -152,7 +152,7 @@ export function PeopleGroupsDetailEngineClientPage() {
     async (nextDraft: PeopleGroupDetailDraft) => {
       const updated = await dataProvider.update<ApiPeopleGroup>(
         peopleGroupsDetailModuleDefinition.queryAdapters.detailDataProvider?.model ??
-          "people-groups.detail",
+        "people-groups.detail",
         id,
         toPayload(nextDraft),
       );
@@ -174,7 +174,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao salvar grupo de pessoas.";
+          : "Falha ao salvar Grupo.";
       toast({ variant: "destructive", title: "Falha ao salvar", description: message });
     },
   });
@@ -204,7 +204,7 @@ export function PeopleGroupsDetailEngineClientPage() {
         const message =
           error && typeof error === "object" && "message" in error
             ? String((error as { message?: string }).message)
-          : "Falha ao carregar grupo de pessoas.";
+            : "Falha ao carregar Grupo.";
         toast({ variant: "destructive", title: "Falha ao carregar", description: message });
       })
       .finally(() => setLoading(false));
@@ -221,7 +221,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       toast({
         variant: "destructive",
         title: "Dados inválidos",
-        description: "Informe o nome do grupo de pessoas.",
+        description: "Informe o nome do Grupo.",
       });
       return;
     }
@@ -232,13 +232,13 @@ export function PeopleGroupsDetailEngineClientPage() {
         "people-groups.detail",
         payload,
       );
-      toast({ variant: "success", title: "Grupo de pessoas criado" });
+      toast({ variant: "success", title: "Grupo criado" });
       router.replace(withTenantPath(`${PEOPLE_GROUPS_ROUTES.detail}/${created.id}`, tenantSlug));
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String((error as { message?: string }).message)
-          : "Falha ao criar grupo de pessoas.";
+          : "Falha ao criar Grupo.";
       toast({ variant: "destructive", title: "Falha ao criar", description: message });
     } finally {
       setBusy(false);
@@ -318,7 +318,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       if (!token || !id || !canManageParticipations) return;
       const confirmed = await confirm({
         title: "Encerrar vínculo",
-        description: `Encerrar o vínculo de "${participation.person.fullName}" com este grupo de pessoas preservando o histórico?`,
+        description: `Encerrar o vínculo de "${participation.person.fullName}" com este Grupo preservando o histórico?`,
         confirmLabel: "Encerrar",
         cancelLabel: "Cancelar",
         confirmVariant: "destructive",
@@ -388,8 +388,8 @@ export function PeopleGroupsDetailEngineClientPage() {
 
   const headerTitle =
     mode === "create"
-      ? "Novo grupo de pessoas"
-      : group?.name || draft.name || "Grupo de Pessoas";
+      ? "Novo Grupo"
+      : group?.name || draft.name || "Grupo";
 
   return (
     <>

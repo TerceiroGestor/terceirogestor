@@ -16,7 +16,7 @@ export const ACTIONS_LIST_TEXT = {
     scopeLabel: "Escopo",
     scopeProject: "Projeto",
     scopeGroup: "Grupo",
-    scopeCycle: "Grupo de Pessoas",
+    scopeCycle: "Grupo",
     scopeFilterLabel: "Filtro",
     groupPlaceholder: "Todos os grupos",
     cyclePlaceholder: "Todos os grupos de pessoas",

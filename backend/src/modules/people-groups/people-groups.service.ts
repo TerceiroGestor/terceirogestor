@@ -39,7 +39,7 @@ function buildActiveParticipationKey(peopleGroupId: string, personId: string) {
 
 @Injectable()
 export class PeopleGroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async listPeopleGroups(tenantId: string, query: ListPeopleGroupsQueryDto) {
     const { page, limit, skip, take, isAll } = resolvePagination({
@@ -57,16 +57,16 @@ export class PeopleGroupsService {
       tenantId,
       ...(q
         ? {
-            OR: [
-              { name: { contains: q } },
-              { category: { contains: q } },
-              { description: { contains: q } },
-              { internalNotes: { contains: q } },
-              ...(numericQ === null
-                ? []
-                : [{ ageMin: numericQ }, { ageMax: numericQ }]),
-            ],
-          }
+          OR: [
+            { name: { contains: q } },
+            { category: { contains: q } },
+            { description: { contains: q } },
+            { internalNotes: { contains: q } },
+            ...(numericQ === null
+              ? []
+              : [{ ageMin: numericQ }, { ageMax: numericQ }]),
+          ],
+        }
         : {}),
       ...(query.groupType ? { groupType: query.groupType } : {}),
       ...(query.purpose ? { purpose: query.purpose } : {}),
@@ -117,7 +117,7 @@ export class PeopleGroupsService {
         },
       },
     });
-    if (!group) throw new NotFoundException('Grupo de pessoas nao encontrado');
+    if (!group) throw new NotFoundException('Grupo nao encontrado');
     return group;
   }
 
@@ -166,7 +166,7 @@ export class PeopleGroupsService {
       where: { id, tenantId },
     });
     if (!existing)
-      throw new NotFoundException('Grupo de pessoas nao encontrado');
+      throw new NotFoundException('Grupo nao encontrado');
 
     const name = dto.name !== undefined ? (dto.name ?? '').trim() : undefined;
     if (name !== undefined && !name) {
@@ -189,20 +189,20 @@ export class PeopleGroupsService {
           : {}),
         ...(dto.description !== undefined
           ? {
-              description: dto.description?.trim()
-                ? dto.description.trim()
-                : null,
-            }
+            description: dto.description?.trim()
+              ? dto.description.trim()
+              : null,
+          }
           : {}),
         ...(dto.ageMin !== undefined ? { ageMin: dto.ageMin ?? null } : {}),
         ...(dto.ageMax !== undefined ? { ageMax: dto.ageMax ?? null } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.internalNotes !== undefined
           ? {
-              internalNotes: dto.internalNotes?.trim()
-                ? dto.internalNotes.trim()
-                : null,
-            }
+            internalNotes: dto.internalNotes?.trim()
+              ? dto.internalNotes.trim()
+              : null,
+          }
           : {}),
       },
       include: {
@@ -226,7 +226,7 @@ export class PeopleGroupsService {
       select: { id: true },
     });
     if (!existing)
-      throw new NotFoundException('Grupo de pessoas nao encontrado');
+      throw new NotFoundException('Grupo nao encontrado');
 
     const [activeParticipations, projectUses, actionUses] =
       await this.prisma.$transaction([
@@ -248,7 +248,7 @@ export class PeopleGroupsService {
 
     if (activeParticipations > 0 || projectUses > 0 || actionUses > 0) {
       throw new BadRequestException(
-        'Nao e possivel excluir o grupo de pessoas: existem participacoes ou vinculos ativos',
+        'Nao e possivel excluir o Grupo: existem participacoes ou vinculos ativos',
       );
     }
 
@@ -282,14 +282,14 @@ export class PeopleGroupsService {
           : { isActive: false }),
       ...(q
         ? {
-            OR: [
-              { person: { fullName: { contains: q } } },
-              { person: { socialName: { contains: q } } },
-              { person: { status: { contains: q } } },
-              { person: { personType: { contains: q } } },
-              { internalNotes: { contains: q } },
-            ],
-          }
+          OR: [
+            { person: { fullName: { contains: q } } },
+            { person: { socialName: { contains: q } } },
+            { person: { status: { contains: q } } },
+            { person: { personType: { contains: q } } },
+            { internalNotes: { contains: q } },
+          ],
+        }
         : {}),
     };
 
@@ -384,10 +384,10 @@ export class PeopleGroupsService {
         deletedAt: new Date(),
         ...(dto.internalNotes !== undefined
           ? {
-              internalNotes: dto.internalNotes?.trim()
-                ? dto.internalNotes.trim()
-                : participation.internalNotes,
-            }
+            internalNotes: dto.internalNotes?.trim()
+              ? dto.internalNotes.trim()
+              : participation.internalNotes,
+          }
           : {}),
       },
       include: { person: true },
@@ -403,7 +403,7 @@ export class PeopleGroupsService {
       select: { id: true },
     });
     if (!peopleGroup)
-      throw new NotFoundException('Grupo de pessoas nao encontrado');
+      throw new NotFoundException('Grupo nao encontrado');
     return peopleGroup;
   }
 }

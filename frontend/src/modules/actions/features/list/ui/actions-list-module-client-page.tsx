@@ -148,8 +148,8 @@ function parseState(params: URLSearchParams): ActionsListQueryState {
     calendarField: parseActionDateField(params.get("calendarField"), "plannedStartAt"),
     calendarMode:
       calendarMode === "day" ||
-      calendarMode === "week" ||
-      calendarMode === "year"
+        calendarMode === "week" ||
+        calendarMode === "year"
         ? (calendarMode as ActionsListQueryState["calendarMode"])
         : "month",
     ganttScale:
@@ -282,7 +282,7 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
     },
     {
       id: "peopleGroup",
-      header: "Grupo de Pessoas",
+      header: "Grupo",
       accessorFn: (row) => resolvePeopleGroupLabel(row),
       cell: ({ row }) => (
         <div className="flex items-center gap-2 text-sm text-foreground">
@@ -638,10 +638,10 @@ export function ActionsListModuleClientPage() {
     () =>
       actionsGraphBuilder
         ? buildGraphViewModel(
-            filteredRows as Array<Record<string, unknown>>,
-            state.graph,
-            actionsGraphBuilder,
-          )
+          filteredRows as Array<Record<string, unknown>>,
+          state.graph,
+          actionsGraphBuilder,
+        )
         : null,
     [filteredRows, state.graph],
   );
@@ -850,10 +850,10 @@ export function ActionsListModuleClientPage() {
         onRemove:
           state.timelineSortDirection !== defaultState.timelineSortDirection
             ? () =>
-                setState((previous) => ({
-                  ...previous,
-                  timelineSortDirection: defaultState.timelineSortDirection,
-                }))
+              setState((previous) => ({
+                ...previous,
+                timelineSortDirection: defaultState.timelineSortDirection,
+              }))
             : undefined,
       });
     }

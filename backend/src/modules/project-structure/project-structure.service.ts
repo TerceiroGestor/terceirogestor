@@ -50,7 +50,7 @@ function ensureValidPeriod(params: {
 
 @Injectable()
 export class ProjectStructureService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private serializeEnrollment<T>(enrollment: T) {
     const person = (enrollment as any).person;
@@ -62,12 +62,12 @@ export class ProjectStructureService {
     const withPersonFlags =
       person && person._count
         ? {
-            ...person,
-            hasHealthCondition: (person._count.healthConditions ?? 0) > 0,
-            hasMedication: (person._count.medications ?? 0) > 0,
-            _count: undefined,
-            peopleGroupParticipations: undefined,
-          }
+          ...person,
+          hasHealthCondition: (person._count.healthConditions ?? 0) > 0,
+          hasMedication: (person._count.medications ?? 0) > 0,
+          _count: undefined,
+          peopleGroupParticipations: undefined,
+        }
         : person;
     return {
       ...enrollment,
@@ -91,7 +91,7 @@ export class ProjectStructureService {
       },
     });
     if (!peopleGroup)
-      throw new BadRequestException('Grupo de pessoas invalido');
+      throw new BadRequestException('Grupo invalido');
     return peopleGroup;
   }
 
@@ -168,7 +168,7 @@ export class ProjectStructureService {
       select: { id: true, peopleGroupId: true, participationKind: true },
     });
     if (!existing)
-      throw new NotFoundException('Vinculo do grupo de pessoas nao encontrado');
+      throw new NotFoundException('Vinculo do Grupo nao encontrado');
 
     const actionsCount = await this.prisma.activityPeopleGroup.count({
       where: {
@@ -180,7 +180,7 @@ export class ProjectStructureService {
     });
     if (actionsCount > 0) {
       throw new BadRequestException(
-        'Nao e possivel remover o grupo de pessoas: existem acoes vinculadas',
+        'Nao e possivel remover o Grupo: existem acoes vinculadas',
       );
     }
 
@@ -422,11 +422,11 @@ export class ProjectStructureService {
       ),
       ...(toEnd.length
         ? [
-            this.prisma.projectEnrollment.updateMany({
-              where: { id: { in: toEnd.map((enrollment) => enrollment.id) } },
-              data: { status: 'ENDED', endsAt: now },
-            }),
-          ]
+          this.prisma.projectEnrollment.updateMany({
+            where: { id: { in: toEnd.map((enrollment) => enrollment.id) } },
+            data: { status: 'ENDED', endsAt: now },
+          }),
+        ]
         : []),
     ];
 
@@ -507,45 +507,45 @@ export class ProjectStructureService {
       ...(query.status ? { status: query.status as EnrollmentStatus } : {}),
       ...(scopedPeopleGroupId
         ? {
-            person: {
-              AND: [
-                personWhere,
-                {
-                  peopleGroupParticipations: {
-                    some: {
-                      tenantId,
-                      peopleGroupId: scopedPeopleGroupId,
-                      isActive: true,
-                      deletedAt: null,
-                    },
-                  },
-                },
-              ],
-            },
-          }
-        : { person: personWhere }),
-      ...(and.length ? { AND: and } : {}),
-      ...(q
-        ? {
-            OR: [
-              { person: { fullName: { contains: q } } },
-              { person: { socialName: { contains: q } } },
-              { person: { personType: { contains: q } } },
-              { person: { status: { contains: q } } },
+          person: {
+            AND: [
+              personWhere,
               {
-                person: {
-                  peopleGroupParticipations: {
-                    some: {
-                      tenantId,
-                      isActive: true,
-                      deletedAt: null,
-                      peopleGroup: { name: { contains: q } },
-                    },
+                peopleGroupParticipations: {
+                  some: {
+                    tenantId,
+                    peopleGroupId: scopedPeopleGroupId,
+                    isActive: true,
+                    deletedAt: null,
                   },
                 },
               },
             ],
-          }
+          },
+        }
+        : { person: personWhere }),
+      ...(and.length ? { AND: and } : {}),
+      ...(q
+        ? {
+          OR: [
+            { person: { fullName: { contains: q } } },
+            { person: { socialName: { contains: q } } },
+            { person: { personType: { contains: q } } },
+            { person: { status: { contains: q } } },
+            {
+              person: {
+                peopleGroupParticipations: {
+                  some: {
+                    tenantId,
+                    isActive: true,
+                    deletedAt: null,
+                    peopleGroup: { name: { contains: q } },
+                  },
+                },
+              },
+            },
+          ],
+        }
         : {}),
     };
 
@@ -679,29 +679,29 @@ export class ProjectStructureService {
       },
       ...(q
         ? {
-            OR: [
-              { fullName: { contains: q } },
-              { socialName: { contains: q } },
-              { status: { contains: q } },
-              { personType: { contains: q } },
-              {
-                peopleGroupParticipations: {
-                  some: {
-                    peopleGroupId: { in: effectivePeopleGroupIds },
-                    peopleGroup: { name: { contains: q } },
-                  },
+          OR: [
+            { fullName: { contains: q } },
+            { socialName: { contains: q } },
+            { status: { contains: q } },
+            { personType: { contains: q } },
+            {
+              peopleGroupParticipations: {
+                some: {
+                  peopleGroupId: { in: effectivePeopleGroupIds },
+                  peopleGroup: { name: { contains: q } },
                 },
               },
-              {
-                peopleGroupParticipations: {
-                  some: {
-                    peopleGroupId: { in: effectivePeopleGroupIds },
-                    peopleGroup: { category: { contains: q } },
-                  },
+            },
+            {
+              peopleGroupParticipations: {
+                some: {
+                  peopleGroupId: { in: effectivePeopleGroupIds },
+                  peopleGroup: { category: { contains: q } },
                 },
               },
-            ],
-          }
+            },
+          ],
+        }
         : {}),
     };
 
@@ -914,8 +914,8 @@ export class ProjectStructureService {
       (existing.endsAt === null || existing.endsAt === undefined);
     const resolvedEndsAt = shouldAutoSetEndsAt
       ? (parseDateInput(new Date().toISOString().slice(0, 10), {
-          endOfDay: true,
-        }) ?? null)
+        endOfDay: true,
+      }) ?? null)
       : endsAt;
 
     ensureValidPeriod({ startsAt, endsAt: resolvedEndsAt });

@@ -4,6 +4,21 @@
 
 Todo mÃ³dulo do sistema deve usar a mesma estrutura visual e comportamental. O usuÃ¡rio nÃ£o deve reaprender a interface ao mudar de mÃ³dulo.
 
+Na pratica isso se resume a duas telas, cada uma com sua propria barra
+de ferramentas "painelSearch" (busca + Colunas + Filtros + agrupamento +
+typeview + Novo), mas as duas compartilhando o mesmo vocabulario visual
+e os mesmos componentes: o List Principal do modulo (`RecordListHost`) e
+cada aba de relation no rodape do Detail (`RelationListHost`). O
+metadata do Detail (4 abas fixas no painel lateral, SplitView
+redimensionavel) e um terceiro pedaco padronizado, independente dessas
+duas telas - ver `sideSlot` mais abaixo. Atividades (modulo `actions`) e
+a referencia completa das duas telas desde 2026-11-19: List Principal
+com a ordem Busca->typeview->Novo, e as 4 relations do rodape
+(Encontros/Participantes/Qualidade/Equipe) todas em `RelationListHost`,
+sem nenhum controle solto fora do padrao Busca+[Colunas|Filtros]-
+>typeview->Novo. Use Atividades como exemplo vivo ao implementar ou
+revisar outro modulo, nao só esta doc.
+
 ## Estrutura obrigatÃ³ria
 
 Cada mÃ³dulo canÃ´nico tem:
@@ -538,16 +553,21 @@ antigo em relation nova.
 
 `DateRangeFilterButton` (`web-client/ui/DateRangeFilterButton.tsx`) -
 botao compacto com icone de calendario, Popover com `Calendar` (shadcn,
-`mode="range"`) - continua existindo e tem um uso legitimo mesmo em
-`RelationListHost`: quando o periodo **controla o que e buscado no
-servidor** (refaz o fetch com uma janela de datas diferente), nao filtra
-dados ja carregados no cliente. Nesse caso ele nao vira um `filterFields`
-(que so filtra client-side o que ja esta em `data`) - vai direto no
-`viewSwitcherSlot` do `RelationListHost`, como a aba Participantes da
-Atividade faz. Se o periodo so precisa filtrar linhas ja carregadas (nao
-refaz fetch), aí sim um campo `type: "date"` em `filterFields` e o
-caminho certo - vira automaticamente um atalho De/Ate no painel de
-Filtros do `SearchPanelMenu`, sem precisar de nenhum botao a parte.
+`mode="range"`) - continua existindo pra qualquer modulo que precise de
+um seletor de periodo avulso fora do mecanismo de filtro (ex.: um
+periodo que nao corresponde a nenhum campo por linha, usado so pra
+parametrizar uma chamada). Mas **prefira sempre `filterFields`/
+`groupByOptions` a esse botao quando o periodo corresponder a um campo
+real da linha** - ver "Preferir filtro/agrupamento real a um controle
+solto" logo abaixo; a aba Participantes da Atividade chegou a usar esse
+botao (periodo controlando o fetch do servidor) e teve o botao removido
+em 2026-11-19 porque esse resumo agregado nao tem um campo de data por
+linha pra sustentar um filtro de verdade - preferiu-se simplificar
+(calcular sempre sobre o historico completo) a manter um controle fora
+do padrao. Se um filtro de periodo genuino existir (campo `type: "date"`
+em `filterFields`, correspondendo a um valor real por linha), o atalho
+De/Ate aparece sozinho no painel de Filtros do `SearchPanelMenu` - nao
+precisa de nenhum botao a parte.
 
 `components/ui/calendar.tsx` foi corrigido nesta mesma rodada para as
 chaves de `classNames` da v9 do react-day-picker (a v8 usava
@@ -594,17 +614,73 @@ precisar), `useMemo` pra filtrar os dados antes de passar pro
 `<ListView data={...}>`, e `<RelationListHost flushToolbar>` como
 wrapper.
 
-**Controle que nao e filtro client-side (ex.: um periodo que refaz
-fetch no servidor, um seletor que troca qual registro esta sendo
-editado, um botao "Salvar" de edicao em lote) vai no
-`viewSwitcherSlot`**, nao tenta virar `filterFields` (que so filtra o
-que ja esta em `data`, carregado). Pode ser mais de um elemento - o slot
-aceita qualquer `ReactNode`, entao um `<div className="flex items-center
-gap-2">` com varios controles e normal (`action-quality-section.tsx` tem
-3: Encontro, Grupo, Salvar). Quando a relation nao precisa criar
-registro novo (ex.: Participantes, um resumo agregado sem fluxo de
-criacao), simplesmente nao passar `onAdd`/`addHref` - o botao "Novo" some
-sozinho (mesmo comportamento condicional que Encontros ja tinha).
+**`viewSwitcherSlot` e so pro seletor de visualizacao e pra acoes de
+verdade que nao sao filtro (ex.: um botao "Salvar" de edicao em lote) -
+nunca pra um seletor cujo unico papel e restringir ou agrupar quais
+linhas aparecem.** Esse segundo tipo de controle sempre vira
+`filterFields`/`groupByOptions`, mesmo quando isso exige buscar mais
+dados do servidor - ver "Preferir filtro/agrupamento real a um controle
+solto" logo abaixo pro raciocinio completo e um exemplo worked. O slot
+aceita qualquer `ReactNode` quando precisar de mais de um elemento real
+(`<div className="flex items-center gap-2">` com o seletor de
+visualizacao + um botao "Salvar", por exemplo - `action-quality-section.tsx`
+hoje). Quando a relation nao precisa criar registro novo (ex.:
+Participantes, um resumo agregado sem fluxo de criacao), simplesmente
+nao passar `onAdd`/`addHref` - o botao "Novo" some sozinho (mesmo
+comportamento condicional que Encontros ja tinha).
+
+### Preferir filtro/agrupamento real a um controle solto (padrao a partir de 2026-11-19)
+
+Quando um controle existe so pra restringir ou agrupar quais linhas
+aparecem (um select de "Grupo", um seletor de periodo, um seletor de
+"qual registro-pai mostrar"), o padrao e virar `filterFields`/
+`groupByOptions` dentro do painel de Filtros - **nunca** um select solto
+no `viewSwitcherSlot`, mesmo que isso signifique mudar a forma como os
+dados sao buscados do servidor. Prefira isso mesmo quando a conversao for
+mais trabalhosa que so mover o componente de lugar.
+
+Caso de referencia: a aba Qualidade da Atividade tinha dois selects soltos,
+"Encontro" (controlava **qual Encontro era buscado do backend** - 1
+fetch por vez, `occurrenceId`) e "Grupo" (ja filtrava em memoria, so
+nao estava em `filterFields`). Os dois viraram filtro/agrupamento de
+verdade em 2026-11-19 (`action-quality-section.tsx` +
+`action-detail-engine-client-page.tsx`):
+
+- **Grupo** foi direto - ja era filtro client-side, so precisou virar
+  `filterFields`/`buildSearchRecord` em vez de um `qualityGroupId`
+  mantido no componente pai.
+- **Encontro** exigiu mudar a busca: em vez de 1 fetch por Encontro
+  selecionado, a tela passou a buscar a presenca de **todos os
+  Encontros de uma vez** (`fetchAllQualityAttendances`, concorrencia
+  limitada, uma chamada por Encontro em paralelo) e cada linha carrega
+  o Encontro de origem (`occurrenceId`+`scheduledDate`) pra virar um
+  `filterFields`/`groupByOptions` normal.
+
+**Efeito colateral a sempre considerar: identidade de linha.** Quando a
+conversao faz uma mesma entidade logica (ex.: uma pessoa) aparecer mais
+de uma vez no dataset (uma linha por Encontro em vez de 1 linha so), o
+identificador antigo (so `enrollment.id`) deixa de ser unico - vira uma
+chave composta (`${occurrenceId}::${enrollmentId}`, por exemplo). Isso
+afeta tudo que usava aquele id como chave: `getRowId` do `ListView`,
+rascunhos/edicoes em memoria (`qualityDrafts`), e o agrupamento de itens
+na hora de salvar em lote (salvar passou a agrupar os itens alterados
+por Encontro antes de chamar o endpoint, que continua sendo por
+Encontro - 1 chamada por Encontro, em paralelo, nao 1 chamada geral).
+Revisar esse ponto sempre que uma conversao desse tipo for feita; nao
+assumir que o id antigo continua unico so porque continuava sendo antes
+da mudanca.
+
+Se a conversao tornar algum estado do componente pai morto (ex.: um
+periodo que so existia pra alimentar o controle removido), remova esse
+estado de verdade (ver `docs/backlog.md`/memoria do projeto sobre nao
+deixar codigo morto) - nao deixe desligado "por garantia".
+
+**Atencao a efeito colateral em outra aba.** Se o controle removido era
+compartilhado com outra aba (ex.: o mesmo `occurrenceId` tambem decidia
+o que a aba Progresso e Relatorio mostrava), confirme que a outra aba
+ainda tem como trocar esse valor depois da remocao - senao ela fica
+presa no padrao, silenciosamente, sem o usuario conseguir voltar a trocar
+algo que antes trocava.
 
 **Barra unica, sem cabecalho proprio:**
 

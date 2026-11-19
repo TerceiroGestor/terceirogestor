@@ -77,7 +77,7 @@ const PROJECT_ENROLLMENT_AUDIT_FIELD_LABELS = {
 } as const;
 
 const PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS = {
-  peopleGroupId: "Grupo de pessoas",
+  peopleGroupId: "Grupo",
   participationKind: "Participação",
   createdAt: "Criado em",
   updatedAt: "Atualizado em",
@@ -88,7 +88,7 @@ const PROJECT_ACTION_AUDIT_FIELD_LABELS = {
   status: "Status",
   actionTypeId: "Tipo",
   groupId: "Grupo",
-  peopleGroupId: "Grupo de pessoas",
+  peopleGroupId: "Grupo",
   plannedStartAt: "Início planejado",
   plannedEndAt: "Fim planejado",
   executedAt: "Executada em",
@@ -179,10 +179,10 @@ function enrollmentRelationColumns({
     },
     {
       accessorKey: "peopleGroups",
-      header: "Grupo de pessoas",
+      header: "Grupo",
       cell: ({ row }) => {
         const label = row.original.peopleGroups.map((peopleGroup) => peopleGroup.name).join(", ");
-        return <span>{label || "Sem grupo de pessoas"}</span>;
+        return <span>{label || "Sem Grupo"}</span>;
       },
     },
     {
@@ -296,7 +296,7 @@ function peopleGroupRelationColumns({
   return [
     {
       accessorKey: "peopleGroup.name",
-      header: "Grupo de Pessoas",
+      header: "Grupo",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.peopleGroup.name}</div>
@@ -843,7 +843,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           onRowClick: (row, context) =>
             context.onOpenPeopleGroup(row.peopleGroupId),
           action: {
-            label: "Vincular grupo de pessoas",
+            label: "Vincular Grupo",
             onClick: (context) => context.onCreatePublicPeopleGroup(),
             hidden: ({ readOnly, mode, canManageStructure }) =>
               readOnly || mode !== "edit" || !canManageStructure,
@@ -1046,7 +1046,7 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
         key: "projectPeopleGroup",
         entity: "ProjectPeopleGroup",
         model: "audit.logs",
-        label: "Grupo de pessoas",
+        label: "Grupo",
         fieldLabels: PROJECT_PEOPLE_GROUP_AUDIT_FIELD_LABELS,
         valueFormatters: {
           participationKind: (value) =>

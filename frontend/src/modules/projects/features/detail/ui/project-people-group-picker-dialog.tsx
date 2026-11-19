@@ -55,7 +55,7 @@ export function ProjectPeopleGroupPickerDialog({
   const [search, setSearch] = React.useState("");
 
   const resolvedTitle =
-    title ?? (purpose === "EQUIPE" ? "Vincular grupo de equipe" : "Vincular grupo de pessoas");
+    title ?? (purpose === "EQUIPE" ? "Vincular grupo de equipe" : "Vincular Grupo");
   const resolvedActionLabel = actionLabel ?? "Vincular";
 
   const handlePickOne = React.useCallback(

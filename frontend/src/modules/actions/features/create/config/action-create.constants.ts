@@ -14,7 +14,7 @@ export const ACTION_CREATE_TEXT = {
     projectRequired: "Selecione um projeto",
     typeRequired: "Selecione um tipo",
     titleRequired: "Informe um título",
-    cycleRequired: "Selecione um grupo de pessoas",
+    cycleRequired: "Selecione um Grupo",
   },
   toasts: {
     created: "Atividade criada",
@@ -29,8 +29,8 @@ export const ACTION_CREATE_TEXT = {
     typePlaceholder: "Selecione um tipo",
     targetLabel: "Direcionamento",
     statusLabel: "Status",
-    cycleLabel: "Grupo de pessoas",
-    cyclePlaceholder: "Selecione um grupo de pessoas",
+    cycleLabel: "Grupo",
+    cyclePlaceholder: "Selecione um Grupo",
     plannedStartLabel: "Início planejado",
     plannedEndLabel: "Término planejado",
     submitLabel: "Criar atividade",
@@ -49,7 +49,7 @@ export const ACTION_CREATE_TEXT = {
       {
         title: "Tipo e escopo",
         items: [
-          "Escolha o tipo: ele define se a atividade é do projeto, de um grupo de participantes ou de um grupo de pessoas.",
+          "Escolha o tipo: ele define se a atividade é do projeto, de um grupo de participantes ou de um Grupo.",
           "Selecione o direcionamento correspondente para manter a atividade ligada ao público correto.",
         ],
       },

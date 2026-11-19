@@ -301,8 +301,8 @@ export function BulkEnrollmentDialog({
                   next
                     ? mergeUniquePeople(previous, peopleRows)
                     : previous.filter(
-                        (person) => !peopleRows.some((row) => row.id === person.id),
-                      ),
+                      (person) => !peopleRows.some((row) => row.id === person.id),
+                    ),
                 );
               }}
               aria-label="Selecionar people da pagina"
@@ -465,7 +465,7 @@ export function BulkEnrollmentDialog({
               placeholder="Pesquisar"
               facets={queryFacets}
               rightSlot={
-                  <SearchPanelMenu
+                <SearchPanelMenu
                   actionId="project-enrollment-picker.people"
                   searchView={peopleSearchView}
                   domain={domain}
@@ -481,7 +481,7 @@ export function BulkEnrollmentDialog({
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                          Grupo de Pessoas
+                          Grupo
                         </div>
                         <Select value={peopleGroupFilter} onValueChange={setPeopleGroupFilter}>
                           <SelectTrigger className="h-9 rounded-none border-x-0 border-t-0 border-border/70 bg-transparent px-0 text-sm shadow-none focus:ring-0">
@@ -527,7 +527,7 @@ export function BulkEnrollmentDialog({
                     setGroupBy(Array.isArray(snapshot.groupBy) ? (snapshot.groupBy as string[]) : []);
                   }}
                   variant="compact"
-                  />
+                />
               }
             />
           </div>

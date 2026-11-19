@@ -164,7 +164,7 @@ export function ProjectsDetailEngineClientPage() {
       return;
     }
 
-      setRelationsLoading(true);
+    setRelationsLoading(true);
     try {
       const [peopleGroups, enrollments, actions] = await Promise.all([
         listProjectPeopleGroups(token, id),
@@ -522,7 +522,7 @@ export function ProjectsDetailEngineClientPage() {
         title:
           peopleGroupPickerPurpose === "EQUIPE"
             ? "Grupo de Equipe adicionado"
-            : "Grupo de Pessoas adicionado",
+            : "Grupo adicionado",
         description:
           peopleGroups.length > 1
             ? `Vinculados: ${created} • Ja vinculados: ${alreadyLinked}`
@@ -626,12 +626,12 @@ export function ProjectsDetailEngineClientPage() {
         label: item.name,
         type: item.type,
         status: item.status,
-        })),
-        selectedProgram,
-        publicPeopleGroupRows,
-        teamPeopleGroupRows,
-        enrollmentRows,
-        actionRows,
+      })),
+      selectedProgram,
+      publicPeopleGroupRows,
+      teamPeopleGroupRows,
+      enrollmentRows,
+      actionRows,
       relationsLoading,
       mentionableUsers,
       commentDraft,

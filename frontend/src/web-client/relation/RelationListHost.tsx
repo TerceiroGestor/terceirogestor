@@ -103,7 +103,7 @@ export function RelationListHost<TData>({
       // Sem isso, o badge de agrupamento (queryFacets.tsx -> groupByLabel)
       // nao acha o rotulo e cai no nome bruto do campo (ingles, ex.:
       // "peopleGroups"/"scheduledDate") em vez do label de
-      // groupByOptions (ex.: "Grupo de pessoas"/"Data").
+      // groupByOptions (ex.: "Grupo"/"Data").
       groupBy: groupByOptions,
     };
   }, [filterFields, groupByOptions, searchActionId, title]);

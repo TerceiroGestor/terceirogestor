@@ -37,6 +37,7 @@ import { ActionQualitySection } from "@/modules/actions/features/manage/ui/actio
 import { ActionTeamSection } from "@/modules/actions/features/manage/ui/action-team-section";
 import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
 import type {
+  QualityAttendanceRow,
   QualityDraft,
   QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
@@ -250,7 +251,7 @@ function ActivityDetailMain({
           <DetailSectionField label="Grupos de pessoas">
             {!isPeopleGroupTarget ? (
               <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
-                Esse tipo de atividade não usa grupo de pessoas.
+                Esse tipo de atividade não usa Grupo.
               </div>
             ) : (
               <MultiSelectBadges
@@ -469,22 +470,15 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   occurrenceId: string | null;
   occurrenceOptions: Array<{ label: string; value: string }>;
   onOccurrenceIdChange: (value: string) => void;
-  attendanceGroupOptions: Array<{
-    label: string;
-    value: string;
-  }>;
-  qualityGroupId: string;
   qualityDrafts: Record<string, QualityDraft>;
   qualitySaving: boolean;
   qualityNotesDialog: QualityNotesDialogState | null;
-  qualityRows: MeetingAttendancesListItem[];
+  qualityAttendanceRows: QualityAttendanceRow[];
+  qualityRowsLoading: boolean;
+  qualityRowsError: string | null;
   attendanceSummaryRows: ActionAttendanceSummaryItem[];
   attendanceSummaryLoading: boolean;
   attendanceSummaryError: string | null;
-  attendanceSummaryFrom: string;
-  attendanceSummaryTo: string;
-  onAttendanceSummaryFromChange: (value: string) => void;
-  onAttendanceSummaryToChange: (value: string) => void;
   onCommitField: <K extends keyof ActivityDetailDraft>(
     field: K,
     nextValue?: ActivityDetailDraft[K],
@@ -495,14 +489,13 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   onActionLoaded: (action: ApiActivity) => void;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
-  onQualityGroupChange: (value: string) => void;
-  getQualityEffective: (row: MeetingAttendancesListItem) => {
+  getQualityEffective: (row: QualityAttendanceRow) => {
     qualityScore: number | null;
     qualityNotes: string | null;
     isHighlight: boolean;
   };
   setQualityRowDraft: (
-    row: MeetingAttendancesListItem,
+    row: QualityAttendanceRow,
     patch: QualityDraft,
     prune?: boolean,
   ) => void;
@@ -563,23 +556,11 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       visible: ({ mode }) => mode === "edit",
       badge: ({ attendanceSummaryRows }) => attendanceSummaryRows.length || undefined,
       flushContent: true,
-      content: ({
-        attendanceSummaryRows,
-        attendanceSummaryLoading,
-        attendanceSummaryError,
-        attendanceSummaryFrom,
-        attendanceSummaryTo,
-        onAttendanceSummaryFromChange,
-        onAttendanceSummaryToChange,
-      }) => (
+      content: ({ attendanceSummaryRows, attendanceSummaryLoading, attendanceSummaryError }) => (
         <ActionParticipantsSection
           rows={attendanceSummaryRows}
           loading={attendanceSummaryLoading}
           error={attendanceSummaryError}
-          from={attendanceSummaryFrom}
-          to={attendanceSummaryTo}
-          onFromChange={onAttendanceSummaryFromChange}
-          onToChange={onAttendanceSummaryToChange}
         />
       ),
       emptyLabel: "Sem participantes.",
@@ -605,21 +586,15 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "quality",
       label: ACTION_RELATION_TEXT.quality.tabLabel,
       visible: ({ mode }) => mode === "edit",
-      badge: ({ qualityRows }) => qualityRows.length || undefined,
+      badge: ({ qualityAttendanceRows }) => qualityAttendanceRows.length || undefined,
       flushContent: true,
       content: ({
-        qualityRows,
-        reportLoading,
-        reportError,
+        qualityAttendanceRows,
+        qualityRowsLoading,
+        qualityRowsError,
         canUpdate,
         canReadPeople,
         tenantSlug,
-        occurrenceId,
-        occurrenceOptions,
-        onOccurrenceIdChange,
-        qualityGroupId,
-        attendanceGroupOptions,
-        onQualityGroupChange,
         qualityDrafts,
         qualitySaving,
         getQualityEffective,
@@ -630,18 +605,12 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         applyQualityNotesDialog,
       }) => (
         <ActionQualitySection
-          rows={qualityRows}
-          loading={reportLoading}
-          error={reportError}
+          rows={qualityAttendanceRows}
+          loading={qualityRowsLoading}
+          error={qualityRowsError}
           canUpdate={canUpdate}
           canReadPeople={canReadPeople}
           tenantSlug={tenantSlug}
-          occurrenceId={occurrenceId}
-          occurrenceOptions={occurrenceOptions}
-          onOccurrenceIdChange={onOccurrenceIdChange}
-          qualityGroupId={qualityGroupId}
-          attendanceGroupOptions={attendanceGroupOptions}
-          onQualityGroupChange={onQualityGroupChange}
           qualityDrafts={qualityDrafts}
           qualitySaving={qualitySaving}
           getQualityEffective={getQualityEffective}
@@ -680,6 +649,9 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         attachmentUploading,
         onSaveActionPatch,
         selectedOccurrence,
+        occurrenceId,
+        occurrenceOptions,
+        onOccurrenceIdChange,
         reportRows,
         reportPeopleRows,
         reportLoading,
@@ -693,7 +665,25 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
             saving={attachmentUploading}
             onSave={onSaveActionPatch}
           />
-          <SectionCard title="Relatório">
+          <SectionCard
+            title="Relatório"
+            actions={
+              occurrenceOptions.length ? (
+                <Select value={occurrenceId ?? ""} onValueChange={onOccurrenceIdChange}>
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue placeholder="Encontro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {occurrenceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null
+            }
+          >
             {reportError ? (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {reportError}

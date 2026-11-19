@@ -3,21 +3,39 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { MeetingAttendancesListItem } from "@/modules/actions/api";
-import {
   QualityNotesDialog,
   buildQualityColumns,
+  type QualityAttendanceRow,
   type QualityDraft,
   type QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
 import { RelationListHost } from "@/web-client/relation/RelationListHost";
 import { ListView } from "@/web-client/views/ListView";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
+import type { Domain } from "@/web-client/domain/types";
+import type { SearchFieldDefinition } from "@/web-client/search/types";
+import {
+  RecordBrowserViewSwitcher,
+  type RecordBrowserViewOption,
+} from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { getStandardViewIcon } from "@/web-client/registry/view-icons";
+
+const VIEW_OPTIONS: RecordBrowserViewOption<"list">[] = [
+  { value: "list", label: "Lista", icon: getStandardViewIcon("list") },
+];
+
+const HIGHLIGHT_FILTER_OPTIONS = [
+  { value: "true", label: "Destaque" },
+  { value: "false", label: "Sem destaque" },
+];
+
+function formatOccurrenceLabel(scheduledDate: string) {
+  return new Date(scheduledDate).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function qualityRowId(row: QualityAttendanceRow) {
+  return `${row.occurrenceId}::${row.enrollment.id}`;
+}
 
 export function ActionQualitySection({
   rows,
@@ -26,12 +44,6 @@ export function ActionQualitySection({
   canUpdate,
   canReadPeople,
   tenantSlug,
-  occurrenceId,
-  occurrenceOptions,
-  onOccurrenceIdChange,
-  qualityGroupId,
-  attendanceGroupOptions,
-  onQualityGroupChange,
   qualityDrafts,
   qualitySaving,
   getQualityEffective,
@@ -41,32 +53,28 @@ export function ActionQualitySection({
   onQualityNotesDialogChange,
   applyQualityNotesDialog,
 }: {
-  rows: MeetingAttendancesListItem[];
+  rows: QualityAttendanceRow[];
   loading: boolean;
   error: string | null;
   canUpdate: boolean;
   canReadPeople: boolean;
   tenantSlug: string;
-  occurrenceId: string | null;
-  occurrenceOptions: Array<{ label: string; value: string }>;
-  onOccurrenceIdChange: (value: string) => void;
-  qualityGroupId: string;
-  attendanceGroupOptions: Array<{ label: string; value: string }>;
-  onQualityGroupChange: (value: string) => void;
   qualityDrafts: Record<string, QualityDraft>;
   qualitySaving: boolean;
-  getQualityEffective: (row: MeetingAttendancesListItem) => {
+  getQualityEffective: (row: QualityAttendanceRow) => {
     qualityScore: number | null;
     qualityNotes: string | null;
     isHighlight: boolean;
   };
-  setQualityRowDraft: (row: MeetingAttendancesListItem, patch: QualityDraft, prune?: boolean) => void;
+  setQualityRowDraft: (row: QualityAttendanceRow, patch: QualityDraft, prune?: boolean) => void;
   saveQualityDrafts: () => void;
   qualityNotesDialog: QualityNotesDialogState | null;
   onQualityNotesDialogChange: (state: QualityNotesDialogState | null) => void;
   applyQualityNotesDialog: (state: QualityNotesDialogState) => void;
 }) {
   const [searchText, setSearchText] = React.useState("");
+  const [domain, setDomain] = React.useState<Domain>(null);
+  const [groupBy, setGroupBy] = React.useState<string[]>([]);
 
   const columns = React.useMemo(
     () =>
@@ -79,6 +87,7 @@ export function ActionQualitySection({
         onOpenNotesDialog: (row) =>
           onQualityNotesDialogChange({
             enrollmentId: row.enrollment.id,
+            occurrenceId: row.occurrenceId,
             fullName: row.enrollment.person.fullName,
             qualityNotes: getQualityEffective(row).qualityNotes ?? "",
           }),
@@ -86,13 +95,60 @@ export function ActionQualitySection({
     [canUpdate, canReadPeople, tenantSlug, getQualityEffective, setQualityRowDraft, onQualityNotesDialogChange],
   );
 
+  const occurrenceOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    rows.forEach((row) => seen.set(row.occurrenceId, row.scheduledDate));
+    return Array.from(seen, ([value, scheduledDate]) => ({ value, label: formatOccurrenceLabel(scheduledDate) }))
+      .sort((left, right) => right.label.localeCompare(left.label, "pt-BR"));
+  }, [rows]);
+
+  const groupOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    rows.forEach((row) => {
+      row.enrollment.peopleGroups.forEach((group) => seen.set(group.id, group.name));
+    });
+    return Array.from(seen, ([value, label]) => ({ value, label }));
+  }, [rows]);
+
+  const filterFields = React.useMemo<SearchFieldDefinition[]>(
+    () => [
+      { name: "occurrenceId", label: "Encontro", type: "select", options: occurrenceOptions },
+      { name: "peopleGroups", label: "Grupo", type: "select", options: groupOptions },
+      { name: "isHighlight", label: "Destaque", type: "select", options: HIGHLIGHT_FILTER_OPTIONS },
+    ],
+    [occurrenceOptions, groupOptions],
+  );
+
+  const buildSearchRecord = React.useCallback(
+    (row: QualityAttendanceRow) => ({
+      occurrenceId: row.occurrenceId,
+      peopleGroups: row.enrollment.peopleGroups.map((group) => group.id),
+      isHighlight: String(Boolean(row.attendance?.isHighlight)),
+    }),
+    [],
+  );
+
+  const resolveGroupValue = React.useCallback((field: string, row: QualityAttendanceRow): unknown => {
+    if (field === "occurrenceId") return formatOccurrenceLabel(row.scheduledDate);
+    if (field === "peopleGroups") return row.enrollment.peopleGroups.map((group) => group.name);
+    return undefined;
+  }, []);
+
+  const resolveGroupLabel = React.useCallback((_field: string, value: unknown): string => {
+    const label = String(value ?? "").trim();
+    return label ? label : "Sem valor";
+  }, []);
+
   const filteredRows = React.useMemo(() => {
     const query = searchText.trim().toLocaleLowerCase("pt-BR");
-    if (!query) return rows;
-    return rows.filter((row) =>
-      row.enrollment.person.fullName.toLocaleLowerCase("pt-BR").includes(query),
-    );
-  }, [rows, searchText]);
+    return rows.filter((row) => {
+      if (!matchesDomainRecord(buildSearchRecord(row), domain, (record, field) => record[field as keyof typeof record])) {
+        return false;
+      }
+      if (!query) return true;
+      return row.enrollment.person.fullName.toLocaleLowerCase("pt-BR").includes(query);
+    });
+  }, [rows, searchText, domain, buildSearchRecord]);
 
   const changedCount = Object.keys(qualityDrafts).length;
 
@@ -114,41 +170,33 @@ export function ActionQualitySection({
         </div>
       ) : null}
 
-      <RelationListHost<MeetingAttendancesListItem>
+      <RelationListHost<QualityAttendanceRow>
         flushToolbar
         data={filteredRows}
         searchText={searchText}
         onSearchTextChange={setSearchText}
-        domain={null}
-        onDomainChange={() => undefined}
+        domain={domain}
+        onDomainChange={setDomain}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        groupByOptions={[
+          { field: "occurrenceId", label: "Encontro" },
+          { field: "peopleGroups", label: "Grupo" },
+        ]}
         searchPlaceholder="Pesquisar participantes"
         filteredCount={filteredRows.length}
+        filterFields={filterFields}
+        buildSearchRecord={buildSearchRecord}
+        searchActionId="activity.quality"
+        columns={columns}
+        // Nao ha fluxo de criacao aqui (a linha ja existe a partir da
+        // presenca registrada em Encontros) - botao mantido so pra
+        // bater com o padrao visual das outras relations enquanto isso
+        // e testado; remover (ou ligar a um fluxo real) depois.
+        onAdd={() => undefined}
         viewSwitcherSlot={
           <div className="flex items-center gap-2">
-            <Select value={occurrenceId ?? ""} onValueChange={onOccurrenceIdChange}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                <SelectValue placeholder="Encontro" />
-              </SelectTrigger>
-              <SelectContent>
-                {occurrenceOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={qualityGroupId} onValueChange={onQualityGroupChange}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                <SelectValue placeholder="Grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                {attendanceGroupOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <RecordBrowserViewSwitcher<"list"> value="list" options={VIEW_OPTIONS} onChange={() => undefined} />
             {canUpdate ? (
               <Button
                 type="button"
@@ -170,12 +218,15 @@ export function ActionQualitySection({
             Nenhuma pessoa com presença registrada.
           </p>
         ) : (
-          <ListView<MeetingAttendancesListItem>
+          <ListView<QualityAttendanceRow>
             data={filteredRows}
             columns={columns}
-            getRowId={(row) => row.enrollment.id}
+            getRowId={qualityRowId}
             showColumnVisibilityButton={false}
             bordered={false}
+            groupByFields={groupBy}
+            resolveGroupValue={resolveGroupValue}
+            resolveGroupLabel={resolveGroupLabel}
           />
         )}
       </RelationListHost>

@@ -98,7 +98,7 @@ function columns(): ColumnDef<ApiPeopleGroup>[] {
   return [
     {
       accessorKey: "name",
-      header: "Grupo de Pessoas",
+      header: "Grupo",
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <div className="font-medium text-foreground">{row.original.name}</div>
@@ -267,10 +267,10 @@ export function PeopleGroupsListModuleClientPage() {
     () =>
       graphBuilder
         ? buildGraphViewModel(
-            filteredRows as Array<Record<string, unknown>>,
-            state.graph,
-            graphBuilder,
-          )
+          filteredRows as Array<Record<string, unknown>>,
+          state.graph,
+          graphBuilder,
+        )
         : null,
     [filteredRows, graphBuilder, state.graph],
   );

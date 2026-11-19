@@ -62,7 +62,7 @@ const PEOPLE_GROUPS_PERMISSIONS = {
 const PEOPLE_GROUPS_LIST_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Abrir grupo de pessoas",
+    label: "Abrir Grupo",
     permissionKey: "canRead",
     scope: "row",
     requiresReturnTo: true,
@@ -84,13 +84,13 @@ const PEOPLE_GROUPS_LIST_ACTIONS: RecordModuleActionMap = {
 const PEOPLE_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
   view: {
     key: "view",
-    label: "Visualizar grupo de pessoas",
+    label: "Visualizar Grupo",
     permissionKey: "canRead",
     scope: "detail",
   },
   create: {
     key: "create",
-    label: "Novo grupo de pessoas",
+    label: "Novo Grupo",
     permissionKey: "canCreate",
     scope: "detail",
   },
@@ -102,7 +102,7 @@ const PEOPLE_GROUPS_DETAIL_ACTIONS: RecordModuleActionMap = {
   },
   delete: {
     key: "delete",
-    label: "Excluir grupo de pessoas",
+    label: "Excluir Grupo",
     permissionKey: "canDelete",
     scope: "detail",
   },
@@ -132,18 +132,18 @@ export const peopleGroupsListModuleDefinition =
       detailDataProvider: { model: "people-groups.detail" },
     },
     domainAdapter: {
-      entity: { singular: "Grupo de Pessoas", plural: "Grupos de Pessoas" },
+      entity: { singular: "Grupo", plural: "Grupos de Pessoas" },
       list: {
         searchPlaceholder: "Pesquisar",
         createActionLabel: "Novo",
         totalLabel: "Total",
-        emptyStateLabel: "Nenhum grupo de pessoas encontrado.",
+        emptyStateLabel: "Nenhum Grupo encontrado.",
       },
       detail: {
-        fallbackTitle: "Grupo de Pessoas",
+        fallbackTitle: "Grupo",
       },
       fields: {
-        name: { label: "Grupo de Pessoas" },
+        name: { label: "Grupo" },
         groupType: { label: "Tipo do grupo" },
         purpose: { label: "Finalidade" },
         category: { label: "Categoria" },
@@ -244,13 +244,13 @@ export const peopleGroupsDetailModuleDefinition =
       auditDataProvider: { model: "audit.logs" },
     },
     domainAdapter: {
-      entity: { singular: "Grupo de Pessoas", plural: "Grupos de Pessoas" },
+      entity: { singular: "Grupo", plural: "Grupos de Pessoas" },
       detail: {
-        createTitle: "Novo grupo de pessoas",
-        fallbackTitle: "Grupo de Pessoas",
+        createTitle: "Novo Grupo",
+        fallbackTitle: "Grupo",
       },
       fields: {
-        name: { label: "Grupo de Pessoas" },
+        name: { label: "Grupo" },
         groupType: { label: "Tipo do grupo" },
         purpose: { label: "Finalidade" },
         category: { label: "Categoria" },

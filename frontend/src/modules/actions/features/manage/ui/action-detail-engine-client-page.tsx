@@ -32,11 +32,10 @@ import {
   type ActivityDetailDraft,
   type ActionsDetailLayoutContext,
 } from "@/modules/actions/config/actions-detail-layout-contract";
-import { ACTION_RELATION_TEXT, ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
+import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
 import {
-  buildAttendanceGroupOptions,
-  filterQualityRows,
   resolveDefaultOccurrenceId,
+  type QualityAttendanceRow,
   type QualityDraft,
   type QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
@@ -114,6 +113,42 @@ async function fetchAllAttendances(params: {
   return all;
 }
 
+// Qualidade mostra a presenca de todos os Encontros juntos (Encontro virou
+// um filtro/agrupamento normal, como Grupo), entao busca cada Encontro em
+// paralelo (concorrencia limitada pra nao disparar uma chamada por Encontro
+// de uma vez) e marca cada linha com o Encontro de origem.
+async function fetchAllQualityAttendances(params: {
+  token: string;
+  projectId: string;
+  actionId: string;
+  occurrences: ApiMeeting[];
+}): Promise<QualityAttendanceRow[]> {
+  const { token, projectId, actionId, occurrences } = params;
+  const results: QualityAttendanceRow[] = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < occurrences.length) {
+      const occurrence = occurrences[cursor];
+      cursor += 1;
+      const rows = await fetchAllAttendances({
+        token,
+        projectId,
+        actionId,
+        occurrenceId: occurrence.id,
+      });
+      rows.forEach((row) => {
+        results.push({ ...row, occurrenceId: occurrence.id, scheduledDate: occurrence.scheduledDate });
+      });
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(4, occurrences.length) }, () => worker()),
+  );
+  return results;
+}
+
 export function ActionDetailEngineClientPage() {
   const params = useParams<{ id?: string }>();
   const searchParams = useSearchParams();
@@ -159,12 +194,11 @@ export function ActionDetailEngineClientPage() {
   >([]);
   const [attendanceSummaryLoading, setAttendanceSummaryLoading] = React.useState(false);
   const [attendanceSummaryError, setAttendanceSummaryError] = React.useState<string | null>(null);
-  const [attendanceSummaryFrom, setAttendanceSummaryFrom] = React.useState("");
-  const [attendanceSummaryTo, setAttendanceSummaryTo] = React.useState("");
   const attendanceSummaryRequestIdRef = React.useRef(0);
-  const [qualityGroupId, setQualityGroupId] = React.useState<string>(
-    ACTION_RELATION_VALUES.allGroups,
-  );
+  const [qualityAttendanceRows, setQualityAttendanceRows] = React.useState<QualityAttendanceRow[]>([]);
+  const [qualityRowsLoading, setQualityRowsLoading] = React.useState(false);
+  const [qualityRowsError, setQualityRowsError] = React.useState<string | null>(null);
+  const qualityRowsRequestIdRef = React.useRef(0);
   const [qualityDrafts, setQualityDrafts] = React.useState<Record<string, QualityDraft>>({});
   const [qualitySaving, setQualitySaving] = React.useState(false);
   const [qualityNotesDialog, setQualityNotesDialog] =
@@ -272,19 +306,12 @@ export function ActionDetailEngineClientPage() {
         const response = await listActionAttendanceSummary(token, projectId, id, {
           page,
           limit,
-          from: attendanceSummaryFrom || undefined,
-          to: attendanceSummaryTo || undefined,
         });
         all.push(...response.data);
         const pages = response.pagination?.pages ?? page;
         if (page >= pages) break;
         page += 1;
       }
-      // Requisicoes de "De"/"Ate" digitadas em sequencia rapida podem
-      // resolver fora de ordem - sem esse guard, uma resposta antiga (ex.:
-      // "De" sozinho, antes de "Ate" ser preenchido) pode sobrescrever o
-      // resultado correto da combinacao final (achado real testando com
-      // Playwright: filtro janeiro/2026 mostrava 100% por causa disso).
       if (requestId !== attendanceSummaryRequestIdRef.current) return;
       setAttendanceSummaryRows(all);
     } catch (error) {
@@ -300,7 +327,41 @@ export function ActionDetailEngineClientPage() {
         setAttendanceSummaryLoading(false);
       }
     }
-  }, [attendanceSummaryFrom, attendanceSummaryTo, canRead, id, projectId, token]);
+  }, [canRead, id, projectId, token]);
+
+  const loadQualityAttendanceRows = React.useCallback(async () => {
+    if (!token || !projectId || !id || !canRead) return;
+    const requestId = ++qualityRowsRequestIdRef.current;
+    setQualityRowsLoading(true);
+    setQualityRowsError(null);
+    try {
+      const rows = await fetchAllQualityAttendances({
+        token,
+        projectId,
+        actionId: id,
+        occurrences,
+      });
+      if (requestId !== qualityRowsRequestIdRef.current) return;
+      setQualityAttendanceRows(rows.filter((row) => row.attendance !== null));
+      if (occurrences.length === 0) {
+        setQualityRowsError(
+          "Nenhum encontro agendado ainda. Agende um encontro na aba \"Encontros\" para registrar presença.",
+        );
+      }
+    } catch (error) {
+      if (requestId !== qualityRowsRequestIdRef.current) return;
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message?: string }).message)
+          : "Falha ao carregar qualidade.";
+      setQualityAttendanceRows([]);
+      setQualityRowsError(message);
+    } finally {
+      if (requestId === qualityRowsRequestIdRef.current) {
+        setQualityRowsLoading(false);
+      }
+    }
+  }, [canRead, id, occurrences, projectId, token]);
 
   const applyLoadedAction = React.useCallback(
     (loaded: ApiActivity) => {
@@ -318,9 +379,8 @@ export function ActionDetailEngineClientPage() {
     setOccurrenceId(null);
     setAttendanceSummaryRows([]);
     setAttendanceSummaryError(null);
-    setAttendanceSummaryFrom("");
-    setAttendanceSummaryTo("");
-    setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
+    setQualityAttendanceRows([]);
+    setQualityRowsError(null);
     setQualityDrafts({});
     setQualitySaving(false);
     setQualityNotesDialog(null);
@@ -333,6 +393,10 @@ export function ActionDetailEngineClientPage() {
   React.useEffect(() => {
     void loadAttendanceSummary();
   }, [loadAttendanceSummary]);
+
+  React.useEffect(() => {
+    void loadQualityAttendanceRows();
+  }, [loadQualityAttendanceRows]);
 
   React.useEffect(() => {
     if (!token || !projectId || !canRead) {
@@ -463,11 +527,6 @@ export function ActionDetailEngineClientPage() {
     [id, projectId, refreshReport, toast, token],
   );
 
-  const attendanceGroupOptions = React.useMemo(
-    () => buildAttendanceGroupOptions(reportRows),
-    [reportRows],
-  );
-
   const occurrenceOptions = React.useMemo(
     () =>
       occurrences.map((occurrence) => ({
@@ -479,23 +538,17 @@ export function ActionDetailEngineClientPage() {
     [occurrences],
   );
 
-  React.useEffect(() => {
-    if (!attendanceGroupOptions.some((option) => option.value === qualityGroupId)) {
-      setQualityGroupId(ACTION_RELATION_VALUES.allGroups);
-    }
-  }, [attendanceGroupOptions, qualityGroupId]);
-
-  const qualityRows = React.useMemo(
-    () =>
-      filterQualityRows(reportRows, {
-        groupId: qualityGroupId,
-      }),
-    [qualityGroupId, reportRows],
+  // Mesmo enrollment aparece uma vez por Encontro (varias linhas), entao
+  // enrollment.id sozinho nao identifica mais uma linha unica - combina com
+  // o Encontro de origem.
+  const qualityDraftKey = React.useCallback(
+    (occurrenceIdValue: string, enrollmentId: string) => `${occurrenceIdValue}::${enrollmentId}`,
+    [],
   );
 
   const getQualityEffective = React.useCallback(
-    (row: MeetingAttendancesListItem) => {
-      const draftEntry = qualityDrafts[row.enrollment.id];
+    (row: QualityAttendanceRow) => {
+      const draftEntry = qualityDrafts[qualityDraftKey(row.occurrenceId, row.enrollment.id)];
       return {
         qualityScore:
           draftEntry?.qualityScore === undefined
@@ -511,18 +564,19 @@ export function ActionDetailEngineClientPage() {
             : Boolean(draftEntry.isHighlight),
       };
     },
-    [qualityDrafts],
+    [qualityDrafts, qualityDraftKey],
   );
 
   const setQualityRowDraft = React.useCallback(
     (
-      row: MeetingAttendancesListItem,
+      row: QualityAttendanceRow,
       patch: QualityDraft,
       prune = false,
     ) => {
+      const key = qualityDraftKey(row.occurrenceId, row.enrollment.id);
       setQualityDrafts((previous) => {
         const next = { ...previous };
-        const merged = { ...(previous[row.enrollment.id] ?? {}), ...patch };
+        const merged = { ...(previous[key] ?? {}), ...patch };
 
         if (prune) {
           const originalScore = row.attendance?.qualityScore ?? null;
@@ -536,45 +590,53 @@ export function ActionDetailEngineClientPage() {
             merged.isHighlight === undefined || merged.isHighlight === originalHighlight;
 
           if (scoreMatches && notesMatches && highlightMatches) {
-            delete next[row.enrollment.id];
+            delete next[key];
             return next;
           }
         }
 
-        next[row.enrollment.id] = merged;
+        next[key] = merged;
         return next;
       });
     },
-    [],
+    [qualityDraftKey],
   );
 
   const saveQualityDrafts = React.useCallback(async () => {
-    if (!token || !projectId || !occurrenceId) return;
-    const enrollmentIds = Object.keys(qualityDrafts);
-    if (!enrollmentIds.length) return;
+    if (!token || !projectId) return;
+    const keys = Object.keys(qualityDrafts);
+    if (!keys.length) return;
 
-    const items = enrollmentIds
-      .map((enrollmentId) => {
-        const row = reportRows.find((item) => item.enrollment.id === enrollmentId);
-        if (!row?.attendance) return null;
-        const patch = qualityDrafts[enrollmentId] ?? {};
-        return {
-          enrollmentId,
-          status: row.attendance.status,
-          ...(patch.qualityScore !== undefined ? { qualityScore: patch.qualityScore } : {}),
-          ...(patch.qualityNotes !== undefined ? { qualityNotes: patch.qualityNotes } : {}),
-          ...(patch.isHighlight !== undefined ? { isHighlight: patch.isHighlight } : {}),
-        };
-      })
-      .filter(Boolean) as Array<{
-      enrollmentId: string;
-      status: AttendanceStatus;
-      qualityScore?: number | null;
-      qualityNotes?: string | null;
-      isHighlight?: boolean;
-    }>;
+    const itemsByOccurrence = new Map<
+      string,
+      Array<{
+        enrollmentId: string;
+        status: AttendanceStatus;
+        qualityScore?: number | null;
+        qualityNotes?: string | null;
+        isHighlight?: boolean;
+      }>
+    >();
 
-    if (!items.length) {
+    keys.forEach((key) => {
+      const [rowOccurrenceId, enrollmentId] = key.split("::");
+      const row = qualityAttendanceRows.find(
+        (item) => item.occurrenceId === rowOccurrenceId && item.enrollment.id === enrollmentId,
+      );
+      if (!row?.attendance) return;
+      const patch = qualityDrafts[key] ?? {};
+      const items = itemsByOccurrence.get(rowOccurrenceId) ?? [];
+      items.push({
+        enrollmentId,
+        status: row.attendance.status,
+        ...(patch.qualityScore !== undefined ? { qualityScore: patch.qualityScore } : {}),
+        ...(patch.qualityNotes !== undefined ? { qualityNotes: patch.qualityNotes } : {}),
+        ...(patch.isHighlight !== undefined ? { isHighlight: patch.isHighlight } : {}),
+      });
+      itemsByOccurrence.set(rowOccurrenceId, items);
+    });
+
+    if (!itemsByOccurrence.size) {
       toast({
         title: ACTION_RELATION_TEXT.quality.saveNothingTitle,
         description: ACTION_RELATION_TEXT.quality.saveNothingDescription,
@@ -583,11 +645,15 @@ export function ActionDetailEngineClientPage() {
     }
 
     try {
-      await upsertMeetingAttendances(token, projectId, id, occurrenceId, items);
+      await Promise.all(
+        Array.from(itemsByOccurrence.entries()).map(([rowOccurrenceId, items]) =>
+          upsertMeetingAttendances(token, projectId, id, rowOccurrenceId, items),
+        ),
+      );
       setQualityDrafts({});
       setQualityNotesDialog(null);
       toast({ title: ACTION_RELATION_TEXT.quality.saveOkTitle });
-      await refreshReport();
+      await loadQualityAttendanceRows();
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
@@ -597,11 +663,13 @@ export function ActionDetailEngineClientPage() {
     } finally {
       setQualitySaving(false);
     }
-  }, [id, occurrenceId, projectId, qualityDrafts, refreshReport, reportRows, toast, token]);
+  }, [id, loadQualityAttendanceRows, projectId, qualityAttendanceRows, qualityDrafts, toast, token]);
 
   const applyQualityNotesDialog = React.useCallback(
     (state: QualityNotesDialogState) => {
-      const row = reportRows.find((item) => item.enrollment.id === state.enrollmentId);
+      const row = qualityAttendanceRows.find(
+        (item) => item.occurrenceId === state.occurrenceId && item.enrollment.id === state.enrollmentId,
+      );
       if (!row) {
         setQualityNotesDialog(null);
         return;
@@ -616,7 +684,7 @@ export function ActionDetailEngineClientPage() {
       );
       setQualityNotesDialog(null);
     },
-    [reportRows, setQualityRowDraft],
+    [qualityAttendanceRows, setQualityRowDraft],
   );
 
   if (!authLoading && !userLoading && !token) {
@@ -656,19 +724,15 @@ export function ActionDetailEngineClientPage() {
     occurrenceId,
     occurrenceOptions,
     onOccurrenceIdChange: setOccurrenceId,
-    attendanceGroupOptions,
     attendanceSummaryRows,
     attendanceSummaryLoading,
     attendanceSummaryError,
-    attendanceSummaryFrom,
-    attendanceSummaryTo,
-    onAttendanceSummaryFromChange: setAttendanceSummaryFrom,
-    onAttendanceSummaryToChange: setAttendanceSummaryTo,
-    qualityGroupId,
     qualityDrafts,
     qualitySaving,
     qualityNotesDialog,
-    qualityRows,
+    qualityAttendanceRows,
+    qualityRowsLoading,
+    qualityRowsError,
     onCommitField: (field: keyof ActivityDetailDraft, nextValue?: ActivityDetailDraft[keyof ActivityDetailDraft]) =>
       void commitField(field, nextValue),
     onUploadAttachment: () => {
@@ -684,7 +748,6 @@ export function ActionDetailEngineClientPage() {
     onActionLoaded: applyLoadedAction,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
     onEndTeamParticipation: handleEndTeamParticipation,
-    onQualityGroupChange: setQualityGroupId,
     getQualityEffective,
     setQualityRowDraft,
     saveQualityDrafts: () => void saveQualityDrafts(),

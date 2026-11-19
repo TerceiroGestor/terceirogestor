@@ -195,46 +195,46 @@ export function ProjectEnrollmentsCard({
 
       const demographics: ColumnDef<ApiProjectEnrollment>[] = canReadPeople
         ? [
-            {
-              id: "sex",
-              header: "Sexo",
-              accessorFn: (item) => item.person.sex ?? null,
-              meta: { valueMap: SEX_LABELS },
-              cell: ({ row }) => (
-                <span className="text-xs">
-                  {resolveLabel(row.original.person.sex ?? null, SEX_LABELS)}
-                </span>
-              ),
-            },
-            {
-              id: "gender",
-              header: "Genero",
-              accessorFn: (item) => item.person.gender ?? null,
-              meta: { valueMap: GENDER_LABELS },
-              cell: ({ row }) => (
-                <span className="text-xs">
-                  {resolveLabel(
-                    row.original.person.gender ?? null,
-                    GENDER_LABELS,
-                  )}
-                </span>
-              ),
-            },
-            {
-              id: "raceColor",
-              header: "Raca/Cor",
-              accessorFn: (item) => item.person.raceColor ?? null,
-              meta: { valueMap: RACE_COLOR_LABELS },
-              cell: ({ row }) => (
-                <span className="text-xs">
-                  {resolveLabel(
-                    row.original.person.raceColor ?? null,
-                    RACE_COLOR_LABELS,
-                  )}
-                </span>
-              ),
-            },
-          ]
+          {
+            id: "sex",
+            header: "Sexo",
+            accessorFn: (item) => item.person.sex ?? null,
+            meta: { valueMap: SEX_LABELS },
+            cell: ({ row }) => (
+              <span className="text-xs">
+                {resolveLabel(row.original.person.sex ?? null, SEX_LABELS)}
+              </span>
+            ),
+          },
+          {
+            id: "gender",
+            header: "Genero",
+            accessorFn: (item) => item.person.gender ?? null,
+            meta: { valueMap: GENDER_LABELS },
+            cell: ({ row }) => (
+              <span className="text-xs">
+                {resolveLabel(
+                  row.original.person.gender ?? null,
+                  GENDER_LABELS,
+                )}
+              </span>
+            ),
+          },
+          {
+            id: "raceColor",
+            header: "Raca/Cor",
+            accessorFn: (item) => item.person.raceColor ?? null,
+            meta: { valueMap: RACE_COLOR_LABELS },
+            cell: ({ row }) => (
+              <span className="text-xs">
+                {resolveLabel(
+                  row.original.person.raceColor ?? null,
+                  RACE_COLOR_LABELS,
+                )}
+              </span>
+            ),
+          },
+        ]
         : [];
 
       const structure: ColumnDef<ApiProjectEnrollment>[] = [
@@ -250,11 +250,11 @@ export function ProjectEnrollmentsCard({
         },
         {
           id: "peopleGroups",
-          header: "Grupo de Pessoas",
+          header: "Grupo",
           accessorFn: (item) => item.peopleGroups?.map((peopleGroup) => peopleGroup.name) ?? [],
           cell: ({ row }) => {
             const label = row.original.peopleGroups?.map((peopleGroup) => peopleGroup.name).join(", ") ?? "";
-            return <span className="text-xs">{label || "Sem grupo de pessoas"}</span>;
+            return <span className="text-xs">{label || "Sem Grupo"}</span>;
           },
         },
       ];
@@ -269,8 +269,8 @@ export function ProjectEnrollmentsCard({
               <p className="text-[11px] text-muted-foreground">
                 {row.original.startsAt || row.original.endsAt
                   ? `${formatDate(row.original.startsAt)} - ${formatDate(
-                      row.original.endsAt,
-                    )}`
+                    row.original.endsAt,
+                  )}`
                   : "Periodo nao informado"}
               </p>
             </div>

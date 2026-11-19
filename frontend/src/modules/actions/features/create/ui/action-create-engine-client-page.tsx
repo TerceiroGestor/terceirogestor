@@ -7,7 +7,6 @@ import {
   actionsDetailModuleDefinition,
 } from "@/modules/actions/config/actions-module-contract";
 import type { ActionsDetailLayoutContext } from "@/modules/actions/config/actions-detail-layout-contract";
-import { ACTION_RELATION_VALUES } from "@/modules/actions/features/manage/config/action-relations.constants";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 
 export function ActionCreateEngineClientPage() {
@@ -59,20 +58,15 @@ export function ActionCreateEngineClientPage() {
     occurrenceId: null,
     occurrenceOptions: [],
     onOccurrenceIdChange: () => undefined,
-    attendanceGroupOptions: [],
     attendanceSummaryRows: [],
     attendanceSummaryLoading: false,
     attendanceSummaryError: null,
-    attendanceSummaryFrom: "",
-    attendanceSummaryTo: "",
-    onAttendanceSummaryFromChange: () => undefined,
-    onAttendanceSummaryToChange: () => undefined,
-    qualityGroupId: ACTION_RELATION_VALUES.allGroups,
     qualityDrafts: {},
     qualitySaving: false,
     qualityNotesDialog: null,
-    qualityRows: [],
-    onQualityGroupChange: () => undefined,
+    qualityAttendanceRows: [],
+    qualityRowsLoading: false,
+    qualityRowsError: null,
     getQualityEffective: () => ({
       qualityScore: null,
       qualityNotes: null,

@@ -29,7 +29,7 @@ export const actionsSearchView: SearchViewDefinition = {
     },
     {
       name: "peopleGroup.name",
-      label: "Grupo de Pessoas",
+      label: "Grupo",
       type: "text",
       operators: ["contains", "=", "!="],
     },
@@ -65,7 +65,7 @@ export const actionsSearchView: SearchViewDefinition = {
     { field: "tags", label: "Tags" },
     { field: "createdAt", label: "Cadastro" },
     { field: "actionType.name", label: "Tipo" },
-    { field: "peopleGroup.name", label: "Grupo de Pessoas" },
+    { field: "peopleGroup.name", label: "Grupo" },
     { field: "targetEnrollment.person.fullName", label: "Participante" },
   ],
 };

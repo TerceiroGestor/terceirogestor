@@ -207,7 +207,7 @@ export function ProjectActionManageDialog({
                       Tipo: <strong>{action.actionType?.name ?? "—"}</strong>
                     </span>
                     <span>
-                      Grupo de Pessoas:{" "}
+                      Grupo:{" "}
                       <strong>
                         {action.peopleGroup?.name ?? "—"}
                       </strong>

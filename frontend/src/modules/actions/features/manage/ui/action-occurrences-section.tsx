@@ -1275,7 +1275,7 @@ export function ActionOccurrencesSection({
       { name: "status", label: "Status", type: "select", options: OCCURRENCE_STATUS_OPTIONS },
       {
         name: "peopleGroups",
-        label: "Grupo de pessoas",
+        label: "Grupo",
         type: "select",
         options: groups.map((link) => ({ value: link.peopleGroupId, label: link.peopleGroup.name })),
       },
@@ -1363,7 +1363,7 @@ export function ActionOccurrencesSection({
         onGroupByChange={setGroupBy}
         groupByOptions={[
           { field: "status", label: "Status" },
-          { field: "peopleGroups", label: "Grupo de pessoas" },
+          { field: "peopleGroups", label: "Grupo" },
           { field: "scheduledDate", label: "Data" },
         ]}
         filterFields={filterFields}

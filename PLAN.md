@@ -637,6 +637,87 @@ no meio por causa do falso-negativo, encerrado ao final):
 (0px de distância) tanto parado quanto após forçar 2000px de overflow e
 rolar — a barra não se move.
 
+**4.16 — Participantes/Qualidade/Equipe: faltava o template completo
+(Colunas/Filtros/typeview/Novo) (2026-11-19).** As 3 abas já usavam
+`RelationListHost`, mas só com busca — sem o botão Colunas, sem Filtros,
+sem seletor de visualização (mesmo com só "Lista" como opção) e sem o
+botão "Novo" (mesmo sem fluxo de criação real ainda). Usuário pediu
+explicitamente pra bater com Encontros nos 4 elementos, mantendo "Novo"
+como placeholder (`onAdd={() => undefined}`, comentado) onde ainda não
+há fluxo de criação — Equipe já tinha um `onAdd` real e não mudou. Cada
+seção ganhou `columns` (liga Colunas), `filterFields`+`domain`+
+`buildSearchRecord` (liga Filtros) e `RecordBrowserViewSwitcher` com uma
+única opção "Lista" no `viewSwitcherSlot`.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → 0 erros nos 3
+arquivos. Testado ao vivo (dev server próprio): as 3 abas mostram Busca +
+Colunas + Filtros + typeview + Novo, idêntico a Encontros visualmente;
+Colunas abre o menu de colunas visíveis e funciona; Filtros abre o painel
+colorido (azul/verde/roxo) e funciona.
+
+**4.17 — Período/Encontro/Grupo: de controle solto pra filtro/
+agrupamento real dentro do painel (2026-11-19).** Usuário pediu pra
+remover os controles soltos que ainda sobravam no `viewSwitcherSlot`
+(Período em Participantes; Encontro + Grupo em Qualidade) e virar
+filtro/agrupamento normal no painel de Filtros, do mesmo jeito que
+Encontros já fazia com Status/Data/Grupo.
+
+- **Participantes:** botão "Período" (`DateRangeFilterButton`, from/to)
+  removido sem substituto — não existe campo de data por linha nesse
+  resumo agregado pra virar filtro client-side, então a frequência/média
+  passou a ser calculada no histórico completo (sem janela de período).
+  Isso tornou `attendanceSummaryFrom`/`attendanceSummaryTo` e os
+  callbacks associados mortos — removidos de
+  `action-detail-engine-client-page.tsx`, `actions-detail-layout-contract.tsx`
+  e `action-create-engine-client-page.tsx` (não só escondidos). Grupo de
+  pessoas, que já era filtro, ganhou também `groupByOptions` (agrupamento
+  real, com `resolveGroupValue`/`resolveGroupLabel` no `ListView`).
+- **Qualidade:** selects soltos "Encontro" e "Grupo" removidos —
+  perguntei antes ao usuário como tratar "Encontro" especificamente,
+  porque ele não era um filtro client-side: controlava qual Encontro era
+  buscado no backend (`occurrenceId` -> 1 fetch por vez). Usuário optou
+  por virar filtro/agrupamento de verdade mesmo custando mais fetch.
+  Mudança: a aba agora busca a presença de **todos os Encontros de uma
+  vez** (`fetchAllQualityAttendances`, concorrência limitada a 4 fetches
+  em paralelo, uma chamada por Encontro) e cada linha carrega
+  `occurrenceId`+`scheduledDate` (novo tipo `QualityAttendanceRow` em
+  `action-operational-relations.tsx`). Como o mesmo `enrollment.id`
+  aparece agora uma vez por Encontro, `enrollment.id` sozinho deixou de
+  ser chave única de linha — toda identidade de linha/rascunho
+  (`qualityDrafts`, `getRowId` do `ListView`) passou a usar a chave
+  composta `${occurrenceId}::${enrollmentId}`. Salvar
+  (`saveQualityDrafts`) agrupa os itens alterados por Encontro antes de
+  chamar `upsertMeetingAttendances` (1 chamada por Encontro, em
+  paralelo), porque o endpoint ainda é por Encontro. Nova coluna
+  "Encontro" na tabela pra identificar a linha quando várias datas
+  aparecem juntas. "Grupo" virou filtro/agrupamento via `peopleGroups`,
+  igual Participantes.
+- **Efeito colateral necessário, fora do pedido original:** a aba
+  Progresso e Relatório usava esse mesmo seletor "Encontro" (estado
+  compartilhado `occurrenceId`) pra decidir qual Encontro reportar — era
+  a única forma de trocar isso na tela inteira. Como a troca saiu de
+  Qualidade, adicionei um seletor "Encontro" mínimo direto no card
+  "Relatório" (reusando `occurrenceId`/`occurrenceOptions`/
+  `onOccurrenceIdChange`, que já existiam no context) pra não perder essa
+  capacidade silenciosamente — sem isso a aba ficaria travada sempre no
+  Encontro padrão.
+- **Bug pré-existente encontrado, não corrigido (fora de escopo):** a
+  aba Progresso e Relatório mostra o banner de erro "Nenhum encontro
+  agendado ainda" mesmo com o relatório carregado e um Encontro
+  selecionado. Confirmado via `git stash` que o bug já existia antes
+  desta sessão (mesmo comportamento sem nenhuma das mudanças de hoje) —
+  registrado aqui, não corrigido, por não fazer parte do pedido.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros em todo o frontend; `npx
+eslint` nos 7 arquivos tocados → mesma contagem de erros pré-existentes
+de antes (8 `react-hooks/set-state-in-effect`, mesmo padrão já presente
+no arquivo, nenhum novo). Testado ao vivo (dev server próprio): toolbar
+de Participantes e Qualidade sem os controles soltos; painel "Agrupar
+por" de Qualidade mostra "Encontro"/"Grupo de pessoas" com rótulo certo;
+alternar o toggle "Destaque" + "Salvar" mostra toast "Qualidade salva" e
+o estado persiste após recarregar as linhas; aba Progresso e Relatório
+mantém o seletor de Encontro funcionando.
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o

@@ -124,7 +124,7 @@ export function ProjectEnrollmentManageDialog({
 
   const peopleGroupsLabel =
     enrollment.peopleGroups.map((group) => group.name).join(", ") ||
-    "Sem grupo de pessoas";
+    "Sem Grupo";
 
   return (
     <SectionDialog
