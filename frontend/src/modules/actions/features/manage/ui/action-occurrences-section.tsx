@@ -970,168 +970,168 @@ function EditOccurrenceDialog({
         </TabsList>
 
         <TabsContent value="detalhes" className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2">
-            <Label>Data</Label>
-            <Input
-              type="date"
-              value={scheduledDate}
-              onChange={(event) => setScheduledDate(event.target.value)}
-              disabled={!canUpdate}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Status</Label>
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value as OccurrenceStatus)}
-              disabled={!canUpdate}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OCCURRENCE_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-2">
-            <Label>Início</Label>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              disabled={!canUpdate}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Término</Label>
-            <Input
-              type="time"
-              value={endTime}
-              onChange={(event) => setEndTime(event.target.value)}
-              disabled={!canUpdate}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Grupos</Label>
-          <MultiSelectBadges
-            options={groups.map((link) => ({
-              value: link.peopleGroupId,
-              label: link.peopleGroup.name,
-            }))}
-            selectedValues={peopleGroupIds}
-            onChange={setPeopleGroupIds}
-            disabled={!canUpdate}
-            addLabel="Adicionar grupo"
-            searchPlaceholder="Pesquisar grupo..."
-            noOptionsLabel="Nenhum grupo vinculado a esta atividade."
-            emptyLabel="Sem grupo específico — vale para qualquer participante da atividade."
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Educadores/Equipe</Label>
-          <TeamPeopleGroupPicker
-            groups={teamGroups}
-            selectedIds={teamPeopleGroupIds}
-            onChange={setTeamPeopleGroupIds}
-            disabled={!canUpdate}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Notas</Label>
-          <Textarea
-            rows={3}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            readOnly={!canUpdate}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Planejamento</Label>
-          <RichText value={planHtml} onChange={setPlanHtml} disabled={!canUpdate} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Relato da execução</Label>
-          <RichText value={executedHtml} onChange={setExecutedHtml} disabled={!canUpdate} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Conclusão</Label>
-          <RichText value={conclusionHtml} onChange={setConclusionHtml} disabled={!canUpdate} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label>Fotos</Label>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) void handleUploadPhoto(file);
-            }}
-          />
-          {canUpdate ? (
-            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
-              <span className="text-xs text-muted-foreground">
-                {photoPaths.length}/5 fotos
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => photoInputRef.current?.click()}
-                disabled={photoUploading || photoPaths.length >= 5}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>Data</Label>
+              <Input
+                type="date"
+                value={scheduledDate}
+                onChange={(event) => setScheduledDate(event.target.value)}
+                disabled={!canUpdate}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Status</Label>
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as OccurrenceStatus)}
+                disabled={!canUpdate}
               >
-                {photoUploading ? "Enviando..." : "Enviar foto"}
-              </Button>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OCCURRENCE_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : null}
-          {photoPaths.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma foto adicionada.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              {photoPaths.map((path) => (
-                <div
-                  key={path}
-                  className="group relative overflow-hidden rounded-lg border border-border/60 bg-muted/10"
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>Início</Label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+                disabled={!canUpdate}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Término</Label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+                disabled={!canUpdate}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Grupos</Label>
+            <MultiSelectBadges
+              options={groups.map((link) => ({
+                value: link.peopleGroupId,
+                label: link.peopleGroup.name,
+              }))}
+              selectedValues={peopleGroupIds}
+              onChange={setPeopleGroupIds}
+              disabled={!canUpdate}
+              addLabel="Adicionar grupo"
+              searchPlaceholder="Pesquisar grupo..."
+              noOptionsLabel="Nenhum grupo vinculado a esta atividade."
+              emptyLabel="Sem grupo específico — vale para qualquer participante da atividade."
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Educadores/Equipe</Label>
+            <TeamPeopleGroupPicker
+              groups={teamGroups}
+              selectedIds={teamPeopleGroupIds}
+              onChange={setTeamPeopleGroupIds}
+              disabled={!canUpdate}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Notas</Label>
+            <Textarea
+              rows={3}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              readOnly={!canUpdate}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Planejamento</Label>
+            <RichText value={planHtml} onChange={setPlanHtml} disabled={!canUpdate} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Relato da execução</Label>
+            <RichText value={executedHtml} onChange={setExecutedHtml} disabled={!canUpdate} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Conclusão</Label>
+            <RichText value={conclusionHtml} onChange={setConclusionHtml} disabled={!canUpdate} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Fotos</Label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void handleUploadPhoto(file);
+              }}
+            />
+            {canUpdate ? (
+              <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
+                <span className="text-xs text-muted-foreground">
+                  {photoPaths.length}/5 fotos
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading || photoPaths.length >= 5}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={resolveMediaUrl(path)} alt="Foto do encontro" className="h-32 w-full object-cover" />
-                  {canUpdate ? (
-                    <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => void handleDeletePhoto(path)}
-                        disabled={photoUploading}
-                      >
-                        Remover
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  {photoUploading ? "Enviando..." : "Enviar foto"}
+                </Button>
+              </div>
+            ) : null}
+            {photoPaths.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhuma foto adicionada.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                {photoPaths.map((path) => (
+                  <div
+                    key={path}
+                    className="group relative overflow-hidden rounded-lg border border-border/60 bg-muted/10"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={resolveMediaUrl(path)} alt="Foto do encontro" className="h-32 w-full object-cover" />
+                    {canUpdate ? (
+                      <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/40 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void handleDeletePhoto(path)}
+                          disabled={photoUploading}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="presenca" className="flex flex-col gap-4">
@@ -1369,7 +1369,7 @@ export function ActionOccurrencesSection({
         filterFields={filterFields}
         buildSearchRecord={buildOccurrenceSearchRecord}
         searchActionId="activity.occurrences"
-        searchPlaceholder="Pesquisar por data, status, grupo ou notas"
+        searchPlaceholder="Pesquisar"
         filteredCount={filteredOccurrences.length}
         onAdd={readOnly ? undefined : () => setScheduleOpen(true)}
         viewSwitcherSlot={

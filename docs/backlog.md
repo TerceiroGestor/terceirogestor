@@ -427,3 +427,33 @@ especificamente (igual está fazendo com Atividades agora) — remover o
 que monta a barra, não só esconder) e levar os campos que ela mostrava
 pro formulário principal, seguindo a mesma convenção de primeira linha
 (Título/Status/Tipo/relacionamento principal) adotada na Atividade.
+
+## Relations ainda no `DetailRelationsRenderer`, não em `RelationListHost` (2026-11-18)
+
+A aba Encontros da Atividade virou a referência do padrão canônico de
+relation (ver `docs/canonical-web-client-standard.md`, seção "Relation
+no rodapé do Detail") — barra única sem cabeçalho, botões Colunas/Filtros
+estilo ghost, agrupamento por qualquer coluna repetível, atalho de
+intervalo de data automático no painel de Filtros, tabela sem borda, sem
+coluna de Ações (editar é clicar na linha, excluir é selecionar +
+"Excluir selecionados"). Três abas da própria Atividade ainda não seguem
+isso — Participantes, Qualidade e Equipe continuam no mecanismo mais
+simples (`DetailRelationsRenderer`/`DetailRelationConfig`,
+`web-client/detail/DetailLayoutSections.tsx`), sem `SearchPanelMenu` de
+verdade, sem botão de Colunas, sem agrupamento.
+**Gatilho:** quando o usuário pedir pra revisar uma dessas 3 abas
+especificamente (mesmo fluxo usado pra Encontros) — trocar
+`DetailRelationsRenderer` por `RelationListHost` (ou
+`DetailRelationTablePanel`, se a relation não precisar de visualização
+alternativa tipo calendário), seguindo a seção do padrão canônico passo a
+passo. A aba Participantes especificamente já tem um `type: "dateRange"`
+customizado (item anterior do backlog, agora marcado como legado) que
+pode ser removido nessa migração — o atalho de data do `SearchPanelMenu`
+substitui.
+
+**Fora do escopo desta migração, mas candidato futuro:** o List Principal
+(`RecordListHost`) ainda renderiza `ListView` com borda (`bordered` não
+informado, fica no padrão `true`) — se o usuário quiser a mesma ausência
+de borda nas telas de lista principal, não só nas relations, é só passar
+`bordered={false}` lá também; não assumido agora porque não foi pedido
+para essa parte do sistema.

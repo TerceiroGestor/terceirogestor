@@ -108,6 +108,102 @@ Planejamento (Início/Fim/Plano pedagógico) logo após Descrição; aba
 pedagógico ainda dispara PATCH 200 e volta pra "Pronto" — autosave
 preservado. Dado de teste restaurado ao final.
 
+**Ajuste 2.3 — Descrição no mesmo visual linha dos outros campos:**
+pedido do usuário, com Projects como referência explícita ("o visual que
+está o campo descrição no detail de projetos"). `Textarea` da Descrição
+ganhou `lineTextareaClassName` (novo, espelha
+`PROJECT_DETAIL_TEXTAREA_CLASS`: só borda de baixo, transparente, sem
+sombra, mesma altura compacta de antes). `tsc`/`eslint`/`build` → ok;
+usuário confirmou ao vivo ("Sim apareceu e ficou bom!").
+
+### Item 3 — padronizar a aba Encontros como referência de "relation"
+
+Pedido do usuário: as abas de relação (Participantes/Encontros/Qualidade/
+Equipe) estavam cada uma visualmente diferente; Encontros devia virar a
+referência de padronização, replicando a "barra de busca completa" do
+List Principal (TypeView) — seleção de colunas, filtros com
+agrupamento, seletor de visualização com ícones — e tirando as bordas
+"feias" da tabela.
+
+Investiguei antes de desenhar (2 agentes `Explore` + leitura direta,
+porque mexe em infra compartilhada) e achei que já existia um componente
+pronto pra isso — `RelationListHost` + `DetailRelationTablePanel`
+(`web-client/relation/`, `web-client/detail/DetailRelationTablePanel.tsx`)
+— já usado por 7 painéis de relação de Pessoa, com `SearchPanelMenu` de
+verdade e filtro via `Domain`/`matchesDomainRecord`. Reescrevi só a
+"casca" de `ActionOccurrencesSection`
+(`frontend/src/modules/actions/features/manage/ui/action-occurrences-section.tsx`)
+pra usar `RelationListHost` direto (não `DetailRelationTablePanel`, que
+é fixo em tabela — Encontros precisa alternar com `CalendarView`); nada
+do diálogo de agendar recorrência, editar encontro ou presença inline
+mudou.
+
+Rodadas de ajuste ao vivo, depois de cada uma o usuário testou no
+próprio servidor (pedido explícito dele: não derrubar os servidores que
+ele estava usando — todo checkpoint desta seção é só `tsc`/`eslint`/
+`build` estático, verificação visual ficou por conta dele):
+
+1. **Filtro de data, agrupamento, colunas** — trocados o `Select` de mês
+   e o toggle de texto Lista/Calendário por filtros de verdade (Status/
+   Grupo/Data via `Domain`) e `RecordBrowserViewSwitcher` com ícones de
+   `getStandardViewIcon`.
+2. **Layout numa linha só + botão "Novo" padronizado** — seletor de view
+   movido pra dentro do toolbar do `RelationListHost` via novo prop
+   `viewSwitcherSlot`; botão de criar sempre "Novo", sempre
+   `Button` sólido (azul), nunca mais um `addLabel` customizado por
+   consumidor — prop removida do `RelationListHost`/
+   `DetailRelationTablePanel` e dos 7 painéis de Pessoa que a usavam
+   (texto diferente pra mesma ação "criar" dava impressão de ações
+   diferentes).
+3. **Botões no estilo real do TypeView** — Colunas/Filtros trocados de
+   `variant="outline"` pra `variant="ghost" size="icon"`, igual
+   `RecordListHost.tsx` (o List Principal de verdade) já usa; seletor de
+   view perdeu a borda/fundo ao redor (`ToggleGroup` base tinha
+   `border`/`bg-muted` incondicional — zerado só nesse componente).
+4. **Checkbox do cabeçalho desalinhado** — bug real no `ListView.tsx`: o
+   cabeçalho tinha um `<div>` de agrupamento extra (pro ícone de
+   ordenação) que as células não tinham, então o checkbox "selecionar
+   todos" não herdava a centralização das linhas. Corrigido só na coluna
+   `__select__`, sem tocar no layout de nenhuma outra coluna — vale pra
+   toda tabela selecionável do sistema, não só Encontros.
+5. **Coluna de Ações removida + agrupamento ampliado + atalho de data
+   nos Filtros** — "Excluir" por linha saiu (clicar na linha já edita,
+   checkbox + "Excluir selecionados" já exclui); `ListView` ganhou
+   `resolveGroupValue` (campo computado, não só leitura direta — "Grupo
+   de pessoas" não é um campo plano) pra permitir agrupar por Status/
+   Grupo/Data; `SearchPanelMenu` ganhou um atalho De/Até automático no
+   painel de Filtros pra todo campo `type: "date"` declarado (escreve no
+   mesmo `Domain` que o filtro personalizado usa — `upsertAndCondition`,
+   novo em `web-client/domain/conditions.ts`).
+6. **Contagem do grupo pouco visível + De/Até fora do padrão visual** —
+   contagem (`node.count`, já existia) movida pra uma pílula ao lado do
+   rótulo do grupo em vez de um número solto à direita; campos De/Até do
+   atalho de data trocados pro estilo linha (só borda de baixo) e
+   empilhados (De em cima, Até embaixo) em vez de lado a lado numa caixa.
+
+**Evidência (cada rodada):** `npx tsc --noEmit` → 0 erros em todas; `npx
+eslint` nos arquivos tocados → só os erros pré-existentes já confirmados
+contra `develop` limpo antes de cada rodada (nenhum novo); `npm run
+build` → ok em todas. Usuário confirmou ao vivo "Está ficando lindo!" /
+"Agora ficou perfeito." no final da sequência.
+
+**Mudou infraestrutura compartilhada, documentado explicitamente a cada
+vez pro usuário:** `RelationListHost`/`ListView` são usados por 7 painéis
+de relação de Pessoa — as props novas (`groupByOptions`, `columns`,
+`viewSwitcherSlot`, `bordered`, `resolveGroupValue`) são todas opcionais
+e preservam o comportamento atual quando omitidas, confirmado por leitura
+de código já que não pude testar ao vivo sem derrubar os servidores do
+usuário. O atalho de data em `SearchPanelMenu` é automático (olha
+`type: "date"` nos campos) e aparece em praticamente toda tela de List
+Principal do sistema que já declara campo de data — avisado ao usuário
+antes de implementar.
+
+**Padrão documentado em `docs/canonical-web-client-standard.md`**
+("Relation no rodapé do Detail") como a referência pra Participantes/
+Qualidade/Equipe da própria Atividade e qualquer relation futura —
+registrado em `docs/backlog.md` com gatilho ("quando o usuário pedir pra
+revisar uma dessas abas").
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o

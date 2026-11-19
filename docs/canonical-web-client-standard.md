@@ -193,7 +193,12 @@ Regras visuais da `relation operacional`:
 - `RecordListHost` no list principal
 - `DetailShellEngine` no detail
 - `StandardDetailMetadataSide` no side
-- `RelationListHost` ou relation equivalente do web-client no rodapÃ©
+- `RelationListHost` (direto, ou via `DetailRelationTablePanel` quando a
+  relation nao precisa de visualizacao alternativa) no rodapÃ© - ver
+  "Visual do Detail" / "Relation no rodape do Detail" pro padrao visual
+  completo. `DetailRelationsRenderer`/`DetailRelationConfig` segue
+  existindo so pras relations ainda nao migradas (`docs/backlog.md`), nao
+  usar em relation nova.
 
 ### Proibido
 
@@ -270,23 +275,111 @@ nesse caso a aba simplesmente fica sem badge (campo opcional, "desativado"
 e so nao preencher). Abas que nao sao lista (ex.: um formulario) nunca
 ganham badge.
 
-### Filtro de periodo na relation (`dateRange`, padrao a partir de 2026-11-18)
+### Filtro de periodo na relation (`dateRange`, 2026-11-18, legado)
 
 `DetailRelationFilterConfig` aceita `type: "dateRange"` alem de `type:
-"select"`, renderizado no mesmo lugar (barra de filtro ao lado da busca,
-dentro do toolbar do `relationSlot`) via `DateRangeFilterButton`
+"select"`, renderizado no toolbar via `DateRangeFilterButton`
 (`web-client/ui/DateRangeFilterButton.tsx`): botao compacto com icone de
-calendario, mostra o intervalo formatado quando preenchido ou um texto
-placeholder quando vazio, abre um `Popover` com `Calendar` (shadcn,
-`mode="range"`) e um botao "Limpar". Nunca voltar a usar um par solto de
-`<Input type="date">` fora do toolbar da relation - isso e o que o filtro
-de periodo da Atividade (aba Participantes) tinha antes e foi substituido.
+calendario, Popover com `Calendar` (shadcn, `mode="range"`) e um botao
+"Limpar". Foi o primeiro fix (aba Participantes da Atividade), mas **foi
+superado pelo padrao da secao seguinte** (`RelationListHost`, que ja tem
+range de data embutido no painel de Filtros via `SearchPanelMenu`, sem
+precisar de um botao a parte). Continua documentado aqui porque
+Participantes/Qualidade/Equipe da Atividade ainda usam o mecanismo mais
+simples (`DetailRelationsRenderer`/`DetailRelationConfig`) em vez de
+`RelationListHost` - ver `docs/backlog.md`. Nao usar `dateRange` em
+relation nova; relation nova usa `RelationListHost` direto.
+
 `components/ui/calendar.tsx` foi corrigido nesta mesma rodada para as
 chaves de `classNames` da v9 do react-day-picker (a v8 usava
 `head_row`/`day_selected`/etc., a v9 renomeou pra `weekdays`/`selected`/etc.,
 e as chaves antigas sao ignoradas em silencio, sem erro, so o estilo
 quebra) e ganhou `locale={ptBR}` por padrao - qualquer novo uso do
-`Calendar` compartilhado ja herda os dois.
+`Calendar` compartilhado ja herda os dois (inclusive `RelationListHost`).
+
+### Relation no rodape do Detail (padrao a partir de 2026-11-18, referencia: aba Encontros da Atividade)
+
+Toda relation no rodape de um Detail usa `RelationListHost`
+(`web-client/relation/RelationListHost.tsx`) - e so ele, nao
+`DetailRelationsRenderer`/`DetailRelationConfig`
+(`web-client/detail/DetailLayoutSections.tsx`), que fica reservado pras
+relations que ainda nao migraram (ver `docs/backlog.md`). Pra relation
+simples (so lista + busca + filtro + colunas, sem visualizacao
+alternativa), usar `DetailRelationTablePanel`
+(`web-client/detail/DetailRelationTablePanel.tsx`), que ja envolve
+`RelationListHost` com uma `TableView` fixa - e o que os 7 paineis de
+relacao de People (Escolaridade, Detencoes, Contatos, etc.) usam. Pra
+relation que precisa alternar entre Lista e outra visualizacao (ex.:
+Calendario), usar `RelationListHost` direto, igual a aba Encontros.
+
+**Barra unica, sem cabecalho proprio:**
+
+- Sem titulo tipo "Encontros" acima da barra - a aba do Detail ja
+  identifica o conteudo (`title`/`subtitle` do `RelationListHost` ficam
+  `sr-only` por padrao, nao removidos, so nao aparecem visualmente).
+- Tudo numa linha so: busca + botao Colunas + botao Filtros + (quando a
+  relation tiver mais de uma visualizacao) seletor de view + botao
+  "Novo". A busca nao tem largura maxima fixa - ocupa o espaco que
+  sobrar depois dos outros elementos, que tem largura fixa.
+- Botoes Colunas e Filtros usam `variant="ghost"` + `size="icon"`, sem
+  borda, cor `text-muted-foreground` (`hover:text-foreground`) - o
+  mesmo estilo que o List Principal real ja usa em `RecordListHost.tsx`.
+  O botao de Filtros ganha um ponto (`bg-primary`, `size-1.5`,
+  `absolute right-1.5 top-1.5`) quando ha filtro ou agrupamento ativo.
+  Nunca `variant="outline"` nem botao com texto pro Colunas/Filtros de
+  uma relation.
+- Seletor de visualizacao (quando existir) usa `RecordBrowserViewSwitcher`
+  (`components/record-browser/RecordBrowserViewSwitcher.tsx`) com icones
+  de `getStandardViewIcon` (`web-client/registry/view-icons.tsx`) - nunca
+  um par de `<Button>` de texto tipo "Lista"/"Calendario". Sem borda nem
+  fundo ao redor do grupo de icones (`border-0 bg-transparent p-0` no
+  `ToggleGroup`) - os icones ficam soltos, parecendo um controle so; cada
+  opcao ja se distingue pelo sublinhado (`border-b-2`) quando ativa.
+- Botao de criar e sempre "Novo", sempre `Button` solido (`variant`
+  padrao = `bg-primary`, azul neste tema) - nunca um link de texto com
+  seta, nunca um rotulo customizado tipo "Agendar encontros"/"Nova
+  condicao"/"Novo vinculo". Rotulo diferente pra mesma acao (criar) passa
+  a impressao de que sao coisas diferentes quando nao sao. `addLabel` foi
+  removido do `RelationListHost` de proposito - nao reintroduzir.
+
+**Filtros, agrupamento e colunas** (via `SearchPanelMenu`, jah embutido no
+`RelationListHost` quando `filterFields` e informado):
+
+- Agrupamento: todo campo que pode ter valores repetidos deveria estar
+  disponivel em `groupByOptions`. Quando o campo nao e uma propriedade
+  plana (ex.: uma lista de objetos relacionados, como grupos de pessoas),
+  o `ListView` recebe `resolveGroupValue` (um calculo), nao so o nome do
+  campo - ver `ListView.tsx`. Mostrar a contagem de cada grupo como uma
+  pilula (`rounded-full bg-muted`) do lado do rotulo, nunca so um numero
+  solto no canto da linha.
+- Qualquer campo `type: "date"` em `filterFields` ganha automaticamente
+  um atalho de intervalo (De/Ate) no topo do painel de Filtros do
+  `SearchPanelMenu`, sem precisar abrir "Filtro personalizado..." - isso
+  e automatico (olha o `type` do campo), nao e algo que cada modulo liga
+  na mao. Os campos De/Ate usam o mesmo estilo de linha do resto do
+  formulario (so borda de baixo, sem caixa), um embaixo do outro, nunca
+  lado a lado numa caixa com borda inteira.
+- Colunas: passar `columns` pro `RelationListHost` liga o botao
+  automaticamente (via `ColumnVisibilityProvider`/`ColumnVisibilityMenu`,
+  `web-client/views/ListView.tsx`) - nao desligar com
+  `showColumnVisibilityButton={false}` no `ListView` interno quando
+  `columns` ja foi passado pro host (ficaria duplicado).
+
+**Tabela:**
+
+- `ListView` com `bordered={false}` dentro de uma relation do
+  `RelationListHost` - sem borda externa nem linhas divisorias entre
+  cabecalho/linhas. `bordered` e opcional (padrao `true`, preserva o
+  visual de qualquer `ListView` fora desse contexto, ex.: List Principal).
+- O checkbox do cabecalho (quando `enableRowSelection`) fica alinhado
+  com os checkboxes das linhas - bug corrigido globalmente no `ListView`
+  (o cabecalho tinha um wrapper extra sem `justify-center`); nao
+  reintroduzir um wrapper proprio pro checkbox do cabecalho.
+- **Sem coluna de Acoes por linha quando a mesma operacao ja existe de
+  outro jeito**: clicar na linha abre pra editar (`onRowClick`), marcar o
+  checkbox de uma ou mais linhas + "Excluir selecionados" cobre exclusao.
+  So adicionar um botao de acao por linha quando a acao nao tiver outro
+  caminho (ex.: uma acao que nao e editar nem excluir).
 
 ### FormulÃ¡rio principal (`detailSlot`)
 
