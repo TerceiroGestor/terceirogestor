@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RichText } from "@/components/ui/richtext/RichText";
-import { SectionCard } from "@/components/section-card";
 import { SectionDialog } from "@/components/section-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,10 +48,18 @@ import {
   OCCURRENCE_STATUS_OPTIONS,
   WEEK_DAY_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
-import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
 import { CalendarView } from "@/web-client/views/CalendarView";
 import { ListView } from "@/web-client/views/ListView";
+import { RelationListHost } from "@/web-client/relation/RelationListHost";
+import { matchesDomainRecord } from "@/web-client/domain/evaluate";
+import type { Domain } from "@/web-client/domain/types";
+import type { SearchFieldDefinition } from "@/web-client/search/types";
+import {
+  RecordBrowserViewSwitcher,
+  type RecordBrowserViewOption,
+} from "@/components/record-browser/RecordBrowserViewSwitcher";
+import { getStandardViewIcon } from "@/web-client/registry/view-icons";
 
 async function runInBatches<T>(
   items: T[],
@@ -63,19 +70,6 @@ async function runInBatches<T>(
     const batch = items.slice(i, i + batchSize);
     await Promise.allSettled(batch.map((item) => run(item)));
   }
-}
-
-const ALL_MONTHS_VALUE = "__all__";
-
-function toMonthValue(scheduledDate: string) {
-  return scheduledDate.slice(0, 7); // "YYYY-MM"
-}
-
-function formatMonthLabel(monthValue: string) {
-  const [year, month] = monthValue.split("-");
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
-  const label = date.toLocaleDateString("pt-BR", { timeZone: "UTC", month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function TeamPeopleGroupPicker({
@@ -1198,7 +1192,8 @@ export function ActionOccurrencesSection({
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<ApiMeeting | null>(null);
   const [searchText, setSearchText] = React.useState("");
-  const [monthFilter, setMonthFilter] = React.useState(ALL_MONTHS_VALUE);
+  const [domain, setDomain] = React.useState<Domain>(null);
+  const [groupBy, setGroupBy] = React.useState<string[]>([]);
   const [selectedRows, setSelectedRows] = React.useState<ApiMeeting[]>([]);
 
   // ListView recalcula a selecao (novo array, mesmo conteudo) a cada
@@ -1287,15 +1282,33 @@ export function ActionOccurrencesSection({
     [confirm, token, projectId, actionId, toast, loadOccurrences],
   );
 
-  const availableMonths = React.useMemo(() => {
-    const months = new Set(occurrences.map((item) => toMonthValue(item.scheduledDate)));
-    return Array.from(months).sort().reverse();
-  }, [occurrences]);
+  const buildOccurrenceSearchRecord = React.useCallback(
+    (item: ApiMeeting) => ({
+      status: item.status,
+      grupo: item.peopleGroups.map((link) => link.peopleGroupId),
+      data: item.scheduledDate,
+    }),
+    [],
+  );
+
+  const filterFields = React.useMemo<SearchFieldDefinition[]>(
+    () => [
+      { name: "status", label: "Status", type: "select", options: OCCURRENCE_STATUS_OPTIONS },
+      {
+        name: "grupo",
+        label: "Grupo de pessoas",
+        type: "select",
+        options: groups.map((link) => ({ value: link.peopleGroupId, label: link.peopleGroup.name })),
+      },
+      { name: "data", label: "Data", type: "date" },
+    ],
+    [groups],
+  );
 
   const filteredOccurrences = React.useMemo(() => {
     const query = searchText.trim().toLowerCase();
     return occurrences.filter((item) => {
-      if (monthFilter !== ALL_MONTHS_VALUE && toMonthValue(item.scheduledDate) !== monthFilter) {
+      if (!matchesDomainRecord(buildOccurrenceSearchRecord(item), domain, (record, field) => record[field as keyof typeof record])) {
         return false;
       }
       if (!query) return true;
@@ -1309,7 +1322,7 @@ export function ActionOccurrencesSection({
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [occurrences, searchText, monthFilter]);
+  }, [occurrences, searchText, domain, buildOccurrenceSearchRecord]);
 
   const handleBulkDelete = React.useCallback(async () => {
     if (readOnly || selectedRows.length === 0) return;
@@ -1350,67 +1363,43 @@ export function ActionOccurrencesSection({
     [handleDelete, readOnly],
   );
 
+  const viewOptions: RecordBrowserViewOption<"list" | "calendar">[] = [
+    { value: "list", label: "Lista", icon: getStandardViewIcon("list") },
+    { value: "calendar", label: "Calendário", icon: getStandardViewIcon("calendar") },
+  ];
+
   return (
-    <SectionCard
-      title="Encontros"
-      actions={
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-md border border-border/60 p-0.5">
-            <Button
-              type="button"
-              size="sm"
-              variant={view === "list" ? "secondary" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setView("list")}
-            >
-              Lista
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={view === "calendar" ? "secondary" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setView("calendar")}
-            >
-              Calendário
-            </Button>
-          </div>
-          {!readOnly ? (
-            <Button type="button" size="sm" onClick={() => setScheduleOpen(true)}>
-              Agendar encontros
-            </Button>
-          ) : null}
-        </div>
-      }
-    >
+    <>
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
-      {occurrences.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[200px] flex-1">
-            <SearchBar
-              value={searchText}
-              onChange={setSearchText}
-              placeholder="Pesquisar por data, status, grupo ou notas"
-            />
-          </div>
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="h-9 w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_MONTHS_VALUE}>Todos os meses</SelectItem>
-              {availableMonths.map((month) => (
-                <SelectItem key={month} value={month}>
-                  {formatMonthLabel(month)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <RelationListHost<ApiMeeting>
+        data={occurrences}
+        searchText={searchText}
+        onSearchTextChange={setSearchText}
+        domain={domain}
+        onDomainChange={setDomain}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        groupByOptions={[{ field: "status", label: "Status" }]}
+        filterFields={filterFields}
+        buildSearchRecord={buildOccurrenceSearchRecord}
+        searchActionId="activity.occurrences"
+        searchPlaceholder="Pesquisar por data, status, grupo ou notas"
+        filteredCount={filteredOccurrences.length}
+        addLabel="Agendar encontros"
+        onAdd={readOnly ? undefined : () => setScheduleOpen(true)}
+        columns={columns}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <RecordBrowserViewSwitcher
+            value={view}
+            onChange={setView}
+            options={viewOptions}
+          />
           {!readOnly && selectedRows.length > 0 ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -1428,54 +1417,56 @@ export function ActionOccurrencesSection({
             </div>
           ) : null}
         </div>
-      ) : null}
 
-      {loading ? (
-        <p className="text-xs text-muted-foreground">Carregando...</p>
-      ) : occurrences.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Nenhum encontro agendado ainda.
-        </p>
-      ) : filteredOccurrences.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Nenhum encontro encontrado para esse filtro.
-        </p>
-      ) : view === "list" ? (
-        <ListView<ApiMeeting>
-          data={filteredOccurrences}
-          columns={columns}
-          getRowId={(row) => row.id}
-          enableRowSelection={!readOnly}
-          onSelectionChange={handleSelectionChange}
-          onRowClick={(row) => setEditTarget(row)}
-          showColumnVisibilityButton={false}
-        />
-      ) : (
-        <CalendarView<ApiMeeting>
-          items={filteredOccurrences}
-          getDate={(item) => new Date(item.scheduledDate)}
-          renderItem={(item) => (
-            <button
-              type="button"
-              className="flex w-full flex-col gap-1 rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/20"
-              onClick={() => setEditTarget(item)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">
-                  {formatTimeOnly(item.startTime)}
-                  {item.endTime ? ` – ${formatTimeOnly(item.endTime)}` : ""}
+        {loading ? (
+          <p className="text-xs text-muted-foreground">Carregando...</p>
+        ) : occurrences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhum encontro agendado ainda.
+          </p>
+        ) : filteredOccurrences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhum encontro encontrado para esse filtro.
+          </p>
+        ) : view === "list" ? (
+          <ListView<ApiMeeting>
+            data={filteredOccurrences}
+            columns={columns}
+            getRowId={(row) => row.id}
+            enableRowSelection={!readOnly}
+            onSelectionChange={handleSelectionChange}
+            onRowClick={(row) => setEditTarget(row)}
+            showColumnVisibilityButton={false}
+            groupByFields={groupBy}
+            bordered={false}
+          />
+        ) : (
+          <CalendarView<ApiMeeting>
+            items={filteredOccurrences}
+            getDate={(item) => new Date(item.scheduledDate)}
+            renderItem={(item) => (
+              <button
+                type="button"
+                className="flex w-full flex-col gap-1 rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/20"
+                onClick={() => setEditTarget(item)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {formatTimeOnly(item.startTime)}
+                    {item.endTime ? ` – ${formatTimeOnly(item.endTime)}` : ""}
+                  </span>
+                  {resolveOccurrenceStatusBadge(item.status)}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {item.peopleGroups.length
+                    ? item.peopleGroups.map((link) => link.peopleGroup.name).join(", ")
+                    : "Sem grupo específico"}
                 </span>
-                {resolveOccurrenceStatusBadge(item.status)}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {item.peopleGroups.length
-                  ? item.peopleGroups.map((link) => link.peopleGroup.name).join(", ")
-                  : "Sem grupo específico"}
-              </span>
-            </button>
-          )}
-        />
-      )}
+              </button>
+            )}
+          />
+        )}
+      </RelationListHost>
 
       <BulkScheduleOccurrencesDialog
         open={scheduleOpen}
@@ -1501,6 +1492,6 @@ export function ActionOccurrencesSection({
         }}
         onSaved={() => void loadOccurrences()}
       />
-    </SectionCard>
+    </>
   );
 }
