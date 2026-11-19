@@ -60,24 +60,29 @@ function QuickDateRangeFilter({
   };
 
   return (
-    <div className="space-y-1.5 px-2 py-1">
+    <div className="space-y-2 px-2 py-1">
       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
         {field.label}
       </div>
-      <div className="flex items-center gap-1.5">
-        <Input
-          type="date"
-          value={current.from}
-          onChange={(event) => apply(event.target.value, current.to)}
-          className="h-8 text-xs"
-        />
-        <span className="shrink-0 text-xs text-muted-foreground">até</span>
-        <Input
-          type="date"
-          value={current.to}
-          onChange={(event) => apply(current.from, event.target.value)}
-          className="h-8 text-xs"
-        />
+      <div className="space-y-1.5">
+        <div className="space-y-0.5">
+          <div className="text-[10px] text-muted-foreground">De</div>
+          <Input
+            type="date"
+            value={current.from}
+            onChange={(event) => apply(event.target.value, current.to)}
+            className="h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:border-primary focus-visible:ring-0"
+          />
+        </div>
+        <div className="space-y-0.5">
+          <div className="text-[10px] text-muted-foreground">Até</div>
+          <Input
+            type="date"
+            value={current.to}
+            onChange={(event) => apply(current.from, event.target.value)}
+            className="h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:border-primary focus-visible:ring-0"
+          />
+        </div>
       </div>
     </div>
   );

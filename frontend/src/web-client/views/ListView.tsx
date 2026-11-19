@@ -883,9 +883,9 @@ export function ListView<TData>({
                               <div className="min-w-0 truncate text-xs font-semibold text-foreground">
                                 {node.label}
                               </div>
-                            </div>
-                            <div className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                              {node.count}
+                              <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+                                {node.count}
+                              </span>
                             </div>
                           </button>
                         </TableCell>
