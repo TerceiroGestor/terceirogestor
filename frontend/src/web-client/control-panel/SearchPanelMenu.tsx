@@ -23,9 +23,65 @@ import {
   saveFavorites,
   type FavoriteDefinition,
 } from "@/web-client/control-panel/favorites-storage";
+import { collectAndConditions, upsertAndCondition } from "@/web-client/domain/conditions";
 import type { Domain, DomainCombinator } from "@/web-client/domain/types";
-import type { SearchViewDefinition } from "@/web-client/search/types";
+import type { SearchFieldDefinition, SearchViewDefinition } from "@/web-client/search/types";
 import { ModuleEmptyState } from "@/web-client/ui/ModulePrimitives";
+
+function getBetweenValue(domain: Domain, field: string): { from: string; to: string } {
+  const conditions = collectAndConditions(domain) ?? [];
+  const match = conditions.find((entry) => entry.field === field && entry.operator === "between");
+  if (match && Array.isArray(match.value)) {
+    return {
+      from: match.value[0] == null ? "" : String(match.value[0]),
+      to: match.value[1] == null ? "" : String(match.value[1]),
+    };
+  }
+  return { from: "", to: "" };
+}
+
+function QuickDateRangeFilter({
+  field,
+  domain,
+  onDomainChange,
+}: {
+  field: SearchFieldDefinition;
+  domain: Domain;
+  onDomainChange: (next: Domain) => void;
+}) {
+  const current = getBetweenValue(domain, field.name);
+
+  const apply = (from: string, to: string) => {
+    const nextCondition =
+      from || to
+        ? { type: "condition" as const, field: field.name, operator: "between" as const, value: [from || null, to || null] }
+        : null;
+    onDomainChange(upsertAndCondition(domain, field.name, nextCondition));
+  };
+
+  return (
+    <div className="space-y-1.5 px-2 py-1">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {field.label}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="date"
+          value={current.from}
+          onChange={(event) => apply(event.target.value, current.to)}
+          className="h-8 text-xs"
+        />
+        <span className="shrink-0 text-xs text-muted-foreground">até</span>
+        <Input
+          type="date"
+          value={current.to}
+          onChange={(event) => apply(current.from, event.target.value)}
+          className="h-8 text-xs"
+        />
+      </div>
+    </div>
+  );
+}
 
 type SearchPanelGroupByOption = {
   field: string;
@@ -245,8 +301,26 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
     }
   }, [onClearAll, onClearFilters, onDomainChange, onGroupByChange, onResetAnalysis]);
 
+  const quickDateFields = React.useMemo(
+    () => (allowAdvancedFilters ? searchView.fields.filter((field) => field.type === "date") : []),
+    [allowAdvancedFilters, searchView.fields],
+  );
+
   const filtersPanel = (
     <PanelSection title="Filtros" icon={<SlidersHorizontal className="size-4" />}>
+      {quickDateFields.length ? (
+        <div className="space-y-2 border-b border-border/50 pb-2">
+          {quickDateFields.map((field) => (
+            <QuickDateRangeFilter
+              key={field.name}
+              field={field}
+              domain={domain}
+              onDomainChange={onDomainChange}
+            />
+          ))}
+        </div>
+      ) : null}
+
       {allowPresets && searchView.presets?.length ? (
         <div className="space-y-1">
           {searchView.presets.map((preset) => (

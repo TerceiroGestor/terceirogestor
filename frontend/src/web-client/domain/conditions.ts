@@ -45,3 +45,28 @@ export function removeConditionAtIndex(
   const next = conditions.filter((_, i) => i !== index);
   return domainFromConditions(combinator, next);
 }
+
+/**
+ * Troca (ou remove) a condição de um campo dentro de um domínio combinado
+ * por "and", preservando as outras condições - usado pelos atalhos rápidos
+ * do `SearchPanelMenu` (ex.: período de uma vez, sem abrir o construtor de
+ * filtro completo). Quando o domínio atual não é decomponível em "and"
+ * (ex.: já tem um grupo "or"), não arrisca reescrever a árvore inteira: só
+ * agrupa a condição nova ao lado do que já existe.
+ */
+export function upsertAndCondition(
+  domain: Domain,
+  field: string,
+  condition: DomainCondition | null,
+): Domain {
+  const conditions = collectConditions(domain, "and");
+  if (conditions) {
+    const next = conditions.filter((entry) => entry.field !== field);
+    if (condition) next.push(condition);
+    return domainFromConditions("and", next);
+  }
+
+  if (!domain) return condition;
+  if (!condition) return domain;
+  return { type: "group", combinator: "and", children: [domain, condition] };
+}
