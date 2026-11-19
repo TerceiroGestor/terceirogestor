@@ -24,6 +24,8 @@ import {
   type FavoriteDefinition,
 } from "@/web-client/control-panel/favorites-storage";
 import { collectAndConditions, upsertAndCondition } from "@/web-client/domain/conditions";
+import { DETAIL_LINE_INPUT_CLASS_NAME } from "@/web-client/detail/DetailFormSection";
+import { cn } from "@/lib/utils";
 import type { Domain, DomainCombinator } from "@/web-client/domain/types";
 import type { SearchFieldDefinition, SearchViewDefinition } from "@/web-client/search/types";
 import { ModuleEmptyState } from "@/web-client/ui/ModulePrimitives";
@@ -71,7 +73,7 @@ function QuickDateRangeFilter({
             type="date"
             value={current.from}
             onChange={(event) => apply(event.target.value, current.to)}
-            className="h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:border-primary focus-visible:ring-0"
+            className={cn(DETAIL_LINE_INPUT_CLASS_NAME, "h-8 text-xs")}
           />
         </div>
         <div className="space-y-0.5">
@@ -80,7 +82,7 @@ function QuickDateRangeFilter({
             type="date"
             value={current.to}
             onChange={(event) => apply(current.from, event.target.value)}
-            className="h-8 rounded-none border-0 border-b border-border/60 bg-transparent px-0 text-xs shadow-none focus-visible:border-primary focus-visible:ring-0"
+            className={cn(DETAIL_LINE_INPUT_CLASS_NAME, "h-8 text-xs")}
           />
         </div>
       </div>

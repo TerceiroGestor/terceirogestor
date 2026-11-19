@@ -50,7 +50,13 @@ import {
 } from "@/modules/projects/api";
 import { SectionCard } from "@/components/section-card";
 import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
-import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
+import {
+  DetailSectionField,
+  DetailSectionHeading,
+  DETAIL_LINE_INPUT_CLASS_NAME,
+  DETAIL_LINE_TEXTAREA_CLASS_NAME,
+} from "@/web-client/detail/DetailFormSection";
+import { cn } from "@/lib/utils";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type {
@@ -67,11 +73,6 @@ const AUTO_SAVE_EDITING = {
 
 const NONE_VALUE = "__none__";
 
-const lineInputClassName =
-  "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
-
-const lineTextareaClassName =
-  "min-h-[80px] rounded-none border-0 border-b border-border/60 bg-transparent px-0 py-3 text-sm shadow-none resize-none focus-visible:border-primary focus-visible:ring-0";
 
 const ACTION_DETAIL_SECTION_CLASS = "border-b border-border/60 bg-transparent px-0 py-4";
 
@@ -345,7 +346,7 @@ function ActivityDetailMain({
             value={draft.title}
             onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
             onBlur={() => onCommitField("title")}
-            className={lineInputClassName}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             readOnly={readOnly}
           />
         </DetailSectionField>
@@ -360,7 +361,7 @@ function ActivityDetailMain({
             }}
             disabled={readOnly}
           >
-            <SelectTrigger className={lineInputClassName}>
+            <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -382,7 +383,7 @@ function ActivityDetailMain({
             }}
             disabled={readOnly}
           >
-            <SelectTrigger className={lineInputClassName}>
+            <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -440,7 +441,7 @@ function ActivityDetailMain({
               }}
               disabled={readOnly}
             >
-              <SelectTrigger className={lineInputClassName}>
+              <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
                 <SelectValue placeholder="Sem meta vinculada" />
               </SelectTrigger>
               <SelectContent>
@@ -463,7 +464,7 @@ function ActivityDetailMain({
             value={draft.description}
             onChange={(event) => setDraft((previous) => ({ ...previous, description: event.target.value }))}
             onBlur={() => onCommitField("description")}
-            className={lineTextareaClassName}
+            className={cn(DETAIL_LINE_TEXTAREA_CLASS_NAME, "min-h-[80px]")}
             readOnly={readOnly}
             placeholder="Resumo curto sobre a atividade."
           />
@@ -498,7 +499,7 @@ function ActivityPlanningSection({
             value={draft.plannedStartAt}
             onChange={(event) => setDraft((previous) => ({ ...previous, plannedStartAt: event.target.value }))}
             onBlur={() => onCommitField("plannedStartAt")}
-            className={lineInputClassName}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             readOnly={readOnly}
           />
         </DetailSectionField>
@@ -509,7 +510,7 @@ function ActivityPlanningSection({
             value={draft.plannedEndAt}
             onChange={(event) => setDraft((previous) => ({ ...previous, plannedEndAt: event.target.value }))}
             onBlur={() => onCommitField("plannedEndAt")}
-            className={lineInputClassName}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             readOnly={readOnly}
           />
         </DetailSectionField>
@@ -569,7 +570,7 @@ function ActionProgressSection({
             onChange={(event) =>
               setProgressDraft((previous) => ({ ...previous, completionPercent: event.target.value }))
             }
-            className={lineInputClassName}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             readOnly={readOnly || saving}
           />
         </DetailSectionField>

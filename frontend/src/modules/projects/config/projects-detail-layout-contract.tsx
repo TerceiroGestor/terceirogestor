@@ -28,7 +28,12 @@ import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.co
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { ProjectFundingSourcesSection } from "@/modules/projects/features/detail/ui/project-funding-sources-section";
 import { ProjectGoalsSection } from "@/modules/projects/features/detail/ui/project-goals-section";
-import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
+import {
+  DetailSectionField,
+  DETAIL_LINE_INPUT_CLASS_NAME,
+  DETAIL_LINE_TEXTAREA_CLASS_NAME,
+} from "@/web-client/detail/DetailFormSection";
+import { cn } from "@/lib/utils";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
   buildGroupedAuditFeed,
@@ -38,10 +43,6 @@ import {
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
-const PROJECT_DETAIL_INPUT_CLASS =
-  "h-10 rounded-none border-0 border-b border-border/70 bg-transparent px-0 text-sm shadow-none focus-visible:border-primary focus-visible:ring-0";
-const PROJECT_DETAIL_TEXTAREA_CLASS =
-  "min-h-[180px] rounded-none border-0 border-b border-border/70 bg-transparent px-0 py-3 text-sm shadow-none resize-none focus-visible:border-primary focus-visible:ring-0";
 const PROJECT_DETAIL_SECTION_CLASS =
   "border-y border-border/60 bg-transparent px-0 py-4";
 
@@ -464,7 +465,7 @@ function ProjectsDetailMain({
               setDraft((previous) => ({ ...previous, name: event.target.value }))
             }
             onBlur={() => onCommitField("name")}
-            className={PROJECT_DETAIL_INPUT_CLASS}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             placeholder="Nome do projeto"
             readOnly={readOnly}
           />
@@ -479,7 +480,7 @@ function ProjectsDetailMain({
             }}
             disabled={readOnly}
           >
-            <SelectTrigger className={PROJECT_DETAIL_INPUT_CLASS}>
+            <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
               <SelectValue placeholder="Programa" />
             </SelectTrigger>
             <SelectContent>
@@ -501,7 +502,7 @@ function ProjectsDetailMain({
             }}
             disabled={readOnly}
           >
-            <SelectTrigger className={PROJECT_DETAIL_INPUT_CLASS}>
+            <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -524,7 +525,7 @@ function ProjectsDetailMain({
               setDraft((previous) => ({ ...previous, startsAt: event.target.value }))
             }
             onBlur={() => onCommitField("startsAt")}
-            className={PROJECT_DETAIL_INPUT_CLASS}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             title="Início"
             readOnly={readOnly}
           />
@@ -538,7 +539,7 @@ function ProjectsDetailMain({
               setDraft((previous) => ({ ...previous, endsAt: event.target.value }))
             }
             onBlur={() => onCommitField("endsAt")}
-            className={PROJECT_DETAIL_INPUT_CLASS}
+            className={DETAIL_LINE_INPUT_CLASS_NAME}
             title="Fim"
             readOnly={readOnly}
           />
@@ -553,7 +554,7 @@ function ProjectsDetailMain({
               setDraft((previous) => ({ ...previous, description: event.target.value }))
             }
             onBlur={() => onCommitField("description")}
-            className={PROJECT_DETAIL_TEXTAREA_CLASS}
+            className={cn(DETAIL_LINE_TEXTAREA_CLASS_NAME, "min-h-[180px]")}
             placeholder="Descrição"
             readOnly={readOnly}
           />
