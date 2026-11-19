@@ -527,6 +527,7 @@ export function ListView<TData>({
   storageKey,
   columnVisibility: controlledColumnVisibility,
   onColumnVisibilityChange,
+  bordered = true,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -558,6 +559,13 @@ export function ListView<TData>({
   /** Estado controlado de visibilidade - quando informado, substitui o estado interno. */
   columnVisibility?: VisibilityState;
   onColumnVisibilityChange?: (next: VisibilityState) => void;
+  /**
+   * Quando `false`, tira a borda externa e as linhas de divisão da tabela
+   * (cabeçalho e linhas do corpo) - uso pontual pra contextos que já têm
+   * moldura própria (ex.: dentro de um `RelationListHost`). Padrão `true`
+   * preserva o visual de sempre em todo List Principal.
+   */
+  bordered?: boolean;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -686,7 +694,13 @@ export function ListView<TData>({
   const shouldShowColumnVisibilityButton = showColumnVisibilityButton && !visibilityContext;
 
   return (
-    <ModuleSurface className={cn("flex h-full min-h-0 flex-col", className)}>
+    <ModuleSurface
+      className={cn(
+        "flex h-full min-h-0 flex-col",
+        !bordered && "rounded-none border-0 bg-transparent",
+        className,
+      )}
+    >
       {shouldShowColumnVisibilityButton || (enableRowSelection && bulkActions && selectedRows.length) ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
           <div className="text-muted-foreground">
@@ -777,7 +791,14 @@ export function ListView<TData>({
       ) : null}
 
       <div className={cn("min-h-0 flex-1 overflow-auto", renderCard ? "hidden md:block" : undefined)}>
-        <UiTable className="[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:border-b [&_thead_th]:border-border/50 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]">
+        <UiTable
+          className={cn(
+            "[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]",
+            bordered
+              ? "[&_thead_th]:border-b [&_thead_th]:border-border/50"
+              : "[&_thead_th]:border-b-0 [&_tbody_tr]:border-b-0",
+          )}
+        >
           <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

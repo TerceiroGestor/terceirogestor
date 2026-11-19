@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
@@ -12,6 +13,12 @@ import type {
   SearchFieldDefinition,
   SearchViewDefinition,
 } from "@/web-client/search/types";
+import {
+  ColumnVisibilityMenu,
+  ColumnVisibilityProvider,
+} from "@/web-client/views/ListView";
+
+type RelationGroupByOption = { field: string; label: string };
 
 type RelationListHostProps<TData> = {
   title?: string;
@@ -23,6 +30,9 @@ type RelationListHostProps<TData> = {
   onDomainChange: (next: Domain) => void;
   groupBy?: string[];
   onGroupByChange?: (next: string[]) => void;
+  groupByOptions?: RelationGroupByOption[];
+  groupByMode?: "single" | "multi";
+  allowEmptyGroupBy?: boolean;
   filterFields?: SearchFieldDefinition[];
   buildSearchRecord?: (row: TData) => Record<string, unknown>;
   searchActionId?: string;
@@ -31,6 +41,14 @@ type RelationListHostProps<TData> = {
   addHref?: string;
   addLabel?: string;
   onAdd?: () => void;
+  /**
+   * Quando informado, mostra o botão "Colunas" na mesma barra do filtro
+   * (via `ColumnVisibilityMenu`/`ColumnVisibilityProvider`,
+   * `web-client/views/ListView.tsx`) - qualquer `ListView` renderizado
+   * dentro de `children` sincroniza sozinho, sem prop extra nele.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns?: ColumnDef<any, unknown>[];
   children: React.ReactNode;
 };
 
@@ -44,6 +62,9 @@ export function RelationListHost<TData>({
   onDomainChange,
   groupBy = [],
   onGroupByChange,
+  groupByOptions,
+  groupByMode = "single",
+  allowEmptyGroupBy = false,
   filterFields,
   buildSearchRecord,
   searchActionId,
@@ -52,6 +73,7 @@ export function RelationListHost<TData>({
   addHref,
   addLabel = "Novo registro",
   onAdd,
+  columns,
   children,
 }: RelationListHostProps<TData>) {
   const resolvedSearchView = React.useMemo<SearchViewDefinition | null>(() => {
@@ -60,9 +82,6 @@ export function RelationListHost<TData>({
       id: searchActionId ?? `detail-relation:${title ?? addLabel ?? "records"}`,
       model: "detail.relation",
       fields: filterFields,
-      features: {
-        groupBy: false,
-      },
     };
   }, [addLabel, filterFields, searchActionId, title]);
 
@@ -108,7 +127,7 @@ export function RelationListHost<TData>({
 
   const filteredCountLabel = filteredCount.toLocaleString("pt-BR");
 
-  return (
+  const content = (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[280px] flex-1">
@@ -122,6 +141,13 @@ export function RelationListHost<TData>({
                 <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
                   {filteredCountLabel}
                 </span>
+                {columns ? (
+                  <ColumnVisibilityMenu
+                    triggerVariant="outline"
+                    triggerSize="sm"
+                    showTriggerLabel={false}
+                  />
+                ) : null}
                 {resolvedSearchView ? (
                   <SearchPanelMenu
                     actionId={resolvedSearchView.id}
@@ -130,7 +156,9 @@ export function RelationListHost<TData>({
                     onDomainChange={onDomainChange}
                     groupBy={groupBy}
                     onGroupByChange={onGroupByChange ?? (() => undefined)}
-                    groupByOptions={[]}
+                    groupByOptions={groupByOptions ?? []}
+                    groupByMode={groupByMode}
+                    allowEmptyGroupBy={allowEmptyGroupBy}
                     snapshot={{ searchText, domain, groupBy }}
                     valueSuggestions={valueSuggestions}
                     onApplyFavorite={(snapshot) => {
@@ -178,5 +206,16 @@ export function RelationListHost<TData>({
 
       {children}
     </section>
+  );
+
+  if (!columns) return content;
+
+  return (
+    <ColumnVisibilityProvider
+      storageKey={searchActionId ?? "relation-list"}
+      columns={columns}
+    >
+      {content}
+    </ColumnVisibilityProvider>
   );
 }
