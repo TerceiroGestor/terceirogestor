@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,8 +29,6 @@ export type DetailShellLabels = Partial<{
   saving: string;
   loading: string;
   ready: string;
-  closeAria: string;
-  closeTitle: string;
 }>;
 
 export type DetailShellProps = {
@@ -92,8 +91,6 @@ const DEFAULT_LABELS: Required<DetailShellLabels> = {
   saving: "Salvando...",
   loading: "Carregando...",
   ready: "Pronto",
-  closeAria: "Fechar",
-  closeTitle: "Fechar",
 };
 
 export function DetailShell({
@@ -106,7 +103,6 @@ export function DetailShell({
   loading,
   readOnly,
   onSave,
-  onClose,
   headerActionsSlot,
   headerTitleSlot,
   headerInfoSlot,
@@ -214,6 +210,12 @@ export function DetailShell({
       ? mergedLabels.loading
       : mergedLabels.ready;
 
+  const statusIcon = saving || loading ? (
+    <Loader2 className="size-3.5 animate-spin text-primary" />
+  ) : (
+    <CheckCircle2 className="size-3.5 text-emerald-500" />
+  );
+
   const sideToggleButton = hasSideSlot ? (
     <Button
       type="button"
@@ -255,21 +257,14 @@ export function DetailShell({
                 </Button>
               ) : null
             ) : (
-              <div className="border-b border-border/50 px-0 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="flex items-center border-transparent font-medium uppercase text-muted-foreground tracking-[0.1em] translate-y-[5px] gap-1.5 px-2.5 py-1 text-[11px]"
+              >
+                {statusIcon}
                 {statusText}
-              </div>
+              </Badge>
             )}
-
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={onClose}
-              aria-label={mergedLabels.closeAria}
-              title={mergedLabels.closeTitle}
-            >
-              <X className="size-4" />
-            </Button>
           </div>
 
           {sideToggleButton || headerActionsSlot ? (

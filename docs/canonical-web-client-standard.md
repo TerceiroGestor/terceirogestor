@@ -275,6 +275,21 @@ nesse caso a aba simplesmente fica sem badge (campo opcional, "desativado"
 e so nao preencher). Abas que nao sao lista (ex.: um formulario) nunca
 ganham badge.
 
+### Redimensionamento do painel lateral (SplitView, ja existente)
+
+O painel lateral do Detail (`sideSlot`) e redimensionavel por arraste -
+nao e um recurso novo nem especifico de modulo, ja vem de graca pra todo
+modulo canonico porque mora no `DetailShell.tsx` compartilhado, nao em
+cada layout contract. A alca fica na borda esquerda do painel
+(`role="separator"`, `onPointerDown`), largura minima/maxima fixas
+(`MIN_SIDE_WIDTH`/`MAX_SIDE_WIDTH`) e a largura escolhida persiste em
+`localStorage` por usuario (nao por modulo). Confirmado identico em
+People e Activity nesta revisao (2026-11-19) - nenhum dos dois precisa de
+codigo proprio pra isso. Nao reimplementar esse comportamento dentro de
+um layout contract de modulo; se faltar o divisor em algum lugar, o
+problema esta em `hasSideSlot`/`sideOpen` nao estarem true, nao na falta
+de um componente de resize novo.
+
 ### Filtro de periodo na relation (`dateRange`, 2026-11-18, legado)
 
 `DetailRelationFilterConfig` aceita `type: "dateRange"` alem de `type:

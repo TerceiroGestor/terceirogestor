@@ -676,10 +676,10 @@ const ACTIVITY_DETAIL_HEADER_ACTIONS: DetailHeaderActionConfig<ActionsDetailLayo
   [
     {
       key: "occurrence",
-      label: "Registrar ocorrência",
+      label: "",
       tooltip: "Registrar ocorrência vinculada a esta atividade",
       icon: <TriangleAlert className="h-4 w-4" />,
-      variant: "outline",
+      variant: "default",
       hidden: ({ mode }) => mode !== "edit",
       href: ({ projectId, action }) =>
         `/occurrences/new?projectId=${projectId}&actionId=${action?.id ?? ""}`,

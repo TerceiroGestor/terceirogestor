@@ -100,8 +100,6 @@ export type RecordDetailShellText = Partial<{
   saving: string;
   loading: string;
   ready: string;
-  closeAria: string;
-  closeTitle: string;
 }>;
 
 export type ViewSupportConfig = {

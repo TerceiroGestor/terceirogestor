@@ -457,3 +457,36 @@ informado, fica no padrão `true`) — se o usuário quiser a mesma ausência
 de borda nas telas de lista principal, não só nas relations, é só passar
 `bordered={false}` lá também; não assumido agora porque não foi pedido
 para essa parte do sistema.
+
+## Botão "Árvore genealógica" de People ainda laranja (`variant: "action"`) (2026-11-19)
+
+Ao padronizar o botão de ação extra do header do Detail da Atividade
+("Registrar ocorrência", `actions-detail-layout-contract.tsx`) para
+`variant: "default"` (azul, igual ao botão "Novo"), ficou confirmado que
+o botão `family-tree` de People (`people-detail-layout-contract.tsx`)
+continua em `variant: "action"` (laranja, `--action` do design system) —
+usuário concordou que está fora do padrão, mas decidiu não mexer agora
+porque o escopo da sessão era só Atividades.
+**Gatilho:** quando o usuário pedir pra revisar People especificamente
+(mesmo fluxo usado pra Atividades) — trocar `variant: "action"` por
+`variant: "default"` em `PEOPLE_DETAIL_HEADER_ACTIONS` (chave
+`family-tree`).
+
+## `onClose`/X do `DetailShell` sem uso depois da remoção do botão fechar (2026-11-19)
+
+O botão X do header do `DetailShell.tsx` (voltava pra lista do módulo)
+foi removido a pedido do usuário — já dá pra voltar pelo breadcrumb. A
+prop `onClose` continua declarada em `DetailShellProps` e continua sendo
+passada por todo module engine client page (~25 arquivos, um `onClose={...}`
+por módulo: People, Projects, Tasks, Programs, Admin, Deposit, Pantry,
+Occurrences, People-Groups etc.) — decisão do usuário foi deixar assim
+por agora em vez de remover a plumbing inteira numa tarefa só de ajuste
+visual.
+**Gatilho:** numa próxima rodada de limpeza (ou quando mexer de novo no
+`DetailShell`/`DetailShellEngine`) — remover `onClose` de
+`DetailShellProps` (`components/layout/DetailShell.tsx`) e de
+`DetailShellEngineProps` (`web-client/detail/DetailShellEngine.tsx`), e
+apagar o prop `onClose={...}` de cada um dos ~25 call sites (viram
+`router.push`/`backToList`/`close` sem consumidor — conferir se essas
+funções auxiliares também ficam sem uso em algum desses arquivos e, se
+sim, apagar junto).
