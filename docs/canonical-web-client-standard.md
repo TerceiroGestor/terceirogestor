@@ -299,11 +299,22 @@ quebra) e ganhou `locale={ptBR}` por padrao - qualquer novo uso do
 
 ### Relation no rodape do Detail (padrao a partir de 2026-11-18, referencia: aba Encontros da Atividade)
 
+**Regra, sem excecao:** toda relation nova, em qualquer modulo, tem que
+sair identica a aba Encontros da Atividade - mesma estrutura, mesma
+ordem, mesmos componentes. Nao e uma sugestao nem um estilo "parecido",
+e o template. Resumindo a ordem numa linha so:
+
+```text
+PainelSearch (busca + [Colunas | Filtros]) — seletor de visualizacao (TypeView) — Novo
+<tabela abaixo, sem borda>
+```
+
 Toda relation no rodape de um Detail usa `RelationListHost`
 (`web-client/relation/RelationListHost.tsx`) - e so ele, nao
 `DetailRelationsRenderer`/`DetailRelationConfig`
 (`web-client/detail/DetailLayoutSections.tsx`), que fica reservado pras
-relations que ainda nao migraram (ver `docs/backlog.md`). Pra relation
+relations que ainda nao migraram (ver `docs/backlog.md` - nao copiar o
+padrao antigo pra relation nova, nem "pra ganhar tempo"). Pra relation
 simples (so lista + busca + filtro + colunas, sem visualizacao
 alternativa), usar `DetailRelationTablePanel`
 (`web-client/detail/DetailRelationTablePanel.tsx`), que ja envolve
@@ -364,6 +375,17 @@ Calendario), usar `RelationListHost` direto, igual a aba Encontros.
   `web-client/views/ListView.tsx`) - nao desligar com
   `showColumnVisibilityButton={false}` no `ListView` interno quando
   `columns` ja foi passado pro host (ficaria duplicado).
+- **Um so vocabulario de nome de campo por relation.** `filterFields`
+  (pro `Domain`/`SearchPanelMenu`) e `groupByOptions`+`resolveGroupValue`
+  (pro `ListView`) sao dois mecanismos independentes, mas o `field`/
+  `name` de cada campo tem que ser o mesmo nos dois - de preferencia o
+  nome real da propriedade do dado (ex.: `scheduledDate`, nao uma
+  traducao solta tipo `data`). Nomes diferentes pra a mesma coisa em
+  cada mecanismo nao quebram nada na hora, mas viram um jeito facil de
+  introduzir um bug silencioso depois (um `groupByOptions` novo copiado
+  com o nome errado some sem erro, tudo cai em "Sem valor"). Ver
+  `action-occurrences-section.tsx` como referencia - `status`/
+  `peopleGroups`/`scheduledDate` usados identicos nos dois lugares.
 
 **Tabela:**
 
@@ -387,6 +409,7 @@ Calendario), usar `RelationListHost` direto, igual a aba Encontros.
 - Cabecalho de secao (quando o formulario tem mais de um grupo de campos) usa `DetailSectionHeading` de `web-client/detail/DetailFormSection.tsx`: titulo curto + barra de acento colorida a esquerda. Sem linha divisoria cinza, sem descricao.
 - Rotulo de campo usa `DetailSectionField` do mesmo arquivo: label pequeno em maiusculas acima do campo. Nao reimplementar esse label por modulo (varios modulos tinham a mesma constante `fieldLabelClassName`/`SectionField` copiada - foi consolidado).
 - Formulario com 1 grupo so de campos (sem sub-secoes) pode usar `DetailSectionField` direto, sem `DetailSectionHeading`.
+- **Todo campo que recebe dado (`Input`, `Select`, data, numero, texto) usa `DETAIL_LINE_INPUT_CLASS_NAME`** - e pra `Textarea`, `DETAIL_LINE_TEXTAREA_CLASS_NAME` - os dois exportados de `web-client/detail/DetailFormSection.tsx`: so borda embaixo, sem caixa, sem sombra. Essa e a unica fonte - nunca escrever essa `className` de novo num modulo (3 copias dessa mesma string ja existiram, com a opacidade da borda ate divergindo entre elas - `border-border/60` vs `/70`). Tamanho proprio do campo (`h-8` num filtro compacto, `min-h-[Npx]` numa `Textarea` maior) e um `cn(DETAIL_LINE_INPUT_CLASS_NAME, "...")` por cima, nunca reescrever a base. Vale pro formulario principal do Detail **e** pros filtros de uma relation (ex.: `QuickDateRangeFilter` em `SearchPanelMenu.tsx`) - qualquer lugar do sistema que peca um valor ao usuario.
 
 ### Nao e regra do Detail
 

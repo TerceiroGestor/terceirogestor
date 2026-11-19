@@ -204,6 +204,41 @@ Qualidade/Equipe da própria Atividade e qualquer relation futura —
 registrado em `docs/backlog.md` com gatilho ("quando o usuário pedir pra
 revisar uma dessas abas").
 
+**Ajuste 3.1 — revisão de qualidade antes de fechar:** usuário perguntou
+diretamente se `RelationListHost` estava "padronizado e reutilizável"
+ou tinha "gambiarra no meio". Reli o código com olhar crítico (não só o
+que mexi por último) e achei 2 pontos reais, nenhum bug, mas dois
+riscos de manutenção:
+
+1. Nomes de campo divergentes dentro do próprio Encontros — o filtro
+   (`buildSearchRecord`) usava `status`/`grupo`/`data` (sintéticos, em
+   português) e o agrupamento (`resolveGroupValue`) usava `status`/
+   `peopleGroups`/`scheduledDate` (nome real da propriedade). Corrigido:
+   unificado em `status`/`peopleGroups`/`scheduledDate` (o nome real) nos
+   dois mecanismos.
+2. O estilo "linha" (só borda embaixo) estava copiado como string solta
+   em 3 lugares — `lineInputClassName`/`lineTextareaClassName`
+   (Atividade), `PROJECT_DETAIL_INPUT_CLASS`/`PROJECT_DETAIL_TEXTAREA_CLASS`
+   (Projeto), inline no `QuickDateRangeFilter` — com a opacidade da
+   borda já tendo divergido entre as duas primeiras (`/60` vs `/70`).
+   Corrigido: extraído pra `DETAIL_LINE_INPUT_CLASS_NAME`/
+   `DETAIL_LINE_TEXTAREA_CLASS_NAME`, exportado de
+   `web-client/detail/DetailFormSection.tsx` (mesmo arquivo que já tinha
+   `DETAIL_FIELD_LABEL_CLASS_NAME`), e os 3 lugares apontados pra lá.
+
+Documentação reforçada em `docs/canonical-web-client-standard.md`
+("Relation no rodapé do Detail" ganhou um resumo de template em bloco —
+"PainelSearch [Colunas | Filtros] — TypeView — Novo, tabela embaixo sem
+borda" — explicitamente marcado como regra sem exceção pra relation
+nova, não sugestão; mais uma regra de "um só vocabulário de nome de
+campo"; "Formulário principal" ganhou a regra de usar sempre
+`DETAIL_LINE_INPUT_CLASS_NAME`/`DETAIL_LINE_TEXTAREA_CLASS_NAME`, nunca
+reescrever a string).
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` nos 5 arquivos
+tocados → só os erros pré-existentes já confirmados (nenhum novo); `npm
+run build` → ok.
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o
