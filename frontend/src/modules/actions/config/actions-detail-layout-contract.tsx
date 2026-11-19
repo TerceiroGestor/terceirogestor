@@ -70,7 +70,7 @@ const NONE_VALUE = "__none__";
 const lineInputClassName =
   "h-10 rounded-none border-0 border-b border-border/60 bg-transparent px-0 shadow-none focus-visible:border-primary focus-visible:ring-0";
 
-const ACTION_DETAIL_SECTION_CLASS = "border-y border-border/60 bg-transparent px-0 py-4";
+const ACTION_DETAIL_SECTION_CLASS = "border-b border-border/60 bg-transparent px-0 py-4";
 
 const ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
