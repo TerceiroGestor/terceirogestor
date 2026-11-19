@@ -244,10 +244,6 @@ export function OccurrenceSelect({
   );
 }
 
-export function countAttendanceHighlights(rows: MeetingAttendancesListItem[]) {
-  return rows.filter((row) => row.attendance?.isHighlight).length;
-}
-
 export function buildParticipantsColumns({
   canUpdate,
   canReadPeople,

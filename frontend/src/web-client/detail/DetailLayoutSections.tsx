@@ -476,7 +476,7 @@ export function DetailTabsRenderer<
             className={cn(
               MODULE_TAB_TRIGGER_CLASS_NAME,
               "relative rounded-none data-[state=inactive]:hover:bg-background/80",
-              "after:absolute after:right-0 after:top-1/2 after:h-1/2 after:w-[2px] after:-translate-y-1/2 after:bg-blue-600 after:content-['']",
+              "after:absolute after:right-0 after:top-1/2 after:h-1/2 after:w-[2px] after:-translate-y-1/2 after:bg-blue-300 after:content-['']",
             )}
           >
             <span>{tab.label}</span>

@@ -489,6 +489,154 @@ escrever) e documentei como lição reaproveitável a regra do CSS
 técnico registrado sobre o reordenamento Busca→typeview→Novo antes
 desta rodada.
 
+**4.12 — Participantes/Qualidade/Equipe migradas pro padrão de Encontros,
+cores do painel de Filtros restauradas (2026-11-19).** Pedido do
+usuário pra "testar a convenção" migrando as 3 relations que ainda
+usavam o mecanismo antigo (`DetailRelationConfig`/`DetailRelationSection`
+em `DetailLayoutSections.tsx`). Investigação prévia (agente `Explore`)
+mostrou que nenhuma das 3 tinha "cards" de linha — o que existia eram
+blocos de estatística (Participantes/Filtrados, Com presença/Destaques/
+Alterados) e um botão "Período" do mecanismo antigo, que o padrão novo
+não tem (`RelationListHost` já mostra o total via `filteredCount`
+textual). Criados 3 componentes novos, cada um um `RelationListHost`
+direto + `ListView`, iguais a `ActionOccurrencesSection`:
+
+- `action-participants-section.tsx` — Período (controle de servidor, não
+  filtro cliente) foi pro `viewSwitcherSlot` via `DateRangeFilterButton`
+  (já existia, só mudou de lugar). Sem "Novo" (não é um fluxo de
+  criação).
+- `action-quality-section.tsx` — Encontro/Grupo (ambos state externo,
+  não filtro cliente do `RelationListHost`) + botão "Salvar" também no
+  `viewSwitcherSlot`. `buildQualityColumns`/`QualityNotesDialog`
+  reaproveitados sem mudança (edição inline de nota/destaque continua
+  igual). Estatísticas (tracked/destaques/alterados) removidas por
+  convenção — "Filtrados" já aparece via `filteredCount`.
+- `action-team-section.tsx` — "Nova pessoa" virou "Novo" (via `onAdd`),
+  seguindo a regra de rótulo único já documentada.
+
+`actions-detail-layout-contract.tsx`: as 3 abas trocaram `relations:`
+por `content:` + `flushContent: true` (mesmo padrão de Encontros).
+Funções que só existiam pra essas 3 abas (`filterTeamRows`,
+`filterAttendanceSummaryRows`, `buildAttendanceSummaryColumns`,
+`teamParticipationColumns`) foram movidas pros componentes novos, não
+duplicadas — removidas do contract file. `countAttendanceHighlights`
+(só usado pela stat "Destaques" removida) ficou sem nenhum consumidor
+— apagada de `action-operational-relations.tsx` em vez de deixada morta.
+
+**Cores do painel de Filtros:** usuário reportou que "Filtros"/"Agrupar
+por"/"Favoritos" estavam todos cinza (confirmado: `PanelSection` em
+`SearchPanelMenu.tsx` tinha `text-muted-foreground` hardcoded pros 3,
+sem diferenciação — nunca existiu um esquema colorido ali no código, ao
+que tudo indica era assim desde a implementação original do painel).
+Adicionado `tone` (`filters`→azul, `group`→verde, `favorites`→roxo) no
+`PanelSection`, ícone novo (`Layers`) pra "Agrupar por" (não tinha
+nenhum antes), e o ícone do botão-gatilho "Filtros" (nos dois hosts,
+`RecordListHost.tsx`/`RelationListHost.tsx`) também ficou azul.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` nos 8 arquivos
+→ só os erros pré-existentes de sempre (confirmados via `git stash`
+antes desta rodada). Testado ao vivo (dev server próprio, iniciado e
+encerrado nesta rodada — um dev server zumbi de uma rodada anterior
+tinha ficado preso na porta 3000 servindo código desatualizado, achado e
+encerrado antes do teste valer): as 3 abas migradas batem visualmente
+com Encontros (mesma estrutura: busca → controles específicos → tabela,
+sem cards); popover de Filtros confirmado com as 3 cores.
+
+**4.13 — correção: as cores eram pro badge dentro do SearchBar, não pro
+painel de Filtros (2026-11-19).** Usuário esclareceu que o item 4.12
+resolveu o lugar errado — o pedido original era sobre os "chips" que
+aparecem dentro da própria barra de busca quando um filtro ou
+agrupamento está ativo (ex.: a pilula "Status" quando agrupado por
+Status), não os títulos de seção dentro do popover (esse já estava
+certo). Achado em `getFacetClasses`/`getFacetIconClasses`
+(`SearchBar.tsx`): `tone: "group"` (badge de agrupamento, construído por
+`buildQueryFacets` em `queryFacets.tsx`) estava cinza
+(`bg-muted/50`/`text-foreground`) → virou verde
+(`emerald-500`/`emerald-700`). O branch padrão/sem `tone` (badge de
+filtro, condição de domínio) também estava cinza
+(`bg-muted/35`/`text-muted-foreground`) → virou azul
+(`blue-500`/`blue-700`). **Não mexido:** o sistema `tone: "analysis"`
+(usado por Tasks/Programs/Projects/Deposit/Pantry/Admin pra breakdown
+analítico, paleta própria sky/emerald/cyan/amber/primário) — é um
+esquema separado, fora do escopo do pedido.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → só os 2
+erros pré-existentes de sempre em `SearchBar.tsx` (confirmados em
+rodadas anteriores desta sessão). Testado ao vivo (dev server próprio,
+encerrado ao final — achei outro dev server zumbi na porta 3000 de uma
+rodada anterior e troquei por um limpo antes de testar): agrupamento por
+Status mostra badge "Status" verde com ícone `Layers`; filtro de
+Cadastro por período mostra badge azul — os dois lado a lado na mesma
+barra, confirmados por screenshot.
+
+**4.14 — badge de filtro/grupo cortando texto + nomes de campo em
+inglês vazando na aba Encontros (2026-11-19).** Dois bugs reais,
+raiz em componentes compartilhados (`RelationListHost`/`queryFacets.tsx`/
+`SearchBar.tsx`) — corrigidos uma vez só, valem pra qualquer módulo:
+
+1. **Nomes em inglês** ("peopleGroup....", "date...." — cortados pelo
+   `truncate`): o badge de agrupamento vinha de `queryFacets.tsx`
+   (`groupByLabel`), que procura o label em `searchView.groupBy` — e
+   `RelationListHost.tsx` nunca preenchia esse campo ao montar o
+   `searchView`, então a busca sempre falhava e caía no nome bruto do
+   campo (`peopleGroups`/`scheduledDate`). Corrigido preenchendo
+   `groupBy: groupByOptions` automaticamente — `groupByOptions` já é
+   passado com labels corretos (é o que alimenta o menu "Agrupar por"),
+   só não chegava no cálculo do badge.
+2. **Badge grande demais cortando o texto**: a data no badge de filtro
+   de período vinha em ISO cru (`2026-01-01`) em vez de pt-BR, e o
+   `max-w-[12rem]` do chip (`SearchBar.tsx`) era pequeno demais pro
+   texto real de um filtro "entre" com duas datas. Corrigido:
+   `describeValue` (`queryFacets.tsx`) agora usa `formatDateOnlyPtBR`;
+   `max-w-[12rem]` → `max-w-[18rem]` nos dois chips (visível + o de
+   medição, que precisam ficar em sincronia). O mecanismo de colapso
+   pra "+N" já mede largura real, então alargar não quebra o layout em
+   telas estreitas.
+
+**Convenção formalizada** em `docs/canonical-web-client-standard.md`
+("Textos visíveis ao usuário: idioma e tamanho"): o motivo de isso
+escapar de revisão normal é que o badge/chip de um filtro/grupo *já
+aplicado* usa um caminho de código diferente do menu onde ele foi
+configurado — o menu pode estar perfeito e o badge ainda assim errado.
+Regra prática pra criar/revisar módulo novo: sempre aplicar o
+filtro/agrupamento de verdade e olhar o badge resultante na barra, não
+só abrir o menu e conferir as opções.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → só os 2
+erros pré-existentes de sempre em `SearchBar.tsx`. Testado ao vivo (dev
+server próprio, encerrado ao final): agrupar Encontros por "Grupo de
+pessoas" mostra o badge certo (antes: `peopleGroups`); filtro de Data
+por período mostra "Data entre 01/01/2026 → 31/03/2026" completo, sem
+cortar — confirmado por screenshot nos dois casos.
+
+**4.15 — regressão: Encontros "descolou"/perdeu o sticky**
+**(2026-11-19).** Usuário reportou que o painel de Encontros voltou a
+ficar separado das abas e sem ficar fixo no scroll — algo que eu não
+tinha tocado na rodada anterior. `git diff` em
+`DetailLayoutSections.tsx` mostrou que o arquivo no disco já estava
+diferente do que a sessão tinha deixado funcionando no item 4.9: o
+`overflow-visible`/`px-4` do `TabsContent` (necessário pro `sticky`
+funcionar — é exatamente a regra documentada em "Por que position:
+sticky às vezes não gruda") tinha voltado pro `overflow-hidden` antigo,
+e o `lg:overflow-visible` do wrapper de conteúdo também. Não é algo que
+eu tenha editado nesta sessão entre o item 4.9 e agora — a causa exata
+(edição externa, IDE, outra ferramenta) não dá pra confirmar, só
+constatar pelo diff. Restaurado só a parte do `overflow`/`px-4`; a cor
+do divisor das abas, que também tinha mudado (`blue-600`→`blue-300`),
+foi deixada como estava por não ter sido reportada como problema.
+
+**Nota operacional:** o primeiro teste deu falso-negativo porque a
+porta 3000 já tinha um processo de dev server (provavelmente zumbi de
+uma rodada anterior desta mesma sessão) servindo código desatualizado —
+reiniciei com um limpo antes de confirmar.
+
+**Evidência:** `npx tsc --noEmit` → 0 erros; `npx eslint` → só o erro
+pré-existente de sempre. Testado ao vivo (dev server próprio, reiniciado
+no meio por causa do falso-negativo, encerrado ao final):
+`getBoundingClientRect()` confirma `tablistBottom === toolbarTop`
+(0px de distância) tanto parado quanto após forçar 2000px de overflow e
+rolar — a barra não se move.
+
 ## Item avulso — Atividades: 2 bugs + 2 melhorias, escopo pequeno (2026-11-18)
 
 Continuação direta do item anterior (abaixo). Usuário pediu pra manter o

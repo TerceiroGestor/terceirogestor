@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, SlidersHorizontal, Star, Trash2 } from "lucide-react";
+import { Check, Layers, SlidersHorizontal, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -95,18 +95,32 @@ type SearchPanelGroupByOption = {
   label: string;
 };
 
+const PANEL_SECTION_TONE_CLASS = {
+  neutral: "text-muted-foreground",
+  filters: "text-blue-600 dark:text-blue-400",
+  group: "text-emerald-600 dark:text-emerald-400",
+  favorites: "text-purple-600 dark:text-purple-400",
+} as const;
+
 function PanelSection({
   title,
   icon,
+  tone = "neutral",
   children,
 }: {
   title: string;
   icon?: React.ReactNode;
+  tone?: keyof typeof PANEL_SECTION_TONE_CLASS;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      <div
+        className={cn(
+          "flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]",
+          PANEL_SECTION_TONE_CLASS[tone],
+        )}
+      >
         {icon}
         {title}
       </div>
@@ -181,7 +195,7 @@ function renderGroupButtons({
           >
             <span className="truncate">{option.label}</span>
             {isActive ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
                 <Check className="size-3.5" />
                 Ativo
               </span>
@@ -314,7 +328,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   );
 
   const filtersPanel = (
-    <PanelSection title="Filtros" icon={<SlidersHorizontal className="size-4" />}>
+    <PanelSection title="Filtros" icon={<SlidersHorizontal className="size-4" />} tone="filters">
       {quickDateFields.length ? (
         <div className="space-y-2 border-b border-border/50 pb-2">
           {quickDateFields.map((field) => (
@@ -371,7 +385,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   );
 
   const groupByPanel = allowGroupBy ? (
-    <PanelSection title="Agrupar por">
+    <PanelSection title="Agrupar por" icon={<Layers className="size-4" />} tone="group">
       {renderGroupButtons({
         options: resolvedGroupByOptions,
         groupBy,
@@ -387,7 +401,7 @@ export function SearchPanelMenu<TState extends Record<string, unknown>>({
   ) : null;
 
   const favoritesPanel = allowFavorites ? (
-    <PanelSection title="Favoritos" icon={<Star className="size-4" />}>
+    <PanelSection title="Favoritos" icon={<Star className="size-4" />} tone="favorites">
       <button
         type="button"
         className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"

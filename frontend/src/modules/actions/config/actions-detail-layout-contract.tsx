@@ -26,20 +26,19 @@ import type {
 } from "@/modules/actions/api";
 import { listActivityTypes } from "@/modules/actions/api";
 import {
-  ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
   ACTION_STATUS_LABELS,
   ACTION_STATUS_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
 import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
 import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
 import { ActionOccurrencesSection } from "@/modules/actions/features/manage/ui/action-occurrences-section";
+import { ActionParticipantsSection } from "@/modules/actions/features/manage/ui/action-participants-section";
+import { ActionQualitySection } from "@/modules/actions/features/manage/ui/action-quality-section";
+import { ActionTeamSection } from "@/modules/actions/features/manage/ui/action-team-section";
 import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
-import {
-  QualityNotesDialog,
-  buildQualityColumns,
-  countAttendanceHighlights,
-  type QualityDraft,
-  type QualityNotesDialogState,
+import type {
+  QualityDraft,
+  QualityNotesDialogState,
 } from "@/modules/actions/features/manage/ui/action-operational-relations";
 import {
   getProject,
@@ -115,164 +114,6 @@ const ACTION_ATTACHMENT_AUDIT_FIELD_LABELS = {
 function formatStatus(value: string | null | undefined) {
   if (!value) return "-";
   return ACTION_STATUS_LABELS[value as keyof typeof ACTION_STATUS_LABELS] ?? value;
-}
-
-function filterTeamRows(
-  rows: ApiProjectActionPeopleParticipation[],
-  query: string,
-) {
-  const normalized = query.trim().toLocaleLowerCase("pt-BR");
-  if (!normalized) return rows;
-  return rows.filter((row) => {
-    const values = [
-      row.person.fullName,
-      row.person.status,
-      ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.role],
-      row.enrollment?.role ?? null,
-    ]
-      .filter(Boolean)
-      .map((value) => String(value).toLocaleLowerCase("pt-BR"));
-    return values.some((value) => value.includes(normalized));
-  });
-}
-
-function filterAttendanceSummaryRows(rows: ActionAttendanceSummaryItem[], query: string) {
-  const normalized = query.trim().toLocaleLowerCase("pt-BR");
-  if (!normalized) return rows;
-  return rows.filter((row) => {
-    const values = [
-      row.enrollment.person.fullName,
-      ...row.enrollment.peopleGroups.map((group) => group.name),
-    ].map((value) => String(value).toLocaleLowerCase("pt-BR"));
-    return values.some((value) => value.includes(normalized));
-  });
-}
-
-function formatAttendanceRate(value: number | null) {
-  if (value === null) return "—";
-  return `${Math.round(value * 100)}%`;
-}
-
-function formatAverageQuality(value: number | null) {
-  if (value === null) return "—";
-  return value.toFixed(1);
-}
-
-function buildAttendanceSummaryColumns(): import("@tanstack/react-table").ColumnDef<ActionAttendanceSummaryItem>[] {
-  return [
-    {
-      id: "person",
-      header: "Participante",
-      accessorFn: (row) => row.enrollment.person.fullName,
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">
-            {row.original.enrollment.person.fullName}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "frequency",
-      header: "Frequência",
-      accessorFn: (row) => row.attendanceRate ?? -1,
-      cell: ({ row }) => {
-        const { attendanceRate, presentCount, totalMeetings } = row.original;
-        return (
-          <div className="space-y-0.5">
-            <div className="font-medium text-foreground">
-              {formatAttendanceRate(attendanceRate)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {totalMeetings > 0 ? `${presentCount}/${totalMeetings} encontros` : "Sem encontros no período"}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: "quality",
-      header: "Média de avaliação",
-      accessorFn: (row) => row.averageQuality ?? -1,
-      cell: ({ row }) => formatAverageQuality(row.original.averageQuality),
-    },
-    {
-      id: "occurrences",
-      header: "Ocorrências",
-      accessorFn: (row) => row.occurrencesCount,
-      cell: ({ row }) => (
-        <span title="Contagem direta de Ocorrencia (Fase 5) ainda nao existe aqui - ver docs/backlog.md">
-          {row.original.occurrencesCount || "—"}
-        </span>
-      ),
-    },
-  ];
-}
-
-function teamParticipationColumns({
-  canUpdate,
-  onEndTeamParticipation,
-}: {
-  canUpdate: boolean;
-  onEndTeamParticipation: (participationId: string) => Promise<void>;
-}): import("@tanstack/react-table").ColumnDef<ApiProjectActionPeopleParticipation>[] {
-  return [
-    {
-      id: "person",
-      header: "Pessoa",
-      accessorFn: (row) => row.person.fullName,
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">{row.original.person.fullName}</div>
-          <div className="text-xs text-muted-foreground">{row.original.person.status ?? "-"}</div>
-        </div>
-      ),
-    },
-    {
-      id: "role",
-      header: "Papel",
-      accessorFn: (row) => ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.role],
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
-          {ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[row.original.role]}
-        </span>
-      ),
-    },
-    {
-      id: "source",
-      header: "Origem",
-      accessorFn: (row) => row.enrollment?.role ?? "",
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">
-          {row.original.enrollment?.role ?? "Sem participação ativa no projeto"}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) =>
-        canUpdate ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                void onEndTeamParticipation(row.original.id);
-              }}
-            >
-              Encerrar
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
 }
 
 export type ActivityDetailDraft = {
@@ -721,49 +562,26 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: ACTION_RELATION_TEXT.participants.tabLabel,
       visible: ({ mode }) => mode === "edit",
       badge: ({ attendanceSummaryRows }) => attendanceSummaryRows.length || undefined,
-      relations: [
-        {
-          key: "participants-summary",
-          label: "Resumo de participação (todos os encontros do período)",
-          variant: "informational",
-          loading: ({ attendanceSummaryLoading }) => attendanceSummaryLoading,
-          error: ({ attendanceSummaryError }) => attendanceSummaryError,
-          rows: ({ attendanceSummaryRows }) => attendanceSummaryRows,
-          columns: () => buildAttendanceSummaryColumns(),
-          getRowId: (row) => row.enrollment.id,
-          searchable: true,
-          searchPlaceholder: "Pesquisar participante",
-          filterRows: (rows, query) => filterAttendanceSummaryRows(rows, query),
-          filters: [
-            {
-              key: "period",
-              label: "Período",
-              type: "dateRange",
-              value: ({ attendanceSummaryFrom, attendanceSummaryTo }) => ({
-                from: attendanceSummaryFrom,
-                to: attendanceSummaryTo,
-              }),
-              onChange: ({ onAttendanceSummaryFromChange, onAttendanceSummaryToChange }, range) => {
-                onAttendanceSummaryFromChange(range.from);
-                onAttendanceSummaryToChange(range.to);
-              },
-            },
-          ],
-          stats: [
-            {
-              key: "total",
-              label: "Participantes",
-              value: ({ attendanceSummaryRows }) => attendanceSummaryRows.length,
-            },
-            {
-              key: "filtered",
-              label: "Filtrados",
-              value: (_context, rows) => rows.length,
-            },
-          ],
-          emptyLabel: "Sem participantes elegíveis no período selecionado.",
-        },
-      ],
+      flushContent: true,
+      content: ({
+        attendanceSummaryRows,
+        attendanceSummaryLoading,
+        attendanceSummaryError,
+        attendanceSummaryFrom,
+        attendanceSummaryTo,
+        onAttendanceSummaryFromChange,
+        onAttendanceSummaryToChange,
+      }) => (
+        <ActionParticipantsSection
+          rows={attendanceSummaryRows}
+          loading={attendanceSummaryLoading}
+          error={attendanceSummaryError}
+          from={attendanceSummaryFrom}
+          to={attendanceSummaryTo}
+          onFromChange={onAttendanceSummaryFromChange}
+          onToChange={onAttendanceSummaryToChange}
+        />
+      ),
       emptyLabel: "Sem participantes.",
     },
     {
@@ -788,99 +606,52 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: ACTION_RELATION_TEXT.quality.tabLabel,
       visible: ({ mode }) => mode === "edit",
       badge: ({ qualityRows }) => qualityRows.length || undefined,
-      content: ({ qualityNotesDialog, canUpdate, onQualityNotesDialogChange, applyQualityNotesDialog }) => (
-        <QualityNotesDialog
-          state={qualityNotesDialog}
+      flushContent: true,
+      content: ({
+        qualityRows,
+        reportLoading,
+        reportError,
+        canUpdate,
+        canReadPeople,
+        tenantSlug,
+        occurrenceId,
+        occurrenceOptions,
+        onOccurrenceIdChange,
+        qualityGroupId,
+        attendanceGroupOptions,
+        onQualityGroupChange,
+        qualityDrafts,
+        qualitySaving,
+        getQualityEffective,
+        setQualityRowDraft,
+        saveQualityDrafts,
+        qualityNotesDialog,
+        onQualityNotesDialogChange,
+        applyQualityNotesDialog,
+      }) => (
+        <ActionQualitySection
+          rows={qualityRows}
+          loading={reportLoading}
+          error={reportError}
           canUpdate={canUpdate}
-          onOpenChange={(open) => {
-            if (!open) onQualityNotesDialogChange(null);
-          }}
-          onStateChange={onQualityNotesDialogChange}
-          onConfirm={applyQualityNotesDialog}
+          canReadPeople={canReadPeople}
+          tenantSlug={tenantSlug}
+          occurrenceId={occurrenceId}
+          occurrenceOptions={occurrenceOptions}
+          onOccurrenceIdChange={onOccurrenceIdChange}
+          qualityGroupId={qualityGroupId}
+          attendanceGroupOptions={attendanceGroupOptions}
+          onQualityGroupChange={onQualityGroupChange}
+          qualityDrafts={qualityDrafts}
+          qualitySaving={qualitySaving}
+          getQualityEffective={getQualityEffective}
+          setQualityRowDraft={setQualityRowDraft}
+          saveQualityDrafts={saveQualityDrafts}
+          qualityNotesDialog={qualityNotesDialog}
+          onQualityNotesDialogChange={onQualityNotesDialogChange}
+          applyQualityNotesDialog={applyQualityNotesDialog}
         />
       ),
-      relations: [
-        {
-          key: "participants-quality",
-          label: ACTION_RELATION_TEXT.quality.relationLabel,
-          variant: "operational",
-          loading: ({ reportLoading }) => reportLoading,
-          error: ({ reportError }) => reportError,
-          rows: ({ qualityRows }) => qualityRows,
-          columns: ({
-            canUpdate,
-            canReadPeople,
-            tenantSlug,
-            getQualityEffective,
-            setQualityRowDraft,
-            onQualityNotesDialogChange,
-          }) =>
-            buildQualityColumns({
-              canUpdate,
-              canReadPeople,
-              tenantSlug,
-              getEffective: getQualityEffective,
-              onSetRowDraft: setQualityRowDraft,
-              onOpenNotesDialog: (row) =>
-                onQualityNotesDialogChange({
-                  enrollmentId: row.enrollment.id,
-                  fullName: row.enrollment.person.fullName,
-                  qualityNotes: getQualityEffective(row).qualityNotes ?? "",
-                }),
-            }),
-          getRowId: (row) => row.enrollment.id,
-          searchable: true,
-          searchPlaceholder: ACTION_RELATION_TEXT.quality.searchPlaceholder,
-          filters: [
-            {
-              key: "occurrence",
-              label: "Encontro",
-              type: "select",
-              value: ({ occurrenceId }) => occurrenceId ?? "",
-              onChange: ({ onOccurrenceIdChange }, value) => onOccurrenceIdChange(value),
-              options: ({ occurrenceOptions }) => occurrenceOptions,
-            },
-            {
-              key: "group",
-              label: ACTION_RELATION_TEXT.quality.groupFilterLabel,
-              type: "select",
-              value: ({ qualityGroupId }) => qualityGroupId,
-              onChange: ({ onQualityGroupChange }, value) => onQualityGroupChange(value),
-              options: ({ attendanceGroupOptions }) => attendanceGroupOptions,
-            },
-          ],
-          stats: [
-            {
-              key: "tracked",
-              label: ACTION_RELATION_TEXT.quality.stats.tracked,
-              value: ({ reportRows }) => reportRows.filter((row) => row.attendance !== null).length,
-            },
-            {
-              key: "filtered",
-              label: ACTION_RELATION_TEXT.quality.stats.filtered,
-              value: (_context, rows) => rows.length,
-            },
-            {
-              key: "highlights",
-              label: ACTION_RELATION_TEXT.quality.stats.highlights,
-              value: (_context, rows) => countAttendanceHighlights(rows),
-            },
-            {
-              key: "changed",
-              label: ACTION_RELATION_TEXT.quality.stats.changed,
-              value: ({ qualityDrafts }) => Object.keys(qualityDrafts).length,
-            },
-          ],
-          primaryAction: {
-            label: ACTION_RELATION_TEXT.quality.save,
-            onClick: ({ saveQualityDrafts }) => saveQualityDrafts(),
-            hidden: ({ canUpdate }) => !canUpdate,
-            disabled: ({ qualityDrafts, qualitySaving }) =>
-              qualitySaving || Object.keys(qualityDrafts).length === 0,
-          },
-          emptyLabel: "Nenhuma pessoa com presença registrada.",
-        },
-      ],
       emptyLabel: "Sem qualidade.",
     },
     {
@@ -888,26 +659,15 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       label: "Equipe",
       visible: ({ mode }) => mode === "edit",
       badge: ({ reportPeopleRows }) => reportPeopleRows.length || undefined,
-      content: () => null,
-      relations: [
-        {
-          key: "team-people",
-          label: "Equipe",
-          rows: ({ reportPeopleRows }) => reportPeopleRows,
-          columns: ({ canUpdate, onEndTeamParticipation }) =>
-            teamParticipationColumns({ canUpdate, onEndTeamParticipation }),
-          getRowId: (row) => row.id,
-          searchable: true,
-          searchPlaceholder: "Pesquisar equipe",
-          filterRows: (rows, query) => filterTeamRows(rows, query),
-          action: {
-            label: "Nova pessoa",
-            onClick: ({ onOpenTeamPicker }) => onOpenTeamPicker(),
-            hidden: ({ canUpdate }) => !canUpdate,
-          },
-          emptyLabel: "Nenhuma pessoa de apoio registrada. Gestor e Educador/Executor também entram por aqui (papéis Responsável técnico e Facilitador).",
-        },
-      ],
+      flushContent: true,
+      content: ({ reportPeopleRows, canUpdate, onEndTeamParticipation, onOpenTeamPicker }) => (
+        <ActionTeamSection
+          rows={reportPeopleRows}
+          canUpdate={canUpdate}
+          onEndTeamParticipation={onEndTeamParticipation}
+          onOpenTeamPicker={onOpenTeamPicker}
+        />
+      ),
       emptyLabel: "Sem equipe.",
     },
     {

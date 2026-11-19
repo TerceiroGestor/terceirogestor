@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { RefreshCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { RecordBrowserViewOption } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import type { SearchFacet } from "@/web-client/control-panel/SearchBar";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
@@ -391,7 +392,7 @@ export function RecordListHost<
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className={`relative ${BASE_CONTROL_BUTTON_CLASS}`}
+                      className={cn(BASE_CONTROL_BUTTON_CLASS, "relative text-blue-600 dark:text-blue-400")}
                       title="Filtros"
                       aria-label="Filtros"
                     >

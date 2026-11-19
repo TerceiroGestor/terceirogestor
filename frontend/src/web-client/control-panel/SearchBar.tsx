@@ -24,7 +24,7 @@ function getFacetClasses(facet: SearchFacet) {
     "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]";
 
   if (facet.tone === "group") {
-    return `${base} border-border/45 bg-muted/50 text-foreground`;
+    return `${base} border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400`;
   }
 
   if (facet.tone === "analysis") {
@@ -44,12 +44,12 @@ function getFacetClasses(facet: SearchFacet) {
     }
   }
 
-  return `${base} border-border/35 bg-muted/35 text-muted-foreground`;
+  return `${base} border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400`;
 }
 
 function getFacetIconClasses(facet: SearchFacet) {
   if (facet.tone === "group") {
-    return "shrink-0 text-muted-foreground";
+    return "shrink-0 text-emerald-600 dark:text-emerald-400";
   }
 
   if (facet.tone === "analysis") {
@@ -69,7 +69,7 @@ function getFacetIconClasses(facet: SearchFacet) {
     }
   }
 
-  return "shrink-0 text-muted-foreground";
+  return "shrink-0 text-blue-600 dark:text-blue-400";
 }
 
 export function SearchBar({
@@ -178,7 +178,7 @@ export function SearchBar({
       {facet.icon ? (
         <span className={getFacetIconClasses(facet)}>{facet.icon}</span>
       ) : null}
-      <span className="max-w-[12rem] truncate">{facet.label}</span>
+      <span className="max-w-[18rem] truncate">{facet.label}</span>
       {facet.onRemove ? (
         <button
           type="button"
@@ -229,7 +229,7 @@ export function SearchBar({
                     className={getFacetClasses(facet)}
                   >
                     {renderFacetIcon(facet)}
-                    <span className="max-w-[12rem] truncate">{facet.label}</span>
+                    <span className="max-w-[18rem] truncate">{facet.label}</span>
                     {facet.onRemove ? (
                       <span className="inline-flex size-4 items-center justify-center">
                         <X className="size-3.5" />

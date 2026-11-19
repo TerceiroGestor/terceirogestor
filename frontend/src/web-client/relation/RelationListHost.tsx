@@ -100,8 +100,13 @@ export function RelationListHost<TData>({
       id: searchActionId ?? `detail-relation:${title ?? "records"}`,
       model: "detail.relation",
       fields: filterFields,
+      // Sem isso, o badge de agrupamento (queryFacets.tsx -> groupByLabel)
+      // nao acha o rotulo e cai no nome bruto do campo (ingles, ex.:
+      // "peopleGroups"/"scheduledDate") em vez do label de
+      // groupByOptions (ex.: "Grupo de pessoas"/"Data").
+      groupBy: groupByOptions,
     };
-  }, [filterFields, searchActionId, title]);
+  }, [filterFields, groupByOptions, searchActionId, title]);
 
   const removeDomainCondition = React.useCallback((index: number) => {
     onDomainChange(removeConditionAtIndex(domain, "and", index));
@@ -202,7 +207,7 @@ export function RelationListHost<TData>({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={`relative ${CONTROL_BUTTON_CLASS_NAME}`}
+                        className={cn(CONTROL_BUTTON_CLASS_NAME, "relative text-blue-600 dark:text-blue-400")}
                         title="Filtros"
                         aria-label="Filtros"
                       >

@@ -526,20 +526,28 @@ A correcao usada em todo lugar: hover/estado ativo usam `bg-background`
   outros usos de `SearchBar` (dialogs de picker, fundo branco) continuam
   sem essa prop, usando o `border-border/60` padrao do componente.
 
-### Filtro de periodo na relation (`dateRange`, 2026-11-18, legado)
+### Filtro de periodo na relation (`dateRange`, legado do mecanismo antigo)
 
 `DetailRelationFilterConfig` aceita `type: "dateRange"` alem de `type:
-"select"`, renderizado no toolbar via `DateRangeFilterButton`
-(`web-client/ui/DateRangeFilterButton.tsx`): botao compacto com icone de
-calendario, Popover com `Calendar` (shadcn, `mode="range"`) e um botao
-"Limpar". Foi o primeiro fix (aba Participantes da Atividade), mas **foi
-superado pelo padrao da secao seguinte** (`RelationListHost`, que ja tem
-range de data embutido no painel de Filtros via `SearchPanelMenu`, sem
-precisar de um botao a parte). Continua documentado aqui porque
-Participantes/Qualidade/Equipe da Atividade ainda usam o mecanismo mais
-simples (`DetailRelationsRenderer`/`DetailRelationConfig`) em vez de
-`RelationListHost` - ver `docs/backlog.md`. Nao usar `dateRange` em
-relation nova; relation nova usa `RelationListHost` direto.
+"select"` - isso so existe no mecanismo antigo
+(`DetailRelationsRenderer`/`DetailRelationConfig`,
+`DetailLayoutSections.tsx`), que nao e mais usado por nenhuma relation da
+Atividade (Participantes/Qualidade/Equipe migraram pra `RelationListHost`
+em 2026-11-19 - ver proxima secao). Nao usar `dateRange` nem o mecanismo
+antigo em relation nova.
+
+`DateRangeFilterButton` (`web-client/ui/DateRangeFilterButton.tsx`) -
+botao compacto com icone de calendario, Popover com `Calendar` (shadcn,
+`mode="range"`) - continua existindo e tem um uso legitimo mesmo em
+`RelationListHost`: quando o periodo **controla o que e buscado no
+servidor** (refaz o fetch com uma janela de datas diferente), nao filtra
+dados ja carregados no cliente. Nesse caso ele nao vira um `filterFields`
+(que so filtra client-side o que ja esta em `data`) - vai direto no
+`viewSwitcherSlot` do `RelationListHost`, como a aba Participantes da
+Atividade faz. Se o periodo so precisa filtrar linhas ja carregadas (nao
+refaz fetch), aí sim um campo `type: "date"` em `filterFields` e o
+caminho certo - vira automaticamente um atalho De/Ate no painel de
+Filtros do `SearchPanelMenu`, sem precisar de nenhum botao a parte.
 
 `components/ui/calendar.tsx` foi corrigido nesta mesma rodada para as
 chaves de `classNames` da v9 do react-day-picker (a v8 usava
@@ -574,6 +582,30 @@ relacao de People (Escolaridade, Detencoes, Contatos, etc.) usam. Pra
 relation que precisa alternar entre Lista e outra visualizacao (ex.:
 Calendario), usar `RelationListHost` direto, igual a aba Encontros.
 
+Atividade: as 4 relations do rodape (Encontros, Participantes,
+Qualidade, Equipe) estao **todas** em `RelationListHost` desde
+2026-11-19 - nenhuma usa mais o mecanismo antigo. Cada uma tem seu
+proprio componente dedicado em
+`modules/actions/features/manage/ui/action-<nome>-section.tsx`
+(`action-occurrences-section.tsx`, `action-participants-section.tsx`,
+`action-quality-section.tsx`, `action-team-section.tsx`), seguindo o
+mesmo molde: estado local (`searchText` + o que mais a relation
+precisar), `useMemo` pra filtrar os dados antes de passar pro
+`<ListView data={...}>`, e `<RelationListHost flushToolbar>` como
+wrapper.
+
+**Controle que nao e filtro client-side (ex.: um periodo que refaz
+fetch no servidor, um seletor que troca qual registro esta sendo
+editado, um botao "Salvar" de edicao em lote) vai no
+`viewSwitcherSlot`**, nao tenta virar `filterFields` (que so filtra o
+que ja esta em `data`, carregado). Pode ser mais de um elemento - o slot
+aceita qualquer `ReactNode`, entao um `<div className="flex items-center
+gap-2">` com varios controles e normal (`action-quality-section.tsx` tem
+3: Encontro, Grupo, Salvar). Quando a relation nao precisa criar
+registro novo (ex.: Participantes, um resumo agregado sem fluxo de
+criacao), simplesmente nao passar `onAdd`/`addHref` - o botao "Novo" some
+sozinho (mesmo comportamento condicional que Encontros ja tinha).
+
 **Barra unica, sem cabecalho proprio:**
 
 - Sem titulo tipo "Encontros" acima da barra - a aba do Detail ja
@@ -607,6 +639,34 @@ Calendario), usar `RelationListHost` direto, igual a aba Encontros.
 **Filtros, agrupamento e colunas** (via `SearchPanelMenu`, jah embutido no
 `RelationListHost` quando `filterFields` e informado):
 
+- **Cada secao do painel de Filtros tem uma cor fixa** (padrao a partir
+  de 2026-11-19, componente `PanelSection` em `SearchPanelMenu.tsx`, prop
+  `tone`): Filtros = azul (`text-blue-600`/`dark:text-blue-400`), Agrupar
+  por = verde (`text-emerald-600`/`dark:text-emerald-400`, icone
+  `Layers`), Favoritos = roxo (`text-purple-600`/`dark:text-purple-400`).
+  O icone do botao-gatilho "Filtros" na toolbar (`RecordListHost.tsx` e
+  `RelationListHost.tsx`) tambem fica azul, nao cinza igual
+  Colunas/Atualizar - e o unico dos 3 botoes de controle que abre esse
+  painel colorido. Uma secao nova no painel (ex.: "Analise", generica,
+  usada por pickers) fica com o `tone` padrao (`neutral`,
+  `text-muted-foreground`) a menos que receba um `tone` proprio
+  explicitamente - nao reaproveitar uma cor ja usada por Filtros/Agrupar/
+  Favoritos pra outra coisa.
+- **Os badges dentro do `SearchBar` (os "chips" que aparecem na propria
+  barra de busca quando um filtro/agrupamento esta ativo - nao o painel
+  de Filtros, que e o item anterior) seguem a mesma paleta** (padrao a
+  partir de 2026-11-19, `getFacetClasses`/`getFacetIconClasses` em
+  `SearchBar.tsx`): badge de agrupamento (`tone: "group"`, construido por
+  `buildQueryFacets` em `queryFacets.tsx`) = verde
+  (`border-emerald-500/20 bg-emerald-500/10 text-emerald-700`); badge de
+  filtro (condicao de dominio, sem `tone` - o `default` da funcao) =
+  azul (`border-blue-500/20 bg-blue-500/10 text-blue-700`). O sistema de
+  `tone: "analysis"` (usado por paginas com breakdown analitico -
+  Tasks/Programs/Projects/Deposit/Pantry/Admin, `analysisKind`
+  `time`/`metric`/`chart`/`sort`) e um esquema **separado**, com paleta
+  propria ja estabelecida (sky/emerald/cyan/amber/primario) - nao mudar
+  junto, nao e a mesma coisa que o badge de filtro/grupo do toolbar
+  padrao.
 - Agrupamento: todo campo que pode ter valores repetidos deveria estar
   disponivel em `groupByOptions`. Quando o campo nao e uma propriedade
   plana (ex.: uma lista de objetos relacionados, como grupos de pessoas),
@@ -653,6 +713,60 @@ Calendario), usar `RelationListHost` direto, igual a aba Encontros.
   checkbox de uma ou mais linhas + "Excluir selecionados" cobre exclusao.
   So adicionar um botao de acao por linha quando a acao nao tiver outro
   caminho (ex.: uma acao que nao e editar nem excluir).
+
+### Textos visiveis ao usuario: idioma e tamanho (padrao a partir de 2026-11-19)
+
+Vale pra List Principal, Detail e relation - qualquer texto que o
+usuario le. Dois bugs reais motivaram esta secao: o badge de
+agrupamento de uma relation (`RelationListHost`) mostrando o nome bruto
+do campo em ingles (`peopleGroups` em vez de "Grupo de pessoas") porque
+o `searchView` usado pro calculo do label nao tinha `groupBy`
+preenchido; e o badge de um filtro de periodo ficando grande demais e
+cortando o texto porque a data aparecia em ISO cru (`2026-01-01`) em vez
+do formato pt-BR, e o `max-width` do chip era pequeno demais pro
+conteudo real.
+
+**Por que isso escapa de revisao visual normal:** um campo de busca ou
+de grupo quase sempre esta correto na tela onde o usuario o configurou
+(ex.: o menu "Agrupar por" mostra o `label` certo, porque ele vem direto
+de `groupByOptions`) - o texto errado so aparece *depois*, no badge/chip
+que representa esse filtro/grupo *ja aplicado*, calculado por um
+caminho de codigo diferente (`queryFacets.tsx`, nao o menu em si). Ao
+revisar um filtro/agrupamento/coluna novo, **sempre aplicar de verdade e
+olhar o badge resultado na barra de busca**, nao so abrir o menu e
+conferir a lista de opcoes - os dois usam fontes de dados diferentes e
+podem divergir silenciosamente.
+
+Regras:
+
+- **Nenhum texto visivel cai pro nome bruto do campo/variavel em
+  ingles.** Toda config que define um campo pesquisavel/agrupavel
+  (`filterFields`, `groupByOptions`, `columns`) tem que ter um `label`
+  explicito em pt-BR - e qualquer funcao que *deriva* um label a partir
+  dessas configs (`groupByLabel`/`fieldLabel` em `queryFacets.tsx`,
+  `resolveColumnDefLabel` em `ListView.tsx`) deve conseguir achar esse
+  label, nao cair num fallback pro `field`/`id` bruto. Se um fallback pro
+  nome bruto existir por seguranca (nunca travar a tela), tratar
+  qualquer ocorrencia dele como bug de configuracao, nao comportamento
+  esperado - geralmente significa que uma config em algum lugar nao
+  propagou os labels pra o lugar certo (foi o caso do `groupBy` ausente
+  no `searchView` do `RelationListHost` - corrigido preenchendo
+  automaticamente a partir de `groupByOptions`, entao hoje isso e
+  automatico pra qualquer modulo que ja passa `groupByOptions` com label
+  certo).
+- **Datas em texto visivel usam `formatDateOnlyPtBR`
+  (`@/lib/date.ts`)**, nunca ISO cru (`YYYY-MM-DD`) nem um `.slice()`
+  manual - vale pra badges/chips, nao so pra campos de formulario (que
+  ja seguiam isso). `describeValue` em `queryFacets.tsx` e a referencia.
+- **Badge/chip de filtro ou grupo ativo** (`SearchBar.tsx`,
+  `getFacetClasses`): o texto usa `max-w-[18rem] truncate` - largo o
+  bastante pra um "Campo entre DD/MM/AAAA → DD/MM/AAAA" inteiro sem
+  cortar, mas ainda com um teto pra textos realmente longos (ex.: um
+  filtro avancado com varias condicoes). Se um novo tipo de filtro
+  gerar um texto tipicamente mais longo que isso, aumentar esse
+  `max-w-*` em vez de abreviar o texto de um jeito que perca
+  informacao - o mecanismo de colapso (`+N`, baseado em largura real
+  medida) ja absorve o espaco extra sem quebrar o layout.
 
 ### FormulÃ¡rio principal (`detailSlot`)
 

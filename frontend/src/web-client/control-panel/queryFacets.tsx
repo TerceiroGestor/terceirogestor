@@ -1,6 +1,7 @@
 "use client";
 
 import { Layers, SlidersHorizontal } from "lucide-react";
+import { formatDateOnlyPtBR } from "@/lib/date";
 import type { Domain } from "@/web-client/domain/types";
 import type { SearchViewDefinition } from "@/web-client/search/types";
 import { collectAndConditions } from "@/web-client/data-provider/rest/domain-utils";
@@ -81,9 +82,7 @@ function describeValue(
   }
   if (field?.type === "date" && Array.isArray(value)) {
     const [from, to] = value;
-    const fromLabel = String(from ?? "").slice(0, 10);
-    const toLabel = String(to ?? "").slice(0, 10);
-    if (fromLabel && toLabel) return `${fromLabel} → ${toLabel}`;
+    if (from && to) return `${formatDateOnlyPtBR(String(from))} → ${formatDateOnlyPtBR(String(to))}`;
   }
   if (value === null || value === undefined) return "";
   if (Array.isArray(value)) {
