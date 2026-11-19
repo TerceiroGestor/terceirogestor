@@ -1390,33 +1390,32 @@ export function ActionOccurrencesSection({
         searchActionId="activity.occurrences"
         searchPlaceholder="Pesquisar por data, status, grupo ou notas"
         filteredCount={filteredOccurrences.length}
-        addLabel="Agendar encontros"
         onAdd={readOnly ? undefined : () => setScheduleOpen(true)}
-        columns={columns}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        viewSwitcherSlot={
           <RecordBrowserViewSwitcher
             value={view}
             onChange={setView}
             options={viewOptions}
           />
-          {!readOnly && selectedRows.length > 0 ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                Selecionados: <strong>{selectedRows.length}</strong>
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={bulkDeleting}
-                onClick={() => void handleBulkDelete()}
-              >
-                {bulkDeleting ? "Excluindo..." : "Excluir selecionados"}
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        }
+        columns={columns}
+      >
+        {!readOnly && selectedRows.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Selecionados: <strong>{selectedRows.length}</strong>
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={bulkDeleting}
+              onClick={() => void handleBulkDelete()}
+            >
+              {bulkDeleting ? "Excluindo..." : "Excluir selecionados"}
+            </Button>
+          </div>
+        ) : null}
 
         {loading ? (
           <p className="text-xs text-muted-foreground">Carregando...</p>
