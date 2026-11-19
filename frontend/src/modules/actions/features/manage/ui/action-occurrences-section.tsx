@@ -1241,8 +1241,8 @@ export function ActionOccurrencesSection({
   const buildOccurrenceSearchRecord = React.useCallback(
     (item: ApiMeeting) => ({
       status: item.status,
-      grupo: item.peopleGroups.map((link) => link.peopleGroupId),
-      data: item.scheduledDate,
+      peopleGroups: item.peopleGroups.map((link) => link.peopleGroupId),
+      scheduledDate: item.scheduledDate,
     }),
     [],
   );
@@ -1275,12 +1275,12 @@ export function ActionOccurrencesSection({
     () => [
       { name: "status", label: "Status", type: "select", options: OCCURRENCE_STATUS_OPTIONS },
       {
-        name: "grupo",
+        name: "peopleGroups",
         label: "Grupo de pessoas",
         type: "select",
         options: groups.map((link) => ({ value: link.peopleGroupId, label: link.peopleGroup.name })),
       },
-      { name: "data", label: "Data", type: "date" },
+      { name: "scheduledDate", label: "Data", type: "date" },
     ],
     [groups],
   );
