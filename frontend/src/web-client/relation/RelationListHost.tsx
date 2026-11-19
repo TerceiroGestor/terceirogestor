@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
+import { SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/web-client/control-panel/SearchBar";
 import { SearchPanelMenu } from "@/web-client/control-panel/SearchPanelMenu";
@@ -19,6 +20,8 @@ import {
 } from "@/web-client/views/ListView";
 
 type RelationGroupByOption = { field: string; label: string };
+
+const CONTROL_BUTTON_CLASS_NAME = "h-8 w-8 text-muted-foreground hover:text-foreground";
 
 type RelationListHostProps<TData> = {
   title?: string;
@@ -131,11 +134,12 @@ export function RelationListHost<TData>({
   );
 
   const filteredCountLabel = filteredCount.toLocaleString("pt-BR");
+  const hasActiveFilters = Boolean(domain) || groupBy.length > 0;
 
   const content = (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[200px] max-w-[360px] flex-1">
+        <div className="min-w-[200px] flex-1">
           <SearchBar
             value={searchText}
             onChange={onSearchTextChange}
@@ -148,8 +152,9 @@ export function RelationListHost<TData>({
                 </span>
                 {columns ? (
                   <ColumnVisibilityMenu
-                    triggerVariant="outline"
-                    triggerSize="sm"
+                    triggerVariant="ghost"
+                    triggerSize="icon"
+                    triggerClassName={CONTROL_BUTTON_CLASS_NAME}
                     showTriggerLabel={false}
                   />
                 ) : null}
@@ -176,6 +181,21 @@ export function RelationListHost<TData>({
                       );
                     }}
                     variant="compact"
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={`relative ${CONTROL_BUTTON_CLASS_NAME}`}
+                        title="Filtros"
+                        aria-label="Filtros"
+                      >
+                        <SlidersHorizontal className="size-4" />
+                        {hasActiveFilters ? (
+                          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary" />
+                        ) : null}
+                      </Button>
+                    }
                   />
                 ) : null}
               </div>

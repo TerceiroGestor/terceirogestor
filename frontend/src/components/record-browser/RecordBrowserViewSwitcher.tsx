@@ -37,10 +37,7 @@ export function RecordBrowserViewSwitcher<V extends string>({
         if (!next) return;
         onChange(next as V);
       }}
-      className={cn(
-        "shrink-0 items-center gap-0 border-b border-border/60",
-        className,
-      )}
+      className={cn("shrink-0 items-center gap-0 border-0 bg-transparent p-0", className)}
     >
       {options.map((option) => (
         <ToggleGroupItem
