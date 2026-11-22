@@ -37,16 +37,21 @@ export function DetailSectionHeading({
 
 export function DetailSectionField({
   label,
+  required,
   children,
   className,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("space-y-2", className)}>
-      <div className={DETAIL_FIELD_LABEL_CLASS_NAME}>{label}</div>
+      <div className={DETAIL_FIELD_LABEL_CLASS_NAME}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </div>
       {children}
     </div>
   );

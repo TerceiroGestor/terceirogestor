@@ -2,6 +2,9 @@
 
 import { apiRequest, buildQuery } from "@/lib/api";
 import type {
+  AddMeetingTeamParticipationInput,
+  AddMeetingTeamParticipationResponse,
+  ApiMeetingTeamParticipation,
   MeetingInput,
   MeetingUpdateInput,
   MeetingsListResponse,
@@ -30,6 +33,19 @@ export async function listMeetings(
   const query = buildQuery(params);
   return apiRequest<MeetingsListResponse>(
     `/projects/${projectId}/actions/${actionId}/occurrences${query}`,
+    {},
+    token,
+  );
+}
+
+export async function getMeeting(
+  token: string,
+  projectId: string,
+  actionId: string,
+  occurrenceId: string,
+) {
+  return apiRequest<ApiMeeting>(
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}`,
     {},
     token,
   );
@@ -110,6 +126,47 @@ export async function deleteMeeting(
 ) {
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}`,
+    { method: "DELETE" },
+    token,
+  );
+}
+
+export async function listMeetingTeamParticipations(
+  token: string,
+  projectId: string,
+  actionId: string,
+  occurrenceId: string,
+) {
+  return apiRequest<ApiMeetingTeamParticipation[]>(
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/team`,
+    {},
+    token,
+  );
+}
+
+export async function addMeetingTeamParticipations(
+  token: string,
+  projectId: string,
+  actionId: string,
+  occurrenceId: string,
+  input: AddMeetingTeamParticipationInput,
+) {
+  return apiRequest<AddMeetingTeamParticipationResponse>(
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/team`,
+    { method: "POST", body: JSON.stringify(input) },
+    token,
+  );
+}
+
+export async function removeMeetingTeamParticipation(
+  token: string,
+  projectId: string,
+  actionId: string,
+  occurrenceId: string,
+  participationId: string,
+) {
+  return apiRequest<{ ok: true }>(
+    `/projects/${projectId}/actions/${actionId}/occurrences/${occurrenceId}/team/${participationId}`,
     { method: "DELETE" },
     token,
   );

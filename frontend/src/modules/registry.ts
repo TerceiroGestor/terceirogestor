@@ -2,6 +2,7 @@ import type { ModuleManifest, NavGroup } from "@/modules/types";
 import { coreManifest } from "@/modules/core/manifest";
 import { actionsManifest } from "@/modules/actions/manifest";
 import { occurrencesManifest } from "@/modules/occurrences/manifest";
+import { attendancesManifest } from "@/modules/attendances/manifest";
 import { peopleManifest } from "@/modules/people/manifest";
 import { peopleGroupsManifest } from "@/modules/people-groups/manifest";
 import { pantryManifest } from "@/modules/pantry/manifest";
@@ -19,6 +20,7 @@ export const moduleManifests: ModuleManifest[] = [
   projectsManifest,
   actionsManifest,
   occurrencesManifest,
+  attendancesManifest,
   pantryManifest,
   depositManifest,
   tasksManifest,

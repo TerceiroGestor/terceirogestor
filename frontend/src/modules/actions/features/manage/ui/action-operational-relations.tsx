@@ -34,6 +34,7 @@ import {
   resolveLabel,
 } from "@/modules/people/shared/domain/utils";
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 export type AttendanceDraft = {
   status?: AttendanceStatus;
@@ -114,10 +115,19 @@ function renderParticipantIdentity({
   row,
   tenantSlug,
   canReadPeople,
+  showGroupsSubtitle = true,
 }: {
   row: MeetingAttendancesListItem;
   tenantSlug: string;
   canReadPeople: boolean;
+  /**
+   * `false` quando a tela já tem uma coluna própria pra Grupos - evita
+   * mostrar o mesmo valor duas vezes (uma dentro da coluna principal, outra
+   * numa coluna separada). Default `true` preserva o visual de quem ainda
+   * não tem essa coluna (ex.: `buildParticipantsColumns`, usada por
+   * Projects em `project-action-attendances-card.tsx`).
+   */
+  showGroupsSubtitle?: boolean;
 }) {
   const person = row.enrollment.person;
   return (
@@ -132,12 +142,16 @@ function renderParticipantIdentity({
         hasMedication={person.hasMedication}
         showDetailsLink={canReadPeople}
       />
-      <div className="flex min-w-0 flex-col">
+      {showGroupsSubtitle ? (
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-medium">{person.fullName}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {row.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
+          </span>
+        </div>
+      ) : (
         <span className="truncate font-medium">{person.fullName}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {row.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
-        </span>
-      </div>
+      )}
     </div>
   );
 }
@@ -391,7 +405,18 @@ export function buildQualityColumns({
           row: row.original,
           tenantSlug,
           canReadPeople,
+          showGroupsSubtitle: false,
         }),
+    },
+    {
+      id: "peopleGroups",
+      header: ACTION_RELATION_TEXT.quality.columns.peopleGroups,
+      accessorFn: (row) => row.enrollment.peopleGroups.map((group) => group.name).join(", "),
+      cell: ({ row }) => (
+        <TruncatedTextCell
+          text={row.original.enrollment.peopleGroups.map((group) => group.name).join(", ")}
+        />
+      ),
     },
     {
       id: "occurrence",

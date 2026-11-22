@@ -25,6 +25,7 @@ import {
   CreateActionOccurrenceDto,
   PreviewActionOccurrencesDto,
 } from './dto/create-action-occurrence.dto';
+import { AddMeetingTeamParticipationDto } from './dto/add-meeting-team-participation.dto';
 import { CreateProjectActionPeopleParticipationDto } from './dto/create-project-action-people-participation.dto';
 import { CreateProjectActionDto } from './dto/create-project-action.dto';
 import { EndProjectActionPeopleParticipationDto } from './dto/end-project-action-people-participation.dto';
@@ -394,6 +395,81 @@ export class ProjectActionsController {
       projectId,
       actionId,
       occurrenceId,
+    );
+  }
+
+  @Get(':projectId/actions/:actionId/occurrences/:occurrenceId')
+  @Permissions('actions.read')
+  async getOccurrence(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+  ) {
+    return this.service.getActionOccurrence(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
+    );
+  }
+
+  @Get(':projectId/actions/:actionId/occurrences/:occurrenceId/team')
+  @Permissions('actions.read')
+  async listOccurrenceTeam(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+  ) {
+    return this.service.listMeetingTeamParticipations(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
+    );
+  }
+
+  @Post(':projectId/actions/:actionId/occurrences/:occurrenceId/team')
+  @Permissions('actions.update')
+  async addOccurrenceTeam(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+    @Body() dto: AddMeetingTeamParticipationDto,
+  ) {
+    return this.service.addMeetingTeamParticipations(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
+      dto,
+    );
+  }
+
+  @Delete(
+    ':projectId/actions/:actionId/occurrences/:occurrenceId/team/:participationId',
+  )
+  @Permissions('actions.update')
+  async removeOccurrenceTeam(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('actionId', new ParseUUIDPipe({ version: '4' })) actionId: string,
+    @Param('occurrenceId', new ParseUUIDPipe({ version: '4' }))
+    occurrenceId: string,
+    @Param('participationId', new ParseUUIDPipe({ version: '4' }))
+    participationId: string,
+  ) {
+    return this.service.removeMeetingTeamParticipation(
+      user,
+      projectId,
+      actionId,
+      occurrenceId,
+      participationId,
     );
   }
 

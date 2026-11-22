@@ -1,3 +1,4 @@
+import type { ActionPeopleParticipationRole } from "@/modules/actions/api";
 import type { ProjectsPagination } from "./shared";
 
 export type EnrollmentStatus = "ACTIVE" | "ENDED";
@@ -152,4 +153,44 @@ export type ApiGoal = {
 export type GoalInput = {
   title: string;
   description?: string | null;
+};
+
+/**
+ * Equipe individual do Projeto (revisão da hierarquia de equipe,
+ * 2026-11-21): mesmo papel usado pela Atividade (ActionPeopleParticipationRole)
+ * - decisão do usuário de ter um único enum de papel nos 3 níveis
+ * (Projeto/Atividade/Encontro).
+ */
+export type ApiProjectTeamParticipation = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  personId: string;
+  role: ActionPeopleParticipationRole;
+  activeKey: string | null;
+  isActive: boolean;
+  startsAt: string;
+  endsAt: string | null;
+  deletedAt: string | null;
+  internalNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  person: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+    status: string | null;
+  };
+};
+
+export type ProjectTeamParticipationInput = {
+  personId: string;
+  role?: ActionPeopleParticipationRole;
+  startsAt?: string | null;
+  internalNotes?: string | null;
+};
+
+export type EndProjectTeamParticipationInput = {
+  endsAt?: string | null;
+  internalNotes?: string | null;
 };

@@ -46,7 +46,7 @@ function teamParticipationColumns({
       accessorFn: (row) => row.person.fullName,
       cell: ({ row }) => (
         <div className="space-y-0.5">
-          <div className="font-medium text-foreground">{row.original.person.fullName}</div>
+          <div className="font-medium">{row.original.person.fullName}</div>
           <div className="text-xs text-muted-foreground">{row.original.person.status ?? "-"}</div>
         </div>
       ),
@@ -169,6 +169,9 @@ export function ActionTeamSection({
           getRowId={(row) => row.id}
           showColumnVisibilityButton={false}
           bordered={false}
+          // Mesmo ajuste de Encontros (action-occurrences-section.tsx) -
+          // abas + toolbar da relation já ficam sticky acima.
+          stickyHeaderOffsetPx={117}
         />
       )}
     </RelationListHost>

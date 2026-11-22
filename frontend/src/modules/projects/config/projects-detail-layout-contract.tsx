@@ -28,6 +28,7 @@ import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.co
 import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
 import { ProjectFundingSourcesSection } from "@/modules/projects/features/detail/ui/project-funding-sources-section";
 import { ProjectGoalsSection } from "@/modules/projects/features/detail/ui/project-goals-section";
+import { ProjectTeamSection } from "@/modules/projects/features/detail/ui/project-team-section";
 import {
   DetailSectionField,
   DETAIL_LINE_INPUT_CLASS_NAME,
@@ -900,6 +901,16 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
               : "Nenhum vínculo.",
         },
       ],
+    },
+    {
+      key: "teamParticipations",
+      label: "Equipe",
+      visible: ({ mode }) => mode === "edit",
+      content: ({ project, readOnly }) =>
+        project ? (
+          <ProjectTeamSection projectId={project.id} readOnly={readOnly} />
+        ) : null,
+      emptyLabel: "Sem equipe.",
     },
     {
       key: "participants",

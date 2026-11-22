@@ -54,7 +54,7 @@ import {
   hasModulePermission,
 } from "@/web-client/registry/module-utils";
 
-function buildDraft(action?: ApiActivity | null): ActivityDetailDraft {
+export function buildDraft(action?: ApiActivity | null): ActivityDetailDraft {
   return {
     actionTypeId: action?.actionTypeId ?? "",
     title: action?.title ?? "",
@@ -70,7 +70,7 @@ function buildDraft(action?: ApiActivity | null): ActivityDetailDraft {
   };
 }
 
-function normalizeDraft(draft: ActivityDetailDraft): ActivityDetailDraft {
+export function normalizeDraft(draft: ActivityDetailDraft): ActivityDetailDraft {
   return {
     actionTypeId: draft.actionTypeId,
     title: draft.title.trim(),

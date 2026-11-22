@@ -312,7 +312,15 @@ export function RecordListHost<
     (activeView?.viewType === "list" || activeView?.viewType === "table");
 
   const content = (
-    <div className="flex flex-col gap-4">
+    // `lg:h-[calc(...)]` reaproveita a mesma variável que `DetailShell.tsx`
+    // já usa (medida pelo `AppShell.tsx` via ResizeObserver) - dá ao List
+    // Principal uma altura de viewport travada, assim como o Detail já tem,
+    // pra cabeçalho/barra de ação do `ListView` conseguirem ficar fixos de
+    // verdade durante o scroll (sem isso, não existe nenhum container com
+    // altura limitada em lugar nenhum da árvore - sticky nunca tem efeito,
+    // achado em 2026-11-20 revisando a lista de Atividades). Só em `lg:` -
+    // no mobile continua a rolagem simples de página de sempre.
+    <div className="flex flex-col gap-4 lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))] lg:min-h-0">
       <PageControlPanel
         primaryActionSlot={
           primaryActionSlot ??
@@ -469,7 +477,17 @@ export function RecordListHost<
         viewControlsSlot={viewControls}
       />
 
-      {children}
+      {/* `PageControlPanel` acima não renderiza nada aqui (ver comentário no
+          import) - esta é a única área com conteúdo real. Grid (não flex)
+          de propósito: o primeiro filho (o `ListView`/typeview da própria
+          tela) ocupa o espaço restante e rola internamente
+          (`minmax(0,1fr)`), qualquer filho depois dele (ex.: `PaginationBar`)
+          mantém a altura natural e fica sempre visível (`auto`) - com grid
+          não precisa que cada filho declare `flex-1`/`h-full` combinando
+          exatamente certo entre si, cada um só ocupa sua própria linha. */}
+      <div className="lg:grid lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)_auto] lg:overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 

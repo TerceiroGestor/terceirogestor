@@ -19,6 +19,8 @@ import { CreateGoalDto } from './dto/create-goal.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
 import { CreateProjectFundingSourceDto } from './dto/create-project-funding-source.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
+import { CreateProjectTeamParticipationDto } from './dto/create-project-team-participation.dto';
+import { EndProjectTeamParticipationDto } from './dto/end-project-team-participation.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
@@ -157,6 +159,42 @@ export class ProjectStructureController {
     @Param('goalId', new ParseUUIDPipe({ version: '4' })) goalId: string,
   ) {
     return this.service.deleteGoal(user.tenantId, projectId, goalId);
+  }
+
+  @Get(':projectId/team-participations')
+  @Permissions('project-structure.read')
+  async listTeamParticipations(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+  ) {
+    return this.service.listTeamParticipations(user.tenantId, projectId);
+  }
+
+  @Post(':projectId/team-participations')
+  @Permissions('project-structure.create')
+  async createTeamParticipation(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Body() dto: CreateProjectTeamParticipationDto,
+  ) {
+    return this.service.createTeamParticipation(user.tenantId, projectId, dto);
+  }
+
+  @Patch(':projectId/team-participations/:participationId/end')
+  @Permissions('project-structure.update')
+  async endTeamParticipation(
+    @CurrentUser() user: JwtUser,
+    @Param('projectId', new ParseUUIDPipe({ version: '4' })) projectId: string,
+    @Param('participationId', new ParseUUIDPipe({ version: '4' }))
+    participationId: string,
+    @Body() dto: EndProjectTeamParticipationDto,
+  ) {
+    return this.service.endTeamParticipation(
+      user.tenantId,
+      projectId,
+      participationId,
+      dto,
+    );
   }
 
   @Post(':projectId/people-groups/:peopleGroupId/sync-enrollments')

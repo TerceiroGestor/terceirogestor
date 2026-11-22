@@ -13,7 +13,7 @@ export type ApiActivityType = {
   updatedAt: string;
 };
 
-export type ActionStatus = "PLANNED" | "EXECUTED" | "CANCELED";
+export type ActionStatus = "PLANNED" | "EXECUTED" | "INACTIVE";
 
 export type ApiActivityPeopleGroupLink = {
   peopleGroupId: string;
@@ -310,6 +310,7 @@ export type ApiMeeting = {
   id: string;
   tenantId: string;
   actionId: string;
+  title: string;
   peopleGroupId: string | null;
   peopleGroupIds: string[];
   scheduledDate: string;
@@ -334,7 +335,46 @@ export type MeetingsListResponse = {
   pagination: PaginationMeta;
 };
 
+/**
+ * Equipe individual do Encontro (revisão da hierarquia de equipe,
+ * 2026-11-21): vínculo pontual, sem janela de tempo - mesmo papel usado
+ * em Atividade/Projeto (ActionPeopleParticipationRole).
+ */
+export type ApiMeetingTeamParticipation = {
+  id: string;
+  tenantId: string;
+  meetingId: string;
+  personId: string;
+  role: ActionPeopleParticipationRole;
+  createdAt: string;
+  person: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+    birthDate: string | null;
+    status: string | null;
+  };
+};
+
+export type AddMeetingTeamParticipationInput = {
+  personIds: string[];
+  role?: ActionPeopleParticipationRole;
+};
+
+export type AddMeetingTeamParticipationResponse = {
+  created: number;
+  skipped: number;
+  cascaded: Array<{
+    personId: string;
+    fullName: string;
+    activity: boolean;
+    project: boolean;
+  }>;
+};
+
 export type MeetingInput = {
+  /** Opcional - vazio gera "Encontro - data" automaticamente no backend. */
+  title?: string | null;
   scheduledDate: string;
   startTime: string;
   endTime?: string | null;
@@ -348,6 +388,8 @@ export type MeetingInput = {
 };
 
 export type MeetingUpdateInput = {
+  /** String vazia regenera "Encontro - data" automaticamente no backend. */
+  title?: string | null;
   scheduledDate?: string;
   startTime?: string;
   endTime?: string | null;

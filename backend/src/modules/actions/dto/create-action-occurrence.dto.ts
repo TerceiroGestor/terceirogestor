@@ -14,6 +14,11 @@ import { WEEK_DAYS } from '../action-occurrence-schedule';
 const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export class CreateActionOccurrenceDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  title?: string | null;
+
   @IsString()
   scheduledDate!: string;
 

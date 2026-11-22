@@ -227,6 +227,9 @@ export function ActionQualitySection({
             groupByFields={groupBy}
             resolveGroupValue={resolveGroupValue}
             resolveGroupLabel={resolveGroupLabel}
+            // Mesmo ajuste de Encontros (action-occurrences-section.tsx) -
+            // abas + toolbar da relation já ficam sticky acima.
+            stickyHeaderOffsetPx={117}
           />
         )}
       </RelationListHost>

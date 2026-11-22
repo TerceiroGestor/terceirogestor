@@ -4,6 +4,7 @@
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  ActionPeopleParticipationRole,
   EnrollmentStatus,
   ParticipationKind,
   Prisma,
@@ -24,6 +25,8 @@ import { CreateGoalDto } from './dto/create-goal.dto';
 import { CreateProjectEnrollmentDto } from './dto/create-project-enrollment.dto';
 import { CreateProjectFundingSourceDto } from './dto/create-project-funding-source.dto';
 import { CreateProjectPeopleGroupDto } from './dto/create-project-people-group.dto';
+import { CreateProjectTeamParticipationDto } from './dto/create-project-team-participation.dto';
+import { EndProjectTeamParticipationDto } from './dto/end-project-team-participation.dto';
 import { ListEligibleProjectPeopleQueryDto } from './dto/list-eligible-project-people-query.dto';
 import { ListProjectEnrollmentsQueryDto } from './dto/list-project-enrollments-query.dto';
 import { ListProjectPeopleGroupsQueryDto } from './dto/list-project-people-groups-query.dto';
@@ -316,7 +319,7 @@ export class ProjectStructureService {
     if (!existing) throw new NotFoundException('Meta nao encontrada');
 
     const activitiesCount = await this.prisma.activity.count({
-      where: { tenantId, goalId: existing.id },
+      where: { tenantId, goalId: existing.id, deletedAt: null },
     });
     if (activitiesCount > 0) {
       throw new BadRequestException(
@@ -325,6 +328,118 @@ export class ProjectStructureService {
     }
 
     await this.prisma.goal.delete({ where: { id: existing.id } });
+    return { ok: true as const };
+  }
+
+  /**
+   * Equipe individual do Projeto (revisão da hierarquia de equipe,
+   * 2026-11-21) - mesmo padrão de
+   * ActionsService#ensurePersonOnProjectTeam/#ensurePersonOnActivityTeam:
+   * cadastro direto aqui continua funcionando como hoje, independente da
+   * cadeia automática que o Encontro também pode disparar.
+   */
+  async listTeamParticipations(tenantId: string, projectId: string) {
+    await this.ensureProjectExists(tenantId, projectId);
+    return this.prisma.projectTeamParticipation.findMany({
+      where: { tenantId, projectId, deletedAt: null },
+      include: {
+        person: {
+          select: { id: true, fullName: true, avatarUrl: true, status: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createTeamParticipation(
+    tenantId: string,
+    projectId: string,
+    dto: CreateProjectTeamParticipationDto,
+  ) {
+    await this.ensureProjectExists(tenantId, projectId);
+
+    const person = await this.prisma.person.findFirst({
+      where: { id: dto.personId, tenantId },
+      select: { id: true },
+    });
+    if (!person) throw new BadRequestException('Pessoa invalida');
+
+    const role: ActionPeopleParticipationRole = dto.role ?? 'PARTICIPANTE';
+    const existing = await this.prisma.projectTeamParticipation.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        personId: dto.personId,
+        role,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'Pessoa ja esta vinculada a este projeto com esse papel.',
+      );
+    }
+
+    const startsAt = parseDateInput(dto.startsAt) ?? new Date();
+
+    return this.prisma.projectTeamParticipation.create({
+      data: {
+        tenantId,
+        projectId,
+        personId: dto.personId,
+        role,
+        activeKey: `${projectId}:${dto.personId}:${role}`,
+        isActive: true,
+        startsAt,
+        internalNotes: normalizeString(dto.internalNotes),
+      },
+      include: {
+        person: {
+          select: { id: true, fullName: true, avatarUrl: true, status: true },
+        },
+      },
+    });
+  }
+
+  async endTeamParticipation(
+    tenantId: string,
+    projectId: string,
+    participationId: string,
+    dto: EndProjectTeamParticipationDto,
+  ) {
+    await this.ensureProjectExists(tenantId, projectId);
+
+    const existing = await this.prisma.projectTeamParticipation.findFirst({
+      where: { id: participationId, tenantId, projectId },
+      select: { id: true, internalNotes: true, deletedAt: true },
+    });
+    if (!existing)
+      throw new NotFoundException('Participacao do projeto nao encontrada');
+    if (existing.deletedAt) return { ok: true as const };
+
+    const endsAt =
+      parseDateInput(dto.endsAt, { endOfDay: true }) ?? new Date();
+    const noteSuffix = dto.internalNotes?.trim()
+      ? dto.internalNotes.trim()
+      : null;
+
+    await this.prisma.projectTeamParticipation.update({
+      where: { id: existing.id },
+      data: {
+        activeKey: null,
+        isActive: false,
+        endsAt,
+        deletedAt: new Date(),
+        internalNotes: noteSuffix
+          ? [existing.internalNotes?.trim(), noteSuffix]
+              .filter(Boolean)
+              .join('\n\n')
+          : existing.internalNotes,
+      },
+    });
+
     return { ok: true as const };
   }
 

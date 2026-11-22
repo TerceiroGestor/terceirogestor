@@ -21,7 +21,7 @@ coluna "Falta"), `[ ]` não iniciada.
 | `[x]` | **3 — Presença Diária derivada (`DailyAttendance`)** | Feito em 2026-11-15 — ver evidência em `PLAN.md` | — |
 | `[x]` | **4 — Recorrência e geração automática de agenda** | Feito em 2026-11-16 — ver evidência em `PLAN.md` | — |
 | `[x]` | **5 — Ocorrência** | Feito em 2026-11-18 — ver evidência abaixo | — |
-| `[ ]` | **6 — Atendimento (social/psicológico)** | nada | `Attendance`, `AttendancePeople`, `Benefit`, evoluções, abertura/encerramento |
+| `[x]` | **6 — Atendimento (social/psicológico)** | Feito em 2026-11-21 — ver evidência abaixo | — |
 | `[ ]` | **7 — Encaminhamento** | nada | `Referral`, status com contrarreferência, dashboard de pendência |
 | `[ ]` | **8 — Caso (agrupador)** | nada | `Case`, vínculo opcional em `Attendance`/`Referral`, parecer consolidado |
 | `[ ]` | **9 — Relatórios por financiador** (absorve a antiga Fase R5) | nada | Motor de template por `funding_source`, relatório de metas, exportação por período |
@@ -625,7 +625,7 @@ parte do critério de teste da Fase 5; registrado em `docs/backlog.md`.
 
 ---
 
-### **Fase 6 — Atendimento (social/psicológico)** `[ não iniciada]`
+### **Fase 6 — Atendimento (social/psicológico)** `[x concluída]`
 
 **Objetivo:** módulo de prontuário técnico, com controle de abertura/encerramento.
 
@@ -634,6 +634,122 @@ parte do critério de teste da Fase 5; registrado em `docs/backlog.md`.
 - Feature de `Benefit` (cesta básica etc.) vinculada ao atendimento.
 
 **✅ Critério de teste:** abrir 1 atendimento psicológico com a criança + a mãe, registrar 2 evoluções em datas diferentes, lançar 1 benefício (cesta básica), e encerrar o atendimento.
+
+**Feito em 2026-11-21.** Quatro decisões de escopo tomadas antes de codificar
+(implementação direta, a pedido explícito do usuário — "implemente tudo e
+teste depois"):
+
+- **Colisão de nome (2x), mesmo padrão já usado nas Fases 5/1:**
+  `AttendanceStatus` já existe no schema — é o status de presença do
+  Encontro (`PRESENT/ABSENT/EXCUSED`). Status do Atendimento (aberto/
+  encerrado) virou `AttendanceCaseStatus`, mesmo raciocínio de
+  `OccurrenceCaseStatus` na Fase 5. `Benefit` também colide em intenção
+  com `PersonBenefit` (já existente — benefício financeiro contínuo da
+  pessoa, conceito diferente de "cesta básica entregue neste
+  atendimento") — virou `AttendanceBenefit`.
+- **Ciclo de status NÃO é avanço-só**, ao contrário da Ocorrência (Fase
+  5). Decisão própria: um atendimento encerrado pode ser reaberto (fluxo
+  real de prontuário técnico — a situação pode exigir continuidade
+  depois de encerrado). Única regra: `closingNotes` (parecer de
+  encerramento) obrigatório para fechar como "Encerrado", igual ao
+  `outcomeNotes` da Ocorrência.
+- **`professionalId` obrigatório na criação** (FK direta pra `Person`,
+  sem papel específico exigido — reaproveita qualquer pessoa cadastrada,
+  picker próprio). Pessoas atendidas (`AttendancePeople`) continuam
+  opcionais na criação, adicionadas depois de salvo — mesmo padrão "criar
+  sempre abre em modo create" já usado na Ocorrência.
+- **Sem campo `title`:** ao contrário do Encontro (que ganhou título em
+  2026-11-21 nesta mesma sessão de trabalho) e da Ocorrência, o texto da
+  Fase 6 não pede título — listagem usa tipo + nome do atendido principal
+  calculado no cliente, sem campo novo no banco.
+
+**Schema:** migration `20261121172107_add_attendance` — enums
+`AttendanceType` (`SOCIAL/PSICOLOGICO`), `AttendanceCaseStatus`
+(`ABERTO/ENCERRADO`), `AttendancePersonRole`
+(`ATENDIDO_PRINCIPAL/ATENDIDO_SECUNDARIO/FAMILIAR`); models `Attendance`
+(`occurrenceId` nullable, `professionalId` obrigatório,
+`closingNotes`), `AttendancePeople` (N:N, único por
+`attendanceId+personId+role`), `AttendanceEvolution` (data+texto,
+múltiplos por atendimento), `AttendanceBenefit` (nome+data+quantidade
+opcional+observação). Aplicada com `npx prisma migrate dev` contra
+Postgres real, **sem drift**.
+
+**Backend:** módulo novo `backend/src/modules/attendances/`
+(controller/service/DTOs/`attendance-status.ts`), mesmo padrão de
+guard/decorator do módulo `occurrences`. Rotas:
+`GET/POST /attendances`, `GET/PATCH/DELETE /attendances/:id`,
+`POST/DELETE /attendances/:id/people(/:linkId)`,
+`POST/PATCH/DELETE /attendances/:id/evolutions(/:evolutionId)`,
+`POST/PATCH/DELETE /attendances/:id/benefits(/:benefitId)`. Permissões
+novas `attendances.read/create/update/delete` em `core-permissions.ts`,
+adicionadas a Admin/Gestor (todas) e ao papel "Atendimento" já existente
+(read/create/update, sem delete — mesmo nível de `occurrences`), Leitor
+ganha só `read`. **Mesmo achado da Fase 5 se repete:** papéis já
+existentes num tenant precisam de `npm run build:seed && npm run
+db:seed` pra ganhar a permissão nova (upsert idempotente, não altera
+dado nenhum — usado aqui pra sincronizar o tenant de teste).
+**Evidência:** `npx prisma migrate dev` → sem drift; backend `tsc
+--noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 30 suítes/159
+testes (+1 suíte/+6 testes da Fase 6, provando filtro por tenant e as
+regras de `assertClosingNotesRequiredForClosing`) sem regressão; `npm
+run build` → ok; `eslint` no módulo novo e nos 2 arquivos tocados
+(`core-permissions.ts`, `app.module.ts`) → 0 problemas novos.
+
+**Frontend:** módulo canônico novo `frontend/src/modules/attendances/`,
+copiado da estrutura de `occurrences` (padrão mais recente). Aba
+"Pessoas" reaproveita o mecanismo genérico de relação (`tabTemplates.
+relations`) igual à Ocorrência; abas "Evoluções" e "Benefícios" usam o
+outro mecanismo do mesmo motor genérico (`tabTemplates.content`, render
+livre) — CRUD completo (criar/editar/excluir) não cabe no formato
+"relação simples" da aba Pessoas, então viraram componentes
+autocontidos com diálogo próprio (`AttendanceEvolutionDialog`/
+`AttendanceBenefitDialog`), mesmo princípio de `ProjectGoalsSection`.
+Profissional responsável usa picker próprio de seleção única
+(`AttendanceProfessionalPickerDialog`, variante de 1 botão do picker de
+Pessoas da Ocorrência, que tem 2). Ponto de entrada novo: a Ocorrência
+ganha um botão no header ("Registrar atendimento", ícone
+`HeartHandshake`), mesmo mecanismo `header.actions` já usado pela
+Atividade pra abrir Ocorrência — navega pra `/attendances/new?
+occurrenceId=`, preenchendo a Origem automaticamente. Rotas novas
+`/attendances`, `/attendances/new`, `/attendances/[id]`; registro em
+`web-client/registry/actions/attendances.tsx` +
+`web-client/registry/index.ts`; módulo novo no nav (grupo Operações,
+ícone `HeartHandshake`, entre Ocorrências e o próximo item).
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok, as 3
+rotas novas aparecem; `eslint` nos arquivos novos/tocados → só a
+categoria já tolerada em todo o projeto
+(`react-hooks/set-state-in-effect`), nenhuma categoria nova (os erros de
+`react-hooks/preserve-manual-memoization` que apareceram numa primeira
+leva foram corrigidos adicionando os setters estáveis — `setAttendance`
+— nas dependências dos `useCallback`, mesma correção já aplicada na
+Fase 5).
+
+**Testado de ponta a ponta** via API direta e via navegador real
+(Playwright + Chromium, login real `admin@seed.local`, backend e
+frontend reais de pé, **não foram reiniciados por mim**): criado 1
+atendimento psicológico espontâneo; vinculada 1 criança (papel
+"Atendido principal" — Bianca Torres) e 1 familiar (Carlos Nunes);
+registradas 2 evoluções em datas diferentes (20/11 e 27/11); lançado 1
+benefício "Cesta básica" (quantidade 1); confirmado por API que tentar
+encerrar sem `closingNotes` devolve `400` ("Informe o parecer de
+encerramento..."); encerrado com sucesso ao preencher o parecer;
+**reaberto em seguida** (`ABERTO` de novo), confirmando que o ciclo não
+é avanço-só, ao contrário da Ocorrência. Testado também o vínculo
+opcional com Ocorrência: ocorrência externa criada, atendimento social
+criado com `occurrenceId` dela, campo "Origem" exibe o título da
+ocorrência corretamente. No navegador: os 3 pontos (criar, vincular
+pessoas com os 3 papéis, evoluções, benefícios, encerrar com parecer)
+reproduzidos manualmente, incluindo o toast de erro real ("Falha ao
+salvar / Informe o parecer de encerramento antes de encerrar o
+atendimento") ao tentar encerrar sem parecer pela UI, e o fechamento
+bem-sucedido depois de preenchido — confirmado via API que o estado
+final bate com a UI; zero erro de console/erro HTTP inesperado em todas
+as telas visitadas (os únicos `400` observados foram os das validações
+de negócio testadas de propósito). Botão novo "Registrar atendimento"
+no header da Ocorrência testado e navegando corretamente com
+`occurrenceId` preenchido. Todos os dados de teste (1 atendimento, 1
+ocorrência) removidos via API ao final; nenhum dado de seed foi
+alterado (14 pessoas, 0 ocorrências/atendimentos residuais confirmado).
 
 ---
 

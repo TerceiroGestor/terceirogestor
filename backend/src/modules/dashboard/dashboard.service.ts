@@ -112,7 +112,7 @@ export class DashboardService {
         _count: { _all: true },
       }),
       this.prisma.activity.findMany({
-        where: { tenantId, ...actionPeriodWhere },
+        where: { tenantId, deletedAt: null, ...actionPeriodWhere },
         select: {
           id: true,
           actionTypeId: true,
@@ -132,7 +132,7 @@ export class DashboardService {
       }),
       this.prisma.activity.groupBy({
         by: ['actionTypeId'],
-        where: { tenantId, ...actionPeriodWhere },
+        where: { tenantId, deletedAt: null, ...actionPeriodWhere },
         _count: { _all: true },
       }),
       this.prisma.auditLog.findMany({

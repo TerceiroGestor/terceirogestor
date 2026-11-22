@@ -72,7 +72,7 @@ enum PeopleGroupPurpose {
 enum ActionStatus {
   PLANNED
   EXECUTED
-  CANCELED
+  INACTIVE
 }
 
 enum OccurrenceStatus {
@@ -121,6 +121,25 @@ enum OccurrenceCaseStatus {
 enum OccurrencePersonRole {
   ENVOLVIDO
   TESTEMUNHA
+}
+
+enum AttendanceType {
+  SOCIAL
+  PSICOLOGICO
+}
+
+/// Fase 6 (Atendimento). Nome do enum nao pode ser "AttendanceStatus" - esse
+/// nome ja e usado pelo status de presenca do Encontro (PRESENT/ABSENT/
+/// EXCUSED). Mesmo padrao ja usado em OccurrenceCaseStatus (Fase 5).
+enum AttendanceCaseStatus {
+  ABERTO
+  ENCERRADO
+}
+
+enum AttendancePersonRole {
+  ATENDIDO_PRINCIPAL
+  ATENDIDO_SECUNDARIO
+  FAMILIAR
 }
 
 enum IncomeFrequency {
@@ -330,6 +349,12 @@ model Tenant {
   projectActionPeopleParticipations ProjectActionPeopleParticipation[]
   projectFundingSources             ProjectFundingSource[]
   goals                             Goal[]
+  projectTeamParticipations         ProjectTeamParticipation[]
+  meetingTeamParticipations         MeetingTeamParticipation[]
+  attendances                       Attendance[]
+  attendancePeople                  AttendancePeople[]
+  attendanceEvolutions              AttendanceEvolution[]
+  attendanceBenefits                AttendanceBenefit[]
 
   @@index([status])
 }
@@ -507,6 +532,10 @@ model Person {
   actionPeopleParticipations ProjectActionPeopleParticipation[]
   dailyAttendances           DailyAttendance[]
   occurrenceCaseLinks        OccurrencePeople[]
+  projectTeamParticipations  ProjectTeamParticipation[]
+  meetingTeamParticipations  MeetingTeamParticipation[]
+  attendanceLinks            AttendancePeople[]
+  attendancesAsProfessional  Attendance[]                       @relation("AttendanceProfessional")
 
   @@index([tenantId])
   @@index([fullName])
@@ -1233,6 +1262,7 @@ model Project {
   attachments    ProjectAttachment[]
   fundingSources ProjectFundingSource[]
   goals          Goal[]
+  teamParticipations ProjectTeamParticipation[]
 
   @@index([tenantId])
   @@index([programId])
@@ -1459,6 +1489,7 @@ model Activity {
   plannedEndAt        DateTime?
   executedStartAt     DateTime?
   executedEndAt       DateTime?
+  deletedAt           DateTime?
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
@@ -1551,6 +1582,9 @@ model Meeting {
   id                String           @id @default(uuid()) @db.Char(36)
   tenantId          String           @db.Char(36)
   actionId          String           @db.Char(36)
+  /// Sempre preenchido - se o usuário não escrever nada na criação/edição,
+  /// o service gera "Encontro - dd/mm/aaaa" automaticamente (2026-11-21).
+  title             String           @default("")
   scheduledDate     DateTime         @db.Date
   startTime         DateTime
   endTime           DateTime?
@@ -1570,6 +1604,7 @@ model Meeting {
   teamPeopleGroups ActionOccurrenceTeamGroup[]
   peopleGroups     ActionOccurrencePeopleGroup[]
   occurrenceCases  Occurrence[]
+  teamParticipations MeetingTeamParticipation[]
 
   @@index([tenantId, actionId])
   @@index([tenantId, scheduledDate])
@@ -1630,9 +1665,10 @@ model Occurrence {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
-  tenant  Tenant             @relation(fields: [tenantId], references: [id])
-  meeting Meeting?           @relation(fields: [meetingId], references: [id])
-  people  OccurrencePeople[]
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  meeting     Meeting?           @relation(fields: [meetingId], references: [id])
+  people      OccurrencePeople[]
+  attendances Attendance[]
 
   @@index([tenantId])
   @@index([meetingId])
@@ -1716,6 +1752,151 @@ model ProjectActionPeopleParticipation {
   @@index([role])
   @@index([activeKey])
   @@index([isActive])
+}
+
+/// Equipe individual do Projeto (revisão da hierarquia de equipe,
+/// 2026-11-21): mesma forma de ProjectActionPeopleParticipation, um
+/// nível acima. Sem enrollmentId/participationKind - aqui é sempre
+/// "equipe", não há o conceito de "público" no nível do Projeto.
+model ProjectTeamParticipation {
+  id            String                        @id @default(uuid()) @db.Char(36)
+  tenantId      String                        @db.Char(36)
+  projectId     String                        @db.Char(36)
+  personId      String                        @db.Char(36)
+  role          ActionPeopleParticipationRole @default(PARTICIPANTE)
+  activeKey     String?                       @db.VarChar(120)
+  isActive      Boolean                       @default(true)
+  startsAt      DateTime                      @default(now())
+  endsAt        DateTime?
+  deletedAt     DateTime?
+  internalNotes String?                       @db.Text
+  createdAt     DateTime                      @default(now())
+  updatedAt     DateTime                      @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+  person  Person  @relation(fields: [personId], references: [id])
+
+  @@unique([tenantId, activeKey])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([personId])
+  @@index([role])
+  @@index([isActive])
+}
+
+/// Equipe individual do Encontro (revisão da hierarquia de equipe,
+/// 2026-11-21): vínculo pontual pra aquele encontro específico, sem
+/// janela de tempo (isActive/startsAt/endsAt) - mais parecido com
+/// OccurrencePeople do que com ProjectActionPeopleParticipation. Ao
+/// criar, o service encadeia a criação (se ainda não existir) do vínculo
+/// equivalente em ProjectActionPeopleParticipation e ProjectTeamParticipation.
+model MeetingTeamParticipation {
+  id        String                        @id @default(uuid()) @db.Char(36)
+  tenantId  String                        @db.Char(36)
+  meetingId String                        @db.Char(36)
+  personId  String                        @db.Char(36)
+  role      ActionPeopleParticipationRole @default(PARTICIPANTE)
+  createdAt DateTime                      @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  person  Person  @relation(fields: [personId], references: [id])
+
+  @@unique([meetingId, personId, role])
+  @@index([tenantId])
+  @@index([meetingId])
+  @@index([personId])
+}
+
+/// Fase 6 (Atendimento): prontuario tecnico (social/psicologico), com
+/// controle de abertura/encerramento. Origem opcional num Occurrence
+/// (espontaneo quando occurrenceId e nulo). Pessoas vinculadas (atendido
+/// principal/secundario/familiar) sao adicionadas depois de criado, mesmo
+/// padrao ja usado em Occurrence (Fase 5) - criar sempre abre em modo
+/// create, sem pessoas ainda.
+model Attendance {
+  id             String               @id @default(uuid()) @db.Char(36)
+  tenantId       String               @db.Char(36)
+  occurrenceId   String?              @db.Char(36)
+  type           AttendanceType
+  scheduledDate  DateTime             @db.Date
+  professionalId String               @db.Char(36)
+  status         AttendanceCaseStatus @default(ABERTO)
+  notes          String?              @db.Text
+  closingNotes   String?              @db.Text
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id])
+  occurrence   Occurrence?           @relation(fields: [occurrenceId], references: [id])
+  professional Person                @relation("AttendanceProfessional", fields: [professionalId], references: [id])
+  people       AttendancePeople[]
+  evolutions   AttendanceEvolution[]
+  benefits     AttendanceBenefit[]
+
+  @@index([tenantId])
+  @@index([occurrenceId])
+  @@index([professionalId])
+  @@index([status])
+  @@index([type])
+}
+
+model AttendancePeople {
+  id           String               @id @default(uuid()) @db.Char(36)
+  tenantId     String               @db.Char(36)
+  attendanceId String               @db.Char(36)
+  personId     String               @db.Char(36)
+  role         AttendancePersonRole @default(ATENDIDO_PRINCIPAL)
+  createdAt    DateTime             @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id])
+
+  @@unique([attendanceId, personId, role])
+  @@index([tenantId])
+  @@index([attendanceId])
+  @@index([personId])
+}
+
+/// Registro de evolucao - texto livre datado, multiplos por Attendance.
+model AttendanceEvolution {
+  id           String     @id @default(uuid()) @db.Char(36)
+  tenantId     String     @db.Char(36)
+  attendanceId String     @db.Char(36)
+  date         DateTime   @db.Date
+  notes        String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([attendanceId])
+}
+
+/// Beneficio concreto (cesta basica etc.) vinculado ao Attendance. Nome do
+/// model nao pode ser "Benefit" generico porque colide em intencao com
+/// "PersonBenefit" (beneficio social/financeiro continuo da pessoa, ja
+/// existente) - sao conceitos diferentes, por isso "AttendanceBenefit".
+model AttendanceBenefit {
+  id           String     @id @default(uuid()) @db.Char(36)
+  tenantId     String     @db.Char(36)
+  attendanceId String     @db.Char(36)
+  name         String
+  date         DateTime   @db.Date
+  quantity     Int?
+  notes        String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([attendanceId])
 }
 
 model PantryItem {

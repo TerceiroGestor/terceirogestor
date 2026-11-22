@@ -42,6 +42,18 @@
   --color-card: var(--card);
   --color-toolbar-foreground: var(--toolbar-foreground);
   --color-toolbar: var(--toolbar);
+  --color-table-header: var(--table-header);
+  --color-table-header-foreground: var(--table-header-foreground);
+  --color-table-row: var(--table-row);
+  --color-table-row-zebra: var(--table-row-zebra);
+  --color-table-row-foreground: var(--table-row-foreground);
+  --color-table-column-primary: var(--table-column-primary);
+  --color-table-column-primary-foreground: var(--table-column-primary-foreground);
+  --color-table-border: var(--table-border);
+  --color-table-checkbox-border: var(--table-checkbox-border);
+  --color-table-checkbox-checked-background: var(--table-checkbox-checked-background);
+  --color-table-checkbox-checked-foreground: var(--table-checkbox-checked-foreground);
+  --color-table-pinned-background: var(--table-pinned-background);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -49,6 +61,7 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-table-primary: var(--table-column-primary);
 }
 
 :root {
@@ -73,6 +86,64 @@
   --action-foreground: oklch(0.2 0.04 70);
   --toolbar: oklch(100% 0.00011 271.152);
   --toolbar-foreground: oklch(0.18 0.02 250);
+
+  /* Grupo de tabela (ListView) - light. Editar só aqui: nunca aplicar
+     opacidade de outro token (--muted, etc.) direto no componente - ver
+     "Lição pra reaproveitar" em docs/canonical-web-client-standard.md,
+     seção Tabela. Cores em oklch sólido (sem alpha) de propósito: a coluna
+     principal pode ficar fixada (sticky) ao rolar, e precisa ser opaca pra
+     cobrir o conteúdo que passa por baixo. Os 3 fundos (header/zebra/coluna
+     principal) usam o mesmo matiz (252, igual a --primary) em luminosidades
+     diferentes e crescentes em destaque - row(100%) > zebra(97.3%) >
+     header(95%) > coluna principal(93%) - pra cada um ser visualmente
+     distinto dos outros dois (2026-11-21: antes os 3 tinham o MESMO valor
+     oklch, por isso pareciam "uma cor só" na tabela). Texto do corpo
+     (--table-row-foreground) e da coluna principal
+     (--table-column-primary-foreground) só têm efeito se nenhum elemento
+     DENTRO da célula fixar a própria cor (ex.: `text-foreground` num `div`
+     do `cell` do ColumnDef) - herança de `color` é anulada por qualquer
+     declaração mais interna, não só por especificidade; ver "Lição pra
+     reaproveitar" abaixo. */
+  --table-header: oklch(95% 0.028 252);
+  --table-header-foreground: oklch(65.167% 0.18557 250.694);
+  --table-row: oklch(100% 0 252);
+  --table-row-zebra: oklch(97.245% 0.0138 248.156);
+  --table-row-foreground: oklch(46.619% 0.03077 253.794);
+  --table-column-primary: oklch(95% 0.028 252);
+  --table-column-primary-foreground: oklch(0.6 0.2 252);
+  --table-border: oklch(100% 0.00011 271.152);
+  --table-cell-padding-x: 8px;
+  --table-cell-padding-y: 15px;
+  --table-header-padding-y: 8px;
+  --table-column-primary-max-width: 150px;
+  /* Largura máxima da coluna principal (1ª coluna de dado) - ela não entra
+     no limite padrão das outras colunas (`DEFAULT_COLUMN_MAX_WIDTH`, em
+     `ListView.tsx`), mas sem NENHUM limite ela crescia até o tamanho do
+     maior valor da tela (ex.: um nome bem longo), empurrando as colunas
+     seguintes pra fora da área visível em algumas telas. Acima do limite,
+     a célula trunca com "..." igual qualquer outra (mesmas classes já
+     existentes em `components/ui/table.tsx`). Editar só aqui - nenhum
+     módulo declara largura de coluna principal no próprio `ColumnDef`. */
+
+  /* Checkbox da coluna de seleção (`__select__`, `SELECTION_CHECKBOX_CLASS_NAME`
+     em `ListView.tsx`) - variáveis próprias, independentes de `--primary`/
+     `--muted-foreground`, pra poder calibrar só o checkbox da tabela sem
+     afetar checkbox em formulário/diálogo em outro lugar do app (2026-11-21:
+     antes ele usava esses tokens globais direto, sem variável de tabela
+     dedicada). `-checked-background`/`-checked-foreground` só valem com a
+     linha marcada (`data-[state=checked]`); sem marcação, só a borda conta. */
+  --table-checkbox-border: oklch(73.914% 0.14785 242.129);
+  --table-checkbox-checked-background: oklch(70.293% 0.16936 243.079);
+  --table-checkbox-checked-foreground: oklch(100% 0.00011 271.152);
+  /* Fundo das colunas fixadas (`initialColumnPinning`/"Fixar à esquerda"
+     pelo menu da coluna) que NÃO são a coluna principal nem a de seleção -
+     essas usam `bg-table-column-primary` (ver acima); as demais, fixadas
+     por escolha do usuário na tabela, usavam `var(--color-background)`
+     direto (`getPinnedStyles` em `ListView.tsx`) - sem variável de tabela
+     própria (2026-11-21). Precisa ser opaco (sem alpha), mesmo motivo do
+     grupo inteiro: cobre o conteúdo que passa por baixo ao rolar. */
+  --table-pinned-background: oklch(97.932% 0.01035 248.181);
+
   --border: oklch(0.9 0.01 250);
   --input: oklch(0.9 0.01 250);
   --ring: oklch(0.72 0.16 252);
@@ -114,6 +185,27 @@
   --action-foreground: oklch(0.16 0.03 70);
   --toolbar: oklch(0.26 0.05 252);
   --toolbar-foreground: oklch(0.98 0.01 250);
+
+  /* Grupo de tabela (ListView) - dark. Mesmas 16 variáveis do :root acima,
+     mesma lógica de luminosidade crescente pro destaque (row < zebra <
+     header < coluna principal), só invertida (escuro = mais escuro primeiro). */
+  --table-header: oklch(0.29 0.05 252);
+  --table-header-foreground: oklch(0.78 0.09 252);
+  --table-row: oklch(0.17 0.025 252);
+  --table-row-zebra: oklch(0.225 0.032 252);
+  --table-row-foreground: oklch(0.96 0.008 250);
+  --table-column-primary: oklch(0.34 0.085 252);
+  --table-column-primary-foreground: oklch(0.8 0.1 252);
+  --table-border: oklch(1 0.02 250 / 16%);
+  --table-cell-padding-x: 8px;
+  --table-cell-padding-y: 8px;
+  --table-header-padding-y: 8px;
+  --table-column-primary-max-width: 320px;
+  --table-checkbox-border: oklch(0.72 0.05 250 / 45%);
+  --table-checkbox-checked-background: oklch(0.74 0.2 252);
+  --table-checkbox-checked-foreground: oklch(0.18 0.02 250);
+  --table-pinned-background: var(--background);
+
   --border: oklch(1 0.02 250 / 14%);
   --input: oklch(1 0.02 250 / 18%);
   --ring: oklch(0.74 0.16 252);
@@ -136,6 +228,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-size: 14px;

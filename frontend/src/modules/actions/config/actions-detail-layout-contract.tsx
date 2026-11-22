@@ -29,7 +29,6 @@ import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
-import { ActionCreateFormSection } from "@/modules/actions/features/create/ui/action-create-form-section";
 import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
 import { ActionOccurrencesSection } from "@/modules/actions/features/manage/ui/action-occurrences-section";
 import { ActionParticipantsSection } from "@/modules/actions/features/manage/ui/action-participants-section";
@@ -45,7 +44,9 @@ import {
   getProject,
   listProjectGoals,
   listProjectPeopleGroups,
+  listProjects,
   type ApiGoal,
+  type ApiProject,
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { SectionCard } from "@/components/section-card";
@@ -74,7 +75,7 @@ const AUTO_SAVE_EDITING = {
 const NONE_VALUE = "__none__";
 
 
-const ACTION_DETAIL_SECTION_CLASS = "border-b border-border/60 bg-transparent px-0 py-4";
+const ACTION_DETAIL_SECTION_CLASS = "border-b border-border/60 bg-transparent px-4 py-4";
 
 const ACTION_AUDIT_FIELD_LABELS = {
   title: "Título",
@@ -132,18 +133,26 @@ export type ActivityDetailDraft = {
 };
 
 function ActivityDetailMain({
+  mode,
   action,
+  projectId: contextProjectId,
+  onProjectIdChange,
   draft,
   setDraft,
   readOnly,
   onCommitField,
   token,
-}: Pick<ActionsDetailLayoutContext, "action" | "draft" | "setDraft" | "readOnly" | "onCommitField" | "token">) {
+}: Pick<
+  ActionsDetailLayoutContext,
+  "mode" | "action" | "projectId" | "onProjectIdChange" | "draft" | "setDraft" | "readOnly" | "onCommitField" | "token"
+>) {
   const [actionTypes, setActionTypes] = React.useState<ApiActivityType[]>([]);
   const [peopleGroups, setPeopleGroups] = React.useState<ApiProjectPeopleGroup[]>([]);
   const [goals, setGoals] = React.useState<ApiGoal[]>([]);
   const [projectName, setProjectName] = React.useState<string | null>(null);
-  const projectId = action?.projectId ?? "";
+  const [projects, setProjects] = React.useState<ApiProject[]>([]);
+  const projectId = action?.projectId ?? contextProjectId;
+  const canChooseProject = mode === "create";
 
   React.useEffect(() => {
     if (!token) return;
@@ -151,6 +160,13 @@ function ActivityDetailMain({
       .then(setActionTypes)
       .catch(() => setActionTypes([]));
   }, [token]);
+
+  React.useEffect(() => {
+    if (!token || !canChooseProject) return;
+    listProjects(token, { all: true, limit: 200 })
+      .then((response) => setProjects(response.data ?? []))
+      .catch(() => setProjects([]));
+  }, [token, canChooseProject]);
 
   React.useEffect(() => {
     if (!token || !projectId) {
@@ -183,7 +199,7 @@ function ActivityDetailMain({
   return (
     <div className={ACTION_DETAIL_SECTION_CLASS}>
       <div className="grid gap-6 md:grid-cols-[1.5fr_180px_200px_220px] md:items-end">
-        <DetailSectionField label="Título">
+        <DetailSectionField label="Título" required>
           <Input
             value={draft.title}
             onChange={(event) => setDraft((previous) => ({ ...previous, title: event.target.value }))}
@@ -216,7 +232,7 @@ function ActivityDetailMain({
           </Select>
         </DetailSectionField>
 
-        <DetailSectionField label="Tipo">
+        <DetailSectionField label="Tipo" required>
           <Select
             value={draft.actionTypeId}
             onValueChange={(next) => {
@@ -238,17 +254,37 @@ function ActivityDetailMain({
           </Select>
         </DetailSectionField>
 
-        <DetailSectionField label="Projeto">
-          <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
-            {projectName ?? "-"}
-          </div>
+        <DetailSectionField label="Projeto" required={canChooseProject}>
+          {canChooseProject ? (
+            <Select
+              value={projectId || NONE_VALUE}
+              onValueChange={(next) => onProjectIdChange?.(next === NONE_VALUE ? "" : next)}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={DETAIL_LINE_INPUT_CLASS_NAME}>
+                <SelectValue placeholder="Selecione um projeto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>Selecione um projeto</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
+              {projectName ?? "-"}
+            </div>
+          )}
         </DetailSectionField>
       </div>
 
       <div className="mt-6 space-y-4">
         <DetailSectionHeading title="Direcionamento" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <DetailSectionField label="Grupos">
+          <DetailSectionField label="Grupos" required={isPeopleGroupTarget}>
             {!isPeopleGroupTarget ? (
               <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
                 Esse tipo de atividade não usa Grupos.
@@ -451,6 +487,7 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   tenantSlug: string;
   token: string;
   projectId: string;
+  onProjectIdChange?: (projectId: string) => void;
   action: ApiActivity | null;
   occurrences: ApiMeeting[];
   selectedOccurrence: ApiMeeting | null;
@@ -526,29 +563,19 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
     actions: ACTIVITY_DETAIL_HEADER_ACTIONS,
   },
   mainTab: true,
-  main: ({ mode, action, projectId, onActionLoaded, draft, setDraft, readOnly, onCommitField, token }) => {
-    if (mode === "create") {
-      return (
-        <ActionCreateFormSection
-          mode={mode}
-          action={action}
-          projectId={projectId}
-          actionId={action?.id}
-          onSaved={onActionLoaded}
-        />
-      );
-    }
-    return (
-      <ActivityDetailMain
-        action={action}
-        draft={draft}
-        setDraft={setDraft}
-        readOnly={readOnly}
-        onCommitField={onCommitField}
-        token={token}
-      />
-    );
-  },
+  main: ({ mode, action, projectId, onProjectIdChange, draft, setDraft, readOnly, onCommitField, token }) => (
+    <ActivityDetailMain
+      mode={mode}
+      action={action}
+      projectId={projectId}
+      onProjectIdChange={onProjectIdChange}
+      draft={draft}
+      setDraft={setDraft}
+      readOnly={readOnly}
+      onCommitField={onCommitField}
+      token={token}
+    />
+  ),
   tabTemplates: [
     {
       key: "participants",

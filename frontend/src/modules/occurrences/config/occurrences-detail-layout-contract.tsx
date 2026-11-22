@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { HeartHandshake } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,7 @@ import {
   resolveAuditChangedFieldsSummary,
 } from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
-import type { DetailLayoutConfig } from "@/web-client/registry/types";
+import type { DetailHeaderActionConfig, DetailLayoutConfig } from "@/web-client/registry/types";
 
 const OCCURRENCE_DETAIL_INPUT_CLASS =
   "h-10 rounded-none border-0 border-b border-border/70 bg-transparent px-0 text-sm shadow-none focus-visible:border-primary focus-visible:ring-0";
@@ -245,9 +246,22 @@ function buildOccurrenceHistoryItems(logs: NonNullable<OccurrencesDetailLayoutCo
   });
 }
 
+const OCCURRENCE_DETAIL_HEADER_ACTIONS: DetailHeaderActionConfig<OccurrencesDetailLayoutContext>[] = [
+  {
+    key: "attendance",
+    label: "",
+    tooltip: "Registrar atendimento a partir desta ocorrência",
+    icon: <HeartHandshake className="h-4 w-4" />,
+    variant: "default",
+    hidden: ({ mode }) => mode !== "edit",
+    href: ({ occurrence }) => `/attendances/new?occurrenceId=${occurrence?.id ?? ""}`,
+  },
+];
+
 export const occurrencesDetailLayout: DetailLayoutConfig<OccurrencesDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
   header: {
+    actions: OCCURRENCE_DETAIL_HEADER_ACTIONS,
     title: ({ occurrence, draft, mode }) =>
       mode === "create" ? "Nova ocorrência" : (occurrence?.title ?? draft.title) || "Ocorrência",
     slot: ({ draft, occurrence, people }) => (

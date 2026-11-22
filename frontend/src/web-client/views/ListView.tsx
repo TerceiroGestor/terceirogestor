@@ -350,13 +350,13 @@ function buildGroupNodes<TData>({
       const children =
         nextFields.length > 0
           ? buildGroupNodes<TData>({
-              rows: group.rows,
-              fields: nextFields,
-              depth: depth + 1,
-              parentKey: group.key,
-              resolveGroupLabel,
-              resolveGroupValue,
-            })
+            rows: group.rows,
+            fields: nextFields,
+            depth: depth + 1,
+            parentKey: group.key,
+            resolveGroupLabel,
+            resolveGroupValue,
+          })
           : null;
 
       return {
@@ -372,6 +372,107 @@ function buildGroupNodes<TData>({
     });
 }
 
+/**
+ * Largura padrão (em px) de qualquer coluna que não declare `maxSize` no
+ * próprio `ColumnDef` - a coluna cresce com o conteúdo até esse limite,
+ * depois trunca com "..." (sem quebra de linha) em vez de empurrar a
+ * tabela pra largura infinita. A coluna principal (ver `getPrimaryColumnId`
+ * abaixo) ignora esse limite por padrão - não precisa declarar nada pra
+ * isso, é automático por posição.
+ */
+export const DEFAULT_COLUMN_MAX_WIDTH = 280;
+
+/**
+ * Altura fixa (h-9) da barra de Colunas/seleção em lote no topo do
+ * `ListView` - sempre a mesma, exista ou não seleção/conteúdo dentro dela
+ * no momento (ver render da barra, mais abaixo). Usada pra somar ao
+ * `stickyHeaderOffsetPx` recebido e saber onde o cabeçalho da tabela deve
+ * colar quando essa barra também está presente e fixa.
+ */
+const BULK_BAR_HEIGHT_PX = 36;
+
+/**
+ * A coluna de seleção (checkbox) agora é uma coluna de ação como outra
+ * qualquer - o checkbox em si fica mais sutil (borda neutra, sem sombra)
+ * pra não competir visualmente com o conteúdo da linha. Cor própria, via
+ * `--table-checkbox-border`/`-checked-background`/`-checked-foreground`
+ * (`globals.css`) - antes usava `border-muted-foreground/40` e deixava o
+ * estado marcado na cor padrão do componente (`bg-primary`/
+ * `text-primary-foreground`), sem variável de tabela dedicada (2026-11-21).
+ * O `!` é necessário: a base `Checkbox` já declara `border-primary`/
+ * `data-[state=checked]:bg-primary` no próprio componente - duas classes
+ * do mesmo tipo (`border-*`, ou `data-[state=checked]:bg-*`) no mesmo
+ * elemento competem por ordem de geração do Tailwind, não por especificidade
+ * nem ordem no className (mesmo bug documentado pra `bg-table-column-primary`
+ * em docs/canonical-web-client-standard.md) - `!` garante que a variável de
+ * tabela sempre vence.
+ */
+const SELECTION_CHECKBOX_CLASS_NAME =
+  "!border-table-checkbox-border shadow-none data-[state=checked]:!bg-table-checkbox-checked-background data-[state=checked]:!text-table-checkbox-checked-foreground";
+
+/**
+ * A "coluna principal" (nome/título) não é marcada por configuração - é
+ * sempre a primeira coluna de dado visível (pulando a de seleção, quando
+ * `enableRowSelection` estiver ativo), porque essa já é a regra do List
+ * Principal ("coluna principal do item" vem primeiro - ver "Colunas base"
+ * em docs/canonical-web-client-standard.md). Ela ganha o tom
+ * `bg-table-column-primary`/`text-table-column-primary-foreground` e um
+ * limite de largura próprio, maior que o das outras colunas
+ * (`--table-column-primary-max-width`, `globals.css` - não o
+ * `DEFAULT_COLUMN_MAX_WIDTH` abaixo).
+ */
+function getPrimaryColumnId<TData>(table: TanstackTable<TData>): string | undefined {
+  return table.getVisibleLeafColumns().find((column) => column.id !== "__select__")?.id;
+}
+
+function isPrimaryColumn<TData>(column: Column<TData, unknown>, primaryColumnId: string | undefined): boolean {
+  return column.id === primaryColumnId;
+}
+
+/**
+ * A coluna de seleção (`__select__`, quando `enableRowSelection`) fica
+ * colada à esquerda da coluna principal - por isso ganha o mesmo tom
+ * `bg-table-column-primary` (não `isPrimaryColumn`: ela não é a coluna
+ * principal pra fins de largura/truncamento, só pra fins visuais - sem
+ * emenda de cor entre as duas).
+ */
+function isLeadingColumn<TData>(column: Column<TData, unknown>, primaryColumnId: string | undefined): boolean {
+  return column.id === "__select__" || isPrimaryColumn(column, primaryColumnId);
+}
+
+function getColumnWidthStyle<TData>(
+  column: Column<TData, unknown>,
+  primaryColumnId: string | undefined,
+): React.CSSProperties {
+  if (isPrimaryColumn(column, primaryColumnId)) {
+    // `width: "1%"` (não um tamanho real) é o truque clássico de tabela
+    // HTML pra "não dar espaço extra pra essa coluna" - sem isso, o
+    // `<table>` sendo `w-full` (table.tsx) faz o navegador distribuir
+    // sobra de largura entre as colunas no layout automático, e como só a
+    // coluna principal tem fundo próprio (`bg-table-column-primary`), é
+    // nela que essa sobra "aparece" como espaço vazio, mesmo com um nome
+    // curto (achado em 2026-11-21) - nas outras colunas a mesma sobra
+    // existe, só não se nota porque o fundo é igual ao da linha. Com
+    // `width: 1%`, a coluna encolhe até o tamanho real do conteúdo
+    // (cabeçalho ou maior valor visível, o que for maior); o `maxWidth`
+    // continua sendo só o teto pra nome realmente longo.
+    return { width: "1%", maxWidth: "var(--table-column-primary-max-width)" };
+  }
+  const maxSize = column.columnDef.maxSize;
+  if (typeof maxSize === "number" && Number.isFinite(maxSize)) {
+    return { maxWidth: maxSize };
+  }
+  return { maxWidth: DEFAULT_COLUMN_MAX_WIDTH };
+}
+
+/**
+ * Fundo de uma coluna fixada (sticky) que NÃO é a coluna principal nem a
+ * de seleção (essas duas perdem esse `background` em `getCellStyle`, pra
+ * usar `bg-table-column-primary` no lugar) - `--table-pinned-background`
+ * (`globals.css`), variável própria desde 2026-11-21 (antes usava
+ * `var(--color-background)` direto, sem hook de tabela dedicado). Opaco de
+ * propósito - cobre o conteúdo que passa por baixo ao rolar horizontalmente.
+ */
 function getPinnedStyles<TData>(
   column: Column<TData, unknown>,
   table: TanstackTable<TData>,
@@ -404,7 +505,7 @@ function getPinnedStyles<TData>(
       position: "sticky" as const,
       left: offset,
       zIndex: 2,
-      background: "var(--color-background)",
+      background: "var(--table-pinned-background)",
       width: size,
       minWidth: size,
       maxWidth: size,
@@ -423,7 +524,7 @@ function getPinnedStyles<TData>(
       position: "sticky" as const,
       right: offset,
       zIndex: 2,
-      background: "var(--color-background)",
+      background: "var(--table-pinned-background)",
       width: size,
       minWidth: size,
       maxWidth: size,
@@ -431,6 +532,44 @@ function getPinnedStyles<TData>(
   }
 
   return undefined;
+}
+
+/**
+ * Estilo final de uma célula (cabeçalho ou corpo): combina o estilo de
+ * fixação (`getPinnedStyles`) com o de largura (`getColumnWidthStyle`).
+ * Achado em 2026-11-20: quando a coluna principal também está fixada
+ * (`initialColumnPinning`, ex.: Atividades fixa "title" à esquerda),
+ * `getPinnedStyles` define, pra qualquer coluna fixada, um `background`
+ * **e** uma largura fixa (`width`/`minWidth`/`maxWidth` = `column.getSize()`,
+ * 150px por padrão) inline - `style` inline sempre vence `className`, então
+ * isso tanto anulava `bg-table-column-primary` quanto travava a largura em
+ * 150px mesmo a coluna sendo marcada "sem limite". O mesmo vale pra coluna
+ * de seleção, que agora também é fixada junto (ver `columnPinning` acima) -
+ * ela precisa perder só o `background` (pra `bg-table-column-primary`
+ * aparecer), mas **mantém** a largura fixa de 32px (não é a coluna
+ * principal, não deve crescer). Resultado: a 1ª coluna (e a de seleção,
+ * colada a ela) ficam iguais, fixadas ou não.
+ */
+function getCellStyle<TData>(
+  column: Column<TData, unknown>,
+  table: TanstackTable<TData>,
+  primaryColumnId: string | undefined,
+): React.CSSProperties {
+  const pinnedStyles = getPinnedStyles(column, table);
+  if (!pinnedStyles) return getColumnWidthStyle(column, primaryColumnId);
+  if (!isLeadingColumn(column, primaryColumnId)) return pinnedStyles;
+
+  const pinnedWithoutBackground: React.CSSProperties = {
+    position: pinnedStyles.position,
+    left: pinnedStyles.left,
+    right: pinnedStyles.right,
+    zIndex: pinnedStyles.zIndex,
+    width: pinnedStyles.width,
+    minWidth: pinnedStyles.minWidth,
+    maxWidth: pinnedStyles.maxWidth,
+  };
+  if (!isPrimaryColumn(column, primaryColumnId)) return pinnedWithoutBackground;
+  return { ...pinnedWithoutBackground, ...getColumnWidthStyle(column, primaryColumnId) };
 }
 
 function ColumnMenu<TData>({
@@ -535,7 +674,7 @@ export function ListView<TData>({
   columnVisibility: controlledColumnVisibility,
   onColumnVisibilityChange,
   bordered = true,
-  stickyHeaderOffsetClassName,
+  stickyHeaderOffsetPx,
 }: {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
@@ -575,28 +714,53 @@ export function ListView<TData>({
   columnVisibility?: VisibilityState;
   onColumnVisibilityChange?: (next: VisibilityState) => void;
   /**
-   * Quando `false`, tira a borda externa e as linhas de divisão da tabela
-   * (cabeçalho e linhas do corpo) - uso pontual pra contextos que já têm
-   * moldura própria (ex.: dentro de um `RelationListHost`). Padrão `true`
-   * preserva o visual de sempre em todo List Principal.
+   * Quando `false`, tira só a borda **externa** do cartão (`ModuleSurface`)
+   * - uso pontual pra contextos que já têm moldura própria (ex.: dentro de
+   * um `RelationListHost`). As linhas de divisão internas (cabeçalho e
+   * linhas do corpo) seguem `--table-border` (`globals.css`) em qualquer
+   * caso, bordered ou não - não são mais desligadas por essa prop (eram
+   * até 2026-11-20; religado porque a cor virou configurável e sutil, não
+   * faz sentido também apagar a largura).
    */
   bordered?: boolean;
   /**
-   * Sobrescreve o `top-0` do cabecalho sticky da tabela (ex.: `"top-[117px]"`)
+   * Sobrescreve o `top-0` do cabecalho sticky da tabela, em px (ex.: `117`)
    * - necessario quando esse `ListView` fica dentro de uma relation
    * `flushToolbar` (ex.: Encontros, via `RelationListHost`), onde ja existem
    * a barra de abas e a toolbar da relation grudadas (sticky) acima do
    * cabecalho, no mesmo contexto de scroll. Sem isso o cabecalho tenta
    * grudar em `top-0` tambem e passa por cima das duas. Nao usar fora
-   * desse cenario - o padrao (`top-0`) esta correto em todo List Principal.
+   * desse cenario - o padrao (`top-0`) esta correto em todo List Principal,
+   * calculado automaticamente ali (sem essa prop) porque la o proprio
+   * `ListView` tem seu scroll interno, nao depende de nada externo.
+   *
+   * É um número, não uma className, porque `ListView` precisa somar a
+   * própria altura da barra de Colunas/seleção (quando existir - ver
+   * `BULK_BAR_HEIGHT_PX`) ao valor informado, pra essa barra também virar
+   * sticky e o cabeçalho continuar colado embaixo dela - não é mais
+   * possível fazer essa conta com uma string de classe Tailwind arbitrária.
    */
-  stickyHeaderOffsetClassName?: string;
+  stickyHeaderOffsetPx?: number;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
-    () => initialColumnPinning ?? {},
-  );
+  // Quando a coluna principal é fixada à esquerda (`initialColumnPinning`),
+  // o TanStack reordena as colunas fixadas pra frente de todas as outras,
+  // na ordem em que elas aparecem dentro de `left` - sem isso, uma coluna
+  // principal fixada "furava a fila" na frente da coluna de seleção (que
+  // nunca é fixada por conta própria), mesmo a seleção sendo sempre a
+  // primeira coluna declarada. Prefixar `__select__` aqui garante que ela
+  // sempre vem antes, em qualquer módulo que combine `enableRowSelection`
+  // com fixação de coluna - sem precisar que cada chamador lembre disso.
+  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(() => {
+    if (!enableRowSelection || !initialColumnPinning?.left?.length) {
+      return initialColumnPinning ?? {};
+    }
+    const left = initialColumnPinning.left.includes("__select__")
+      ? initialColumnPinning.left
+      : ["__select__", ...initialColumnPinning.left];
+    return { ...initialColumnPinning, left };
+  });
   // Detecta um `ColumnVisibilityProvider` ancestral (ver RecordListHost.tsx) -
   // é o padrão reutilizável: o módulo só envolve a tela com o provider e
   // tanto o botão "Colunas" quanto este `ListView` já ficam sincronizados,
@@ -644,6 +808,7 @@ export function ListView<TData>({
             checked={table.getIsAllPageRowsSelected()}
             onCheckedChange={(checked) => table.toggleAllPageRowsSelected(Boolean(checked))}
             aria-label="Selecionar todos"
+            className={SELECTION_CHECKBOX_CLASS_NAME}
           />
         </div>
       ),
@@ -653,6 +818,7 @@ export function ListView<TData>({
             checked={row.getIsSelected()}
             onCheckedChange={(checked) => row.toggleSelected(Boolean(checked))}
             aria-label="Selecionar linha"
+            className={SELECTION_CHECKBOX_CLASS_NAME}
           />
         </div>
       ),
@@ -715,9 +881,19 @@ export function ListView<TData>({
   }, []);
 
   const visibleColumnsCount = table.getVisibleLeafColumns().length;
+  const primaryColumnId = getPrimaryColumnId(table);
   // Dentro de um ColumnVisibilityProvider, quem mostra o botão "Colunas" é o
   // shell (ver RecordListHost.tsx) - a lista nunca duplica o controle.
   const shouldShowColumnVisibilityButton = showColumnVisibilityButton && !visibilityContext;
+  // Se a barra VAI existir, independente de ter seleção agora - usado pra
+  // reservar a altura dela sempre (nunca aparecer/desaparecer, ver render
+  // abaixo) e pra somar `BULK_BAR_HEIGHT_PX` ao offset do cabeçalho.
+  const hasTopBar = Boolean(shouldShowColumnVisibilityButton || (enableRowSelection && bulkActions));
+  const isSticky = stickyHeaderOffsetPx !== undefined;
+  const topBarOffsetPx = stickyHeaderOffsetPx;
+  const headerOffsetPx = isSticky
+    ? stickyHeaderOffsetPx + (hasTopBar ? BULK_BAR_HEIGHT_PX : 0)
+    : undefined;
 
   return (
     <ModuleSurface
@@ -727,12 +903,32 @@ export function ListView<TData>({
         // MODULE_SURFACE_CLASS_NAME tem overflow-hidden fixo, que tambem
         // quebra o sticky do cabecalho (mesmo motivo documentado acima) -
         // precisa ser cancelado aqui tambem, nao só nos wrappers internos.
-        stickyHeaderOffsetClassName && "overflow-visible",
+        isSticky && "overflow-visible",
         className,
       )}
     >
-      {shouldShowColumnVisibilityButton || (enableRowSelection && bulkActions && selectedRows.length) ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/10 px-4 py-2 text-xs">
+      {hasTopBar ? (
+        // Altura fixa (h-9 = BULK_BAR_HEIGHT_PX), sempre renderizada - nunca
+        // monta/desmonta conforme a seleção muda, só o conteúdo interno
+        // aparece/some. Uma versão anterior deixava essa barra
+        // aparecer/desaparecer (`? <div> : null`): ao limpar a seleção, a
+        // altura do que fica acima da tabela mudava de repente e o
+        // cabeçalho sticky (offset fixo) saltava de posição - parecia "a
+        // tela rolou" sem o usuário ter rolado nada. Fundo opaco
+        // (`bg-background`) garante que nenhuma linha da tabela apareça
+        // atrás dela ao rolar, mesmo vazia. Quando `isSticky` (dentro de
+        // uma relation `flushToolbar`), ela também é sticky, colada acima
+        // do cabeçalho, pela mesma razão - fora desse contexto (List
+        // Principal) ela já fica "fixa" de graça, por estar fora da área
+        // de scroll interna do próprio `ListView` (ver `overflow-auto`
+        // mais abaixo), sem precisar de `position: sticky` nenhum.
+        <div
+          className={cn(
+            "flex h-9 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background px-4 text-xs",
+            isSticky && "sticky z-10",
+          )}
+          style={isSticky ? { top: topBarOffsetPx } : undefined}
+        >
           <div className="text-muted-foreground">
             {enableRowSelection && bulkActions && selectedRows.length ? (
               <>
@@ -825,43 +1021,36 @@ export function ListView<TData>({
           "min-h-0 flex-1",
           // overflow-auto quebra position:sticky do cabecalho quando esse
           // ListView vive dentro de um scroll externo ja sticky (mesmo
-          // motivo do stickyHeaderOffsetClassName acima) - so fica
-          // overflow-visible nesse cenario; o padrao continua auto.
-          stickyHeaderOffsetClassName ? "overflow-visible" : "overflow-auto",
+          // motivo do stickyHeaderOffsetPx acima) - so fica overflow-visible
+          // nesse cenario; o padrao continua auto (unico container de
+          // scroll da tabela desde 2026-11-20 - table.tsx nao tem mais
+          // overflow-x-auto proprio, que quebrava o sticky mesmo sem essa
+          // prop, no List Principal).
+          isSticky ? "overflow-visible" : "overflow-auto",
           renderCard ? "hidden md:block" : undefined,
         )}
       >
-        <UiTable
-          // overflow-x-auto do container padrao do Table tambem quebra o
-          // sticky do cabecalho (mesmo motivo documentado acima) - some
-          // nesse cenario; a troca e aceita porque essas relations nao
-          // tem colunas suficientes pra precisar de scroll horizontal.
-          containerClassName={stickyHeaderOffsetClassName ? "overflow-visible" : undefined}
-          className={cn(
-            "[&_tbody_tr:last-child]:border-b-0 [&_tbody_td]:h-12 [&_tbody_td]:py-3 [&_tbody_td]:text-[13px] [&_thead_th]:h-11 [&_thead_th]:bg-muted/10 [&_thead_th]:text-[11px] [&_thead_th]:font-medium [&_thead_th]:uppercase [&_thead_th]:tracking-[0.16em]",
-            bordered
-              ? "[&_thead_th]:border-b [&_thead_th]:border-border/50"
-              : "[&_thead_th]:border-b-0 [&_tbody_tr]:border-b-0",
-          )}
-        >
+        <UiTable containerClassName="px-1" className="[&_tbody_tr:last-child]:border-b-0">
           <TableHeader
-            className={cn(
-              "sticky z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
-              stickyHeaderOffsetClassName ?? "top-0",
-            )}
+            className={cn("sticky z-10", !isSticky && "top-0")}
+            style={isSticky ? { top: headerOffsetPx } : undefined}
           >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sort = header.column.getIsSorted();
-                  const pinnedStyles = getPinnedStyles(header.column, table);
                   return (
                     <TableHead
                       key={header.id}
-                      className={cn(canSort ? "cursor-pointer select-none" : undefined)}
+                      className={cn(
+                        canSort ? "cursor-pointer select-none" : undefined,
+                        isLeadingColumn(header.column, primaryColumnId)
+                          ? "bg-table-column-primary !text-table-column-primary-foreground"
+                          : undefined,
+                      )}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                      style={pinnedStyles}
+                      style={getCellStyle(header.column, table, primaryColumnId)}
                     >
                       <div className="flex items-center gap-1">
                         {header.isPlaceholder
@@ -930,24 +1119,31 @@ export function ListView<TData>({
                         hasChildren ? (
                           node.children!.map(renderNode)
                         ) : hasRows ? (
-                          node.rows!.map((row) => (
+                          node.rows!.map((row, rowIndex) => (
                             <TableRow
                               key={row.id}
                               data-state={row.getIsSelected() ? "selected" : undefined}
-                              className={cn(onRowClick ? "cursor-pointer" : undefined)}
+                              className={cn(
+                                onRowClick ? "cursor-pointer" : undefined,
+                                rowIndex % 2 === 1 ? "bg-table-row-zebra" : "bg-table-row",
+                              )}
                               onClick={(event) => {
                                 if (shouldIgnoreRowClick(event.target)) return;
                                 onRowClick?.(row.original);
                               }}
                             >
-                              {row.getVisibleCells().map((cell) => {
-                                const pinnedStyles = getPinnedStyles(cell.column, table);
-                                return (
-                                  <TableCell key={cell.id} style={pinnedStyles}>
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </TableCell>
-                                );
-                              })}
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell
+                                  key={cell.id}
+                                  className={cn(
+                                    isLeadingColumn(cell.column, primaryColumnId) &&
+                                      "bg-table-column-primary !text-table-column-primary-foreground",
+                                  )}
+                                  style={getCellStyle(cell.column, table, primaryColumnId)}
+                                >
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           ))
                         ) : null
@@ -959,24 +1155,31 @@ export function ListView<TData>({
                 return grouped.map(renderNode);
               })()
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, rowIndex) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
-                  className={cn(onRowClick ? "cursor-pointer" : undefined)}
+                  className={cn(
+                    onRowClick ? "cursor-pointer" : undefined,
+                    rowIndex % 2 === 1 ? "bg-table-row-zebra" : "bg-table-row",
+                  )}
                   onClick={(event) => {
                     if (shouldIgnoreRowClick(event.target)) return;
                     onRowClick?.(row.original);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    const pinnedStyles = getPinnedStyles(cell.column, table);
-                    return (
-                      <TableCell key={cell.id} style={pinnedStyles}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        isLeadingColumn(cell.column, primaryColumnId) &&
+                          "bg-table-column-primary !text-table-column-primary-foreground",
+                      )}
+                      style={getCellStyle(cell.column, table, primaryColumnId)}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : (

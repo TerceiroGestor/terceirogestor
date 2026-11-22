@@ -26,6 +26,7 @@ import {
   parseAdvancedFilters,
 } from '../people/people.filters';
 import { generateOccurrenceDates } from './action-occurrence-schedule';
+import { AddMeetingTeamParticipationDto } from './dto/add-meeting-team-participation.dto';
 import { CreateActionTypeDto } from './dto/create-action-type.dto';
 import { CreateActionPeopleGroupDto } from './dto/create-action-people-group.dto';
 import {
@@ -55,6 +56,7 @@ import { UpsertProjectActionAttendancesDto } from './dto/upsert-project-action-a
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
 const MAX_BULK_OCCURRENCES = 200;
+const MEETING_TEAM_PARTICIPATION_MAX = 10;
 
 const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -74,6 +76,20 @@ function toTimeOfDay(date: Date): string {
   const hours = String(date.getUTCHours()).padStart(2, '0');
   const minutes = String(date.getUTCMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+/**
+ * Título do Encontro (2026-11-21): sempre tem um valor real - se o
+ * usuário não escrever nada na criação/edição (ou num lote de
+ * agendamento, que nunca pede título por item), gera esse padrão. Fica
+ * editável depois - não é travado como os títulos auto-gerados de outras
+ * telas.
+ */
+function buildDefaultMeetingTitle(scheduledDate: Date): string {
+  const day = String(scheduledDate.getUTCDate()).padStart(2, '0');
+  const month = String(scheduledDate.getUTCMonth() + 1).padStart(2, '0');
+  const year = scheduledDate.getUTCFullYear();
+  return `Encontro - ${day}/${month}/${year}`;
 }
 
 function ensureValidPeriod(params: {
@@ -398,6 +414,7 @@ function buildProjectActionWhere(params: {
 
   return {
     tenantId,
+    deletedAt: null,
     ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
     ...(effectiveMine ? { createdByUserId: userId } : {}),
     ...(query.status ? { status: query.status } : {}),
@@ -608,7 +625,7 @@ export class ActionsService {
       'actions.manage',
     );
     const action = await this.prisma.activity.findFirst({
-      where: { id: actionId, tenantId: user.tenantId, projectId },
+      where: { id: actionId, tenantId: user.tenantId, projectId, deletedAt: null },
       include: {
         actionType: { select: { id: true, name: true, target: true } },
         goal: { select: { id: true, title: true } },
@@ -1221,73 +1238,26 @@ export class ActionsService {
       actionId,
     );
 
-    // Fase 3: capturar quem tinha presenca PRESENT (e em que dia) antes de
-    // apagar tudo, para reavaliar a presenca diaria depois.
-    const presentAttendances = await this.prisma.meetingAttendance.findMany({
-      where: {
-        tenantId: user.tenantId,
-        actionId: existing.id,
-        status: 'PRESENT',
-      },
-      select: {
-        enrollment: { select: { personId: true } },
-        occurrence: { select: { scheduledDate: true } },
-      },
-    });
-    const personIdsByDate = new Map<number, Set<string>>();
-    for (const row of presentAttendances) {
-      const key = row.occurrence.scheduledDate.getTime();
-      const bucket = personIdsByDate.get(key) ?? new Set<string>();
-      bucket.add(row.enrollment.personId);
-      personIdsByDate.set(key, bucket);
+    // Soft delete (2026-11-20): excluir só é permitido com a atividade já
+    // marcada "Inativa" - rede de seguranca contra exclusao acidental de
+    // atividade em uso. A linha nunca e removida de fato (so `deletedAt`),
+    // entao as FKs RESTRICT de Meeting/MeetingAttendance/etc. nunca disparam
+    // e a limpeza fisica dos filhos (cascata hard-delete que existia aqui
+    // antes) deixou de ser necessaria - fica para uma limpeza periodica do
+    // banco, fora do fluxo normal da aplicacao.
+    if (existing.deletedAt) {
+      return { ok: true as const };
     }
-
-    await this.prisma.meetingAttendance.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-    // Precisa vir depois da presença/Grupos do encontro (FK occurrenceId é
-    // RESTRICT) e antes da própria ação (FK actionId do encontro também é
-    // RESTRICT) - achado ao implementar a Fase 3: excluir uma atividade com
-    // encontro já agendado (Fase 1/2) já falhava com erro de FK antes desta
-    // correção; o mesmo valia pros Grupos do encontro (Ciclo 2 da Fase 4,
-    // 2026-11-16) e passou a ser limpo aqui também.
-    const occurrenceIds = (
-      await this.prisma.meeting.findMany({
-        where: { tenantId: user.tenantId, actionId: existing.id },
-        select: { id: true },
-      })
-    ).map((row) => row.id);
-    await this.prisma.actionOccurrenceTeamGroup.deleteMany({
-      where: { tenantId: user.tenantId, occurrenceId: { in: occurrenceIds } },
-    });
-    await this.prisma.actionOccurrencePeopleGroup.deleteMany({
-      where: { tenantId: user.tenantId, occurrenceId: { in: occurrenceIds } },
-    });
-    await this.prisma.meeting.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-    await this.prisma.activityPeopleGroup.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-    await this.prisma.projectActionPeopleParticipation.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-    await this.prisma.projectActionComment.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-    await this.prisma.projectActionAttachment.deleteMany({
-      where: { tenantId: user.tenantId, actionId: existing.id },
-    });
-
-    await this.prisma.activity.delete({ where: { id: existing.id } });
-
-    for (const [time, personIds] of personIdsByDate) {
-      await this.syncDailyAttendanceForPeopleDate(
-        user.tenantId,
-        personIds,
-        new Date(time),
+    if (existing.status !== 'INACTIVE') {
+      throw new BadRequestException(
+        'Só é possível excluir uma atividade com status Inativa.',
       );
     }
+
+    await this.prisma.activity.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date() },
+    });
 
     return { ok: true as const };
   }
@@ -1549,6 +1519,24 @@ export class ActionsService {
     };
   }
 
+  async getActionOccurrence(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+
+    const occurrence = await this.prisma.meeting.findFirst({
+      where: { id: occurrenceId, tenantId: user.tenantId, actionId },
+      include: actionOccurrenceInclude,
+    });
+    if (!occurrence) throw new NotFoundException('Encontro nao encontrado');
+
+    return serializeMeeting(occurrence);
+  }
+
   async createActionOccurrence(
     user: JwtUser,
     projectId: string,
@@ -1588,10 +1576,15 @@ export class ActionsService {
       );
     }
 
+    const title = dto.title?.trim()
+      ? dto.title.trim()
+      : buildDefaultMeetingTitle(scheduledDate);
+
     const created = await this.prisma.meeting.create({
       data: {
         tenantId: user.tenantId,
         actionId,
+        title,
         scheduledDate,
         startTime,
         endTime,
@@ -1743,6 +1736,7 @@ export class ActionsService {
       data: dates.map((scheduledDate) => ({
         tenantId: user.tenantId,
         actionId,
+        title: buildDefaultMeetingTitle(scheduledDate),
         scheduledDate,
         startTime: combineDateAndTime(scheduledDate, dto.startTime),
         endTime: endTimeOfDay
@@ -1878,10 +1872,20 @@ export class ActionsService {
     const executedHtml = normalizeHtml(dto.executedHtml);
     const conclusionHtml = normalizeHtml(dto.conclusionHtml);
     const photoPaths = normalizePhotoPaths(dto.photoPaths);
+    // Título sempre tem um valor real - limpar o campo (string vazia)
+    // regenera o padrão "Encontro - data", igual acontece ao criar sem
+    // escrever nada.
+    const title =
+      dto.title === undefined
+        ? undefined
+        : dto.title?.trim()
+          ? dto.title.trim()
+          : buildDefaultMeetingTitle(baseDate);
 
     const updated = await this.prisma.meeting.update({
       where: { id: existing.id },
       data: {
+        ...(title !== undefined ? { title } : {}),
         scheduledDate: baseDate,
         startTime,
         endTime,
@@ -2051,6 +2055,14 @@ export class ActionsService {
     });
     await this.prisma.actionOccurrencePeopleGroup.deleteMany({
       where: { tenantId: user.tenantId, occurrenceId: existing.id },
+    });
+    // Revisão da hierarquia de equipe (2026-11-21): mesmo padrão manual de
+    // cascade acima - MeetingTeamParticipation.meetingId também é RESTRICT.
+    // Só remove o vínculo pontual deste Encontro; não mexe no que já foi
+    // encadeado pra Atividade/Projeto (cadeia automática só soma, nunca
+    // remove sozinha - mesmo princípio de não-remoção da Fase de equipe).
+    await this.prisma.meetingTeamParticipation.deleteMany({
+      where: { tenantId: user.tenantId, meetingId: existing.id },
     });
     await this.prisma.meeting.delete({ where: { id: existing.id } });
 
@@ -2514,6 +2526,247 @@ export class ActionsService {
       },
     });
 
+    return { ok: true as const };
+  }
+
+  /**
+   * Revisão da hierarquia de equipe (2026-11-21): ao vincular alguém como
+   * responsável de um Encontro, garante (sem duplicar) que a mesma pessoa
+   * já está na equipe da Atividade e do Projeto - cadeia automática só
+   * soma, nunca remove sozinha. Devolve se criou um vínculo novo, pra o
+   * backend acumular um resumo do que é de fato inédito.
+   */
+  private async ensurePersonOnActivityTeam(
+    tenantId: string,
+    actionId: string,
+    personId: string,
+    role: ActionPeopleParticipationRole,
+  ): Promise<boolean> {
+    const existing =
+      await this.prisma.projectActionPeopleParticipation.findFirst({
+        where: {
+          tenantId,
+          actionId,
+          personId,
+          role,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+    if (existing) return false;
+
+    await this.prisma.projectActionPeopleParticipation.create({
+      data: {
+        tenantId,
+        actionId,
+        personId,
+        role,
+        activeKey: `${actionId}:${personId}:${role}`,
+        isActive: true,
+        startsAt: new Date(),
+      },
+    });
+    return true;
+  }
+
+  private async ensurePersonOnProjectTeam(
+    tenantId: string,
+    projectId: string,
+    personId: string,
+    role: ActionPeopleParticipationRole,
+  ): Promise<boolean> {
+    const existing = await this.prisma.projectTeamParticipation.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        personId,
+        role,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (existing) return false;
+
+    await this.prisma.projectTeamParticipation.create({
+      data: {
+        tenantId,
+        projectId,
+        personId,
+        role,
+        activeKey: `${projectId}:${personId}:${role}`,
+        isActive: true,
+        startsAt: new Date(),
+      },
+    });
+    return true;
+  }
+
+  async listMeetingTeamParticipations(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
+    );
+
+    return this.prisma.meetingTeamParticipation.findMany({
+      where: { tenantId: user.tenantId, meetingId: occurrenceId },
+      include: {
+        person: {
+          select: {
+            id: true,
+            fullName: true,
+            avatarUrl: true,
+            birthDate: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addMeetingTeamParticipations(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+    dto: AddMeetingTeamParticipationDto,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
+    );
+
+    const role: ActionPeopleParticipationRole = dto.role ?? 'PARTICIPANTE';
+    const personIds = Array.from(new Set(dto.personIds));
+    if (personIds.length === 0) {
+      throw new BadRequestException('Selecione ao menos uma pessoa.');
+    }
+
+    const people = await this.prisma.person.findMany({
+      where: { id: { in: personIds }, tenantId: user.tenantId },
+      select: { id: true, fullName: true },
+    });
+    if (people.length !== personIds.length) {
+      throw new BadRequestException(
+        'Uma ou mais pessoas selecionadas sao invalidas.',
+      );
+    }
+
+    const alreadyLinked = await this.prisma.meetingTeamParticipation.findMany({
+      where: {
+        tenantId: user.tenantId,
+        meetingId: occurrenceId,
+        personId: { in: personIds },
+        role,
+      },
+      select: { personId: true },
+    });
+    const alreadyLinkedIds = new Set(alreadyLinked.map((row) => row.personId));
+    const newPersonIds = personIds.filter((id) => !alreadyLinkedIds.has(id));
+
+    if (newPersonIds.length > 0) {
+      const existingCount = await this.prisma.meetingTeamParticipation.count({
+        where: { tenantId: user.tenantId, meetingId: occurrenceId },
+      });
+      if (
+        existingCount + newPersonIds.length >
+        MEETING_TEAM_PARTICIPATION_MAX
+      ) {
+        throw new BadRequestException(
+          `Limite de ${MEETING_TEAM_PARTICIPATION_MAX} responsaveis por encontro (ja existem ${existingCount}).`,
+        );
+      }
+    }
+
+    const cascaded: Array<{
+      personId: string;
+      fullName: string;
+      activity: boolean;
+      project: boolean;
+    }> = [];
+
+    for (const personId of newPersonIds) {
+      await this.prisma.meetingTeamParticipation.create({
+        data: {
+          tenantId: user.tenantId,
+          meetingId: occurrenceId,
+          personId,
+          role,
+        },
+      });
+      const activityCreated = await this.ensurePersonOnActivityTeam(
+        user.tenantId,
+        actionId,
+        personId,
+        role,
+      );
+      const projectCreated = await this.ensurePersonOnProjectTeam(
+        user.tenantId,
+        projectId,
+        personId,
+        role,
+      );
+      const person = people.find((item) => item.id === personId);
+      cascaded.push({
+        personId,
+        fullName: person?.fullName ?? '',
+        activity: activityCreated,
+        project: projectCreated,
+      });
+    }
+
+    return {
+      created: newPersonIds.length,
+      skipped: personIds.length - newPersonIds.length,
+      cascaded,
+    };
+  }
+
+  async removeMeetingTeamParticipation(
+    user: JwtUser,
+    projectId: string,
+    actionId: string,
+    occurrenceId: string,
+    participationId: string,
+  ) {
+    await this.ensureProjectExists(user.tenantId, projectId);
+    await this.ensureProjectActionExists(user, projectId, actionId);
+    await this.ensureActionOccurrenceExists(
+      user.tenantId,
+      actionId,
+      occurrenceId,
+    );
+
+    const existing = await this.prisma.meetingTeamParticipation.findFirst({
+      where: {
+        id: participationId,
+        tenantId: user.tenantId,
+        meetingId: occurrenceId,
+      },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        'Vinculo de equipe do encontro nao encontrado',
+      );
+    }
+
+    await this.prisma.meetingTeamParticipation.delete({
+      where: { id: existing.id },
+    });
     return { ok: true as const };
   }
 

@@ -4,6 +4,1333 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Plano: padronizar todos os módulos no padrão de Atividades (2026-11-21, aguardando confirmação de sequência)
+
+Usuário confirmou Atividades como a referência completa de convenção
+(List Principal + Detail + Metadata + Relation + Tabela) e pediu um
+plano pra levar todos os outros módulos ao mesmo padrão, cobrindo 6
+frentes: TypeView, Table, Detail, Metadata, Relation (com
+`SearchPanelMenu`/`RelationListHost`) e a convenção de criar (diálogo)
+vs. editar (Detail). **Nada foi implementado ainda nesta entrada - é só
+o plano**, revisando `docs/canonical-web-client-standard.md` (lido na
+íntegra, 1151 linhas) e `docs/backlog.md` contra o código real (greps
+diretos, não só o que os docs já diziam - achei 2 gaps não documentados,
+registrados no backlog agora: Tasks/Pantry/Deposit também têm a barra de
+header antiga, e Pantry/Deposit também têm o bug de `text-foreground`).
+
+### Matriz de conformidade (confirmada por leitura/grep direto do código, 2026-11-21)
+
+| Módulo | A. Header sem barra | B. `mainTab` (Detalhes = 1ª aba) | C. Metadata (só Tags/Notas/Anexos/Auditoria) | D. Relation = `RelationListHost` | F. Tabela sem `text-foreground` fixo |
+| --- | --- | --- | --- | --- | --- |
+| **Atividades (referência)** | ✅ | ✅ | ✅ | ✅ (4 relations) | ✅ |
+| Attendances | ✅ (Fase A) | ✅ | 🟡 (só Auditoria - Fase B depende de schema novo no backend) | ✅ (Fase A, 3 relations) | ✅ (só a coluna principal tinha o bug - já corrigida) |
+| Occurrences | ❌ | ❌ | ❌ (nem passa tags/notes/attachments - pior caso) | ❌ (`DetailRelationConfig` antigo) | ❌ |
+| Projects | ❌ | ❌ | 🟡 (tags/notes já funcionam, falta só tirar/ocultar Comentários/Histórico/Contexto) | ❌ | ❌ |
+| Programs | ❌ | ❌ | 🟡 (idem Projects) | ❌ | ❌ |
+| Tasks | ❌ (achado novo - Status/Prioridade/Prazo/Entrega/Marco/Atualizado) | ❌ | 🟡 (idem) | ❌ | ❌ (coluna principal + várias secundárias + card) |
+| Pantry | ❌ (achado novo - ×3: Item/Entrada/Saída) | ❌ | 🟡 (idem) | ❌ | ❌ (achado novo) |
+| Deposit | ❌ (achado novo - ×3: Item/Entrada/Saída) | ❌ | 🟡 (idem) | ❌ | ❌ (achado novo) |
+| People-Groups | ❌ | ❌ | 🟡 (idem) | ❌ | ❌ |
+| People | ❓ (doc antigo dizia que tinha; não confirmado no `header` do contract - só `leadingSlot` do avatar; pode viver em outro lugar do sistema de abas próprio) | N/A (sistema de abas **próprio**, não `mainTab`/`tabTemplates` - decisão arquitetural maior, não um fix pontual) | ✅ (já segue as 4 abas) | ✅ (7 painéis já em `DetailRelationTablePanel`) | ❌ |
+
+**G. TypeView** não entra na matriz porque é, na prática, automático (`RecordBrowserViewSwitcher` compartilhado) - o gap aqui não é "módulo X está fora do padrão visual", é "módulo X ainda não oferece Kanban/Calendário/Gantt/Gráfico onde o domínio suportaria" - uma decisão de produto por módulo, não um bug de convenção. Auditar caso a caso dentro de cada fase abaixo, não como frente separada.
+
+**E. Criar relation = diálogo, editar = Detail** também não entra como coluna própria porque só é auditável relation por relation, depois que cada módulo migrar pra `RelationListHost` (coluna D) - vira parte do trabalho da Fase 3, não uma frente paralela.
+
+### Fases propostas, da mais barata/segura pra mais cara (cada módulo pode ser feito independente - não precisa fechar uma fase inteira antes de começar a próxima, mas dentro de um módulo a ordem A→B→C→D é a que faz sentido: C costuma destravar junto com A/B, D é sempre o maior)
+
+**Fase 1 - Metadata (coluna C), 6 módulos, risco quase zero:** Projects, Programs, Tasks, Pantry (×3 contracts), Deposit (×3 contracts), People-Groups já têm `tags`/`notes`/`attachments` funcionando - só precisam de `tabOrder={["tags", "notes", "attachments", "activity"]}` pra esconder as abas antigas (Comentários/Histórico/Contexto), igual Attendances já fez com `tabOrder={["activity"]}`. Não remove nenhum dado nem código ainda (só filtra o que aparece) - código morto por trás (handlers/estado de `comments`/`history`/`contextItems`) fica pra uma limpeza posterior, backlogado separado (ver "Remover código morto" nas instruções do projeto - fazer isso depois de confirmar visualmente que nada quebrou, não no mesmo commit).
+
+**Fase 2 - Header sem barra (coluna A) + `mainTab` (coluna B), mesmos 6 módulos + Occurrences:** remover a função que monta `header.slot` de cada contract (não só escondê-la) e levar os campos pro formulário principal, 1ª linha (Título-Status-Tipo-relacionamento, mesma convenção da Atividade); adicionar `mainTab: true`. Tasks/Pantry/Deposit precisam disso nas sub-telas (Entrada/Saída) também, não só no módulo principal. People fica de fora desta fase (arquitetura de abas própria, decisão maior - ver Fase 5).
+
+**Fase 3 - Relation (coluna D) + convenção de criar/editar (E), a mais cara:** migrar cada relation de `DetailRelationsRenderer`/`DetailRelationConfig` pra `RelationListHost` (ou `DetailRelationTablePanel` quando não precisar de visualização alternativa), seguindo o template exato da aba Encontros da Atividade (`PainelSearch` completo: busca+Colunas+Filtros+Agrupar, TypeView quando aplicável, botão Novo). Pra cada relation migrada, decidir e implementar o fluxo de criação (diálogo de busca+seleção OU diálogo de criação rápida) e confirmar que clicar na linha abre uma tela de Detail de verdade (criando uma nova, no molde do Encontro/Evolução/Benefício, quando o sub-registro tiver campos próprios). Ordem sugerida por volume de relations (menor primeiro): People-Groups → Programs → Projects → Pantry/Deposit → Tasks → Occurrences.
+
+**Fase 4 - Tabela (coluna F):** revisar todo `cell` de `ColumnDef` de cada módulo (list principal **e** as relations migradas na Fase 3), tirando `text-foreground`/cor fixa que não seja `text-muted-foreground` intencional - mesma correção já aplicada em Attendances/Atividades. Fazer **depois** da Fase 3 em cada módulo, porque a Fase 3 recria as colunas de qualquer forma (menos retrabalho que corrigir cor antes de migrar a estrutura).
+
+**Fase 5 - People (dedicada, fora da sequência acima):** decidir se migra as 11 abas internas pra `tabTemplates`/`mainTab` (ganha `RelationListHost` de graça pra quem ainda não tem, badge de contagem, etc.) ou se formaliza o sistema próprio como exceção documentada. Reconfirmar nessa sessão se a barra de header antiga existe de verdade ou não (gap encontrado na auditoria desta entrada).
+
+**Fase 6 (fora desta rodada, já backlogada) - Fase B de Attendances/Occurrences:** schema novo no backend pra Tags/Notas/Anexos de verdade (hoje só Auditoria) - trabalho de backend, não de frontend/convenção.
+
+### Antes de começar
+
+Confirmar com o usuário: (1) ordem de execução entre fases/módulos (a
+sugerida acima é só uma recomendação, por risco crescente); (2) se cada
+módulo é um commit/sessão por si (parece mais seguro, dado o volume) ou
+se Fase 1 (barata, 6 módulos) pode ir tudo numa sessão só; (3) se People
+entra nesta rodada ou fica pra depois, dado que é decisão arquitetural,
+não só um fix.
+
+## Coluna "Notas" ainda vazava pra fora da tela - correção final em `TruncatedTextCell` (2026-11-21)
+
+Depois de trocar "Notas" (Encontros) pra `TruncatedTextCell` (item
+abaixo), usuário testou de novo: tooltip apareceu certo, mas a coluna
+continuava crescendo e saindo da tela com uma nota de verdade longa
+(várias frases) - pediu um "bloqueio" real pro texto respeitar o
+tamanho da coluna.
+
+**Causa raiz (mesma família do bug anterior, só que o `min-w-0` do
+`TruncatedTextCell` não é suficiente pra qualquer tamanho):** um
+`<span>` com `white-space: nowrap` (exigido pelo `truncate`/ellipsis)
+tem largura mínima de conteúdo igual ao texto inteiro - pra um nome
+curto isso nunca estoura o `max-width`, mas pra uma nota de várias
+frases, essa largura mínima pode vencer o `max-width` do wrapper mesmo
+com `min-w-0`, e a coluna cresce de qualquer jeito.
+
+**Correção, em `TruncatedTextCell.tsx` (afeta toda célula que já usa
+esse componente - Projeto, Grupos, Participante, Título, etc., não só
+Notas):**
+
+1. `maxWidthPx` (nova prop, default 280) aplicado como `style={{
+   maxWidth: maxWidthPx }}` **inline** no wrapper, não só via className.
+2. O valor **exibido** (não o do tooltip, que continua mostrando o texto
+   inteiro) é cortado em JavaScript, **antes** de chegar no DOM, num
+   limite de caracteres calculado a partir de `maxWidthPx`
+   (`Math.floor(maxWidthPx / 7)`, 7px/caractere - estimativa conservadora
+   pro texto de 13px da tabela). Isso garante que a largura mínima de
+   conteúdo do `<span>` nunca passe de `maxWidthPx`, **independente** de
+   qualquer detalhe do algoritmo de layout do navegador - o texto em si
+   já chega curto o suficiente, o `max-width`/ellipsis só faz o corte
+   fino visual do que sobrar.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em
+`TruncatedTextCell.tsx` → 0 problemas. Teste visual no navegador ainda
+pendente de confirmação do usuário (nota bem longa em Encontros).
+
+**Documentação:** `docs/canonical-web-client-standard.md` - a
+"pegadinha real" reescrita pra contar as 2 rodadas até fechar de
+verdade (texto puro → `TruncatedTextCell` sozinho → `TruncatedTextCell`
+com corte em JS + `maxWidth` inline), já que a explicação anterior
+("`min-w-0` resolve") estava incompleta.
+
+## Tooltip automático: 2 bugs reais achados testando (2026-11-21)
+
+Usuário testou o item anterior (tooltip automático + coluna principal
+dinâmica) em 2 rodadas e achou 2 bugs reais de verdade, ambos na coluna
+"Notas" de Encontros (`action-occurrences-section.tsx`):
+
+**Bug 1 - falso positivo (tooltip aparecendo sem truncar nada):**
+tolerância de 1px pra decidir "truncou" era curta demais - escala de
+tela do Windows ≠ 100% (125%/150%, comum) já cria 1-2px de diferença
+entre `scrollWidth`/`clientWidth` por arredondamento de subpixel, sem
+nenhum corte real de texto. Corrigido em `TableCell`
+(`components/ui/table.tsx`): tolerância subiu pra 2px
+(`CELL_OVERFLOW_TOLERANCE_PX`) e a 1ª medição passou a esperar 2
+`requestAnimationFrame` (layout/fonte assentarem) antes de checar - uma
+medição cedo demais podia "travar" como truncada pra sempre, já que o
+`ResizeObserver` só reage se o próprio `<td>` mudar de tamanho depois.
+
+**Bug 2 - a coluna "Notas" tinha 2 problemas em sequência, mesma causa
+raiz:** originalmente usava `whitespace-normal break-words` - quebra a
+regra geral da tabela ("nunca quebra linha") e fazia a **altura** da
+linha crescer pra caber a nota inteira, em vez de truncar. 1ª tentativa
+de correção trocou pra um texto simples (string direta no `cell`, sem
+wrapper) - a altura parou de crescer, mas a **largura da coluna**
+cresceu no lugar, e o tooltip automático nunca aparecia. Causa raiz
+real: um `<td>` com `white-space: nowrap` tem largura mínima de
+conteúdo igual ao texto inteiro (não quebra nem uma palavra) - no
+layout automático de tabela HTML, essa largura mínima vence o
+`max-width` da célula e força a **coluna inteira** a crescer, mesmo com
+`overflow-hidden`/`text-ellipsis` no CSS (não é bug de código, é assim
+que o algoritmo de tabela funciona). `TruncatedTextCell`
+(`web-client/ui/TruncatedTextCell.tsx`) não tem esse problema porque seu
+wrapper usa `min-w-0` - diz ao navegador "o mínimo desse elemento pode
+ser zero, não o do conteúdo", quebrando a cadeia que força a coluna a
+crescer. **Corrigido:** a coluna "Notas" agora usa `TruncatedTextCell`
+(igual "Título" na mesma tabela), em vez de texto puro.
+
+**Achado incidental, não tocado (perguntei, resposta pendente):**
+`attendances-detail-layout-contract.tsx`, coluna "Registro" das
+Evoluções do Atendimento, tem o mesmo `whitespace-normal break-words` -
+mas ali o texto É o conteúdo principal da tabela (a evolução em si), não
+uma nota secundária; pode ser intencional mostrar por completo. Não
+mudei sem confirmação do usuário.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em
+`table.tsx`/`action-occurrences-section.tsx` → só a categoria já
+tolerada (`react-hooks/set-state-in-effect`, pré-existente, não tocada).
+
+**Documentação:** `docs/canonical-web-client-standard.md` - parágrafo
+de tooltip automático atualizado com a tolerância de 2px e os 2
+`requestAnimationFrame`; nova "pegadinha real" documentando que
+`max-width` sozinho num `<td>` não garante truncar texto livre
+realmente longo (regra: usar sempre `TruncatedTextCell` pra isso, nunca
+texto puro no `cell`).
+
+## Tooltip automático em toda célula + coluna principal dinâmica (2026-11-21)
+
+Usuário pediu 2 coisas depois das rodadas anteriores: (1) tooltip no
+valor completo em **toda** célula de **toda** tabela, não só nas
+colunas que já usavam `TruncatedTextCell`; (2) a coluna principal
+(`--table-column-primary-max-width`) ficando grande demais em telas com
+título curto - pediu pra "respeitar o tamanho do nome" em vez de um
+tamanho fixo.
+
+**Decisão de design perguntada antes de implementar** (mudança no
+componente mais compartilhado do frontend, `table.tsx`, usado por toda
+tabela do sistema): balão estilizado (igual ao que `TruncatedTextCell`
+já mostra) vs. tooltip nativo do navegador (`title` do HTML). Cheguei a
+implementar a versão nativa primeiro (menor risco/escopo), mas o usuário
+pediu pra usar a recomendação original (balão estilizado), então troquei
+pra essa antes de fechar o item.
+
+**(1) Tooltip automático - `TableCell` (`components/ui/table.tsx`):**
+cada `<td>` mede, via `ref` + `ResizeObserver`, se o próprio conteúdo
+truncou de verdade (`scrollWidth > clientWidth`) e, só nesse caso,
+envolve a célula em `Tooltip`/`TooltipTrigger asChild`/`TooltipContent`
+(mesmos componentes que `TruncatedTextCell` já usa), mostrando o
+`textContent` real do DOM - funciona com qualquer conteúdo (texto puro,
+`<div>`, `<Badge>`), não só string. Não duplica tooltip em quem já usa
+`TruncatedTextCell`: a truncagem dela é num `<span>` interno, então o
+`<td>` por fora nunca mede overflow nesse caso (o filho já ficou do
+tamanho certo) - `TruncatedTextCell` continua válido pras colunas que
+precisam de `icon`/placeholder vazio, que o mecanismo automático não
+cobre.
+
+**(2) Coluna principal dinâmica - `getColumnWidthStyle` (`ListView.tsx`):**
+causa raiz real: o `<table>` é `w-full`, e sem nenhum peso de largura o
+layout automático do HTML distribui a sobra de espaço entre as colunas -
+como só a coluna principal tem fundo próprio
+(`bg-table-column-primary`), é nela que essa sobra "aparece" como vazio,
+mesmo com nome curto (nas outras colunas a mesma sobra existe, só não se
+nota porque o fundo é igual ao da linha). Adicionado `width: "1%"` só na
+coluna principal - truque clássico de tabela HTML pra "não dar peso
+extra" no layout automático - ela agora encolhe pro tamanho real do
+maior valor visível (cabeçalho ou célula), e
+`--table-column-primary-max-width` continua sendo só o teto pra nome
+realmente longo.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em
+`table.tsx`/`ListView.tsx` → 0 problemas. Teste visual no navegador
+ainda pendente de confirmação do usuário.
+
+**Documentação:** `docs/canonical-web-client-standard.md` (seção
+Tabela) - parágrafo de tooltip reescrito (automático por padrão,
+`TruncatedTextCell` como complemento, não mais obrigatório) e parágrafo
+da coluna principal atualizado pra explicar `width: "1%"`.
+`docs/backlog.md` - removida a entrada "coluna principal trunca sem
+tooltip" (resolvida por este item).
+
+## Cor da tabela: varredura completa das relations de Atividades (2026-11-21)
+
+Depois das 2 rodadas anteriores (item abaixo), usuário pediu um plano
+pra revisar **todas** as tabelas do que ele chamou de "módulo de
+atendimento" - esclarecido antes de agir (as abas citadas, Participantes/
+Encontros/Qualidade/Equipe, são relations de **Atividades**, não de
+**Atendimento**/Attendance, que tem Pessoas/Evoluções/Benefícios) -
+usuário confirmou: Atividades.
+
+**Varredura (grep `text-foreground` em todo `src/modules/actions`) +
+leitura dos arquivos de cada aba, pra achar todo `cell` com cor fixa, não
+só o da coluna principal (lição da rodada anterior - "Tipo" também tinha
+o bug):**
+
+- **Limpas, sem bug (referência já correta):** Encontros
+  (`action-occurrences-section.tsx`, já usa `TruncatedTextCell`) e
+  Qualidade (`action-quality-section.tsx` + `renderParticipantIdentity`
+  compartilhado em `action-operational-relations.tsx`, já usa
+  `font-medium` sem cor fixa).
+- **Corrigidas (mesmo padrão das rodadas anteriores - tirado
+  `text-foreground`, mantido `font-medium`/`text-xs`/`font-semibold`):**
+  - `action-participants-section.tsx` (aba Participantes da Atividade) -
+    coluna "Participante" e o valor principal de "Frequência".
+  - `action-team-section.tsx` (aba Equipe) - coluna "Pessoa".
+  - `meeting-participants-section.tsx` (dentro do Detail de um Encontro,
+    aba Participantes) - coluna "Participante".
+  - `meeting-responsibles-section.tsx` (dentro do Detail de um Encontro,
+    aba Responsáveis) - coluna "Pessoa".
+  - `action-people-participation-picker-dialog.tsx` (diálogo
+    "Adicionar") - coluna de pessoa.
+  - `meeting-team-picker-dialog.tsx` (diálogo "Adicionar responsável" do
+    Encontro) - coluna "Pessoa".
+
+Os 3 ajustes de componente compartilhado das rodadas anteriores
+(variáveis de checkbox, de coluna fixada, de largura da coluna
+principal) já valem automaticamente pra essas 6 telas, sem precisar de
+nada específico - só a cor fixa por módulo precisava de correção
+arquivo por arquivo.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 6
+arquivos tocados → só a mesma categoria já tolerada
+(`react-hooks/set-state-in-effect`, pré-existente em 3 deles, nenhuma
+nova). Teste visual no navegador ainda pendente de confirmação do
+usuário (as 4 abas da Atividade + Detail de um Encontro + os 2
+diálogos).
+
+**Atividades (módulo Activity) fica com a tabela 100% revisada** - as 4
+relations do rodapé, as 2 sub-relations dentro de Encontro e os 2
+diálogos de adicionar pessoa/responsável. `docs/backlog.md` atualizado:
+removida a entrada antiga de "Atividades ainda não revisada" (não
+existia mais, mas confirmar se há menção redundante); os módulos que
+ainda faltam revisar (mesmo padrão, não tocados) continuam
+`occurrences`/`programs`/`tasks`/`projects`/`people-groups`/`people` (o
+módulo **Attendance**, de Atendimento, continua só com a coluna
+principal corrigida - os outros módulos citados aqui são os que usam a
+palavra "Activity"/"Atividade" no código, não confundir com o módulo
+Attendance).
+
+## Cor/tamanho da tabela (`ListView`): 2ª rodada - Atividades, checkbox e coluna fixada (2026-11-21)
+
+Usuário testou a correção anterior (item abaixo) na lista principal de
+Atividades e reportou 4 problemas restantes: (1) texto da coluna
+principal ("Atividade") ainda não acompanha
+`--table-column-primary-foreground`; (2) a 2ª coluna ("Tipo") não
+acompanha `--table-row-foreground` como as demais; (3) checkbox da
+coluna de seleção sem variável própria; (4) nenhuma variável pra cor de
+coluna fixada manualmente (menu "Fixar à esquerda/direita").
+
+**(1) e (2) - mesma causa raiz do item anterior, em outro módulo:**
+`actions-list-module-client-page.tsx` tinha o mesmo `text-foreground`
+fixo - na coluna principal (`<div className="font-medium
+text-foreground">`) **e também** em "Tipo", "Inicio", "Cadastro"
+(`<span className="text-foreground">`) - confirmando que o bug não é
+exclusivo da coluna principal. Corrigidas as 4 colunas (tirado
+`text-foreground`, mantido `font-medium`/`text-sm` onde já existia).
+Atualizado `docs/backlog.md`: os módulos ainda não revisados podem ter
+o mesmo problema em colunas secundárias, não só na principal
+(confirmado em `programs`/`tasks` por grep, não corrigidos).
+
+**(3) e (4) - variáveis novas que realmente não existiam:** o checkbox
+da coluna `__select__` usava `border-muted-foreground/40` (token
+global, não de tabela) pra borda e a cor padrão do componente
+(`bg-primary`/`text-primary-foreground`) pro estado marcado - nada
+dedicado à tabela. Colunas fixadas manualmente (fora a principal/
+seleção) usavam `var(--color-background)` direto. Criadas 4 variáveis em
+`globals.css` (`:root`+`.dark`): `--table-checkbox-border`,
+`--table-checkbox-checked-background`, `--table-checkbox-checked-foreground`,
+`--table-pinned-background`. `SELECTION_CHECKBOX_CLASS_NAME` (`ListView.tsx`)
+passou a usar as 3 primeiras **com `!`** - a base `Checkbox`
+(`components/ui/checkbox.tsx`) já declara `border-primary`/
+`data-[state=checked]:bg-primary` no próprio componente, então sem `!`
+a vitória dependeria da ordem de geração do Tailwind (mesma classe de
+bug já documentado para `bg-table-column-primary`, agora também no
+checkbox). `getPinnedStyles` trocou `var(--color-background)` por
+`var(--table-pinned-background)`.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em
+`ListView.tsx` → 0 problemas; `eslint` em
+`actions-list-module-client-page.tsx` → só a categoria já tolerada
+(`react-hooks/set-state-in-effect`, pré-existente, linha não tocada
+nesta sessão), nenhuma categoria nova. Teste visual no navegador ainda
+pendente de confirmação do usuário.
+
+**Documentação:** `docs/canonical-web-client-standard.md` (seção
+Tabela) atualizada pra 16 variáveis (eram 10), com as 4 novas na
+tabela de referência, nota de que a pegadinha de herança de `color` não
+é exclusiva da coluna principal, e um novo caso da "regra de
+arquitetura" (classe do `ListView` vs. classe que já vem de dentro do
+componente `Checkbox` - `!` é a única saída confiável aqui, não dá pra
+mover a base pro elemento pai). `docs/backlog.md` ampliado: a entrada
+do `text-foreground` passou a cobrir colunas secundárias, não só a
+principal.
+
+## Cor/tamanho da tabela (`ListView`): coluna principal e variáveis, correção + recalibração (2026-11-21)
+
+Usuário revisou as telas de Atendimento (Fase 6) e reportou 4 problemas
+na tabela compartilhada: (1) a coluna principal não muda de cor nem de
+tamanho; (2) mudar `--table-row-foreground` não muda o texto de todas as
+linhas/colunas; (3) mudar `--table-column-primary-foreground` só afeta o
+cabeçalho, não o corpo da coluna; (4) pediu uma variável nova pra
+controlar a largura da 1ª coluna (ficou grande demais em algumas telas)
+e uma recalibração visual das cores ("mais bonito").
+
+**Causa raiz real de (1)-(3):** o `cell` da coluna principal, em
+Attendances (e em mais 7 módulos - ver `docs/backlog.md`), envolve o
+valor num `<div className="font-medium text-foreground">` - esse
+`text-foreground` fixa a cor **dentro** da célula, que é mais interna
+que o `<tr>`/`<td>` que carregam as variáveis - herança de `color` não
+tem como vencer uma declaração mais interna (não é uma questão de
+especificidade CSS). Corrigido em
+`attendances-list-module-client-page.tsx` (tirado `text-foreground`,
+mantido `font-medium`) - único módulo tocado nesta sessão, por ser o que
+estava em revisão; os outros 7 (`occurrences`/`programs`/`tasks`/
+`actions`/`projects`/`people-groups`/`people`) foram pro backlog com o
+mesmo gatilho.
+
+**Bug adicional, achado durante a investigação:** a célula da coluna
+principal, no branch **não agrupado** de `ListView.tsx` (o caminho usado
+por toda lista sem `groupByFields`, incluindo Attendances), tinha
+`bg-table-column-primary` mas não `!text-table-column-primary-foreground`,
+diferente do branch agrupado e do cabeçalho, que já tinham os dois.
+Igualado nos 3 lugares.
+
+**Item (4):** nova variável `--table-column-primary-max-width` (320px,
+`globals.css`, `:root`+`.dark`) - a coluna principal usava
+`{ maxWidth: "none" }` (sem limite nenhum, crescia com o maior valor da
+tela); agora trunca com "..." acima de 320px, igual qualquer outra
+coluna (`getColumnWidthStyle` em `ListView.tsx`).
+
+**Item "mais bonito":** recalibradas as cores de header/zebra/coluna
+principal no tema claro - estavam **idênticas** nas 3 (mesmo valor
+oklch, cópia de uma calibração anterior), por isso a tabela parecia "uma
+cor só". Agora os 3 fundos usam o mesmo matiz de `--primary` (252) em
+luminosidades crescentes de destaque (row 100% > zebra 97.3% > header
+95% > coluna principal 93%); tema escuro recebeu o mesmo ajuste de
+consistência de matiz (já tinha os 3 fundos distintos, só não alinhados
+em matiz). `--table-column-primary-foreground` ganhou um pouco mais de
+contraste (0.6 claro / 0.8 escuro, vs. 0.64/0.72 antes).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em
+`ListView.tsx` → 0 problemas; `eslint` em
+`attendances-list-module-client-page.tsx` → só a categoria já tolerada
+(`react-hooks/set-state-in-effect`, pré-existente, não tocada nesta
+sessão), nenhuma categoria nova. Teste visual no navegador ainda
+pendente de confirmação do usuário.
+
+**Documentação:** `docs/canonical-web-client-standard.md` (seção
+Tabela) ganhou a 10ª variável na tabela de referência, a pegadinha de
+herança de `color` com checklist pra `cell` novo/revisado, e a nota de
+que a coluna principal agora trunca (candidata a `TruncatedTextCell`
+se algum valor passar de 320px). `docs/backlog.md` ganhou 3 entradas: os
+7 módulos com o mesmo `text-foreground` fixo (gatilho: próxima vez que
+cada um for tocado), a coluna principal truncando sem tooltip ainda
+(gatilho: usuário reportar corte), e `--table-cell-padding-y`
+desincronizado entre temas (15px claro/8px escuro - achado, não
+corrigido por não ter sido pedido).
+
+## Atendimento — Fase A da revisão de convenção (2026-11-21)
+
+Com a convenção fechada (ver itens acima), o usuário pediu pra iniciar
+a atualização do módulo de Atendimento seguindo o checklist já
+registrado em `docs/backlog.md` ("Plano de revisão do Atendimento").
+Dividido em 2 fases por decisão própria, dado o tamanho: **Fase A**
+(só frontend, feita agora) e **Fase B** (schema novo no backend pra
+Tags/Notas/Anexos, fica pendente e documentada).
+
+Pesquisei 2 precedentes antes de implementar (2 agentes de exploração):
+o padrão de metadata de Activity (`ProjectActionComment`/
+`ProjectActionAttachment`, exige schema novo — por isso virou Fase B) e
+o padrão de sub-registro com Detail própria de People
+(`PeopleRelationDetailShell`/`defineRelationDetailModule`,
+Escolaridade como exemplo) — mas o People cria via navegação pra uma
+rota `/new`, o que contradiz a convenção de diálogo que acabamos de
+fechar, então não copiei esse detalhe literalmente.
+
+**Feito (Fase A):** `attendances-detail-layout-contract.tsx` —
+removida a barra de info do header; `mainTab: true` (Detalhes vira a
+1ª aba); Pessoas/Evoluções/Benefícios migradas pra
+`DetailRelationTablePanel` (mesmo componente que as 7 sub-telas de
+People já usam); side ganhou `tabOrder={["activity"]}` pra esconder as
+abas erradas (Histórico/Contexto). Evoluções e Benefícios ganharam
+Detail própria nova (`/attendances/[id]/evolutions/[evolutionId]`,
+`/attendances/[id]/benefits/[benefitId]`, modo edição só — criar
+continua pelo diálogo rápido já existente, agora simplificado pra só
+criar, sem mais reabrir preenchido pra editar).
+
+**Achado durante a implementação:** `defineRelationDetailModule`
+(helper compartilhado, usado por People e agora por Atendimento) não
+passava `detailLayout`, e uma validação newer (`registry/types.ts`)
+rejeita isso com throw — bug pré-existente que **também** quebrava
+`/people/[id]/education/new` (e as outras sub-telas de People do mesmo
+molde), não só o código novo. Corrigido no helper compartilhado
+(`detailLayout: {}`), consertando os dois módulos de uma vez. Confirmado
+com teste real: a rota de Education do People, que estava quebrada,
+voltou a funcionar.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos arquivos
+novos/tocados → só a categoria já tolerada (`react-hooks/
+set-state-in-effect`), nenhuma nova; `npm run build` → ok, as 2 rotas
+novas aparecem. Testado de ponta a ponta no navegador real (servidor
+do usuário, não reiniciado, um atendimento com dados): aba Pessoas com
+busca/Colunas/Filtros via `DetailRelationTablePanel`; aba Evoluções
+mostra o registro existente numa tabela de verdade; criado 1 benefício
+pelo diálogo ("Novo" → preencher → "Criar") — fecha sem navegar, lista
+atualiza, toast confirma; clicado na linha do benefício → abriu a tela
+de Detail nova, com breadcrumb (Atendimentos > tipo > nome do
+benefício), editei a Quantidade e autosave confirmado persistido via
+API; aba Auditoria da tela nova mostra o evento real de criação. Dado
+de teste removido via API ao final.
+
+**Não fechado nesta sessão (Fase B, documentada em
+`docs/backlog.md`):** Tags/Notas/Anexos de verdade no side do
+Atendimento (hoje só Auditoria) — depende de schema novo no backend
+(tabelas de comentário/tag/anexo + categoria de upload nova),
+trabalho de backend genuíno, fora do escopo desta revisão de UI.
+
+**Achado incidental, não tocado:** o atendimento usado pra testar
+(`Social`, profissional "Bianca Torres", 4 pessoas vinculadas, 1
+evolução de texto "teste") já existia antes desta sessão - não fui eu
+quem criou, parece sobra de teste de uma sessão anterior que não foi
+limpa. Mesma situação do "Atividade Nova" sinalizado antes. Vale
+conferir e decidir se apaga.
+
+## Item avulso — convenção de criação em relation vira regra única: sempre diálogo (2026-11-21)
+
+Depois da revisão de convenção acima, o usuário pediu pra decidir entre
+duas opções especificamente pro "Novo" do Encontro: manter a tela de
+Detail completa reaproveitada (como é hoje) ou trocar por um diálogo
+rápido com clique na linha levando ao Detail depois. Analisei os campos
+realmente obrigatórios do Encontro pra criar (só Data + Início — Título
+se auto-gera, Status fica travado em "Agendado", Grupos/Notas/
+Planejamento/Fotos são opcionais ou só aparecem em modo edit) e
+recomendei diálogo, já que cabe confortavelmente nos campos mínimos.
+Usuário concordou e foi além: decidiu que essa vira **a convenção única
+do projeto para criar dentro de qualquer relation, em qualquer módulo,
+sem exceção** — inclusive pra registros antes considerados "complexos
+demais pra diálogo" (o próprio Encontro, que era a referência dessa
+exceção). "Novo" sempre abre diálogo (de seleção ou de criação rápida,
+inclusive o fluxo em lote); clicar na linha sempre abre o Detail
+completo pra editar mais.
+
+**Implementado nesta sessão, como prova concreta da convenção:**
+`MeetingQuickCreateDialog` (`modules/actions/features/manage/ui/
+meeting-quick-create-dialog.tsx`) — diálogo novo com só Título
+(opcional)/Data/Início/Término, chama `createMeeting` existente. O botão
+"Novo" da aba Encontros (`action-occurrences-section.tsx`) trocou de
+`router.push("/meetings/new")` pra abrir esse diálogo; ao criar, o
+diálogo fecha, a lista recarrega e um toast confirma — sem navegar pra
+lugar nenhum, permitindo criar vários Encontros avulsos em sequência
+sem sair da Atividade. Clicar numa linha já criada continua levando pro
+Detail completo (`/meetings/[id]`), inalterado. A rota `/meetings/new`
+e o modo `create` do Detail do Encontro **não foram removidos** —
+decisão deliberada de não arriscar uma limpeza maior sem necessidade
+(a rota não tem mais nenhum link apontando pra ela na UI, mas continua
+funcional via URL direta; avaliar remoção numa sessão de limpeza, não
+nesta).
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 2
+arquivos tocados → só a categoria já tolerada em todo o projeto
+(`react-hooks/set-state-in-effect`), nenhuma categoria nova; `npm run
+build` → ok. Testado de ponta a ponta no navegador real (servidor do
+usuário, não reiniciado): aba Encontros → "Novo" abre o diálogo com os
+4 campos; preenchido Data+Início e confirmado → diálogo fecha, toast
+"Encontro criado" aparece, a nova linha ("Agendado") surge na lista
+junto com o Encontro do seed, sem navegar pra fora da Atividade; zero
+erro de console/HTTP. Encontro de teste removido via API ao final;
+nenhum dado de seed alterado.
+
+**Documentação:** `docs/canonical-web-client-standard.md` reescrita —
+a seção "Criar dentro de uma relation" virou regra única (antes tinha 2
+ramos, um deles permitindo tela dedicada pra caso complexo); registra
+`MeetingQuickCreateDialog` como a 2ª referência viva (ao lado de
+`OccurrencePeoplePickerDialog`). `docs/backlog.md` atualizado: a entrada
+do plano de revisão do Atendimento ajustada pra não citar mais o
+Encontro como exemplo de "pode ter tela dedicada" — agora reforça que
+nem ele é exceção.
+
+**Correção, mesma sessão (logo em seguida):** usuário revisou o
+resultado e simplificou mais um passo — reparou que o Encontro já tinha
+2 botões de criação em paralelo (`Novo`, que eu tinha acabado de trocar
+pro diálogo rápido, e "Agendar em lote", que já existia antes e abre
+`BulkScheduleOccurrencesDialog`). Decisão: **isso suja o padrão "só o
+botão Novo"** — o diálogo de lote já resolve criar um só registro também
+(basta `De` = `Até` com o dia da semana marcado, o preview mostra
+exatamente 1 data), então não precisa de 2 diálogos fazendo
+essencialmente a mesma coisa. `MeetingQuickCreateDialog` **foi removido
+nesta mesma sessão** (arquivo apagado, nunca chegou a ser commitado) —
+o botão "Novo" agora abre direto o `BulkScheduleOccurrencesDialog`
+(mesmo componente de antes), e o botão secundário "Agendar em lote"
+foi removido do `viewSwitcherSlot`. Convenção final, documentada em
+`docs/canonical-web-client-standard.md`: **um único botão "Novo" por
+relation, em qualquer módulo**, abrindo um diálogo que resolve criar 1
+ou N registros de uma vez quando fizer sentido (não precisa de dois
+fluxos/dois botões separados).
+**Evidência:** `tsc --noEmit` → 0 erros; `eslint` → só a mesma categoria
+já tolerada (2 ocorrências, ambas pré-existentes, nenhuma nova); `npm
+run build` → ok. Testado no navegador: só "Novo" aparece na barra da
+aba Encontros; clicar nele abre "Agendar encontros" (o diálogo que já
+existia); testado criar 1 único Encontro por esse mesmo diálogo (`De`=
+`Até`=18/12/2026, dia "Sex" marcado) → preview mostrou "1 de 1 data(s)",
+confirmado criou exatamente 1 Encontro; zero erro de console/HTTP.
+Encontro de teste removido via API ao final. **Achado incidental, não
+tocado:** a atividade tinha um Encontro residual chamado "Atividade
+Nova" (não criado por mim nesta sessão) — sinalizar pro usuário
+confirmar se é dado de teste esquecido de uma sessão anterior ou dado
+real, antes de alguém excluir.
+
+## Revisão de convenção visual: Atividades + documentação (2026-11-21)
+
+Usuário revisou as telas de Atendimento (Fase 6, item acima) e apontou
+que saíram fora do padrão visual atual — Atendimento copiou Ocorrências
+(Fase 5), que nunca foi atualizada para as mudanças de convenção que
+vieram depois (2026-11-18/19/20). Pediu: revisão das telas de
+Atendimento com plano de correção (pra sessão futura), atualização do
+módulo de Atividades (referência "mais atualizada") pra bater 100% com
+a convenção, e documentação da convenção revisando falhas — incluindo
+uma regra nova: criar vínculo N:N usa diálogo rápido que fica aberto
+entre seleções (já era assim em `OccurrencePeoplePickerDialog`), mas
+toda linha criada continua precisando de uma tela de Detail própria
+pra edição depois (o que faltava pra Evoluções/Benefícios do
+Atendimento).
+
+Investigação (2 agentes de exploração, depois leitura direta dos
+arquivos críticos) confirmou que Atividades já está conforme em quase
+tudo — único bug real: o Encontro (`meeting-detail-layout-contract.tsx`,
+relação da própria Atividade) ainda tinha a barra de info no header
+(`header.slot` mostrando só "Status"), regressão isolada que escapou da
+migração original de 2026-11-18, mesmo a Atividade-mãe já estando limpa
+(Status já existe na 1ª linha do formulário principal, então a barra
+era pura duplicação).
+
+**Código:** removido `header.slot` + a função `resolveStatusBadge`/
+import `Badge` que só serviam a ele, de
+`meeting-detail-layout-contract.tsx`. **Evidência:** frontend `tsc
+--noEmit` → 0 erros; `eslint` no arquivo → 0 problemas; `npm run build`
+→ ok, rotas `/meetings/[id]`/`/meetings/new` intactas. Testado no
+navegador real (servidor do usuário, não reiniciado): abriu um Encontro
+existente do seed, confirmado que a tela renderiza sem a barra (header
+fica só "Encontro · Pronto" + abas Detalhes/Participantes/Responsáveis
+coladas embaixo) e o campo Status continua funcional no formulário
+principal; zero erro de console/HTTP.
+
+**Documentação:** `docs/canonical-web-client-standard.md` ganhou (a)
+regra nova em `relationSlot` distinguindo vínculo-com-diálogo-que-fica-
+aberto (referência `OccurrencePeoplePickerDialog`) de sub-registro-com-
+Detail-própria (referência Encontro), substituindo a frase vaga antiga;
+(b) correção das listas de "ainda não migrado" (barra de header e
+`sideSlot`) pra incluir People/Occurrences/Attendances, que não
+estavam listados; (c) nota de que Occurrences/Attendances ainda usam o
+mecanismo antigo de relation (`DetailRelationConfig`), achado novo; (d)
+nome explícito da prop `mainTab` (a doc nunca citava o nome literal).
+`docs/backlog.md` ganhou: correção da entrada de 2026-11-18 sobre
+`RelationListHost` (Participantes/Qualidade/Equipe da Atividade já
+migraram em 2026-11-19 — a entrada estava desatualizada; refocada pra
+Occurrences/Attendances, que são o gap real hoje); entrada nova sobre
+People usar um sistema de abas próprio (não `mainTab`); e a entrada
+principal pedida pelo usuário — **plano de revisão completo do
+Atendimento**, com os 6 pontos concretos a corrigir (barra de header,
+`mainTab`, migração de relation, tabela compartilhada, metadata de 4
+abas — que exige schema novo no backend — e Detail próprio por
+Evolução/Benefício), gatilho "sessão dedicada de revisão de módulos",
+como o usuário pediu.
+
+Nenhuma mudança de código em People/Occurrences/Attendances nesta
+sessão — só documentação do que precisa mudar, para a sessão futura.
+
+## Fase 6 do plano mestre (Atendimento) — concluída (2026-11-21)
+
+Implementada a pedido explícito do usuário ("implemente tudo e teste
+depois"), direto em cima dos itens avulsos já registrados abaixo (que
+vieram antes, preparando o terreno). Evidência completa, decisões de
+nomenclatura e teste de ponta a ponta (API + navegador real) estão em
+`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`,
+seção "Fase 6 — Atendimento (social/psicológico)" — não duplicado aqui.
+
+Resumo: módulo novo `Attendance`/`AttendancePeople`/
+`AttendanceEvolution`/`AttendanceBenefit` (migration
+`20261121172107_add_attendance`, sem drift), módulo backend
+`attendances` completo (CRUD + sub-recursos de pessoas/evoluções/
+benefícios), permissões `attendances.*` (Admin/Gestor/Atendimento/
+Leitor — exigiu `npm run build:seed && npm run db:seed` pra sincronizar
+o tenant de teste, mesmo achado da Fase 5), módulo frontend canônico
+`attendances` completo (lista + detalhe com abas Pessoas/Evoluções/
+Benefícios), botão novo "Registrar atendimento" no header da Ocorrência.
+**Evidência:** backend `tsc --noEmit` 0 erros, `npm test` 30 suítes/159
+testes sem regressão, `npm run build` ok; frontend `tsc --noEmit` 0
+erros, `npm run build` ok (3 rotas novas); `eslint` sem categoria nova
+em nenhum arquivo tocado. Testado de ponta a ponta com servidores reais
+do usuário (não reiniciados por mim) — critério de teste da Fase 6
+batido exatamente (atendimento psicológico com 2 pessoas, 2 evoluções,
+1 benefício, encerramento com parecer, e reabertura). Todos os dados de
+teste removidos via API; nenhum dado de seed alterado.
+
+## Item avulso — Encontro ganha Título (editável, auto-gerado se vazio) (2026-11-21)
+
+Usuário testou os pontos 1+2 acima e pediu um ajuste: Encontro precisa de
+um campo "Título" - se o usuário escrever algo (ex.: "Dinâmica sobre
+bullying"), vira o título; se deixar em branco, gera automaticamente
+"Encontro - dd/mm/aaaa" (inclusive nos Encontros criados em lote, que
+nunca pedem título por item). Em qualquer caso o campo continua
+**editável depois** - o educador/facilitador/responsável pode ajustar no
+dia do encontro.
+
+**Schema:** migration `20261121140400_add_meeting_title` - `Meeting.title
+String @default("")` (não nulo, sempre tem valor real; o default vazio é
+só rede de segurança da migration em cima de linhas já existentes - a
+aplicação nunca grava string vazia de propósito). 17 Encontros do seed já
+existentes (sem título) corrigidos com um backfill pontual (SQL direto via
+`pg`, mesma fórmula de título usada no service) - sem tocar em nenhum
+outro dado.
+
+**Backend:** `buildDefaultMeetingTitle(scheduledDate)` (novo helper em
+`actions.service.ts`) - `createActionOccurrence`/`bulkCreateActionOccurrences`/
+`updateActionOccurrence` passam a usar: título informado e não-vazio vence,
+senão gera o padrão a partir da data (na edição, limpar o campo também
+regenera o padrão, mesma regra de "nunca fica vazio de verdade"). DTOs
+`CreateActionOccurrenceDto`/`UpdateActionOccurrenceDto` ganham `title?`
+(`@MaxLength(160)`, mesmo limite já usado em `Activity.title`) -
+`BulkCreateActionOccurrencesDto` não ganha, de propósito (nunca pede
+título por item). **Evidência:** `npx prisma migrate dev` → sem drift;
+`tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 29
+suítes/153 testes sem regressão.
+
+**Frontend:** campo "Título" novo no Detail do Encontro
+(`meeting-detail-layout-contract.tsx`), campo-âncora acima de Data/Status
+(mesmo princípio já usado no formulário da Atividade), com placeholder
+explicando o auto-preenchimento; título real substitui o antigo texto fixo
+"Encontro - {data}" no header/breadcrumb; lista de Encontros
+(`action-occurrences-section.tsx`) ganha coluna "Título" como coluna
+primária (`TruncatedTextCell`, mesma convenção das outras tabelas), entra
+também na busca por texto e no card do Calendário. **Evidência:** `tsc
+--noEmit` → 0 erros.
+
+**Testado via navegador real** (Playwright + Chromium, login real,
+servidores do usuário - não foram reiniciados por mim): campo Título
+presente no formulário de criação; deixado em branco, ao salvar o H1 e o
+próprio campo mostram "Encontro - 05/12/2026" (bate exatamente com a data
+escolhida); editar o campo pra "Dinâmica sobre bullying" e sair do campo
+atualiza o H1 na hora (autosave por campo); de volta na lista de
+Encontros, a linha mostra "Dinâmica sobre bullying" na coluna Título.
+Zero erro de console. Encontro de teste excluído via API ao final;
+servidores confirmados de pé (`200`) antes e depois.
+
+## Item avulso — revisão do módulo de Projetos, pontos 1+2: equipe hierárquica (Projeto→Atividade→Encontro) + Detail do Encontro (2026-11-21)
+
+Revisão de estrutura/regras de negócio do módulo de Projetos, a pedido
+explícito do usuário, antes de seguir para a Fase 6 do plano mestre. Dois
+pontos discutidos e aprovados via plano (`EnterPlanMode`/`ExitPlanMode`)
+antes de implementar:
+
+1. **Equipe hierárquica.** Hoje a equipe era registrada de 3 formas
+   desconectadas: Projeto só via Grupos (`ProjectPeopleGroup` kind=TEAM),
+   Atividade com pessoa+papel individual (`ProjectActionPeopleParticipation`),
+   Encontro só via Grupos (`ActionOccurrenceTeamGroup`) - sem nenhum campo
+   individual de "responsável pelo encontro", impedindo relatórios como
+   "encontros por profissional" ou "equipe do projeto". **Decidido:**
+   pessoa+papel individual nos 3 níveis, com **cadeia automática subindo**
+   (Encontro→Atividade→Projeto) ao vincular no nível mais baixo - nunca
+   remove sozinha, cadastro direto em Atividade/Projeto continua
+   funcionando, Grupos continuam mecanismo paralelo (não expandem em
+   linhas individuais). Um único enum de papel nos 3 níveis
+   (`ActionPeopleParticipationRole`, já usado pela Atividade - nenhum enum
+   novo). Teto de 10 responsáveis por Encontro, sem mínimo obrigatório.
+   Criação de pessoa nova sem sair do Encontro **ficou de fora desta
+   rodada**, de propósito - registrado em `docs/backlog.md` como próximo
+   ponto.
+2. **Detail do Encontro.** A convenção do projeto é "criar sempre abre o
+   Detail em modo create" - Encontro não seguia isso (só existia como
+   diálogo, `EditOccurrenceDialog`, dentro da aba "Encontros" da
+   Atividade, sem rota própria). Ganhou uma tela de Detail de verdade
+   (`DetailShellEngine`/`defineRecordModule`, mesmo motor genérico de
+   Atividade/Ocorrência), com abas Detalhes/Participantes/Responsáveis -
+   também serviu de teste de que o motor genérico aplica todas as
+   convenções visuais já fechadas numa entidade aninhada nova (precisa de
+   `projectId`+`actionId`, não só `id`).
+
+**Schema:** migration `20261121030354_add_project_meeting_team_participation`
+- `ProjectTeamParticipation` (equipe do Projeto, mesmo formato de
+  `ProjectActionPeopleParticipation` um nível acima, com soft-timeline
+  `isActive`/`startsAt`/`endsAt`/`deletedAt`/`activeKey`) e
+  `MeetingTeamParticipation` (equipe do Encontro, vínculo pontual sem
+  janela de tempo, mais parecido com `OccurrencePeople`). Aplicada sem
+  drift via `npx prisma migrate dev`.
+
+**Backend** (`actions.service.ts`, `project-structure.service.ts`/
+`.controller.ts`, `project-actions.controller.ts`):
+`ensurePersonOnActivityTeam`/`ensurePersonOnProjectTeam` (idempotentes,
+devolvem se criaram vínculo novo, pro resumo do aviso no frontend);
+`addMeetingTeamParticipations` valida o teto de 10 e dispara a cadeia pra
+cada pessoa nova; `listMeetingTeamParticipations`/
+`removeMeetingTeamParticipation`; CRUD de `ProjectTeamParticipation`
+(`listTeamParticipations`/`createTeamParticipation`/`endTeamParticipation`,
+reaproveita permissões `project-structure.*` já existentes - nenhuma
+permissão nova). Endpoint singular novo
+`GET :projectId/actions/:actionId/occurrences/:occurrenceId` (não existia -
+só list/create/update/delete/bulk), necessário pra Detail carregar direto
+pela URL. **Evidência:** `npx prisma migrate dev` → sem drift; `tsc
+--noEmit -p tsconfig.build.json` → 0 erros; `npm test` → 29 suítes/153
+testes sem regressão; `eslint` nos arquivos tocados → medido via diff
+contra baseline (`git stash`), todo problema novo introduzido foi
+corrigido manualmente (nenhum lote de `--fix`, pra não misturar com a
+dívida pré-existente já documentada).
+
+**Frontend:** aba "Equipe" nova no Projeto (`project-team-section.tsx` +
+`project-team-picker-dialog.tsx`, autocontido, mesmo padrão de
+`ProjectGoalsSection`); `MeetingResponsiblesSection`/
+`MeetingTeamPickerDialog` (busca entre pessoas já cadastradas via
+`listPeople`, sem criar pessoa nova - decisão registrada acima); módulo
+novo `modules/actions/features/meetings/` (detail-only, sem lista/nav
+própria - só acessível a partir da aba "Encontros" da Atividade) com
+`meeting-detail-layout-contract.tsx` (`mainTab` pro form virar a 1ª aba
+"Detalhes", campos obrigatórios com asterisco) e
+`MeetingParticipantsSection` (presença+avaliação do Encontro, agora com
+`ListView`+avatar, substituindo a tabela manual `<table>` sem foto);
+rotas `app/.../meetings/new` e `.../meetings/[id]`; registro em
+`web-client/registry/actions/meetings.tsx` +
+`web-client/registry/index.ts`; `action-occurrences-section.tsx`: clique
+na linha e botão "+" agora navegam pro Detail (`EditOccurrenceDialog` e
+a tabela manual de presença removidos, ~650 linhas de código morto);
+"Agendar em lote" (`BulkScheduleOccurrencesDialog`) continua existindo
+como ação secundária, ao lado do switcher Lista/Calendário. **Evidência:**
+`tsc --noEmit` → 0 erros; `npm run build` → ok, rotas `/meetings/[id]` e
+`/meetings/new` aparecem; `eslint` nos arquivos novos/tocados → só
+`react-hooks/set-state-in-effect` (categoria já tolerada em todo o
+projeto, mesmo padrão de `ProjectGoalsSection`/`OccurrencePeoplePickerDialog`),
+2 `no-unused-vars` corrigidos (helpers mortos após remover o diálogo).
+
+**2 bugs reais achados e corrigidos durante o teste end-to-end (Playwright
++ Chromium, login real, backend e frontend de pé):**
+
+1. **Modo create/edit errado no Detail do Encontro.** `mode = id === "new"
+   ? "create" : "edit"` assumia que `useParams().id` seria literalmente
+   a string `"new"` - verdade em `/meetings/[id]` navegando com esse
+   valor, mas **falso** na rota própria `/meetings/new/page.tsx` (sem
+   segmento `[id]` nenhum, `params.id` vem `undefined`). Resultado: a
+   tela de criação carregava em modo "edit" por engano - abas
+   Participantes/Responsáveis apareciam antes de salvar, campos de
+   RichText/fotos também, e não tinha botão "Salvar" (`onSave` só é
+   passado em modo create). Mesmo bug que `OccurrencesDetailEngineClientPage`
+   já tinha resolvido com um fallback (`|| pathname.endsWith("/occurrences/new")`)
+   que eu não tinha copiado - corrigido aplicando o mesmo fallback.
+2. **Exclusão de Encontro com responsável quebrava com erro 500.**
+   `MeetingTeamParticipation.meetingId` é FK RESTRICT (mesmo padrão
+   manual de cascade do resto do arquivo) - excluir um Encontro que já
+   tinha um responsável vinculado falhava. Corrigido adicionando
+   `meetingTeamParticipation.deleteMany` ao mesmo bloco de limpeza manual
+   que já existe em `deleteActionOccurrence` (igual já é feito pra
+   `meetingAttendance`/`actionOccurrenceTeamGroup`/
+   `actionOccurrencePeopleGroup`) - só remove o vínculo pontual deste
+   Encontro, não mexe no que já foi encadeado pra Atividade/Projeto.
+
+**Testado de ponta a ponta via navegador real** (Playwright + Chromium,
+login `admin@seed.local`, backend e frontend reais de pé, sem mock):
+aba "Equipe" nova aparece no Projeto; aba "Encontros" da Atividade mostra
+os botões "Novo"/"Agendar em lote" corretos; clicar "Novo" abre o Detail
+em `/meetings/new?projectId=&actionId=` com só a aba "Detalhes" e
+asterisco em Data/Início; preencher e salvar cria o Encontro (`POST
+.../occurrences` → `201`) e navega pro Detail real
+(`/meetings/{id}?...`), que agora mostra as 3 abas
+Detalhes/Participantes/Responsáveis; aba "Responsáveis" lista
+"Adicionar responsável", abre o picker (10 pessoas carregadas via
+`listPeople`), selecionar "Bianca Torres" e confirmar devolve `201` e o
+toast "Equipe atualizada ... equipe desta Atividade e equipe do Projeto";
+**confirmado via API direta** (não só pelo toast) que "Bianca Torres"
+passou a existir simultaneamente nas 3 tabelas
+(`MeetingTeamParticipation`/`ProjectActionPeopleParticipation`/
+`ProjectTeamParticipation`), todas com `role: FACILITADOR`. Dados de
+teste (4 Encontros de teste, a participação em cadeia de Bianca Torres)
+removidos via API ao final - `endProjectTeamParticipation`/
+`endProjectActionPeopleParticipation` (soft-end) e `deleteMeeting` (hard
+delete, sem soft-delete nesta fase - sinalizado acima); nenhum dado de
+seed foi alterado.
+
+## Item avulso — causa raiz do sticky quebrado: 2 containers de scroll + List Principal sem altura travada (2026-11-20)
+
+Usuário testou a correção anterior (barra de seleção sticky em Encontros)
+e reportou: Encontros ficou fixo mas com espaçamento estranho e visível
+vazio; o List Principal de Atividades (visualmente mais correto) não
+fixava **nada** (nem cabeçalho nem barra), tudo rolava junto. Pediu pra
+deixar tudo igual ao List Principal, porém fixado - e mostrar os
+arquivos ao final.
+
+**Investigação levou a 2 causas raiz, não mais um ajuste pontual:**
+
+1. **Dois contêineres de scroll aninhados.** `components/ui/table.tsx`
+   tinha seu próprio `overflow-x-auto`, dentro do `overflow-auto` que
+   `ListView.tsx` já tem um nível acima - `position: sticky` só
+   funciona relativo ao contêiner de scroll **mais próximo**, que era o
+   de dentro (só rola horizontal, nunca vertical) - por isso sticky
+   vertical nunca tinha efeito em lugar nenhum, nem no List Principal.
+   Corrigido removendo `overflow-x-auto` de `table.tsx` (confirmado por
+   grep: só `ListView.tsx` importa de lá, zero efeito colateral).
+2. **Nenhuma tela de List Principal tem altura de viewport travada em
+   lugar nenhum do sistema** - só o Detail já tinha isso
+   (`DetailShell.tsx`, via `lg:h-[calc(100vh-var(--app-shell-sticky-offset))]`).
+   Sem uma altura **limitada**, o contêiner de scroll do `ListView`
+   nunca precisa rolar de verdade (sempre do tamanho exato do
+   conteúdo) - sticky relativo a ele nunca ativa, mesmo com overflow
+   "correto". Perguntei ao usuário antes de mexer (isso muda o
+   comportamento de scroll de **todas** as telas de lista do sistema,
+   não só Atividades) - aprovado.
+
+**Mudanças:**
+
+- `components/ui/table.tsx`: removido `overflow-x-auto` do container da
+  `Table` - único contêiner de scroll agora é o de `ListView.tsx`.
+- `web-client/record/RecordListHost.tsx`: wrapper do List Principal
+  ganhou `lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))]`
+  (reaproveita a mesma variável que `DetailShell.tsx` já usa, medida
+  globalmente por `AppShell.tsx`) + `{children}` movido pra dentro de um
+  grid `lg:grid-rows-[minmax(0,1fr)_auto]` (lista rola, paginação fica
+  sempre visível). Só em `lg:`, mobile continua igual.
+- `web-client/views/ListView.tsx`: prop renomeada
+  `stickyHeaderOffsetClassName` (string) → `stickyHeaderOffsetPx`
+  (número) - precisava virar número pra `ListView` somar sozinho a
+  altura da própria barra de Colunas/seleção (`BULK_BAR_HEIGHT_PX = 36`)
+  ao offset recebido. Essa barra agora **sempre existe no DOM** (nunca
+  monta/desmonta - só o conteúdo interno aparece/some) e, quando há
+  offset (relation), também vira sticky automaticamente.
+- `action-occurrences-section.tsx` (Encontros): removida a barra
+  "Excluir selecionados" escrita à mão (`<div sticky ...>` que eu tinha
+  adicionado na rodada anterior) - migrado pra usar `bulkActions` do
+  `ListView`, **o mesmo mecanismo que o List Principal já usa** - elimina
+  a implementação duplicada/divergente que causava o espaçamento
+  estranho. `stickyHeaderOffsetPx={117}` (só abas+toolbar - a barra de
+  seleção é somada automaticamente agora, não precisa mais somar 36 na
+  mão).
+- `action-participants-section.tsx`, `action-quality-section.tsx`,
+  `action-team-section.tsx`: só renomeado `stickyHeaderOffsetClassName="top-[117px]"`
+  → `stickyHeaderOffsetPx={117}`.
+
+Checkpoint: `tsc --noEmit` exit 0 (frontend), `eslint` limpo em todos os
+6 arquivos tocados (`ListView.tsx`, `table.tsx`, `RecordListHost.tsx` e
+os 4 arquivos de relations de Atividades - sem nenhum problema novo).
+Documentado em `docs/canonical-web-client-standard.md`: seção de sticky
+reescrita do zero com o estado final + histórico das 2 tentativas
+erradas, e uma lição nova na seção "Por que sticky às vezes não gruda"
+(altura ilimitada quebra sticky tanto quanto overflow errado).
+**Teste manual pendente** - servidores em dev com o usuário; vale
+testar em pelo menos mais um módulo de List Principal (People ou
+Projects) já que o mecanismo agora é compartilhado por todos.
+
+## Item avulso — ordem checkbox/nome + salto de scroll ao excluir em Encontros (2026-11-20)
+
+Usuário reportou 2 problemas depois de testar a exclusão em lote:
+
+1. **Lista principal de Atividades:** a coluna "Atividade" (fixada à
+   esquerda, `initialColumnPinning={{ left: ["title"] }}`) aparecia
+   **antes** do checkbox de seleção, mesmo a seleção sendo sempre a
+   primeira coluna declarada. Causa: o TanStack reordena colunas fixadas
+   pra frente de todas as outras - a coluna principal fixada furava a
+   fila na frente da seleção, que nunca era fixada por conta própria.
+   Corrigido em `ListView.tsx`: ao montar o `columnPinning` inicial, se
+   `enableRowSelection` + alguma coluna fixada à esquerda, `__select__` é
+   prefixado automaticamente nessa lista - nenhum módulo precisa lembrar
+   disso. `getCellStyle` também precisou tratar a coluna de seleção como
+   "coluna líder" (solta o `background` inline da fixação, mas mantém a
+   largura fixa de 32px - diferente da coluna principal, que também
+   solta a largura).
+2. **Aba Encontros: clicar "Excluir selecionados" fazia a tela "rolar"
+   sozinha.** Causa: a barra da seleção (`action-occurrences-section.tsx`)
+   só existia no DOM quando havia seleção (`? <div> : null`) - ao excluir
+   e a seleção limpar, a barra desaparecia, a altura do que fica acima da
+   tabela encolhia de repente, e o cabeçalho sticky (ancorado num offset
+   fixo em px, `stickyHeaderOffsetClassName="top-[117px]"`) recalculava a
+   posição na hora - pareceu scroll, mas era layout mudando embaixo do
+   cabeçalho fixo.
+
+**Primeira correção, rejeitada pelo usuário:** só reservar altura fixa
+pra essa barra (`h-9`, sempre no DOM, só o conteúdo interno some), sem
+fixá-la. Não funciona - a barra reservada não é sticky, então ao rolar
+ela sai de tela normalmente (só ocupava espaço antes de rolar), mas o
+cabeçalho (ancorado contando com essa altura) continua parado no offset -
+abriu um vão sem nada cobrindo, com as linhas da tabela visíveis rolando
+por trás do cabeçalho. **Correção certa (aplicada):** a própria barra
+também é `sticky top-[117px] z-10`, com fundo opaco (`bg-table-header`) -
+nunca sai de tela, só o conteúdo (texto + botão) aparece/some. Cabeçalho
+da tabela continua em `top-[153px]` (117 + 36 da altura da barra).
+
+Checkpoint: `tsc --noEmit` exit 0, `eslint` sem problema novo em
+`ListView.tsx` (limpo) e `action-occurrences-section.tsx` (os 4 erros de
+`react-hooks/set-state-in-effect` são pré-existentes, linhas não tocadas
+por este diff). Documentado em `docs/canonical-web-client-standard.md`:
+regra da coluna de seleção fixada automaticamente junto da principal, e
+regra geral "nenhuma barra condicional dentro do contexto sticky - sempre
+reservar altura fixa, nunca montar/desmontar".
+
+## Item avulso — exclusão segura de Atividades: status INACTIVE + soft delete (2026-11-20)
+
+Usuário notou que Atividades não tinha o checkbox de exclusão (que
+ganhou na aba Encontros) na lista principal, e propôs a regra: só
+permitir excluir com um status "Inativo", e a exclusão em si ser soft
+delete - "assim mantemos com maior segurança o risco de perda de dados.
+E com SoftDelete eu como desenvolvedor posso fazer limpezas periódicas
+no banco." Pedido pra valer como padrão de todo o projeto (People,
+Projects...), mas implementado só em Atividades nesta rodada (Projects/
+People registrados no backlog).
+
+Entrei em modo de planejamento (`EnterPlanMode`) dado o tamanho real:
+migration de schema + mudança de regra de negócio + reconsulta de todo
+lugar que lê Activity + UI. Investigação prévia (2 agentes Explore)
+confirmou: `ActionStatus` já tinha `CANCELED` (decidido remover e usar
+`INACTIVE` no lugar, já que nenhum registro de dev usava `CANCELED` -
+troca seria segura); toda operação Prisma já é auditada automaticamente
+(snapshot `before`/`after`, mesmo em hard delete); soft delete já é
+padrão estabelecido no schema (`ProjectEnrollment`, `PeopleGroupParticipation`,
+`ProjectActionPeopleParticipation` já tem `deletedAt` + o mesmo formato
+de service method).
+
+**Imprevisto real, resolvido sem perda de dado:** `prisma migrate dev`
+recusou aplicar a migration porque um arquivo de migration **já
+aplicada** (`20261116220000_add_meeting_people_group_n_n`) tinha sido
+alterado depois de aplicada (efeito colateral do commit `829c9cb`,
+rename "Grupo"→"Grupos" em massa, que acabou tocando um comentário SQL
+dentro dela) - checksum não batia mais, e o Prisma só oferecia
+`migrate reset` (apaga o banco de dev inteiro). Antes de aceitar isso,
+verifiquei o diff exato: era só um comentário (`-- DataMigration: copia
+o Grupos singular...`, sem efeito em dado/estrutura) - revertido esse
+comentário de volta pro texto original, o descompasso desapareceu sem
+precisar resetar nada. (Usuário confirmou a renomeação "Grupo de
+Pessoas"→"Grupos" em si está correta e consistente no código - só
+restava em docs/histórico e em registros de log antigos do próprio
+`PLAN.md`, como esperado.)
+
+**Mudanças:**
+
+- `schema.prisma`: `ActionStatus` `CANCELED` → `INACTIVE`; `Activity.deletedAt
+  DateTime?` novo. Migration escrita manualmente (`20261120120000_rename_action_status_to_inactive_and_soft_delete`,
+  seguindo o padrão de "recriar enum" já usado em `20261113170301_remove_project_group`)
+  e aplicada via `prisma migrate deploy` (o terminal não suporta o modo
+  interativo de `migrate dev` aqui).
+- `actions.service.ts`: `deleteProjectAction` agora é `update({ data:
+  { deletedAt: new Date() } })` com `BadRequestException` se `status !==
+  'INACTIVE'` - os 8 `deleteMany` em cascata que existiam (FKs RESTRICT)
+  foram removidos, não fazem sentido mais (update nunca dispara RESTRICT).
+  `deletedAt: null` adicionado em `buildProjectActionWhere`/
+  `ensureProjectActionExists`; mesma coisa em `project-structure.service.ts`
+  (contagem pra bloquear exclusão de Goal) e `dashboard.service.ts` (2
+  agregações).
+- Frontend: `ActionStatus`/`ACTION_STATUS_LABELS`/`ACTION_STATUS_OPTIONS`
+  (`CANCELED`→`INACTIVE`, label "Inativa"), os 2 `switch` que tratavam o
+  badge de status (`project-action-manage-dialog.tsx`,
+  `actions-list-module-client-page.tsx`). Nova constante
+  `ACTION_DELETABLE_STATUS`. Lista principal de Atividades
+  (`actions-list-module-client-page.tsx`) ganhou `enableRowSelection` +
+  `bulkActions` ("Excluir selecionados") - valida no cliente que toda
+  linha selecionada está `INACTIVE` antes de confirmar (mensagem clara se
+  não, sem exclusão parcial), `useConfirm` + `runInBatches` contra o
+  mesmo endpoint de delete existente (sem endpoint de lote novo, mesma
+  decisão já tomada pra Encontros).
+
+**Checkpoint:** backend `npx tsc --noEmit -p tsconfig.build.json` exit 0.
+`npx eslint` nos 3 arquivos de backend tocados - sem erro novo, exceto 2
+ocorrências de `no-unsafe-member-access` em `deleteProjectAction`
+(`existing.deletedAt`/`existing.status`), herdadas do retorno já sem
+tipo próprio de `ensureProjectActionExists` (debt pré-existente, não uma
+categoria nova). Frontend `npx tsc --noEmit` exit 0, `eslint` limpo (o
+erro de `react-hooks/set-state-in-effect` que aparece em
+`actions-list-module-client-page.tsx` é pré-existente - `git diff`
+confirma que a linha em si não foi tocada).
+**Documentado** em `docs/canonical-web-client-standard.md` (nova seção
+"Exclusão é sempre soft delete, atrás de um status terminal do próprio
+módulo") e `docs/backlog.md` (item pra estender o mesmo padrão a
+Projects/People, com o porquê de cada um precisar de uma decisão própria
+em vez de copiar `INACTIVE` igual).
+**Teste manual:** pendente - servidores em modo dev ficaram com o
+usuário pra validar (marcar uma Atividade como "Inativa", selecionar +
+excluir, confirmar que some da lista e que a linha ainda existe no banco
+com `deletedAt` preenchido).
+
+## Item avulso — tabelas: largura de coluna, tooltip, zebra e padding (2026-11-20)
+
+Usuário pediu 5 ajustes na tabela principal de Atividades, como referência
+pra aplicar depois em todo `ListView` (confirmado antes de começar: o
+componente é o mesmo em 27 telas — People, Projects, Programs, Tasks,
+Pantry, Deposit, Occurrences, People-Groups, Admin e Atividades).
+
+**O que mudou (tudo no componente compartilhado, propaga pras 27 telas):**
+
+- `web-client/views/ListView.tsx`: nova `getColumnWidthStyle()` +
+  `DEFAULT_COLUMN_MAX_WIDTH = 280` (export) — toda coluna sem `maxSize`
+  próprio cresce com o conteúdo até 280px, depois trunca com "..." sem
+  quebrar linha (classes já existiam em `table.tsx`, só faltava um
+  `max-width` real pra elas funcionarem). Coluna com `maxSize: Infinity`
+  no `ColumnDef` renderiza sem limite.
+- Cabeçalho: `bg-muted/10` → `bg-muted/25` (mais perceptível).
+- Zebra: linhas ímpares (`rowIndex % 2`, calculado localmente por bloco de
+  linhas pra não contar linha de cabeçalho de grupo) ganham `bg-muted/5`.
+- Padding lateral: `containerClassName` do `Table` ganhou `px-1` (4px) —
+  a tabela não encosta mais na borda do cartão.
+- Novo `web-client/ui/TruncatedTextCell.tsx`: célula de texto truncado +
+  `Tooltip` (shadcn, já existia mas só era usado em `sidebar.tsx`) com o
+  valor completo.
+- `modules/actions/features/list/ui/actions-list-module-client-page.tsx`:
+  coluna "Atividade" (title) ganhou `maxSize: Infinity` (coluna principal,
+  renderiza completa); colunas "Projeto"/"Grupos"/"Participante" passaram
+  a usar `TruncatedTextCell`.
+- **Achado registrado em `docs/backlog.md`:** `Activity.title` não tem
+  limite de tamanho no banco (coluna `TEXT` no Postgres, só
+  `@MaxLength(160)` de validação de aplicação) — documentado, não
+  corrigido agora (fora do pedido).
+
+**Checkpoint rápido:** `cd frontend && npx tsc --noEmit` → sem erros (exit 0).
+`npx eslint` nos arquivos tocados → 0 problemas novos (o erro de
+`react-hooks/set-state-in-effect` que aparece em
+`actions-list-module-client-page.tsx` é pré-existente, fora do diff desta
+sessão).
+**Documentado** em `docs/canonical-web-client-standard.md`, nova seção
+"Tabela (`ListView`): largura de coluna, truncamento, tooltip, zebra e
+padding", com referência cruzada na seção de relation.
+**Teste manual:** usuário testou e reportou "não estou vendo as diferenças
+de cores" (cabeçalho, coluna principal, zebra). Causa: `--muted` e
+`--background` são quase idênticos em luminosidade neste tema — `bg-muted/10`
+(original) e depois `bg-muted/25` (header) e `bg-muted/5` (zebra) ficaram
+imperceptíveis na prática. **Recalibrado (mesmo commit, 2026-11-20):**
+
+- Cabeçalho: `bg-muted/25` → `bg-toolbar` (token já validado em outras
+  telas pra "isso é uma barra de ferramentas/cabeçalho").
+- Zebra: `bg-muted/5` → `bg-muted/40` (menor valor que ficou visível nos
+  testes, ainda mais fraco que hover `/50` e selecionado `100%`).
+- Coluna principal: não tinha nenhum realce visual ainda (só não truncava)
+  — item 2 do pedido do usuário não tinha sido implementado. Adicionado
+  `isPrimaryColumn()` (mesmo sinal `maxSize: Infinity`) → `bg-primary/10`
+  no cabeçalho da coluna, `bg-primary/5` nas células.
+Checkpoint repetido: `tsc --noEmit` exit 0, `eslint` limpo nos arquivos
+tocados. Documentado em `docs/canonical-web-client-standard.md` com uma
+nota explícita ("Lição pra reaproveitar") sobre não assumir que
+`bg-muted`/opacidade baixa tem contraste suficiente neste tema sem
+conferir. Validação visual final ainda pendente com o usuário.
+
+**Centralização pedida pelo usuário (mesmo item, 2026-11-20):** as 3 cores
+acima (`bg-toolbar`, `bg-muted/40`, `bg-primary/10`+`bg-primary/5`) saíram
+do `ListView.tsx` e foram pra 3 variáveis dedicadas em
+`frontend/src/app/globals.css` - `--table-header`, `--table-row-zebra`,
+`--table-column-primary`, uma versão em `:root` (claro) e uma em `.dark`
+(escuro), mapeadas em `@theme inline` (mesmo mecanismo de `--toolbar`/
+`bg-toolbar`). `ListView.tsx` agora só usa `bg-table-header`/
+`bg-table-row-zebra`/`bg-table-column-primary` - toda calibração futura de
+cor de tabela (claro ou escuro) é só nessas 6 linhas do `globals.css`, sem
+tocar em componente. Checkpoint: `tsc --noEmit` exit 0, `eslint` limpo.
+
+**Correção de mecanismo (mesmo item, 2026-11-20):** usuário reportou
+`--table-column-primary` "não está sendo aplicada" mesmo depois de editar
+o valor manualmente (inclusive pra uma cor sólida bem saturada) - e
+esclareceu a intenção: a coluna principal deveria ser **sempre a primeira
+coluna**, não uma config por `ColumnDef`. O mecanismo anterior detectava a
+coluna principal por um sinal manual (`maxSize: Infinity` no `ColumnDef` de
+cada módulo) - trocado por detecção automática e posicional
+(`getPrimaryColumnId` em `ListView.tsx`: primeira coluna de dado visível,
+pulando a de seleção). Atividades teve o `maxSize: Infinity` removido da
+coluna "Atividade" (agora automático, não precisa mais declarar nada).
+Checkpoint: `tsc --noEmit` exit 0, `eslint` limpo nos 3 arquivos tocados
+(`ListView.tsx`, `TruncatedTextCell.tsx`, `actions-list-module-client-page.tsx`).
+Documentado em `docs/canonical-web-client-standard.md` com o histórico do
+porquê da troca de mecanismo.
+
+**Causa raiz real + grupo completo de variáveis (mesmo item, 2026-11-20):**
+o bug de "a cor não aplica" não era de contraste - era de especificidade.
+Duas causas, as duas corrigidas:
+
+1. `getPinnedStyles` (coluna fixada via `initialColumnPinning`, ex.: "title"
+   em Atividades) define `background` **inline**, que sempre vence
+   `className` - isso anulava `bg-table-column-primary` silenciosamente.
+   Corrigido em `getCellStyle` (`ListView.tsx`): remove o `background`
+   inline quando a coluna é a principal.
+2. Ter uma classe de fundo "base" e outra "condicional" no **mesmo
+   elemento** (ex.: `bg-table-header` sempre + `bg-table-column-primary`
+   condicional, ambas no `<th>`) depende da ordem de geração do Tailwind
+   pra decidir quem ganha - não confiável. Corrigido movendo o fundo "base"
+   pro elemento **pai** (`bg-table-header` no `<thead>`, não em cada
+   `<th>`; idem `bg-table-row`/`bg-table-row-zebra` - `ListView.tsx` sempre
+   escolhe uma das duas por linha, nunca as duas).
+
+Usuário pediu, junto, pra generalizar: expandi as 3 variáveis de cor pra
+**9 variáveis** cobrindo tudo que apareceu no pedido (header, linha, zebra,
+coluna principal, texto do cabeçalho, texto da linha, borda, padding
+horizontal, padding vertical do corpo) - `--table-header`,
+`--table-header-foreground`, `--table-row`, `--table-row-zebra`,
+`--table-row-foreground`, `--table-column-primary`, `--table-border`,
+`--table-cell-padding-x`, `--table-cell-padding-y` (+ `--table-header-padding-y`
+só pro cabeçalho), todas em `frontend/src/app/globals.css` (`:root`+`.dark`),
+mapeadas em `@theme inline`. **Altura da linha agora é controlada por
+padding** (`--table-cell-padding-y`), não por uma classe de altura fixa
+(`h-12`/`h-11` removidas de `ListView.tsx`/`table.tsx`) - pedido explícito
+do usuário.
+`components/ui/table.tsx` ficou com toda a estrutura de base (antes
+duplicada/sobrescrita entre esse arquivo e `ListView.tsx`); `ListView.tsx`
+só mantém o que é genuinamente dinâmico (zebra por índice, coluna principal
+por posição, fixação de coluna, offset de header sticky em relation).
+Checkpoint: `tsc --noEmit` exit 0, `eslint` limpo em `ListView.tsx` e
+`table.tsx`. Documentado em `docs/canonical-web-client-standard.md` com
+tabela das 9 variáveis + a regra de arquitetura (fundo base no pai, nunca
+duas classes de fundo concorrendo no mesmo elemento) pra não repetir o bug.
+
+**Último ajuste (mesmo item, 2026-11-20):** cor confirmada funcionando pelo
+usuário, mas a largura da 1ª coluna continuava cortando o nome **só** no
+List Principal de Atividades (igual nas relations, onde nenhuma coluna é
+fixada). Causa: `getPinnedStyles` também define largura fixa
+(`width`/`minWidth`/`maxWidth` = 150px) inline pra qualquer coluna fixada
+(`initialColumnPinning`) - a mesma razão estrutural do bug de cor, só que
+pra `width` em vez de `background`. `getCellStyle` agora, pra coluna
+principal fixada, mantém só `position`/`left`/`right`/`zIndex` (o que a
+fixação realmente precisa) e usa `getColumnWidthStyle` (sem limite) pra
+largura - sem herdar o `width` fixo. Resultado: 1ª coluna igual, fixada ou
+não. Checkpoint: `tsc --noEmit` exit 0, `eslint` limpo.
+
+## Item avulso — tirar o segundo valor da coluna principal (2026-11-20)
+
+Usuário percebeu a diferença real entre as tabelas: a coluna principal de
+Atividades ("Atividade") e de Participantes/Qualidade ("Participante"/
+"Pessoa") mostrava **dois valores empilhados** (nome + tipo da atividade;
+nome + Grupos) - só Encontros ("Data") tinha um valor só. Pediu pra tirar
+o segundo valor da coluna principal nas três e criar coluna própria pra
+cada um.
+
+**Atividades** (`actions-list-module-client-page.tsx`): tirado o tipo da
+célula de "Atividade"; nova coluna "Tipo" (`resolveActivityTypeLabel`).
+**Participantes** (`action-participants-section.tsx`): tirados os Grupos
+da célula de "Participante"; nova coluna "Grupos" com `TruncatedTextCell`.
+**Qualidade** (`action-operational-relations.tsx`): `renderParticipantIdentity`
+(compartilhada com `project-action-attendances-card.tsx` de Projects, fora
+do escopo desta rodada) ganhou a prop `showGroupsSubtitle` (default `true`,
+preserva Projects sem nenhuma mudança) - `buildQualityColumns` passa
+`false` e ganhou a nova coluna "Grupos" (label novo em
+`action-relations.constants.ts`).
+
+Checkpoint: `tsc --noEmit` exit 0, `eslint` sem problema novo nos 4
+arquivos tocados. Documentado em `docs/canonical-web-client-standard.md`:
+regra "coluna principal mostra um valor só, nunca duas linhas empilhadas -
+informação secundária vira coluna própria" na seção Tabela.
+
+## Item avulso — reativar borda nas relations + sincronizar padding claro/escuro (2026-11-20)
+
+Usuário reportou dois pontos depois de testar a reestruturação de
+variáveis de tabela: (1) `--table-border` não tinha efeito nenhum nas
+relations de Atividades, e (2) o padding não estava "funcionando" -
+pediu pra reativar a borda seguindo `--table-border` e revisar se algum
+componente pai estava bloqueando o padding.
+
+**Investigação do padding:** revisei `ListView.tsx`, `table.tsx`,
+`RelationListHost.tsx`, `DetailRelationTablePanel.tsx`/`TableView.tsx` e
+confirmei por grep que `components/ui/table.tsx` só é importado por
+`ListView.tsx` - nenhum outro componente passa `className` conflitante
+pra `TableCell`/`TableHead`. **Achado real:** `--table-cell-padding-y`/
+`--table-header-padding-y` tinham sido editados pra `8px` só em `:root`
+(claro) - o bloco `.dark` continuava em `12px` (valor original, nunca
+tocado). Não é bug de componente - só os dois blocos de `globals.css`
+desincronizados. Corrigido igualando os dois a `8px`.
+
+**Borda nas relations:** confirmado que `bordered={false}` forçava
+`border-bottom-width: 0` via `[&_tr]:border-b-0` (especificidade mais alta
+que a borda padrão do `TableRow`) - a cor de `--table-border` não tinha
+como aparecer, por design antigo (relation "sem linha divisória").
+Reativado: `bordered` agora só controla a borda **externa** do cartão
+(`ModuleSurface`); as linhas internas sempre seguem `--table-border`,
+relation ou não. `className` do `UiTable` em `ListView.tsx` simplificada
+(só o `[&_tbody_tr:last-child]:border-b-0` que já existia, pra não ter
+divisória depois da última linha).
+
+Checkpoint: `tsc --noEmit` exit 0, `eslint` limpo em `ListView.tsx`.
+Documentado em `docs/canonical-web-client-standard.md`: a prop `bordered`
+atualizada (só afeta a borda externa agora), e uma nota nova lembrando de
+conferir os dois temas (`:root`/`.dark`) antes de concluir que uma
+variável "não funciona".
+
+## Item avulso — padrão de exclusão em lote elevado a padrão do projeto (2026-11-20)
+
+Usuário aprovou o resultado da junção checkbox+coluna principal em
+Encontros e pediu pra declarar isso como **padrão de todo o projeto**,
+não só de Atividades: "sempre que tiver necessidade de exclusão será
+dessa forma."
+
+Como o mecanismo inteiro (`isLeadingColumn`, `SELECTION_CHECKBOX_CLASS_NAME`)
+mora no componente compartilhado `ListView.tsx` (não em código por
+módulo), isso **já vale automaticamente** pra qualquer tela que ligar
+`enableRowSelection` - conferido por grep: `project-enrollments-card.tsx`,
+`project-action-attendances-card.tsx` (Projects), `pantry-donors-module-client-page.tsx`,
+`deposit-donors-module-client-page.tsx` (Pantry/Deposit) já usam
+`enableRowSelection` e já herdam o visual novo sem precisar de nenhuma
+mudança própria. Nenhum código adicional foi necessário - só a
+documentação formal do padrão.
+
+**Documentado** em `docs/canonical-web-client-standard.md` como nova
+seção própria ("Exclusão em lote: seleção colada à coluna principal") -
+promovida de um bullet dentro da seção de Tabela pra uma regra explícita
+de projeto, com o critério de quando usar (precisa existir uma ação real
+de exclusão em lote por trás - não adicionar o checkbox só por
+padronização visual) e `action-occurrences-section.tsx` como referência
+viva completa do fluxo (seleção, confirmação, exclusão em lote real).
+
+## Item avulso — Atividades: padronizar visual das relations (Participantes/Encontros/Qualidade/Equipe) + coluna de seleção (2026-11-20)
+
+Usuário notou que as relations do rodapé do Detail de Atividades
+(Participantes, Encontros, Qualidade) não tinham todos os elementos
+visuais iguais ao List Principal, e pediu pra aplicar o mesmo padrão
+(largura/zebra/cabeçalho/coluna principal) em todas - só dentro do módulo
+Atividades, documentando no backlog se existisse tabela fora desse escopo.
+
+**Investigação:** `flushToolbar` (o mecanismo que exige `stickyHeaderOffsetClassName`
+no `ListView` interno pra o cabeçalho colar certo) é usado **só** em
+Atividades (Participantes/Encontros/Qualidade/Equipe) - nenhum outro
+módulo usa, então nada pra registrar no backlog quanto a isso.
+
+**Causa raiz do "visual diferente":** Participantes, Qualidade e Equipe
+tinham a mesma barra fixa que Encontros, mas **só Encontros** tinha
+`stickyHeaderOffsetClassName="top-[117px]"` no `ListView` - sem isso, o
+cabeçalho da tabela não alinhava corretamente embaixo da barra. Corrigido
+nas 3 (adicionado o mesmo offset de Encontros).
+
+**Coluna de seleção, pedido explícito:** a ação de marcar checkbox +
+"Excluir selecionados" (hoje só em Encontros) devia "ficar colada com o
+nome, recebendo o mesmo visual, como coluna de ações" + checkbox mais
+sutil. Implementado em `ListView.tsx` (vale pras 27+ telas que usam o
+componente, não só Atividades):
+
+- Nova `isLeadingColumn` (seleção OU coluna principal) - a coluna de
+  seleção agora ganha o mesmo `bg-table-column-primary`, sem costura de
+  cor com a coluna principal.
+- `SELECTION_CHECKBOX_CLASS_NAME` (`border-muted-foreground/40 shadow-none`)
+  nos dois checkboxes (cabeçalho "selecionar todos" + linha).
+
+**Pergunta feita ao usuário:** Participantes e Qualidade não têm operação
+de exclusão em lote por trás (resumo agregado / edição, não registro com
+delete) - adicionar o checkbox ali seria um botão sem ação real. Usuário
+confirmou: **não adicionar seleção** nessas duas, só nas que já têm ação
+real (Encontros).
+
+Checkpoint: `tsc --noEmit` exit 0; `eslint` nos 5 arquivos tocados sem
+problema novo (os 4 erros de `react-hooks/set-state-in-effect` em
+`action-occurrences-section.tsx` são pré-existentes - `git diff --stat`
+confirma zero alteração nesse arquivo nesta rodada). Documentado em
+`docs/canonical-web-client-standard.md`: regra "toda relation `flushToolbar`
+precisa do offset", a coluna de seleção como "coluna de ação colada à
+principal", e a regra de não adicionar seleção sem ação real por trás.
+
+## Item avulso — Atividades: reaproveitar formulário create/edit + sinalização de campo obrigatório (2026-11-20)
+
+Usuário notou que o formulário de criar Atividade ficou diferente do de
+editar/ler, porque só o de edição (`ActivityDetailMain`) foi migrado na
+padronização visual — criar continuava no formulário legado
+(`ActionCreateFormSection`), violando a própria regra do padrão canônico
+("new e edit usam o mesmo formulário"). Pediu duas correções: (1) sinais
+visuais de campo obrigatório no formulário e (2) fazer `create` reaproveitar
+o formulário de `edit` (o mais atual).
+
+**O que mudou:**
+
+- `web-client/detail/DetailFormSection.tsx`: `DetailSectionField` ganhou prop
+  `required?: boolean` — asterisco vermelho (`text-destructive`) ao lado do
+  label. Prop compartilhada, disponível pra qualquer módulo que queira o
+  mesmo sinal (nenhum outro módulo foi tocado nesta rodada).
+- `modules/actions/config/actions-detail-layout-contract.tsx`:
+  `ActivityDetailMain` passou a receber `mode`/`projectId`/`onProjectIdChange`
+  e agora é o único formulário usado tanto em `create` quanto em `edit`
+  (`main` não tem mais `if (mode === "create")`). Campo Projeto: texto
+  read-only em `edit` (como já era), `<Select>` editável + obrigatório só em
+  `create` (porque `/actions/new` pode chegar sem `projectId` na URL).
+  Título e Tipo marcados `required` sempre; Grupos marcado `required` só
+  quando o Tipo selecionado usa Grupos (mesma regra que o backend já
+  valida em `actions.service.ts`).
+- `modules/actions/features/create/ui/action-create-engine-client-page.tsx`:
+  reescrito — antes era uma casca estática (`readOnly: true`, todo
+  `setDraft`/`onCommitField` no-op) que só existia pra renderizar o form
+  legado; agora tem estado real (`draft`/`projectId`) e `handleCreate`
+  (mesmo padrão já usado por Projects/People: valida o mínimo no cliente,
+  deixa o backend validar regra de negócio como "Grupos obrigatório",
+  chama `createActivity` e redireciona pra `/actions/:id`), ligado via
+  `onSave` do `DetailShellEngine` (mesmo mecanismo que já renderiza o
+  botão "Salvar" pra Projects/People em `create`).
+- Removidos (ficaram sem nenhum importador depois da migração):
+  `modules/actions/features/create/ui/action-create-form-section.tsx` e
+  `modules/actions/features/create/config/action-create.constants.ts`.
+- **Decisão explícita:** a seção "Equipe responsável" (Gestor/Educador) que
+  existia só no formulário de criar foi removida, não migrada — ela já não
+  funcionava de verdade ali (mostrava "Disponível após criar a atividade",
+  porque depende de um `actionId` real) e duplicava o que a aba "Equipe" já
+  faz depois que a atividade existe.
+
+**Checkpoint rápido:** `cd frontend && npx tsc --noEmit` → sem erros (exit 0).
+`npx eslint` nos 4 arquivos tocados → 0 problemas novos (os 8 erros de
+`react-hooks/set-state-in-effect` que aparecem em
+`action-detail-engine-client-page.tsx` são pré-existentes, fora do diff
+desta sessão — mesma dívida já registrada em `docs/backlog.md`).
+**Teste manual feito pelo usuário** (servidores em modo dev): aprovado,
+só precisou ajustar o padding do formulário (`ACTION_DETAIL_SECTION_CLASS`
+em `actions-detail-layout-contract.tsx`: `px-0` → `px-4`).
+
+**Documentado como convenção formal em `docs/canonical-web-client-standard.md`**
+(2026-11-20), pra todo módulo seguir daqui pra frente, não só Atividades:
+
+- seção `detailSlot`: nota do mecanismo de "mesmo formulário" (prop `mode`,
+  ramificação por campo, nunca componente separado por modo).
+- nova seção "Create reaproveita o formulário de edit, nunca um componente
+  paralelo" (mecanismo completo: `draft`/`onCommitField` nos dois modos,
+  autosave desabilitado em `create`, botão único via `onSave` do
+  `DetailShellEngine`, validação mínima no cliente + erro de negócio vindo
+  do backend).
+- nova seção "Campo obrigatório: asterisco via `DetailSectionField`"
+  (prop `required`, estático vs. condicional por outro campo ou por `mode`,
+  sempre espelhando a regra real do backend/DTO, nunca por "parece
+  importante").
+
 ## Item avulso — Atividades: mais melhorias item por item (2026-11-18)
 
 Usuário pediu pra continuar refinando o Detail da Atividade, mas resolver

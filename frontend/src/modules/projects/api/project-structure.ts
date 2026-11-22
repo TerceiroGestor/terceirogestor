@@ -4,12 +4,15 @@ import type {
   ApiProjectEnrollment,
   ApiProjectFundingSource,
   ApiProjectPeopleGroup,
+  ApiProjectTeamParticipation,
   EligibleProjectPeopleListResponse,
+  EndProjectTeamParticipationInput,
   GoalInput,
   ProjectEnrollmentInput,
   ProjectEnrollmentsListResponse,
   ProjectFundingSourceInput,
   ProjectPeopleGroupInput,
+  ProjectTeamParticipationInput,
   SyncPeopleGroupEnrollmentsInput,
   SyncPeopleGroupEnrollmentsResponse,
 } from "./types";
@@ -301,6 +304,42 @@ export async function deleteProjectGoal(
   return apiRequest<{ ok: true }>(
     `/projects/${projectId}/goals/${goalId}`,
     { method: "DELETE" },
+    token,
+  );
+}
+
+export async function listProjectTeamParticipations(
+  token: string,
+  projectId: string,
+) {
+  return apiRequest<ApiProjectTeamParticipation[]>(
+    `/projects/${projectId}/team-participations`,
+    {},
+    token,
+  );
+}
+
+export async function createProjectTeamParticipation(
+  token: string,
+  projectId: string,
+  payload: ProjectTeamParticipationInput,
+) {
+  return apiRequest<ApiProjectTeamParticipation>(
+    `/projects/${projectId}/team-participations`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function endProjectTeamParticipation(
+  token: string,
+  projectId: string,
+  participationId: string,
+  payload?: EndProjectTeamParticipationInput,
+) {
+  return apiRequest<{ ok: true }>(
+    `/projects/${projectId}/team-participations/${participationId}/end`,
+    { method: "PATCH", body: JSON.stringify(payload ?? {}) },
     token,
   );
 }

@@ -13,6 +13,7 @@ import {
   type RecordBrowserViewOption,
 } from "@/components/record-browser/RecordBrowserViewSwitcher";
 import { getStandardViewIcon } from "@/web-client/registry/view-icons";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 function formatAttendanceRate(value: number | null) {
   if (value === null) return "—";
@@ -31,14 +32,17 @@ function buildAttendanceSummaryColumns(): ColumnDef<ActionAttendanceSummaryItem>
       header: "Participante",
       accessorFn: (row) => row.enrollment.person.fullName,
       cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">
-            {row.original.enrollment.person.fullName}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.enrollment.peopleGroups.map((group) => group.name).join(", ") || "—"}
-          </div>
-        </div>
+        <div className="font-medium">{row.original.enrollment.person.fullName}</div>
+      ),
+    },
+    {
+      id: "peopleGroups",
+      header: "Grupos",
+      accessorFn: (row) => row.enrollment.peopleGroups.map((group) => group.name).join(", "),
+      cell: ({ row }) => (
+        <TruncatedTextCell
+          text={row.original.enrollment.peopleGroups.map((group) => group.name).join(", ")}
+        />
       ),
     },
     {
@@ -49,7 +53,7 @@ function buildAttendanceSummaryColumns(): ColumnDef<ActionAttendanceSummaryItem>
         const { attendanceRate, presentCount, totalMeetings } = row.original;
         return (
           <div className="space-y-0.5">
-            <div className="font-medium text-foreground">
+            <div className="font-medium">
               {formatAttendanceRate(attendanceRate)}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -195,6 +199,10 @@ export function ActionParticipantsSection({
             groupByFields={groupBy}
             resolveGroupValue={resolveGroupValue}
             resolveGroupLabel={resolveGroupLabel}
+            // Abas (44px) + toolbar da relation (flushToolbar, ~73px com
+            // py-4) ja ficam sticky acima, no mesmo contexto de scroll -
+            // mesmo ajuste de Encontros (action-occurrences-section.tsx).
+            stickyHeaderOffsetPx={117}
           />
         )}
       </RelationListHost>

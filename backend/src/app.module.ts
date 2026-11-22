@@ -24,6 +24,7 @@ import { ProjectStructureModule } from './modules/project-structure/project-stru
 import { RegistrationModule } from './modules/registration/registration.module';
 import { ActionsModule } from './modules/actions/actions.module';
 import { OccurrencesModule } from './modules/occurrences/occurrences.module';
+import { AttendancesModule } from './modules/attendances/attendances.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
 import { existsSync } from 'fs';
@@ -69,6 +70,7 @@ const rootEnvFilePaths = [
     ProjectStructureModule,
     ActionsModule,
     OccurrencesModule,
+    AttendancesModule,
     RegistrationModule,
     DashboardModule,
     TasksModule,

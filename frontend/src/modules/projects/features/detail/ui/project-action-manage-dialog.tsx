@@ -32,7 +32,7 @@ function formatPeriod(start: string | null, end: string | null) {
 function resolveStatusBadge(status: ActionStatus) {
   const label = ACTION_STATUS_LABELS[status] ?? status;
   switch (status) {
-    case "CANCELED":
+    case "INACTIVE":
       return <Badge variant="outline">{label}</Badge>;
     case "EXECUTED":
       return <Badge variant="secondary">{label}</Badge>;

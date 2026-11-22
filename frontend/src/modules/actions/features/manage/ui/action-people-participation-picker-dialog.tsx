@@ -123,7 +123,7 @@ export function ActionPeopleParticipationPickerDialog({
               hasMedication={row.original.person.hasMedication}
             />
             <div className="space-y-0.5">
-              <div className="font-medium text-foreground">{row.original.person.fullName}</div>
+              <div className="font-medium">{row.original.person.fullName}</div>
               <div className="text-xs text-muted-foreground">
                 {PROJECT_PARTICIPATION_ROLE_LABELS[row.original.role] ?? row.original.role}
                 {row.original.peopleGroups?.length

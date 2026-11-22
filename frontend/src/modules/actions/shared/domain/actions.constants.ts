@@ -13,14 +13,17 @@ export type ActionTarget = "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
   PLANNED: "Planejada",
   EXECUTED: "Executada",
-  CANCELED: "Cancelada",
+  INACTIVE: "Inativa",
 };
 
 export const ACTION_STATUS_OPTIONS = [
   { label: ACTION_STATUS_LABELS.PLANNED, value: "PLANNED" },
   { label: ACTION_STATUS_LABELS.EXECUTED, value: "EXECUTED" },
-  { label: ACTION_STATUS_LABELS.CANCELED, value: "CANCELED" },
+  { label: ACTION_STATUS_LABELS.INACTIVE, value: "INACTIVE" },
 ] satisfies { label: string; value: ActionStatus }[];
+
+/** Única exigência pra liberar exclusão em lote na lista de Atividades - ver `handleBulkDelete` em `actions-list-module-client-page.tsx`. */
+export const ACTION_DELETABLE_STATUS: ActionStatus = "INACTIVE";
 
 export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
   PRESENT: "Presente",

@@ -342,17 +342,29 @@ adiado sem gatilho. Formato do Alicerce.
   fix sem um repro real.
 
 - **Comentários/Histórico/Contexto ainda no `sideSlot` de Projects,
-  Programs, Tasks, Pantry e Deposit** — a partir de 2026-11-18 o padrão
-  canônico do `sideSlot` é só `Tags`/`Notas`/`Anexos`/`Auditoria` (ver
+  Programs, Tasks, Pantry, Deposit, Occurrences e Attendances** — a
+  partir de 2026-11-18 o padrão canônico do `sideSlot` é só
+  `Tags`/`Notas`/`Anexos`/`Auditoria` (ver
   `docs/canonical-web-client-standard.md`, seção `sideSlot`); People e
-  Activity já seguem isso, os outros 5 módulos ainda não foram migrados
+  Activity já seguem isso, os outros módulos ainda não foram migrados
   — decisão explícita do usuário foi fechar só a Atividade nesta rodada
-  e deixar o resto pra trás.
-  **Gatilho:** próxima vez que um desses 5 módulos for mexido por outro
+  e deixar o resto pra trás. **Occurrences e Attendances são um caso
+  pior que os outros 5:** nem sequer passam `tags`/`notes`/
+  `attachments`/`tabOrder` pro `StandardDetailMetadataSide` (achado
+  durante a revisão de convenção de 2026-11-21) — caem no fallback de
+  compatibilidade do componente, que mostra as abas "Histórico" e
+  "Contexto" (que não deveriam mais existir em nenhum módulo canônico)
+  e não mostra Tags/Notas/Anexos nenhum. Fechar isso não é só mudar o
+  frontend: exige schema novo no backend (tabelas de metadata — tag,
+  nota, anexo — para `Occurrence` e `Attendance`, espelhando
+  `ProjectActionComment`/`ProjectActionAttachment`/`PersonRecordTag`),
+  já que essas entidades nunca ganharam esse suporte.
+  **Gatilho:** próxima vez que um desses módulos for mexido por outro
   motivo, ou quando a padronização dos módulos restantes entrar em
   pauta por conta própria — migrar seguindo o mesmo padrão aplicado em
   Activity (tirar `comments`/`history`/`contextItems` do `side`, dar
-  `richText`/`mentionUsers` pra `notes` se ainda não tiver).
+  `richText`/`mentionUsers` pra `notes` se ainda não tiver); pra
+  Occurrences/Attendances, desenhar e migrar o schema de metadata antes.
 
 - **Achados de densidade visual/estrutural fora de escopo, por módulo
   (investigação de 2026-11-18, não tocados por decisão do usuário):**
@@ -370,6 +382,70 @@ adiado sem gatilho. Formato do Alicerce.
   for mexido por outro motivo — ou quando o usuário pedir uma rodada de
   padronização dedicada aos módulos restantes (nos moldes desta sessão e
   da sessão de padronização visual de 2026-11-17).
+
+- **`text-foreground` fixo dentro da célula de várias colunas (não só a
+  principal) anula `--table-row-foreground`/
+  `--table-column-primary-foreground` em 6 módulos de lista (achado em
+  2026-11-21, revisão de cor da tabela de Atendimento e Atividades).** O
+  `cell` do `ColumnDef` envolve o valor num `<div>`/`<span>` com
+  `text-foreground` fixo — isso prende a cor do texto naquele elemento,
+  que é mais interno que o `<tr>`/`<td>` que carregam as variáveis
+  (`text-table-row-foreground` no `TableRow`,
+  `!text-table-column-primary-foreground` no `TableCell` da coluna
+  principal, ambos em `ListView.tsx`/`table.tsx`) — herança de `color` não
+  tem como vencer uma declaração mais interna, não é uma questão de
+  especificidade CSS. **Corrigido em Attendances** (só a coluna principal,
+  única com o problema ali) **e em Actions/Atividades — módulo inteiro,
+  2026-11-21:** lista principal (`actions-list-module-client-page.tsx` —
+  "Atividade", "Tipo", "Inicio", "Cadastro") **e todas as relations do
+  rodapé e sub-relations:** `action-participants-section.tsx`
+  ("Participante" + valor principal de "Frequência"),
+  `action-team-section.tsx` ("Pessoa"), `meeting-participants-section.tsx`
+  (dentro do Detail de um Encontro, "Participante"),
+  `meeting-responsibles-section.tsx` (idem, "Pessoa"),
+  `action-people-participation-picker-dialog.tsx` e
+  `meeting-team-picker-dialog.tsx` (diálogos de adicionar pessoa/
+  responsável). `action-occurrences-section.tsx` (Encontros) e
+  `action-quality-section.tsx`/`renderParticipantIdentity` (Qualidade) já
+  estavam limpos, sem o bug - referência de como um `cell` deve ser
+  escrito (sem cor fixa). Isso mostra que o bug **não é só na coluna
+  principal** - qualquer `cell` com `text-foreground` (ou outra cor fixa)
+  no meio do caminho tem o mesmo problema; confirmado na prática quando o
+  usuário reportou "Tipo" (2ª coluna da lista principal) não acompanhando
+  `--table-row-foreground`. O mesmo padrão, ainda não revisado módulo por
+  módulo, continua em: `occurrences-list-module-client-page.tsx`,
+  `programs-list-module-client-page.tsx` (confirmado: coluna principal
+  **e** mais uma secundária, linha ~212),
+  `tasks-list-module-client-page.tsx` (confirmado: coluna principal e
+  várias secundárias, incluindo numa visão tipo Kanban/card própria),
+  `projects-list-module-client-page.tsx`,
+  `people-groups-list-module-client-page.tsx`,
+  `people-list-module-client-page.tsx`. **Correção em 2026-11-21 (plano
+  de padronização de módulos): a lista estava incompleta** - confirmado
+  por grep direto que `pantry-stock-module-client-page.tsx` e
+  `deposit-stock-module-client-page.tsx` também têm (linha 486 - coluna
+  principal; linhas 1038/1046/1107 - outras ocorrências, a confirmar se
+  são colunas de tabela ou outro layout ao revisar esses 2 módulos).
+  **Gatilho:** da próxima vez que qualquer um desses módulos for mexido
+  por outro motivo, ou numa rodada dedicada de padronização de tabela —
+  revisar **todo** `cell` do `ColumnDef` da lista (não só o primeiro),
+  tirando qualquer `text-foreground`/cor fixa que não seja
+  `text-muted-foreground` num valor secundário intencional (manter
+  `font-medium`/`truncate`/`text-sm`, que são peso/tamanho, não cor). Não
+  tocar nos cards mobile (`renderCard`/função `renderXCard`) por padrão —
+  esses não usam as variáveis de tabela, são um layout próprio, fora do
+  escopo dessa correção.
+
+- **`--table-cell-padding-y` difere entre `:root` (15px) e `.dark` (8px)
+  em `globals.css` — viola a regra documentada "as variáveis de tabela
+  valem igual nos dois temas" (achado em 2026-11-21, revisão de cor da
+  tabela, não corrigido por não ter sido pedido nesta rodada).** Se for
+  intencional (linha mais alta no claro, mais compacta no escuro), vale a
+  pena documentar o porquê em `docs/canonical-web-client-standard.md`; se
+  não for, é só sincronizar os dois valores.
+  **Gatilho:** da próxima vez que a altura da linha da tabela for
+  discutida com o usuário, perguntar se a diferença entre os temas é
+  proposital antes de igualar.
 
 - **`docs/canonical-web-client-standard.md` com mojibake em boa parte
   dos acentos** (ex.: "ObrigatÃ³rio", "nÃ£o", "Ã©") — o arquivo parece ter
@@ -418,11 +494,28 @@ Removida da Atividade a pedido do usuário ("suja a tela, quebra a lógica
 visual") — ver `PLAN.md`. Usuário confirmou gostar do resultado e pediu
 pra documentar como padrão (feito em
 `docs/canonical-web-client-standard.md`, seção "Header colado nas
-abas"). Projects, Programs e People-Groups ainda têm essa mesma barra
-(`header.slot`) nos seus respectivos `*-detail-layout-contract.tsx` —
-ainda não migrados.
-**Gatilho:** quando o usuário pedir pra revisar um desses 3 módulos
-especificamente (igual está fazendo com Atividades agora) — remover o
+abas"). Projects, Programs, People-Groups, Occurrences e
+Attendances ainda têm essa mesma barra (`header.slot`) nos seus
+respectivos `*-detail-layout-contract.tsx` — ainda não migrados.
+**Correção em 2026-11-21 (plano de padronização de módulos):** a lista
+estava incompleta — confirmado por leitura direta do código que
+**Tasks** também tem (Status/Prioridade/Prazo/Entrega/Marco/Atualizado)
+e **Pantry/Deposit também, em triplicado** (não só no módulo principal
+`Item`, mas também nas 2 sub-telas de movimento `Entry`/`Exit` — 3
+`header.slot` por módulo, 6 no total). **People não tem** (checado o
+`header` do contract — só `leadingSlot` com o avatar, nenhum `slot` de
+barra de campos) — a entrada antiga citava People, mas não foi
+confirmado no código; pode já ter sido removido sem atualizar aqui, ou
+viver em outro lugar do sistema de abas próprio de People (ver "People
+usa um sistema de abas próprio" abaixo) - reconfirmar quando a sessão
+de People acontecer, não assumir nem uma coisa nem outra.
+**Resolvido parcialmente em 2026-11-21:** o Encontro
+(`meeting-detail-layout-contract.tsx`, relação da própria Atividade)
+também tinha essa barra — regressão isolada que escapou da migração
+original — removida nesta sessão, durante a revisão de convenção pedida
+pelo usuário.
+**Gatilho:** quando o usuário pedir pra revisar um desses módulos
+especificamente (igual já foi feito com Atividades/Encontro) — remover o
 `header.slot` do contract correspondente do mesmo jeito (apagar a função
 que monta a barra, não só esconder) e levar os campos que ela mostrava
 pro formulário principal, seguindo a mesma convenção de primeira linha
@@ -436,20 +529,27 @@ no rodapé do Detail") — barra única sem cabeçalho, botões Colunas/Filtros
 estilo ghost, agrupamento por qualquer coluna repetível, atalho de
 intervalo de data automático no painel de Filtros, tabela sem borda, sem
 coluna de Ações (editar é clicar na linha, excluir é selecionar +
-"Excluir selecionados"). Três abas da própria Atividade ainda não seguem
-isso — Participantes, Qualidade e Equipe continuam no mecanismo mais
-simples (`DetailRelationsRenderer`/`DetailRelationConfig`,
-`web-client/detail/DetailLayoutSections.tsx`), sem `SearchPanelMenu` de
-verdade, sem botão de Colunas, sem agrupamento.
-**Gatilho:** quando o usuário pedir pra revisar uma dessas 3 abas
-especificamente (mesmo fluxo usado pra Encontros) — trocar
-`DetailRelationsRenderer` por `RelationListHost` (ou
+"Excluir selecionados").
+
+**Resolvido em 2026-11-19** (entrada original ficou desatualizada):
+Participantes, Qualidade e Equipe da própria Atividade migraram pra
+`RelationListHost` nessa data — confirmado por leitura direta do código
+em 2026-11-21, as 4 abas (Encontros/Participantes/Qualidade/Equipe)
+estão hoje todas no mecanismo novo, nenhuma usa mais
+`DetailRelationsRenderer`/`DetailRelationConfig`.
+
+**Gap real hoje (achado em 2026-11-21, durante a revisão de convenção
+do Atendimento):** Occurrences ("Envolvidos") e Attendances
+("Pessoas") continuam no mecanismo antigo (`DetailRelationConfig` via
+`tabTemplates[].relations`); Attendances ("Evoluções"/"Benefícios") nem
+isso — são uma lista `<ul>` manual, sem `ListView` nenhum. Nenhum dos
+dois tem `SearchPanelMenu` (Colunas/Filtros/Agrupar).
+**Gatilho:** sessão de revisão de módulos pra nova convenção (ver
+entrada "Plano de revisão do Atendimento" abaixo) — trocar
+`DetailRelationConfig`/`<ul>` por `RelationListHost` (ou
 `DetailRelationTablePanel`, se a relation não precisar de visualização
-alternativa tipo calendário), seguindo a seção do padrão canônico passo a
-passo. A aba Participantes especificamente já tem um `type: "dateRange"`
-customizado (item anterior do backlog, agora marcado como legado) que
-pode ser removido nessa migração — o atalho de data do `SearchPanelMenu`
-substitui.
+alternativa tipo calendário) nas duas abas de Occurrences/Attendances,
+seguindo a seção do padrão canônico passo a passo.
 
 **Fora do escopo desta migração, mas candidato futuro:** o List Principal
 (`RecordListHost`) ainda renderiza `ListView` com borda (`bordered` não
@@ -457,6 +557,103 @@ informado, fica no padrão `true`) — se o usuário quiser a mesma ausência
 de borda nas telas de lista principal, não só nas relations, é só passar
 `bordered={false}` lá também; não assumido agora porque não foi pedido
 para essa parte do sistema.
+
+## People usa um sistema de abas próprio, não `mainTab`/`tabTemplates` (achado em 2026-11-21)
+
+Durante a revisão de convenção pedida pelo usuário (comparando
+Atividades, hoje a referência, contra Atendimento), ficou confirmado que
+People **não** usa a prop `mainTab` do `DetailLayoutConfig` — o
+`main` (`PeopleDetailMain`) renderiza seu próprio `<Tabs>` interno
+(`PeopleDetailTabs`/`PeopleDetailContent`, com 11 abas: Dados básicos,
+Contatos, Endereço, Documentos sensíveis, Família, Financeiro, Saúde,
+Medicação, Escolaridade, Reclusão, Atendimentos), completamente por
+fora do mecanismo `tabTemplates`/`DetailTabsRenderer` que Activity usa.
+Ou seja: hoje existem 2 sistemas de abas em paralelo no projeto — o
+genérico (`mainTab` + `tabTemplates`, usado por Activity/Meeting) e o
+interno de People — e o documento canônico só descreve o primeiro como
+padrão (ver `docs/canonical-web-client-standard.md`, seção "Abas").
+Isso não é um bug isolado de People — é uma decisão de arquitetura
+grande (11 abas internas pra migrar, cada uma com seu próprio form) que
+não deve ser feita de passagem.
+**Gatilho:** sessão dedicada à revisão de People (fora do escopo desta
+sessão, que tocou só Atividades/Encontro) — avaliar se vale a pena
+migrar as 11 abas internas pra `tabTemplates` (ganha consistência visual
+e o botão "Novo"/relations ganham o painel de busca completo de
+graça) ou se o volume de abas justifica manter um mecanismo próprio
+documentado como exceção aceita.
+
+## Plano de revisão do Atendimento (Fase 6) — Fase A concluída em 2026-11-21, Fase B pendente
+
+O usuário revisou as telas de Atendimento (implementadas na sessão
+anterior, Fase 6 do plano de módulos) e apontou que saíram fora do
+padrão visual vigente — o módulo foi copiado de Occurrences (Fase 5),
+que nunca foi atualizado para as mudanças de convenção de
+2026-11-18/19/20 (a maioria delas veio DEPOIS da Fase 5). Dividido em 2
+fases: **Fase A** (só frontend, feita nesta sessão) e **Fase B**
+(schema novo no backend, ainda pendente).
+
+**Fase A — concluída (2026-11-21):**
+
+1. ✅ **Barra de info no header** — removida de
+   `attendances-detail-layout-contract.tsx` (mesmo padrão de Activity/
+   Meeting).
+2. ✅ **Abas como controle de navegação logo abaixo do header** —
+   `mainTab: true` aplicado, "Detalhes" virou a primeira aba.
+3. ✅ **Toda aba de relation com painel de busca completo** — Pessoas,
+   Evoluções e Benefícios migraram pra `DetailRelationTablePanel`
+   (`RelationListHost` + `TableView`), com busca/Colunas/Filtros reais.
+4. ✅ **Tabela da relation = componente compartilhado** — consequência
+   direta do item 3.
+5. ❌ **Metadata com só Tags/Notas/Anexos/Auditoria** — **não fechado,
+   é a Fase B.** O side dessas telas (Attendance em si, e as novas telas
+   de Evolução/Benefício) hoje mostra só "Auditoria" (via
+   `tabOrder={["activity"]}`, que já esconde as abas erradas Histórico/
+   Contexto) — Tags/Notas/Anexos de verdade continuam de fora porque
+   dependem de schema novo no backend (tabelas de comentário/tag/anexo
+   pra `Attendance`, espelhando `ProjectActionComment`/
+   `ProjectActionAttachment` de Activity, mais categoria nova em
+   `upload-paths.ts`/`files.controller.ts` pro upload — ver a pesquisa
+   completa feita antes desta sessão, nos agentes de exploração:
+   migration, DTOs, rotas novas e `POST /files/attendance-attachments`).
+   **Gatilho:** sessão de backend dedicada a isso (pode fechar junto com
+   o mesmo gap em Occurrences, que tem exatamente o mesmo problema).
+6. ✅ **Todo relacionamento criado tem sua própria tela de Detail** —
+   Pessoas já estava correto (abre `/people/[id]`); Evoluções e
+   Benefícios ganharam telas novas
+   (`/attendances/[id]/evolutions/[evolutionId]`,
+   `/attendances/[id]/benefits/[benefitId]`), só em modo edição (criar
+   continua pelo diálogo rápido já existente,
+   `AttendanceEvolutionDialog`/`AttendanceBenefitDialog`, agora
+   simplificados pra só criar). Side dessas telas novas: só Auditoria
+   (mesma limitação do item 5 acima).
+
+**Achado durante a implementação:** o helper compartilhado
+`defineRelationDetailModule` (`web-client/starter/relation-module-starter.tsx`)
+não passava `detailLayout`, e uma validação em `registry/types.ts`
+(`usesDetailView && !definition.detailLayout`) rejeita isso com
+`throw` — bug pré-existente, não introduzido nesta sessão, que também
+quebrava o `/people/[id]/education/new` de People (e qualquer outra
+sub-tela de People que use o mesmo helper). Corrigido no helper
+compartilhado (`detailLayout: {}`, já que o render sempre usa
+`fallbackMainSlot`/`fallbackSideSlot`) — conserta Atendimento e People
+ao mesmo tempo. Confirmado via teste real: `/people/.../education/new`
+voltou a funcionar.
+
+**Evidência da Fase A:** frontend `tsc --noEmit` → 0 erros; `eslint` →
+só a categoria já tolerada (`react-hooks/set-state-in-effect`), nenhuma
+nova; `npm run build` → ok, as 2 rotas novas aparecem. Testado de ponta
+a ponta no navegador real (servidor do usuário, não reiniciado): aba
+Pessoas/Evoluções/Benefícios com busca+Colunas+Filtros+Novo; criado 1
+benefício pelo diálogo (fecha sem navegar, lista atualiza, toast
+confirma); clicado na linha → abriu a tela de Detail nova, com
+breadcrumb (Atendimentos > tipo > registro), autosave testado editando
+a Quantidade (confirmado persistido via API) e aba Auditoria mostrando
+o evento real de criação. Dado de teste removido via API ao final.
+
+**Gatilho da Fase B:** sessão de backend dedicada, ou quando a próxima
+sessão de revisão de módulos (People, Projects, Programs, Tasks,
+Pantry, Deposit, Occurrences — mesma lista de sempre) chegar na vez do
+Atendimento/Occurrences de novo.
 
 ## Botão "Árvore genealógica" de People ainda laranja (`variant: "action"`) (2026-11-19)
 
@@ -471,6 +668,104 @@ porque o escopo da sessão era só Atividades.
 (mesmo fluxo usado pra Atividades) — trocar `variant: "action"` por
 `variant: "default"` em `PEOPLE_DETAIL_HEADER_ACTIONS` (chave
 `family-tree`).
+
+## `Activity.title` sem limite de tamanho no banco (2026-11-20)
+
+Achado ao implementar a regra "coluna principal (nome) renderiza completa,
+sem truncar" na tabela de Atividades (`docs/canonical-web-client-standard.md`,
+seção "Tabela (`ListView`)"). Essa regra só é segura quando o campo por trás
+já tem algum limite real - conferido pra `Activity.title`
+(`backend/prisma/schema.prisma`): a coluna é `title String` **sem**
+`@db.VarChar(n)`, e a migration confirma (`"title" TEXT NOT NULL` em
+`0_init/migration.sql` e nas migrations mais recentes que tocam a tabela) -
+ou seja, **não existe limite no banco** (Postgres `TEXT` é ilimitado). O
+único limite hoje é `@MaxLength(160)` em `CreateProjectActionDto`/
+`UpdateProjectActionDto` (`backend/src/modules/actions/dto/`) - validação de
+aplicação, não constraint de schema; um registro inserido por outro caminho
+(seed, script, migração de dados) não passa por esse DTO e não tem limite
+nenhum.
+**Gatilho:** se algum dia um título realmente longo (ou um bug/entrada
+maliciosa que evita o DTO) aparecer e quebrar a tabela/relatório, ou numa
+revisão deliberada de limites de campo - adicionar `@db.VarChar(160)` no
+`schema.prisma` (migration aditiva, sem dado existente passa de 160 hoje
+porque o DTO já bloqueia a criação/edição normal) pra o limite virar real,
+não só de aplicação.
+
+## Estender exclusão segura (soft delete + status terminal) pra Projects e People (2026-11-20)
+
+Atividades ganhou o padrão oficial do projeto (ver
+`docs/canonical-web-client-standard.md`, seção "Exclusão é sempre soft
+delete, atrás de um status terminal do próprio módulo"): excluir só é
+permitido com `status = INACTIVE`, e a exclusão em si é soft delete
+(`deletedAt`), nunca remoção física. Decisão do usuário: regra vale pra
+"todos os módulos", mas cada um foi implementado separadamente - só
+Atividades foi feito nesta rodada.
+
+- **Projects:** hoje `deleteProject` (`projects.service.ts`) é hard
+  delete, só bloqueado se existir matrícula vinculada - sem conceito de
+  status terminal. `ProjectStatus` hoje é `PLANNED | ACTIVE | CLOSED`,
+  nenhum valor serve como "pronto pra excluir" (CLOSED significa
+  "terminou com sucesso", não "foi criado por erro"). Precisa decidir:
+  um 4º valor (`INACTIVE`, mesmo nome de Atividades) ou reaproveitar
+  outra sinalização.
+- **People:** já tem soft delete próprio (`status: 'Excluido'`, sem
+  checagem de status anterior - qualquer pessoa pode ser "excluída"
+  direto, por causa das dependências de sub-recursos sem cascade
+  documentadas no próprio código). Decidir se vale a pena unificar com o
+  novo padrão (exigir um status "Inativo" antes) ou deixar como está,
+  já que resolve o mesmo problema de outro jeito e já está em produção
+  de uso há mais tempo.
+
+**Gatilho:** quando o usuário pedir pra revisar exclusão em
+Projects/People especificamente (mesmo fluxo usado pra Atividades nesta
+sessão) - decidir o status terminal de cada módulo antes de implementar,
+não assumir que `INACTIVE` com esse nome exato se aplica igual.
+
+## Modo escuro (dark mode) ainda sem mecanismo de troca (2026-11-20)
+
+Levantamento feito a pedido do usuário, antes de crescer mais a base,
+pra decidir se vale puxar pra agora ou adiar. **A fundação já está
+pronta:** `globals.css` tem o par completo de tokens OKLCH
+light+dark (`background`, `primary`, `secondary`, `muted`, `accent`,
+`destructive`, `action`, `toolbar`, `sidebar`, `chart-1..5`, `border`,
+`input`, `ring`) e o `@custom-variant dark (&:is(.dark *))` já existe;
+todo componente shadcn e tudo que segue o padrão canônico
+(`docs/canonical-web-client-standard.md`) já renderiza certo em dark
+mode sem nenhuma mudança. **O que falta:**
+
+1. Mecanismo de troca: não existe `next-themes`, `ThemeProvider`, botão
+   de toggle nem persistência — só a classe `.dark` existe no CSS, sem
+   nada que a ative hoje.
+2. Cores "cruas" fora do token (grep em `frontend/src`, 659 arquivos
+   `.ts`/`.tsx` no total): 40 arquivos / 99 ocorrências de cor Tailwind
+   literal (`text-blue-600`, `bg-emerald-500` etc.) fora do sistema de
+   tokens; 76 dessas ocorrências sem par `dark:` na mesma linha; **28
+   arquivos sem nenhum `dark:` em lugar nenhum** — candidatos a ficar
+   ilegíveis/com contraste ruim se o dark mode for ativado hoje. Mais 1
+   arquivo (`web-client/views/GraphView/charts/HorizontalBarChartView.tsx`)
+   com hex cru em `style={{}}` — paleta de gráfico precisa de estratégia
+   própria dark-aware (escopo do skill de dataviz).
+3. QA visual: com 11 módulos reais (`actions`, `core`, `deposit`,
+   `occurrences`, `pantry`, `people`, `people-groups`, `programs`,
+   `projects`, `tasks`, `nav`) × List+Detail+relations, são ~25-35 telas
+   que só um olho humano valida (contraste/legibilidade não é algo que
+   `tsc`/build pegam).
+
+**Estimativa:** ~3-5 dias de trabalho real; ~80-85% do código é
+automatizável (toggle é quase 100%, trocar cor crua por par `dark:`
+seguindo o padrão já documentado é majoritariamente mecânico), mas
+15-20% exige QA visual humana tela por tela — esse é o gargalo real,
+não o código. Custo de adiar é linear, não exponencial (a fundação de
+tokens já absorve qualquer tela nova que siga o padrão canônico
+corretamente); o que cresce é só a lista de telas com cor crua pra
+revisar e o tempo de QA acumulado.
+**Gatilho:** início da Parte 5 (evolução de arquitetura), depois do
+go-live — ou antes, se o usuário decidir puxar pra frente por conta
+própria. Ao retomar: (1) instalar `next-themes` + toggle, (2) resolver
+os 28 arquivos sem `dark:` seguindo os pares já usados no padrão
+canônico (ex.: `text-blue-600 dark:text-blue-400`), (3) rodar o
+app em dark mode módulo por módulo conferindo List, Detail e cada
+relation.
 
 ## `onClose`/X do `DetailShell` sem uso depois da remoção do botão fechar (2026-11-19)
 
@@ -490,3 +785,29 @@ apagar o prop `onClose={...}` de cada um dos ~25 call sites (viram
 `router.push`/`backToList`/`close` sem consumidor — conferir se essas
 funções auxiliares também ficam sem uso em algum desses arquivos e, se
 sim, apagar junto).
+
+## Criar pessoa sem sair do fluxo do Encontro (2026-11-21)
+
+Na revisão da equipe hierárquica (Projeto→Atividade→Encontro), o cenário
+original do usuário incluía "criar uma pessoa nova sem sair do Encontro"
+ao marcar um responsável. Decidido **fora de escopo** nesta rodada — o
+picker de responsáveis (`MeetingTeamPickerDialog`) só busca entre pessoas
+já cadastradas (`listPeople`), igual o picker de Envolvidos da Ocorrência
+(`OccurrencePeoplePickerDialog`), nenhum dos dois cria pessoa inline.
+**Gatilho:** quando o usuário pedir esse atalho especificamente — exige
+decidir um formulário mínimo de criação de Person dentro do diálogo
+(nome + o mínimo pra não duplicar cadastro) e cuidado com duplicata (gente
+já cadastrada com nome parecido/errado na busca).
+
+## Equipe individual do Projeto/Atividade sem limite de papéis coerente com o nível (2026-11-21)
+
+Os 3 níveis de equipe (Projeto, Atividade, Encontro) reusam o mesmo enum
+`ActionPeopleParticipationRole` (`PARTICIPANTE/FACILITADOR/APOIO/
+VOLUNTARIO/RESPONSAVEL_TECNICO/CONVIDADO`) — decisão explícita do usuário
+("mesmo enum nos 3 níveis"). Isso significa que o papel "Participante" (que
+semanticamente é mais de Atividade/Encontro) também aparece como opção ao
+cadastrar alguém direto na equipe do Projeto, sem nenhuma filtragem por
+nível. **Gatilho:** se, na prática, usuários começarem a cadastrar papéis
+sem sentido no nível errado (ex. "Convidado" direto no Projeto todo), vale
+revisitar — seja com um subconjunto de opções por nível, seja com um enum
+próprio por nível (viraria migração aditiva simples).

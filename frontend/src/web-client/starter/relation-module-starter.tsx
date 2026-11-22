@@ -59,5 +59,15 @@ export function defineRelationDetailModule<
     views: [createStandardDetailView()],
     defaultView: "detail" as TState["view"],
     defaultQueryState: createStandardDetailQueryState<TState>(),
+    // `DetailShellEngine` so usa isto quando o layout nao define
+    // main/side - o caller sempre passa `fallbackMainSlot`/
+    // `fallbackSideSlot` em vez de preencher main/side aqui. Objeto
+    // vazio, so pra passar na validacao de `defineRecordModule` (exige
+    // `detailLayout` quando ha uma view "detail" declarada) - achado ao
+    // implementar o Detail de Evolucao/Beneficio do Atendimento, o mesmo
+    // bug ja existia pro `/people/.../education/new` (e as demais
+    // sub-telas de People que usam este factory), so ninguem tinha
+    // testado essa rota desde que a validacao foi adicionada.
+    detailLayout: {},
   });
 }

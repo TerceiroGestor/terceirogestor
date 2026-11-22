@@ -119,6 +119,14 @@ Regras:
 - o mÃ³dulo nÃ£o deve depender de `renderizador legado de formularios` legado
 - os campos principais do item ficam aqui, nÃ£o no `sideSlot`
 
+Mecanismo pra "mesmo formulário", na prática (ver "Create reaproveita o
+formulário de edit" na seção "Formulário principal" mais abaixo pro passo a
+passo completo, referência: Atividade, migrada em 2026-11-20): o componente
+que renderiza os campos recebe `mode` (`"create" | "edit"`) como prop e
+ramifica só o que for genuinamente diferente dentro do mesmo campo (ex.: um
+`<Select>` editável em `create` vs. texto read-only em `edit`, quando o
+valor já é fixo) — nunca um componente de arquivo separado por modo.
+
 ### sideSlot
 
 O `sideSlot` Ã© Ãºnico e padronizado.
@@ -145,12 +153,20 @@ Regras:
   cru, metadados soltos) ou nao tinha uso real medido, ou pertence a
   Auditoria
 
-**Legado ainda nÃ£o migrado:** People jÃ¡ segue o padrÃ£o de 4 abas; Activity
-foi migrado em 2026-11-18 (ver `PLAN.md`). Projects, Programs, Tasks,
-Pantry e Deposit ainda tem `Comentarios`/`Historico`/`Contexto` no
-`sideSlot` - fica registrado em `docs/backlog.md` com o gatilho "proxima
-vez que o modulo for mexido", nao e pra ser migrado em bloco so por causa
-desta regra.
+**Legado ainda nÃ£o migrado:** People ja segue o padrao de 4 abas;
+Activity foi migrado em 2026-11-18 (ver `PLAN.md`). Projects, Programs,
+Tasks, Pantry e Deposit ainda tem `Comentarios`/`Historico`/`Contexto`
+no `sideSlot` - fica registrado em `docs/backlog.md` com o gatilho
+"proxima vez que o modulo for mexido", nao e pra ser migrado em bloco so
+por causa desta regra. Occurrences e Attendances tambem nao seguem a
+regra - nao passam `tags`/`notes`/`attachments` nem `tabOrder` pro
+`StandardDetailMetadataSide`, entao caem no fallback de compatibilidade
+do componente (mostra `Historico`+`Contexto`, que nao deveriam mais
+existir, e nao mostra Tags/Notas/Anexos nenhum). Fechar isso exige
+schema novo no backend (tabelas tipo `AttendanceComment`/
+`AttendanceAttachment`/tag, espelhando `ProjectActionComment`/
+`ProjectActionAttachment`) - nao e so mudanca de frontend, ver
+`docs/backlog.md`.
 
 ### relationSlot
 
@@ -162,8 +178,61 @@ Regras:
 - cada relation deve se comportar como um list do sistema
 - usar `ListView` e o host relacional compartilhado
 - clicar em um item da relation deve abrir o detail do item relacionado
-- `Novo` dentro da relation abre o fluxo de criaÃ§Ã£o relacional correto
+- `Novo` dentro da relation segue a regra "Criar dentro de uma relation" abaixo
 - evitar cards operacionais isolados quando a relaÃ§Ã£o puder ser modelada como list
+
+### Criar dentro de uma relation: dialogo pra criar, Detail pra editar (padrao a partir de 2026-11-21, sem excecao)
+
+Regra unica pra qualquer relation, de qualquer modulo, independente do
+quao simples ou complexo for o sub-registro:
+
+- **So existe um botao pra criar: `Novo`.** Nao criar um segundo botao
+  tipo "Agendar em lote"/"Criar varios" do lado - isso suja o padrao, que
+  e "so o botao Novo" em toda relation do sistema. `Novo` abre um
+  dialogo - de busca+selecao quando a relation e um vinculo com uma
+  entidade que ja tem Detail propria (ex.: pessoa envolvida numa
+  Ocorrencia/Atendimento, responsavel de um Encontro, participante de um
+  Grupo), ou de criacao (so os campos minimos necessarios) quando a
+  relation e um sub-registro com campos proprios (ex.: Encontro de uma
+  Atividade, vinculo familiar/financeiro/de saude de uma Pessoa). Um
+  unico dialogo pode cobrir "criar um" e "criar varios de uma vez"
+  (recorrencia/lote) ao mesmo tempo - nao precisa de dois fluxos
+  separados: referencia viva e o Encontro
+  (`BulkScheduleOccurrencesDialog`,
+  `modules/actions/features/manage/ui/action-occurrences-section.tsx`),
+  que gera as datas a partir de um periodo (`De`/`Ate`) + dias da semana
+  marcados + passo de preview antes de confirmar - pra criar só 1
+  Encontro, o usuario so precisa deixar `De` igual a `Ate` (mesmo dia) e
+  marcar o dia da semana correspondente, o preview mostra exatamente 1
+  data. Nenhuma relation abre uma pagina de criacao separada - antes
+  disso, o Encontro abria `/meetings/new` (tela de Detail inteira) pra
+  criar um avulso, com um botao separado "Agendar em lote" pro caso de
+  varios - decisao explicita do usuario em 2026-11-21 unificou os dois
+  num so dialogo, atras de um so botao.
+- Quando o dialogo e de busca+selecao (vinculo), ele **permanece aberto
+  entre selecoes** - da pra vincular varias pessoas em sequencia sem
+  fechar o dialogo a cada clique, so fecha quando o usuario decide (X,
+  Escape, clique fora). Referencia viva: `OccurrencePeoplePickerDialog`
+  (`modules/occurrences/features/detail/ui/`). Quando o dialogo e de
+  criacao de sub-registro, ele fecha sozinho apos confirmar - a lista so
+  ganha a(s) linha(s) nova(s), sem navegar pra lugar nenhum.
+- **Clicar numa linha ja criada sempre abre uma tela de Detail** - da
+  entidade vinculada, quando for vinculo simples sem campo proprio (ex.:
+  a Pessoa em `/people/[id]` - nao existe tela de Detail pro vinculo em
+  si, porque ele nao tem campo alem do papel/role, editado removendo e
+  re-adicionando); ou do proprio sub-registro (mesmo shell canonico -
+  `DetailShellEngine`, side de 4 abas, autosave), quando ele tiver campos
+  proprios - referencia viva: Encontro (`/meetings/[id]`). O dialogo de
+  criacao **nunca** dobra como editor (nao reabrir o mesmo dialogo
+  preenchido ao clicar numa linha - isso e o sinal de que falta a tela
+  de Detail do sub-registro).
+
+Essa regra substitui a suposicao antiga de que "criar sempre abre o
+Detail em modo create": isso continua valendo pro registro raiz do
+modulo (`/modulo/new`, ver Checklist rapido), mas nao se aplica a
+relations dentro de um Detail - la o que importa e criar rapido (sem
+navegar pra longe so pra adicionar 1 vinculo) e editar completo (sempre
+ha uma tela de Detail alcancavel clicando na linha).
 
 ### Tipos de relation
 
@@ -276,7 +345,7 @@ rollout.
 As excecoes, que **sao** opt-in e precisam de uma decisao por modulo/aba,
 estao marcadas explicitamente mais abaixo: `flushToolbar`
 (`RelationListHost`) + `flushContent` (`DetailTabTemplate`) +
-`stickyHeaderOffsetClassName` (`ListView`) - usar so quando uma relation
+`stickyHeaderOffsetPx` (`ListView`) - usar so quando uma relation
 e o conteudo inteiro de uma aba e deve ficar com a barra (e,
 opcionalmente, o cabecalho da tabela) fixa, colada nas abas acima -
 referencia: aba Encontros da Atividade. O variant de cor do botao de
@@ -297,15 +366,28 @@ linha dele (ver secao seguinte); um campo que nao tenha outro lugar
 natural (ex.: data de cadastro) fica disponivel so via Auditoria.
 
 Aplicado em Activity (`actions-detail-layout-contract.tsx`) em
-2026-11-18. Projects, Programs e People-Groups ainda tem essa barra nos
-seus `header.slot` - migrar quando esses modulos forem revisados (ver
-`docs/backlog.md`), removendo a funcao que monta a barra por inteiro, nao
-so escondendo. **Isso nao afeta o fundo do header** (`bg-toolbar`,
+2026-11-18, e no Encontro (`meeting-detail-layout-contract.tsx`) em
+2026-11-21 (regressao isolada - tinha escapado da migracao original,
+mesmo a Atividade-mae ja estando limpa). Projects, Programs,
+People-Groups, People, Occurrences e Attendances ainda tem essa barra
+nos seus `header.slot` - migrar quando esses modulos forem revisados
+(ver `docs/backlog.md`), removendo a funcao que monta a barra por
+inteiro, nao so escondendo. **Isso nao afeta o fundo do header** (`bg-toolbar`,
 proxima secao) - esse ja e automatico pra todo modulo, inclusive os 3
 que ainda tem a barra antiga; a barra antiga so fica visualmente mais
 cheia dentro do mesmo fundo, ate ser migrada.
 
 ### Abas
+
+O mecanismo que coloca o formulario principal como a primeira aba
+("Detalhes"), em vez de deixa-lo sempre visivel acima das abas, e a
+prop `mainTab` do `DetailLayoutConfig` (`web-client/registry/types.ts`,
+lida por `DetailShellEngine.tsx`) - `mainTab: true` usa
+`key: "details"`/`label: "Detalhes"` por padrao, ou passe um objeto
+`{ key, label }` pra customizar. E o unico jeito certo de ter abas como
+controle de navegacao logo abaixo do header (ver "Header colado nas
+abas") - modulo nenhum deve montar seu proprio `<Tabs>` dentro de
+`main` pra isso (ver People, "Legado a eliminar" no `docs/backlog.md`).
 
 Toda aba de Detail (principal ou do painel lateral) usa `MODULE_TABS_LIST_CLASS_NAME` / `MODULE_TAB_TRIGGER_CLASS_NAME` de `web-client/ui/ModulePrimitives.tsx`. A aba ativa ganha fundo colorido (`bg-primary/10 text-primary font-semibold`), nunca so uma linha fina - isso e o que faz o usuario perceber qual aba esta aberta sem precisar ler o texto. Abas inativas tem hover (`hover:bg-muted/70`) para ficar obvio que sao clicaveis. Uma variante de cor diferente (ex.: ambar em "Documentos sensiveis" de People) e permitida quando a aba marca algo sensivel/especial - nesse caso o padrao e reaproveitado, so a cor muda.
 
@@ -453,28 +535,105 @@ a barra da relation formam um unico bloco `bg-toolbar` sem nenhuma quebra
 de cor entre eles - e a razao de existirem `flushContent`/`flushToolbar`
 como opt-in, em vez de mudar o comportamento padrao pra todo mundo.
 
-### Cabecalho de tabela fixo dentro de uma relation `flushToolbar`
+### Cabecalho de tabela e barra de Colunas/seleção fixos (padrão reescrito em 2026-11-20)
 
-Quando a relation `flushToolbar` tem muitos registros e a tabela rola, o
-cabecalho de colunas (`<thead>`) tambem deveria ficar fixo, logo abaixo
-da toolbar - senao ele rola junto com as linhas e passa por baixo (ou,
-sem o ajuste certo, por cima) da toolbar/abas. Mecanismo (`ListView.tsx`):
+Essa seção já passou por duas rodadas de correção na mesma sessão -
+documentando aqui só o estado final, correto, com o histórico das
+tentativas erradas registrado como lição, não como passo a passo a
+repetir.
 
-- Prop `stickyHeaderOffsetClassName` no `ListView` - quando informada,
-  substitui o `top-0` padrao do `<TableHeader>` por um offset customizado
-  (ex.: `"top-[117px]"` = 44px das Abas + 73px da toolbar `flushToolbar`
-  com `py-4`). So usar quando o `ListView` estiver dentro de uma relation
-  `flushToolbar`; em qualquer outro lugar (List Principal, relations
-  normais) o padrao (`top-0`, sem a prop) continua certo.
-- Passar essa prop tambem muda automaticamente, dentro do `ListView`, o
-  `overflow` de 3 wrappers internos pra `visible` (o wrapper proprio, o
-  container do componente base `Table` via nova prop `containerClassName`
-  em `components/ui/table.tsx`, e o `ModuleSurface` que embrulha o
-  `ListView` inteiro) - necessario pelo motivo da proxima secao. Nenhum
-  desses 3 muda quando a prop nao e passada - zero efeito em qualquer
-  outro uso de `ListView`/`Table`.
-- Referencia completa: `action-occurrences-section.tsx` (Encontros),
-  unico uso ate agora.
+**O bug raiz, só descoberto na 3ª rodada:** havia **dois contêineres de
+scroll aninhados** (`components/ui/table.tsx` tinha seu próprio
+`overflow-x-auto`, dentro do `overflow-auto` que `ListView.tsx` já tem um
+nível acima) - `position: sticky` só funciona relativo ao contêiner de
+scroll mais próximo, e esse contêiner era o de dentro (só rola
+horizontal, nunca vertical), então o sticky vertical nunca tinha efeito
+nenhum - nem no List Principal, nem em nenhuma relation. **Corrigido
+removendo `overflow-x-auto` de `table.tsx` por completo** - `table.tsx`
+só é usado por `ListView.tsx` (confirmado, nenhum outro lugar do sistema
+importa dele), então isso não afeta mais nada. Agora existe um único
+contêiner de scroll (o de `ListView.tsx`), que rola nos dois eixos
+(`overflow-auto` já cobre vertical e horizontal) e é o único ponto de
+referência do `<thead sticky>`.
+
+**Segundo problema, só no List Principal:** mesmo com um único contêiner
+de scroll, `position: sticky` só tem efeito visível se esse contêiner
+realmente tiver uma altura **limitada** (menor que o conteúdo) - sem
+isso, o contêiner sempre fica do tamanho exato do conteúdo, nunca
+"scrolla" de fato, e quem rola é a página inteira por fora dele (sticky
+relativo a um contêiner que nunca rola internamente não tem efeito
+nenhum). Conferido: **não existe, em lugar nenhum do sistema, um
+container de altura de viewport travada pras telas de List Principal** -
+só o Detail já tinha isso (`DetailShell.tsx`). Corrigido em
+`RecordListHost.tsx`: o wrapper do List Principal ganhou
+`lg:h-[calc(100vh-var(--app-shell-sticky-offset,0px))] lg:min-h-0` -
+reaproveitando a **mesma** variável CSS que `DetailShell.tsx` já usa,
+medida automaticamente por `AppShell.tsx` (via `ResizeObserver` no
+cabeçalho fixo do app, que já inclui a barra de busca/toolbar de cada
+página - `ControlPanelShell` mora dentro do elemento medido). Dentro
+desse wrapper, `{children}` (o `ListView`/typeview da tela + a
+`PaginationBar`, normalmente) fica num grid de 2 linhas
+(`lg:grid-rows-[minmax(0,1fr)_auto]`) - a primeira linha (a
+lista/tabela) ocupa o espaço que sobra e rola internamente, qualquer
+coisa depois dela (paginação) mantém altura natural e fica sempre
+visível. Só em `lg:` - no mobile continua a rolagem simples de página,
+igual já era (mesma convenção do Detail).
+
+Mecanismo completo (`ListView.tsx`), pra relations `flushToolbar` **e**
+pro List Principal, unificado:
+
+- Prop `stickyHeaderOffsetPx` (número em px, não mais uma className) - só
+  informada por relations `flushToolbar` (ex.: `117` = 44px das Abas +
+  73px da toolbar da relation). No List Principal, não é passada - o
+  cabeçalho usa `top-0`, porque ali o próprio contêiner do `ListView` é
+  quem agora rola de verdade (ver correção acima), não depende de nada
+  externo.
+- **A barra de Colunas/seleção em lote (topo do `ListView`) agora é
+  sempre a mesma peça, nos dois contextos** - antes, Encontros tinha uma
+  barra "Excluir selecionados" escrita à mão dentro de
+  `action-occurrences-section.tsx` (fora do `ListView`, como `children`
+  do `RelationListHost`), diferente da barra que o List Principal já
+  usa automaticamente (`bulkActions`/`shouldShowColumnVisibilityButton`,
+  dentro do próprio `ListView`). Migrado: Encontros agora passa
+  `bulkActions` pro `ListView` igual o List Principal - mesmo código,
+  mesmo visual, em vez de duas implementações divergentes.
+- Essa barra **sempre existe no DOM** (reserva `h-9` = `BULK_BAR_HEIGHT_PX`)
+  sempre que `enableRowSelection`/`showColumnVisibilityButton` tornam ela
+  relevante pra aquela tela - nunca monta/desmonta conforme a seleção
+  muda, só o conteúdo interno (contagem + botão) aparece/some. Fundo
+  sólido (`bg-background`, igual ao resto da página - não um tom
+  chamativo) pra não ficar "visível demais" quando vazia.
+- Quando `stickyHeaderOffsetPx` é informado (relation), essa barra
+  **também** vira sticky, no mesmo offset recebido, e o cabeçalho da
+  tabela automaticamente gruda `stickyHeaderOffsetPx + BULK_BAR_HEIGHT_PX`
+  abaixo dela - a soma é feita dentro do próprio `ListView`, o módulo só
+  informa o offset de abas+toolbar, nunca precisa somar a altura da
+  barra na mão. Quando não é informado (List Principal), a barra fica
+  simples, sem `position: sticky` nenhum - já fica "presa" de graça, por
+  estar fora da área que rola internamente (ver correção do contêiner
+  bounded acima).
+- Referência completa: `action-occurrences-section.tsx` (Encontros, com
+  `bulkActions`) e `actions-list-module-client-page.tsx` (List Principal,
+  mesmo mecanismo, sem offset).
+- **Regra, sem excecao:** toda relation com `flushToolbar` precisa de
+  `stickyHeaderOffsetPx` no seu `ListView` interno - não é opcional
+  quando `flushToolbar` está presente (Participantes/Qualidade/Equipe/
+  Encontros, as 4 relations de Atividades hoje, todas precisam).
+
+**Histórico das tentativas erradas (não repetir):**
+
+1. Só reservar altura fixa pra barra de seleção (`h-9`), sem fixá-la -
+   ao rolar, a barra (não sticky) saía de tela, mas o cabeçalho (ancorado
+   num offset que já contava com ela) continuava parado - abria um vão
+   sem nada cobrindo, linhas da tabela visíveis rolando atrás.
+2. Fazer só a barra ficar sticky (um `<div>` escrito à mão em
+   `action-occurrences-section.tsx`, com offset/altura calculados na
+   mão) - funcionava sozinha, mas criava um mecanismo **diferente** do
+   que o List Principal já usa, com espaçamento/cor inconsistentes entre
+   as duas telas, e não resolvia o List Principal (que continuava sem
+   nenhum contêiner de scroll real, então nada sticky tinha efeito ali).
+   A causa raiz (dois contêineres de scroll + nenhuma altura travada no
+   List Principal) só apareceu ao comparar as duas telas lado a lado.
 
 ### Por que `position: sticky` as vezes nao gruda
 
@@ -496,6 +655,17 @@ apareceu em 3 niveis diferentes ao mesmo tempo (`TabsContent`, o wrapper
 interno do `ListView`, o container do `Table`, e o `ModuleSurface`) -
 corrigir so um nao resolve se outro, mais acima ou mais abaixo na
 cadeia, continuar quebrando.
+
+**Segunda lição reutilizável, achada em 2026-11-20:** `overflow` != `visible`
+não é o único jeito de quebrar sticky - um contêiner de scroll com
+**altura ilimitada** (sem `h-[...]`/`max-h-[...]` nenhum, só cresce pra
+caber o conteúdo) também não tem efeito nenhum, mesmo com `overflow-auto`
+"correto" - ele nunca precisa rolar de verdade (já nasce do tamanho do
+conteúdo), então sticky relativo a ele nunca "ativa". Antes de procurar
+`overflow` errado, confirmar que o contêiner de scroll pretendido
+realmente tem uma altura menor que o conteúdo - se não tiver, o problema
+não é overflow, é falta de um `h-[calc(100vh-...)]` (ou equivalente) em
+algum lugar da cadeia.
 
 ### Contraste de hover/active sobre `bg-toolbar` (padrao a partir de 2026-11-19)
 
@@ -576,6 +746,77 @@ e as chaves antigas sao ignoradas em silencio, sem erro, so o estilo
 quebra) e ganhou `locale={ptBR}` por padrao - qualquer novo uso do
 `Calendar` compartilhado ja herda os dois (inclusive `RelationListHost`).
 
+### Tabela (`ListView`): largura de coluna, truncamento, tooltip, zebra e padding (padrão a partir de 2026-11-20, referência: lista principal de Atividades)
+
+Vale pra **todo** `ListView` do sistema - List Principal (`RecordListHost`) e relation (`RelationListHost`/`DetailRelationTablePanel`), porque o mecanismo mora no próprio `ListView.tsx`/`table.tsx` (compartilhados, nenhum módulo precisa de código próprio). Atividades foi a referência onde isso foi implementado e aplicado primeiro; outros módulos herdam automaticamente a parte que é só do componente (largura/truncamento/zebra/header/padding) e precisam de um ajuste pontual por coluna só pra marcar qual é a "coluna principal" (ver abaixo) ou pra usar `TruncatedTextCell` num texto que hoje é `<span>` simples.
+
+- **Toda coluna tem um limite de largura por padrão** (`DEFAULT_COLUMN_MAX_WIDTH = 280` px, exportado de `web-client/views/ListView.tsx`) - a coluna cresce com o conteúdo até esse limite (nunca mais larga que o necessário pra um valor curto) e, quando o conteúdo é maior, trunca com "..." **sem quebrar linha** (`whitespace-nowrap` + `overflow-hidden` + `text-ellipsis`, já existentes em `components/ui/table.tsx`). Isso é automático - nenhum módulo precisa declarar nada pra ganhar esse comportamento.
+- **Coluna principal (nome/título) encolhe pro tamanho do conteúdo, com um teto próprio (maior que o das outras), e realce visual - automático, por posição:** o `ListView` trata a **primeira coluna de dado visível** (pulando a de seleção, quando `enableRowSelection` está ativo - `getPrimaryColumnId` em `ListView.tsx`) como a coluna principal, sempre - não é uma configuração por `ColumnDef`, é posicional. Isso já é a mesma regra de "Colunas base" (a coluna principal do item vem primeiro no List Principal), então nenhum módulo precisa declarar nada: a primeira coluna usa `width: "1%"` + seu próprio teto de largura, `--table-column-primary-max-width` (`globals.css`, 320px por padrão - maior que o `DEFAULT_COLUMN_MAX_WIDTH` de 280px das outras colunas) **e** ganha o tom `bg-table-column-primary`/`text-table-column-primary-foreground` (ver grupo de cores de tabela abaixo) em toda célula da coluna, não só no cabeçalho - é assim que o usuário reconhece de relance qual coluna é a principal, sem precisar ler o cabeçalho. **`width: "1%"` (2026-11-21, achado numa revisão de Atividades):** o `<table>` é `w-full` (`table.tsx`) - sem esse `width: "1%"`, o layout automático do HTML distribui a sobra de largura entre as colunas, e como só a principal tem fundo próprio, é nela que a sobra "aparece" como espaço vazio mesmo com um nome curto (nas outras colunas a mesma sobra existe, só não se nota porque o fundo é igual ao da linha). `width: "1%"` é o truque clássico de tabela HTML pra "não dar peso extra pra essa coluna" no layout automático - a coluna encolhe pro maior conteúdo real (cabeçalho ou valor visível), e o `maxWidth` continua sendo só o teto pra nome realmente longo, que aí sim trunca com "...". **Histórico:** a primeira versão disso usava um sinal por coluna (`maxSize: Infinity` no `ColumnDef`) - funcionava em teoria, mas era um passo de configuração fácil de esquecer por módulo e, na prática, criava a possibilidade de a coluna errada (ou nenhuma) ficar marcada; trocado pra detecção posicional automática, sem esse risco. Isso só é seguro quando o campo da primeira coluna já tem (ou devia ter) um limite de tamanho real - ver `docs/backlog.md` sobre `Activity.title` (hoje sem limite no banco, só validação de aplicação).
+- **Coluna principal mostra um valor só - nunca duas linhas empilhadas.** Achado em 2026-11-20, revisando Atividades: a coluna principal da lista de Atividades ("Atividade") e a de Participantes/Qualidade ("Participante"/"Pessoa") mostravam o nome **e** um segundo valor embaixo (tipo da atividade; Grupos do participante) - a de Encontros ("Data") já tinha um valor só, e foi isso que deixou a diferença visível entre as telas. Corrigido tirando o segundo valor de dentro da coluna principal e criando uma coluna própria pra ele (`Tipo` em Atividades; `Grupos` em Participantes e Qualidade - essa última reaproveitando `renderParticipantIdentity` com a prop `showGroupsSubtitle={false}`, já que a função é compartilhada com `project-action-attendances-card.tsx`, fora de Atividades, que não foi tocado). **Regra a aplicar em qualquer coluna principal nova ou revisada:** se o dado teria uma segunda linha/informação secundária dentro da célula, essa informação vira coluna própria (geralmente com `TruncatedTextCell`, já que colunas secundárias usam o limite de largura padrão) - a coluna principal fica só com o valor que identifica o registro.
+- **Tabela cresce pra direita, nunca quebra linha:** o container do `Table` já tem `overflow-x-auto` (`components/ui/table.tsx`) - quando a soma das colunas (a maioria capada em 280px, a principal em 320px - `--table-column-primary-max-width`) passa da largura disponível, aparece scroll horizontal em vez de qualquer coluna quebrar texto em múltiplas linhas. Não adicionar `white-space: normal`/remover o `nowrap` em nenhuma célula pra "caber" - a resposta certa pro conteúdo não caber é o limite de largura + truncamento, não a quebra de linha.
+- **Tooltip no texto truncado - automático em toda célula, desde 2026-11-21, sem nenhum módulo precisar fazer nada.** `TableCell` (`components/ui/table.tsx`) mede, por `<td>`, se o conteúdo truncou de verdade (`scrollWidth > clientWidth + 2px` de tolerância - 1px não bastava, escala de tela do Windows ≠ 100% já cria 1-2px de diferença por arredondamento de subpixel sem nenhum corte real; via `ResizeObserver`, reavalia ao redimensionar; mede só depois de 2 `requestAnimationFrame`, pra não travar como "truncada" numa medição cedo demais) e, só quando truncou, envolve a célula em `Tooltip`/`TooltipTrigger`/`TooltipContent` (`components/ui/tooltip.tsx`, mesmo balão de sempre - `max-w-xs whitespace-pre-wrap`) mostrando o `textContent` real do DOM como valor completo. Funciona com qualquer conteúdo (texto puro, `<div>` aninhado, `<Badge>`) porque lê o DOM renderizado, não o `children` do React - **antes disso**, só quem usava `TruncatedTextCell` manualmente tinha tooltip; a maioria das colunas (data, número, "Tipo", a coluna principal) não tinha nenhum, e ficava sem jeito de ler um valor cortado. **`TruncatedTextCell` (`web-client/ui/TruncatedTextCell.tsx`) continua existindo e válido** pras colunas que precisam de algo que esse mecanismo automático não cobre: `icon` opcional (ex.: "Projeto" com `FolderKanban`), um placeholder `-` em cinza (`text-muted-foreground`) quando o valor é vazio, ou **texto livre que pode ser realmente longo** (nota, descrição, parágrafo - não só um nome/título) - ela não duplica tooltip com o automático porque sua própria truncagem acontece num `<span>` **interno**, então o `<td>` por fora nunca mede overflow (o filho já ficou do tamanho certo).
+  **Pegadinha real - `max-width`/`min-w-0` sozinhos não garantem truncar texto livre bem longo (achado em 2026-11-21, aba Encontros/Notas de Atividades, 2 rodadas até fechar de verdade).** Um `<span>` com `white-space: nowrap` (o que `truncate`/ellipsis exige) tem largura mínima de conteúdo igual ao texto **inteiro** (não dá pra quebrar nem uma palavra) - no layout automático de tabela HTML, essa largura mínima pode vencer o `max-width` da célula/wrapper e fazer a **coluna inteira** crescer pra caber o texto, mesmo com `overflow-hidden`/`text-ellipsis` escritos no CSS - não é um bug de código, é assim que o algoritmo de layout de tabela funciona. **1ª tentativa:** a coluna "Notas" (antes `whitespace-normal break-words`, crescendo a **altura** da linha) trocou pra texto puro direto no `<td>` - a altura parou de crescer, mas a **largura** da coluna cresceu no lugar (texto puro não tem nenhuma defesa contra isso). **2ª tentativa:** trocar pra `TruncatedTextCell` (que usa `min-w-0` no wrapper) resolveu pra texto de tamanho normal, mas voltou a vazar pra fora da tela com uma nota de verdade longa (várias frases) - `min-w-0` ajuda o `<div>` a encolher, mas não é garantia absoluta contra qualquer tamanho de texto nesse cálculo de layout. **Correção final, nos dois níveis (`TruncatedTextCell.tsx`):** (1) o wrapper ganhou `style={{ maxWidth: maxWidthPx }}` **inline** (não só via className) - `maxWidthPx` é prop, default 280 (igual `DEFAULT_COLUMN_MAX_WIDTH`); (2) o valor **exibido** (não o do tooltip, que continua inteiro) é cortado em JavaScript **antes** de chegar no DOM, num limite de caracteres calculado a partir de `maxWidthPx` (`Math.floor(maxWidthPx / 7)`, 7px/caractere - estimativa conservadora pro texto de 13px da tabela) - isso garante que a largura mínima de conteúdo do `<span>` nunca passe de `maxWidthPx`, **independente** de qualquer detalhe de layout do navegador, porque o texto em si já é curto o suficiente. **Regra:** texto que pode ser parágrafo/nota longa (não só um nome) sempre usa `TruncatedTextCell`, nunca um texto puro direto no `cell` - mesmo com o tooltip automático existindo, ele não resolve esse caso.
+- **Padding lateral de 4px:** o container do `Table` (`containerClassName` em `ListView.tsx`) tem `px-1` - a tabela não encosta na borda do cartão (`ModuleSurface`) nem, numa relation, na borda da aba. Esse padding é parte do container com scroll, então ele também aparece como uma margem mínima no início/fim do scroll horizontal - comportamento esperado, não bug.
+
+**Grupo de variáveis de tabela, centralizado em `frontend/src/app/globals.css` (padrão a partir de 2026-11-20, +5 variáveis em 2026-11-21 - largura da coluna principal, checkbox e coluna fixada).** Tudo que é cor/tamanho de tabela mora em 16 variáveis, uma vez em `:root` (claro) e uma vez em `.dark` (escuro) - editar **só** essas 32 linhas pra recalibrar qualquer tabela do sistema, nunca `ListView.tsx`/`table.tsx`:
+
+| Variável | Controla | Onde é usada |
+| --- | --- | --- |
+| `--table-header` | fundo do cabeçalho | `TableHeader` (`<thead>`), `components/ui/table.tsx` |
+| `--table-header-foreground` | texto do cabeçalho | `TableHead` (`<th>`) |
+| `--table-row` | fundo da linha "par" | `ListView.tsx`, escolhido por linha |
+| `--table-row-zebra` | fundo da linha "ímpar" | `ListView.tsx`, escolhido por linha |
+| `--table-row-foreground` | texto do corpo da tabela | `TableRow` (`<tr>`) - herda pros `<td>` por `color` ser herdável (só se nenhum elemento dentro da célula fixar a própria cor - ver pegadinha abaixo) |
+| `--table-column-primary` | fundo da coluna principal (1ª coluna) | `ListView.tsx`, só no `<th>`/`<td>` dessa coluna |
+| `--table-column-primary-foreground` | texto da coluna principal | `ListView.tsx`, `!text-table-column-primary-foreground` no `<th>`/`<td>` dessa coluna (precisa de `!` - ver "regra de arquitetura" abaixo) |
+| `--table-column-primary-max-width` | largura máxima da coluna principal (2026-11-21) | `getColumnWidthStyle` em `ListView.tsx`, só na coluna principal |
+| `--table-border` | cor das divisórias (linha e cabeçalho) | `TableHeader`, `TableRow` |
+| `--table-cell-padding-x` | padding horizontal de toda célula | `TableHead`, `TableCell` |
+| `--table-cell-padding-y` | padding vertical do corpo - **é isso que define a altura da linha**, não uma altura fixa | `TableCell` |
+| `--table-checkbox-border` (2026-11-21) | borda do checkbox da coluna `__select__`, sem marcação | `SELECTION_CHECKBOX_CLASS_NAME` em `ListView.tsx`, com `!` |
+| `--table-checkbox-checked-background` (2026-11-21) | fundo do checkbox da coluna `__select__`, marcado | idem, `data-[state=checked]:!bg-...` |
+| `--table-checkbox-checked-foreground` (2026-11-21) | ícone de check, marcado | idem, `data-[state=checked]:!text-...` |
+| `--table-pinned-background` (2026-11-21) | fundo de uma coluna fixada (sticky) que não é a principal nem a de seleção | `getPinnedStyles` em `ListView.tsx` |
+
+(`--table-header-padding-y` existe separado, só pro cabeçalho, porque cabeçalho e corpo podem querer alturas diferentes.) Todas mapeadas em `@theme inline` (`--color-table-header: var(--table-header)`, etc. - mesmo mecanismo que já gera `bg-toolbar` a partir de `--toolbar`), então qualquer uma vira uma classe Tailwind normal (`bg-table-header`, `text-table-row-foreground`, `border-table-border`...) - exceto `--table-column-primary-max-width` e `--table-pinned-background`, que são lidas direto via `var(...)` num `style` inline (`getColumnWidthStyle`/`getPinnedStyles`), sem precisar de mapeamento em `@theme inline` (a 1ª é um tamanho, não cor; a 2ª só porque `getPinnedStyles` já monta um objeto de `style`, não `className`, nesse ponto). As cores são oklch **sólido, sem alpha** de propósito, **exceto `--table-checkbox-border`** (tem alpha - não é fundo, não precisa cobrir nada ao rolar): a coluna principal e qualquer coluna fixada precisam ser opacas pra cobrir o conteúdo que passa por baixo.
+
+**As 16 variáveis sempre valem nos dois temas igual, e nos dois contextos (List Principal e relation) igual - conferir os dois ao editar.** Achado em 2026-11-20: `--table-cell-padding-y`/`--table-header-padding-y` foram editados só em `:root` (claro, pra `8px`) e o `.dark` ficou esquecido em `12px` - sem nenhum bug de código, só os dois blocos desincronizados; corrigido igualando os dois. Antes de concluir que um parâmetro "não funciona", confirmar qual tema está sendo testado e comparar o valor nos dois blocos (`:root`/`.dark`) em `globals.css`, não só um. (`--table-cell-padding-y` voltou a ficar desincronizado entre os temas - 15px no claro, 8px no escuro - achado em 2026-11-21 mas não corrigido por não ter sido pedido; ver `docs/backlog.md`.)
+
+**Pegadinha real - cor do texto da célula não aplica mesmo com `--table-row-foreground`/`--table-column-primary-foreground` certos (achado em 2026-11-21, revisão de Atendimento e Atividades).** `color` é herdável, mas a herança só funciona se **nenhum elemento entre o `<td>` e o texto** fixar a própria cor - não é uma questão de especificidade CSS (que `!text-table-column-primary-foreground` resolveria), é que a declaração mais **interna** sempre vence, ponto. Causa raiz real: o `cell` do `ColumnDef`, em praticamente todo módulo de lista, envolve o valor num `<div>`/`<span>` com `text-foreground` - esse `text-foreground` interno anula qualquer cor vinda do `<tr>`/`<td>` por fora. **Não é só a coluna principal** - em Atividades (`actions-list-module-client-page.tsx`) o usuário reportou a 2ª coluna ("Tipo") não acompanhando `--table-row-foreground`, e o `cell` dela tinha exatamente o mesmo `text-foreground` fixo ("Inicio"/"Cadastro" também tinham, corrigidas junto). **Checklist pra qualquer `cell` novo ou revisado, em qualquer coluna:** se o `div`/`span` dentro da célula tem uma classe `text-*` de cor (não `text-xs`/`text-sm`, que são tamanho) além de `text-muted-foreground` num valor secundário intencional, é bug - tirar a cor e deixar o texto herdar do `<tr>`/`<td>`. Corrigido em Attendances (coluna principal) e em Actions/Atividades (coluna principal + "Tipo"/"Inicio"/"Cadastro") nesta sessão; os outros módulos com o mesmo padrão - alguns também em colunas secundárias, não só a principal - estão listados em `docs/backlog.md` (seção "Infraestrutura de UI").
+
+**`bordered={false}` não desliga mais as linhas divisórias (2026-11-20).** Só controla a borda **externa** do cartão (`ModuleSurface`) - as linhas internas (`border-table-border`, no `<thead>`/`<tr>`) aparecem em qualquer `ListView`, relation ou não, desde que `--table-border` tenha largura visível no tema (que já tem, por padrão). Antes disso, `!bordered` forçava `border-bottom-width: 0` via um seletor `[&_tr]:border-b-0` de especificidade mais alta - zerava a borda de propósito, então mudar a cor de `--table-border` não tinha efeito nenhum nas relations (comportamento antigo, intencional até então). Religado porque a cor agora é configurável/sutil e não fazia mais sentido continuar apagando.
+
+**Regra de arquitetura pra não repetir o bug de 2026-11-20 (duas rodadas de "a cor não aplica"):** nunca declarar duas classes de `background-color` (uma fixa, outra condicional) no **mesmo elemento** - com a mesma especificidade, qual delas "ganha" depende da ordem interna de geração do Tailwind, não da ordem no JSX, e não dá pra confiar nisso. Em vez disso, o fundo "base" sempre mora no elemento **pai** (`--table-header` no `<thead>`, não em cada `<th>`) e a excecão (coluna principal) é a **única** declaração de fundo no elemento **filho** (`<th>`/`<td>` daquela coluna) - sem concorrência nenhuma, o filho sempre cobre o pai nessa área, não importa a ordem de geração do CSS. Pelo mesmo motivo, `bg-table-row`/`bg-table-row-zebra` nunca coexistem como "classe base + classe condicional" no mesmo `<tr>` - `ListView.tsx` sempre escolhe **uma das duas**, nunca as duas. **Caso diferente, mesma causa (checkbox da coluna de seleção, 2026-11-21):** aqui as duas classes concorrentes não são de um `className` condicional do `ListView` contra ele mesmo, são o `className` do `ListView` (`SELECTION_CHECKBOX_CLASS_NAME`) contra as classes que já vêm **de dentro do componente** `Checkbox` (`border-primary`, `data-[state=checked]:bg-primary`, `components/ui/checkbox.tsx`) - não dá pra mover a "base" pro elemento pai porque o pai não é quem declara essas classes. Única saída confiável: `!` nas classes do `ListView` (`!border-table-checkbox-border`, `data-[state=checked]:!bg-table-checkbox-checked-background`) - força a vitória independente de ordem de geração.
+
+**Pegadinha real, já corrigida - cuidado ao tocar em `getPinnedStyles`:** uma coluna fixada (`initialColumnPinning`, ex.: Atividades fixa "title" à esquerda) recebe um `style` **inline** com `background` (pra cobrir conteúdo ao rolar) **e** `width`/`minWidth`/`maxWidth` fixos (`column.getSize()`, 150px por padrão) - `style` inline sempre vence `className`, sem excecão nem especificidade que salve. Isso anulava `bg-table-column-primary` **e** travava a largura em 150px mesmo a coluna sendo "sem limite" - dois bugs do mesmo tipo, achados em duas rodadas diferentes (o segundo só apareceu porque o usuário comparou o List Principal, onde "title" é fixada, com uma relation, onde nenhuma coluna é fixada, e viu a 1ª coluna com tamanhos diferentes nas duas telas). Corrigido em `getCellStyle` (`ListView.tsx`): quando a coluna é a principal, mantém só o que a fixação realmente precisa (`position`/`left`/`right`/`zIndex`) e usa `getColumnWidthStyle` pra largura - sem herdar `background` nem `width` da fixação. Resultado: a coluna principal fica com a mesma largura/cor em qualquer tabela, fixada ou não. Se um dia outra coluna (não a principal) precisar desse mesmo tratamento, generalizar `getCellStyle`, não duplicar a lógica.
+
+**Histórico de calibração (não repetir):** a primeira tentativa usou `bg-muted/10`→`/25` (cabeçalho) e `bg-muted/5`→`/40` (zebra) com opacidade Tailwind direto no componente - `--muted` e `--background` são quase idênticos em luminosidade neste tema (diferença de ~2%), então qualquer fração baixa dela fica imperceptível; confirmado pelo usuário duas vezes. **Lição:** antes de usar um token existente com opacidade baixa como "tom sutil", conferir se ele realmente tem contraste suficiente neste tema especificamente - e, pra qualquer cor pensada pra ser recalibrável por design (não só uma vez), usar uma variável dedicada em `globals.css`, nunca uma fração solta na className.
+
+### Exclusão em lote: seleção colada à coluna principal (padrão do projeto a partir de 2026-11-20, referência: Encontros da Atividade)
+
+**Regra, sem excecão:** sempre que uma lista (List Principal ou relation) precisar de exclusão em lote, o mecanismo é seleção por checkbox + botão de exclusão - nunca um botão de excluir por linha separado nem uma tela paralela de "gerenciar exclusões". Isso não é específico de Atividades - é o padrão de **todo o projeto** a partir de agora, porque a peça inteira mora no componente compartilhado (`ListView.tsx`): qualquer módulo que ligar `enableRowSelection={true}` já ganha automaticamente tudo abaixo, sem nenhum código visual próprio.
+
+O mecanismo, pronto no `ListView`:
+
+- `enableRowSelection` liga a coluna `__select__` (sempre a primeira coluna da tabela, antes até da coluna principal) e o checkbox de "selecionar todos" no cabeçalho.
+- **A coluna de seleção é tratada como coluna de ação, colada à coluna principal** - `isLeadingColumn` em `ListView.tsx` dá à coluna `__select__` o mesmo tom `bg-table-column-primary` da coluna principal, formando um único bloco visual contínuo, sem costura de cor entre as duas. Não criar uma cor própria pra coluna de seleção em nenhum módulo - ela sempre usa esse mesmo tom.
+- **O checkbox em si é sutil**, não o padrão cru do componente: `border-muted-foreground/40 shadow-none` (constante `SELECTION_CHECKBOX_CLASS_NAME` em `ListView.tsx`) em vez de `border-primary`/`shadow-sm` - numa tabela densa, o checkbox não deveria competir visualmente com os dados da linha. O estado marcado continua óbvio (`bg-primary`, já vem do componente base `Checkbox`).
+- O botão de ação em lote (`bulkActions`, ex.: "Excluir selecionados") é passado pelo módulo pra `ListView`/`RelationListHost`, aparece só quando há linhas selecionadas, e some quando a seleção é limpa - ver `action-occurrences-section.tsx` (aba Encontros da Atividade) como referência viva completa: `enableRowSelection`, `onSelectionChange` com comparação de conteúdo (evita loop infinito - ver nota em `docs/backlog.md`/comentário no próprio arquivo), confirmação (`useConfirm`) antes de excluir, e exclusão em lote real (`runInBatches`) contra o endpoint de delete.
+- **Quando a coluna principal também é fixada (`initialColumnPinning`), a coluna de seleção é fixada junto, automaticamente, na frente.** Achado em 2026-11-20 na lista principal de Atividades (`title` fixado à esquerda): o TanStack reordena colunas fixadas pra frente de todas as outras - então a coluna principal fixada "furava a fila" e aparecia **antes** da coluna de seleção, mesmo essa sendo sempre a primeira coluna declarada no array. `ListView.tsx` corrige isso sozinho: ao montar o estado inicial de `columnPinning`, se `enableRowSelection` estiver ativo e houver alguma coluna fixada à esquerda, `__select__` é prefixado nessa lista automaticamente - nenhum módulo precisa lembrar de fazer isso na mão. `getCellStyle` também precisou aprender a tratar a coluna de seleção como "coluna líder" (mesmo tratamento de remover o `background` inline da fixação que já existia pra coluna principal, mas **sem** soltar a largura fixa de 32px, que é intencional ali).
+
+**Não adicionar a coluna de seleção só por padronização visual - só quando existe uma ação real de exclusão em lote por trás.** Um checkbox sem ação nenhuma é uma promessa vazia pro usuário. Exemplo já decidido: dentro da própria Atividade, Encontros tem seleção porque excluir um Encontro é uma operação real; Participantes e Qualidade não ganharam seleção, mesmo sendo visualmente parecidas, porque nenhuma das duas tem uma operação de exclusão em lote por trás (Participantes é um resumo agregado por matrícula, não um registro que se exclui; Qualidade edita nota/presença já existente, sem endpoint de exclusão em massa) - decisão confirmada com o usuário em 2026-11-20. Usar o mesmo critério em qualquer módulo: antes de ligar `enableRowSelection`, confirmar que existe um endpoint de exclusão em lote (ou em loop) real pra chamar - se não existir, não adicionar o checkbox.
+
+### Exclusão é sempre soft delete, atrás de um status terminal do próprio módulo (padrão do projeto a partir de 2026-11-20, referência: Atividades)
+
+**Regra, sem excecão:** nenhum módulo expõe exclusão (single ou em lote) como remoção física de dado. "Excluir" é sempre soft delete (`deletedAt` setado, linha nunca sai da tabela) **e** só é permitido quando o registro já está num status terminal definido pelo próprio módulo - nunca em um registro "vivo"/em uso. Decisão do usuário: prioriza não perder dado por acidente sobre liberar a tela imediatamente; quem precisa excluir de verdade primeiro move o status pra terminal (passo reversível, deliberado) e só depois exclui (agora seguro, porque já passou pelo primeiro passo).
+
+Isso não é um campo/enum igual em todo módulo - **cada módulo define seu próprio gatilho**, porque cada um já tinha (ou não) um conceito equivalente antes desta regra:
+
+- **Atividades (referência viva):** `ActionStatus` tem `INACTIVE` (antigo `CANCELED`, renomeado em 2026-11-20 - nenhum registro usava esse valor, troca segura) como status terminal. `Activity.deletedAt DateTime?` (mesmo padrão de campo já usado em `ProjectEnrollment`/`PeopleGroupParticipation`/`ProjectActionPeopleParticipation`). `deleteProjectAction` (`backend/src/modules/actions/actions.service.ts`) virou `prisma.activity.update({ data: { deletedAt: new Date() } })`, com `BadRequestException` se `status !== 'INACTIVE'` - **a checagem mora no backend**, nunca só no frontend (o botão escondido/cliente valida por UX, mas quem garante a regra é o service, senão é só decoração). Toda leitura de `Activity` (`buildProjectActionWhere`, `ensureProjectActionExists`, contagem em `project-structure.service.ts`, agregações em `dashboard.service.ts`) ganhou `deletedAt: null` no `where`.
+- **Projects e People ainda não adotam esse padrão** - `ProjectStatus` não tem um valor terminal equivalente hoje (`PLANNED | ACTIVE | CLOSED`, precisa decidir qual serviria); People já tem seu próprio soft delete (`status: 'Excluido'`, sem checagem de status anterior) e não precisa mudar só pra "ficar igual" - ver `docs/backlog.md`.
+- Hard delete (`prisma.x.delete(...)`) continua existindo só onde não há esse tipo de risco (ex.: `Goal`, bloqueado por contagem de Activities vinculadas) - a troca pra soft delete é sobre entidades que o usuário final cria/edita/apaga livremente pela tela, não sobre toda e qualquer exclusão do sistema.
+- A auditoria (`backend/src/core/prisma/prisma.service.ts`) já grava um snapshot `before`/`after` de qualquer `update`/`delete` automaticamente - soft delete não precisa de nada extra pra manter rastro de quem/quando excluiu.
+
 ### Relation no rodape do Detail (padrao a partir de 2026-11-18, referencia: aba Encontros da Atividade)
 
 **Regra, sem excecao:** toda relation nova, em qualquer modulo, tem que
@@ -613,6 +854,19 @@ mesmo molde: estado local (`searchText` + o que mais a relation
 precisar), `useMemo` pra filtrar os dados antes de passar pro
 `<ListView data={...}>`, e `<RelationListHost flushToolbar>` como
 wrapper.
+
+**Occurrences ainda nao segue isso.** A aba "Envolvidos" de Occurrences
+foi construida com `DetailRelationConfig` (`tabTemplates[].relations`,
+o mecanismo antigo) - sem `SearchPanelMenu` (Colunas/Filtros/Agrupar).
+Nao foi migrado ainda - ver `docs/backlog.md`, entrada "Relations ainda
+no DetailRelationsRenderer".
+
+**Attendances ja migrou (2026-11-21).** As 3 abas (Pessoas/Evolucoes/
+Beneficios) usam `DetailRelationTablePanel` (`RelationListHost` +
+`TableView`), mesmo mecanismo desta secao - ver
+`attendances-detail-layout-contract.tsx`. Continua faltando so o side
+de Tags/Notas/Anexos (depende de schema novo no backend - Fase B, ver
+`docs/backlog.md`), nao a relation em si.
 
 **`viewSwitcherSlot` e so pro seletor de visualizacao e pra acoes de
 verdade que nao sao filtro (ex.: um botao "Salvar" de edicao em lote) -
@@ -776,10 +1030,19 @@ algo que antes trocava.
 
 **Tabela:**
 
+- Largura de coluna, truncamento, tooltip, zebra e padding lateral - ver
+  "Tabela (`ListView`): largura de coluna, truncamento, tooltip, zebra e
+  padding" mais acima; vale igual dentro de uma relation, nenhuma regra
+  extra aqui.
 - `ListView` com `bordered={false}` dentro de uma relation do
-  `RelationListHost` - sem borda externa nem linhas divisorias entre
-  cabecalho/linhas. `bordered` e opcional (padrao `true`, preserva o
-  visual de qualquer `ListView` fora desse contexto, ex.: List Principal).
+  `RelationListHost` - sem a borda **externa** do cartão (`ModuleSurface`),
+  já que a relation mora dentro da moldura do próprio Detail. `bordered`
+  e opcional (padrao `true`, preserva o visual de qualquer `ListView` fora
+  desse contexto, ex.: List Principal). **Mudança em 2026-11-20:** as
+  linhas divisórias internas (cabeçalho e corpo) não são mais desligadas
+  por essa prop - seguem `--table-border` (`globals.css`) em qualquer
+  `ListView`, bordered ou não, porque a cor virou configurável/sutil e não
+  fazia sentido continuar some com ela só nas relations.
 - O checkbox do cabecalho (quando `enableRowSelection`) fica alinhado
   com os checkboxes das linhas - bug corrigido globalmente no `ListView`
   (o cabecalho tinha um wrapper extra sem `justify-center`); nao
@@ -858,6 +1121,30 @@ Regras:
 - Rotulo de campo usa `DetailSectionField` do mesmo arquivo: label pequeno em maiusculas acima do campo. Nao reimplementar esse label por modulo (varios modulos tinham a mesma constante `fieldLabelClassName`/`SectionField` copiada - foi consolidado).
 - Formulario com 1 Grupos so de campos (sem sub-secoes) pode usar `DetailSectionField` direto, sem `DetailSectionHeading`.
 - **Todo campo que recebe dado (`Input`, `Select`, data, numero, texto) usa `DETAIL_LINE_INPUT_CLASS_NAME`** - e pra `Textarea`, `DETAIL_LINE_TEXTAREA_CLASS_NAME` - os dois exportados de `web-client/detail/DetailFormSection.tsx`: so borda embaixo, sem caixa, sem sombra. Essa e a unica fonte - nunca escrever essa `className` de novo num modulo (3 copias dessa mesma string ja existiram, com a opacidade da borda ate divergindo entre elas - `border-border/60` vs `/70`). Tamanho proprio do campo (`h-8` num filtro compacto, `min-h-[Npx]` numa `Textarea` maior) e um `cn(DETAIL_LINE_INPUT_CLASS_NAME, "...")` por cima, nunca reescrever a base. Vale pro formulario principal do Detail **e** pros filtros de uma relation (ex.: `QuickDateRangeFilter` em `SearchPanelMenu.tsx`) - qualquer lugar do sistema que peca um valor ao usuario.
+
+### Create reaproveita o formulário de edit, nunca um componente paralelo (padrão a partir de 2026-11-20, referência: Atividade)
+
+**Regra, sem exceção:** o `detailSlot` de `create` e `edit` é a mesma função/componente React. Nunca um segundo componente (outro arquivo, outro JSX) que só é usado quando `mode === "create"` — isso é exatamente o anti-padrão que esta seção existe pra proibir (ver bullet "`new` e `edit` usam o mesmo formulário" em `detailSlot` acima). Atividade foi a prova de que isso é viável mesmo quando `create` e `edit` historicamente divergiram: `ActivityDetailMain` (`actions-detail-layout-contract.tsx`) virou o único renderizador, usado nos dois modos; o antigo `ActionCreateFormSection` (um componente à parte, com seu próprio estado e seu próprio `handleSubmit`) foi apagado, não mantido como alternativa.
+
+Mecanismo, generalizável pra qualquer módulo que ainda tenha o mesmo problema (Projects e People já faziam assim antes de Atividade alcançar o padrão - não é novo, só estava documentado de menos):
+
+- O componente do `detailSlot` recebe `mode: "create" | "edit"` como prop e ramifica **só o campo que precisa**, nunca o formulário inteiro. Um campo cujo valor é fixo em `edit` (porque já existe um registro) mas precisa ser escolhido em `create` (porque ainda não existe) mostra texto read-only num modo e um `<Select>`/`<Input>` editável no outro, dentro do mesmo bloco JSX - ver o campo "Projeto" em `ActivityDetailMain` (texto fixo em `edit`, `<Select>` de projetos em `create`, porque `/actions/new` pode chegar sem saber o projeto ainda).
+- O `draft`/`setDraft` já existe nos dois modos (o mesmo hook/estado que `edit` usa pra popular o formulário a partir do registro carregado também funciona vazio em `create` - ver `buildDraft()` sem argumento). `onCommitField` (o callback que o formulário chama a cada campo) pode continuar sendo chamado igual nos dois modos: em `edit` ele persiste o campo (autosave `field-commit`); em `create`, como o autosave fica desabilitado (`enabled: mode === "edit"` no `useDetailAutoSaveController`, ou simplesmente um no-op quando a página de criação não usa esse hook), a chamada não faz nada - o valor já foi atualizado na tela via `setDraft` no `onChange`, então nenhum dado se perde.
+- A criação de fato (chamar o endpoint de `create`, validar o mínimo, redirecionar pro Detail do registro criado) é **um botão só**, ligado via `onSave` do `DetailShellEngine` (`mode="create"` + `onSave={handleCreate}` já renderiza o botão "Salvar" padrão no header - não criar um botão de rodapé próprio do módulo).
+- Validação do lado do cliente, antes de chamar o endpoint, deve ficar mínima (campos obviamente vazios: título, tipo, etc.) - regra de negócio mais específica (ex.: "Grupos é obrigatório pra este tipo de atividade") já é validada pelo backend com mensagem em pt-BR; repetir a mesma regra no cliente é duplicar lógica que pode divergir da do servidor com o tempo. Deixe o `catch` genérico (que já existe pra qualquer chamada de API) mostrar a mensagem de erro do backend.
+
+**Legado ainda não migrado:** nenhum módulo canônico tem esse problema hoje (Atividade foi o último). Se aparecer de novo (um módulo novo, ou um módulo que ganhe um formulário de `create` separado por atalho), é bug de implementação, não uma variação aceitável.
+
+### Campo obrigatório: asterisco via `DetailSectionField` (padrão a partir de 2026-11-20)
+
+Todo campo que o usuário precisa preencher pra salvar o registro (ou pra habilitar uma ação específica, como publicar) mostra um asterisco vermelho ao lado do label: `<DetailSectionField label="Título" required>`. A prop `required` mora em `DetailSectionField` (`web-client/detail/DetailFormSection.tsx`), é compartilhada por todo o sistema - não reimplementar o asterisco por módulo, e não usar outro símbolo/cor pra sinalizar obrigatoriedade.
+
+Regras de quando marcar:
+
+- **`required` só quando o dado é de fato exigido pra salvar** - a mesma regra que o backend (`class-validator` no DTO, ou uma checagem explícita no service) já aplica. Não marcar um campo como obrigatório "porque parece importante" sem checar o DTO/service correspondente; e não deixar de marcar um campo que o backend rejeita se vier vazio. Referência de como achar a regra real: `backend/src/modules/actions/dto/create-project-action.dto.ts` (campos sem `@IsOptional()` são obrigatórios) e, quando a regra depende de outro campo (não é so presença/ausência), o `service` correspondente (ex.: `actions.service.ts` - "Grupos e obrigatorio para este tipo de acao").
+- **`required` pode ser estático ou condicional.** Estático: `required` sempre `true` (ex.: Título, Tipo de Atividade - vazios em qualquer cenário fazem o backend rejeitar). Condicional: `required={expressão}`, quando a obrigatoriedade depende do valor de outro campo (ex.: o campo "Grupos" da Atividade só é obrigatório quando o Tipo selecionado tem `target === "PEOPLE_GROUP"` - `required={isPeopleGroupTarget}`) ou do próprio `mode` (ex.: "Projeto" só é um campo editável, e só então obrigatório, em `create` - `required={canChooseProject}`, onde `canChooseProject = mode === "create"`). Um campo que é sempre somente-leitura em `edit` não precisa do asterisco nesse modo, mesmo que o dado por trás seja obrigatório - o asterisco é um sinal de "preencha isto", não faz sentido sobre um campo que o usuário não pode editar ali.
+- Campo com valor padrão sempre preenchido (ex.: Status, que nunca fica vazio porque o `<Select>` já nasce com um valor) não leva asterisco - não há risco real do usuário "esquecer" de preencher algo que já vem preenchido.
+- Referência viva: `ActivityDetailMain` (`actions-detail-layout-contract.tsx`) - Título e Tipo estáticos, Grupos e Projeto condicionais.
 
 ### Nao e regra do Detail
 

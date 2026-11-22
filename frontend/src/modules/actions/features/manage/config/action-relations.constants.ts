@@ -68,6 +68,7 @@ export const ACTION_RELATION_TEXT = {
     },
     columns: {
       person: "Pessoa",
+      peopleGroups: "Grupos",
       score: "Nota",
       highlight: "Destaque",
       notes: "Observações",

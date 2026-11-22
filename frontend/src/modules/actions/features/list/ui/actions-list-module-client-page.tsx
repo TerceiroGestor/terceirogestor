@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,11 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { useConfirm } from "@/components/confirm/use-confirm";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
+  deleteActivity,
   listActions,
   type ApiActivity,
   type ActivitiesListResponse,
@@ -33,7 +37,11 @@ import {
   type ActionDateField,
   type ActionsListQueryState,
 } from "@/modules/actions/config/actions-module-contract";
-import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
+import {
+  ACTION_DELETABLE_STATUS,
+  ACTION_STATUS_LABELS,
+} from "@/modules/actions/shared/domain/actions.constants";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 import { buildQueryFacets } from "@/web-client/control-panel/queryFacets";
 import { removeConditionAtIndex } from "@/web-client/domain/conditions";
 import { matchesDomainRecord } from "@/web-client/domain/evaluate";
@@ -58,6 +66,17 @@ import { GanttView } from "@/web-client/views/GanttView";
 import { KanbanView } from "@/web-client/views/KanbanView";
 import { ListView } from "@/web-client/views/ListView";
 import { TimelineView } from "@/web-client/views/TimelineView";
+
+async function runInBatches<T>(
+  items: T[],
+  batchSize: number,
+  run: (item: T) => Promise<void>,
+) {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.allSettled(batch.map((item) => run(item)));
+  }
+}
 
 type ActionsFavoriteState = Pick<
   ActionsListQueryState,
@@ -190,7 +209,7 @@ function resolveStatusBadge(status: ApiActivity["status"]) {
   switch (status) {
     case "EXECUTED":
       return <Badge variant="secondary">{label}</Badge>;
-    case "CANCELED":
+    case "INACTIVE":
       return <Badge variant="outline">{label}</Badge>;
     default:
       return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
@@ -262,22 +281,27 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
     {
       accessorKey: "title",
       header: "Atividade",
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <div className="font-medium text-foreground">{row.original.title}</div>
-          <div className="text-xs text-muted-foreground">{resolveActivityTypeLabel(row.original)}</div>
-        </div>
-      ),
+      // Coluna principal: é a primeira coluna de dado, então o ListView já
+      // trata sem limite de largura/sem truncar automaticamente - ver
+      // "Coluna principal (nome)" em docs/canonical-web-client-standard.md.
+      // Só o título - o tipo tem coluna própria ("Tipo"), logo abaixo.
+      cell: ({ row }) => <div className="font-medium">{row.original.title}</div>,
+    },
+    {
+      id: "type",
+      header: "Tipo",
+      accessorFn: (row) => resolveActivityTypeLabel(row),
+      cell: ({ row }) => <span className="text-sm">{resolveActivityTypeLabel(row.original)}</span>,
     },
     {
       id: "project",
       header: "Projeto",
       accessorFn: (row) => row.project?.name ?? "",
       cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <FolderKanban className="size-4 text-muted-foreground" />
-          <span>{row.original.project?.name ?? "-"}</span>
-        </div>
+        <TruncatedTextCell
+          text={row.original.project?.name}
+          icon={<FolderKanban className="size-4 shrink-0 text-muted-foreground" />}
+        />
       ),
     },
     {
@@ -285,21 +309,17 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
       header: "Grupos",
       accessorFn: (row) => resolvePeopleGroupLabel(row),
       cell: ({ row }) => (
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Users className="size-4 text-muted-foreground" />
-          <span>{resolvePeopleGroupLabel(row.original)}</span>
-        </div>
+        <TruncatedTextCell
+          text={row.original.peopleGroup?.name}
+          icon={<Users className="size-4 shrink-0 text-muted-foreground" />}
+        />
       ),
     },
     {
       id: "participant",
       header: "Participante",
       accessorFn: (row) => row.targetEnrollment?.person?.fullName ?? "",
-      cell: ({ row }) => (
-        <span className="text-sm text-foreground">
-          {row.original.targetEnrollment?.person?.fullName ?? "-"}
-        </span>
-      ),
+      cell: ({ row }) => <TruncatedTextCell text={row.original.targetEnrollment?.person?.fullName} />,
     },
     {
       accessorKey: "tags",
@@ -331,7 +351,7 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
       accessorKey: "plannedStartAt",
       header: "Inicio",
       cell: ({ row }) => (
-        <span className="text-foreground">
+        <span>
           {row.original.plannedStartAt
             ? formatDateOnlyPtBR(row.original.plannedStartAt.slice(0, 10))
             : "-"}
@@ -342,9 +362,7 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
       accessorKey: "createdAt",
       header: "Cadastro",
       cell: ({ row }) => (
-        <span className="text-foreground">
-          {row.original.createdAt ? formatDateOnlyPtBR(row.original.createdAt.slice(0, 10)) : "-"}
-        </span>
+        <span>{row.original.createdAt ? formatDateOnlyPtBR(row.original.createdAt.slice(0, 10)) : "-"}</span>
       ),
     },
     {
@@ -473,13 +491,38 @@ export function ActionsListModuleClientPage() {
   const tenantSlug = getTenantSlugFromPath(pathname);
   const columns = React.useMemo(() => actionColumns(), []);
 
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
+
   const canRead = hasModulePermission(actionsListModuleDefinition, "canRead", permissions);
   const canCreate = canUseModuleAction(actionsListModuleDefinition, "create", permissions);
+  const canDelete = hasModulePermission(actionsListModuleDefinition, "canDelete", permissions);
 
   const [rows, setRows] = React.useState<ApiActivity[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [selectedRows, setSelectedRows] = React.useState<ApiActivity[]>([]);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
+
+  // ListView recalcula a selecao (novo array, mesmo conteudo) a cada render
+  // e notifica via efeito - sem esse diff, setSelectedRows(novaRef) forca um
+  // re-render do pai a cada notificacao, que forca o ListView a renderizar
+  // de novo, que notifica de novo: loop infinito ("Maximum update depth
+  // exceeded"). O updater funcional devolve a mesma referencia quando o
+  // conteudo nao mudou, e o React pula o re-render (mesmo padrao de
+  // action-occurrences-section.tsx).
+  const handleSelectionChange = React.useCallback((next: ApiActivity[]) => {
+    setSelectedRows((previous) => {
+      if (
+        previous.length === next.length &&
+        previous.every((row, index) => row.id === next[index]?.id)
+      ) {
+        return previous;
+      }
+      return next;
+    });
+  }, []);
 
   const [state, setState] = useModuleQueryState<ActionsListQueryState>({
     moduleDefinition: actionsListModuleDefinition,
@@ -538,6 +581,51 @@ export function ActionsListModuleClientPage() {
   React.useEffect(() => {
     void loadRows();
   }, [loadRows, refreshKey]);
+
+  const handleBulkDelete = React.useCallback(async () => {
+    if (!token || !canDelete || selectedRows.length === 0) return;
+
+    const ineligible = selectedRows.filter((row) => row.status !== ACTION_DELETABLE_STATUS);
+    if (ineligible.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Exclusão bloqueada",
+        description: `${ineligible.length} atividade(s) selecionada(s) não estão com status "${ACTION_STATUS_LABELS[ACTION_DELETABLE_STATUS]}" - marque como "${ACTION_STATUS_LABELS[ACTION_DELETABLE_STATUS]}" antes de excluir.`,
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Excluir atividades selecionadas",
+      description: `Excluir ${selectedRows.length} atividade(s) selecionada(s)? O registro deixa de aparecer nas listas, mas o histórico continua auditado.`,
+      confirmLabel: "Excluir",
+      confirmVariant: "destructive",
+    });
+    if (!confirmed) return;
+
+    setBulkDeleting(true);
+    let removed = 0;
+    let failed = 0;
+    try {
+      await runInBatches(selectedRows, 6, async (row) => {
+        try {
+          await deleteActivity(token, row.projectId, row.id);
+          removed += 1;
+        } catch {
+          failed += 1;
+        }
+      });
+      toast({
+        title: "Exclusão em massa concluída",
+        description: `Excluídas: ${removed}${failed ? ` — Falharam: ${failed}` : ""}`,
+        variant: failed > 0 ? "destructive" : "default",
+      });
+      setSelectedRows([]);
+      setRefreshKey((previous) => previous + 1);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [canDelete, confirm, selectedRows, toast, token]);
 
   const filteredRows = React.useMemo(() => {
     return rows.filter((record) => matchesDomainRecord(record, state.domain, resolveRecordValue));
@@ -1068,6 +1156,19 @@ export function ActionsListModuleClientPage() {
             onRowClick={openDetail}
             getRowId={(row) => row.id}
             initialColumnPinning={{ left: ["title"] }}
+            enableRowSelection={canDelete}
+            onSelectionChange={handleSelectionChange}
+            bulkActions={(selection) => (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={bulkDeleting}
+                onClick={() => void handleBulkDelete()}
+              >
+                {bulkDeleting ? "Excluindo..." : `Excluir selecionados (${selection.length})`}
+              </Button>
+            )}
           />
           <PaginationBar
             pageIndex={state.pageIndex}
