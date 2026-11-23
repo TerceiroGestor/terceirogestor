@@ -25,6 +25,7 @@ const MAX_PEOPLE_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PANTRY_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_DEPOSIT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROGRAM_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_PEOPLE_GROUP_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROJECT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_ACTION_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
@@ -449,6 +450,38 @@ export class FilesController {
 
     return {
       path: `/uploads/action-attachments/${tenantId}/${filename}`,
+      mimeType: file.mimetype || null,
+      size: file.size ?? null,
+      originalName: file.originalname || filename,
+    };
+  }
+
+  @Post('people-group-attachments')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_PEOPLE_GROUP_ATTACHMENT_FILE_SIZE },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
+    }),
+  )
+  async uploadPeopleGroupAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Arquivo obrigatorio.');
+    }
+    const tenantId = this.getTenantId(user);
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put('people-groups', tenantId, filename, file.buffer);
+
+    return {
+      path: `/uploads/people-groups/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,

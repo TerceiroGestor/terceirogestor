@@ -75,7 +75,6 @@ export const PANTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
-  notes: "Notas",
 };
 
 export const PANTRY_DONOR_AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -92,7 +91,6 @@ export const PANTRY_ENTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   unit: "Unidade",
   entryDate: "Data da entrada",
   expiryDate: "Validade",
-  notes: "Notas",
   reversalOfExitId: "Estorno de saída",
 };
 
@@ -103,7 +101,6 @@ export const PANTRY_EXIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   exitDate: "Data da saída",
   type: "Tipo de saída",
   eventName: "Evento",
-  notes: "Notas",
   reversalOfEntryId: "Estorno de entrada",
 };
 
@@ -206,7 +203,7 @@ export const PANTRY_USAGE_TEXT = {
         title: "Dados principais",
         items: [
           "Edite setor, quantidade, unidade, validade, doador e notas diretamente no detalhe.",
-          "Use a aba Saídas vinculadas para abrir as saídas consumidas a partir desta entrada.",
+          "Use a aba Saídas para abrir as saídas consumidas a partir desta entrada.",
         ],
       },
       {

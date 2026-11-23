@@ -1,10 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { HeartHandshake } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
+import { formatDateOnlyPtBR } from "@/lib/date";
 import type { ApiOccurrence, ApiOccurrencePerson, OccurrenceCaseStatus } from "@/modules/occurrences/api";
 import {
   OCCURRENCE_AUDIT_FIELD_LABELS,
@@ -22,6 +19,7 @@ import {
   OCCURRENCE_CASE_STATUS_OPTIONS,
   OCCURRENCE_PERSON_ROLE_LABELS,
 } from "@/modules/occurrences/shared/domain/occurrences.constants";
+import { OccurrencePeopleSection } from "@/modules/occurrences/features/detail/ui/occurrence-people-section";
 import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
@@ -44,18 +42,6 @@ const AUTO_SAVE_EDITING = {
     trigger: "field-commit",
   },
 } as const;
-
-function resolveStatusBadge(status: OccurrenceCaseStatus) {
-  const label = OCCURRENCE_CASE_STATUS_LABELS[status] ?? status;
-  switch (status) {
-    case "DESFECHO_DEFINIDO":
-      return <Badge className="border-transparent bg-emerald-600 text-white">{label}</Badge>;
-    case "EM_ANALISE":
-      return <Badge className="border-transparent bg-amber-500 text-white">{label}</Badge>;
-    default:
-      return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
-  }
-}
 
 function resolveOriginLabel(meeting: ApiOccurrence["meeting"], meetingId?: string | null) {
   if (meeting) return `${meeting.action.title} - ${formatDateOnlyPtBR(meeting.scheduledDate)}`;
@@ -92,51 +78,6 @@ export type OccurrencesDetailLayoutContext = DetailShellAuditContext & {
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
-
-function peopleColumns({
-  canEdit,
-  onRemovePerson,
-}: Pick<OccurrencesDetailLayoutContext, "canEdit" | "onRemovePerson">): ColumnDef<
-  ApiOccurrencePerson,
-  unknown
->[] {
-  return [
-    {
-      accessorKey: "person.fullName",
-      header: "Pessoa",
-      cell: ({ row }) => <div className="font-medium text-foreground">{row.original.person.fullName}</div>,
-    },
-    {
-      accessorKey: "role",
-      header: "Papel",
-      cell: ({ row }) => (
-        <Badge variant="outline">{OCCURRENCE_PERSON_ROLE_LABELS[row.original.role] ?? row.original.role}</Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) =>
-        canEdit ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemovePerson(row.original);
-              }}
-            >
-              Remover
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
-}
 
 function OccurrenceDetailMain({
   draft,
@@ -264,33 +205,8 @@ export const occurrencesDetailLayout: DetailLayoutConfig<OccurrencesDetailLayout
     actions: OCCURRENCE_DETAIL_HEADER_ACTIONS,
     title: ({ occurrence, draft, mode }) =>
       mode === "create" ? "Nova ocorrência" : (occurrence?.title ?? draft.title) || "Ocorrência",
-    slot: ({ draft, occurrence, people }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div>{resolveStatusBadge(draft.status)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Origem</div>
-            <div className="font-medium text-foreground">
-              {resolveOriginLabel(occurrence?.meeting ?? null, draft.meetingId)}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Envolvidos</div>
-            <div className="font-medium text-foreground">{people.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Cadastro</div>
-            <div className="font-medium text-foreground">
-              {occurrence?.createdAt ? formatDateTimePtBR(occurrence.createdAt) : "-"}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
   },
+  mainTab: true,
   main: ({ draft, setDraft, readOnly, onCommitField, occurrence }) => (
     <OccurrenceDetailMain
       draft={draft}
@@ -328,35 +244,19 @@ export const occurrencesDetailLayout: DetailLayoutConfig<OccurrencesDetailLayout
       key: "people",
       label: "Envolvidos",
       badge: ({ people }) => people.length,
-      relations: [
-        {
-          key: "occurrence.people",
-          label: "Envolvidos",
-          loading: ({ peopleLoading }) => peopleLoading,
-          rows: ({ mode, people }) => (mode === "edit" ? people : []),
-          columns: (context) => peopleColumns({ canEdit: context.canEdit, onRemovePerson: context.onRemovePerson }),
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenPerson(row.person.id),
-          action: {
-            label: "Adicionar pessoa",
-            onClick: (context) => context.onAddPerson(),
-            hidden: ({ readOnly, mode, canEdit }) => readOnly || mode !== "edit" || !canEdit,
-          },
-          searchPlaceholder: "Pesquisar",
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) =>
-              [row.person.fullName, OCCURRENCE_PERSON_ROLE_LABELS[row.role] ?? row.role]
-                .join(" ")
-                .toLocaleLowerCase()
-                .includes(needle),
-            );
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create" ? "Salve a ocorrência para vincular pessoas." : "Nenhuma pessoa vinculada.",
-        },
-      ],
+      flushContent: true,
+      content: ({ mode, readOnly, canEdit, people, peopleLoading, onOpenPerson, onAddPerson, onRemovePerson }) => (
+        <OccurrencePeopleSection
+          rows={mode === "edit" ? people : []}
+          loading={peopleLoading}
+          canEdit={canEdit}
+          canAdd={!readOnly && canEdit && mode === "edit"}
+          onOpenPerson={onOpenPerson}
+          onAddPerson={onAddPerson}
+          onRemovePerson={onRemovePerson}
+        />
+      ),
+      emptyLabel: "Salve a ocorrência para vincular pessoas.",
     },
   ],
   auditSources: {

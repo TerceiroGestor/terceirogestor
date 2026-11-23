@@ -7,44 +7,34 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useDetentions } from "@/modules/people/features/detentions/data/use-detentions";
+import { DetentionQuickCreateDialog } from "@/modules/people/features/detentions/ui/detention-quick-create-dialog";
 import { buildPeopleDetentionPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { PersonDetention } from "@/modules/people/shared/domain/types";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
-
-function truncate(value: string | null | undefined, size = 42) {
-  const text = (value ?? "").trim();
-  if (!text) return "-";
-  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
-}
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 export function DetentionsPanel({ personId }: { personId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const { detentions, isLoading, error, remove } = useDetentions(personId);
+  const { detentions, isLoading, error, create, remove } = useDetentions(personId);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<PersonDetention, unknown>[]>(
     () => [
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{row.original.status}</span>
-        ),
       },
       {
         accessorKey: "unit",
         header: "Unidade",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{truncate(row.original.unit)}</span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.unit} className="text-sm" />,
       },
       {
         accessorKey: "type",
         header: "Tipo",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{truncate(row.original.type, 24)}</span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.type} className="text-sm" />,
       },
       {
         accessorKey: "startDate",
@@ -58,9 +48,7 @@ export function DetentionsPanel({ personId }: { personId: string }) {
       {
         accessorKey: "notes",
         header: "Notas",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{truncate(row.original.notes)}</span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.notes} className="text-sm" />,
       },
       {
         id: "actions",
@@ -92,38 +80,42 @@ export function DetentionsPanel({ personId }: { personId: string }) {
   }, []);
 
   return (
-    <DetailRelationTablePanel
-      data={detentions}
-      columns={columns}
-      getRowId={(row) => row.id}
-      onRowClick={(row) =>
-        router.push(
-          withTenantPath(buildPeopleDetentionPath(personId, row.id), tenantSlug),
-        )
-      }
-      searchPlaceholder="Pesquisar registros"
-      filterRow={filterRow}
-      addHref={withTenantPath(buildPeopleDetentionPath(personId), tenantSlug)}
-      loading={isLoading}
-      error={error}
-      emptyMessage="Nenhum registro de reclusao."
-      tableMinWidthClassName="min-w-[920px]"
-      tableInitialColumnPinning={{ right: ["actions"] }}
-      filterFields={[
-        { name: "status", label: "Status", type: "text" },
-        { name: "unidade", label: "Unidade", type: "text" },
-        { name: "tipo", label: "Tipo", type: "text" },
-        { name: "inicio", label: "Inicio", type: "date" },
-        { name: "notas", label: "Notas", type: "text" },
-      ]}
-      buildSearchRecord={(row) => ({
-        status: row.status,
-        unidade: row.unit ?? null,
-        tipo: row.type ?? null,
-        inicio: row.startDate ?? null,
-        notas: row.notes ?? null,
-      })}
-      searchActionId="people.detentions"
-    />
+    <>
+      <DetailRelationTablePanel
+        data={detentions}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={(row) =>
+          router.push(
+            withTenantPath(buildPeopleDetentionPath(personId, row.id), tenantSlug),
+          )
+        }
+        searchPlaceholder="Pesquisar registros"
+        filterRow={filterRow}
+        onAdd={() => setCreateOpen(true)}
+        loading={isLoading}
+        error={error}
+        emptyMessage="Nenhum registro de reclusao."
+        tableInitialColumnPinning={{ left: ["status"], right: ["actions"] }}
+        filterFields={[
+          { name: "unidade", label: "Unidade", type: "text" },
+          { name: "tipo", label: "Tipo", type: "text" },
+          { name: "inicio", label: "Inicio", type: "date" },
+        ]}
+        buildSearchRecord={(row) => ({
+          unidade: row.unit ?? null,
+          tipo: row.type ?? null,
+          inicio: row.startDate ?? null,
+        })}
+        searchActionId="people.detentions"
+      />
+      <DetentionQuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={async (payload) => {
+          await create({ status: payload.status, type: payload.type ?? null });
+        }}
+      />
+    </>
   );
 }

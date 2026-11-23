@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
 import { usePeopleFinancial } from "@/modules/people/features/people-financial/data/use-people-financial";
+import { FinancialEntryQuickCreateDialog } from "@/modules/people/features/people-financial/ui/financial-entry-quick-create-dialog";
 import { buildPeopleFinancialEntryPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { PersonFinancialEntry } from "@/modules/people/shared/domain/types";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 const ENTRY_TYPE_LABELS: Record<PersonFinancialEntry["entryType"], string> = {
   INCOME: "Renda",
@@ -19,19 +21,14 @@ const ENTRY_TYPE_LABELS: Record<PersonFinancialEntry["entryType"], string> = {
   BENEFIT: "Beneficio",
 };
 
-function truncate(value: string | number | null | undefined, size = 36) {
-  const text = String(value ?? "").trim();
-  if (!text) return "-";
-  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
-}
-
 export function PeopleFinancialRelationsPanel({ personId }: { personId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const { data: familyData, loadDetailed, refresh: refreshFamily } =
     useFamilyRelationsContext();
-  const { entries, isLoading, error, remove } = usePeopleFinancial(personId);
+  const { entries, isLoading, error, create, remove } = usePeopleFinancial(personId);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!familyData) void loadDetailed();
@@ -63,25 +60,18 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
       {
         accessorKey: "category",
         header: "Categoria",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.category)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.category} className="text-sm" />,
       },
       {
         accessorKey: "subcategory",
         header: "Subcategoria",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.subcategory)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.subcategory} className="text-sm" />,
       },
       {
         accessorKey: "amount",
         header: "Valor",
-        cell: ({ row }) => truncate(row.original.amount),
+        cell: ({ row }) =>
+          row.original.amount == null ? "-" : row.original.amount.toLocaleString("pt-BR"),
       },
       {
         accessorKey: "frequency",
@@ -94,36 +84,25 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
           if (row.original.entryType === "TRANSFER") {
             const from = householdLabelById.get(row.original.fromHouseholdId ?? "") ?? "-";
             const to = householdLabelById.get(row.original.toHouseholdId ?? "") ?? "-";
-            return (
-              <span className="block truncate whitespace-nowrap">
-                {truncate(`${from} -> ${to}`, 42)}
-              </span>
-            );
+            return <TruncatedTextCell text={`${from} -> ${to}`} className="text-sm" />;
           }
           return (
-            <span className="block truncate whitespace-nowrap">
-              {truncate(householdLabelById.get(row.original.householdId ?? "") ?? "-")}
-            </span>
+            <TruncatedTextCell
+              text={householdLabelById.get(row.original.householdId ?? "") ?? "-"}
+              className="text-sm"
+            />
           );
         },
       },
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.status, 18)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.status} className="text-sm" />,
       },
       {
         accessorKey: "notes",
         header: "Notas",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.notes)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.notes} className="text-sm" />,
       },
       {
         id: "actions",
@@ -165,49 +144,54 @@ export function PeopleFinancialRelationsPanel({ personId }: { personId: string }
   }, []);
 
   return (
-    <DetailRelationTablePanel
-      data={entries}
-      columns={columns}
-      getRowId={(row) => row.id}
-      onRowClick={(row) =>
-        router.push(
-          withTenantPath(buildPeopleFinancialEntryPath(personId, row.id), tenantSlug),
-        )
-      }
-      searchPlaceholder="Pesquisar financeiro"
-      filterRow={filterRow}
-      addHref={withTenantPath(buildPeopleFinancialEntryPath(personId), tenantSlug)}
-      loading={isLoading}
-      error={error}
-      emptyMessage="Nenhum registro financeiro cadastrado."
-      tableMinWidthClassName="min-w-[1180px]"
-      tableInitialColumnPinning={{ right: ["actions"] }}
-      filterFields={[
-        { name: "tipo", label: "Tipo", type: "text" },
-        { name: "categoria", label: "Categoria", type: "text" },
-        { name: "subcategoria", label: "Subcategoria", type: "text" },
-        { name: "valor", label: "Valor", type: "number" },
-        { name: "frequencia", label: "Frequencia", type: "text" },
-        { name: "fluxo", label: "Familia / Fluxo", type: "text" },
-        { name: "status", label: "Status", type: "text" },
-        { name: "notas", label: "Notas", type: "text" },
-      ]}
-      buildSearchRecord={(row) => ({
-        tipo: ENTRY_TYPE_LABELS[row.entryType],
-        categoria: row.category ?? null,
-        subcategoria: row.subcategory ?? null,
-        valor: row.amount ?? null,
-        frequencia: row.frequency ?? null,
-        fluxo:
-          row.entryType === "TRANSFER"
-            ? `${householdLabelById.get(row.fromHouseholdId ?? "") ?? "-"} -> ${
-                householdLabelById.get(row.toHouseholdId ?? "") ?? "-"
-              }`
-            : householdLabelById.get(row.householdId ?? "") ?? "-",
-        status: row.status ?? null,
-        notas: row.notes ?? null,
-      })}
-      searchActionId="people.financial-relations"
-    />
+    <>
+      <DetailRelationTablePanel
+        data={entries}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={(row) =>
+          router.push(
+            withTenantPath(buildPeopleFinancialEntryPath(personId, row.id), tenantSlug),
+          )
+        }
+        searchPlaceholder="Pesquisar financeiro"
+        filterRow={filterRow}
+        onAdd={() => setCreateOpen(true)}
+        loading={isLoading}
+        error={error}
+        emptyMessage="Nenhum registro financeiro cadastrado."
+        tableInitialColumnPinning={{ left: ["entryType"], right: ["actions"] }}
+        filterFields={[
+          {
+            name: "tipo",
+            label: "Tipo",
+            type: "select",
+            options: Object.entries(ENTRY_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+          },
+          { name: "categoria", label: "Categoria", type: "text" },
+          { name: "status", label: "Status", type: "text" },
+        ]}
+        buildSearchRecord={(row) => ({
+          tipo: ENTRY_TYPE_LABELS[row.entryType],
+          categoria: row.category ?? null,
+          status: row.status ?? null,
+        })}
+        searchActionId="people.financial-relations"
+      />
+      <FinancialEntryQuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={async (payload) => {
+          await create({
+            entryType: payload.entryType,
+            category: payload.category,
+            frequency: payload.frequency,
+            amount: payload.amount ?? null,
+            includeInHouseholdBudget: false,
+          });
+          await refreshFamily();
+        }}
+      />
+    </>
   );
 }

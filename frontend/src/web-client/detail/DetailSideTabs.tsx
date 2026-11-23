@@ -143,7 +143,7 @@ export function DetailSideTabs({
 
       {visibleTabs.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-4 min-h-0 flex-1 overflow-hidden">
-          <div className="h-full min-h-0 overflow-y-auto">{tab.content}</div>
+          <div className="h-full min-h-0 overflow-y-auto px-3 py-3">{tab.content}</div>
         </TabsContent>
       ))}
     </Tabs>

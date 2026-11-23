@@ -42,10 +42,6 @@ export class CreatePantryExitDto {
   eventName?: string;
 
   @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
   @Transform(({ value }) => (Array.isArray(value) ? value : []))
   tags?: string[];
 

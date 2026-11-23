@@ -4,6 +4,1051 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Fase 5 (revisão) - Motor de abas único com visual "fichário" + ícones pra todos os módulos, People migrado pro motor genérico (2026-11-22)
+
+Usuário revisou a decisão da rodada anterior (manter o sistema de abas
+próprio de People, separado do genérico) e pediu o oposto: mesclar os
+dois visualmente (ícones + "fichário" - abas que parecem parte física da
+página, não botões flutuantes) **só no motor único e compartilhado**
+(`DetailTabsRenderer`), e migrar People pra usá-lo de verdade - sem
+perguntas, decisões tomadas agora.
+
+**Motor compartilhado (`web-client/`, afeta TODOS os módulos com abas -
+Projects, Programs, Pantry, Deposit, Attendances, Occurrences, People-Groups,
+Actions):**
+- `registry/types.ts` - `DetailTabTemplate` ganhou `icon?: React.ReactNode`
+  e `disabled?: boolean | (context) => boolean` (aba visível mas sem
+  clique, caso do "Atendimentos" de People - "em breve", módulo ainda não
+  ligado); `mainTab` ganhou `icon?` também, pra a 1ª aba (quando é o
+  `main`/formulário principal, não uma `tabTemplates`) também ter ícone.
+- `DetailShellEngine.tsx` - novas props `activeTab`/`onActiveTabChange`
+  (controla a aba ativa de fora - só People usa, pra sincronizar com
+  `?tab=` na URL; todo o resto continua descontrolado via
+  `defaultValue`, sem mudança de comportamento).
+- `ModulePrimitives.tsx` - `MODULE_TABS_LIST_CLASS_NAME`/
+  `MODULE_TAB_TRIGGER_CLASS_NAME` redesenhados pro visual "fichário": só
+  a aba ATIVA perde a borda inferior e ganha `-mb-px` (sobrepõe 1px da
+  linha de base do container, mesma cor do conteúdo abaixo - ilusão de
+  "parte da página"); abas inativas mantêm a borda, como se estivessem
+  recuadas atrás da aba ativa num fichário de verdade.
+- `DetailLayoutSections.tsx` - `DetailTabsRenderer` ganhou `value`/
+  `onValueChange` opcionais (controlado só quando os dois vêm, senão
+  `defaultValue` como sempre), renderiza `tab.icon` antes do label, aplica
+  `tab.disabled`. Extraído `ScrollableTabsRow` (novo, scroll horizontal +
+  setas quando as abas não cabem na largura - só People tinha isso,
+  5 arquivo próprio) - agora é parte do motor, qualquer módulo com abas
+  suficientes ganha de graça.
+
+**People migrado pro motor genérico de verdade** (não só visual - a
+decisão arquitetural da rodada anterior foi revertida):
+`people-detail-layout-contract.tsx` trocou a composição manual (`Tabs`
+próprio + `PeopleDetailTabs` + `PeopleDetailContent`) por `mainTab`
+("Dados básicos", ícone `IdCard`) + `tabTemplates` (as outras 10 abas,
+cada uma com o ícone que já existia em `people-detail-tabs.tsx` - Contatos/
+Endereço/Documentos sensíveis/Família/Financeiro/Saúde/Medicação/
+Escolaridade/Reclusão/Atendimentos, essa última com `disabled: true`).
+`people-detail-tabs.tsx` e `people-detail-content.tsx` apagados (sem uso
+restante, confirmado por grep). `FamilyRelationsProvider` (contexto
+compartilhado por Família/Financeiro/Endereço) subiu de dentro do `main`
+pra envolver `<DetailShellEngine>` direto na engine page, já que agora
+cada aba é renderizada de forma independente pelo motor genérico, não
+mais todas filhas de uma árvore JSX só. Sincronização da aba ativa com
+`?tab=` na URL preservada via as novas props `activeTab`/
+`onActiveTabChange` (sem isso, a convenção de compartilhar link direto
+pra uma aba específica de uma Pessoa se perderia).
+
+**Evidência:** `tsc --noEmit` → 0 erros; `eslint` em todos os arquivos
+tocados (`registry/types.ts`, `DetailShellEngine.tsx`,
+`DetailLayoutSections.tsx`, `ModulePrimitives.tsx`,
+`people-detail-layout-contract.tsx`, `people-detail-engine-client-page.tsx`)
+→ só a categoria já tolerada (`react-hooks/set-state-in-effect` e outras
+do mesmo grupo, todas pré-existentes e fora do range editado, confirmado
+por `git diff --unified=0`); `npm run build` → sucesso, todas as rotas
+geradas sem erro, incluindo as de People. Teste manual no navegador ainda
+pendente - mudança visual em componente compartilhado por todos os
+módulos, merece confirmação visual antes de fechar.
+
+## Fase 5 - People: tabela, Detail, relations e convenção de criar/editar (2026-11-22)
+
+Usuário pediu pra seguir pra Fase 5 (People) sem pausar pra perguntas,
+aplicando a convenção completa: tabela com coluna principal fixada +
+coluna com limite de tamanho/tooltip + scroll só na área da tabela;
+Metadata padrão; Detail com header sem informação e abas com padding;
+relation sempre com `PainelSearch` completo (busca+colunas+filtro, depois
+TypeView+Novo); criar sempre em diálogo com os campos obrigatórios,
+editar clicando na linha leva pro Detail.
+
+**Decisão arquitetural (a pergunta que a Fase 5 deixou aberta - ver
+entrada "Fase 3 da padronização... People" de 2026-11-21): mantida a barra
+de abas própria de People** (`PeopleDetailTabs`, com scroll horizontal por
+setas pra caber as 11 abas), em vez de migrar pra `tabTemplates`/
+`DetailTabsRenderer` genérico. Investigação (`DetailRelationTablePanel.tsx`)
+mostrou que esse painel **já é** `RelationListHost` + `ListView` por baixo
+(só trocava `TableView`, um wrapper fino, no meio) - a convenção de
+relation podia ser aplicada inteira sem tocar no motor de abas. Migrar pro
+genérico exigiria recriar o scroll-com-setas (que o genérico não tem hoje,
+por nenhum outro módulo ter 11 abas) dentro dele - risco maior sem
+ganho real, já que todo o resto da convenção (tabela, Metadata, diálogo de
+criar) é independente de qual motor de abas renderiza o conteúdo.
+
+**1) Tabela (as 7 relations que usam `DetailRelationTablePanel` - Contatos,
+Família, Financeiro, Saúde, Medicação, Escolaridade, Reclusão):**
+`DetailRelationTablePanel.tsx` trocou `TableView` por `ListView` direto
+(mesma dupla causa do bug de Pantry/Deposit desta sessão: `TableView` tinha
+seu próprio `overflow-x-auto`, duplicando o container de scroll com o do
+`ListView`, quebrando sticky) e passou a repassar `columns`/
+`flushToolbar`/`stickyHeaderOffsetPx={117}` pro `RelationListHost` - isso
+sozinho destrava o botão "Colunas" (não aparecia antes, `TableView` forçava
+`showColumnVisibilityButton={false}` sem alternativa) e o scroll contido
+nos 7 painéis de uma vez, em 1 arquivo compartilhado. Confirmado que
+Attendances também usa esse componente (3 relations) - `tableMinWidthClassName`
+removido dos 3 call sites lá também (prop que não existe mais, media de
+largura mínima abandonada a favor do limite de largura por coluna, igual
+ao resto do projeto desde a correção de Pantry/Deposit).
+Nos 7 painéis: trocado o `truncate()` manual (reimplementado em cada
+arquivo, limite de caracteres arbitrário e sem tooltip) por
+`TruncatedTextCell` em toda coluna de texto livre; a coluna principal de
+cada tabela ganhou `tableInitialColumnPinning={{ left: [...] }}` (fixada à
+esquerda, antes só a coluna de ações à direita fixava).
+
+**2) Metadata:** já estava correto (confirmado por leitura - `tags`/
+`notes` com `richText`+`mentionUsers`/`attachments`/`tabOrder`), igual o
+usuário já esperava. Nenhuma mudança.
+
+**3) Detail - header sem informação + padding no corpo da aba:** o
+`header.slot` de People (Status/Tipo/Nascimento/Cadastro) duplicava campos
+que já existem na aba "Dados básicos" (Status/Tipo/Nascimento) - mesma
+regressão já corrigida em Encontro (2026-11-21) - removido por completo
+(`people-detail-layout-contract.tsx`); "Cadastro" (criado em) não tinha
+outro lugar, mas fica disponível via aba Atividade/Auditoria, igual todo
+resto do projeto não duplica esse dado no formulário principal.
+`PeopleDetailContent.tsx`: as 4 abas de formulário simples (Dados básicos/
+Endereço/Documentos + a antiga faixa de texto solta de Contatos, removida)
+ganharam `px-4 py-4`; as 7 abas de relation ficam só `py-4` (sem `px-4` -
+a própria barra de busca do `RelationListHost`, `flushToolbar`, já tem
+`px-4 py-4` encostando nas bordas reais da aba - duplicar criaria respiro
+dobrado).
+
+**4) Relation - `PainelSearch` completo:** `filterFields`/
+`buildSearchRecord`/`searchActionId` adicionados aos 7 painéis (Contatos
+não tinha nenhum dos 3 antes). Botão "Colunas" liberado pelo item 1. Menu
+de TypeView não se aplica (nenhuma das 7 relations tem visualização
+alternativa à lista, igual os painéis mais recentes de Pantry/Deposit/
+Occurrences não usam `viewSwitcherSlot` quando só existe "Lista").
+
+**5) Criar = diálogo, editar = Detail:** 6 das 7 relations (Saúde,
+Medicação, Escolaridade, Reclusão, Família, Financeiro) navegavam pra uma
+rota própria (`/new`) ao clicar em "Novo" - fora da convenção ("diálogo de
+criação rápida, nunca navegação pra criar"). Criados 6 diálogos novos
+(`health-condition-quick-create-dialog.tsx`,
+`medication-quick-create-dialog.tsx`, `education-quick-create-dialog.tsx`,
+`detention-quick-create-dialog.tsx`,
+`family-relation-quick-create-dialog.tsx` - com seletor de pessoa, já que
+vínculo familiar referencia outra Pessoa, igual o diálogo de Envolvidos de
+Occurrences -, `financial-entry-quick-create-dialog.tsx`), cada um só com
+o campo obrigatório + 1-2 campos rápidos do domínio (ex.: tipo de condição,
+medicamento, nível de escolaridade), molde idêntico ao
+`AttendanceEvolutionDialog`/`AttendanceBenefitDialog` já aceitos no
+projeto (mesmo texto-padrão "pode ser ajustado depois, na tela de..."
+pros campos que ficaram de fora). Clicar na linha continua abrindo o
+Detail de verdade (inalterado - já estava certo). Contatos **não** ganhou
+diálogo novo - já tinha um (criação e edição), por ser um registro simples
+sem Detail própria; só ganhou os ajustes dos itens 1 e 4.
+
+**Achado incidental, não corrigido (fora do pedido desta rodada, risco de
+apagar trabalho em andamento sem confirmação):** `frontend/src/modules/
+people/features/benefits/` é código órfão - `BenefitsPanel` é só um alias
+pra `PeopleFinancialRelationsPanel`, nenhuma aba referencia o feature, mas
+as rotas `/people/[id]/benefits/{new,[benefitId]}` e os endpoints de
+backend (`:id/benefits`) continuam existindo. Registrado em
+`docs/backlog.md` com gatilho.
+
+**Evidência:** `tsc --noEmit` (frontend) → 0 erros; `eslint` em todos os
+~20 arquivos tocados (6 diálogos novos + 7 painéis + `DetailRelationTablePanel.tsx`
++ `RelationListHost.tsx` + `attendances-detail-layout-contract.tsx` +
+`people-detail-layout-contract.tsx` + `people-detail-content.tsx`) → só a
+categoria já tolerada (`react-hooks/set-state-in-effect`, no mesmo padrão
+"resetar o formulário quando o diálogo abre" que `AttendanceEvolutionDialog`
+já usa, pré-existente, mesmo erro lá); `npm run build` → sucesso, todas as
+rotas (incluindo as de People) geradas sem erro. Teste manual no navegador
+ainda pendente de confirmação do usuário.
+
+## Tasks desativado (não é módulo de negócio) + Fase 3 - 5º módulo: Occurrences (2026-11-22)
+
+Usuário informou que **Tasks foi criado só pra testar a padronização visual,
+não faz parte do modelo de negócio** - pediu pra desativar o módulo mas
+mantê-lo visível no sidebar como "muted" (pra não esquecer que ele existe),
+e começar a padronização de Occurrences no lugar dele.
+
+**Tasks desativado, não apagado:** `tasks-manifest.ts` ganhou
+`disabled: true, badge: "Desativado"` no item do sidebar - mecanismo já
+existente e usado em produção pelos placeholders "Em breve"
+(`sidebar-placeholders.ts`/`comingSoon()`): o item continua no grupo
+"Gestão", mas vira não-clicável e acinzentado (`aria-disabled:opacity-50
+aria-disabled:pointer-events-none`, já no componente base do sidebar, zero
+CSS novo). As 3 rotas (`tasks/page.tsx`, `tasks/[id]/page.tsx`,
+`tasks/new/page.tsx`) trocaram `<ScreenHost>` por um aviso simples
+("Módulo desativado.") - sem isso, acesso direto por URL continuaria
+funcionando normalmente, já que `disabled` só afeta o item do menu, não a
+rota. Nada foi apagado: controller/service/DTOs do backend, o contract e
+as páginas client de Tasks continuam intactos, só inacessíveis pela UI -
+fácil de reverter (`disabled: false` + devolver o `<ScreenHost>`) se o
+módulo for reaproveitado um dia.
+
+**Fase 3 - Occurrences (único módulo restante, Tasks saiu da ordem por
+estar desativado):** a única relation do módulo (aba "Envolvidos" - pessoas
+vinculadas à ocorrência com papel Envolvido/Testemunha) ainda estava no
+padrão antigo (`DetailRelationConfig`/`relations: [...]`, renderizado via
+`DetailRelationsRenderer`). Migrada pro molde `RelationListHost` +
+`ListView` (`OccurrencePeopleSection`, arquivo novo) seguindo o template da
+aba Encontros da Atividade: `PainelSearch` completo (busca por
+pessoa/papel + filtro por Papel), botão "Novo" reaproveitando o diálogo de
+busca+seleção que já existia (`OccurrencePeoplePickerDialog` - escolhe uma
+pessoa existente e o papel, não precisou de diálogo novo), clique na linha
+abre o Detail da Pessoa (já era assim, confirmado que é o comportamento
+correto - vínculo com entidade existente, não sub-registro com tela
+própria). Removida a função `peopleColumns` antiga do contract (motor de
+colunas moveu pra dentro da nova section) junto com os imports que só ela
+usava (`Badge`, `Button`, `ColumnDef`).
+
+**Módulo pequeno, só tinha essa 1 relation** - confirmado por grep
+(`DetailRelationConfig`/`relations:` zero ocorrências restantes em
+`modules/occurrences`) que isso fecha a Fase 3 inteira de Occurrences, não
+é um primeiro passo de vários.
+
+**Fora do escopo desta rodada, de propósito:** Occurrences ainda não tem
+Tags/Notas/Anexos de verdade no Metadata (só Auditoria) - gap de schema já
+backlogado como "Fase 6" (`docs/backlog.md`, trabalho de backend), não é
+parte da Fase 3 (que é só sobre migrar relations). Não toquei no `side`/
+`StandardDetailMetadataSide` do contract por esse motivo.
+
+**Evidência:** `tsc --noEmit` (frontend) → 0 erros; `eslint` nos 6 arquivos
+tocados (`occurrences-detail-layout-contract.tsx`,
+`occurrence-people-section.tsx` novo, `tasks/manifest.ts` e as 3 rotas de
+Tasks) → 0 erros, 0 warnings. Teste manual no navegador ainda pendente de
+confirmação do usuário.
+
+## Correção: Pantry/Deposit - scroll/pin da tabela, padding do Metadata, campo notes duplicado (2026-11-22)
+
+Usuário apontou 4 itens depois de testar a correção anterior (exclusão via
+checkbox + regra de edição).
+
+**1) Coluna principal não fixava à esquerda e desaparecia no scroll
+horizontal; 2) scroll horizontal de algumas telas rolava a página inteira
+(PainelSearch e Header incluídos), não só a área da tabela:** causa raiz
+era a falta de um container de scroll delimitado nas relations
+`flushToolbar` (Entradas/Saídas de Despensa/Depósito e todo o resto que usa
+esse padrão - Projetos, Programas, Grupos, Ocorrências/Atividades, mesmo
+bug latente, não era específico de Pantry/Deposit). O `ListView` nesse modo
+ficava `overflow-visible` de propósito, sem scroll próprio, dependendo de
+um ancestral (a página toda) pra rolar - sem nenhum container com
+`overflow-x` delimitado em nenhum nível, o scroll horizontal vazava pra
+`<body>` e o `position: sticky` das colunas fixadas não tinha um container
+de scroll real pra calcular a posição contra.
+
+Resolvido trocando o modelo "sticky contra um ancestral distante" pelo
+mesmo já usado (e já funcionando) na Lista Principal: o `ListView` sempre
+tem seu próprio `overflow-auto` (os dois eixos) e o cabeçalho sempre cola
+em `top-0` relativo a si mesmo, independente do valor de
+`stickyHeaderOffsetPx` recebido (a prop continua existindo, só vira sinal
+booleano pros ~20 chamadores existentes - não precisou tocar nenhum deles).
+Pra esse `overflow-auto` ter uma altura real pra rolar dentro, a barra de
+busca da relation (`RelationListHost.tsx`) virou uma coluna flex de altura
+limitada pelo ancestral em vez de ficar sticky contra a página, e o
+wrapper do conteúdo de aba `flushContent` (`DetailLayoutSections.tsx`)
+passou a ceder altura (`flex-1 min-h-0`) em vez de ficar travado na altura
+natural do conteúdo (`shrink-0`). 3 arquivos: `ListView.tsx`,
+`RelationListHost.tsx`, `DetailLayoutSections.tsx` - nenhum arquivo
+específico de Pantry/Deposit precisou mudar.
+
+**3) Itens internos do Metadata sem padding:** `DetailSideTabs.tsx` (painel
+compartilhado de todas as abas do Metadata, qualquer módulo) ganhou
+`px-3 py-3` no wrapper do conteúdo - 1 linha, benefício universal.
+
+**4) Notas do Metadata sem a mesma barra de formatação (RichText/@menção)
+dos outros módulos:** os 4 blocos `notes={{...}}` de cada contract
+(Item/Doador/Entrada/Saída, Pantry e Deposit) ganharam
+`richText: true, mentionUsers: mentionableUsers` - `DetailNotesPanel.tsx`
+já suportava isso de ponta a ponta, só não estava sendo ligado aqui.
+
+**5) Backend - campo `notes` duplicado com o Metadata (`internalNotes`):**
+usuário confirmou (via pergunta) remover `notes` dos 3 (Item, Entrada e
+Saída, os 2 módulos) e trocar as colunas "Notas" de relation/Histórico pra
+mostrar `internalNotes` no lugar de somar. Mudança "expandir" (só parar de
+ler/escrever o campo, sem dropar coluna ainda - `AGENTS.md`, migração em 2
+deploys): DTOs (12 arquivos, `notes` removido), `pantry.service.ts` e
+`deposit.service.ts` (serialize*, create/update Item/Entrada/Saída, SQL
+bruto do `listHistory` trocando `e."notes"`/`x."notes"` por
+`e."internalNotes"`/`x."internalNotes"` mantendo o alias `AS "notes"` -
+zero mudança de frontend pro Histórico global -, `getStockSummary` e os
+fluxos de estorno, que agora gravam a nota automática/informada em
+`internalNotes` em vez de `notes`), tipos de API, drafts, contracts
+(removida a entrada "Notas" solta do formulário principal - só existe mais
+no Metadata), 6 engine pages e as colunas "Notas" de 10 relations
+(Entradas/Saídas do Item, Doações do Doador, Saídas vinculadas da Entrada,
+Pantry e Deposit) trocando a fonte pra `internalNotes`. Também removidos de
+passagem: `EntryDraft`/`ExitDraft` (tipos mortos, nada importava), e as
+entradas de label "notes" em `*_AUDIT_FIELD_LABELS`/domain adapters que só
+existiam pro campo removido.
+
+**Pendente (backlog):** dropar as colunas `notes` de
+`PantryItem`/`PantryEntry`/`PantryExit`/`DepositItem`/`DepositEntry`/`DepositExit`
+numa migração futura (fase "contrair") - ver `docs/backlog.md`.
+
+**Evidência:** `tsc --noEmit` (backend `-p tsconfig.build.json` e
+frontend) → 0 erros nos dois; `eslint` em todos os arquivos tocados
+(backend: services + DTOs; frontend: `ListView.tsx`,
+`RelationListHost.tsx`, `DetailLayoutSections.tsx`, contracts, engine
+pages, relations, tipos de API, constantes) → 0 erros novos (só o
+`react-hooks/set-state-in-effect` pré-existente, fora do range editado,
+confirmado via `git diff --unified=0`). Teste manual no navegador ainda
+pendente de confirmação do usuário - mudança de scroll/pin é estrutural
+(`ListView.tsx`/`RelationListHost.tsx`/`DetailLayoutSections.tsx` são
+compartilhados por todos os módulos, não só Pantry/Deposit) e merece
+verificação visual antes de considerar fechada.
+
+## Correção: Pantry/Deposit - coluna Notas vazando, aba redundante de Saída, redirect com casing errado (2026-11-22)
+
+Usuário confirmou que a correção anterior (exclusão via checkbox + regra de
+edição) funcionou bem e apontou mais 3 itens.
+
+**1) Coluna "Notas" voltou a vazar pra fora da tela com texto longo** -
+mesma pegadinha já documentada e corrigida em Encontros da Atividade
+(`docs/canonical-web-client-standard.md`: um `<div className="truncate">`
+sozinho não trava a largura da coluna, só `TruncatedTextCell` garante
+isso de verdade, com tooltip do valor completo). As seções novas desta
+sessão (Fase 3 de Pantry/Deposit) foram criadas com texto puro em vez de
+`TruncatedTextCell` - não reaproveitei o componente certo na hora.
+**Corrigido em 12 arquivos:** as 5 relations por módulo
+(`*-item-entries-section`, `*-item-exits-section`, `*-item-history-section`,
+`*-donor-donations-section`, `*-entry-allocated-exits-section`) + as 2
+telas globais de Histórico (`*-history-module-client-page.tsx`, mesmo bug,
+não fazia parte da Fase 3 mas é a mesma coluna/mesmo bug).
+
+**2) Aba "Lotes vinculados"/"Entradas vinculadas" da Saída era
+redundante:** o usuário esclareceu a cardinalidade real - uma Saída só
+tem vínculo com **uma** Entrada (o campo "Entrada de origem", que já
+existe no formulário principal, já mostra isso); é a Entrada que pode
+ter **várias** Saídas (a aba "Saídas vinculadas" da Entrada, que
+**continua** - não foi tocada, cardinalidade diferente e correta).
+Removida a aba por completo dos 2 módulos: `tabTemplates`/`mainTab`
+saíram de `pantryExitDetailLayout`/`depositExitDetailLayout` (sem
+nenhuma outra aba, a tela volta a ser só o formulário, sem barra de
+abas - comportamento já previsto no `DetailShellEngine`, não precisou de
+mudança de infra) - `PantryExitAllocationsSection`/
+`DepositExitAllocationsSection` apagados, junto com `entryById`/
+`onOpenEntry`/`openEntryDetail` (só alimentavam essa aba, confirmado por
+grep antes de apagar) e o `relatedSources` de cada módulo que também
+referenciava esse mesmo `onOpenEntry` agora removido.
+
+**3) "Tipo de Saída" em Deposit precisaria ser select igual Pantry:**
+investigação extensa (formulário principal, diálogo de criação rápida,
+filtro da relation, coluna da lista de Histórico) não achou nenhum lugar
+onde o campo seja texto livre - em todo lugar já é um `<Select>` com as
+mesmas opções/labels que o Pantry usa, incluindo no diálogo de criação
+rápida construído na correção anterior. Não encontrei a causa - avisar o
+usuário pra apontar a tela exata se o comportamento persistir depois do
+hot-reload, já que pode ser um problema de cache do navegador em vez de
+código.
+
+**Achado incidental, corrigido de passagem:** os 3 redirects
+`/deposit/{entries,exits,items}` apontavam pra `/Deposit/stock` (D
+maiúsculo) em vez de `/deposit/stock` (minúsculo, igual
+`DEPOSIT_ROUTES.stock` e igual o equivalente em Pantry) - funciona em
+dev no Windows (filesystem case-insensitive) mas quebraria em produção
+(Railway/Linux, case-sensitive) com 404. Corrigido nos 3 arquivos.
+
+**Evidência:** `tsc --noEmit` → 0 erros; `eslint` nos 21 arquivos
+tocados → só a categoria já tolerada (`react-hooks/set-state-in-effect`,
+pré-existente); `npm run build` → ok. Teste manual no navegador ainda
+pendente de confirmação do usuário - em especial o item 3 (Tipo de
+Saída), que não consegui reproduzir via leitura de código.
+
+## Correção: Pantry/Deposit - exclusão fora da convenção + regra de edição bloqueando campos sem relação com o lote (2026-11-22)
+
+Usuário testou a correção anterior (dialog de criação + SQL do Histórico)
+e apontou 2 problemas novos.
+
+**1) Exclusão de Entrada/Saída continuava na tela de Detail (botão
+"Excluir" no cabeçalho), não na tabela com checkbox** - convenção já
+usada em Encontros/Atividades (`ActionOccurrencesSection`: seleciona
+linhas, "Excluir selecionados", confirma, reporta "Excluídos: X —
+Falharam: Y"). Replicado esse exato padrão nas abas "Entradas"/"Saídas"
+do Item (`PantryItemEntriesSection`/`PantryItemExitsSection` e os
+equivalentes `Deposit*`) - `ListView` ganhou `enableRowSelection`/
+`onSelectionChange`/`bulkActions`, cada seção agora recebe `token`/
+`canDelete`/`onDeleted` do contract (que por sua vez vêm do Item engine
+page - `canDeleteEntry`/`canDeleteExit` calculados via
+`canUseModuleAction(pantryEntryDetailModuleDefinition, "delete", ...)`/
+idem Exit, `onDeleted` aponta pra `loadMovements` já existente).
+
+**Mesma validação de antes, virou um aviso em vez de um botão
+desabilitado silencioso:** antes de confirmar a exclusão, a seção de
+Entradas verifica se alguma linha selecionada tem `allocatedTotal > 0`
+(já vem na resposta da API) - se sim, bloqueia a exclusão em massa toda
+com um toast explicando quais entradas têm saída vinculada e pede pra
+remover da seleção antes de continuar (mesmo padrão de pré-checagem já
+usado em `actions-list-module-client-page.tsx` pra status inválido).
+Saída não tem essa restrição (sempre pode excluir), só confirmação
+simples. Removido o botão "Excluir" + toda a lógica associada
+(`canDelete`/`handleDelete`/`headerActionsSlot`) das 4 telas de Detail
+(Pantry Entrada/Saída, Deposit Entrada/Saída) - os campos `canDelete`/
+`onDelete`, que só alimentavam esse botão e não eram lidos em nenhum
+outro lugar do contract, saíram dos 4 tipos de contexto também.
+
+**2) Regra de edição bloqueava Notas/Doador mesmo sem nenhuma intenção
+de tocar no lote:** causa raiz - o autosave deste projeto sempre reenvia
+o rascunho **completo** a cada campo editado (`commitField`/
+`useDetailAutoSaveController`, padrão usado em toda a aplicação, não só
+Pantry/Deposit), mas `updateEntry` decidia bloquear só checando se
+`sector`/`quantity`/`unit`/`entryDate`/`expiryDate` **estavam presentes**
+no DTO - não se o valor tinha mudado de verdade. Como esses campos
+sempre viajam no payload, qualquer edição (até só Notas) disparava o
+bloqueio "Entrada possui saídas vinculadas". Perguntei ao usuário se o
+Setor deveria continuar travado como Quantidade/Unidade ou ficar sempre
+livre como Notas - **confirmado: mesma trava de Quantidade/Unidade**
+(só bloqueia se o **valor** mudar, não só por estar presente no payload).
+
+**Corrigido nos 2 módulos:** `updateEntry` (`pantry.service.ts`/
+`deposit.service.ts`) agora compara valor-contra-valor
+(`dto.campo !== undefined && dto.campo !== entry.campo`, com
+`normalizeSector`/`toNumber`/comparação de timestamp pras datas) em vez
+de só presença - mesma regra real (não pode mudar lote/quantidade com
+saída vinculada), sem o falso positivo. `updateExit` tinha um problema
+pior: apagava e recriava **todas** as alocações a cada edição,
+independente do campo - além de caro, isso podia falhar com "Saldo
+insuficiente" numa edição de Notas se o saldo do lote tivesse mudado
+por outra saída nesse meio tempo. Agora só reaplica a alocação
+(`needsReallocation`) quando `itemId`/`sector`/`quantity`/`entryId`
+realmente mudam de valor - inclui um novo `include: { allocations: true }`
+na busca inicial da saída pra saber o `entryId` atual (quando a saída
+está presa a um único lote) e comparar.
+
+**Achado de quebra, corrigido de passagem:** o diálogo de criação
+rápida de Saída de Deposit (`DepositExitQuickCreateDialog`, criado na
+correção anterior) teria falhado ao criar qualquer saída dos tipos
+padrão (`LOAN`/`FINAL_REMOVAL`/`TRANSFER`) porque o backend
+(`validateExitBusinessRules`) exige "Destino" pra esses 3 tipos e "Retorno
+previsto" pra `LOAN` - nenhum dos dois era coletado no diálogo (Destino
+era opcional, Retorno previsto nem existia). Corrigido: "Destino" passa
+a ser obrigatório quando o tipo exige (label e validação do botão
+"Criar" mudam dinamicamente), e um campo "Retorno previsto" aparece só
+quando o tipo é `LOAN`. Pantry não tem essa exigência (confirmado por
+grep - `eventName` é sempre opcional nos 5 tipos), não precisou de
+ajuste.
+
+**Evidência:** `tsc --noEmit` (backend com `-p tsconfig.build.json`,
+frontend padrão) → 0 erros nos 2; `eslint` nos 15 arquivos tocados
+(6 engine pages, 4 sections, 2 services, 1 dialog, 2 contracts) → só a
+mesma categoria já tolerada (`react-hooks/set-state-in-effect`,
+pré-existente nas engine pages e no reset-on-open dos diálogos, mesmo
+padrão aceito em `ProgramProjectQuickCreateDialog`) + 2 quebras de linha
+do prettier no código novo, corrigidas. Testado via `curl` direto contra
+a API: (a) `PATCH` só em Notas numa entrada com alocação → sucesso antes
+bloqueado; (b) `PATCH` tentando mudar Setor/Quantidade de verdade na
+mesma entrada → continua bloqueado com a mesma mensagem; (c) `PATCH` só
+em Notas numa saída → sucesso, alocação preservada intacta (confirmado
+lendo a saída antes/depois). Banco local resetado (truncate + reseed)
+pra limpar os registros de teste. Teste manual no navegador ainda
+pendente de confirmação do usuário.
+
+## Correção: Pantry/Deposit - erro de sintaxe no Histórico + criação de Entrada/Saída fora da convenção (2026-11-22)
+
+Usuário testou o item anterior (migração de Pantry/Deposit pra
+`RelationListHost`) e reportou 2 problemas em ambos os módulos.
+
+**1) Erro de sintaxe real no banco, não só no front:** `listHistory`
+(`pantry.service.ts`/`deposit.service.ts`) montava SQL cru
+(`$queryRaw`/`Prisma.sql`) com identificador entre **crase** (`` `group` ``,
+`` `PantryEntry` ``) - sintaxe de MySQL, não de Postgres (que é o banco
+real do projeto). Toda chamada a `/pantry/history` ou `/deposit/history`
+quebrava com 500 ("Internal server error" pro front, erro de sintaxe de
+verdade no Postgres por trás) - e esse endpoint é chamado automaticamente
+sempre que a tela de Item recarrega os movimentos, inclusive depois de
+criar uma entrada/saída, por isso "a entrada não acontece por completo":
+o POST em si tinha sucesso (confirmado por `curl` direto), só o refresh
+seguinte que quebrava, deixando a tela inconsistente. Causa teria sempre
+quebrado - não é regressão desta sessão, só não tinha sido exercitada
+antes por falta de dado (item anterior, seed novo).
+
+**Corrigido:** identificadores entre aspas duplas (`"group"`,
+`"PantryEntry"`), igual todo o resto do projeto Postgres - mas corrigir só
+a crase não bastava: toda coluna mixed-case da tabela (`tenantId`,
+`itemId`, `entryDate`, `createdAt`...) também precisa de aspas duplas, ou
+o Postgres faz fold pra minúsculo e não acha a coluna (confirmado nas
+migrations - `CREATE TABLE` já cria tudo entre aspas, mixed-case). Mesma
+lógica pro alias de cada coluna calculada (`AS "movementId"` etc.) - sem
+aspas no alias, o nome que volta pro `$queryRaw` também vira minúsculo e
+`row.movementId` no código TS ficava `undefined`. Reescrito por completo
+(`entryWhere`/`exitWhere`/`entrySelect`/`exitSelect`/`ORDER BY` externo)
+nos 2 services. De passagem, troquei `LIKE` por `ILIKE` nos filtros de
+busca - Postgres diferencia maiúscula/minúscula por padrão (MySQL não),
+outra pegadinha do mesmo código escrito pensando no banco errado.
+
+**2) Criação de Entrada/Saída pelas Relations não seguia a convenção
+("criar = diálogo, editar = Detail"):** os botões "Nova entrada"/"Nova
+saída" (aba Entradas/Saídas do Item, aba "Saídas vinculadas" da Entrada)
+navegavam pro formulário completo em modo `create` (`/pantry/entries/new`
+etc.) - decisão própria tomada na migração anterior (justifiquei por
+Entrada/Saída terem campos próprios, no molde de Encontro/Evolução/
+Benefício), que o usuário corrigiu: diálogo de criação rápida também
+aqui, sem excepcionar por volume de campo.
+
+**4 diálogos novos** (`PantryEntryQuickCreateDialog`/
+`PantryExitQuickCreateDialog` reaproveitado por Item e por Entrada, +
+equivalentes `Deposit*`), mesmo molde de
+`ProjectActionQuickCreateDialog` (dialog "burro" - só coleta os campos e
+chama `onSubmit`, quem faz o POST + refresh da lista é a engine page que
+já tinha `loadMovements`/`loadAllocatedExits`). Campos: Doador/Fonte
+(opcional), Setor, Quantidade, Validade/Data limite (opcional) pra
+Entrada; Setor, Quantidade, Tipo, Evento/Destino (opcional) pra Saída -
+`unit`/`entryDate`/`exitDate` seguem default silencioso (unidade do
+Item, hoje), ajustáveis depois no Detail completo, igual o resto dos
+diálogos de criação rápida do projeto.
+
+**Pegadinha nova, achada ao implementar:** quando a Saída é criada a
+partir de uma Entrada específica (`entryId` no payload), o backend exige
+que o setor da Saída seja **exatamente** o mesmo da Entrada (where
+`sector: normalizedSector` na busca do lote) - senão rejeita com "Entrada/
+lote não encontrado para esta saída". Por isso o diálogo de Saída ganhou
+uma prop `lockedSector` - quando vem de uma Entrada, o campo Setor fica
+fixo (Input desabilitado) em vez de Select livre, pra não deixar o
+usuário escolher uma combinação que o backend vai rejeitar.
+
+As telas de lista standalone (`/pantry/entries`, `/pantry/exits`) só
+redirecionam pra `/pantry/stock` - não existem como grid própria, então
+`PantryEntryNewEngineClientPage`/`PantryExitNewEngineClientPage` e as
+rotas `/new` ficaram sem nenhum link apontando pra elas depois dessa
+troca. Não apaguei (ainda funcionam se alguém acessar a URL direto, e
+`createModuleWindowAction` as registra como parte do sistema de janelas) -
+registrado no backlog se vale a pena remover numa limpeza futura.
+
+**Evidência:** reproduzido o erro de sintaxe batendo direto em
+`/pantry/history` e `/deposit/history` via `curl` (500 antes, dado
+correto depois); `npx tsc --noEmit` → 0 erros; `eslint` nos 8 arquivos
+novos/tocados → só a mesma categoria já tolerada
+(`react-hooks/set-state-in-effect` no reset-on-open dos diálogos, mesmo
+padrão aceito em `ProgramProjectQuickCreateDialog`/pré-existente nas
+engine pages); `npm run build:seed` + banco local resetado (truncate +
+reseed, autorizado pelo usuário) pra limpar os registros de teste
+criados via `curl` durante a investigação. Testado via `curl` end-to-end:
+criar entrada (auto), criar saída com alocação automática, criar saída
+com `entryId` fixo (setor travado) - os 3 fluxos retornam 201 com a
+alocação correta. Teste manual no navegador ainda pendente de
+confirmação do usuário.
+
+## Fase 3 - 4º módulo: Pantry/Deposit (2026-11-22)
+
+**Pantry e Deposit são estruturalmente idênticos** (Deposit é a variante de
+doações materiais - "Fonte"/"destino" em vez de "Doador"/"evento" - com mais
+alguns campos de devolução na Saída que não afetam as relations). Migrados
+juntos, como já fora feito na Fase 2.
+
+**Mapeamento antes de migrar:** cada módulo tem 4 sub-telas de Detail (Item,
+Doador/Fonte, Entrada, Saída), cada uma com exatamente 1 relation (Item tem
+3: Entradas/Saídas/Histórico, via `tabTemplates[].relations`; Doador/Entrada/
+Saída tinham 1 cada, mas no mecanismo antigo `bottomRelations` - lista fixa
+embaixo do formulário, não uma aba). Total: 12 relations (6 por módulo).
+
+**Decisão sobre `bottomRelations`:** mesmo mecanismo antigo que
+`tabTemplates[].relations` (`DetailRelationConfig`, confirmado no type em
+`web-client/registry/types.ts`) - também alvo da Fase 3. Convertidas em
+`tabTemplates` (aba ao lado de "Detalhes", `mainTab: true` já estava
+aplicado desde a Fase 2), no mesmo molde de People-Groups/Programs (1
+relation = 1 aba), não deixadas como lista fixa.
+
+**Fluxo de criação não mudou:** "Nova entrada"/"Nova saída" já navegavam
+para a tela de Detail completa de Entrada/Saída (não um diálogo) - confirmado
+em `pantry-item-detail-engine-client-page.tsx` (`openNewEntry`/`openNewExit`
+via `router.push`). Correto pela convenção já estabelecida ("diálogo só
+quando o sub-registro é simples ou é vínculo a algo existente" - Entrada/
+Saída têm campos próprios extensos, mesmo caso de Encontro/Evolução/
+Benefício). Nenhuma mudança nesse ponto, só a migração da lista em si.
+
+**6 componentes novos por módulo** (`<Modulo>ItemEntriesSection`,
+`<Modulo>ItemExitsSection`, `<Modulo>ItemHistorySection`,
+`<Modulo>DonorDonationsSection`, `<Modulo>EntryAllocatedExitsSection`,
+`<Modulo>ExitAllocationsSection`), mesmo molde de `ProjectActionsSection`/
+`ProgramProjectsSection` (rows/loading/canAdd via props do contract, sem
+fetch próprio). Filtro "Tipo" adicionado em Saídas/Histórico/Saídas
+vinculadas (reaproveita `PANTRY_EXIT_TYPE_OPTIONS`/`DEPOSIT_EXIT_TYPE_OPTIONS`
+já existentes - pegadinha: são array de strings, não `{value,label}`,
+precisou mapear com `*_EXIT_TYPE_LABELS` pra virar `SearchFieldOption[]`,
+senão `tsc` reclama de `readonly` não compatível com `SearchFieldOption[]`
+mutável). Doações/Lotes vinculados ficaram só com busca livre (sem enum
+óbvio pra filtrar), mesmo critério já usado nas fases anteriores.
+
+**Código morto removido** (confirmado sem outro uso antes de apagar):
+`pantry-item-movements-tabs.tsx`/`deposit-item-movements-tabs.tsx`
+(`PantryItemMovementsTabs`/`DepositItemMovementsTabs`) - componente de abas
+com `ListView` cru duplicando exatamente as 3 abas de Item (Entradas/Saídas/
+Histórico), sem nenhum import no resto do repo (confirmado por grep) - sobra
+de uma versão anterior à migração para `tabTemplates`/`DetailShellEngine`.
+As 6 funções de colunas antigas + `formatOptionalDate`/
+`resolveMovementKindLabel` locais saíram dos 2 contracts (movidas pros
+componentes novos, `formatOptionalDate`/`resolveMovementKindLabel` foram pros
+respectivos `*-item-detail.helpers.ts`, reusados pelos 6 componentes de cada
+módulo em vez de duplicados).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 16 arquivos
+tocados/novos (8 por módulo: contract + 6 sections + helpers) → 0
+problemas; `npm run build` → ok, todas as rotas de `/pantry` e `/deposit`
+presentes. Teste manual no navegador ainda pendente de confirmação do
+usuário (abrir Item/Doador/Entrada/Saída de cada módulo, confirmar as abas
+novas carregando dados reais, testar filtro "Tipo" e os botões "Nova
+entrada"/"Nova saída").
+
+**Seed de homologação adicionado** (pedido do usuário - não havia dado
+nenhum pra testar esses 2 módulos): `seedPantryLikeDomain` novo em
+`prisma/seed.ts`, reusado pelos 2 módulos (estrutura idêntica, só muda
+terminologia/enum de saída) via 2 configs (`PANTRY_SEED_CONFIG`/
+`DEPOSIT_SEED_CONFIG`). Gera, em cada módulo: 10 itens, 10 doadores/fontes,
+20 entradas (2 por item) e 15 saídas (itens 1-5 com 1 saída, 6-10 com 2),
+cada saída com 1 alocação contra a 1ª entrada do mesmo item - garante dado
+de verdade também nas abas "Saídas vinculadas"/"Lotes vinculados" migradas
+acima, não só nas 4 listas principais. Ids determinísticos no mesmo formato
+UUID-v4-falso do resto do seed (`makeDomainId`, dígito `2`=Pantry/`3`=Deposit
+repetido nos grupos) - precisa continuar parecendo v4 porque os controllers
+validam `:id` da rota com `ParseUUIDPipe({ version: '4' })`.
+
+**Evidência:** `npm run build:seed` → compila sem erro; `npm run db:seed` →
+executado contra o Postgres local (`localhost:5432/terceirogestor`,
+truncate + reseed completo, mesmo comportamento de sempre do script);
+contagem pós-seed confirmada via query direta: Pantry e Deposit com 10
+items/10 donors/20 entries/15 exits/15 allocations cada. `tsc --noEmit -p
+tsconfig.build.json` → 0 erros (prisma/**/*.ts já é excluído desse build,
+sem mudança de comportamento).
+
+**Próximo módulo (ainda não iniciado):** Tasks → Occurrences, na ordem
+sugerida do plano.
+
+## Fase 3 - 3º módulo: Projects (2026-11-22)
+
+**Investigação pedida pelo usuário antes de migrar:** Projects tinha 4
+relations no mecanismo antigo (`peopleGroups`/"Grupos",
+`teamPeopleGroups`/"Grupos de Equipe", `participants`/"Participantes",
+`actions`/"Atividades") + 3 abas já em `content:` (Equipe, Metas,
+Financiamento). Usuário suspeitou de duplicação entre "Grupos de
+Equipe" e "Equipe" e pediu pra revisar antes de migrar. Investigação em
+`project-structure.service.ts` (`syncPeopleGroupEnrollments`, linhas
+446-540) confirmou que não era só nomenclatura duplicada: o backend
+hardcoda `participationKind: 'PARTICIPANT'` e lança
+`BadRequestException` se o `ProjectPeopleGroup` não for desse tipo - ou
+seja, o botão "Matricular/revisar membros" da aba "Grupos de Equipe"
+(que só lida com grupos `TEAM`) sempre falhava. Confirmado por grep que
+`ParticipationKind.TEAM` em `ProjectPeopleGroup` não tem nenhum outro
+consumidor no backend. Usuário escolheu remover a aba (não corrigir o
+backend pra suportar sync de equipe).
+
+**Remoção de "Grupos de Equipe":** `handleCreateTeamPeopleGroup`,
+`teamPeopleGroupRows` (memo e contexto), `onCreateTeamPeopleGroup` e o
+tabTemplate inteiro removidos de `projects-detail-engine-client-page.tsx`
+e `projects-detail-layout-contract.tsx`. `project-people-group-picker-dialog.tsx`
+perdeu a prop `purpose` ("PUBLICO"/"EQUIPE") - o diálogo agora só
+vincula público (`purpose: "PUBLICO"` fixo na chamada a
+`listPeopleGroups`), e a coluna "Finalidade" (que só mostrava
+"Equipe"/"Publico") saiu por ficar sempre "Publico". `participationKind`
+em `handlePickPeopleGroup` também virou fixo `"PARTICIPANT"`.
+
+**Migração das 3 relations restantes pra `RelationListHost`** (mesmo
+molde de Programs/People-Groups):
+
+- `project-people-groups-section.tsx` (`ProjectPeopleGroupsSection`) -
+  busca livre (nome/categoria/descrição/faixa etária), botão
+  "Matricular/revisar membros" preservado por linha.
+- `project-participants-section.tsx` (`ProjectParticipantsSection`) -
+  filtro por Papel (`PROJECT_PARTICIPATION_ROLE_OPTIONS`) e Status
+  (Ativa/Encerrada), colunas iguais às antigas (`PersonIdentityAvatarTrigger`,
+  botão "Encerrar matrícula").
+- `project-actions-section.tsx` (`ProjectActionsSection`) - filtro por
+  Status (`ACTION_STATUS_OPTIONS`).
+
+As 3 funções de colunas antigas (`peopleGroupRelationColumns`,
+`enrollmentRelationColumns`, `actionRelationColumns`) e o helper
+`formatAgeRange` saíram do contract (só eram usados ali); `formatPeriod`/
+`formatActionStatus` foram exportados do contract pra reuso nos 3
+componentes novos (mesmo padrão de `formatProjectStatus`/`formatPeriod`
+em Programs).
+
+**"Nova atividade" parou de navegar pra `/actions/new`:** violava a
+convenção "criar em relation = diálogo". `project-action-quick-create-dialog.tsx`
+(`ProjectActionQuickCreateDialog`) novo - Título + Tipo (select de
+`listActivityTypes` filtrado por `target === "PROJECT"`), fecha sozinho
+ao confirmar, sem navegar (mesmo molde do diálogo de Programs). Clicar
+numa atividade da lista continua abrindo o Detail completo
+(`onOpenAction`, inalterado) - só a criação mudou. "Equipe", "Metas" e
+"Financiamento" ficaram como estavam (já funcionais com diálogo
+próprio + lista simples, sem o toolbar do `RelationListHost` -
+registrado no backlog).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` em todos os
+arquivos tocados/novos → só a categoria já tolerada
+(`react-hooks/set-state-in-effect`, incluindo a instância nova do
+diálogo de atividade, mesmo padrão aceito em
+`ProgramProjectQuickCreateDialog`) + 1 `react-hooks/preserve-manual-memoization`
+pré-existente em `selectedProgram` (não tocado nesta sessão). `npm run
+dev` + `curl` em `/instituicao-exemplo/projects` e `/projects/new` →
+200, sem exceção no log do servidor (backend não estava de pé, único
+erro no log foi `ECONNREFUSED :3001`, não relacionado). **Teste manual
+no navegador ainda pendente** (login + abrir um projeto existente +
+confirmar as 3 abas migradas carregando dados reais + testar o diálogo
+"Nova atividade" de ponta a ponta) - não há ferramenta de navegador
+disponível nesta sessão para fazer isso automaticamente.
+
+**Próximo módulo (ainda não iniciado):** Pantry/Deposit → Tasks →
+Occurrences, na ordem sugerida do plano.
+
+## Fase 3 - 2º módulo: Programs (2026-11-22)
+
+**Programs tem 1 relation só** ("Projetos vinculados", aba "Projetos") -
+migrada de `tabTemplates[].relations` pra `RelationListHost`, mesmo
+molde de People-Groups/Encontros.
+
+**Decisão perguntada ao usuário antes de migrar:** o botão "Novo
+projeto" navegava pra `/projects/new?programId=...` (tela de Detail
+completa) - viola a convenção "criar em relation = diálogo" (Project
+não é um vínculo a algo que já existe, nem um sub-registro simples como
+Encontro, mas o `CreateProjectDto` só exige `programId`+`name`, então um
+diálogo de criação rápida é viável). Usuário escolheu criar o diálogo
+novo (não manter a navegação).
+
+**Novo:** `program-project-quick-create-dialog.tsx`
+(`ProgramProjectQuickCreateDialog`) - só campo "Nome", mesmo molde de
+`attendance-benefit-dialog.tsx` (único campo obrigatório, fecha sozinho
+ao confirmar, sem navegar). `program-projects-section.tsx`
+(`ProgramProjectsSection`) - `RelationListHost` com filtro de Status
+(`PROJECT_STATUS_OPTIONS`), busca livre (nome/descrição/status/período/
+tags, mesma lógica do `filterRows` antigo) e `projectRelationColumns()`
+movida pra lá (corrigido de passagem o mesmo bug de `text-foreground`
+fixo na coluna "Projeto", já que a célula estava sendo reescrita de
+qualquer forma).
+
+**Engine page:** o fetch de projetos virou `loadProjects` (callback
+reutilizável, antes era só um `useEffect` inline) pra poder recarregar
+a lista depois de criar um projeto pelo diálogo, sem precisar de reload
+de página; `onCreateProject` trocou de navegação pra abrir o diálogo;
+`handleSubmitCreateProject` novo chama `createProject` (API já existia,
+não precisou de nada no backend) e recarrega a lista. Clicar na linha
+continua abrindo o Detail completo do projeto (`onOpenProject`,
+inalterado) - só a criação mudou.
+
+**Código morto evitado:** `formatProjectStatus`/`formatPeriod` e
+`ColumnDef` ficaram usados só no contract antes da migração;
+exportei os dois do contract em vez de duplicá-los no componente novo
+(ainda são usados em outros pontos do mesmo arquivo - `contextItems`,
+`auditSources`). `id` saiu do array de dependências do `context`
+`useMemo` (ficou sem uso depois que `onCreateProject` deixou de montar
+uma URL com ele - pego pelo eslint, `exhaustive-deps`).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 4
+arquivos tocados/novos → só a categoria já tolerada
+(`react-hooks/set-state-in-effect`, incluindo 1 instância nova no
+diálogo, mesmo padrão aceito em `AttendanceBenefitDialog`); `npm run
+build` → ok, rotas intactas. Teste visual no navegador ainda pendente
+de confirmação do usuário (abrir aba Projetos, criar um projeto pelo
+diálogo, confirmar que a lista atualiza sem navegar, clicar numa linha
+pra abrir o Detail).
+
+**Próximo módulo (ainda não iniciado):** Projects - precisa mapear
+quantas relations tem (prováveis candidatas: Equipe, Matrículas,
+Grupos públicos, Metas, Fontes de financiamento, Atividades) antes de
+migrar.
+
+## Tags e Anexos de verdade pra People-Groups - gap de backend fechado (2026-11-22)
+
+Usuário pediu pra resolver agora a pendência registrada no backlog
+(People-Groups sem `tags`/`attachments` no schema, só `notes`/
+`Auditoria` funcionando de verdade na Metadata). Investigado o padrão
+já usado por Program (`ProgramAttachment`, `normalizeTags`/`parseTags`
+serializando um array em `tags String? @db.Text`) e replicado
+igual, ponta a ponta.
+
+**Backend:**
+
+- `schema.prisma`: `PeopleGroup.tags String? @db.Text` (campo novo,
+  mesmo padrão de Program/Project/Task/Activity) + model novo
+  `PeopleGroupAttachment` (espelha `ProgramAttachment` - mesmos campos,
+  `onDelete: Cascade` no Grupos, `onDelete: SetNull` no usuário que
+  enviou) + relações inversas em `Tenant`/`User`. Migration
+  `20261122013214_add_people_group_tags_and_attachments` - só
+  `ADD COLUMN`/`CREATE TABLE`, aditiva, sem risco pra dado existente.
+  `prisma generate` rodado.
+- DTOs: `tags?: string[]` em `create`/`update-people-group.dto.ts`;
+  `CreatePeopleGroupAttachmentDto` novo (espelha
+  `create-program-attachment.dto.ts`).
+- `people-groups.service.ts`: `normalizeTags`/`parseTags` +
+  `mapPeopleGroupAttachmentItem`/`serializePeopleGroup` (mesma função
+  aplicada em list/get/create/update, igual Program); `tags` entra na
+  busca textual (`where.OR`); `getPeopleGroup` passou a incluir
+  `attachments` (só no get, não na listagem, pra não fazer N+1 na
+  lista); `addAttachment`/`deleteAttachment` novos, mesma validação de
+  `filePath` por prefixo (`/uploads/people-groups/`) que todo módulo já
+  usa.
+- `people-groups.controller.ts`: `POST`/`DELETE
+  :id/attachments(/:attachmentId)`, permissão `people.update` (mesma
+  que já protege `update`/participações neste controller).
+- Upload: categoria `people-groups` em `upload-paths.ts`
+  (`UPLOAD_CATEGORY_DIRS`) + endpoint novo `POST
+  /files/people-group-attachments` em `files.controller.ts` (mesmo
+  `FileInterceptor`/allowlist de extensão que os outros anexos).
+
+**Frontend:**
+
+- `api/types.ts`: `tags: string[]` e `attachments:
+  ApiPeopleGroupAttachment[]` em `ApiPeopleGroup`; tipo
+  `ApiPeopleGroupAttachment` novo; `tags?`/`PeopleGroupAttachmentInput`
+  novos.
+- `api/people-groups.ts`: `addPeopleGroupAttachment`/
+  `deletePeopleGroupAttachment`.
+- `features/uploads/api.ts`: `uploadPeopleGroupAttachment` (mesmo
+  padrão copy-paste dos outros 7 - `POST /files/people-group-attachments`).
+- `people-groups-detail-layout-contract.tsx`: `tags: string[]` no
+  `PeopleGroupDetailDraft`; `tabOrder` voltou pros 4 canônicos
+  (`["tags", "notes", "attachments", "activity"]` - era só `["notes",
+  "activity"]` desde a correção anterior); `tags={{...}}` e
+  `attachments={{...}}` wireados no `side`, mesmo formato de
+  Projects/Programs/Tasks; `buildPeopleGroupAttachmentItems` novo
+  (espelha `buildProgramAttachmentItems`).
+- `people-groups-detail-engine-client-page.tsx`: `tags` entrou em
+  `buildDraft`/`normalizeDraft`/`toPayload` (flui pelo
+  `dataProvider.update` genérico que o módulo já usa pro resto do
+  formulário, sem endpoint novo pra isso); `handleSelectAttachment`/
+  `handleDeleteAttachment` novos (upload + registro, exclusão),
+  `attachmentInputRef` + `<input type="file" className="hidden">` no
+  JSX, `suspendDetailAutoSave`/`resumeDetailAutoSave` ao redor do
+  upload (mesmo padrão de Programs/Projects/Tasks).
+
+**Evidência:** `npx prisma validate` → schema válido;
+`prisma migrate dev` → aplicada, só `ADD COLUMN`/`CREATE TABLE`; `npm
+run build` no backend → ok; frontend `tsc --noEmit` → 0 erros; `eslint`
+nos arquivos tocados (backend + frontend) → só a mesma dívida de lint
+já tolerada em `programs.service.ts`/outros arquivos (confirmada
+pré-existente, não introduzida aqui - ver comparação linha a linha);
+`npm run build` no frontend → ok, rota `/[tenant]/people-groups/[id]`
+presente. Teste manual no navegador real ainda pendente de confirmação
+do usuário (criar/editar tags, enviar/excluir anexo).
+
+**Documentação:** `docs/backlog.md` - a entrada "People-Groups, Occurrences
+e Attendances são um caso pior" precisa de atualização pra tirar
+People-Groups da lista (feito a seguir) - Occurrences/Attendances
+continuam pendentes, mesmo padrão exato pode ser repetido lá quando
+chegar a vez.
+
+## Correção: People-Groups ficou inconsistente por pular as Fases 1/2 (2026-11-21)
+
+Usuário testou a tela de Detail de Grupos (depois da migração da
+relation, item abaixo) e reportou 3 problemas: (1) a relation ficou
+"embaixo" em vez de virar aba "Participantes" ao lado de "Detalhes";
+(2) a barra de info embaixo do header não saiu; (3) o Metadata
+continuava errado (Histórico/Contexto, não Tags/Notas/Anexos/
+Auditoria).
+
+**Causa raiz: decisão própria errada.** People-Groups foi
+deliberadamente excluído das Fases 1 e 2 porque não tem `tags`/
+`attachments` no schema (gap de backend, igual Attendance/Occurrences),
+mas isso só bloqueia a Metadata **de verdade** (Tags/Anexos reais).
+`mainTab`/header **não dependem** desse gap - eu já tinha anotado isso
+no backlog ao pular a Fase 2 ("não participou desta rodada por ligação
+com a Fase 1, mas o `header.slot` em si não depende disso"), mas não
+voltei pra aplicar antes de migrar a relation (Fase 3) - resultado:
+migrei só 1 das 3 partes da tela, deixando um estado pior que antes (a
+relation nova, sem o `mainTab` que a abriga como aba, ficava solta
+embaixo do formulário sempre visível, sem nunca ter existido assim nas
+outras 5 Fases 1/2).
+
+**Corrigido agora, igual aos outros 5 módulos:**
+
+- `header.slot` removido (Status/Tipo/Finalidade/Categoria/Faixa etária
+  já existiam no formulário principal - só "Participantes" era contagem
+  derivada, já visível no badge da própria aba); `mainTab: true`
+  adicionado.
+- Metadata: como `tags`/`attachments` genuinamente não existem pra
+  Grupos (confirmado no schema), `tabOrder={["notes", "activity"]}` -
+  mostra só Notas+Auditoria, as únicas 2 abas reais; Histórico e
+  Contexto saem da tela (mesma lógica do `tabOrder={["activity"]}` já
+  usado em Attendance pra Fase B pendente). Tags/Anexos continuam de
+  fora até o backend existir - **não é um bug resolvido, é a mesma
+  limitação já documentada**, só não mostra mais as abas erradas
+  enquanto isso.
+
+**Código morto removido** (confirmado sem outro uso): `resolveStatusBadge`
+e o import `Badge` (só serviam à barra); `formatAgeRange` e
+`buildPeopleGroupsHistoryItems`, com os imports `buildGroupedAuditFeed`,
+`resolveAuditActionLabel` e `resolveAuditChangedFieldsSummary` (só
+serviam ao `contextItems`/`history` removidos do side).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` → 0
+problemas (1 warning de parâmetro não usado corrigido no caminho).
+Teste visual no navegador ainda pendente de confirmação do usuário -
+**desta vez, as 3 partes da tela devem estar coerentes** (aba
+Detalhes/Participantes, sem barra, side com Notas+Auditoria só).
+
+**Lição pra aplicar no resto da Fase 3:** antes de migrar a relation de
+um módulo que ficou de fora das Fases 1/2, conferir primeiro se ele já
+passou por elas - não assumir que "a Fase X não depende da Y" é
+suficiente, a tela como um todo precisa ficar coerente a cada módulo
+tocado, não só a parte que está sendo trabalhada no momento.
+
+## Fase 3 da padronização - Relation → `RelationListHost` - 1º módulo: People-Groups (2026-11-21, em andamento)
+
+Fase mais cara do plano - migrar cada relation de
+`DetailRelationsRenderer`/`tabTemplates[].relations` (mecanismo antigo)
+pra `RelationListHost` (`PainelSearch` completo: busca+Colunas+Filtros+
+TypeView+Novo), no molde exato de Encontros da Atividade. Começando
+pelo módulo com menor volume de relations, como sugerido no plano.
+
+**People-Groups (1 relation - "Participantes"):** migrado. Novo
+componente `people-group-participants-section.tsx`
+(`PeopleGroupParticipantsSection`) - reaproveita quase 1:1 a estrutura
+de `action-team-section.tsx` (Equipe da Atividade), que é o
+caso mais parecido já existente (lista de pessoas vinculadas, papel
+fixo não aplicável aqui mas Status/Tipo sim, ação "Encerrar vínculo"
+por linha, picker dialog já existente - `PeopleGroupPeoplePickerDialog`,
+não tocado, já segue a convenção de diálogo de busca+seleção).
+
+**O que mudou na prática:**
+
+- `tabTemplates[].relations` (busca/filtro manual, sem `SearchPanelMenu`)
+  → `content:` renderizando o componente novo, com
+  `RelationListHost flushToolbar` de verdade - ganha Colunas/Filtros/
+  busca no padrão, de graça.
+- Filtro adicionado: "Status" (Ativo/Encerrado), via `filterFields` do
+  `SearchPanelMenu` - antes só dava pra buscar por texto livre.
+- `canAdd` separado de `canManageParticipations` no novo componente -
+  a regra antiga escondia o botão "Novo" com 3 condições
+  (`readOnly`/`mode`/`canManageParticipations`) mas a ação "Encerrar
+  vínculo" por linha só checava `canManageParticipations` - preservei a
+  assimetria exatamente como estava, em vez de simplificar pra uma
+  condição só (teria mudado comportamento).
+- Corrigido de passagem (já estava tocando o código): `text-foreground`
+  fixo na coluna "Pessoa" (mesmo bug de sempre) - removido, já que
+  estava reescrevendo essa célula de qualquer forma.
+
+**Código morto removido do contract** (`people-groups-detail-layout-contract.tsx`,
+confirmado sem outro uso antes de apagar): `participationColumns`,
+`formatParticipationStatus`, `formatPeriod` + imports que só serviam a
+eles (`ColumnDef`, `Button`, `PersonIdentityAvatarTrigger`,
+`formatDateOnlyPtBR`) - movidos pro componente novo, não duplicados.
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 2
+arquivos (contract + componente novo) → 0 problemas. Teste visual no
+navegador ainda pendente de confirmação do usuário.
+
+**Próximo módulo (ainda não iniciado):** Programs - próximo da lista por
+volume de relations, só precisa de mapear quantas/quais relations ele
+tem antes de migrar (ainda não investigado).
+
+## Fase 2 da padronização - Header sem barra + `mainTab` (6 módulos, 12 contracts) (2026-11-21)
+
+Usuário testou a Fase 1 e pediu pra seguir direto pra Fase 2, sem
+ajuste. Escopo: Projects, Programs, Tasks, Occurrences (1 contract cada)
+e Pantry/Deposit (4 contracts cada - Item/Doador/Entrada/Saída) - 6
+módulos, 12 telas de Detail no total.
+
+**Decisão pedida ao usuário no meio da execução:** Pantry/Deposit, nas
+telas de Item e Entrada, tinham métricas **calculadas** na barra (Saldo,
+Próx. validade, Último movimento, Restante) que não duplicavam nenhum
+campo do formulário - diferente dos outros casos (Status/Tipo/Período
+já editáveis em outro lugar). Usuário decidiu: **descartar por agora**,
+com interesse em revisitar onde mostrar essas métricas numa sessão
+futura (não é mais uma barra de header, de qualquer forma - fica como
+decisão de design em aberto, não um bug). Registrado no backlog.
+
+**Aplicado em cada um dos 12 contracts:** removida a função `header.slot`
+por completo (não só escondida) e adicionado `mainTab: true`. Nos 4
+módulos onde os campos da barra já existiam no formulário principal
+(Projects: Status/Programa; Programs: Status/Tipo; Tasks: Status/
+Prioridade/Entrega/Marco; Occurrences: Status/Origem), nenhuma mudança
+adicional foi necessária no formulário - já cobrem a mesma informação.
+Pantry/Deposit Doador e Saída também eram puro duplicado (Tipo/Contato/
+Nome; Quantidade/Tipo/Setor) - removidos sem mudança no formulário.
+
+**Limpeza de código morto decorrente** (funções/imports que só existiam
+pra montar a barra removida, confirmado sem outro uso no arquivo antes
+de apagar): `resolveStatusBadge` + import `Badge` (Programs, Projects,
+Occurrences - 3 funções quase idênticas, uma por módulo);
+`PANTRY_DETAIL_BAND_CLASS`/`DEPOSIT_DETAIL_BAND_CLASS` (Pantry/Deposit).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 6 arquivos
+(todos os 12 contracts) → 0 problemas, inclusive os 2 warnings de
+constante não usada (`*_DETAIL_BAND_CLASS`) resolvidos. Teste visual no
+navegador ainda pendente de confirmação do usuário.
+
+**Achado incidental, não corrigido (fora do escopo desta fase, é Fase
+4):** durante a leitura dos arquivos, vi mais ocorrências do bug
+`text-foreground` fixo em colunas de relation ainda não documentadas -
+`projects-detail-layout-contract.tsx` (coluna "Pessoa" da relation de
+matrículas) e `occurrences-detail-layout-contract.tsx` (coluna "Pessoa"
+da relation "Envolvidos") - anotar no backlog quando a Fase 4 chegar
+nesses 2 módulos.
+
+**Documentação:** `docs/backlog.md` - nova entrada sobre as métricas
+calculadas descartadas de Pantry/Deposit, com gatilho pra revisão
+futura; entradas de header.slot marcadas como resolvidas pros 6
+módulos.
+
+**Próximo passo (Fase 3, ainda não iniciada):** migrar as relations dos
+mesmos 6 módulos (+ People-Groups, que não participou das Fases 1/2 por
+causa do gap de backend, mas relation não depende disso) de
+`DetailRelationsRenderer`/`tabTemplates[].relations` pra
+`RelationListHost`/`DetailRelationTablePanel`, no molde de Encontros da
+Atividade. É a fase mais cara do plano - ordem sugerida (menor volume de
+relations primeiro): People-Groups → Programs → Projects → Pantry/
+Deposit → Tasks → Occurrences.
+
+## Fase 1 da padronização - Metadata (5 de 6 módulos concluídos) (2026-11-21)
+
+Usuário confirmou a ordem de fases do plano abaixo e pediu início
+imediato, com 1 correção: Metadata precisa terminar com os **4** canônicos
+(Tags/Notas/Anexos/Auditoria), não um subconjunto.
+
+**Achado antes de aplicar:** People-Groups, dos 6 módulos cotados pra
+Fase 1 (a mais barata, "só esconder abas antigas"), é diferente dos
+outros 5 - conferido o `schema.prisma`, `PeopleGroup` **não tem** coluna
+`tags` nem uma tabela de anexo própria (`PeopleGroupAttachment` não
+existe) - o contract só passa `notes`/`history`/`contextItems`, nunca
+chegou a ganhar `tags`/`attachments`. Isso não é "só esconder abas", é
+backend novo (migration + DTO + endpoint, no molde de
+`ProjectActionComment`/`ProjectActionAttachment`) - mesma categoria da
+Fase B de Attendance/Occurrences, não a Fase 1 barata. **Removido da
+Fase 1, movido pra uma fase de backend futura** (junto com
+Attendance/Occurrences Fase B, já backlogada) - não fiz nenhuma mudança
+em People-Groups nesta entrada.
+
+**Aplicado nos 5 módulos que já tinham tudo funcionando** (só faltava
+esconder Comentários/Histórico/Contexto, que ficavam pendurados ao lado
+de Tags/Notas/Anexos já reais): `tabOrder={["tags", "notes",
+"attachments", "activity"]}` em `StandardDetailMetadataSide` de:
+
+- `projects-detail-layout-contract.tsx` (1 contract)
+- `programs-detail-layout-contract.tsx` (1 contract)
+- `tasks-detail-layout-contract.tsx` (1 contract)
+- `pantry-detail-layout-contract.tsx` (**4** contracts - achado durante
+  a execução: não são 3 sub-telas, são 4 - Item, Doador, Entrada, Saída)
+- `deposit-detail-layout-contract.tsx` (**4** contracts, mesma estrutura
+  de Pantry - Item, Doador, Entrada, Saída)
+
+Nenhum código de `comments`/`history`/`contextItems` foi removido ainda,
+só filtrado da exibição via `tabOrder`, igual Attendance já fazia.
+Remoção do código morto por trás fica pra uma limpeza futura, backlogada
+separada (conferir antes que não há nenhum outro lugar do sistema
+lendo esses campos antes de apagar).
+
+**Evidência:** frontend `tsc --noEmit` → 0 erros; `eslint` nos 5 arquivos
+→ 0 problemas. Teste visual no navegador ainda pendente de confirmação
+do usuário (abrir um registro de cada um dos 5 módulos e confirmar só
+Tags/Notas/Anexos/Auditoria no painel lateral).
+
+**Documentação:** `docs/backlog.md` - a entrada de People-Groups
+("Infraestrutura de UI") precisa de uma nota nova sobre o gap de schema
+(tags/anexos), a fazer na próxima atualização de docs.
+
+**Próximo passo (Fase 2, ainda não iniciada):** header sem barra +
+`mainTab`, nos mesmos 5 módulos + Occurrences (People-Groups fica de
+fora por ora, junto com o resto do seu backend pendente - ou entra
+normalmente na Fase 2/3 pra header/relation, já que esses dois pontos
+não dependem do gap de Tags/Anexos).
+
 ## Plano: padronizar todos os módulos no padrão de Atividades (2026-11-21, aguardando confirmação de sequência)
 
 Usuário confirmou Atividades como a referência completa de convenção

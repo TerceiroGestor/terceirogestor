@@ -61,7 +61,6 @@ export const DEPOSIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   defaultSector: "Setor",
   unit: "Unidade",
   minStock: "Estoque mínimo",
-  notes: "Notas",
 };
 
 export const DEPOSIT_DONOR_AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -78,7 +77,6 @@ export const DEPOSIT_ENTRY_AUDIT_FIELD_LABELS: Record<string, string> = {
   unit: "Unidade",
   entryDate: "Data da entrada",
   expiryDate: "Data limite",
-  notes: "Notas",
   reversalOfExitId: "Retorno de saída",
 };
 
@@ -94,7 +92,6 @@ export const DEPOSIT_EXIT_AUDIT_FIELD_LABELS: Record<string, string> = {
   returnedAt: "Retornado em",
   returnedQuantity: "Quantidade retornada",
   returnNotes: "Notas do retorno",
-  notes: "Notas",
   reversalOfEntryId: "Estorno de entrada",
 };
 
@@ -197,7 +194,7 @@ export const DEPOSIT_USAGE_TEXT = {
         title: "Dados principais",
         items: [
           "Edite setor, quantidade, unidade, fonte e notas diretamente no detalhe.",
-          "Use a aba Saídas vinculadas para abrir as saídas consumidas a partir desta entrada.",
+          "Use a aba Saídas para abrir as saídas consumidas a partir desta entrada.",
         ],
       },
       {

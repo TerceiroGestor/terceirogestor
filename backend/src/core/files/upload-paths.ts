@@ -17,6 +17,7 @@ export const UPLOAD_CATEGORY_DIRS: Record<string, string> = {
   projects: join(UPLOAD_ROOT, 'projects'),
   'action-attachments': join(UPLOAD_ROOT, 'action-attachments'),
   tasks: join(UPLOAD_ROOT, 'tasks'),
+  'people-groups': join(UPLOAD_ROOT, 'people-groups'),
 };
 
 // Tenant logos are shown on the public login/branding page before the user

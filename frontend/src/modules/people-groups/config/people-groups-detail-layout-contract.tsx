@@ -1,9 +1,6 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,9 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateOnlyPtBR } from "@/lib/date";
+import { resolveMediaUrl } from "@/lib/api";
 import type {
   ApiPeopleGroup,
+  ApiPeopleGroupAttachment,
   ApiPeopleGroupParticipation,
 } from "@/modules/people-groups/api";
 import {
@@ -24,14 +22,9 @@ import {
   PEOPLE_GROUP_PURPOSE_OPTIONS,
   PEOPLE_GROUP_TYPE_OPTIONS,
 } from "@/modules/people-groups/shared/domain/people-groups.constants";
-import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
+import { PeopleGroupParticipantsSection } from "@/modules/people-groups/features/detail/ui/people-group-participants-section";
 import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
-import {
-  buildGroupedAuditFeed,
-  resolveAuditActionLabel,
-  resolveAuditChangedFieldsSummary,
-} from "@/web-client/detail/audit-feed-utils";
 import type { DetailShellAuditContext } from "@/web-client/detail/DetailShellEngine";
 import type { DetailLayoutConfig } from "@/web-client/registry/types";
 
@@ -58,28 +51,31 @@ function formatStatus(isActive: boolean | null | undefined) {
   return isActive === false ? "Inativo" : "Ativo";
 }
 
-function resolveStatusBadge(isActive: boolean) {
-  return isActive ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>;
-}
-
-function formatAgeRange(ageMin: string | number | null | undefined, ageMax: string | number | null | undefined) {
-  const min = ageMin === "" || ageMin === undefined ? null : ageMin;
-  const max = ageMax === "" || ageMax === undefined ? null : ageMax;
-  if (min === null && max === null) return "Livre";
-  return `${min ?? "-"} a ${max ?? "-"}`;
-}
-
 function resolveGroupTypeLabel(groupType: ApiPeopleGroup["groupType"] | undefined) {
   return PEOPLE_GROUP_TYPE_OPTIONS.find((option) => option.value === groupType)?.label ?? "-";
 }
 
-function formatParticipationStatus(row: ApiPeopleGroupParticipation) {
-  return row.isActive && !row.deletedAt ? "Ativo" : "Encerrado";
-}
-
-function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
-  if (!startsAt && !endsAt) return "Não informada";
-  return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
+function buildPeopleGroupAttachmentItems(attachments: ApiPeopleGroupAttachment[]) {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    label: attachment.label,
+    href: resolveMediaUrl(attachment.filePath),
+    description: attachment.uploadedBy?.name
+      ? `Enviado por ${attachment.uploadedBy.name}`
+      : "Anexo do Grupos",
+    mimeType: attachment.mimeType ?? null,
+    sizeLabel:
+      typeof attachment.fileSizeBytes === "number" && attachment.fileSizeBytes > 0
+        ? attachment.fileSizeBytes >= 1024 * 1024
+          ? `${(attachment.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+          : attachment.fileSizeBytes >= 1024
+            ? `${Math.round(attachment.fileSizeBytes / 1024)} KB`
+            : `${attachment.fileSizeBytes} B`
+        : null,
+    statusLabel: attachment.createdAt
+      ? attachment.createdAt.slice(0, 16).replace("T", ", ")
+      : null,
+  }));
 }
 
 export type PeopleGroupDetailDraft = {
@@ -88,6 +84,7 @@ export type PeopleGroupDetailDraft = {
   purpose: "PUBLICO" | "EQUIPE";
   category: string;
   description: string;
+  tags: string[];
   ageMin: string;
   ageMax: string;
   isActive: boolean;
@@ -116,84 +113,12 @@ export type PeopleGroupsDetailLayoutContext = DetailShellAuditContext & {
   onOpenPerson: (personId: string) => void;
   onCreateParticipation: () => void;
   onEndParticipation: (participation: ApiPeopleGroupParticipation) => void;
+  attachmentUploading: boolean;
+  onUploadAttachment: () => void;
+  onDeleteAttachment: (attachmentId: string) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
-
-function participationColumns({
-  canManageParticipations,
-  onEndParticipation,
-  tenantSlug,
-}: Pick<
-  PeopleGroupsDetailLayoutContext,
-  "canManageParticipations" | "onEndParticipation" | "tenantSlug"
->): ColumnDef<ApiPeopleGroupParticipation, unknown>[] {
-  return [
-    {
-      accessorKey: "person.fullName",
-      header: "Pessoa",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <PersonIdentityAvatarTrigger
-            personId={row.original.person.id}
-            tenantSlug={tenantSlug}
-            fullName={row.original.person.fullName}
-            socialName={row.original.person.socialName}
-            birthDate={row.original.person.birthDate ?? null}
-            avatarUrl={row.original.person.avatarUrl}
-            hasHealthCondition={row.original.person.hasHealthCondition ?? false}
-            hasMedication={row.original.person.hasMedication ?? false}
-          />
-          <div className="space-y-0.5">
-            <div className="font-medium text-foreground">{row.original.person.fullName}</div>
-            <div className="text-xs text-muted-foreground">
-              {row.original.person.personType ?? "-"} - {row.original.person.status ?? "-"}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "person.personType",
-      header: "Tipo",
-      cell: ({ row }) => row.original.person.personType ?? "-",
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="text-foreground">{formatParticipationStatus(row.original)}</div>
-          <div className="text-xs text-muted-foreground">
-            {formatPeriod(row.original.startsAt, row.original.endsAt)}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) =>
-        canManageParticipations && row.original.isActive ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEndParticipation(row.original);
-              }}
-            >
-              Encerrar vínculo
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
-}
 
 function PeopleGroupsDetailMain({
   draft,
@@ -356,37 +281,6 @@ function PeopleGroupsDetailMain({
   );
 }
 
-function buildPeopleGroupsHistoryItems(
-  logs: NonNullable<PeopleGroupsDetailLayoutContext["detailAudit"]>["logs"],
-) {
-  return buildGroupedAuditFeed(logs).map((group) => {
-    const primarySource = group.sourceLabels[0] ?? "Registro";
-    const actorName =
-      group.logs[0]?.user?.name?.trim() ||
-      group.logs[0]?.user?.email?.trim() ||
-      "Sistema";
-    const changedFields = resolveAuditChangedFieldsSummary(group.rows, 3);
-    const changedLabel = changedFields.labels.length
-      ? changedFields.hiddenCount > 0
-        ? `${changedFields.labels.join(", ")} e +${changedFields.hiddenCount}`
-        : changedFields.labels.join(", ")
-      : null;
-
-    return {
-      id: group.id,
-      title:
-        group.action === "CREATE"
-          ? `${primarySource} criado`
-          : group.action === "DELETE"
-            ? `${primarySource} removido`
-            : `${primarySource} atualizado`,
-      description: changedLabel ? `${primarySource}: ${changedLabel}` : group.sourceLabels.join(", "),
-      meta: `${resolveAuditActionLabel(group.action)} por ${actorName}`,
-      createdAt: group.createdAt,
-    };
-  });
-}
-
 export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
   header: {
@@ -394,41 +288,8 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
       mode === "create"
         ? "Novo Grupos"
         : ((group?.name ?? draft.name) || "Grupos"),
-    slot: ({ draft, participations }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div>{resolveStatusBadge(draft.isActive)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Tipo</div>
-            <div className="font-medium text-foreground">{resolveGroupTypeLabel(draft.groupType)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Finalidade</div>
-            <div className="font-medium text-foreground">
-              {draft.purpose === "EQUIPE" ? "Equipe institucional" : "Público atendido"}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Categoria</div>
-            <div className="font-medium text-foreground">{draft.category.trim() || "-"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Faixa etária</div>
-            <div className="font-medium text-foreground">{formatAgeRange(draft.ageMin, draft.ageMax)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Participantes</div>
-            <div className="font-medium text-foreground">
-              {participations.filter((participation) => participation.isActive).length}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
   },
+  mainTab: true,
   main: ({ draft, setDraft, readOnly, onCommitField }) => (
     <PeopleGroupsDetailMain
       draft={draft}
@@ -441,13 +302,18 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
     mode,
     canAudit,
     readOnly,
+    group,
     draft,
-    participations,
+    setDraft,
     detailAudit,
     auditVisibleCount,
     onAuditVisibleCountChange,
+    onCommitField,
     onNotesChange,
     onNotesBlur,
+    attachmentUploading,
+    onUploadAttachment,
+    onDeleteAttachment,
   }) => (
     <StandardDetailMetadataSide
       mode={mode}
@@ -456,35 +322,33 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
       detailAudit={detailAudit}
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       notes={{
         value: draft.internalNotes,
         onChange: onNotesChange,
         onBlur: onNotesBlur,
         readOnly,
       }}
-      history={{
-        items: buildPeopleGroupsHistoryItems(detailAudit?.logs ?? []),
+      tags={{
+        value: draft.tags,
+        onChange: (nextTags) =>
+          setDraft((previous) => ({ ...previous, tags: nextTags })),
+        onCommit: (next) => onCommitField("tags", next),
+        readOnly,
+        emptyLabel: mode === "create" ? "Adicione tags ao Grupos." : "Nenhuma tag registrada.",
+      }}
+      attachments={{
+        items: buildPeopleGroupAttachmentItems(group?.attachments ?? []),
+        onUpload: mode === "edit" && !readOnly ? onUploadAttachment : undefined,
+        onDelete: mode === "edit" && !readOnly ? onDeleteAttachment : undefined,
+        readOnly: readOnly || mode !== "edit",
         emptyLabel:
           mode === "create"
-            ? "O histórico aparece após salvar o Grupos."
-            : "Nenhum histórico disponível para este Grupos.",
+            ? "Salve o Grupos para habilitar anexos."
+            : attachmentUploading
+              ? "Enviando anexo..."
+              : "Nenhum anexo registrado para este Grupos.",
       }}
-      contextItems={[
-        { key: "groupType", label: "Tipo", value: resolveGroupTypeLabel(draft.groupType) },
-        {
-          key: "purpose",
-          label: "Finalidade",
-          value: draft.purpose === "EQUIPE" ? "Equipe institucional" : "Público atendido",
-        },
-        { key: "category", label: "Categoria", value: draft.category.trim() || "-" },
-        { key: "status", label: "Status", value: formatStatus(draft.isActive) },
-        { key: "ageRange", label: "Faixa etária", value: formatAgeRange(draft.ageMin, draft.ageMax) },
-        {
-          key: "participants",
-          label: "Participantes ativos",
-          value: participations.filter((participation) => participation.isActive).length,
-        },
-      ]}
       defaultTab="activity"
     />
   ),
@@ -493,50 +357,34 @@ export const peopleGroupsDetailLayout: DetailLayoutConfig<PeopleGroupsDetailLayo
       key: "participants",
       label: "Participantes",
       badge: ({ participations }) => participations.filter((participation) => participation.isActive).length,
-      relations: [
-        {
-          key: "people-group.participations",
-          label: "Participantes",
-          loading: ({ participationsLoading }) => participationsLoading,
-          rows: ({ mode, participations }) => (mode === "edit" ? participations : []),
-          columns: (context) =>
-            participationColumns({
-              canManageParticipations: context.canManageParticipations,
-              onEndParticipation: context.onEndParticipation,
-              tenantSlug: context.tenantSlug,
-            }),
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenPerson(row.person.id),
-          action: {
-            label: "Novo",
-            onClick: (context) => context.onCreateParticipation(),
-            hidden: ({ readOnly, mode, canManageParticipations }) =>
-              readOnly || mode !== "edit" || !canManageParticipations,
-          },
-          searchPlaceholder: "Pesquisar",
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) =>
-              [
-                row.person.fullName,
-                row.person.socialName ?? "",
-                row.person.personType ?? "",
-                row.person.status ?? "",
-                formatParticipationStatus(row),
-                formatPeriod(row.startsAt, row.endsAt),
-              ]
-                .join(" ")
-                .toLocaleLowerCase()
-                .includes(needle),
-            );
-          },
-          emptyLabel: ({ mode }) =>
+      flushContent: true,
+      content: ({
+        mode,
+        readOnly,
+        participations,
+        participationsLoading,
+        canManageParticipations,
+        tenantSlug,
+        onOpenPerson,
+        onCreateParticipation,
+        onEndParticipation,
+      }) => (
+        <PeopleGroupParticipantsSection
+          rows={mode === "edit" ? participations : []}
+          loading={participationsLoading}
+          canManageParticipations={canManageParticipations}
+          canAdd={!readOnly && mode === "edit" && canManageParticipations}
+          tenantSlug={tenantSlug}
+          onOpenPerson={onOpenPerson}
+          onCreateParticipation={onCreateParticipation}
+          onEndParticipation={onEndParticipation}
+          emptyLabel={
             mode === "create"
               ? "Salve o Grupos para gerenciar participantes."
-              : "Nenhuma pessoa vinculada.",
-        },
-      ],
+              : "Nenhuma pessoa vinculada."
+          }
+        />
+      ),
     },
   ],
   auditSources: {

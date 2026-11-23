@@ -4,6 +4,7 @@ import type {
   ApiPeopleGroupParticipation,
   CreatePeopleGroupParticipationInput,
   EndPeopleGroupParticipationInput,
+  PeopleGroupAttachmentInput,
   PeopleGroupInput,
   PeopleGroupParticipationsListResponse,
   PeopleGroupsListResponse,
@@ -54,6 +55,30 @@ export async function updatePeopleGroup(
 
 export async function deletePeopleGroup(token: string, id: string) {
   return apiRequest<{ ok: true }>(`/people-groups/${id}`, { method: "DELETE" }, token);
+}
+
+export async function addPeopleGroupAttachment(
+  token: string,
+  id: string,
+  payload: PeopleGroupAttachmentInput,
+) {
+  return apiRequest<ApiPeopleGroup>(
+    `/people-groups/${id}/attachments`,
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function deletePeopleGroupAttachment(
+  token: string,
+  id: string,
+  attachmentId: string,
+) {
+  return apiRequest<ApiPeopleGroup>(
+    `/people-groups/${id}/attachments/${attachmentId}`,
+    { method: "DELETE" },
+    token,
+  );
 }
 
 export async function listPeopleGroupParticipations(

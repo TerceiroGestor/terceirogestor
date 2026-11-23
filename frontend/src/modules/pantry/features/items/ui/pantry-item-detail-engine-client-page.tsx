@@ -22,6 +22,8 @@ import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   addPantryItemAttachment,
   addPantryItemComment,
+  createPantryEntry,
+  createPantryExit,
   createPantrySector,
   deletePantryItemAttachment,
   deletePantryItemComment,
@@ -36,7 +38,13 @@ import {
   type ApiPantryItem,
 } from "@/modules/pantry/api";
 import { type PantryItemDetailLayoutContext } from "@/modules/pantry/config/pantry-detail-layout-contract";
-import { pantryItemDetailModuleDefinition } from "@/modules/pantry/config/pantry-module-contract";
+import {
+  pantryEntryDetailModuleDefinition,
+  pantryExitDetailModuleDefinition,
+  pantryItemDetailModuleDefinition,
+} from "@/modules/pantry/config/pantry-module-contract";
+import { PantryEntryQuickCreateDialog } from "@/modules/pantry/features/items/ui/detail/pantry-entry-quick-create-dialog";
+import { PantryExitQuickCreateDialog } from "@/modules/pantry/features/items/ui/detail/pantry-exit-quick-create-dialog";
 import type {
   ItemDraft,
   PantryItemDetailMode,
@@ -45,7 +53,6 @@ import {
   buildPantryEntryAuditLabel,
   buildPantryExitAuditLabel,
   normalizeSector,
-  normalizeStringOrNull,
 } from "@/modules/pantry/features/items/domain/pantry-item-detail.helpers";
 import {
   PANTRY_DEFAULT_SECTOR,
@@ -70,7 +77,6 @@ function normalizeDraft(draft: ItemDraft): ItemDraft {
     defaultSector: normalizeSector(draft.defaultSector),
     unit: draft.unit.trim(),
     minStock: Number.isFinite(draft.minStock) ? draft.minStock : 0,
-    notes: normalizeStringOrNull(draft.notes),
   };
 }
 
@@ -81,7 +87,6 @@ function draftFromItem(item: ApiPantryItem): ItemDraft {
     defaultSector: item.defaultSector ?? PANTRY_DEFAULT_SECTOR,
     unit: item.unit ?? PANTRY_DEFAULT_UNIT,
     minStock: Number(item.minStock ?? 0),
-    notes: item.notes ?? null,
   };
 }
 
@@ -114,6 +119,16 @@ export function PantryItemDetailEngineClientPage({
     "edit",
     permissions,
   );
+  const canDeleteEntry = canUseModuleAction(
+    pantryEntryDetailModuleDefinition,
+    "delete",
+    permissions,
+  );
+  const canDeleteExit = canUseModuleAction(
+    pantryExitDetailModuleDefinition,
+    "delete",
+    permissions,
+  );
 
   const id = mode === "edit" ? (params?.id ? String(params.id) : "") : "";
   const canAccessPage = mode === "create" ? canCreate : canRead;
@@ -128,7 +143,6 @@ export function PantryItemDetailEngineClientPage({
     defaultSector: PANTRY_DEFAULT_SECTOR,
     unit: PANTRY_DEFAULT_UNIT,
     minStock: 0,
-    notes: null,
   });
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
@@ -136,6 +150,8 @@ export function PantryItemDetailEngineClientPage({
   const [sectors, setSectors] = React.useState<string[]>([]);
   const [newSectorOpen, setNewSectorOpen] = React.useState(false);
   const [newSectorName, setNewSectorName] = React.useState("");
+  const [newEntryOpen, setNewEntryOpen] = React.useState(false);
+  const [newExitOpen, setNewExitOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [commentDraft, setCommentDraft] = React.useState({ body: "", mentionUserIds: [] as string[] });
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
@@ -421,19 +437,58 @@ export function PantryItemDetailEngineClientPage({
     }
   }, [commitField, loadSectors, mode, newSectorName, toast, token]);
 
-  const openNewEntry = React.useCallback(() => {
-    const href = withTenantPath(PANTRY_ROUTES.entriesNew, tenantSlug);
-    router.push(
-      `${href}?itemId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
-    );
-  }, [id, pathname, router, tenantSlug]);
+  const openNewEntry = React.useCallback(() => setNewEntryOpen(true), []);
+  const openNewExit = React.useCallback(() => setNewExitOpen(true), []);
 
-  const openNewExit = React.useCallback(() => {
-    const href = withTenantPath(PANTRY_ROUTES.exitsNew, tenantSlug);
-    router.push(
-      `${href}?itemId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
-    );
-  }, [id, pathname, router, tenantSlug]);
+  const handleSubmitCreateEntry = React.useCallback(
+    async (payload: { donorId: string | null; sector: string; quantity: number; expiryDate: string | null }) => {
+      if (!token || !id || !item) return;
+      try {
+        await createPantryEntry(token, {
+          itemId: id,
+          donorId: payload.donorId,
+          sector: payload.sector,
+          quantity: payload.quantity,
+          unit: item.unit,
+          expiryDate: payload.expiryDate,
+        });
+        toast({ variant: "success", title: "Entrada criada" });
+        await loadMovements();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao criar entrada.";
+        toast({ variant: "destructive", title: "Falha ao criar", description: message });
+      }
+    },
+    [id, item, loadMovements, toast, token],
+  );
+
+  const handleSubmitCreateExit = React.useCallback(
+    async (payload: { sector: string; quantity: number; type: ApiPantryExit["type"]; eventName: string | null }) => {
+      if (!token || !id || !item) return;
+      try {
+        await createPantryExit(token, {
+          itemId: id,
+          sector: payload.sector,
+          quantity: payload.quantity,
+          unit: item.unit,
+          type: payload.type,
+          eventName: payload.eventName,
+        });
+        toast({ variant: "success", title: "Saída criada" });
+        await loadMovements();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao criar saída.";
+        toast({ variant: "destructive", title: "Falha ao criar", description: message });
+      }
+    },
+    [id, item, loadMovements, toast, token],
+  );
 
   const openEntryDetail = React.useCallback(
     (entryId: string) => {
@@ -601,6 +656,7 @@ export function PantryItemDetailEngineClientPage({
     () => ({
       mode,
       readOnly,
+      token: token ?? "",
       draft,
       setDraft,
       item,
@@ -626,10 +682,13 @@ export function PantryItemDetailEngineClientPage({
       exitLabelById,
       historyRows,
       movementLoading: movementsLoading,
+      canDeleteEntry,
+      canDeleteExit,
       onNewEntry: openNewEntry,
       onNewExit: openNewExit,
       onOpenEntry: openEntryDetail,
       onOpenExit: openExitDetail,
+      onMovementsChanged: () => void loadMovements(),
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
       mentionableUsers,
@@ -652,6 +711,8 @@ export function PantryItemDetailEngineClientPage({
     [
       attachmentUploading,
       auditVisibleCount,
+      canDeleteEntry,
+      canDeleteExit,
       commentDraft,
       commentSubmitting,
       commitField,
@@ -665,6 +726,7 @@ export function PantryItemDetailEngineClientPage({
       exitRows,
       historyRows,
       item,
+      loadMovements,
       mode,
       movementsLoading,
       mentionableUsers,
@@ -679,6 +741,7 @@ export function PantryItemDetailEngineClientPage({
       setDraft,
       submitComment,
       tags,
+      token,
       internalNotes,
       uploadAttachment,
       historyItems,
@@ -743,6 +806,23 @@ export function PantryItemDetailEngineClientPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PantryEntryQuickCreateDialog
+        open={newEntryOpen}
+        onOpenChange={setNewEntryOpen}
+        donors={donors}
+        sectorOptions={sectorOptions}
+        defaultSector={draft.defaultSector}
+        onSubmit={handleSubmitCreateEntry}
+      />
+
+      <PantryExitQuickCreateDialog
+        open={newExitOpen}
+        onOpenChange={setNewExitOpen}
+        sectorOptions={sectorOptions}
+        defaultSector={draft.defaultSector}
+        onSubmit={handleSubmitCreateExit}
+      />
     </>
   );
 }

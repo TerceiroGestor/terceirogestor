@@ -383,15 +383,6 @@ function buildGroupNodes<TData>({
 export const DEFAULT_COLUMN_MAX_WIDTH = 280;
 
 /**
- * Altura fixa (h-9) da barra de Colunas/seleção em lote no topo do
- * `ListView` - sempre a mesma, exista ou não seleção/conteúdo dentro dela
- * no momento (ver render da barra, mais abaixo). Usada pra somar ao
- * `stickyHeaderOffsetPx` recebido e saber onde o cabeçalho da tabela deve
- * colar quando essa barra também está presente e fixa.
- */
-const BULK_BAR_HEIGHT_PX = 36;
-
-/**
  * A coluna de seleção (checkbox) agora é uma coluna de ação como outra
  * qualquer - o checkbox em si fica mais sutil (borda neutra, sem sombra)
  * pra não competir visualmente com o conteúdo da linha. Cor própria, via
@@ -674,6 +665,10 @@ export function ListView<TData>({
   columnVisibility: controlledColumnVisibility,
   onColumnVisibilityChange,
   bordered = true,
+  // Mantido so como sinal booleano pelos ~20 chamadores existentes (ver
+  // JSDoc do tipo abaixo); o ListView agora sempre tem seu proprio
+  // overflow-auto, independente do valor recebido.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   stickyHeaderOffsetPx,
 }: {
   data: TData[];
@@ -724,21 +719,25 @@ export function ListView<TData>({
    */
   bordered?: boolean;
   /**
-   * Sobrescreve o `top-0` do cabecalho sticky da tabela, em px (ex.: `117`)
-   * - necessario quando esse `ListView` fica dentro de uma relation
-   * `flushToolbar` (ex.: Encontros, via `RelationListHost`), onde ja existem
-   * a barra de abas e a toolbar da relation grudadas (sticky) acima do
-   * cabecalho, no mesmo contexto de scroll. Sem isso o cabecalho tenta
-   * grudar em `top-0` tambem e passa por cima das duas. Nao usar fora
-   * desse cenario - o padrao (`top-0`) esta correto em todo List Principal,
-   * calculado automaticamente ali (sem essa prop) porque la o proprio
-   * `ListView` tem seu scroll interno, nao depende de nada externo.
+   * Sinaliza que esse `ListView` e o conteudo inteiro de uma relation
+   * `flushToolbar` (ex.: Entradas/Saidas de Despensa/Deposito, Encontros,
+   * via `RelationListHost`) - usado soo como `stickyHeaderOffsetPx !==
+   * undefined` (o valor numerico em si nao e mais usado como offset, so a
+   * presenca da prop importa; mantido como numero, nao booleano, pra nao
+   * precisar atualizar as ~20 chamadas existentes).
    *
-   * É um número, não uma className, porque `ListView` precisa somar a
-   * própria altura da barra de Colunas/seleção (quando existir - ver
-   * `BULK_BAR_HEIGHT_PX`) ao valor informado, pra essa barra também virar
-   * sticky e o cabeçalho continuar colado embaixo dela - não é mais
-   * possível fazer essa conta com uma string de classe Tailwind arbitrária.
+   * Ate 2026-11-22 esse numero virava um `top` inline no cabecalho sticky,
+   * pra ele colar abaixo da barra de abas + toolbar da relation, ambas
+   * sticky no MESMO scroll da pagina (o `ListView` ficava `overflow-visible`
+   * de proposito, sem scroll propio). Isso vazava o scroll horizontal da
+   * tabela pra tela inteira (nada delimitava o eixo X) e quebrava o pin das
+   * colunas fixadas (sticky-left so funciona relativo ao scroll container
+   * real). Resolvido trocando pelo MESMO modelo do List Principal: este
+   * `ListView` sempre tem seu proprio `overflow-auto` (os dois eixos) e o
+   * cabecalho sempre cola em `top-0` relativo a si mesmo - a barra da
+   * relation (RelationListHost.tsx) e a aba (DetailLayoutSections.tsx) so
+   * precisam virar colunas flex de altura limitada (`flex-1 min-h-0`) pra
+   * esse `overflow-auto` ter uma altura real pra rolar dentro.
    */
   stickyHeaderOffsetPx?: number;
 }) {
@@ -885,49 +884,31 @@ export function ListView<TData>({
   // Dentro de um ColumnVisibilityProvider, quem mostra o botão "Colunas" é o
   // shell (ver RecordListHost.tsx) - a lista nunca duplica o controle.
   const shouldShowColumnVisibilityButton = showColumnVisibilityButton && !visibilityContext;
-  // Se a barra VAI existir, independente de ter seleção agora - usado pra
-  // reservar a altura dela sempre (nunca aparecer/desaparecer, ver render
-  // abaixo) e pra somar `BULK_BAR_HEIGHT_PX` ao offset do cabeçalho.
   const hasTopBar = Boolean(shouldShowColumnVisibilityButton || (enableRowSelection && bulkActions));
-  const isSticky = stickyHeaderOffsetPx !== undefined;
-  const topBarOffsetPx = stickyHeaderOffsetPx;
-  const headerOffsetPx = isSticky
-    ? stickyHeaderOffsetPx + (hasTopBar ? BULK_BAR_HEIGHT_PX : 0)
-    : undefined;
 
   return (
     <ModuleSurface
       className={cn(
         "flex h-full min-h-0 flex-col",
         !bordered && "rounded-none border-0 bg-transparent",
-        // MODULE_SURFACE_CLASS_NAME tem overflow-hidden fixo, que tambem
-        // quebra o sticky do cabecalho (mesmo motivo documentado acima) -
-        // precisa ser cancelado aqui tambem, nao só nos wrappers internos.
-        isSticky && "overflow-visible",
         className,
       )}
     >
       {hasTopBar ? (
-        // Altura fixa (h-9 = BULK_BAR_HEIGHT_PX), sempre renderizada - nunca
-        // monta/desmonta conforme a seleção muda, só o conteúdo interno
-        // aparece/some. Uma versão anterior deixava essa barra
-        // aparecer/desaparecer (`? <div> : null`): ao limpar a seleção, a
-        // altura do que fica acima da tabela mudava de repente e o
-        // cabeçalho sticky (offset fixo) saltava de posição - parecia "a
-        // tela rolou" sem o usuário ter rolado nada. Fundo opaco
-        // (`bg-background`) garante que nenhuma linha da tabela apareça
-        // atrás dela ao rolar, mesmo vazia. Quando `isSticky` (dentro de
-        // uma relation `flushToolbar`), ela também é sticky, colada acima
-        // do cabeçalho, pela mesma razão - fora desse contexto (List
-        // Principal) ela já fica "fixa" de graça, por estar fora da área
-        // de scroll interna do próprio `ListView` (ver `overflow-auto`
-        // mais abaixo), sem precisar de `position: sticky` nenhum.
+        // Altura fixa (h-9), sempre renderizada - nunca monta/desmonta
+        // conforme a seleção muda, só o conteúdo interno aparece/some. Uma
+        // versão anterior deixava essa barra aparecer/desaparecer
+        // (`? <div> : null`): ao limpar a seleção, a altura do que fica
+        // acima da tabela mudava de repente e o cabeçalho sticky (offset
+        // fixo) saltava de posição - parecia "a tela rolou" sem o usuário
+        // ter rolado nada. Fundo opaco (`bg-background`) garante que
+        // nenhuma linha da tabela apareça atrás dela ao rolar, mesmo
+        // vazia. Fica "fixa" de graça, por estar fora da área de scroll
+        // interna do próprio `ListView` (ver `overflow-auto` mais abaixo),
+        // sem precisar de `position: sticky` nenhum - mesmo dentro de uma
+        // relation `flushToolbar` (ver `stickyHeaderOffsetPx` acima).
         <div
-          className={cn(
-            "flex h-9 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background px-4 text-xs",
-            isSticky && "sticky z-10",
-          )}
-          style={isSticky ? { top: topBarOffsetPx } : undefined}
+          className="flex h-9 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-background px-4 text-xs"
         >
           <div className="text-muted-foreground">
             {enableRowSelection && bulkActions && selectedRows.length ? (
@@ -1018,23 +999,20 @@ export function ListView<TData>({
 
       <div
         className={cn(
-          "min-h-0 flex-1",
-          // overflow-auto quebra position:sticky do cabecalho quando esse
-          // ListView vive dentro de um scroll externo ja sticky (mesmo
-          // motivo do stickyHeaderOffsetPx acima) - so fica overflow-visible
-          // nesse cenario; o padrao continua auto (unico container de
-          // scroll da tabela desde 2026-11-20 - table.tsx nao tem mais
-          // overflow-x-auto proprio, que quebrava o sticky mesmo sem essa
-          // prop, no List Principal).
-          isSticky ? "overflow-visible" : "overflow-auto",
+          "min-h-0 flex-1 overflow-auto",
+          // Unico container de scroll da tabela (os dois eixos) - desde
+          // 2026-11-20 `table.tsx` nao tem mais overflow-x-auto proprio
+          // (quebrava o sticky do cabecalho abaixo por scroll duplo
+          // aninhado) e, desde 2026-11-22, esse div tambem vale dentro de
+          // uma relation `flushToolbar` (ver `stickyHeaderOffsetPx` acima)
+          // - sem seu proprio container de scroll aqui, o scroll
+          // horizontal vazava pra tela inteira e o pin das colunas fixadas
+          // nao tinha container pra calcular a posicao.
           renderCard ? "hidden md:block" : undefined,
         )}
       >
         <UiTable containerClassName="px-1" className="[&_tbody_tr:last-child]:border-b-0">
-          <TableHeader
-            className={cn("sticky z-10", !isSticky && "top-0")}
-            style={isSticky ? { top: headerOffsetPx } : undefined}
-          >
+          <TableHeader className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {

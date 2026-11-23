@@ -53,6 +53,14 @@ export function resolveExitTypeLabel(type: ApiPantryExit["type"] | string | null
   return String(type);
 }
 
+export function formatOptionalDate(value: string | null | undefined) {
+  return value ? formatDateOnlyPtBR(value) : "—";
+}
+
+export function resolveMovementKindLabel(kind: "ENTRY" | "EXIT") {
+  return kind === "ENTRY" ? "Entrada" : "Saída";
+}
+
 export function resolveAuditActionLabel(action: DetailAuditFeedItem["action"]) {
   switch (action) {
     case "CREATE":

@@ -414,7 +414,6 @@ function AttendancePeopleTab({
           .includes(query)
       }
       emptyMessage="Nenhuma pessoa vinculada."
-      tableMinWidthClassName="min-w-[640px]"
     />
   );
 }
@@ -456,8 +455,7 @@ function AttendanceEvolutionsTab({
         searchPlaceholder="Pesquisar evolução"
         filterRow={(row, query) => row.notes.toLocaleLowerCase().includes(query)}
         emptyMessage="Nenhuma evolução registrada."
-        tableMinWidthClassName="min-w-[640px]"
-      />
+        />
       <AttendanceEvolutionDialog open={dialogOpen} onOpenChange={setDialogOpen} onSubmit={onAddEvolution} />
     </>
   );
@@ -500,8 +498,7 @@ function AttendanceBenefitsTab({
         searchPlaceholder="Pesquisar benefício"
         filterRow={(row, query) => row.name.toLocaleLowerCase().includes(query)}
         emptyMessage="Nenhum benefício lançado."
-        tableMinWidthClassName="min-w-[640px]"
-      />
+        />
       <AttendanceBenefitDialog open={dialogOpen} onOpenChange={setDialogOpen} onSubmit={onAddBenefit} />
     </>
   );

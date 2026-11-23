@@ -152,11 +152,28 @@ export function RelationListHost<TData>({
   const hasActiveFilters = Boolean(domain) || groupBy.length > 0;
 
   const content = (
-    <section className="space-y-4">
+    <section
+      className={cn(
+        "space-y-4",
+        // Quando flushToolbar, a relation e o conteudo inteiro da aba: a
+        // secao vira uma coluna flex de altura limitada pelo ancestral
+        // (DetailLayoutSections.tsx) para que {children} (ListView, com
+        // overflow-auto proprio) tenha uma altura real pra rolar dentro -
+        // sem isso o scroll (e o pin da coluna primaria) vazava pra tela
+        // inteira, por falta de um container de scroll delimitado (achado
+        // em 2026-11-22, telas de Despensa/Deposito).
+        flushToolbar && "flex h-full min-h-0 flex-col",
+      )}
+    >
       <div
         className={cn(
           "flex flex-wrap items-center gap-3 bg-toolbar",
-          flushToolbar ? "sticky top-11 z-10 px-4 py-4 lg:-mr-2" : "rounded-lg px-3 py-2",
+          // Nao precisa mais de position:sticky aqui - com a secao acima
+          // virando o container de scroll, esta barra fica naturalmente
+          // fora da area que rola (ela e irma do div "min-h-0 flex-1" mais
+          // abaixo, nao filha), exatamente como a barra de Colunas/selecao
+          // do ListView.tsx fora do modo "sticky".
+          flushToolbar ? "shrink-0 px-4 py-4 lg:-mr-2" : "rounded-lg px-3 py-2",
         )}
       >
         <div className="min-w-[200px] flex-1">
@@ -242,7 +259,7 @@ export function RelationListHost<TData>({
         </div>
       ) : null}
 
-      {children}
+      {flushToolbar ? <div className="min-h-0 flex-1">{children}</div> : children}
     </section>
   );
 

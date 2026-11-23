@@ -15,7 +15,6 @@ type ProjectPeopleGroupPickerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   token: string;
-  purpose: "PUBLICO" | "EQUIPE";
   title?: string;
   actionLabel?: string;
   onPick: (peopleGroups: ApiPeopleGroup[]) => void | Promise<void>;
@@ -36,7 +35,6 @@ export function ProjectPeopleGroupPickerDialog({
   open,
   onOpenChange,
   token,
-  purpose,
   title,
   actionLabel,
   onPick,
@@ -54,8 +52,7 @@ export function ProjectPeopleGroupPickerDialog({
   });
   const [search, setSearch] = React.useState("");
 
-  const resolvedTitle =
-    title ?? (purpose === "EQUIPE" ? "Vincular Grupos de equipe" : "Vincular Grupos");
+  const resolvedTitle = title ?? "Vincular Grupos";
   const resolvedActionLabel = actionLabel ?? "Vincular";
 
   const handlePickOne = React.useCallback(
@@ -119,15 +116,6 @@ export function ProjectPeopleGroupPickerDialog({
         ),
       },
       {
-        accessorKey: "purpose",
-        header: "Finalidade",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.purpose === "EQUIPE" ? "Equipe" : "Publico"}
-          </span>
-        ),
-      },
-      {
         accessorKey: "category",
         header: "Categoria",
         cell: ({ row }) => (
@@ -179,7 +167,7 @@ export function ProjectPeopleGroupPickerDialog({
     try {
       const response = await listPeopleGroups(token, {
         q: search.trim() || undefined,
-        purpose,
+        purpose: "PUBLICO",
         isActive: true,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
@@ -199,7 +187,7 @@ export function ProjectPeopleGroupPickerDialog({
     } finally {
       setLoading(false);
     }
-  }, [open, pagination.pageIndex, pagination.pageSize, purpose, search, token]);
+  }, [open, pagination.pageIndex, pagination.pageSize, search, token]);
 
   React.useEffect(() => {
     if (!open) return;

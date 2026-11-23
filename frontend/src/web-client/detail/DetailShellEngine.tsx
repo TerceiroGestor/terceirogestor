@@ -46,6 +46,15 @@ type DetailShellEngineProps<TContext extends Record<string, unknown>> = {
   fallbackSideSlot?: React.ReactNode;
   fallbackBottomSlot?: React.ReactNode;
   fallbackViewControlsSlot?: React.ReactNode;
+  /**
+   * Controla a aba ativa de fora (ex.: People sincroniza com `?tab=` na
+   * URL) - sem isso, `DetailTabsRenderer` fica descontrolado
+   * (`defaultValue`, não dá pra ler/mudar de fora). Os dois têm que vir
+   * juntos ou nenhum - só `activeTab` sem `onActiveTabChange` trava a UI
+   * (clique não muda nada).
+   */
+  activeTab?: string;
+  onActiveTabChange?: (key: string) => void;
 };
 
 export function DetailShellEngine<TContext extends Record<string, unknown>>({
@@ -69,6 +78,8 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
   fallbackSideSlot = null,
   fallbackBottomSlot = null,
   fallbackViewControlsSlot = null,
+  activeTab,
+  onActiveTabChange,
 }: DetailShellEngineProps<TContext>) {
   const layout = React.useMemo(
     () => moduleDefinition.detailLayout,
@@ -138,17 +149,28 @@ export function DetailShellEngine<TContext extends Record<string, unknown>>({
       const detailsTab = {
         key: resolvedMainTab.key,
         label: resolvedMainTab.label,
+        icon: resolvedMainTab.icon,
         content: () => mainSlot,
       };
       if (!mainSlot && !templates.length) return null;
       return (
-        <DetailTabsRenderer tabs={[detailsTab, ...templates]} context={engineContext} />
+        <DetailTabsRenderer
+          tabs={[detailsTab, ...templates]}
+          context={engineContext}
+          value={activeTab}
+          onValueChange={onActiveTabChange}
+        />
       );
     }
     return templates.length ? (
-      <DetailTabsRenderer tabs={templates} context={engineContext} />
+      <DetailTabsRenderer
+        tabs={templates}
+        context={engineContext}
+        value={activeTab}
+        onValueChange={onActiveTabChange}
+      />
     ) : null;
-  }, [engineContext, layout, mainSlot, resolvedMainTab]);
+  }, [activeTab, engineContext, layout, mainSlot, onActiveTabChange, resolvedMainTab]);
 
   const sideSlot = React.useMemo(
     () =>

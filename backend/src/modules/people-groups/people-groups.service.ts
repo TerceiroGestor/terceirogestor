@@ -10,6 +10,7 @@ import {
   resolvePagination,
 } from '../../core/utils/pagination';
 import { normalizeString } from '../../core/utils/strings';
+import { CreatePeopleGroupAttachmentDto } from './dto/create-people-group-attachment.dto';
 import { CreatePeopleGroupParticipationDto } from './dto/create-people-group-participation.dto';
 import { CreatePeopleGroupDto } from './dto/create-people-group.dto';
 import { EndPeopleGroupParticipationDto } from './dto/end-people-group-participation.dto';
@@ -37,6 +38,88 @@ function buildActiveParticipationKey(peopleGroupId: string, personId: string) {
   return `${peopleGroupId}:${personId}`;
 }
 
+function normalizeTags(tags?: string[] | null) {
+  if (!tags) return null;
+  const cleaned = Array.from(
+    new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
+  );
+  return cleaned.length ? JSON.stringify(cleaned) : null;
+}
+
+function parseTags(value: string | null | undefined) {
+  if (!value) return [] as string[];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((tag) => String(tag ?? '').trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+const mapPeopleGroupAttachmentItem = (attachment: {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  uploadedByUser?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+  } | null;
+}) => ({
+  id: attachment.id,
+  label: attachment.label,
+  filePath: attachment.filePath,
+  mimeType: attachment.mimeType ?? null,
+  fileSizeBytes: attachment.fileSizeBytes ?? null,
+  uploadedBy: attachment.uploadedByUser
+    ? {
+        id: attachment.uploadedByUser.id,
+        name:
+          attachment.uploadedByUser.name?.trim() ||
+          attachment.uploadedByUser.email ||
+          'Equipe interna',
+        email: attachment.uploadedByUser.email ?? null,
+        avatarUrl: attachment.uploadedByUser.avatarUrl ?? null,
+      }
+    : null,
+  createdAt: attachment.createdAt,
+  updatedAt: attachment.updatedAt,
+});
+
+function serializePeopleGroup<
+  T extends {
+    tags: string | null;
+    attachments?: Array<{
+      id: string;
+      label: string;
+      filePath: string;
+      mimeType: string | null;
+      fileSizeBytes: number | null;
+      createdAt: Date;
+      updatedAt: Date;
+      uploadedByUser?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        avatarUrl: string | null;
+      } | null;
+    }>;
+  },
+>(group: T) {
+  return {
+    ...group,
+    tags: parseTags(group.tags),
+    attachments: group.attachments?.map(mapPeopleGroupAttachmentItem) ?? [],
+  };
+}
+
 @Injectable()
 export class PeopleGroupsService {
   constructor(private readonly prisma: PrismaService) { }
@@ -61,6 +144,7 @@ export class PeopleGroupsService {
             { name: { contains: q } },
             { category: { contains: q } },
             { description: { contains: q } },
+            { tags: { contains: q } },
             { internalNotes: { contains: q } },
             ...(numericQ === null
               ? []
@@ -96,7 +180,7 @@ export class PeopleGroupsService {
     ]);
 
     return {
-      data,
+      data: data.map((group) => serializePeopleGroup(group)),
       pagination: buildPaginationMeta({ page, limit, total, isAll }),
     };
   }
@@ -115,10 +199,18 @@ export class PeopleGroupsService {
             },
           },
         },
+        attachments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedByUser: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
       },
     });
     if (!group) throw new NotFoundException('Grupos nao encontrado');
-    return group;
+    return serializePeopleGroup(group);
   }
 
   async createPeopleGroup(tenantId: string, dto: CreatePeopleGroupDto) {
@@ -126,7 +218,7 @@ export class PeopleGroupsService {
     if (!name) throw new BadRequestException('Nome e obrigatorio');
     ensureValidAgeRange(dto);
 
-    return this.prisma.peopleGroup.create({
+    const created = await this.prisma.peopleGroup.create({
       data: {
         tenantId,
         name,
@@ -135,6 +227,7 @@ export class PeopleGroupsService {
           dto.purpose ?? (dto.groupType === 'TEAM_POOL' ? 'EQUIPE' : 'PUBLICO'),
         category: dto.category?.trim() ? dto.category.trim() : null,
         description: dto.description?.trim() ? dto.description.trim() : null,
+        tags: normalizeTags(dto.tags),
         ageMin: dto.ageMin ?? null,
         ageMax: dto.ageMax ?? null,
         isActive: dto.isActive ?? true,
@@ -155,6 +248,7 @@ export class PeopleGroupsService {
         },
       },
     });
+    return serializePeopleGroup(created);
   }
 
   async updatePeopleGroup(
@@ -178,7 +272,7 @@ export class PeopleGroupsService {
       ageMax: dto.ageMax !== undefined ? dto.ageMax : existing.ageMax,
     });
 
-    return this.prisma.peopleGroup.update({
+    const updated = await this.prisma.peopleGroup.update({
       where: { id: existing.id },
       data: {
         ...(name !== undefined ? { name } : {}),
@@ -194,6 +288,7 @@ export class PeopleGroupsService {
               : null,
           }
           : {}),
+        ...(dto.tags !== undefined ? { tags: normalizeTags(dto.tags) } : {}),
         ...(dto.ageMin !== undefined ? { ageMin: dto.ageMin ?? null } : {}),
         ...(dto.ageMax !== undefined ? { ageMax: dto.ageMax ?? null } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
@@ -218,6 +313,7 @@ export class PeopleGroupsService {
         },
       },
     });
+    return serializePeopleGroup(updated);
   }
 
   async deletePeopleGroup(tenantId: string, id: string) {
@@ -392,6 +488,59 @@ export class PeopleGroupsService {
       },
       include: { person: true },
     });
+  }
+
+  async addAttachment(
+    tenantId: string,
+    actorUserId: string,
+    peopleGroupId: string,
+    dto: CreatePeopleGroupAttachmentDto,
+  ) {
+    await this.assertPeopleGroupExists(tenantId, peopleGroupId);
+    const label = dto.label.trim();
+    const filePath = dto.filePath.trim();
+
+    if (!label) {
+      throw new BadRequestException('Informe um nome para o anexo.');
+    }
+
+    if (!filePath.startsWith('/uploads/people-groups/')) {
+      throw new BadRequestException('Caminho de anexo invalido.');
+    }
+
+    await this.prisma.peopleGroupAttachment.create({
+      data: {
+        tenantId,
+        peopleGroupId,
+        uploadedByUserId: actorUserId,
+        label,
+        filePath,
+        mimeType: normalizeString(dto.mimeType),
+        fileSizeBytes: dto.fileSizeBytes ?? null,
+      },
+    });
+
+    return this.getPeopleGroup(tenantId, peopleGroupId);
+  }
+
+  async deleteAttachment(
+    tenantId: string,
+    peopleGroupId: string,
+    attachmentId: string,
+  ) {
+    await this.assertPeopleGroupExists(tenantId, peopleGroupId);
+    const attachment = await this.prisma.peopleGroupAttachment.findFirst({
+      where: { id: attachmentId, tenantId, peopleGroupId },
+      select: { id: true },
+    });
+    if (!attachment) {
+      throw new NotFoundException('Anexo nao encontrado');
+    }
+
+    await this.prisma.peopleGroupAttachment.delete({
+      where: { id: attachment.id },
+    });
+    return this.getPeopleGroup(tenantId, peopleGroupId);
   }
 
   private async assertPeopleGroupExists(

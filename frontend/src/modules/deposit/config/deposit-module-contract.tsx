@@ -503,7 +503,6 @@ const DEPOSIT_ENTRY_DOMAIN_ADAPTER: RecordDomainAdapter = {
       type: "date",
       emptyValueLabel: "Sem data limite",
     },
-    notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
   validations: {
     sector: { required: true, minLength: 1 },
@@ -533,7 +532,6 @@ const DEPOSIT_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
     exitDate: { label: "Data da saída", type: "date" },
     type: { label: "Tipo de saída" },
     destinationName: { label: "Destino", emptyValueLabel: "Sem destino" },
-    notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
   validations: {
     sector: { required: true, minLength: 1 },
@@ -1223,7 +1221,7 @@ export const depositEntryDetailModuleDefinition = defineRecordModule<
   relatedSources: [
     {
       key: "allocatedExits",
-      label: "Saídas vinculadas",
+      label: "Saídas",
       viewType: "list",
       dataSource: "deposit.exits",
       count: (context) => context.allocatedExits.length,
@@ -1256,16 +1254,6 @@ export const depositExitDetailModuleDefinition = defineRecordModule<
   defaultView: "detail",
   defaultQueryState: DETAIL_DEFAULT_QUERY_STATE,
   detailLayout: depositExitDetailLayout,
-  relatedSources: [
-    {
-      key: "allocations",
-      label: "Lotes vinculados",
-      viewType: "list",
-      dataSource: "deposit.entries",
-      count: (context) => context.exit?.allocations?.length ?? 0,
-      onOpen: (context, entityId) => context.onOpenEntry(entityId),
-    },
-  ],
 });
 
 export type DepositModuleDefinition =

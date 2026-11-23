@@ -1,9 +1,6 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,16 +15,17 @@ import { resolveMediaUrl } from "@/lib/api";
 import type { ApiProject, ProjectStatus } from "@/modules/projects/api";
 import type { ApiProjectEnrollment } from "@/modules/projects/api";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_OPTIONS } from "@/modules/projects/shared/domain/projects.constants";
-import { PROJECT_PARTICIPATION_ROLE_LABELS } from "@/modules/projects/shared/domain/projects.constants";
 import type { ApiProgram, ProgramStatus, ProgramType } from "@/modules/programs/api";
 import {
   PROGRAM_TYPE_LABELS,
 } from "@/modules/programs/shared/domain/programs.constants";
 import type { ApiActivity, ActionStatus } from "@/modules/actions/api";
 import { ACTION_STATUS_LABELS } from "@/modules/actions/shared/domain/actions.constants";
-import { PersonIdentityAvatarTrigger } from "@/modules/people/shared/ui/person-identity-card";
+import { ProjectActionsSection } from "@/modules/projects/features/detail/ui/project-actions-section";
 import { ProjectFundingSourcesSection } from "@/modules/projects/features/detail/ui/project-funding-sources-section";
 import { ProjectGoalsSection } from "@/modules/projects/features/detail/ui/project-goals-section";
+import { ProjectParticipantsSection } from "@/modules/projects/features/detail/ui/project-participants-section";
+import { ProjectPeopleGroupsSection } from "@/modules/projects/features/detail/ui/project-people-groups-section";
 import { ProjectTeamSection } from "@/modules/projects/features/detail/ui/project-team-section";
 import {
   DetailSectionField,
@@ -108,146 +106,14 @@ function formatProjectStatus(value: ProjectStatus | string | null | undefined) {
   return PROJECT_STATUS_LABELS[value as ProjectStatus] ?? String(value);
 }
 
-function formatActionStatus(value: ActionStatus | string | null | undefined) {
+export function formatActionStatus(value: ActionStatus | string | null | undefined) {
   if (!value) return "-";
   return ACTION_STATUS_LABELS[value as ActionStatus] ?? String(value);
 }
 
-function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
+export function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
   if (!startsAt && !endsAt) return "Não informada";
   return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
-}
-
-function formatAgeRange(ageMin: number | string | null | undefined, ageMax: number | string | null | undefined) {
-  const min = ageMin === "" || ageMin === undefined ? null : ageMin;
-  const max = ageMax === "" || ageMax === undefined ? null : ageMax;
-  if (min === null && max === null) return "Livre";
-  return `${min ?? "-"} a ${max ?? "-"}`;
-}
-
-function resolveStatusBadge(status: ProjectStatus) {
-  const label = formatProjectStatus(status);
-  switch (status) {
-    case "ACTIVE":
-      return <Badge variant="secondary">{label}</Badge>;
-    case "CLOSED":
-      return <Badge variant="outline">{label}</Badge>;
-    default:
-      return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
-  }
-}
-
-function enrollmentRelationColumns({
-  canDeleteEnrollments,
-  onEndEnrollment,
-  tenantSlug,
-}: Pick<
-  ProjectsDetailLayoutContext,
-  "canDeleteEnrollments" | "onEndEnrollment" | "tenantSlug"
->): ColumnDef<ApiProjectEnrollment, unknown>[] {
-  return [
-    {
-      accessorKey: "person.fullName",
-      header: "Pessoa",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <PersonIdentityAvatarTrigger
-            personId={row.original.person.id}
-            tenantSlug={tenantSlug}
-            fullName={row.original.person.fullName}
-            birthDate={row.original.person.birthDate ?? null}
-            avatarUrl={row.original.person.avatarUrl}
-            hasHealthCondition={row.original.person.hasHealthCondition}
-            hasMedication={row.original.person.hasMedication}
-          />
-          <div className="space-y-0.5">
-            <div className="font-medium text-foreground">{row.original.person.fullName}</div>
-            <div className="text-xs text-muted-foreground">
-              {row.original.person.status?.trim() || "Sem status"}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "role",
-      header: "Papel",
-      cell: ({ row }) => (
-        <span>
-          {PROJECT_PARTICIPATION_ROLE_LABELS[row.original.role] ?? row.original.role}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "peopleGroups",
-      header: "Grupos",
-      cell: ({ row }) => {
-        const label = row.original.peopleGroups.map((peopleGroup) => peopleGroup.name).join(", ");
-        return <span>{label || "Sem Grupos"}</span>;
-      },
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="text-foreground">{row.original.status === "ACTIVE" ? "Ativa" : "Encerrada"}</div>
-          <div className="text-xs text-muted-foreground">
-            {formatPeriod(row.original.startsAt, row.original.endsAt)}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) =>
-        canDeleteEnrollments && row.original.status !== "ENDED" ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEndEnrollment(row.original);
-              }}
-            >
-              Encerrar matrícula
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
-}
-
-function actionRelationColumns(): ColumnDef<ApiActivity, unknown>[] {
-  return [
-    {
-      accessorKey: "title",
-      header: "Atividade",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">{row.original.title}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.actionType?.name || "Sem tipo"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => formatActionStatus(row.original.status),
-    },
-    {
-      accessorKey: "plannedStartAt",
-      header: "Período",
-      cell: ({ row }) => formatPeriod(row.original.plannedStartAt, row.original.plannedEndAt),
-    },
-  ];
 }
 
 function resolveProjectHistoryTitle(sourceLabel: string, action: "CREATE" | "UPDATE" | "DELETE") {
@@ -285,64 +151,6 @@ function buildProjectHistoryItems(logs: NonNullable<ProjectsDetailLayoutContext[
       createdAt: group.createdAt,
     };
   });
-}
-
-function peopleGroupRelationColumns({
-  canManageEnrollments,
-  onSyncPeopleGroup,
-}: Pick<ProjectsDetailLayoutContext, "canManageEnrollments" | "onSyncPeopleGroup">): ColumnDef<
-  ProjectsDetailLayoutContext["publicPeopleGroupRows"][number],
-  unknown
->[] {
-  return [
-    {
-      accessorKey: "peopleGroup.name",
-      header: "Grupos",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">{row.original.peopleGroup.name}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.peopleGroup.description?.trim() ||
-              row.original.peopleGroup.category?.trim() ||
-              "Grupos institucional"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: "category",
-      header: "Categoria",
-      cell: ({ row }) => row.original.peopleGroup.category?.trim() || "-",
-    },
-    {
-      id: "ageRange",
-      header: "Faixa etaria",
-      cell: ({ row }) =>
-        formatAgeRange(row.original.peopleGroup.ageMin ?? null, row.original.peopleGroup.ageMax ?? null),
-    },
-    {
-      id: "actions",
-      header: "",
-      enableSorting: false,
-      cell: ({ row }) =>
-        canManageEnrollments && row.original.participationKind === "PARTICIPANT" ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 rounded-none border-b border-border/60 px-1"
-              onClick={(event) => {
-                event.stopPropagation();
-                onSyncPeopleGroup(row.original);
-              }}
-            >
-              Matricular/revisar membros
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
 }
 
 export type ProjectDetailDraft = {
@@ -389,19 +197,6 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
       ageMax?: number | null;
     };
   }>;
-  teamPeopleGroupRows: Array<{
-    id: string;
-    peopleGroupId: string;
-    participationKind: "PARTICIPANT" | "TEAM";
-    peopleGroup: {
-      id: string;
-      name: string;
-      category?: string | null;
-      description?: string | null;
-      ageMin?: number | null;
-      ageMax?: number | null;
-    };
-  }>;
   enrollmentRows: ApiProjectEnrollment[];
   actionRows: ApiActivity[];
   relationsLoading: boolean;
@@ -435,7 +230,6 @@ export type ProjectsDetailLayoutContext = DetailShellAuditContext & {
   onNotesBlur: () => void;
   onOpenPeopleGroup: (peopleGroupId: string) => void;
   onCreatePublicPeopleGroup: () => void;
-  onCreateTeamPeopleGroup: () => void;
   onSyncPeopleGroup: (row: { peopleGroupId: string; peopleGroup: { name: string } }) => void;
   onOpenEnrollment: (enrollmentId: string) => void;
   onCreateEnrollment: () => void;
@@ -575,7 +369,6 @@ function ProjectsDetailSide({
   setDraft,
   selectedProgram,
   publicPeopleGroupRows,
-  teamPeopleGroupRows,
   enrollmentRows,
   actionRows,
   detailAudit,
@@ -603,7 +396,6 @@ function ProjectsDetailSide({
   | "setDraft"
   | "selectedProgram"
   | "publicPeopleGroupRows"
-  | "teamPeopleGroupRows"
   | "enrollmentRows"
   | "actionRows"
   | "detailAudit"
@@ -635,6 +427,7 @@ function ProjectsDetailSide({
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit={canAudit}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: project?.comments ?? [],
         draft: commentDraft,
@@ -707,7 +500,6 @@ function ProjectsDetailSide({
         { key: "status", label: "Status", value: formatProjectStatus(draft.status) },
         { key: "participants", label: "Participantes", value: enrollmentRows.length },
         { key: "publicPeopleGroups", label: "Grupos", value: publicPeopleGroupRows.length },
-        { key: "teamPeopleGroups", label: "Grupos de Equipe", value: teamPeopleGroupRows.length },
         { key: "actions", label: "Atividades", value: actionRows.length },
         { key: "tags", label: "Tags", value: draft.tags.length },
       ]}
@@ -721,27 +513,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
   header: {
     title: ({ project, draft, mode }) =>
       mode === "create" ? "Novo projeto" : ((project?.name ?? draft.name) || "Projeto"),
-    slot: ({ draft, selectedProgram }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div>{resolveStatusBadge(draft.status)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Programa</div>
-            <div className="font-medium text-foreground">{selectedProgram?.name ?? "-"}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Tipo</div>
-            <div className="font-medium text-foreground">
-              {formatProgramType(selectedProgram?.type ?? null)}
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
   },
+  mainTab: true,
   main: ({ draft, setDraft, programOptions, readOnly, onCommitField }) => (
     <ProjectsDetailMain
       draft={draft}
@@ -760,7 +533,6 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
     setDraft,
     selectedProgram,
     publicPeopleGroupRows,
-    teamPeopleGroupRows,
     enrollmentRows,
     actionRows,
     detailAudit,
@@ -788,7 +560,6 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       setDraft={setDraft}
       selectedProgram={selectedProgram}
       publicPeopleGroupRows={publicPeopleGroupRows}
-      teamPeopleGroupRows={teamPeopleGroupRows}
       enrollmentRows={enrollmentRows}
       actionRows={actionRows}
       detailAudit={detailAudit}
@@ -813,94 +584,28 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       key: "peopleGroups",
       label: "Grupos",
       badge: ({ publicPeopleGroupRows }) => publicPeopleGroupRows.length,
-      relations: [
-        {
-          key: "project.people-groups",
-          label: "Grupos",
-          loading: ({ relationsLoading }) => relationsLoading,
-          rows: ({ mode, publicPeopleGroupRows }) => (mode === "edit" ? publicPeopleGroupRows : []),
-          columns: (context) =>
-            peopleGroupRelationColumns({
-              canManageEnrollments: context.canManageEnrollments,
-              onSyncPeopleGroup: context.onSyncPeopleGroup,
-            }),
-          getRowId: (row) => row.id,
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) =>
-              [
-                row.peopleGroup.name,
-                row.peopleGroup.category ?? "",
-                row.peopleGroup.description ?? "",
-                formatAgeRange(row.peopleGroup.ageMin ?? null, row.peopleGroup.ageMax ?? null),
-              ]
-                .join(" ")
-                .toLocaleLowerCase()
-                .includes(needle),
-            );
-          },
-          searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) =>
-            context.onOpenPeopleGroup(row.peopleGroupId),
-          action: {
-            label: "Vincular Grupos",
-            onClick: (context) => context.onCreatePublicPeopleGroup(),
-            hidden: ({ readOnly, mode, canManageStructure }) =>
-              readOnly || mode !== "edit" || !canManageStructure,
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create"
-              ? "Indisponível."
-              : "Nenhum vínculo.",
-        },
-      ],
-    },
-    {
-      key: "teamPeopleGroups",
-      label: "Grupos de Equipe",
-      badge: ({ teamPeopleGroupRows }) => teamPeopleGroupRows.length,
-      relations: [
-        {
-          key: "project.team-people-groups",
-          label: "Grupos de Equipe",
-          loading: ({ relationsLoading }) => relationsLoading,
-          rows: ({ mode, teamPeopleGroupRows }) => (mode === "edit" ? teamPeopleGroupRows : []),
-          columns: (context) =>
-            peopleGroupRelationColumns({
-              canManageEnrollments: context.canManageEnrollments,
-              onSyncPeopleGroup: context.onSyncPeopleGroup,
-            }),
-          getRowId: (row) => row.id,
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) =>
-              [
-                row.peopleGroup.name,
-                row.peopleGroup.category ?? "",
-                row.peopleGroup.description ?? "",
-                formatAgeRange(row.peopleGroup.ageMin ?? null, row.peopleGroup.ageMax ?? null),
-              ]
-                .join(" ")
-                .toLocaleLowerCase()
-                .includes(needle),
-            );
-          },
-          searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) => context.onOpenPeopleGroup(row.peopleGroupId),
-          action: {
-            label: "Vincular Grupos de equipe",
-            onClick: (context) => context.onCreateTeamPeopleGroup(),
-            hidden: ({ readOnly, mode, canManageStructure }) =>
-              readOnly || mode !== "edit" || !canManageStructure,
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create"
-              ? "Indisponível."
-              : "Nenhum vínculo.",
-        },
-      ],
+      content: ({
+        publicPeopleGroupRows,
+        relationsLoading,
+        mode,
+        readOnly,
+        canManageStructure,
+        canManageEnrollments,
+        onOpenPeopleGroup,
+        onCreatePublicPeopleGroup,
+        onSyncPeopleGroup,
+      }) => (
+        <ProjectPeopleGroupsSection
+          rows={mode === "edit" ? publicPeopleGroupRows : []}
+          loading={relationsLoading}
+          canAdd={!readOnly && mode === "edit" && canManageStructure}
+          canManageEnrollments={canManageEnrollments}
+          onOpenPeopleGroup={onOpenPeopleGroup}
+          onAddPeopleGroup={onCreatePublicPeopleGroup}
+          onSyncPeopleGroup={onSyncPeopleGroup}
+        />
+      ),
+      flushContent: true,
     },
     {
       key: "teamParticipations",
@@ -916,97 +621,53 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
       key: "participants",
       label: "Participantes",
       badge: ({ enrollmentRows }) => enrollmentRows.length,
-      relations: [
-        {
-          key: "project.enrollments",
-          label: "Participantes",
-          loading: ({ relationsLoading }) => relationsLoading,
-          rows: ({ mode, enrollmentRows }) => (mode === "edit" ? enrollmentRows : []),
-          columns: (context) =>
-            enrollmentRelationColumns({
-              canDeleteEnrollments: context.canDeleteEnrollments,
-              onEndEnrollment: context.onEndEnrollment,
-              tenantSlug: context.tenantSlug,
-            }),
-          getRowId: (row) => row.id,
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) => {
-              const haystack = [
-                row.person.fullName,
-                row.person.status ?? "",
-                PROJECT_PARTICIPATION_ROLE_LABELS[
-                row.role as keyof typeof PROJECT_PARTICIPATION_ROLE_LABELS
-                ] ?? row.role,
-                row.peopleGroups
-                  .map((peopleGroup: { id: string; name: string; category?: string | null }) =>
-                    [peopleGroup.name, peopleGroup.category ?? ""].join(" "),
-                  )
-                  .join(" "),
-                row.status === "ACTIVE" ? "Ativa" : "Encerrada",
-                formatPeriod(row.startsAt, row.endsAt),
-              ]
-                .join(" ")
-                .toLocaleLowerCase();
-              return haystack.includes(needle);
-            });
-          },
-          searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) => context.onOpenEnrollment(row.id),
-          action: {
-            label: "Vincular participante",
-            onClick: (context) => context.onCreateEnrollment(),
-            hidden: ({ readOnly, mode, canManageEnrollments }) =>
-              readOnly || mode !== "edit" || !canManageEnrollments,
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create"
-              ? "Indisponível."
-              : "Nenhum vínculo.",
-        },
-      ],
+      content: ({
+        enrollmentRows,
+        relationsLoading,
+        mode,
+        readOnly,
+        canManageEnrollments,
+        canDeleteEnrollments,
+        tenantSlug,
+        onOpenEnrollment,
+        onCreateEnrollment,
+        onEndEnrollment,
+      }) => (
+        <ProjectParticipantsSection
+          rows={mode === "edit" ? enrollmentRows : []}
+          loading={relationsLoading}
+          canAdd={!readOnly && mode === "edit" && canManageEnrollments}
+          canDeleteEnrollments={canDeleteEnrollments}
+          tenantSlug={tenantSlug}
+          onOpenEnrollment={onOpenEnrollment}
+          onAddEnrollment={onCreateEnrollment}
+          onEndEnrollment={onEndEnrollment}
+        />
+      ),
+      flushContent: true,
     },
     {
       key: "actions",
       label: "Atividades",
       badge: ({ actionRows }) => actionRows.length,
-      relations: [
-        {
-          key: "project.actions",
-          label: "Atividades",
-          loading: ({ relationsLoading }) => relationsLoading,
-          rows: ({ mode, actionRows }) => (mode === "edit" ? actionRows : []),
-          columns: actionRelationColumns(),
-          getRowId: (row) => row.id,
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) => {
-              const haystack = [
-                row.title,
-                row.actionType?.name ?? "",
-                row.peopleGroup?.name ?? "",
-                formatActionStatus(row.status),
-                formatPeriod(row.plannedStartAt, row.plannedEndAt),
-              ]
-                .join(" ")
-                .toLocaleLowerCase();
-              return haystack.includes(needle);
-            });
-          },
-          searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) => context.onOpenAction(row.id),
-          action: {
-            label: "Nova atividade",
-            onClick: (context) => context.onCreateAction(),
-            hidden: ({ readOnly, mode, canManageActions }) =>
-              readOnly || mode !== "edit" || !canManageActions,
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create" ? "Indisponível." : "Nenhum vínculo.",
-        },
-      ],
+      content: ({
+        actionRows,
+        relationsLoading,
+        mode,
+        readOnly,
+        canManageActions,
+        onOpenAction,
+        onCreateAction,
+      }) => (
+        <ProjectActionsSection
+          rows={mode === "edit" ? actionRows : []}
+          loading={relationsLoading}
+          canAdd={!readOnly && mode === "edit" && canManageActions}
+          onOpenAction={onOpenAction}
+          onAddAction={onCreateAction}
+        />
+      ),
+      flushContent: true,
     },
     {
       key: "goals",
@@ -1063,8 +724,8 @@ export const projectsDetailLayout: DetailLayoutConfig<ProjectsDetailLayoutContex
           participationKind: (value) =>
             value === "TEAM" ? "Equipe" : "Público atendido",
         },
-        resolveEntityIds: ({ publicPeopleGroupRows, teamPeopleGroupRows }) =>
-          [...publicPeopleGroupRows, ...teamPeopleGroupRows].map((row) => row.id),
+        resolveEntityIds: ({ publicPeopleGroupRows }) =>
+          publicPeopleGroupRows.map((row) => row.id),
       },
       {
         key: "projectAction",

@@ -9,7 +9,6 @@ import {
 } from "next/navigation";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useConfirm } from "@/components/confirm/use-confirm";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -76,7 +74,6 @@ function draftFromExit(exit: ApiPantryExit): PantryExitDraft {
     exitDate: String(exit.exitDate ?? "").slice(0, 10),
     type: exit.type ?? "ATTENDED",
     eventName: exit.eventName ?? "",
-    notes: exit.notes ?? "",
   };
 }
 
@@ -96,7 +93,6 @@ export function PantryExitDetailEngineClientPage({
   const { permissions } = useCurrentUser();
   const { users: mentionableUsers } = useMentionableUsers("pantry.read");
   const { toast } = useToast();
-  const { confirm } = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -117,12 +113,6 @@ export function PantryExitDetailEngineClientPage({
     "edit",
     permissions,
   );
-  const canDeleteAction = canUseModuleAction(
-    pantryExitDetailModuleDefinition,
-    "delete",
-    permissions,
-  );
-
   const id = mode === "edit" ? (params?.id ? String(params.id) : "") : "";
   const itemIdFromQuery = searchParams.get("itemId") ?? "";
   const entryIdFromQuery = searchParams.get("entryId") ?? "";
@@ -145,7 +135,6 @@ export function PantryExitDetailEngineClientPage({
     exitDate: localIsoDate(),
     type: "ATTENDED",
     eventName: "",
-    notes: "",
   });
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
@@ -186,7 +175,6 @@ export function PantryExitDetailEngineClientPage({
         exitDate: nextDraft.exitDate.trim() ? nextDraft.exitDate.trim() : undefined,
         type: nextDraft.type,
         eventName: normalizeStringOrNull(nextDraft.eventName),
-        notes: normalizeStringOrNull(nextDraft.notes),
       });
       const savedDraft = draftFromExit(updated);
       setExit(updated);
@@ -245,14 +233,6 @@ export function PantryExitDetailEngineClientPage({
 
     router.push(withTenantPath(PANTRY_ROUTES.stock, tenantSlug));
   }, [exit?.itemId, itemIdFromQuery, mode, returnTo, router, tenantSlug]);
-
-  const openEntryDetail = React.useCallback(
-    (entryId: string) => {
-      const href = withTenantPath(`${PANTRY_ROUTES.entries}/${entryId}`, tenantSlug);
-      router.push(`${href}?returnTo=${encodeURIComponent(pathname)}`);
-    },
-    [pathname, router, tenantSlug],
-  );
 
   const loadItem = React.useCallback(async () => {
     if (!enabled || mode !== "create" || !itemIdFromQuery) {
@@ -435,7 +415,6 @@ export function PantryExitDetailEngineClientPage({
         exitDate: draft.exitDate.trim() ? draft.exitDate.trim() : undefined,
         type: draft.type,
         eventName: draft.eventName.trim() ? draft.eventName.trim() : null,
-        notes: draft.notes.trim() ? draft.notes.trim() : null,
         tags,
         internalNotes,
       });
@@ -500,39 +479,6 @@ export function PantryExitDetailEngineClientPage({
     }
   }, [commitField, loadSectors, mode, newSectorName, toast, token]);
 
-  const handleDelete = React.useCallback(async () => {
-    if (!exit || !canDeleteAction) return;
-
-    const confirmed = await confirm({
-      title: "Excluir saída?",
-      description: "Esta ação não pode ser desfeita.",
-      confirmLabel: "Excluir",
-      confirmVariant: "destructive",
-    });
-
-    if (!confirmed) return;
-
-    setBusy(true);
-    try {
-      await dataProvider.delete("pantry.exits", exit.id);
-      toast({ variant: "success", title: "Saída excluída" });
-      close();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao excluir saída.";
-
-      toast({
-        variant: "destructive",
-        title: "Falha ao excluir",
-        description: message,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }, [canDeleteAction, close, confirm, dataProvider, exit, toast]);
-
   const donorNameById = React.useMemo<Record<string, string>>(
     () =>
       Object.fromEntries(
@@ -546,11 +492,6 @@ export function PantryExitDetailEngineClientPage({
 
   const entryLabelById = React.useMemo<Record<string, string>>(
     () => Object.fromEntries(entries.map((entry) => [entry.id, buildPantryEntryAuditLabel(entry)])),
-    [entries],
-  );
-
-  const entryById = React.useMemo<Record<string, ApiPantryEntry>>(
-    () => Object.fromEntries(entries.map((entry) => [entry.id, entry])),
     [entries],
   );
 
@@ -676,7 +617,6 @@ export function PantryExitDetailEngineClientPage({
       sectorOptions,
       donorNameById,
       entryLabelById,
-      entryById,
       onCommitField: (key) => {
         void commitField(key);
       },
@@ -686,8 +626,6 @@ export function PantryExitDetailEngineClientPage({
         }
       },
       onOpenNewSector: () => setNewSectorOpen(true),
-      onOpenEntry: openEntryDetail,
-      onDelete: handleDelete,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
       mentionableUsers,
@@ -720,16 +658,13 @@ export function PantryExitDetailEngineClientPage({
       draft,
       entries,
       entriesLoading,
-      entryById,
       entryLabelById,
       entryLocked,
       exit,
       historyItems,
-      handleDelete,
       internalNotes,
       mentionableUsers,
       mode,
-      openEntryDetail,
       persistMetadata,
       readOnly,
       saving,
@@ -778,20 +713,6 @@ export function PantryExitDetailEngineClientPage({
               : []),
           ...(mode === "edit" ? [{ label: "Saida" }] : []),
         ]}
-        headerActionsSlot={
-          mode === "edit" && canDeleteAction ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={saving}
-            >
-              <Trash2 className="mr-1 size-4" />
-              Excluir
-            </Button>
-          ) : null
-        }
       />
 
       <Dialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Copy, Trash2 } from "lucide-react";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 const ROLE_OPTIONS: { value: ApiPersonContactRole; label: string }[] = [
   { value: "SELF", label: "Pessoal" },
@@ -280,25 +281,21 @@ export function PersonContactsPanel({
         accessorKey: "value",
         header: "Valor",
         cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{row.original.value}</span>
+          <TruncatedTextCell text={row.original.value} className="text-sm" />
         ),
       },
       {
         accessorKey: "label",
         header: "Rótulo",
         cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {row.original.label || "-"}
-          </span>
+          <TruncatedTextCell text={row.original.label} className="text-sm text-muted-foreground" />
         ),
       },
       {
         accessorKey: "relationship",
         header: "Parentesco",
         cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {row.original.relationship || "-"}
-          </span>
+          <TruncatedTextCell text={row.original.relationship} className="text-sm text-muted-foreground" />
         ),
       },
       {
@@ -354,18 +351,9 @@ export function PersonContactsPanel({
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Contatos
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Telefones, e-mails e contatos de emergência/responsáveis.
-        </p>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col space-y-4">
       {canSeed ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-xs">
+        <div className="mx-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/10 px-3 py-2 text-xs">
           <span className="text-muted-foreground">Importar do cadastro:</span>
           {seedPhone ? (
             <Button
@@ -417,8 +405,13 @@ export function PersonContactsPanel({
         onAdd={readOnly ? undefined : () => openCreateDialog()}
         loading={loading}
         emptyMessage="Nenhum contato cadastrado."
-        tableMinWidthClassName="min-w-[760px]"
-        tableInitialColumnPinning={{ right: ["actions"] }}
+        tableInitialColumnPinning={{ left: ["contact"], right: ["actions"] }}
+        filterFields={[
+          { name: "tipo", label: "Tipo", type: "select", options: TYPE_OPTIONS },
+          { name: "categoria", label: "Categoria", type: "select", options: ROLE_OPTIONS },
+        ]}
+        buildSearchRecord={(row) => ({ tipo: row.type, categoria: row.role })}
+        searchActionId="people.contacts"
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

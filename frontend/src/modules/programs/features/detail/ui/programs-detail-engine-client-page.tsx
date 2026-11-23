@@ -11,7 +11,7 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { uploadProgramAttachment } from "@/features/uploads/api";
 import { toDateInputValue } from "@/lib/date";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
-import { listProjects, type ApiProject } from "@/modules/projects/api";
+import { createProject, listProjects, type ApiProject } from "@/modules/projects/api";
 import {
   addProgramAttachment,
   addProgramComment,
@@ -28,6 +28,7 @@ import {
   PROGRAMS_ROUTES,
 } from "@/modules/programs/config/programs-module-contract";
 import { PROGRAM_USAGE_TEXT } from "@/modules/programs/shared/domain/programs.constants";
+import { ProgramProjectQuickCreateDialog } from "@/modules/programs/features/detail/ui/program-project-quick-create-dialog";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import {
@@ -105,6 +106,7 @@ export function ProgramsDetailEngineClientPage() {
   const [commentDraft, setCommentDraft] = React.useState(EMPTY_COMMENT_DRAFT);
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -188,18 +190,26 @@ export function ProgramsDetailEngineClientPage() {
       .finally(() => setLoading(false));
   }, [canAccessPage, dataProvider, id, isEdit, replaceSavedDraft, toast, token]);
 
-  React.useEffect(() => {
+  const loadProjects = React.useCallback(async () => {
     if (!token || !isEdit || !id || !canRead) {
       setProjectRows([]);
       return;
     }
 
     setProjectsLoading(true);
-    listProjects(token, { programId: id, all: true })
-      .then((response) => setProjectRows(response.data ?? []))
-      .catch(() => setProjectRows([]))
-      .finally(() => setProjectsLoading(false));
+    try {
+      const response = await listProjects(token, { programId: id, all: true });
+      setProjectRows(response.data ?? []);
+    } catch {
+      setProjectRows([]);
+    } finally {
+      setProjectsLoading(false);
+    }
   }, [canRead, id, isEdit, token]);
+
+  React.useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
@@ -341,6 +351,24 @@ export function ProgramsDetailEngineClientPage() {
     [id, replaceSavedDraft, toast, token],
   );
 
+  const handleSubmitCreateProject = React.useCallback(
+    async ({ name }: { name: string }) => {
+      if (!token || !id) return;
+      try {
+        await createProject(token, { programId: id, name });
+        toast({ title: "Projeto criado" });
+        await loadProjects();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao criar projeto.";
+        toast({ variant: "destructive", title: "Falha ao criar", description: message });
+      }
+    },
+    [id, loadProjects, toast, token],
+  );
+
   const closeHref = React.useMemo(() => {
     if (returnTo) return returnTo;
     return withTenantPath(PROGRAMS_ROUTES.list, tenantSlug);
@@ -381,13 +409,7 @@ export function ProgramsDetailEngineClientPage() {
             tenantSlug,
           ),
         ),
-      onCreateProject: () =>
-        router.push(
-          withTenantPath(
-            `/projects/new?programId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
+      onCreateProject: () => setProjectDialogOpen(true),
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
     }),
@@ -404,7 +426,6 @@ export function ProgramsDetailEngineClientPage() {
       handleDeleteAttachment,
       handleDeleteComment,
       handleSubmitComment,
-      id,
       mentionableUsers,
       mode,
       pathname,
@@ -448,6 +469,11 @@ export function ProgramsDetailEngineClientPage() {
           { label: "Programas", href: PROGRAMS_ROUTES.list },
           ...(mode === "edit" ? [{ label: headerTitle }] : []),
         ]}
+      />
+      <ProgramProjectQuickCreateDialog
+        open={projectDialogOpen}
+        onOpenChange={setProjectDialogOpen}
+        onSubmit={handleSubmitCreateProject}
       />
     </>
   );

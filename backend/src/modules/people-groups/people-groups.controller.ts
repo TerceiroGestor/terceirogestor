@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { Permissions } from '../../core/authorization/permissions.decorator';
 import { PermissionsGuard } from '../../core/authorization/permissions.guard';
+import { CreatePeopleGroupAttachmentDto } from './dto/create-people-group-attachment.dto';
 import { CreatePeopleGroupParticipationDto } from './dto/create-people-group-participation.dto';
 import { CreatePeopleGroupDto } from './dto/create-people-group.dto';
 import { EndPeopleGroupParticipationDto } from './dto/end-people-group-participation.dto';
@@ -63,6 +64,27 @@ export class PeopleGroupsController {
     @Body() dto: UpdatePeopleGroupDto,
   ) {
     return this.peopleGroups.updatePeopleGroup(user.tenantId, id, dto);
+  }
+
+  @Post(':id/attachments')
+  @Permissions('people.update')
+  async addAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CreatePeopleGroupAttachmentDto,
+  ) {
+    return this.peopleGroups.addAttachment(user.tenantId, user.userId, id, dto);
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @Permissions('people.update')
+  async deleteAttachment(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('attachmentId', new ParseUUIDPipe({ version: '4' }))
+    attachmentId: string,
+  ) {
+    return this.peopleGroups.deleteAttachment(user.tenantId, id, attachmentId);
   }
 
   @Delete(':id')

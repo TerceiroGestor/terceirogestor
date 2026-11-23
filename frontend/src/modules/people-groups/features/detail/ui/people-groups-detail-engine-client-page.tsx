@@ -8,13 +8,16 @@ import { useConfirm } from "@/components/confirm/use-confirm";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/features/auth/auth-context";
 import { useCurrentUser } from "@/features/auth/current-user-context";
+import { uploadPeopleGroupAttachment } from "@/features/uploads/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type {
   ApiPeopleGroup,
   ApiPeopleGroupParticipation,
 } from "@/modules/people-groups/api";
 import {
+  addPeopleGroupAttachment,
   createPeopleGroupParticipation,
+  deletePeopleGroupAttachment,
   endPeopleGroupParticipation,
   listPeopleGroupParticipations,
 } from "@/modules/people-groups/api";
@@ -30,6 +33,10 @@ import {
 import { PeopleGroupPeoplePickerDialog } from "@/modules/people-groups/features/detail/ui/people-group-people-picker-dialog";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
+import {
+  resumeDetailAutoSave,
+  suspendDetailAutoSave,
+} from "@/web-client/detail/detail-media-autosave-guard";
 import { useDetailAutoSaveController } from "@/web-client/detail/useDetailAutoSaveController";
 import {
   canUseModuleAction,
@@ -44,6 +51,7 @@ function buildDraft(group?: ApiPeopleGroup | null): PeopleGroupDetailDraft {
     purpose: group?.purpose ?? "PUBLICO",
     category: group?.category ?? "",
     description: group?.description ?? "",
+    tags: group?.tags ?? [],
     ageMin: group?.ageMin != null ? String(group.ageMin) : "",
     ageMax: group?.ageMax != null ? String(group.ageMax) : "",
     isActive: group?.isActive ?? true,
@@ -58,6 +66,7 @@ function normalizeDraft(draft: PeopleGroupDetailDraft): PeopleGroupDetailDraft {
     purpose: draft.purpose,
     category: draft.category.trim(),
     description: draft.description.trim(),
+    tags: draft.tags,
     ageMin: draft.ageMin.trim(),
     ageMax: draft.ageMax.trim(),
     isActive: draft.isActive,
@@ -73,6 +82,7 @@ function toPayload(draft: PeopleGroupDetailDraft) {
     purpose: normalized.purpose,
     category: normalized.category || null,
     description: normalized.description || null,
+    tags: normalized.tags,
     ageMin: normalized.ageMin ? Number(normalized.ageMin) : null,
     ageMax: normalized.ageMax ? Number(normalized.ageMax) : null,
     isActive: normalized.isActive,
@@ -111,7 +121,9 @@ export function PeopleGroupsDetailEngineClientPage() {
   const [participationsLoading, setParticipationsLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const usageItems = React.useMemo(
     () => buildUsageDocumentationItems("people-groups-detail", PEOPLE_GROUP_USAGE_TEXT.detail.sections),
@@ -339,6 +351,66 @@ export function PeopleGroupsDetailEngineClientPage() {
     [canManageParticipations, confirm, id, loadParticipations, toast, token],
   );
 
+  const handleSelectAttachment = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file || !token || !id) {
+        resumeDetailAutoSave();
+        return;
+      }
+
+      setAttachmentUploading(true);
+      try {
+        const uploaded = await uploadPeopleGroupAttachment(token, file);
+        const updated = await addPeopleGroupAttachment(token, id, {
+          label: uploaded.originalName?.trim() || file.name.trim() || "Anexo",
+          filePath: uploaded.path,
+          mimeType: uploaded.mimeType ?? file.type ?? null,
+          fileSizeBytes: uploaded.size ?? file.size,
+        });
+        const nextDraft = buildDraft(updated);
+        setGroup(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao enviar anexo.";
+        toast({ variant: "destructive", title: "Falha ao enviar", description: message });
+      } finally {
+        setAttachmentUploading(false);
+        resumeDetailAutoSave();
+      }
+    },
+    [id, replaceSavedDraft, toast, token],
+  );
+
+  const handleDeleteAttachment = React.useCallback(
+    async (attachmentId: string) => {
+      if (!token || !id) return;
+      if (!window.confirm("Excluir este anexo?")) return;
+      setAttachmentUploading(true);
+      try {
+        const updated = await deletePeopleGroupAttachment(token, id, attachmentId);
+        const nextDraft = buildDraft(updated);
+        setGroup(updated);
+        setDraft(nextDraft);
+        replaceSavedDraft(nextDraft);
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao excluir anexo.";
+        toast({ variant: "destructive", title: "Falha ao excluir", description: message });
+      } finally {
+        setAttachmentUploading(false);
+      }
+    },
+    [id, replaceSavedDraft, toast, token],
+  );
+
   const context = React.useMemo<PeopleGroupsDetailLayoutContext>(
     () => ({
       mode,
@@ -359,10 +431,18 @@ export function PeopleGroupsDetailEngineClientPage() {
       onOpenPerson: (personId) => router.push(withTenantPath(`/people/${personId}`, tenantSlug)),
       onCreateParticipation: handleCreateParticipation,
       onEndParticipation: handleEndParticipation,
+      attachmentUploading,
+      onUploadAttachment: () => {
+        if (!canEdit || mode !== "edit") return;
+        suspendDetailAutoSave();
+        attachmentInputRef.current?.click();
+      },
+      onDeleteAttachment: handleDeleteAttachment,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
     }),
     [
+      attachmentUploading,
       auditVisibleCount,
       canAudit,
       canCreate,
@@ -371,6 +451,7 @@ export function PeopleGroupsDetailEngineClientPage() {
       commitField,
       draft,
       handleCreateParticipation,
+      handleDeleteAttachment,
       handleEndParticipation,
       participations,
       historyParticipations,
@@ -393,6 +474,12 @@ export function PeopleGroupsDetailEngineClientPage() {
 
   return (
     <>
+      <input
+        ref={attachmentInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleSelectAttachment}
+      />
       <DetailShellEngine<PeopleGroupsDetailLayoutContext>
         moduleDefinition={peopleGroupsDetailModuleDefinition}
         context={context}

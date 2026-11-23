@@ -1,9 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +32,11 @@ import {
   resolveExitTypeLabel,
 } from "@/modules/pantry/features/items/domain/pantry-item-detail.helpers";
 import { PantryItemDetailForm } from "@/modules/pantry/features/items/ui/detail/pantry-item-detail-form";
+import { PantryItemEntriesSection } from "@/modules/pantry/features/items/ui/detail/pantry-item-entries-section";
+import { PantryItemExitsSection } from "@/modules/pantry/features/items/ui/detail/pantry-item-exits-section";
+import { PantryItemHistorySection } from "@/modules/pantry/features/items/ui/detail/pantry-item-history-section";
+import { PantryDonorDonationsSection } from "@/modules/pantry/features/donors/ui/detail/pantry-donor-donations-section";
+import { PantryEntryAllocatedExitsSection } from "@/modules/pantry/features/entries/ui/detail/pantry-entry-allocated-exits-section";
 import {
   PANTRY_AUDIT_FIELD_LABELS,
   PANTRY_ENTRY_DONOR_NONE_VALUE,
@@ -78,6 +81,7 @@ type PantryMetadataContext = {
 export type PantryItemDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
   mode: PantryItemDetailMode;
   readOnly: boolean;
+  token: string;
   draft: ItemDraft;
   setDraft: React.Dispatch<React.SetStateAction<ItemDraft>>;
   item: ApiPantryItem | null;
@@ -95,10 +99,13 @@ export type PantryItemDetailLayoutContext = DetailShellAuditContext & PantryMeta
   exitLabelById: Record<string, string>;
   historyRows: ApiPantryHistoryMovement[];
   movementLoading: boolean;
+  canDeleteEntry: boolean;
+  canDeleteExit: boolean;
   onNewEntry: () => void;
   onNewExit: () => void;
   onOpenEntry: (entryId: string) => void;
   onOpenExit: (exitId: string) => void;
+  onMovementsChanged: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -136,15 +143,7 @@ export type PantryAllocatedExitRow = {
   quantity: number;
   unit: string;
   eventName: string | null;
-  notes: string | null;
-};
-
-export type PantryExitAllocationRow = {
-  entryId: string;
-  quantity: number;
-  expiryDate: string | null;
-  sector: string;
-  entryDate: string;
+  internalNotes: string | null;
 };
 
 export type PantryEntryDraft = {
@@ -154,7 +153,6 @@ export type PantryEntryDraft = {
   unit: string;
   entryDate: string;
   expiryDate: string;
-  notes: string;
 };
 
 export type PantryEntryDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
@@ -172,7 +170,6 @@ export type PantryEntryDetailLayoutContext = DetailShellAuditContext & PantryMet
   allocatedExits: PantryAllocatedExitRow[];
   donorNameById: Record<string, string>;
   exitLabelById: Record<string, string>;
-  canDelete: boolean;
   canCreateRelatedExit: boolean;
   onCommitField: (key: keyof PantryEntryDraft) => void;
   onPatch: (patch: Partial<PantryEntryDraft>) => void;
@@ -180,7 +177,6 @@ export type PantryEntryDetailLayoutContext = DetailShellAuditContext & PantryMet
   onOpenCreateDonor: () => void;
   onOpenCreateExit: () => void;
   onOpenExit: (exitId: string) => void;
-  onDelete: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -193,7 +189,6 @@ export type PantryExitDraft = {
   exitDate: string;
   type: ApiPantryExit["type"];
   eventName: string;
-  notes: string;
 };
 
 export type PantryExitDetailLayoutContext = DetailShellAuditContext & PantryMetadataContext & {
@@ -211,21 +206,15 @@ export type PantryExitDetailLayoutContext = DetailShellAuditContext & PantryMeta
   sectorOptions: string[];
   donorNameById: Record<string, string>;
   entryLabelById: Record<string, string>;
-  entryById: Record<string, ApiPantryEntry>;
   onCommitField: (key: keyof PantryExitDraft) => void;
   onPatch: (patch: Partial<PantryExitDraft>) => void;
   onOpenNewSector: () => void;
-  onOpenEntry: (entryId: string) => void;
-  onDelete: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
 
 export const PANTRY_DETAIL_INPUT_CLASS =
   "h-10 rounded-none border-0 border-b border-border/70 bg-transparent px-0 text-sm shadow-none focus-visible:border-primary focus-visible:ring-0";
-
-const PANTRY_DETAIL_BAND_CLASS =
-  "border-y border-border/60 bg-transparent px-0 py-3";
 
 const PANTRY_DETAIL_SECTION_CLASS =
   "border-y border-border/60 bg-transparent px-0 py-4";
@@ -262,432 +251,9 @@ function resolveAvatarAuditValue(value: unknown) {
   return typeof value === "string" && value.trim() ? "Foto definida" : "Sem foto";
 }
 
-function formatOptionalDate(value: string | null | undefined) {
-  return value ? formatDateOnlyPtBR(value) : "—";
-}
-
-function resolveMovementKindLabel(kind: ApiPantryHistoryMovement["kind"]) {
-  return kind === "ENTRY" ? "Entrada" : "Saída";
-}
-
-const pantryItemEntryRelationColumns: ColumnDef<ApiPantryEntry>[] = [
-  {
-    id: "entryDate",
-    header: "Data",
-    accessorKey: "entryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.entryDate)}</div>,
-  },
-  {
-    id: "expiryDate",
-    header: "Validade",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || PANTRY_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "donorName",
-    header: "Doador",
-    accessorFn: (row) => row.donor?.name ?? "",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">{row.original.donor?.name ?? "Sem doador"}</div>
-    ),
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "remaining",
-    header: "Saldo",
-    accessorFn: (row) => Number(row.remaining ?? row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums text-foreground">
-        {Number(row.original.remaining ?? row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Unid.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const pantryItemExitRelationColumns: ColumnDef<ApiPantryExit>[] = [
-  {
-    id: "exitDate",
-    header: "Data",
-    accessorKey: "exitDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.exitDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || PANTRY_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "type",
-    header: "Tipo",
-    accessorKey: "type",
-    cell: ({ row }) => <div className="text-sm">{resolveExitTypeLabel(row.original.type)}</div>,
-  },
-  {
-    id: "eventName",
-    header: "Evento",
-    accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "-"}</div>,
-  },
-  {
-    id: "allocations",
-    header: "Lotes",
-    accessorFn: (row) => row.allocations?.length ?? 0,
-    cell: ({ row }) => {
-      const count = row.original.allocations?.length ?? 0;
-      return (
-        <div className="text-sm text-muted-foreground">
-          {count ? `${count} lote${count > 1 ? "s" : ""}` : "Automático"}
-        </div>
-      );
-    },
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Unid.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const pantryItemHistoryRelationColumns: ColumnDef<ApiPantryHistoryMovement>[] = [
-  {
-    id: "kind",
-    header: "Movimento",
-    accessorKey: "kind",
-    cell: ({ row }) => (
-      <Badge
-        className={
-          row.original.kind === "ENTRY"
-            ? "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
-            : "border-transparent bg-rose-500/15 text-rose-700 dark:text-rose-200"
-        }
-      >
-        {resolveMovementKindLabel(row.original.kind)}
-      </Badge>
-    ),
-  },
-  {
-    id: "movementDate",
-    header: "Data",
-    accessorKey: "movementDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.movementDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || PANTRY_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}{" "}
-        <span className="text-muted-foreground">{row.original.unit}</span>
-      </div>
-    ),
-  },
-  {
-    id: "expiryDate",
-    header: "Validade",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "donorName",
-    header: "Doador",
-    accessorKey: "donorName",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "ENTRY" ? (row.original.donorName ?? "-") : "-"}
-      </div>
-    ),
-  },
-  {
-    id: "type",
-    header: "Tipo de saída",
-    accessorKey: "type",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "EXIT" && row.original.type
-          ? resolveExitTypeLabel(row.original.type)
-          : "—"}
-      </div>
-    ),
-  },
-  {
-    id: "eventName",
-    header: "Evento",
-    accessorKey: "eventName",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "EXIT" ? (row.original.eventName ?? "-") : "-"}
-      </div>
-    ),
-  },
-  {
-    id: "actor",
-    header: "Usuário",
-    accessorKey: "actor",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.actor}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const pantryDonorDonationColumns: ColumnDef<ApiPantryEntry>[] = [
-  {
-    id: "item",
-    header: "Alimento",
-    accessorFn: (row) => row.item?.name ?? "",
-    cell: ({ row }) => (
-      <div className="min-w-0 truncate font-medium text-foreground">
-        {row.original.item?.name ?? "Alimento"}
-      </div>
-    ),
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorKey: "quantity",
-    cell: ({ row }) => (
-      <div className="font-mono tabular-nums text-foreground">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Un.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "entryDate",
-    header: "Data",
-    accessorKey: "entryDate",
-    cell: ({ row }) => formatOptionalDate(row.original.entryDate),
-  },
-  {
-    id: "expiryDate",
-    header: "Validade",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => formatOptionalDate(row.original.expiryDate),
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="max-w-[340px] truncate text-xs text-muted-foreground">
-        {row.original.notes ?? "-"}
-      </div>
-    ),
-  },
-];
-
-const pantryAllocatedExitColumns: ColumnDef<PantryAllocatedExitRow>[] = [
-  {
-    id: "exitDate",
-    header: "Data",
-    accessorKey: "exitDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.exitDate)}</div>,
-  },
-  {
-    id: "type",
-    header: "Tipo",
-    accessorKey: "type",
-    cell: ({ row }) => <div className="text-sm">{resolveExitTypeLabel(row.original.type)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}{" "}
-        <span className="text-muted-foreground">{row.original.unit}</span>
-      </div>
-    ),
-  },
-  {
-    id: "eventName",
-    header: "Evento",
-    accessorKey: "eventName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.eventName ?? "-"}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>,
-  },
-];
-
-const pantryExitAllocationColumns: ColumnDef<PantryExitAllocationRow>[] = [
-  {
-    id: "entryDate",
-    header: "Entrada",
-    accessorKey: "entryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.entryDate)}</div>,
-  },
-  {
-    id: "expiryDate",
-    header: "Validade",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-];
-
 export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ item }) =>
-      item ? (
-        <div className={PANTRY_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Saldo</div>
-              <div className="font-mono font-medium tabular-nums text-foreground">
-                {Number(item.stock ?? 0).toLocaleString("pt-BR")}
-              </div>
-              {item.isBelowMin ? (
-                <Badge variant="destructive" className="h-5 px-2 text-[10px]">
-                  Abaixo do mínimo
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="h-5 px-2 text-[10px]">
-                  OK
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Prox. validade</div>
-              <div className="font-medium text-foreground">
-                {item.nextExpiryDate
-                  ? formatDateOnlyPtBR(item.nextExpiryDate)
-                  : "—"}
-              </div>
-              {item.daysToExpire !== null ? (
-                <div className="font-mono tabular-nums text-muted-foreground">
-                  {item.daysToExpire}d
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Ultimo movimento</div>
-              <div className="font-medium text-foreground">
-                {item.lastMovementDate
-                  ? formatDateOnlyPtBR(item.lastMovementDate)
-                  : "—"}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className={`${PANTRY_DETAIL_BAND_CLASS} text-xs text-muted-foreground`}>
-          Salve para visualizar as metricas do alimento.
-        </div>
-      ),
-  },
+  mainTab: true,
   main: ({
     mode,
     readOnly,
@@ -721,80 +287,71 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
       key: "entries",
       label: "Entradas",
       badge: ({ entryRows }) => entryRows.length,
-      relations: [
-        {
-          key: "item.entries",
-          label: "Entradas",
-          rows: ({ mode, entryRows }) => (mode === "edit" ? entryRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: pantryItemEntryRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar entradas por doador, setor, notas ou lote",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenEntry(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit"
-              ? "Salve o alimento para registrar entradas."
-              : "Sem entradas.",
-          action: {
-            label: "Nova entrada",
-            icon: <Plus className="mr-1 size-4" />,
-            onClick: (context) => context.onNewEntry(),
-            disabled: (context) => context.readOnly || context.mode !== "edit",
-            hidden: (context) => context.mode !== "edit",
-          },
-        },
-      ],
+      flushContent: true,
+      content: ({
+        mode,
+        readOnly,
+        token,
+        entryRows,
+        movementLoading,
+        canDeleteEntry,
+        onOpenEntry,
+        onNewEntry,
+        onMovementsChanged,
+      }) => (
+        <PantryItemEntriesSection
+          rows={mode === "edit" ? entryRows : []}
+          loading={movementLoading}
+          token={token}
+          canAdd={!readOnly && mode === "edit"}
+          canDelete={canDeleteEntry && mode === "edit"}
+          onOpenEntry={onOpenEntry}
+          onAddEntry={onNewEntry}
+          onDeleted={onMovementsChanged}
+        />
+      ),
     },
     {
       key: "exits",
       label: "Saídas",
       badge: ({ exitRows }) => exitRows.length,
-      relations: [
-        {
-          key: "item.exits",
-          label: "Saídas",
-          rows: ({ mode, exitRows }) => (mode === "edit" ? exitRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: pantryItemExitRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar saídas por tipo, setor, evento ou notas",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenExit(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o alimento para registrar saídas." : "Sem saídas.",
-          action: {
-            label: "Nova saída",
-            icon: <Plus className="mr-1 size-4" />,
-            onClick: (context) => context.onNewExit(),
-            disabled: (context) => context.readOnly || context.mode !== "edit",
-            hidden: (context) => context.mode !== "edit",
-          },
-        },
-      ],
+      flushContent: true,
+      content: ({
+        mode,
+        readOnly,
+        token,
+        exitRows,
+        movementLoading,
+        canDeleteExit,
+        onOpenExit,
+        onNewExit,
+        onMovementsChanged,
+      }) => (
+        <PantryItemExitsSection
+          rows={mode === "edit" ? exitRows : []}
+          loading={movementLoading}
+          token={token}
+          canAdd={!readOnly && mode === "edit"}
+          canDelete={canDeleteExit && mode === "edit"}
+          onOpenExit={onOpenExit}
+          onAddExit={onNewExit}
+          onDeleted={onMovementsChanged}
+        />
+      ),
     },
     {
       key: "history",
       label: "Histórico",
       badge: ({ historyRows }) => historyRows.length,
-      relations: [
-        {
-          key: "item.history",
-          label: "Histórico",
-          rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: pantryItemHistoryRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar histórico por movimento, usuário, setor ou notas",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) =>
-            row.kind === "ENTRY"
-              ? context.onOpenEntry(row.id)
-              : context.onOpenExit(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o alimento para ver o histórico." : "Sem histórico.",
-        },
-      ],
+      flushContent: true,
+      content: ({ mode, historyRows, movementLoading, onOpenEntry, onOpenExit }) => (
+        <PantryItemHistorySection
+          rows={mode === "edit" ? historyRows : []}
+          loading={movementLoading}
+          onOpenEntry={onOpenEntry}
+          onOpenExit={onOpenExit}
+        />
+      ),
     },
   ],
   side: ({
@@ -828,6 +385,7 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
         auditVisibleCount={auditVisibleCount}
         onAuditVisibleCountChange={onAuditVisibleCountChange}
         canAudit
+        tabOrder={["tags", "notes", "attachments", "activity"]}
         comments={{
           items: item?.comments ?? [],
           draft: commentDraft,
@@ -847,6 +405,8 @@ export const pantryItemDetailLayout: DetailLayoutConfig<PantryItemDetailLayoutCo
           onChange: onInternalNotesChange,
           onBlur: onInternalNotesBlur,
           readOnly,
+          richText: true,
+          mentionUsers: mentionableUsers,
         }}
         tags={{
           value: tags,
@@ -985,33 +545,8 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
         onFileSelect={onAvatarFileSelect}
       />
     ),
-    slot: ({ donor, draft }) => {
-      const donorLabel = draft.name.trim() || donor?.name || "Novo doador";
-
-      return (
-        <div className={PANTRY_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">
-                {PANTRY_DONOR_TYPE_LABELS[draft.type]}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Contato</div>
-              <div className="font-medium text-foreground">
-                {draft.contact ?? donor?.contact ?? "Sem contato cadastrado."}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Nome</div>
-              <div className="font-medium text-foreground">{donorLabel}</div>
-            </div>
-          </div>
-        </div>
-      );
-    },
   },
+  mainTab: true,
   main: ({
     readOnly,
     draft,
@@ -1089,17 +624,19 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
       </div>
     </div>
   ),
-  bottomRelations: [
+  tabTemplates: [
     {
-      key: "donor.donations",
+      key: "donations",
       label: "Doações",
-      rows: ({ mode, entries }) => (mode === "edit" ? entries : []),
-      loading: ({ entriesLoading }) => entriesLoading,
-      columns: pantryDonorDonationColumns,
-      getRowId: (row) => row.id,
-      onRowClick: (row, context) => context.onOpenEntry(row.id),
-      emptyLabel: ({ mode }) =>
-        mode !== "edit" ? "Salve o doador para ver as doações." : "Sem doações.",
+      badge: ({ entries }) => entries.length,
+      flushContent: true,
+      content: ({ mode, entries, entriesLoading, onOpenEntry }) => (
+        <PantryDonorDonationsSection
+          rows={mode === "edit" ? entries : []}
+          loading={entriesLoading}
+          onOpenEntry={onOpenEntry}
+        />
+      ),
     },
   ],
   side: ({
@@ -1132,6 +669,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: donor?.comments ?? [],
         draft: commentDraft,
@@ -1143,7 +681,14 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve o doador para habilitar comentários." : "Nenhum comentário registrado para este doador.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:
@@ -1215,33 +760,7 @@ export const pantryDonorDetailLayout: DetailLayoutConfig<PantryDonorDetailLayout
 
 export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ entry }) =>
-      entry ? (
-        <div className={PANTRY_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Quantidade</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(entry.quantity).toLocaleString("pt-BR")} {entry.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Restante</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(entry.remaining ?? entry.quantity).toLocaleString("pt-BR")} {entry.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Setor</div>
-              <div className="font-medium text-foreground">
-                {entry.sector || PANTRY_DEFAULT_SECTOR}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null,
-  },
+  mainTab: true,
   main: ({
     draft,
     setDraft,
@@ -1416,43 +935,23 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
           />
         </div>
       </div>
-
-      <div className="mt-3">
-        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Notas
-        </div>
-        <Input
-          value={draft.notes}
-          onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
-          onBlur={() => onCommitField("notes")}
-          className={PANTRY_DETAIL_INPUT_CLASS}
-          placeholder="Notas (opcional)"
-          readOnly={saving || readOnly}
-        />
-      </div>
     </div>
   ),
-  bottomRelations: [
+  tabTemplates: [
     {
-      key: "entry.allocatedExits",
-      label: "Saídas vinculadas",
-      rows: ({ mode, allocatedExits }) => (mode === "edit" ? allocatedExits : []),
-      loading: ({ allocatedExitsLoading }) => allocatedExitsLoading,
-      columns: pantryAllocatedExitColumns,
-      getRowId: (row) => row.exitId,
-      onRowClick: (row, context) => context.onOpenExit(row.exitId),
-      action: {
-        label: "Nova saída",
-        icon: <Plus className="mr-1 size-4" />,
-        onClick: (context) => context.onOpenCreateExit(),
-        disabled: (context) =>
-          context.readOnly || !context.canCreateRelatedExit || context.mode !== "edit",
-        hidden: (context) => context.mode !== "edit",
-      },
-      emptyLabel: ({ mode }) =>
-        mode !== "edit"
-          ? "Salve a entrada para ver saídas relacionadas."
-          : "Sem saídas vinculadas.",
+      key: "allocatedExits",
+      label: "Saídas",
+      badge: ({ allocatedExits }) => allocatedExits.length,
+      flushContent: true,
+      content: ({ mode, readOnly, allocatedExits, allocatedExitsLoading, canCreateRelatedExit, onOpenExit, onOpenCreateExit }) => (
+        <PantryEntryAllocatedExitsSection
+          rows={mode === "edit" ? allocatedExits : []}
+          loading={allocatedExitsLoading}
+          canAdd={!readOnly && canCreateRelatedExit && mode === "edit"}
+          onOpenExit={onOpenExit}
+          onAddExit={onOpenCreateExit}
+        />
+      ),
     },
   ],
   side: ({
@@ -1485,6 +984,7 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: entry?.comments ?? [],
         draft: commentDraft,
@@ -1496,7 +996,14 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve a entrada para habilitar comentários." : "Nenhum comentário registrado para esta entrada.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:
@@ -1582,33 +1089,6 @@ export const pantryEntryDetailLayout: DetailLayoutConfig<PantryEntryDetailLayout
 
 export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ exit }) =>
-      exit ? (
-        <div className={PANTRY_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Quantidade</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(exit.quantity).toLocaleString("pt-BR")} {exit.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">
-                {resolveExitTypeLabel(exit.type)}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Setor</div>
-              <div className="font-medium text-foreground">
-                {exit.sector || PANTRY_DEFAULT_SECTOR}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null,
-  },
   main: ({
     draft,
     setDraft,
@@ -1842,44 +1322,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
         </div>
       </div>
     ) : null}
-
-    <div className="mt-4">
-      <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        Notas
-      </div>
-      <Input
-        value={draft.notes}
-        onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
-        onBlur={() => onCommitField("notes")}
-        className={PANTRY_DETAIL_INPUT_CLASS}
-        placeholder="Notas (opcional)"
-        readOnly={saving || readOnly}
-      />
-    </div>
   </div>),
-  bottomRelations: [
-    {
-      key: "exit.allocations",
-      label: "Lotes vinculados",
-      rows: ({ mode, exit, entryById }) =>
-        mode === "edit"
-          ? (exit?.allocations ?? []).map((allocation) => ({
-            entryId: allocation.entryId,
-            quantity: Number(allocation.quantity ?? 0),
-            expiryDate: allocation.expiryDate ?? null,
-            sector: allocation.sector ?? PANTRY_DEFAULT_SECTOR,
-            entryDate: entryById[allocation.entryId]?.entryDate ?? "",
-          }))
-          : [],
-      columns: pantryExitAllocationColumns,
-      getRowId: (row) => row.entryId,
-      onRowClick: (row, context) => context.onOpenEntry(row.entryId),
-      emptyLabel: ({ mode }) =>
-        mode !== "edit"
-          ? "Salve a saída para ver lotes relacionados."
-          : "Sem lotes vinculados.",
-    },
-  ],
   side: ({
     mode,
     readOnly,
@@ -1910,6 +1353,7 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: exit?.comments ?? [],
         draft: commentDraft,
@@ -1921,7 +1365,14 @@ export const pantryExitDetailLayout: DetailLayoutConfig<PantryExitDetailLayoutCo
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve a saída para habilitar comentários." : "Nenhum comentário registrado para esta saída.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:

@@ -9,7 +9,6 @@ import {
 } from "next/navigation";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useConfirm } from "@/components/confirm/use-confirm";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -30,6 +28,7 @@ import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import {
   addDepositEntryAttachment,
   addDepositEntryComment,
+  createDepositExit,
   createDepositSector,
   deleteDepositEntryAttachment,
   deleteDepositEntryComment,
@@ -46,10 +45,10 @@ import {
   type DepositEntryDraft,
 } from "@/modules/deposit/config/deposit-detail-layout-contract";
 import { depositEntryDetailModuleDefinition } from "@/modules/deposit/config/deposit-module-contract";
+import { DepositExitQuickCreateDialog } from "@/modules/deposit/features/items/ui/detail/deposit-exit-quick-create-dialog";
 import {
   buildDepositExitAuditLabel,
   localIsoDate,
-  normalizeStringOrNull,
 } from "@/modules/deposit/features/items/domain/deposit-item-detail.helpers";
 import {
   DEPOSIT_DEFAULT_SECTOR,
@@ -77,7 +76,6 @@ function draftFromEntry(entry: ApiDepositEntry): DepositEntryDraft {
     unit: entry.unit ?? DEPOSIT_DEFAULT_UNIT,
     entryDate: String(entry.entryDate ?? "").slice(0, 10),
     expiryDate: "",
-    notes: entry.notes ?? "",
   };
 }
 
@@ -91,7 +89,6 @@ export function DepositEntryDetailEngineClientPage({
   const { permissions } = useCurrentUser();
   const { users: mentionableUsers } = useMentionableUsers("deposit.read");
   const { toast } = useToast();
-  const { confirm } = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -110,11 +107,6 @@ export function DepositEntryDetailEngineClientPage({
   const canUpdate = canUseModuleAction(
     depositEntryDetailModuleDefinition,
     "edit",
-    permissions,
-  );
-  const canDeleteAction = canUseModuleAction(
-    depositEntryDetailModuleDefinition,
-    "delete",
     permissions,
   );
   const canCreateRelatedExit = canUseModuleAction(
@@ -144,7 +136,6 @@ export function DepositEntryDetailEngineClientPage({
     unit: DEPOSIT_DEFAULT_UNIT,
     entryDate: localIsoDate(),
     expiryDate: "",
-    notes: "",
   });
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
@@ -161,6 +152,7 @@ export function DepositEntryDetailEngineClientPage({
   >([]);
   const [newSectorOpen, setNewSectorOpen] = React.useState(false);
   const [newSectorName, setNewSectorName] = React.useState("");
+  const [newExitOpen, setNewExitOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [commentDraft, setCommentDraft] = React.useState({ body: "", mentionUserIds: [] as string[] });
   const [commentSubmitting, setCommentSubmitting] = React.useState(false);
@@ -191,7 +183,6 @@ export function DepositEntryDetailEngineClientPage({
         unit: nextDraft.unit,
         entryDate: nextDraft.entryDate.trim() ? nextDraft.entryDate.trim() : undefined,
         expiryDate: null,
-        notes: normalizeStringOrNull(nextDraft.notes),
       });
       const savedDraft = draftFromEntry(updated);
       setEntry(updated);
@@ -264,12 +255,8 @@ export function DepositEntryDetailEngineClientPage({
 
   const openCreateExit = React.useCallback(() => {
     if (!entry?.id || !entry.itemId) return;
-    const href = withTenantPath(DEPOSIT_ROUTES.exitsNew, tenantSlug);
-    const current = searchParamsString ? `${pathname}?${searchParamsString}` : pathname;
-    router.push(
-      `${href}?itemId=${encodeURIComponent(entry.itemId)}&entryId=${encodeURIComponent(entry.id)}&returnTo=${encodeURIComponent(current)}`,
-    );
-  }, [entry?.id, entry?.itemId, pathname, router, searchParamsString, tenantSlug]);
+    setNewExitOpen(true);
+  }, [entry?.id, entry?.itemId]);
 
   const openExitDetail = React.useCallback(
     (exitId: string) => {
@@ -431,7 +418,7 @@ export function DepositEntryDetailEngineClientPage({
           quantity,
           unit: exitRow.unit,
           destinationName: exitRow.destinationName ?? null,
-          notes: exitRow.notes ?? null,
+          internalNotes: exitRow.internalNotes ?? null,
         });
         matches.push(exitRow);
       });
@@ -449,6 +436,39 @@ export function DepositEntryDetailEngineClientPage({
       setAllocatedExitsLoading(false);
     }
   }, [enabled, entry?.id, entry?.itemId, mode, token]);
+
+  const handleSubmitCreateExit = React.useCallback(
+    async (payload: {
+      sector: string;
+      quantity: number;
+      type: ApiDepositExit["type"];
+      destinationName: string | null;
+      expectedReturnAt: string | null;
+    }) => {
+      if (!token || !entry?.id || !entry.itemId) return;
+      try {
+        await createDepositExit(token, {
+          itemId: entry.itemId,
+          entryId: entry.id,
+          sector: payload.sector,
+          quantity: payload.quantity,
+          unit: entry.unit,
+          type: payload.type,
+          destinationName: payload.destinationName,
+          expectedReturnAt: payload.expectedReturnAt,
+        });
+        toast({ variant: "success", title: "Saída criada" });
+        await loadAllocatedExits();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao criar saída.";
+        toast({ variant: "destructive", title: "Falha ao criar", description: message });
+      }
+    },
+    [entry?.id, entry?.itemId, entry?.unit, loadAllocatedExits, toast, token],
+  );
 
   React.useEffect(() => {
     void loadItem();
@@ -514,7 +534,6 @@ export function DepositEntryDetailEngineClientPage({
         unit,
         entryDate: draft.entryDate.trim() ? draft.entryDate.trim() : undefined,
         expiryDate: null,
-        notes: draft.notes.trim() ? draft.notes.trim() : null,
         tags,
         internalNotes,
       });
@@ -578,55 +597,6 @@ export function DepositEntryDetailEngineClientPage({
       setBusy(false);
     }
   }, [commitField, loadSectors, mode, newSectorName, toast, token]);
-
-  const canDelete = React.useMemo(() => {
-    if (!entry) return false;
-    if (typeof entry.allocatedTotal === "number") return entry.allocatedTotal === 0;
-    if (typeof entry.remaining === "number") return entry.remaining === entry.quantity;
-    return allocatedExits.length === 0;
-  }, [allocatedExits.length, entry]);
-
-  const handleDelete = React.useCallback(async () => {
-    if (!entry || !canDeleteAction) return;
-
-    if (!canDelete) {
-      toast({
-        variant: "destructive",
-        title: "Não é possível excluir",
-        description: "Esta entrada já teve saídas registradas.",
-      });
-      return;
-    }
-
-    const confirmed = await confirm({
-      title: "Excluir entrada?",
-      description: "Esta ação não pode ser desfeita.",
-      confirmLabel: "Excluir",
-      confirmVariant: "destructive",
-    });
-
-    if (!confirmed) return;
-
-    setBusy(true);
-    try {
-      await dataProvider.delete("deposit.entries", entry.id);
-      toast({ variant: "success", title: "Entrada excluída" });
-      close();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao excluir entrada.";
-
-      toast({
-        variant: "destructive",
-        title: "Falha ao excluir",
-        description: message,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }, [canDelete, canDeleteAction, close, confirm, dataProvider, entry, toast]);
 
   const donorNameById = React.useMemo<Record<string, string>>(() => {
     const next: Record<string, string> = {};
@@ -774,7 +744,6 @@ export function DepositEntryDetailEngineClientPage({
       allocatedExits,
       donorNameById,
       exitLabelById,
-      canDelete,
       canCreateRelatedExit,
       onCommitField: (key) => {
         void commitField(key);
@@ -788,7 +757,6 @@ export function DepositEntryDetailEngineClientPage({
       onOpenCreateDonor: openCreateDonor,
       onOpenCreateExit: openCreateExit,
       onOpenExit: openExitDetail,
-      onDelete: handleDelete,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
       mentionableUsers,
@@ -814,7 +782,6 @@ export function DepositEntryDetailEngineClientPage({
       attachmentUploading,
       auditVisibleCount,
       canCreateRelatedExit,
-      canDelete,
       commentDraft,
       commentSubmitting,
       commitDraft,
@@ -828,7 +795,6 @@ export function DepositEntryDetailEngineClientPage({
       entry,
       exitLabelById,
       historyItems,
-      handleDelete,
       internalNotes,
       mentionableUsers,
       mode,
@@ -882,25 +848,6 @@ export function DepositEntryDetailEngineClientPage({
               : []),
           ...(mode === "edit" ? [{ label: "Entrada" }] : []),
         ]}
-        headerActionsSlot={
-          mode === "edit" && canDeleteAction ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={saving || !canDelete}
-              title={
-                canDelete
-                  ? "Excluir entrada"
-                  : "Esta entrada j? teve saídas registradas"
-              }
-            >
-              <Trash2 className="mr-1 size-4" />
-              Excluir
-            </Button>
-          ) : null
-        }
       />
 
       <Dialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>
@@ -937,6 +884,15 @@ export function DepositEntryDetailEngineClientPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DepositExitQuickCreateDialog
+        open={newExitOpen}
+        onOpenChange={setNewExitOpen}
+        sectorOptions={sectorOptions}
+        defaultSector={entry?.sector ?? DEPOSIT_DEFAULT_SECTOR}
+        lockedSector={entry?.sector}
+        onSubmit={handleSubmitCreateExit}
+      />
     </>
   );
 }

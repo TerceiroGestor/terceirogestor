@@ -373,6 +373,200 @@ const people = [
         avatarUrl: '/avatar.jpg',
     },
 ];
+// Ids determinísticos e únicos por domínio (Pantry = '2', Deposit = '3'),
+// no mesmo formato de UUID v4 falso que o resto do seed usa - precisa
+// continuar parecendo v4 porque os controllers validam o :id da rota com
+// `ParseUUIDPipe({ version: '4' })` (3º grupo comeca com '4', 4º com '8').
+// `block` identifica o tipo de registro (1 item, 2 doador, 3 entrada, 4
+// saida, 5 alocacao) e `n` é o índice sequencial dentro desse tipo.
+function makeDomainId(domainDigit, block, n) {
+    const octet = domainDigit.repeat(8);
+    return `${octet}-${domainDigit.repeat(4)}-4${domainDigit.repeat(3)}-8${domainDigit.repeat(3)}-${octet}${block}${String(n).padStart(3, '0')}`;
+}
+// Gera pelo menos 10 registros em cada tela de Pantry/Deposit (Itens,
+// Doadores/Fontes, Entradas, Saídas, Estoque e Histórico - as 2 últimas são
+// derivadas de Item/Entrada/Saída, não têm tabela própria) - usado pros 2
+// módulos por serem estruturalmente idênticos (ver pantry/deposit
+// detail-layout-contract.tsx), só trocando terminologia/enum de saída.
+async function seedPantryLikeDomain(tenantId, config) {
+    const itemIds = config.itemCatalog.map((_, index) => makeDomainId(config.domainDigit, 1, index + 1));
+    const donorIds = config.donorCatalog.map((_, index) => makeDomainId(config.domainDigit, 2, index + 1));
+    await config.itemDelegate.createMany({
+        data: config.itemCatalog.map((item, index) => ({
+            id: itemIds[index],
+            tenantId,
+            name: item.name,
+            group: item.group,
+            unit: item.unit,
+            minStock: item.minStock,
+            defaultSector: index % 3 === 0 ? 'Despensa Central' : 'Geral',
+            notes: `${item.name} cadastrado pelo seed de homologacao.`,
+        })),
+    });
+    await config.donorDelegate.createMany({
+        data: config.donorCatalog.map((donor, index) => ({
+            id: donorIds[index],
+            tenantId,
+            name: donor.name,
+            type: donor.type,
+            contact: donor.contact,
+        })),
+    });
+    // 2 entradas por item (20 no total) - doador roda entre os 10 cadastrados,
+    // 1ª entrada maior/mais antiga, 2ª menor/mais recente, pra dar variação
+    // de saldo e validade nas abas "Entradas"/"Histórico".
+    const entries = [];
+    config.itemCatalog.forEach((item, itemIndex) => {
+        for (let k = 0; k < 2; k += 1) {
+            const donorIndex = (itemIndex * 2 + k) % donorIds.length;
+            entries.push({
+                id: makeDomainId(config.domainDigit, 3, entries.length + 1),
+                itemId: itemIds[itemIndex],
+                donorId: donorIds[donorIndex],
+                sector: itemIndex % 3 === 0 ? 'Despensa Central' : 'Geral',
+                quantity: Math.round(item.minStock * (k === 0 ? 1.5 : 0.8)),
+                unit: item.unit,
+                entryDate: new Date(Date.UTC(2026, k === 0 ? 0 : 1, 10 + itemIndex)),
+                expiryDate: new Date(Date.UTC(2026, 7 + (itemIndex % 5), 1)),
+            });
+        }
+    });
+    await config.entryDelegate.createMany({
+        data: entries.map((entry) => ({
+            id: entry.id,
+            tenantId,
+            itemId: entry.itemId,
+            donorId: entry.donorId,
+            sector: entry.sector,
+            quantity: entry.quantity,
+            unit: entry.unit,
+            entryDate: entry.entryDate,
+            expiryDate: entry.expiryDate,
+            notes: 'Entrada registrada pelo seed de homologacao.',
+        })),
+    });
+    // Saídas: os 5 primeiros itens recebem 1 saída, os 5 últimos recebem 2
+    // (15 no total) - cada saída aloca contra a 1ª entrada do mesmo item, pra
+    // "Saídas vinculadas" (Entrada) e "Lotes/Entradas vinculados" (Saída)
+    // também terem dado de verdade, não só a lista de Saídas em si.
+    const exits = [];
+    config.itemCatalog.forEach((item, itemIndex) => {
+        const exitsForItem = itemIndex < 5 ? 1 : 2;
+        for (let k = 0; k < exitsForItem; k += 1) {
+            const type = config.exitTypes[(itemIndex + k) % config.exitTypes.length];
+            exits.push({
+                id: makeDomainId(config.domainDigit, 4, exits.length + 1),
+                itemId: itemIds[itemIndex],
+                sector: itemIndex % 3 === 0 ? 'Despensa Central' : 'Geral',
+                quantity: Math.max(1, Math.round(item.minStock * 0.3)),
+                unit: item.unit,
+                exitDate: new Date(Date.UTC(2026, 2 + k, 5 + itemIndex)),
+                type,
+                extraValue: config.exitExtraValueByType[type],
+                allocatedEntryId: entries[itemIndex * 2].id,
+            });
+        }
+    });
+    await config.exitDelegate.createMany({
+        data: exits.map((exit) => ({
+            id: exit.id,
+            tenantId,
+            itemId: exit.itemId,
+            sector: exit.sector,
+            quantity: exit.quantity,
+            unit: exit.unit,
+            exitDate: exit.exitDate,
+            type: exit.type,
+            [config.exitExtraField]: exit.extraValue ?? null,
+            notes: 'Saida registrada pelo seed de homologacao.',
+        })),
+    });
+    await config.allocationDelegate.createMany({
+        data: exits.map((exit, index) => ({
+            id: makeDomainId(config.domainDigit, 5, index + 1),
+            tenantId,
+            exitId: exit.id,
+            entryId: exit.allocatedEntryId,
+            quantity: exit.quantity,
+        })),
+    });
+}
+const PANTRY_SEED_CONFIG = {
+    domainDigit: '2',
+    itemDelegate: prisma.pantryItem,
+    donorDelegate: prisma.pantryDonor,
+    entryDelegate: prisma.pantryEntry,
+    exitDelegate: prisma.pantryExit,
+    allocationDelegate: prisma.pantryExitAllocation,
+    itemCatalog: [
+        { name: 'Arroz', unit: 'kg', group: 'Grãos e Cereais', minStock: 50 },
+        { name: 'Feijão', unit: 'kg', group: 'Leguminosas', minStock: 40 },
+        { name: 'Óleo de soja', unit: 'l', group: 'Óleos e Gorduras', minStock: 20 },
+        { name: 'Macarrão', unit: 'kg', group: 'Massas', minStock: 30 },
+        { name: 'Leite em pó', unit: 'kg', group: 'Leite e Derivados', minStock: 15 },
+        { name: 'Açúcar', unit: 'kg', group: 'Açúcares e Adoçantes', minStock: 25 },
+        { name: 'Sal', unit: 'kg', group: 'Temperos e Condimentos', minStock: 10 },
+        { name: 'Café', unit: 'kg', group: 'Café e Chás', minStock: 8 },
+        { name: 'Farinha de trigo', unit: 'kg', group: 'Farinhas e Derivados', minStock: 20 },
+        { name: 'Molho de tomate', unit: 'un', group: 'Molhos', minStock: 30 },
+    ],
+    donorCatalog: [
+        { name: 'Mercado Central', type: 'COMPANY', contact: 'contato@mercadocentral.seed.local' },
+        { name: 'Padaria Boa Vista', type: 'COMPANY', contact: 'contato@padariaboavista.seed.local' },
+        { name: 'Distribuidora Alimentos SP', type: 'COMPANY', contact: 'vendas@distribuidorasp.seed.local' },
+        { name: 'Maria Souza', type: 'PERSON', contact: '+55 11 98888-6001' },
+        { name: 'João Lima', type: 'PERSON', contact: '+55 11 98888-6002' },
+        { name: 'Supermercado Extra Bairro', type: 'COMPANY', contact: 'contato@extrabairro.seed.local' },
+        { name: 'Hortifruti Raiz', type: 'COMPANY', contact: 'contato@hortifrutiraiz.seed.local' },
+        { name: 'Alimentos ABC Ltda', type: 'COMPANY', contact: 'comercial@abcalimentos.seed.local' },
+        { name: 'Ana Paula Ferreira', type: 'PERSON', contact: '+55 11 98888-6003' },
+        { name: 'Atacadão Popular', type: 'COMPANY', contact: 'contato@atacadaopopular.seed.local' },
+    ],
+    exitTypes: ['ATTENDED', 'DONATION', 'EVENT', 'PARTY', 'CORRECTION'],
+    exitExtraField: 'eventName',
+    exitExtraValueByType: {
+        EVENT: 'Festa Junina do bairro',
+        PARTY: 'Aniversario comunitario',
+    },
+};
+const DEPOSIT_SEED_CONFIG = {
+    domainDigit: '3',
+    itemDelegate: prisma.depositItem,
+    donorDelegate: prisma.depositDonor,
+    entryDelegate: prisma.depositEntry,
+    exitDelegate: prisma.depositExit,
+    allocationDelegate: prisma.depositExitAllocation,
+    itemCatalog: [
+        { name: 'Colchonetes', unit: 'un', group: 'Mobília', minStock: 20 },
+        { name: 'Cadeiras plásticas', unit: 'un', group: 'Mobília', minStock: 30 },
+        { name: 'Jogos de mesa', unit: 'kit', group: 'Brinquedos', minStock: 10 },
+        { name: 'Caixas de som', unit: 'un', group: 'Eletrônicos', minStock: 5 },
+        { name: 'Projetor multimídia', unit: 'un', group: 'Eletrônicos', minStock: 3 },
+        { name: 'Kits de primeiros socorros', unit: 'kit', group: 'Material de Oficina', minStock: 8 },
+        { name: 'Barracas de camping', unit: 'un', group: 'Material Esportivo', minStock: 6 },
+        { name: 'Bicicletas', unit: 'un', group: 'Material Esportivo', minStock: 10 },
+        { name: 'Kits de material escolar', unit: 'kit', group: 'Material Escolar', minStock: 40 },
+        { name: 'Caixas de ferramentas', unit: 'cx', group: 'Material de Oficina', minStock: 12 },
+    ],
+    donorCatalog: [
+        { name: 'Loja Materiais Unidos', type: 'COMPANY', contact: 'contato@materiaisunidos.seed.local' },
+        { name: 'Construtora Horizonte', type: 'COMPANY', contact: 'contato@construtorahorizonte.seed.local' },
+        { name: 'Escola Municipal Vista Alegre', type: 'COMPANY', contact: 'secretaria@emvistaalegre.seed.local' },
+        { name: 'Rafael Tavares', type: 'PERSON', contact: '+55 11 97777-7001' },
+        { name: 'Patricia Nogueira', type: 'PERSON', contact: '+55 11 97777-7002' },
+        { name: 'Esportes Vitoria Ltda', type: 'COMPANY', contact: 'vendas@esportesvitoria.seed.local' },
+        { name: 'Oficina do Bairro', type: 'COMPANY', contact: 'contato@oficinadobairro.seed.local' },
+        { name: 'Clube Recreativo Sao Jose', type: 'COMPANY', contact: 'contato@clubesaojose.seed.local' },
+        { name: 'Eduardo Martins', type: 'PERSON', contact: '+55 11 97777-7003' },
+        { name: 'Papelaria Grafite', type: 'COMPANY', contact: 'contato@papelariagrafite.seed.local' },
+    ],
+    exitTypes: ['LOAN', 'FINAL_REMOVAL', 'TRANSFER', 'ADJUSTMENT', 'LOSS'],
+    exitExtraField: 'destinationName',
+    exitExtraValueByType: {
+        LOAN: 'Escola Municipal Vista Alegre',
+        TRANSFER: 'Unidade Zona Leste',
+    },
+};
 async function createPermissionsAndRoles(tenantId) {
     await prisma.permission.createMany({
         data: CORE_PERMISSIONS.map((permission) => ({
@@ -1331,6 +1525,8 @@ async function main() {
             },
         ],
     });
+    await seedPantryLikeDomain(ids.tenant, PANTRY_SEED_CONFIG);
+    await seedPantryLikeDomain(ids.tenant, DEPOSIT_SEED_CONFIG);
     console.log('Seed executado com sucesso.');
     console.log(`Tenant: instituicao-exemplo (${ids.tenant})`);
     console.log('Usuarios:');
@@ -1338,6 +1534,7 @@ async function main() {
     console.log('  gestor@seed.local / User@123');
     console.log('  atendimento@seed.local / User@123');
     console.log('Projetos seed: Projeto Musica Manha, Projeto Apoio as Familias');
+    console.log('Pantry/Deposit seed: 10 itens, 10 doadores/fontes, 20 entradas e 15 saidas em cada modulo.');
 }
 main()
     .catch((error) => {

@@ -341,30 +341,43 @@ adiado sem gatilho. Formato do Alicerce.
   sequência de cliques) antes de investigar de novo — não adivinhar o
   fix sem um repro real.
 
-- **Comentários/Histórico/Contexto ainda no `sideSlot` de Projects,
-  Programs, Tasks, Pantry, Deposit, Occurrences e Attendances** — a
-  partir de 2026-11-18 o padrão canônico do `sideSlot` é só
-  `Tags`/`Notas`/`Anexos`/`Auditoria` (ver
-  `docs/canonical-web-client-standard.md`, seção `sideSlot`); People e
-  Activity já seguem isso, os outros módulos ainda não foram migrados
-  — decisão explícita do usuário foi fechar só a Atividade nesta rodada
-  e deixar o resto pra trás. **Occurrences e Attendances são um caso
-  pior que os outros 5:** nem sequer passam `tags`/`notes`/
-  `attachments`/`tabOrder` pro `StandardDetailMetadataSide` (achado
-  durante a revisão de convenção de 2026-11-21) — caem no fallback de
-  compatibilidade do componente, que mostra as abas "Histórico" e
-  "Contexto" (que não deveriam mais existir em nenhum módulo canônico)
-  e não mostra Tags/Notas/Anexos nenhum. Fechar isso não é só mudar o
-  frontend: exige schema novo no backend (tabelas de metadata — tag,
-  nota, anexo — para `Occurrence` e `Attendance`, espelhando
-  `ProjectActionComment`/`ProjectActionAttachment`/`PersonRecordTag`),
-  já que essas entidades nunca ganharam esse suporte.
-  **Gatilho:** próxima vez que um desses módulos for mexido por outro
-  motivo, ou quando a padronização dos módulos restantes entrar em
-  pauta por conta própria — migrar seguindo o mesmo padrão aplicado em
-  Activity (tirar `comments`/`history`/`contextItems` do `side`, dar
-  `richText`/`mentionUsers` pra `notes` se ainda não tiver); pra
-  Occurrences/Attendances, desenhar e migrar o schema de metadata antes.
+- **Comentários/Histórico/Contexto no `sideSlot` de Projects, Programs,
+  Tasks, Pantry, Deposit** — **resolvido em 2026-11-21** (plano de
+  padronização de módulos, Fase 1): os 5 já tinham `tags`/`notes`/
+  `attachments` funcionando de verdade, só não escondiam
+  `comments`/`history`/`contextItems` (que ficavam pendurados ao lado,
+  redundantes). Adicionado `tabOrder={["tags", "notes", "attachments",
+  "activity"]}` em cada `StandardDetailMetadataSide` (1 contract em
+  Projects/Programs/Tasks, **4** contracts em Pantry/Deposit - Item/
+  Doador/Entrada/Saída) - mesmo mecanismo que Attendance já usava. O
+  código de `comments`/`history`/`contextItems` por trás **não foi
+  removido**, só parou de aparecer - limpeza de código morto fica pra
+  uma rodada futura, depois de confirmar visualmente que nada quebrou.
+  Ver `PLAN.md` pra evidência completa.
+
+  **People-Groups resolvido em 2026-11-22** (schema novo no backend -
+  `PeopleGroup.tags` + model `PeopleGroupAttachment`, espelhando
+  `ProgramAttachment` - mais os endpoints/upload correspondentes).
+  `tabOrder` voltou pros 4 canônicos (`["tags", "notes", "attachments",
+  "activity"]`), com Tags e Anexos funcionando de verdade agora, não só
+  escondendo as abas erradas. Ver `PLAN.md` pra evidência completa -
+  esse é o modelo a seguir pros 2 módulos abaixo.
+
+  **Occurrences e Attendances continuam no caso pior - nem chegaram a
+  ganhar `tags`/`attachments` de verdade (achado em 2026-11-21, ainda
+  não tocado):** nem sequer passam `tags`/`notes`/`attachments`/
+  `tabOrder` nenhum (caem no fallback de compatibilidade do componente,
+  mostrando "Histórico"/"Contexto", que não deveriam existir em nenhum
+  módulo canônico, e nenhum Tags/Notas/Anexos). Fechar isso não é só
+  mudar o frontend: exige schema novo no backend pros 2 (tabelas de
+  metadata — tag, anexo — espelhando `ProjectActionAttachment`/
+  `PersonRecordTag`, mesmo padrão já aplicado em People-Groups), já que
+  essas entidades nunca ganharam esse suporte.
+  **Gatilho:** sessão de backend dedicada aos 2 módulos (pode fechar os
+  2 juntos, mesmo padrão de schema de People-Groups) — desenhar e
+  migrar o schema antes de qualquer mudança de frontend; depois disso,
+  trocar o `tabOrder` de cada um pra incluir `tags`/`attachments` de
+  verdade.
 
 - **Achados de densidade visual/estrutural fora de escopo, por módulo
   (investigação de 2026-11-18, não tocados por decisão do usuário):**
@@ -426,6 +439,17 @@ adiado sem gatilho. Formato do Alicerce.
   `deposit-stock-module-client-page.tsx` também têm (linha 486 - coluna
   principal; linhas 1038/1046/1107 - outras ocorrências, a confirmar se
   são colunas de tabela ou outro layout ao revisar esses 2 módulos).
+  **Mais 2 achados incidentais (2026-11-21, durante a Fase 2 do plano de
+  padronização, lendo os `*-detail-layout-contract.tsx` por outro
+  motivo):** `projects-detail-layout-contract.tsx` tem o bug na coluna
+  "Pessoa" da relation de matrículas (`enrollmentRelationColumns`);
+  `occurrences-detail-layout-contract.tsx` tem na coluna "Pessoa" da
+  relation "Envolvidos" (`peopleColumns`) - essas são relations dentro
+  do Detail, não a lista principal, então não entravam na varredura
+  anterior (que só olhou `*-list-module-client-page.tsx`). Confirma que
+  o bug pode estar em **qualquer** `ColumnDef` do sistema, não só nas
+  listas principais - vale varrer relations também quando chegar a vez
+  desses módulos.
   **Gatilho:** da próxima vez que qualquer um desses módulos for mexido
   por outro motivo, ou numa rodada dedicada de padronização de tabela —
   revisar **todo** `cell` do `ColumnDef` da lista (não só o primeiro),
@@ -494,32 +518,67 @@ Removida da Atividade a pedido do usuário ("suja a tela, quebra a lógica
 visual") — ver `PLAN.md`. Usuário confirmou gostar do resultado e pediu
 pra documentar como padrão (feito em
 `docs/canonical-web-client-standard.md`, seção "Header colado nas
-abas"). Projects, Programs, People-Groups, Occurrences e
-Attendances ainda têm essa mesma barra (`header.slot`) nos seus
-respectivos `*-detail-layout-contract.tsx` — ainda não migrados.
-**Correção em 2026-11-21 (plano de padronização de módulos):** a lista
-estava incompleta — confirmado por leitura direta do código que
-**Tasks** também tem (Status/Prioridade/Prazo/Entrega/Marco/Atualizado)
-e **Pantry/Deposit também, em triplicado** (não só no módulo principal
-`Item`, mas também nas 2 sub-telas de movimento `Entry`/`Exit` — 3
-`header.slot` por módulo, 6 no total). **People não tem** (checado o
-`header` do contract — só `leadingSlot` com o avatar, nenhum `slot` de
-barra de campos) — a entrada antiga citava People, mas não foi
-confirmado no código; pode já ter sido removido sem atualizar aqui, ou
-viver em outro lugar do sistema de abas próprio de People (ver "People
-usa um sistema de abas próprio" abaixo) - reconfirmar quando a sessão
-de People acontecer, não assumir nem uma coisa nem outra.
-**Resolvido parcialmente em 2026-11-21:** o Encontro
+abas").
+
+**Correção em 2026-11-21 (plano de padronização de módulos, antes de
+corrigir):** a lista original ("Projects, Programs, People-Groups,
+People, Occurrences e Attendances") estava incompleta e um item estava
+errado — confirmado por leitura direta do código que **Tasks** também
+tinha (Status/Prioridade/Prazo/Entrega/Marco/Atualizado) e
+**Pantry/Deposit também, em quadruplicado** (não só no módulo principal
+`Item`, mas nas outras 3 sub-telas `Doador`/`Entrada`/`Saída` — 4
+`header.slot` por módulo, 8 no total, não 3/6 como uma nota anterior
+chegou a estimar). **People não tinha** (checado o `header` do contract
+— só `leadingSlot` com o avatar, nenhum `slot` de barra de campos) — a
+entrada antiga citava People por erro; People usa um sistema de abas
+próprio (ver entrada abaixo), então a barra, se existir, vive em outro
+lugar — não confirmado, fora do escopo desta rodada.
+
+**Resolvido em 2026-11-21 (Fase 2 do plano de padronização) para
+Projects, Programs, Tasks, Occurrences, Pantry (4 contracts) e Deposit (4
+contracts)** — `header.slot` removido por completo (não só escondido,
+a função que montava a barra foi apagada) e `mainTab: true` adicionado
+em cada um dos 10 contracts tocados. Ver `PLAN.md` pra evidência
+completa. Nas telas de Item/Entrada de Pantry e Deposit, a barra também
+tinha métricas **calculadas** (Saldo, Próx. validade, Último movimento,
+Restante) que não duplicavam nenhum campo do formulário — usuário optou
+por descartar essa informação por ora (ver entrada própria abaixo sobre
+isso, com gatilho de revisão futura).
+
+**Resolvido em 2026-11-21 (achado durante a revisão):** o Encontro
 (`meeting-detail-layout-contract.tsx`, relação da própria Atividade)
 também tinha essa barra — regressão isolada que escapou da migração
-original — removida nesta sessão, durante a revisão de convenção pedida
-pelo usuário.
-**Gatilho:** quando o usuário pedir pra revisar um desses módulos
-especificamente (igual já foi feito com Atividades/Encontro) — remover o
-`header.slot` do contract correspondente do mesmo jeito (apagar a função
-que monta a barra, não só esconder) e levar os campos que ela mostrava
-pro formulário principal, seguindo a mesma convenção de primeira linha
-(Título/Status/Tipo/relacionamento principal) adotada na Atividade.
+original — removida numa sessão anterior à desta Fase 2, durante a
+revisão de convenção pedida pelo usuário.
+
+**People-Groups resolvido em 2026-11-21** (achado: tinha ficado pra
+trás na Fase 1 por causa do gap de schema, e isso levou a pular a Fase
+2 também "por ligação" - decisão errada, corrigida quando o usuário
+testou a tela e reportou as 3 partes incoerentes entre si - ver
+`PLAN.md`). `header.slot` removido, `mainTab: true` adicionado.
+
+## Métricas calculadas de Pantry/Deposit (Saldo/validade/movimento) descartadas junto com a barra de header (2026-11-21)
+
+Ao remover o `header.slot` de Item e Entrada (Pantry/Deposit, Fase 2 do
+plano de padronização — ver entrada acima), a barra continha métricas
+**calculadas** que não existiam em nenhum outro lugar da tela: em Item,
+Saldo (estoque atual + badge "abaixo do mínimo"), Próxima validade
+(data + dias restantes) e Último movimento; em Entrada, Restante
+(quantidade ainda disponível daquele lote). Diferente dos outros campos
+removidos nesta fase (Status/Tipo/Setor etc.), que já apareciam no
+formulário principal, estes não tinham — eram informação só visível
+naquela barra.
+
+Perguntei ao usuário o que fazer (mover pro topo do formulário como
+linha somente-leitura, ou descartar) — decisão: **descartar por agora**,
+com interesse em revisar depois onde mostrar essas métricas (não
+necessariamente de volta pro header — a ideia é repensar o lugar, não
+só devolver pro mesmo ponto banido pela convenção).
+**Gatilho:** sessão dedicada a decidir onde essas métricas deveriam
+aparecer (candidatos a considerar: coluna própria na lista principal de
+Item/Entrada, se ainda não existir; um card de resumo dentro do
+`detailSlot`; ou uma aba/relation dedicada a histórico de estoque) -
+não reintroduzir como `header.slot`, viola a convenção igual antes.
 
 ## Relations ainda no `DetailRelationsRenderer`, não em `RelationListHost` (2026-11-18)
 
@@ -550,6 +609,49 @@ entrada "Plano de revisão do Atendimento" abaixo) — trocar
 `DetailRelationTablePanel`, se a relation não precisar de visualização
 alternativa tipo calendário) nas duas abas de Occurrences/Attendances,
 seguindo a seção do padrão canônico passo a passo.
+
+**Escopo maior confirmado em 2026-11-21 (plano de padronização de
+módulos, Fase 3):** o mesmo mecanismo antigo também está em Projects,
+Programs, Tasks, Pantry, Deposit e People-Groups — nenhum desses usa
+`RelationListHost` em nenhuma relation (confirmado por grep, nenhum
+resultado de `RelationListHost`/`DetailRelationTablePanel` nesses 6
+módulos antes desta rodada). É a fase mais cara do plano de 5 fases
+(ver `PLAN.md`). **People-Groups resolvido em 2026-11-21** (sua única
+relation, "Participantes", já migrada). **Programs resolvido em
+2026-11-22** (sua única relation, "Projetos vinculados", migrada - de
+quebra, o botão "Novo projeto" trocou de navegação pra um diálogo de
+criação rápida, fechando também o gap da convenção "criar em
+relation = diálogo" nesse módulo). **Projects resolvido em
+2026-11-22** (3 das 4 relations do mecanismo antigo migradas - Grupos,
+Participantes, Atividades; a 4ª, "Grupos de Equipe", foi removida em
+vez de migrada porque a investigação achou um bug real de backend -
+sync sempre falhava pra grupos `TEAM` - não só nomenclatura duplicada
+com a aba "Equipe"; "Nova atividade" também trocou de navegação
+`/actions/new` pra diálogo de criação rápida, mesmo padrão de
+Programs). Ver `PLAN.md` pra evidência de todos. **Pantry/Deposit
+resolvido em 2026-11-22** (6 relations por módulo migradas - Item
+Entradas/Saídas/Histórico, Doador Doações, Entrada Saídas vinculadas,
+Saída Lotes/Entradas vinculados; de quebra, "Nova entrada"/"Nova saída"
+trocaram de navegação pro formulário completo pra diálogo de criação
+rápida, mesmo padrão de Programs/Projects - correção pedida pelo usuário
+depois de testar, que também achou um bug real de SQL cru pra Postgres
+escrito com sintaxe de MySQL no endpoint de Histórico dos 2 módulos,
+corrigido na mesma rodada).
+**Gatilho:** continuar o plano de padronização pelos módulos restantes
+(Tasks → Occurrences, ordem sugerida por volume de relations).
+
+**Gap remanescente em Projects (achado em 2026-11-22, durante a
+migração acima):** as abas "Equipe" (`ProjectTeamSection`), "Metas"
+(`ProjectGoalsSection`) e "Financiamento" (`ProjectFundingSourcesSection`)
+já usam `content:` (não o mecanismo antigo), mas renderizam uma lista
+simples própria (`<ul>`/cards, diálogo próprio de criação) em vez de
+`RelationListHost` - sem busca, Colunas ou Filtros. Usuário confirmou
+("Recomendado") deixar como está por agora, focando a migração nas 3
+relations que ainda usavam o mecanismo antigo de verdade.
+**Gatilho:** sessão de padronização visual das abas de conteúdo livre
+(`content:`) que ainda não passaram por `RelationListHost` - revisitar
+junto com qualquer outro módulo que tenha o mesmo padrão (ex.: Projects
+Metas/Financiamento/Equipe, e módulos equivalentes em outros domínios).
 
 **Fora do escopo desta migração, mas candidato futuro:** o List Principal
 (`RecordListHost`) ainda renderiza `ListView` com borda (`bordered` não
@@ -811,3 +913,69 @@ nível. **Gatilho:** se, na prática, usuários começarem a cadastrar papéis
 sem sentido no nível errado (ex. "Convidado" direto no Projeto todo), vale
 revisitar — seja com um subconjunto de opções por nível, seja com um enum
 próprio por nível (viraria migração aditiva simples).
+
+## Rotas standalone de criação de Entrada/Saída do Pantry/Deposit ficaram sem link depois do diálogo (2026-11-22)
+
+Ao trocar "Nova entrada"/"Nova saída" (relations de Item/Entrada) de
+navegação pra diálogo de criação rápida, descobri que `/pantry/entries`
+e `/pantry/exits` (e os equivalentes de Deposit) **não existem como grid
+própria** — só redirecionam pra `/pantry/stock`. Ou seja,
+`PantryEntryNewEngineClientPage`/`PantryExitNewEngineClientPage` (rotas
+`/new`) ficaram sem nenhum botão apontando pra elas no fluxo normal da
+aplicação (ainda funcionam se alguém acessar a URL direto, e
+`createModuleWindowAction` continua as registrando no sistema de
+janelas). Não apaguei por não ser o pedido desta rodada e por não ter
+certeza se o sistema de janelas/command-palette depende dessas rotas em
+outro lugar.
+**Gatilho:** auditoria de código morto do frontend (ou a limpeza geral
+já prevista no plano) — confirmar se há outro consumidor das rotas `/new`
+de Entrada/Saída antes de decidir remover; se não houver, apagar as
+páginas, os `createModuleWindowAction` correspondentes e as entradas
+`entriesNew`/`exitsNew` de `PANTRY_ROUTES`/`DEPOSIT_ROUTES`.
+
+## SQL cru escrito com sintaxe de MySQL rodando em Postgres (2026-11-22)
+
+`pantry.service.ts`/`deposit.service.ts` (`listHistory`) tinham
+identificador entre crase (`` `group` ``, `` `PantryEntry` ``) e `LIKE`
+sem diferenciação de caixa - sintaxe/comportamento de MySQL, não do
+Postgres real do projeto. Sempre quebrava (nunca foi exercitado antes por
+falta de dado nesses 2 módulos) - corrigido nesta rodada (ver `PLAN.md`,
+entrada "Correção: Pantry/Deposit"). **Gatilho:** se aparecer mais algum
+`$queryRaw`/`Prisma.sql` em outro módulo (grep por `Prisma.sql` no
+backend) escrito antes dessa descoberta, vale revisar com a mesma lente -
+identificador mixed-case sem aspas duplas e `LIKE` sem `ILIKE` são os 2
+sinais de que o código foi pensado pro banco errado.
+
+## Colunas `notes` de Pantry/Deposit (Item/Entrada/Saída) só pararam de ser lidas/escritas, não foram dropadas (2026-11-22)
+
+O campo `notes` (livre, duplicava o Metadata/`internalNotes`) foi removido
+do app inteiro (DTOs, services, tipos de API, contracts, engine pages,
+colunas de relation - ver `PLAN.md`, entrada "Correção: Pantry/Deposit -
+scroll/pin da tabela, padding do Metadata, campo notes duplicado") mas as
+colunas `notes` em si continuam no banco (`PantryItem`/`PantryEntry`/
+`PantryExit`/`DepositItem`/`DepositEntry`/`DepositExit`) - por regra do
+projeto (`AGENTS.md`: "remover ou renomear coluna leva dois deploys,
+expandir depois contrair"), esta rodada só fez a fase "expandir" (parar de
+ler/escrever). **Gatilho:** depois que o deploy que remove o código (fase
+atual) estiver em produção por tempo suficiente pra confirmar que nada
+mais lê essas colunas (nenhum relatório externo, nenhuma integração via
+banco direto) - criar a migration `prisma migrate dev` que faz
+`DROP COLUMN "notes"` nas 6 tabelas.
+
+## People - feature "Benefícios" órfã, sem aba e sem link no app (achado na Fase 5, 2026-11-22)
+
+`frontend/src/modules/people/features/benefits/` existe completo
+(painel, formulário, Detail própria), mas `BenefitsPanel` só é um alias
+que devolve `<PeopleFinancialRelationsPanel>` - nenhuma aba de People
+renderiza esse feature (a relation "Financeiro" já cobre Renda/Gasto/
+Transferência/Benefício, incluindo o `entryType: "BENEFIT"`). As rotas
+`/people/[id]/benefits/new` e `/people/[id]/benefits/[benefitId]` e os
+endpoints de backend `:id/benefits` (`backend/src/modules/people/
+people.controller.ts`) continuam existindo e funcionando, só inacessíveis
+pela UI. Não apaguei na Fase 5 (não era o pedido da rodada e apagar sem
+confirmar arrisca perder trabalho em andamento). **Gatilho:** auditoria de
+código morto do frontend (mesma already-backlogada pra Tasks `/new`) -
+confirmar que nada mais referencia esse feature e, se não houver, apagar
+`features/benefits/`, as rotas Next.js e os endpoints/DTOs específicos de
+`:id/benefits` do backend (mantendo o endpoint genérico de
+`financial-entries` com `entryType: "BENEFIT"`, que é o caminho real hoje).

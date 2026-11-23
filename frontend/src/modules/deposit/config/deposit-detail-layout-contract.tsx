@@ -1,9 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +32,11 @@ import {
   resolveExitTypeLabel,
 } from "@/modules/deposit/features/items/domain/deposit-item-detail.helpers";
 import { DepositItemDetailForm } from "@/modules/deposit/features/items/ui/detail/deposit-item-detail-form";
+import { DepositItemEntriesSection } from "@/modules/deposit/features/items/ui/detail/deposit-item-entries-section";
+import { DepositItemExitsSection } from "@/modules/deposit/features/items/ui/detail/deposit-item-exits-section";
+import { DepositItemHistorySection } from "@/modules/deposit/features/items/ui/detail/deposit-item-history-section";
+import { DepositDonorDonationsSection } from "@/modules/deposit/features/donors/ui/detail/deposit-donor-donations-section";
+import { DepositEntryAllocatedExitsSection } from "@/modules/deposit/features/entries/ui/detail/deposit-entry-allocated-exits-section";
 import {
   DEPOSIT_AUDIT_FIELD_LABELS,
   DEPOSIT_ENTRY_DONOR_NONE_VALUE,
@@ -78,6 +81,7 @@ type DepositMetadataContext = {
 export type DepositItemDetailLayoutContext = DetailShellAuditContext & DepositMetadataContext & {
   mode: DepositItemDetailMode;
   readOnly: boolean;
+  token: string;
   draft: ItemDraft;
   setDraft: React.Dispatch<React.SetStateAction<ItemDraft>>;
   item: ApiDepositItem | null;
@@ -95,10 +99,13 @@ export type DepositItemDetailLayoutContext = DetailShellAuditContext & DepositMe
   exitLabelById: Record<string, string>;
   historyRows: ApiDepositHistoryMovement[];
   movementLoading: boolean;
+  canDeleteEntry: boolean;
+  canDeleteExit: boolean;
   onNewEntry: () => void;
   onNewExit: () => void;
   onOpenEntry: (entryId: string) => void;
   onOpenExit: (exitId: string) => void;
+  onMovementsChanged: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -136,15 +143,7 @@ export type DepositAllocatedExitRow = {
   quantity: number;
   unit: string;
   destinationName: string | null;
-  notes: string | null;
-};
-
-export type DepositExitAllocationRow = {
-  entryId: string;
-  quantity: number;
-  expiryDate: string | null;
-  sector: string;
-  entryDate: string;
+  internalNotes: string | null;
 };
 
 export type DepositEntryDraft = {
@@ -154,7 +153,6 @@ export type DepositEntryDraft = {
   unit: string;
   entryDate: string;
   expiryDate: string;
-  notes: string;
 };
 
 export type DepositEntryDetailLayoutContext = DetailShellAuditContext & DepositMetadataContext & {
@@ -172,7 +170,6 @@ export type DepositEntryDetailLayoutContext = DetailShellAuditContext & DepositM
   allocatedExits: DepositAllocatedExitRow[];
   donorNameById: Record<string, string>;
   exitLabelById: Record<string, string>;
-  canDelete: boolean;
   canCreateRelatedExit: boolean;
   onCommitField: (key: keyof DepositEntryDraft) => void;
   onPatch: (patch: Partial<DepositEntryDraft>) => void;
@@ -180,7 +177,6 @@ export type DepositEntryDetailLayoutContext = DetailShellAuditContext & DepositM
   onOpenCreateDonor: () => void;
   onOpenCreateExit: () => void;
   onOpenExit: (exitId: string) => void;
-  onDelete: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -198,7 +194,6 @@ export type DepositExitDraft = {
   returnedAt: string;
   returnedQuantity: number;
   returnNotes: string;
-  notes: string;
 };
 
 export type DepositExitDetailLayoutContext = DetailShellAuditContext & DepositMetadataContext & {
@@ -216,21 +211,15 @@ export type DepositExitDetailLayoutContext = DetailShellAuditContext & DepositMe
   sectorOptions: string[];
   donorNameById: Record<string, string>;
   entryLabelById: Record<string, string>;
-  entryById: Record<string, ApiDepositEntry>;
   onCommitField: (key: keyof DepositExitDraft) => void;
   onPatch: (patch: Partial<DepositExitDraft>) => void;
   onOpenNewSector: () => void;
-  onOpenEntry: (entryId: string) => void;
-  onDelete: () => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
 
 export const DEPOSIT_DETAIL_INPUT_CLASS =
   "h-10 rounded-none border-0 border-b border-border/70 bg-transparent px-0 text-sm shadow-none focus-visible:border-primary focus-visible:ring-0";
-
-const DEPOSIT_DETAIL_BAND_CLASS =
-  "border-y border-border/60 bg-transparent px-0 py-3";
 
 const DEPOSIT_DETAIL_SECTION_CLASS =
   "border-y border-border/60 bg-transparent px-0 py-4";
@@ -267,432 +256,10 @@ function resolveAvatarAuditValue(value: unknown) {
   return typeof value === "string" && value.trim() ? "Foto definida" : "Sem foto";
 }
 
-function formatOptionalDate(value: string | null | undefined) {
-  return value ? formatDateOnlyPtBR(value) : "-";
-}
-
-function resolveMovementKindLabel(kind: ApiDepositHistoryMovement["kind"]) {
-  return kind === "ENTRY" ? "Entrada" : "Saída";
-}
-
-const depositItemEntryRelationColumns: ColumnDef<ApiDepositEntry>[] = [
-  {
-    id: "entryDate",
-    header: "Data",
-    accessorKey: "entryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.entryDate)}</div>,
-  },
-  {
-    id: "expiryDate",
-    header: "Data limite",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || DEPOSIT_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "donorName",
-    header: "Fonte",
-    accessorFn: (row) => row.donor?.name ?? "",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">{row.original.donor?.name ?? "Sem fonte"}</div>
-    ),
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "remaining",
-    header: "Saldo",
-    accessorFn: (row) => Number(row.remaining ?? row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums text-foreground">
-        {Number(row.original.remaining ?? row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Unid.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const depositItemExitRelationColumns: ColumnDef<ApiDepositExit>[] = [
-  {
-    id: "exitDate",
-    header: "Data",
-    accessorKey: "exitDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.exitDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || DEPOSIT_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "type",
-    header: "Tipo",
-    accessorKey: "type",
-    cell: ({ row }) => <div className="text-sm">{resolveExitTypeLabel(row.original.type)}</div>,
-  },
-  {
-    id: "destinationName",
-    header: "Destino",
-    accessorKey: "destinationName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.destinationName ?? "-"}</div>,
-  },
-  {
-    id: "allocations",
-    header: "Lotes",
-    accessorFn: (row) => row.allocations?.length ?? 0,
-    cell: ({ row }) => {
-      const count = row.original.allocations?.length ?? 0;
-      return (
-        <div className="text-sm text-muted-foreground">
-          {count ? `${count} lote${count > 1 ? "s" : ""}` : "Automático"}
-        </div>
-      );
-    },
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Unid.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const depositItemHistoryRelationColumns: ColumnDef<ApiDepositHistoryMovement>[] = [
-  {
-    id: "kind",
-    header: "Movimento",
-    accessorKey: "kind",
-    cell: ({ row }) => (
-      <Badge
-        className={
-          row.original.kind === "ENTRY"
-            ? "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
-            : "border-transparent bg-rose-500/15 text-rose-700 dark:text-rose-200"
-        }
-      >
-        {resolveMovementKindLabel(row.original.kind)}
-      </Badge>
-    ),
-  },
-  {
-    id: "movementDate",
-    header: "Data",
-    accessorKey: "movementDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.movementDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => (
-      <div className="text-sm text-muted-foreground">
-        {row.original.sector || DEPOSIT_DEFAULT_SECTOR}
-      </div>
-    ),
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}{" "}
-        <span className="text-muted-foreground">{row.original.unit}</span>
-      </div>
-    ),
-  },
-  {
-    id: "expiryDate",
-    header: "Data limite",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "donorName",
-    header: "Fonte",
-    accessorKey: "donorName",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "ENTRY" ? (row.original.donorName ?? "-") : "-"}
-      </div>
-    ),
-  },
-  {
-    id: "type",
-    header: "Tipo de saída",
-    accessorKey: "type",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "EXIT" && row.original.type
-          ? resolveExitTypeLabel(row.original.type)
-          : "-"}
-      </div>
-    ),
-  },
-  {
-    id: "destinationName",
-    header: "Destino",
-    accessorKey: "destinationName",
-    cell: ({ row }) => (
-      <div className="truncate text-sm">
-        {row.original.kind === "EXIT" ? (row.original.destinationName ?? "-") : "-"}
-      </div>
-    ),
-  },
-  {
-    id: "actor",
-    header: "Usuário",
-    accessorKey: "actor",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.actor}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>
-    ),
-  },
-];
-
-const depositDonorDonationColumns: ColumnDef<ApiDepositEntry>[] = [
-  {
-    id: "item",
-    header: "Objeto",
-    accessorFn: (row) => row.item?.name ?? "",
-    cell: ({ row }) => (
-      <div className="min-w-0 truncate font-medium text-foreground">
-        {row.original.item?.name ?? "Objeto"}
-      </div>
-    ),
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorKey: "quantity",
-    cell: ({ row }) => (
-      <div className="font-mono tabular-nums text-foreground">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-  {
-    id: "unit",
-    header: "Un.",
-    accessorKey: "unit",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.unit}</div>,
-  },
-  {
-    id: "entryDate",
-    header: "Data",
-    accessorKey: "entryDate",
-    cell: ({ row }) => formatOptionalDate(row.original.entryDate),
-  },
-  {
-    id: "expiryDate",
-    header: "Data limite",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => formatOptionalDate(row.original.expiryDate),
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => (
-      <div className="max-w-[340px] truncate text-xs text-muted-foreground">
-        {row.original.notes ?? "-"}
-      </div>
-    ),
-  },
-];
-
-const depositAllocatedExitColumns: ColumnDef<DepositAllocatedExitRow>[] = [
-  {
-    id: "exitDate",
-    header: "Data",
-    accessorKey: "exitDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.exitDate)}</div>,
-  },
-  {
-    id: "type",
-    header: "Tipo",
-    accessorKey: "type",
-    cell: ({ row }) => <div className="text-sm">{resolveExitTypeLabel(row.original.type)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}{" "}
-        <span className="text-muted-foreground">{row.original.unit}</span>
-      </div>
-    ),
-  },
-  {
-    id: "destinationName",
-    header: "Destino",
-    accessorKey: "destinationName",
-    cell: ({ row }) => <div className="truncate text-sm">{row.original.destinationName ?? "-"}</div>,
-  },
-  {
-    id: "notes",
-    header: "Notas",
-    accessorKey: "notes",
-    cell: ({ row }) => <div className="truncate text-sm text-muted-foreground">{row.original.notes ?? "-"}</div>,
-  },
-];
-
-const depositExitAllocationColumns: ColumnDef<DepositExitAllocationRow>[] = [
-  {
-    id: "entryDate",
-    header: "Entrada",
-    accessorKey: "entryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.entryDate)}</div>,
-  },
-  {
-    id: "expiryDate",
-    header: "Data limite",
-    accessorKey: "expiryDate",
-    cell: ({ row }) => <div className="text-sm">{formatOptionalDate(row.original.expiryDate)}</div>,
-  },
-  {
-    id: "sector",
-    header: "Setor",
-    accessorKey: "sector",
-    cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.original.sector}</div>,
-  },
-  {
-    id: "quantity",
-    header: "Quantidade",
-    accessorFn: (row) => Number(row.quantity),
-    cell: ({ row }) => (
-      <div className="font-mono text-sm tabular-nums">
-        {Number(row.original.quantity).toLocaleString("pt-BR")}
-      </div>
-    ),
-  },
-];
 
 export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ item }) =>
-      item ? (
-        <div className={DEPOSIT_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Saldo</div>
-              <div className="font-mono font-medium tabular-nums text-foreground">
-                {Number(item.stock ?? 0).toLocaleString("pt-BR")}
-              </div>
-              {item.isBelowMin ? (
-                <Badge variant="destructive" className="h-5 px-2 text-[10px]">
-                  Abaixo do mínimo
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="h-5 px-2 text-[10px]">
-                  OK
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Prox. data limite</div>
-              <div className="font-medium text-foreground">
-                {item.nextExpiryDate
-                  ? formatDateOnlyPtBR(item.nextExpiryDate)
-                  : "-"}
-              </div>
-              {item.daysToExpire !== null ? (
-                <div className="font-mono tabular-nums text-muted-foreground">
-                  {item.daysToExpire}d
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Ultimo movimento</div>
-              <div className="font-medium text-foreground">
-                {item.lastMovementDate
-                  ? formatDateOnlyPtBR(item.lastMovementDate)
-                  : "-"}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className={`${DEPOSIT_DETAIL_BAND_CLASS} text-xs text-muted-foreground`}>
-          Salve para visualizar as metricas do objeto.
-        </div>
-      ),
-  },
+  mainTab: true,
   main: ({
     mode,
     readOnly,
@@ -726,80 +293,71 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
       key: "entries",
       label: "Entradas",
       badge: ({ entryRows }) => entryRows.length,
-      relations: [
-        {
-          key: "item.entries",
-          label: "Entradas",
-          rows: ({ mode, entryRows }) => (mode === "edit" ? entryRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: depositItemEntryRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar entradas por fonte, setor, notas ou data limite",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenEntry(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit"
-              ? "Salve o objeto para registrar entradas."
-              : "Sem entradas.",
-          action: {
-            label: "Nova entrada",
-            icon: <Plus className="mr-1 size-4" />,
-            onClick: (context) => context.onNewEntry(),
-            disabled: (context) => context.readOnly || context.mode !== "edit",
-            hidden: (context) => context.mode !== "edit",
-          },
-        },
-      ],
+      flushContent: true,
+      content: ({
+        mode,
+        readOnly,
+        token,
+        entryRows,
+        movementLoading,
+        canDeleteEntry,
+        onOpenEntry,
+        onNewEntry,
+        onMovementsChanged,
+      }) => (
+        <DepositItemEntriesSection
+          rows={mode === "edit" ? entryRows : []}
+          loading={movementLoading}
+          token={token}
+          canAdd={!readOnly && mode === "edit"}
+          canDelete={canDeleteEntry && mode === "edit"}
+          onOpenEntry={onOpenEntry}
+          onAddEntry={onNewEntry}
+          onDeleted={onMovementsChanged}
+        />
+      ),
     },
     {
       key: "exits",
       label: "Saídas",
       badge: ({ exitRows }) => exitRows.length,
-      relations: [
-        {
-          key: "item.exits",
-          label: "Saídas",
-          rows: ({ mode, exitRows }) => (mode === "edit" ? exitRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: depositItemExitRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar saídas por tipo, setor, destino ou notas",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) => context.onOpenExit(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o objeto para registrar saídas." : "Sem saídas.",
-          action: {
-            label: "Nova saída",
-            icon: <Plus className="mr-1 size-4" />,
-            onClick: (context) => context.onNewExit(),
-            disabled: (context) => context.readOnly || context.mode !== "edit",
-            hidden: (context) => context.mode !== "edit",
-          },
-        },
-      ],
+      flushContent: true,
+      content: ({
+        mode,
+        readOnly,
+        token,
+        exitRows,
+        movementLoading,
+        canDeleteExit,
+        onOpenExit,
+        onNewExit,
+        onMovementsChanged,
+      }) => (
+        <DepositItemExitsSection
+          rows={mode === "edit" ? exitRows : []}
+          loading={movementLoading}
+          token={token}
+          canAdd={!readOnly && mode === "edit"}
+          canDelete={canDeleteExit && mode === "edit"}
+          onOpenExit={onOpenExit}
+          onAddExit={onNewExit}
+          onDeleted={onMovementsChanged}
+        />
+      ),
     },
     {
       key: "history",
       label: "Histórico",
       badge: ({ historyRows }) => historyRows.length,
-      relations: [
-        {
-          key: "item.history",
-          label: "Histórico",
-          rows: ({ mode, historyRows }) => (mode === "edit" ? historyRows : []),
-          loading: ({ movementLoading }) => movementLoading,
-          columns: depositItemHistoryRelationColumns,
-          searchable: true,
-          searchPlaceholder: "Pesquisar histórico por movimento, usuário, setor ou notas",
-          getRowId: (row) => row.id,
-          onRowClick: (row, context) =>
-            row.kind === "ENTRY"
-              ? context.onOpenEntry(row.id)
-              : context.onOpenExit(row.id),
-          emptyLabel: ({ mode }) =>
-            mode !== "edit" ? "Salve o objeto para ver o histórico." : "Sem histórico.",
-        },
-      ],
+      flushContent: true,
+      content: ({ mode, historyRows, movementLoading, onOpenEntry, onOpenExit }) => (
+        <DepositItemHistorySection
+          rows={mode === "edit" ? historyRows : []}
+          loading={movementLoading}
+          onOpenEntry={onOpenEntry}
+          onOpenExit={onOpenExit}
+        />
+      ),
     },
   ],
   side: ({
@@ -833,6 +391,7 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
         auditVisibleCount={auditVisibleCount}
         onAuditVisibleCountChange={onAuditVisibleCountChange}
         canAudit
+        tabOrder={["tags", "notes", "attachments", "activity"]}
         comments={{
           items: item?.comments ?? [],
           draft: commentDraft,
@@ -852,6 +411,8 @@ export const depositItemDetailLayout: DetailLayoutConfig<DepositItemDetailLayout
           onChange: onInternalNotesChange,
           onBlur: onInternalNotesBlur,
           readOnly,
+          richText: true,
+          mentionUsers: mentionableUsers,
         }}
         tags={{
           value: tags,
@@ -990,33 +551,8 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
         onFileSelect={onAvatarFileSelect}
       />
     ),
-    slot: ({ donor, draft }) => {
-      const donorLabel = draft.name.trim() || donor?.name || "Novo fonte";
-
-      return (
-        <div className={DEPOSIT_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">
-                {DEPOSIT_DONOR_TYPE_LABELS[draft.type]}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Contato</div>
-              <div className="font-medium text-foreground">
-                {draft.contact ?? donor?.contact ?? "Sem contato cadastrado."}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Nome</div>
-              <div className="font-medium text-foreground">{donorLabel}</div>
-            </div>
-          </div>
-        </div>
-      );
-    },
   },
+  mainTab: true,
   main: ({
     readOnly,
     draft,
@@ -1094,17 +630,19 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
       </div>
     </div>
   ),
-  bottomRelations: [
+  tabTemplates: [
     {
-      key: "donor.donations",
+      key: "donations",
       label: "Doações",
-      rows: ({ mode, entries }) => (mode === "edit" ? entries : []),
-      loading: ({ entriesLoading }) => entriesLoading,
-      columns: depositDonorDonationColumns,
-      getRowId: (row) => row.id,
-      onRowClick: (row, context) => context.onOpenEntry(row.id),
-      emptyLabel: ({ mode }) =>
-        mode !== "edit" ? "Salve o fonte para ver as doações." : "Sem doações.",
+      badge: ({ entries }) => entries.length,
+      flushContent: true,
+      content: ({ mode, entries, entriesLoading, onOpenEntry }) => (
+        <DepositDonorDonationsSection
+          rows={mode === "edit" ? entries : []}
+          loading={entriesLoading}
+          onOpenEntry={onOpenEntry}
+        />
+      ),
     },
   ],
   side: ({
@@ -1137,6 +675,7 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: donor?.comments ?? [],
         draft: commentDraft,
@@ -1148,7 +687,14 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve a fonte para habilitar comentários." : "Nenhum comentário registrado para esta fonte.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:
@@ -1220,33 +766,7 @@ export const depositDonorDetailLayout: DetailLayoutConfig<DepositDonorDetailLayo
 
 export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ entry }) =>
-      entry ? (
-        <div className={DEPOSIT_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Quantidade</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(entry.quantity).toLocaleString("pt-BR")} {entry.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Restante</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(entry.remaining ?? entry.quantity).toLocaleString("pt-BR")} {entry.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Setor</div>
-              <div className="font-medium text-foreground">
-                {entry.sector || DEPOSIT_DEFAULT_SECTOR}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null,
-  },
+  mainTab: true,
   main: ({
     draft,
     setDraft,
@@ -1404,40 +924,23 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
           />
         </div>
       </div>
-
-      <div className="mt-3">
-        <Input
-          value={draft.notes}
-          onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
-          onBlur={() => onCommitField("notes")}
-          className={DEPOSIT_DETAIL_INPUT_CLASS}
-          placeholder="Notas (opcional)"
-          readOnly={saving || readOnly}
-        />
-      </div>
     </div>
   ),
-  bottomRelations: [
+  tabTemplates: [
     {
-      key: "entry.allocatedExits",
-      label: "Saídas vinculadas",
-      rows: ({ mode, allocatedExits }) => (mode === "edit" ? allocatedExits : []),
-      loading: ({ allocatedExitsLoading }) => allocatedExitsLoading,
-      columns: depositAllocatedExitColumns,
-      getRowId: (row) => row.exitId,
-      onRowClick: (row, context) => context.onOpenExit(row.exitId),
-      action: {
-        label: "Nova saída",
-        icon: <Plus className="mr-1 size-4" />,
-        onClick: (context) => context.onOpenCreateExit(),
-        disabled: (context) =>
-          context.readOnly || !context.canCreateRelatedExit || context.mode !== "edit",
-        hidden: (context) => context.mode !== "edit",
-      },
-      emptyLabel: ({ mode }) =>
-        mode !== "edit"
-          ? "Salve a entrada para ver saídas relacionadas."
-          : "Sem saídas vinculadas.",
+      key: "allocatedExits",
+      label: "Saídas",
+      badge: ({ allocatedExits }) => allocatedExits.length,
+      flushContent: true,
+      content: ({ mode, readOnly, allocatedExits, allocatedExitsLoading, canCreateRelatedExit, onOpenExit, onOpenCreateExit }) => (
+        <DepositEntryAllocatedExitsSection
+          rows={mode === "edit" ? allocatedExits : []}
+          loading={allocatedExitsLoading}
+          canAdd={!readOnly && canCreateRelatedExit && mode === "edit"}
+          onOpenExit={onOpenExit}
+          onAddExit={onOpenCreateExit}
+        />
+      ),
     },
   ],
   side: ({
@@ -1470,6 +973,7 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: entry?.comments ?? [],
         draft: commentDraft,
@@ -1481,7 +985,14 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve a entrada para habilitar comentários." : "Nenhum comentário registrado para esta entrada.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:
@@ -1567,33 +1078,6 @@ export const depositEntryDetailLayout: DetailLayoutConfig<DepositEntryDetailLayo
 
 export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
-  header: {
-    slot: ({ exit }) =>
-      exit ? (
-        <div className={DEPOSIT_DETAIL_BAND_CLASS}>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Quantidade</div>
-              <div className="font-mono font-medium text-foreground tabular-nums">
-                {Number(exit.quantity).toLocaleString("pt-BR")} {exit.unit}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">
-                {resolveExitTypeLabel(exit.type)}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Setor</div>
-              <div className="font-medium text-foreground">
-                {exit.sector || DEPOSIT_DEFAULT_SECTOR}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null,
-  },
   main: ({
     draft,
     setDraft,
@@ -1899,45 +1383,8 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
           </div>
         </div>
       ) : null}
-
-      <div className="mt-4">
-        <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Notas
-        </div>
-        <Input
-          value={draft.notes}
-          onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))}
-          onBlur={() => onCommitField("notes")}
-          className={DEPOSIT_DETAIL_INPUT_CLASS}
-          placeholder="Notas (opcional)"
-          readOnly={saving || readOnly}
-        />
-      </div>
     </div>
   ),
-  bottomRelations: [
-    {
-      key: "exit.allocations",
-      label: "Entradas vinculadas",
-      rows: ({ mode, exit, entryById }) =>
-        mode === "edit"
-          ? (exit?.allocations ?? []).map((allocation) => ({
-            entryId: allocation.entryId,
-            quantity: Number(allocation.quantity ?? 0),
-            expiryDate: allocation.expiryDate ?? null,
-            sector: allocation.sector ?? DEPOSIT_DEFAULT_SECTOR,
-            entryDate: entryById[allocation.entryId]?.entryDate ?? "",
-          }))
-          : [],
-      columns: depositExitAllocationColumns,
-      getRowId: (row) => row.entryId,
-      onRowClick: (row, context) => context.onOpenEntry(row.entryId),
-      emptyLabel: ({ mode }) =>
-        mode !== "edit"
-          ? "Salve a saída para ver entradas relacionadas."
-          : "Sem entradas vinculadas.",
-    },
-  ],
   side: ({
     mode,
     readOnly,
@@ -1968,6 +1415,7 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: exit?.comments ?? [],
         draft: commentDraft,
@@ -1979,7 +1427,14 @@ export const depositExitDetailLayout: DetailLayoutConfig<DepositExitDetailLayout
         readOnly: readOnly || mode !== "edit",
         emptyLabel: mode === "create" ? "Salve a saída para habilitar comentários." : "Nenhum comentário registrado para esta saída.",
       }}
-      notes={{ value: internalNotes, onChange: onInternalNotesChange, onBlur: onInternalNotesBlur, readOnly }}
+      notes={{
+        value: internalNotes,
+        onChange: onInternalNotesChange,
+        onBlur: onInternalNotesBlur,
+        readOnly,
+        richText: true,
+        mentionUsers: mentionableUsers,
+      }}
       tags={{ value: tags, onChange: onTagsChange, onCommit: onTagsCommit, readOnly }}
       attachments={{
         items:

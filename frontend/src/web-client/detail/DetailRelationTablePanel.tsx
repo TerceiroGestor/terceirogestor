@@ -6,7 +6,7 @@ import { matchesDomainRecord } from "@/web-client/domain/evaluate";
 import type { Domain } from "@/web-client/domain/types";
 import type { SearchFieldDefinition } from "@/web-client/search/types";
 import { RelationListHost } from "@/web-client/relation/RelationListHost";
-import { TableView } from "@/web-client/views/TableView";
+import { ListView } from "@/web-client/views/ListView";
 
 type DetailRelationTablePanelProps<TData> = {
   title?: string;
@@ -21,7 +21,6 @@ type DetailRelationTablePanelProps<TData> = {
   loading?: boolean;
   error?: string | null;
   emptyMessage?: string;
-  tableMinWidthClassName?: string;
   onRowClick?: (row: TData) => void;
   tableInitialColumnPinning?: ColumnPinningState;
   filterFields?: SearchFieldDefinition[];
@@ -42,7 +41,6 @@ export function DetailRelationTablePanel<TData>({
   loading = false,
   error = null,
   emptyMessage = "Nenhum registro encontrado.",
-  tableMinWidthClassName = "min-w-[1080px]",
   onRowClick,
   tableInitialColumnPinning,
   filterFields,
@@ -76,6 +74,7 @@ export function DetailRelationTablePanel<TData>({
 
   return (
     <RelationListHost
+      flushToolbar
       title={title}
       subtitle={subtitle}
       data={data}
@@ -92,6 +91,7 @@ export function DetailRelationTablePanel<TData>({
       filteredCount={filteredRows.length}
       addHref={addHref}
       onAdd={onAdd}
+      columns={columns}
     >
       {error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -99,24 +99,22 @@ export function DetailRelationTablePanel<TData>({
         </div>
       ) : null}
 
-      <TableView
-        data={filteredRows}
-        columns={columns}
-        getRowId={getRowId}
-        onRowClick={onRowClick}
-        className="bg-transparent"
-        minWidthClassName={tableMinWidthClassName}
-        initialColumnPinning={tableInitialColumnPinning}
-        showColumnVisibilityButton={false}
-      />
-
       {loading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : null}
-
-      {!loading && !error && filteredRows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : null}
+        <p className="px-4 py-6 text-sm text-muted-foreground">Carregando...</p>
+      ) : !error && filteredRows.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-muted-foreground">{emptyMessage}</p>
+      ) : (
+        <ListView
+          data={filteredRows}
+          columns={columns}
+          getRowId={getRowId}
+          onRowClick={onRowClick}
+          initialColumnPinning={tableInitialColumnPinning}
+          showColumnVisibilityButton={false}
+          bordered={false}
+          stickyHeaderOffsetPx={117}
+        />
+      )}
     </RelationListHost>
   );
 }

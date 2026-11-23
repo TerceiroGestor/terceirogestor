@@ -9,11 +9,25 @@ export const MODULE_SURFACE_CLASS_NAME =
 export const MODULE_MUTED_SURFACE_CLASS_NAME =
   "overflow-hidden rounded-lg border border-border/50 bg-muted/10";
 
+/**
+ * Visual "fichário" (abas de pasta) - usado por todo `DetailTabsRenderer`
+ * (`web-client/detail/DetailLayoutSections.tsx`), compartilhado por todos
+ * os módulos. Só a aba ATIVA "funde" com o conteúdo abaixo: perde a borda
+ * inferior própria e ganha `-mb-px` pra sobrepor exatamente 1px da linha
+ * de base (`border-b` deste container) embaixo dela, na mesma cor do
+ * conteúdo (`bg-background`) - cria a ilusão de ela ser parte física da
+ * página, não um botão flutuante por cima. Abas inativas mantêm a borda
+ * inferior (caixa "fechada" sobre a linha de base, levemente recuada em
+ * `bg-muted/40`), como se estivessem atrás da aba ativa num fichário de
+ * verdade. `w-max min-w-full` garante que a linha de base continue
+ * esticando até a borda direita real mesmo com poucas abas (a lista some,
+ * mas a borda >=100% continua lá).
+ */
 export const MODULE_TABS_LIST_CLASS_NAME =
-  "flex h-11 w-full flex-wrap items-center justify-start gap-1.5 rounded-none border-0 border-b border-border/60 bg-transparent p-0 pb-1.5";
+  "flex h-auto w-max min-w-full flex-nowrap items-end justify-start gap-1 rounded-none border-0 border-b border-border/60 bg-transparent p-0";
 
 export const MODULE_TAB_TRIGGER_CLASS_NAME =
-  "h-8 rounded-md border-0 bg-transparent px-3 text-sm font-medium text-muted-foreground shadow-none transition-colors data-[state=active]:bg-background/80 data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none data-[state=inactive]:hover:bg-muted/70 data-[state=inactive]:hover:text-foreground";
+  "group relative flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-t-md rounded-b-none border border-border/60 bg-muted/40 px-3 text-sm font-medium text-muted-foreground shadow-none transition-colors data-[state=active]:z-10 data-[state=active]:-mb-px data-[state=active]:border-b-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none data-[state=inactive]:hover:bg-muted/70 data-[state=inactive]:hover:text-foreground";
 
 export function ModuleSurface({
   className,

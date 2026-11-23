@@ -10,13 +10,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tabs } from "@/components/ui/tabs";
-import { Network } from "lucide-react";
+import {
+  ClipboardList,
+  FileLock2,
+  GraduationCap,
+  HeartPulse,
+  IdCard,
+  Lock,
+  MapPin,
+  Network,
+  Phone,
+  Pill,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { resolveMediaUrl } from "@/lib/api";
-import { formatDateOnlyPtBR, formatDateTimePtBR } from "@/lib/date";
-import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
 import { PersonContactsPanel } from "@/modules/people/features/contacts/ui/person-contacts-panel";
+import { DetentionsPanel } from "@/modules/people/features/detentions/ui/detentions-panel";
+import { EducationPanel } from "@/modules/people/features/education/ui/education-panel";
+import { FamilyRelationsPanel } from "@/modules/people/features/family-members/ui/family-relations-panel";
+import { HealthConditionsPanel } from "@/modules/people/features/health-conditions/ui/health-conditions-panel";
+import { MedicationsPanel } from "@/modules/people/features/medications/ui/medications-panel";
+import { PeopleFinancialRelationsPanel } from "@/modules/people/features/people-financial/ui/people-financial-relations-panel";
 import { PersonSensitiveDocumentsPanel } from "@/modules/people/features/sensitive-documents/ui/person-sensitive-documents-panel";
 import {
   GENDER_LABELS,
@@ -40,17 +55,11 @@ import type {
 import {
   getAgeFromBirthDate,
   isBirthdayToday,
-  resolveLabel,
   resolvePersonDisplayNames,
 } from "@/modules/people/shared/domain/utils";
-import {
-  buildPeopleTreePath,
-  type PeopleDetailTabValue,
-} from "@/modules/people/shared/domain/people-relation-routes";
-import { PeopleDetailContent } from "@/modules/people/shared/ui/people-detail-content";
+import { buildPeopleTreePath } from "@/modules/people/shared/domain/people-relation-routes";
 import { PersonAddressSection } from "@/modules/people/shared/ui/person-address-section";
 import { PersonFullRecordDialog } from "@/modules/people/shared/ui/people-detail-sidebar";
-import { PeopleDetailTabs } from "@/modules/people/shared/ui/people-detail-tabs";
 import { DetailIdentityMediaField } from "@/web-client/detail/DetailIdentityMediaField";
 import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
 import { areTagsEqual } from "@/web-client/detail/tag-utils";
@@ -84,8 +93,6 @@ export type PeopleDetailLayoutContext = DetailShellAuditContext & {
     field: K,
     nextValue?: PersonFormData[K],
   ) => void;
-  tabValue: PeopleDetailTabValue;
-  onTabChange: (value: PeopleDetailTabValue) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
   attachmentUploading: boolean;
@@ -120,13 +127,6 @@ function areMentionableUsersEqual(
       candidate?.avatarUrl === entry.avatarUrl
     );
   });
-}
-
-function getPersonStatusBadgeVariant(status?: string | null) {
-  if (status === "Ativo") return "default" as const;
-  if (status === "Desligado") return "destructive" as const;
-  if (status === "Inativo") return "secondary" as const;
-  return "outline" as const;
 }
 
 function IdentificationFields({
@@ -436,81 +436,11 @@ function BasicDataSection({
   );
 }
 
-function PeopleDetailMain({
-  mode,
-  person,
-  draft,
-  readOnly,
-  onDraftChange,
-  onCommitField,
-  tabValue,
-  onTabChange,
-}: {
-  mode: "create" | "edit";
-  person: Person;
-  draft: PersonFormData;
-  readOnly: boolean;
-  onDraftChange: React.Dispatch<React.SetStateAction<PersonFormData>>;
-  onCommitField?: <K extends keyof PersonFormData>(field: K, nextValue?: PersonFormData[K]) => void;
-  tabValue: PeopleDetailTabValue;
-  onTabChange: (value: PeopleDetailTabValue) => void;
-}) {
-  const unavailableBeforeSave = (
-    <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-      Disponível após salvar o cadastro.
-    </div>
-  );
-  return (
-    <FamilyRelationsProvider personId={person.id} initialMode="summary">
-      <Tabs
-        value={tabValue}
-        onValueChange={(value) => onTabChange(value as PeopleDetailTabValue)}
-        className="flex h-full flex-col gap-4"
-      >
-        <div className="shrink-0">
-          <PeopleDetailTabs onValueChange={onTabChange} />
-        </div>
-        <PeopleDetailContent
-          person={person}
-          basicDataSlot={
-            <BasicDataSection
-              draft={draft}
-              readOnly={readOnly}
-              onDraftChange={onDraftChange}
-              onCommitField={onCommitField}
-            />
-          }
-          contactsSlot={
-            mode === "edit" ? (
-              <PersonContactsPanel
-                personId={person.id}
-                seedEmail={person.email}
-                seedPhone={person.phone}
-                readOnly={readOnly}
-              />
-            ) : (
-              unavailableBeforeSave
-            )
-          }
-          addressSlot={
-            mode === "edit" ? (
-              <PersonAddressSection />
-            ) : (
-              unavailableBeforeSave
-            )
-          }
-          sensitiveDocumentsSlot={
-            mode === "edit" ? (
-              <PersonSensitiveDocumentsPanel personId={person.id} />
-            ) : (
-              unavailableBeforeSave
-            )
-          }
-        />
-      </Tabs>
-    </FamilyRelationsProvider>
-  );
-}
+const UNAVAILABLE_BEFORE_SAVE = (
+  <div className="border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
+    Disponível após salvar o cadastro.
+  </div>
+);
 
 function PeopleDetailSide({
   mode,
@@ -698,62 +628,109 @@ export const peopleDetailLayout: DetailLayoutConfig<PeopleDetailLayoutContext> =
         />
       </div>
     ),
-    slot: ({ person }) => {
-      const ageValue = getAgeFromBirthDate(person.birthDate);
-      return (
-        <div className="border-y border-border/60 bg-transparent px-0 py-3">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Status</div>
-              <Badge variant={getPersonStatusBadgeVariant(person.status)}>
-                {person.status ?? "Sem status"}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Tipo</div>
-              <div className="font-medium text-foreground">
-                {person.personType ? resolveLabel(person.personType, PERSON_TYPE_LABELS) : "Sem tipo"}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Nascimento</div>
-              <div className="font-medium text-foreground">
-                {formatDateOnlyPtBR(person.birthDate)}
-                {ageValue !== null ? ` (${ageValue} anos)` : ""}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Cadastro</div>
-              <div className="font-medium text-foreground">
-                {formatDateTimePtBR(person.createdAt)}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    },
   },
-  main: ({
-    mode,
-    person,
-    draft,
-    readOnly,
-    onDraftChange,
-    onCommitField,
-    tabValue,
-    onTabChange,
-  }) => (
-    <PeopleDetailMain
-      mode={mode}
-      person={person}
+  mainTab: { key: "dados-basicos", label: "Dados básicos", icon: <IdCard className="size-4" /> },
+  main: ({ draft, readOnly, onDraftChange, onCommitField }) => (
+    <BasicDataSection
       draft={draft}
       readOnly={readOnly}
       onDraftChange={onDraftChange}
       onCommitField={onCommitField}
-      tabValue={tabValue}
-      onTabChange={onTabChange}
     />
   ),
+  tabTemplates: [
+    {
+      key: "contatos",
+      label: "Contatos",
+      icon: <Phone className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person, readOnly }) =>
+        mode === "edit" ? (
+          <PersonContactsPanel
+            personId={person.id}
+            seedEmail={person.email}
+            seedPhone={person.phone}
+            readOnly={readOnly}
+          />
+        ) : (
+          UNAVAILABLE_BEFORE_SAVE
+        ),
+    },
+    {
+      key: "endereco",
+      label: "Endereço",
+      icon: <MapPin className="size-4" />,
+      content: ({ mode }) => (mode === "edit" ? <PersonAddressSection /> : UNAVAILABLE_BEFORE_SAVE),
+    },
+    {
+      key: "documentos",
+      label: "Documentos sensíveis",
+      icon: <FileLock2 className="size-4" />,
+      content: ({ mode, person }) =>
+        mode === "edit" ? (
+          <PersonSensitiveDocumentsPanel personId={person.id} />
+        ) : (
+          UNAVAILABLE_BEFORE_SAVE
+        ),
+    },
+    {
+      key: "familia",
+      label: "Família",
+      icon: <Users className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <FamilyRelationsPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "financeiro",
+      label: "Financeiro",
+      icon: <Wallet className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <PeopleFinancialRelationsPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "saude",
+      label: "Saúde",
+      icon: <HeartPulse className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <HealthConditionsPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "medicacoes",
+      label: "Medicação",
+      icon: <Pill className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <MedicationsPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "escolaridade",
+      label: "Escolaridade",
+      icon: <GraduationCap className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <EducationPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "reclusao",
+      label: "Reclusão",
+      icon: <Lock className="size-4" />,
+      flushContent: true,
+      content: ({ mode, person }) =>
+        mode === "edit" ? <DetentionsPanel personId={person.id} /> : UNAVAILABLE_BEFORE_SAVE,
+    },
+    {
+      key: "atendimentos",
+      label: "Atendimentos",
+      icon: <ClipboardList className="size-4" />,
+      disabled: true,
+      content: () => (
+        <div className="px-4 py-6 text-sm text-muted-foreground">Em breve.</div>
+      ),
+    },
+  ],
   side: ({
     mode,
     person,

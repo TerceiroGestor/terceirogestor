@@ -7,49 +7,39 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { resolveMediaUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import {
+  healthConditionSeverityOptions,
+  healthConditionTypeOptions,
+} from "@/modules/people/features/health-conditions/config/health-condition-form-config";
 import { useHealthConditions } from "@/modules/people/features/health-conditions/data/use-health-conditions";
+import { HealthConditionQuickCreateDialog } from "@/modules/people/features/health-conditions/ui/health-condition-quick-create-dialog";
 import { buildPeopleHealthConditionPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { HealthCondition } from "@/modules/people/shared/domain/types";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
-
-function truncate(value: string | null | undefined, size = 48) {
-  const text = (value ?? "").trim();
-  if (!text) return "-";
-  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
-}
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 export function HealthConditionsPanel({ personId }: { personId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const { conditions, isLoading, error, remove } = useHealthConditions(personId);
+  const { conditions, isLoading, error, create, remove } = useHealthConditions(personId);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<HealthCondition, unknown>[]>(
     () => [
       {
         accessorKey: "type",
         header: "Condicao",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{row.original.type}</span>
-        ),
       },
       {
         accessorKey: "description",
         header: "Descricao",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.description)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.description} className="text-sm" />,
       },
       {
         accessorKey: "severity",
         header: "Gravidade",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.severity, 24)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.severity} className="text-sm" />,
       },
       {
         accessorKey: "diagnosisDate",
@@ -63,18 +53,14 @@ export function HealthConditionsPanel({ personId }: { personId: string }) {
       {
         accessorKey: "notes",
         header: "Notas",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.notes)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.notes} className="text-sm" />,
       },
       {
         id: "document",
         header: "Documento",
         cell: ({ row }) =>
           !row.original.documentUrl ? (
-            <span className="block truncate whitespace-nowrap text-muted-foreground">-</span>
+            <span className="text-muted-foreground">-</span>
           ) : (
             <a
               href={resolveMediaUrl(row.original.documentUrl)}
@@ -118,38 +104,42 @@ export function HealthConditionsPanel({ personId }: { personId: string }) {
   }, []);
 
   return (
-    <DetailRelationTablePanel
-      data={conditions}
-      columns={columns}
-      getRowId={(row) => row.id}
-      onRowClick={(row) =>
-        router.push(
-          withTenantPath(buildPeopleHealthConditionPath(personId, row.id), tenantSlug),
-        )
-      }
-      searchPlaceholder="Pesquisar condicoes"
-      filterRow={filterRow}
-      addHref={withTenantPath(buildPeopleHealthConditionPath(personId), tenantSlug)}
-      loading={isLoading}
-      error={error}
-      emptyMessage="Nenhuma condicao cadastrada."
-      tableMinWidthClassName="min-w-[1080px]"
-      tableInitialColumnPinning={{ right: ["actions"] }}
-      filterFields={[
-        { name: "condicao", label: "Condicao", type: "text" },
-        { name: "descricao", label: "Descricao", type: "text" },
-        { name: "gravidade", label: "Gravidade", type: "text" },
-        { name: "diagnostico", label: "Diagnostico", type: "date" },
-        { name: "notas", label: "Notas", type: "text" },
-      ]}
-      buildSearchRecord={(row) => ({
-        condicao: row.type,
-        descricao: row.description ?? null,
-        gravidade: row.severity ?? null,
-        diagnostico: row.diagnosisDate ?? null,
-        notas: row.notes ?? null,
-      })}
-      searchActionId="people.health-conditions"
-    />
+    <>
+      <DetailRelationTablePanel
+        data={conditions}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={(row) =>
+          router.push(
+            withTenantPath(buildPeopleHealthConditionPath(personId, row.id), tenantSlug),
+          )
+        }
+        searchPlaceholder="Pesquisar condicoes"
+        filterRow={filterRow}
+        onAdd={() => setCreateOpen(true)}
+        loading={isLoading}
+        error={error}
+        emptyMessage="Nenhuma condicao cadastrada."
+        tableInitialColumnPinning={{ left: ["type"], right: ["actions"] }}
+        filterFields={[
+          { name: "condicao", label: "Condicao", type: "select", options: healthConditionTypeOptions },
+          { name: "gravidade", label: "Gravidade", type: "select", options: healthConditionSeverityOptions },
+          { name: "diagnostico", label: "Diagnostico", type: "date" },
+        ]}
+        buildSearchRecord={(row) => ({
+          condicao: row.type,
+          gravidade: row.severity ?? null,
+          diagnostico: row.diagnosisDate ?? null,
+        })}
+        searchActionId="people.health-conditions"
+      />
+      <HealthConditionQuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={async (payload) => {
+          await create({ type: payload.type, severity: payload.severity ?? null });
+        }}
+      />
+    </>
   );
 }

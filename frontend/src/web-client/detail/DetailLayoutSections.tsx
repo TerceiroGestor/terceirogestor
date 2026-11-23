@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListChecks, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListChecks, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -437,14 +437,102 @@ export function DetailHeaderActionsRenderer<
   );
 }
 
+/**
+ * Faixa de abas com scroll horizontal + setas quando nao cabem todas na
+ * largura disponivel (ex.: People, 11 abas) - sem isso, muitas abas
+ * quebrariam linha (`flex-wrap`) ou estourariam a largura do container.
+ * Extraido do componente proprio que so People tinha
+ * (`people-detail-tabs.tsx`) pra virar parte do motor generico de abas -
+ * todo modulo com abas suficientes ganha o mesmo scroll+setas de graca.
+ */
+function ScrollableTabsRow({ children }: { children: React.ReactNode }) {
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const updateScrollState = React.useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const remaining = element.scrollWidth - element.clientWidth - element.scrollLeft;
+    setCanScrollLeft(element.scrollLeft > 12);
+    setCanScrollRight(remaining > 12);
+  }, []);
+
+  React.useEffect(() => {
+    updateScrollState();
+    const element = scrollRef.current;
+    if (!element) return;
+    const handle = () => updateScrollState();
+    element.addEventListener("scroll", handle, { passive: true });
+    window.addEventListener("resize", handle);
+    return () => {
+      element.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [updateScrollState]);
+
+  const scrollBy = React.useCallback((direction: "left" | "right") => {
+    scrollRef.current?.scrollBy({
+      left: direction === "right" ? 220 : -220,
+      behavior: "smooth",
+    });
+  }, []);
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        className={cn(
+          "overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          canScrollLeft && "pl-9",
+          canScrollRight && "pr-9",
+        )}
+      >
+        {children}
+      </div>
+      {canScrollLeft ? (
+        <button
+          type="button"
+          onClick={() => scrollBy("left")}
+          className="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-sm transition hover:text-foreground"
+          aria-label="Ver abas anteriores"
+          title="Ver abas anteriores"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      ) : null}
+      {canScrollRight ? (
+        <button
+          type="button"
+          onClick={() => scrollBy("right")}
+          className="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-sm transition hover:text-foreground"
+          aria-label="Ver mais abas"
+          title="Ver mais abas"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function DetailTabsRenderer<
   TContext extends Record<string, unknown>,
 >({
   tabs,
   context,
+  value,
+  onValueChange,
 }: {
   tabs: DetailTabTemplate<TContext>[];
   context: TContext;
+  /**
+   * Controla a aba ativa de fora (ex.: People sincroniza com `?tab=` na
+   * URL) - omitir os dois deixa `Tabs` descontrolado (`defaultValue`),
+   * comportamento padrão de todo módulo que não precisa disso.
+   */
+  value?: string;
+  onValueChange?: (key: string) => void;
 }) {
   const visibleTabs = React.useMemo(
     () => tabs.filter((tab) => (tab.visible ? tab.visible(context) : true)),
@@ -454,11 +542,15 @@ export function DetailTabsRenderer<
 
   if (!defaultTab) return null;
 
+  const tabsProps =
+    value !== undefined && onValueChange
+      ? { value, onValueChange }
+      : { defaultValue: defaultTab };
+
   return (
-    <Tabs defaultValue={defaultTab} className="flex h-full min-h-0 flex-col">
-      <TabsList
+    <Tabs {...tabsProps} className="flex h-full min-h-0 flex-col">
+      <div
         className={cn(
-          MODULE_TABS_LIST_CLASS_NAME,
           // O container pai (DetailShell.tsx) nao tem mais padding
           // horizontal proprio - cada bloco (header/abas/relation) cuida
           // do seu px-4 sozinho, sem depender/cancelar padding do pai.
@@ -466,28 +558,34 @@ export function DetailTabsRenderer<
           // imediato em DetailShell.tsx ("lg:min-h-0 lg:flex-1 lg:pr-2") -
           // sem isso a faixa bg-toolbar fica 8px curta da borda direita
           // real em telas >=lg. Se esse pr-2 mudar, ajustar aqui junto.
-          "sticky top-0 z-10 w-auto gap-0 bg-toolbar px-4 lg:-mr-2",
+          "sticky top-0 z-10 bg-toolbar px-4 pt-1 lg:-mr-2",
         )}
       >
-        {visibleTabs.map((tab) => (
-          <TabsTrigger
-            key={tab.key}
-            value={tab.key}
-            className={cn(
-              MODULE_TAB_TRIGGER_CLASS_NAME,
-              "relative rounded-none data-[state=inactive]:hover:bg-background/80",
-              "after:absolute after:right-0 after:top-1/2 after:h-1/2 after:w-[2px] after:-translate-y-1/2 after:bg-blue-300 after:content-['']",
-            )}
-          >
-            <span>{tab.label}</span>
-            {tab.badge ? (
-              <span className="ml-2 text-[11px] font-medium tabular-nums text-blue-600">
-                {tab.badge(context)}
-              </span>
-            ) : null}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+        <ScrollableTabsRow>
+          <TabsList className={MODULE_TABS_LIST_CLASS_NAME}>
+            {visibleTabs.map((tab) => {
+              const isDisabled =
+                typeof tab.disabled === "function" ? tab.disabled(context) : Boolean(tab.disabled);
+              return (
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  disabled={isDisabled}
+                  className={MODULE_TAB_TRIGGER_CLASS_NAME}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {tab.badge ? (
+                    <span className="text-[11px] font-medium tabular-nums text-blue-600">
+                      {tab.badge(context)}
+                    </span>
+                  ) : null}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </ScrollableTabsRow>
+      </div>
 
       {visibleTabs.map((tab) => {
         const hasRelations = Boolean(tab.relations?.length);
@@ -500,20 +598,25 @@ export function DetailTabsRenderer<
             value={tab.key}
             className={cn(
               "min-h-0 flex-1",
-              // overflow-hidden quebra position:sticky dos descendentes
-              // (CSS: sticky nao funciona se algum ancestral entre o
-              // elemento e o scroll container tiver overflow != visible)
-              // - abas flushContent (ex.: Encontros) precisam do toolbar
-              // sticky, entao ficam sem overflow-hidden aqui.
-              tab.flushContent ? "mt-0 overflow-visible" : "mt-4 overflow-hidden px-4",
+              // Antes (sticky-contra-ancestral) abas flushContent (ex.:
+              // Despensa/Deposito, Encontros) ficavam sem overflow-hidden
+              // aqui pra nao quebrar o sticky do toolbar/cabecalho, que
+              // dependia de um ancestral sem overflow proprio pra rolar. A
+              // relation agora e seu proprio container de scroll
+              // (RelationListHost.tsx + ListView.tsx, overflow-auto) -
+              // overflow-hidden aqui so delimita a altura (flex-1/min-h-0)
+              // sem vazar scroll pra tela inteira (achado em 2026-11-22).
+              tab.flushContent ? "mt-0 overflow-hidden" : "mt-4 overflow-hidden px-4",
             )}
           >
             <div className="flex h-full min-h-0 flex-col space-y-4">
               {hasVisibleContent ? (
                 <div
                   className={cn(
-                    "lg:min-h-0 lg:shrink-0",
-                    tab.flushContent ? "lg:overflow-visible" : "lg:overflow-y-auto",
+                    "lg:min-h-0",
+                    tab.flushContent
+                      ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+                      : "lg:shrink-0 lg:overflow-y-auto",
                   )}
                 >
                   {content}

@@ -741,7 +741,15 @@ export type DetailTabTemplate<
 > = {
   key: string;
   label: string;
+  /** Icone (ex.: `<Phone className="size-4" />`) antes do label na aba. */
+  icon?: React.ReactNode;
   visible?: (context: TContext) => boolean;
+  /**
+   * Aba visivel mas sem clique (ex.: "Atendimentos" do People, modulo
+   * ainda nao ligado) - diferente de `visible: false`, que nem renderiza
+   * a aba. Aceita booleano fixo ou função do contexto.
+   */
+  disabled?: boolean | ((context: TContext) => boolean);
   badge?: (context: TContext) => React.ReactNode;
   content?: (context: TContext) => React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -776,7 +784,7 @@ export type DetailLayoutConfig<
    * `true` usa key="details"/label="Detalhes"; passe um objeto pra
    * customizar. Reutilizável por qualquer módulo que queira esse modo.
    */
-  mainTab?: boolean | { key: string; label: string };
+  mainTab?: boolean | { key: string; label: string; icon?: React.ReactNode };
   tabs?: (context: TContext) => React.ReactNode;
   tabTemplates?: DetailTabTemplate<TContext>[];
   bottom?: (context: TContext) => React.ReactNode;

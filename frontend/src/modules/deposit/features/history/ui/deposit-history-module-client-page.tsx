@@ -46,6 +46,7 @@ import {
 } from "@/web-client/registry/module-utils";
 import { useModuleQueryState } from "@/web-client/screen/useModuleQueryState";
 import { PaginationBar } from "@/web-client/ui/PaginationBar";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 import { CalendarView } from "@/web-client/views/CalendarView";
 import {
   buildGraphViewModel,
@@ -591,9 +592,7 @@ export function DepositHistoryModuleClientPage() {
         accessorKey: "notes",
         header: "Notas",
         cell: ({ row }) => (
-          <div className="max-w-[340px] truncate text-xs text-muted-foreground">
-            {row.original.notes ?? ""}
-          </div>
+          <TruncatedTextCell text={row.original.notes} className="text-xs text-muted-foreground" />
         ),
       },
     ],

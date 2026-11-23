@@ -8,7 +8,6 @@ export type ApiPantryItem = {
   defaultSector: string;
   unit: string;
   minStock: number;
-  notes: string | null;
   tags: string[];
   internalNotes: string | null;
   stock: number;
@@ -58,7 +57,6 @@ export type PantryItemInput = {
   defaultSector?: string;
   unit: string;
   minStock: number;
-  notes?: string | null;
   tags?: string[];
   internalNotes?: string | null;
 };

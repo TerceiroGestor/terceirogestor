@@ -21,6 +21,7 @@ import {
   type ApiPerson,
 } from "@/modules/people/api";
 import { getPersonRelations } from "@/modules/people/api/relations";
+import { FamilyRelationsProvider } from "@/modules/people/features/family-members/context/family-relations-context";
 import {
   peopleDetailModuleDefinition,
   PEOPLE_ROUTES,
@@ -656,8 +657,6 @@ export function PeopleDetailEngineClientPage({
                 : undefined,
           onDraftChange: handleDraftChange,
           onCommitField: handleCommitField,
-          tabValue,
-          onTabChange: handleTabChange,
           auditVisibleCount,
           onAuditVisibleCountChange: setAuditVisibleCount,
           attachmentUploading,
@@ -686,9 +685,7 @@ export function PeopleDetailEngineClientPage({
       handleAvatarUpdate,
       handleDraftChange,
       handleCommitField,
-      tabValue,
       auditVisibleCount,
-      handleTabChange,
       attachmentUploading,
       handleDeleteAttachment,
     ],
@@ -734,24 +731,30 @@ export function PeopleDetailEngineClientPage({
         <div className="px-4 pt-4 text-sm text-destructive">{error}</div>
       ) : null}
 
-      <DetailShellEngine<PeopleDetailLayoutContext>
-        moduleDefinition={peopleDetailModuleDefinition}
-        context={context}
-        dataProvider={dataProvider}
-        auditEnabled={mode === "edit" && canAudit}
-        mode={mode}
-        headerTitle={displayNames.primary}
-        saving={saving || avatarUploading || attachmentUploading}
-        loading={loading}
-        readOnly={context.readOnly}
-        onSave={mode === "create" ? handleCreate : undefined}
-        onClose={backToList}
-        breadcrumbTitle={displayNames.primary}
-        breadcrumbItems={[
-          { label: "Pessoas", href: PEOPLE_ROUTES.list },
-          ...(mode === "edit" ? [{ label: displayNames.primary }] : []),
-        ]}
-      />
+      <FamilyRelationsProvider personId={person.id} initialMode="summary">
+        <DetailShellEngine<PeopleDetailLayoutContext>
+          moduleDefinition={peopleDetailModuleDefinition}
+          context={context}
+          dataProvider={dataProvider}
+          auditEnabled={mode === "edit" && canAudit}
+          mode={mode}
+          headerTitle={displayNames.primary}
+          saving={saving || avatarUploading || attachmentUploading}
+          loading={loading}
+          readOnly={context.readOnly}
+          onSave={mode === "create" ? handleCreate : undefined}
+          onClose={backToList}
+          breadcrumbTitle={displayNames.primary}
+          breadcrumbItems={[
+            { label: "Pessoas", href: PEOPLE_ROUTES.list },
+            ...(mode === "edit" ? [{ label: displayNames.primary }] : []),
+          ]}
+          activeTab={tabValue}
+          onActiveTabChange={(key) =>
+            handleTabChange(isPeopleDetailTabValue(key) ? key : "dados-basicos")
+          }
+        />
+      </FamilyRelationsProvider>
     </>
   );
 }

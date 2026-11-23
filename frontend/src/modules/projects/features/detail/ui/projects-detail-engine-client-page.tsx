@@ -25,6 +25,7 @@ import {
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
 import { BulkEnrollmentDialog } from "@/modules/projects/features/detail/ui/bulk-enrollment-dialog";
+import { ProjectActionQuickCreateDialog } from "@/modules/projects/features/detail/ui/project-action-quick-create-dialog";
 import { ProjectPeopleGroupPickerDialog } from "@/modules/projects/features/detail/ui/project-people-group-picker-dialog";
 import { ProjectEnrollmentManageDialog } from "@/modules/projects/features/detail/ui/project-enrollment-manage-dialog";
 import type { ApiPeopleGroup } from "@/modules/people-groups/api";
@@ -37,7 +38,7 @@ import {
   projectsDetailModuleDefinition,
   PROJECTS_ROUTES,
 } from "@/modules/projects/config/projects-module-contract";
-import { listActivities, type ApiActivity } from "@/modules/actions/api";
+import { createActivity, listActivities, type ApiActivity } from "@/modules/actions/api";
 import { createRestDataProvider } from "@/web-client/data-provider";
 import { DetailShellEngine } from "@/web-client/detail/DetailShellEngine";
 import {
@@ -134,9 +135,8 @@ export function ProjectsDetailEngineClientPage() {
   const [editingEnrollment, setEditingEnrollment] =
     React.useState<ApiProjectEnrollment | null>(null);
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = React.useState(false);
-  const [peopleGroupPickerPurpose, setPeopleGroupPickerPurpose] = React.useState<
-    "PUBLICO" | "EQUIPE" | null
-  >(null);
+  const [peopleGroupPickerOpen, setPeopleGroupPickerOpen] = React.useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = React.useState(false);
 
   const buildProjectDetailHref = React.useCallback(
     (options?: { enrollmentId?: string | null }) => {
@@ -464,18 +464,13 @@ export function ProjectsDetailEngineClientPage() {
   }, []);
 
   const handleCreatePublicPeopleGroup = React.useCallback(() => {
-    setPeopleGroupPickerPurpose("PUBLICO");
-  }, []);
-
-  const handleCreateTeamPeopleGroup = React.useCallback(() => {
-    setPeopleGroupPickerPurpose("EQUIPE");
+    setPeopleGroupPickerOpen(true);
   }, []);
 
   const handlePickPeopleGroup = React.useCallback(
     async (peopleGroups: ApiPeopleGroup[]) => {
-      if (!token || !id || !peopleGroupPickerPurpose || peopleGroups.length === 0) return;
+      if (!token || !id || peopleGroups.length === 0) return;
 
-      const participationKind = peopleGroupPickerPurpose === "EQUIPE" ? "TEAM" : "PARTICIPANT";
       let created = 0;
       let alreadyLinked = 0;
       let failed = 0;
@@ -486,7 +481,7 @@ export function ProjectsDetailEngineClientPage() {
           try {
             await createProjectPeopleGroup(token, id, {
               peopleGroupId: peopleGroup.id,
-              participationKind,
+              participationKind: "PARTICIPANT",
             });
             created += 1;
           } catch (error) {
@@ -505,7 +500,7 @@ export function ProjectsDetailEngineClientPage() {
       );
 
       if (created > 0 || alreadyLinked > 0) {
-        setPeopleGroupPickerPurpose(null);
+        setPeopleGroupPickerOpen(false);
         await loadRelations();
       }
 
@@ -519,26 +514,36 @@ export function ProjectsDetailEngineClientPage() {
       }
 
       toast({
-        title:
-          peopleGroupPickerPurpose === "EQUIPE"
-            ? "Grupos de Equipe adicionado"
-            : "Grupos adicionado",
+        title: "Grupos adicionado",
         description:
           peopleGroups.length > 1
             ? `Vinculados: ${created} • Ja vinculados: ${alreadyLinked}`
             : undefined,
       });
     },
-    [id, loadRelations, peopleGroupPickerPurpose, toast, token],
+    [id, loadRelations, toast, token],
+  );
+
+  const handleSubmitCreateAction = React.useCallback(
+    async ({ title, actionTypeId }: { title: string; actionTypeId: string }) => {
+      if (!token || !id) return;
+      try {
+        await createActivity(token, id, { title, actionTypeId });
+        toast({ title: "Atividade criada" });
+        await loadRelations();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao criar atividade.";
+        toast({ variant: "destructive", title: "Falha ao criar", description: message });
+      }
+    },
+    [id, loadRelations, toast, token],
   );
 
   const publicPeopleGroupRows = React.useMemo(
     () => peopleGroupRows.filter((row) => row.participationKind === "PARTICIPANT"),
-    [peopleGroupRows],
-  );
-
-  const teamPeopleGroupRows = React.useMemo(
-    () => peopleGroupRows.filter((row) => row.participationKind === "TEAM"),
     [peopleGroupRows],
   );
 
@@ -629,7 +634,6 @@ export function ProjectsDetailEngineClientPage() {
       })),
       selectedProgram,
       publicPeopleGroupRows,
-      teamPeopleGroupRows,
       enrollmentRows,
       actionRows,
       relationsLoading,
@@ -661,7 +665,6 @@ export function ProjectsDetailEngineClientPage() {
           ),
         ),
       onCreatePublicPeopleGroup: handleCreatePublicPeopleGroup,
-      onCreateTeamPeopleGroup: handleCreateTeamPeopleGroup,
       onSyncPeopleGroup: handleSyncPeopleGroup,
       onOpenEnrollment: (enrollmentId) =>
         router.push(buildProjectDetailHref({ enrollmentId })),
@@ -674,13 +677,7 @@ export function ProjectsDetailEngineClientPage() {
             tenantSlug,
           ),
         ),
-      onCreateAction: () =>
-        router.push(
-          withTenantPath(
-            `/actions/new?projectId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(pathname)}`,
-            tenantSlug,
-          ),
-        ),
+      onCreateAction: () => setActionDialogOpen(true),
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
     }),
@@ -710,7 +707,6 @@ export function ProjectsDetailEngineClientPage() {
       handleDeleteComment,
       handleCreateEnrollment,
       handleCreatePublicPeopleGroup,
-      handleCreateTeamPeopleGroup,
       buildProjectDetailHref,
       handleEndEnrollment,
       handleSyncPeopleGroup,
@@ -719,7 +715,6 @@ export function ProjectsDetailEngineClientPage() {
       publicPeopleGroupRows,
       router,
       selectedProgram,
-      teamPeopleGroupRows,
       tenantSlug,
     ],
   );
@@ -779,15 +774,20 @@ export function ProjectsDetailEngineClientPage() {
           onCompleted={loadRelations}
         />
       ) : null}
-      {mode === "edit" && token && peopleGroupPickerPurpose ? (
+      {mode === "edit" && token && peopleGroupPickerOpen ? (
         <ProjectPeopleGroupPickerDialog
-          open={Boolean(peopleGroupPickerPurpose)}
-          onOpenChange={(open) => {
-            if (!open) setPeopleGroupPickerPurpose(null);
-          }}
+          open={peopleGroupPickerOpen}
+          onOpenChange={setPeopleGroupPickerOpen}
           token={token}
-          purpose={peopleGroupPickerPurpose}
           onPick={handlePickPeopleGroup}
+        />
+      ) : null}
+      {mode === "edit" && token ? (
+        <ProjectActionQuickCreateDialog
+          open={actionDialogOpen}
+          onOpenChange={setActionDialogOpen}
+          token={token}
+          onSubmit={handleSubmitCreateAction}
         />
       ) : null}
     </>

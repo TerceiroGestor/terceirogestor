@@ -10,10 +10,12 @@ import { Button } from "@/components/ui/button";
 import { resolveMediaUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { useFamilyRelationsContext } from "@/modules/people/features/family-members/context/family-relations-context";
+import { FamilyRelationQuickCreateDialog } from "@/modules/people/features/family-members/ui/family-relation-quick-create-dialog";
 import { buildPeopleFamilyRelationPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { HouseholdMember, PersonRelation } from "@/modules/people/shared/domain/types";
 import { getInitials } from "@/modules/people/shared/domain/utils";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 type FamilyRelationRow = {
   id: string;
@@ -21,25 +23,22 @@ type FamilyRelationRow = {
   householdMember?: HouseholdMember | null;
 };
 
-function truncate(value: string | null | undefined, size = 40) {
-  const text = (value ?? "").trim();
-  if (!text) return "-";
-  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
-}
-
 export function FamilyRelationsPanel({ personId }: { personId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
   const {
     data,
+    peopleOptions,
     incomeSummary,
     detailedLoading,
     detailedError,
+    create,
     remove,
     refresh,
     loadDetailed,
   } = useFamilyRelationsContext();
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!data) {
@@ -102,9 +101,7 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
       {
         accessorFn: (row) => row.relation.type,
         header: "Vinculo",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{row.original.relation.type}</span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.relation.type} className="text-sm" />,
       },
       {
         id: "household",
@@ -119,9 +116,7 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
         id: "role",
         header: "Papel",
         cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.householdMember?.role ?? null, 24)}
-          </span>
+          <TruncatedTextCell text={row.original.householdMember?.role ?? null} className="text-sm" />
         ),
       },
       {
@@ -140,21 +135,13 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
                 : null,
           ].filter(Boolean);
 
-          return (
-            <span className="block truncate whitespace-nowrap">
-              {labels.length ? labels.join(" | ") : "-"}
-            </span>
-          );
+          return <TruncatedTextCell text={labels.length ? labels.join(" | ") : null} className="text-sm" />;
         },
       },
       {
         accessorFn: (row) => row.relation.notes,
         header: "Notas",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.relation.notes)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.relation.notes} className="text-sm" />,
       },
       {
         id: "actions",
@@ -194,55 +181,45 @@ export function FamilyRelationsPanel({ personId }: { personId: string }) {
   }, []);
 
   return (
-    <DetailRelationTablePanel
-      data={rows}
-      columns={columns}
-      getRowId={(row) => row.id}
-      onRowClick={(row) =>
-        router.push(
-          withTenantPath(
-            buildPeopleFamilyRelationPath(personId, row.relation.id),
-            tenantSlug,
-          ),
-        )
-      }
-      searchPlaceholder="Pesquisar familiares"
-      filterRow={filterRow}
-      addHref={withTenantPath(buildPeopleFamilyRelationPath(personId), tenantSlug)}
-      loading={detailedLoading}
-      error={detailedError}
-      emptyMessage="Nenhum vinculo familiar cadastrado."
-      tableMinWidthClassName="min-w-[1180px]"
-      tableInitialColumnPinning={{ right: ["actions"] }}
-      filterFields={[
-        { name: "familiar", label: "Familiar", type: "text" },
-        { name: "vinculo", label: "Vinculo", type: "text" },
-        { name: "convive", label: "Convive", type: "text" },
-        { name: "papel", label: "Papel", type: "text" },
-        { name: "indicadores", label: "Indicadores", type: "text" },
-        { name: "notas", label: "Notas", type: "text" },
-      ]}
-      buildSearchRecord={(row) => ({
-        familiar: row.relation.relatedPerson.fullName,
-        vinculo: row.relation.type,
-        convive: row.relation.livesTogether ? "Mora junto" : "Separado",
-        papel: row.householdMember?.role ?? null,
-        indicadores: [
-          row.relation.isLegalGuardian ? "Responsavel legal" : null,
-          row.householdMember?.isHouseholdHead ? "Principal" : null,
-          row.householdMember?.isProvider ? "Provedor" : null,
-          row.householdMember?.isDependent ? "Dependente" : null,
-          contributionByPersonId.get(row.relation.relatedPersonId)
-            ? "Contribui renda"
-            : row.householdMember?.isIncomeContributor
-              ? "Contribui renda"
-              : null,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-        notas: row.relation.notes ?? null,
-      })}
-      searchActionId="people.family-relations"
-    />
+    <>
+      <DetailRelationTablePanel
+        data={rows}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={(row) =>
+          router.push(
+            withTenantPath(
+              buildPeopleFamilyRelationPath(personId, row.relation.id),
+              tenantSlug,
+            ),
+          )
+        }
+        searchPlaceholder="Pesquisar familiares"
+        filterRow={filterRow}
+        onAdd={() => setCreateOpen(true)}
+        loading={detailedLoading}
+        error={detailedError}
+        emptyMessage="Nenhum vinculo familiar cadastrado."
+        tableInitialColumnPinning={{ left: ["person"], right: ["actions"] }}
+        filterFields={[
+          { name: "vinculo", label: "Vinculo", type: "text" },
+          { name: "convive", label: "Convive", type: "text" },
+        ]}
+        buildSearchRecord={(row) => ({
+          vinculo: row.relation.type,
+          convive: row.relation.livesTogether ? "Mora junto" : "Separado",
+        })}
+        searchActionId="people.family-relations"
+      />
+      <FamilyRelationQuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        peopleOptions={peopleOptions}
+        onSubmit={async (payload) => {
+          await create({ relatedPersonId: payload.relatedPersonId, type: payload.type });
+          await refresh();
+        }}
+      />
+    </>
   );
 }

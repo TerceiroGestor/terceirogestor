@@ -346,6 +346,7 @@ function TaskDetailSide({
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit={canAudit}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: task.comments,
         draft: commentDraft,
@@ -438,46 +439,8 @@ export const tasksDetailLayout: DetailLayoutConfig<TasksDetailLayoutContext> = {
   editing: AUTO_SAVE_EDITING,
   header: {
     title: ({ task }) => task.title,
-    slot: ({ task }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div className="font-medium text-foreground">{task.status}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Prioridade</div>
-            <div className="font-medium text-foreground">{task.priority}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Prazo</div>
-            <Badge
-              className={cn(
-                "rounded-full px-2 text-[10px]",
-                TASK_DUE_STATE_BADGE_CLASSNAMES[task.dueState],
-              )}
-            >
-              {task.dueState}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Entrega</div>
-            <div className="font-medium text-foreground">{task.dueDate ?? "-"}</div>
-          </div>
-          {task.isMilestone ? (
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground">Marco</div>
-              <div className="font-medium text-foreground">Sim</div>
-            </div>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Atualizado</div>
-            <div className="font-medium text-foreground">{task.updatedAt.slice(0, 10)}</div>
-          </div>
-        </div>
-      </div>
-    ),
   },
+  mainTab: true,
   main: ({
     draft,
     assignableUsers,

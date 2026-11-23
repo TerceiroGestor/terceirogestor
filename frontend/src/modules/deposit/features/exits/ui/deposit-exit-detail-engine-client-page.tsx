@@ -9,7 +9,6 @@ import {
 } from "next/navigation";
 import { useRegisterUsageDocumentation } from "@/components/UsageDocumentation/UsageDocumentationProvider";
 import { buildUsageDocumentationItems } from "@/components/UsageDocumentation/usage-documentation.helpers";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useConfirm } from "@/components/confirm/use-confirm";
 import { useAuth } from "@/features/auth/auth-context";
 import { useMentionableUsers } from "@/features/auth/use-mentionable-users";
 import { useCurrentUser } from "@/features/auth/current-user-context";
@@ -81,7 +79,6 @@ function draftFromExit(exit: ApiDepositExit): DepositExitDraft {
     returnedAt: exit.returnedAt ? String(exit.returnedAt).slice(0, 10) : "",
     returnedQuantity: Number(exit.returnedQuantity ?? 0),
     returnNotes: exit.returnNotes ?? "",
-    notes: exit.notes ?? "",
   };
 }
 
@@ -101,7 +98,6 @@ export function DepositExitDetailEngineClientPage({
   const { permissions } = useCurrentUser();
   const { users: mentionableUsers } = useMentionableUsers("deposit.read");
   const { toast } = useToast();
-  const { confirm } = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -120,11 +116,6 @@ export function DepositExitDetailEngineClientPage({
   const canUpdate = canUseModuleAction(
     depositExitDetailModuleDefinition,
     "edit",
-    permissions,
-  );
-  const canDeleteAction = canUseModuleAction(
-    depositExitDetailModuleDefinition,
-    "delete",
     permissions,
   );
 
@@ -155,7 +146,6 @@ export function DepositExitDetailEngineClientPage({
     returnedAt: "",
     returnedQuantity: 0,
     returnNotes: "",
-    notes: "",
   });
   const [loading, setLoading] = React.useState(mode === "edit");
   const [busy, setBusy] = React.useState(false);
@@ -201,7 +191,6 @@ export function DepositExitDetailEngineClientPage({
         returnedAt: nextDraft.returnedAt.trim() ? nextDraft.returnedAt.trim() : null,
         returnedQuantity: nextDraft.returnedQuantity > 0 ? Number(nextDraft.returnedQuantity) : null,
         returnNotes: normalizeStringOrNull(nextDraft.returnNotes),
-        notes: normalizeStringOrNull(nextDraft.notes),
       });
       const savedDraft = draftFromExit(updated);
       setExit(updated);
@@ -261,13 +250,6 @@ export function DepositExitDetailEngineClientPage({
     router.push(withTenantPath(DEPOSIT_ROUTES.stock, tenantSlug));
   }, [exit?.itemId, itemIdFromQuery, mode, returnTo, router, tenantSlug]);
 
-  const openEntryDetail = React.useCallback(
-    (entryId: string) => {
-      const href = withTenantPath(`${DEPOSIT_ROUTES.entries}/${entryId}`, tenantSlug);
-      router.push(`${href}?returnTo=${encodeURIComponent(pathname)}`);
-    },
-    [pathname, router, tenantSlug],
-  );
 
   const loadItem = React.useCallback(async () => {
     if (!enabled || mode !== "create" || !itemIdFromQuery) {
@@ -455,7 +437,6 @@ export function DepositExitDetailEngineClientPage({
         returnedAt: draft.returnedAt.trim() ? draft.returnedAt.trim() : null,
         returnedQuantity: draft.returnedQuantity > 0 ? Number(draft.returnedQuantity) : null,
         returnNotes: draft.returnNotes.trim() ? draft.returnNotes.trim() : null,
-        notes: draft.notes.trim() ? draft.notes.trim() : null,
         tags,
         internalNotes,
       });
@@ -520,39 +501,6 @@ export function DepositExitDetailEngineClientPage({
     }
   }, [commitField, loadSectors, mode, newSectorName, toast, token]);
 
-  const handleDelete = React.useCallback(async () => {
-    if (!exit || !canDeleteAction) return;
-
-    const confirmed = await confirm({
-      title: "Excluir saída?",
-      description: "Esta ação não pode ser desfeita.",
-      confirmLabel: "Excluir",
-      confirmVariant: "destructive",
-    });
-
-    if (!confirmed) return;
-
-    setBusy(true);
-    try {
-      await dataProvider.delete("deposit.exits", exit.id);
-      toast({ variant: "success", title: "Saída excluída" });
-      close();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao excluir saída.";
-
-      toast({
-        variant: "destructive",
-        title: "Falha ao excluir",
-        description: message,
-      });
-    } finally {
-      setBusy(false);
-    }
-  }, [canDeleteAction, close, confirm, dataProvider, exit, toast]);
-
   const donorNameById = React.useMemo<Record<string, string>>(
     () =>
       Object.fromEntries(
@@ -566,11 +514,6 @@ export function DepositExitDetailEngineClientPage({
 
   const entryLabelById = React.useMemo<Record<string, string>>(
     () => Object.fromEntries(entries.map((entry) => [entry.id, buildDepositEntryAuditLabel(entry)])),
-    [entries],
-  );
-
-  const entryById = React.useMemo<Record<string, ApiDepositEntry>>(
-    () => Object.fromEntries(entries.map((entry) => [entry.id, entry])),
     [entries],
   );
 
@@ -696,7 +639,6 @@ export function DepositExitDetailEngineClientPage({
       sectorOptions,
       donorNameById,
       entryLabelById,
-      entryById,
       onCommitField: (key) => {
         void commitField(key);
       },
@@ -706,8 +648,6 @@ export function DepositExitDetailEngineClientPage({
         }
       },
       onOpenNewSector: () => setNewSectorOpen(true),
-      onOpenEntry: openEntryDetail,
-      onDelete: handleDelete,
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
       mentionableUsers,
@@ -740,16 +680,13 @@ export function DepositExitDetailEngineClientPage({
       draft,
       entries,
       entriesLoading,
-      entryById,
       entryLabelById,
       entryLocked,
       exit,
       historyItems,
-      handleDelete,
       internalNotes,
       mentionableUsers,
       mode,
-      openEntryDetail,
       persistMetadata,
       readOnly,
       saving,
@@ -798,20 +735,6 @@ export function DepositExitDetailEngineClientPage({
               : []),
           ...(mode === "edit" ? [{ label: "Saida" }] : []),
         ]}
-        headerActionsSlot={
-          mode === "edit" && canDeleteAction ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={saving}
-            >
-              <Trash2 className="mr-1 size-4" />
-              Excluir
-            </Button>
-          ) : null
-        }
       />
 
       <Dialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>

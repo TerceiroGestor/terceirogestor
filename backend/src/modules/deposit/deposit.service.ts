@@ -232,7 +232,6 @@ export class DepositService {
       defaultSector: string;
       unit: string;
       minStock: Prisma.Decimal | number;
-      notes: string | null;
       tags?: string | null;
       internalNotes?: string | null;
       createdAt: Date;
@@ -269,7 +268,6 @@ export class DepositService {
       defaultSector: normalizeSector(item.defaultSector),
       unit: item.unit,
       minStock: toNumber(item.minStock),
-      notes: item.notes ?? null,
       tags: parseTags(item.tags),
       internalNotes: item.internalNotes ?? null,
       createdAt: item.createdAt,
@@ -379,7 +377,6 @@ export class DepositService {
       unit: string;
       entryDate: Date;
       expiryDate: Date | null;
-      notes: string | null;
       tags?: string | null;
       internalNotes?: string | null;
       createdAt: Date;
@@ -424,7 +421,6 @@ export class DepositService {
       unit: entry.unit,
       entryDate: entry.entryDate,
       expiryDate: entry.expiryDate,
-      notes: entry.notes,
       tags: parseTags(entry.tags),
       internalNotes: entry.internalNotes ?? null,
       createdAt: entry.createdAt,
@@ -463,7 +459,6 @@ export class DepositService {
       returnedAt: Date | null;
       returnedQuantity: Prisma.Decimal | number | null;
       returnNotes: string | null;
-      notes: string | null;
       tags?: string | null;
       internalNotes?: string | null;
       createdAt: Date;
@@ -530,7 +525,6 @@ export class DepositService {
           ? null
           : toNumber(exit.returnedQuantity),
       returnNotes: exit.returnNotes ?? null,
-      notes: exit.notes,
       tags: parseTags(exit.tags),
       internalNotes: exit.internalNotes ?? null,
       createdAt: exit.createdAt,
@@ -582,81 +576,92 @@ export class DepositService {
     const fromDate = parseDateInput(params?.from);
     const toDate = parseDateInput(params?.to, { endOfDay: true });
 
-    const entryWhere: Prisma.Sql[] = [Prisma.sql`e.tenantId = ${tenantId}`];
-    const exitWhere: Prisma.Sql[] = [Prisma.sql`x.tenantId = ${tenantId}`];
+    // Identificadores entre aspas duplas (nao crase) - o banco e Postgres,
+    // nao MySQL, e toda coluna/tabela do schema foi criada com nome
+    // mixed-case entre aspas (ver migrations/0_init) - sem aspas, o
+    // Postgres faz fold pra minusculo e nao acha a coluna. O mesmo vale
+    // pro alias de cada coluna calculada: sem aspas no AS, o nome de
+    // volta pro $queryRaw tambem vira minusculo e quebra o acesso
+    // `row.movementId` etc. mais abaixo.
+    const entryWhere: Prisma.Sql[] = [Prisma.sql`e."tenantId" = ${tenantId}`];
+    const exitWhere: Prisma.Sql[] = [Prisma.sql`x."tenantId" = ${tenantId}`];
 
     if (params?.itemId) {
-      entryWhere.push(Prisma.sql`e.itemId = ${params.itemId}`);
-      exitWhere.push(Prisma.sql`x.itemId = ${params.itemId}`);
+      entryWhere.push(Prisma.sql`e."itemId" = ${params.itemId}`);
+      exitWhere.push(Prisma.sql`x."itemId" = ${params.itemId}`);
     }
 
     if (fromDate) {
-      entryWhere.push(Prisma.sql`e.entryDate >= ${fromDate}`);
-      exitWhere.push(Prisma.sql`x.exitDate >= ${fromDate}`);
+      entryWhere.push(Prisma.sql`e."entryDate" >= ${fromDate}`);
+      exitWhere.push(Prisma.sql`x."exitDate" >= ${fromDate}`);
     }
 
     if (toDate) {
-      entryWhere.push(Prisma.sql`e.entryDate <= ${toDate}`);
-      exitWhere.push(Prisma.sql`x.exitDate <= ${toDate}`);
+      entryWhere.push(Prisma.sql`e."entryDate" <= ${toDate}`);
+      exitWhere.push(Prisma.sql`x."exitDate" <= ${toDate}`);
     }
 
     if (search) {
       const like = `%${search}%`;
-      entryWhere.push(Prisma.sql`(i.name LIKE ${like} OR d.name LIKE ${like})`);
-      exitWhere.push(Prisma.sql`i.name LIKE ${like}`);
+      // ILIKE, nao LIKE - Postgres diferencia maiuscula/minuscula por
+      // padrao (MySQL nao).
+      entryWhere.push(
+        Prisma.sql`(i."name" ILIKE ${like} OR d."name" ILIKE ${like})`,
+      );
+      exitWhere.push(Prisma.sql`i."name" ILIKE ${like}`);
     }
 
     if (params?.type) {
-      exitWhere.push(Prisma.sql`x.type = ${params.type}`);
+      exitWhere.push(Prisma.sql`x."type" = ${params.type}`);
     }
 
     if (destinationName) {
       const like = `%${destinationName}%`;
-      exitWhere.push(Prisma.sql`x.destinationName LIKE ${like}`);
+      exitWhere.push(Prisma.sql`x."destinationName" ILIKE ${like}`);
     }
 
     const entrySelect = Prisma.sql`
       SELECT
-        'ENTRY' AS kind,
-        e.id AS movementId,
-        e.entryDate AS movementDate,
-        e.createdAt AS createdAt,
-        e.itemId AS itemId,
-        i.name AS itemName,
-        i.\`group\` AS itemGroup,
-        e.sector AS sector,
-        e.quantity AS quantity,
-        e.unit AS unit,
-        e.notes AS notes,
-        e.expiryDate AS expiryDate,
-        d.name AS donorName,
-        NULL AS exitType,
-        NULL AS destinationName
-      FROM \`DepositEntry\` e
-      JOIN \`DepositItem\` i ON i.id = e.itemId
-      LEFT JOIN \`DepositDonor\` d ON d.id = e.donorId
+        'ENTRY' AS "kind",
+        e."id" AS "movementId",
+        e."entryDate" AS "movementDate",
+        e."createdAt" AS "createdAt",
+        e."itemId" AS "itemId",
+        i."name" AS "itemName",
+        i."group" AS "itemGroup",
+        e."sector" AS "sector",
+        e."quantity" AS "quantity",
+        e."unit" AS "unit",
+        e."internalNotes" AS "notes",
+        e."expiryDate" AS "expiryDate",
+        d."name" AS "donorName",
+        NULL AS "exitType",
+        NULL AS "destinationName"
+      FROM "DepositEntry" e
+      JOIN "DepositItem" i ON i."id" = e."itemId"
+      LEFT JOIN "DepositDonor" d ON d."id" = e."donorId"
       WHERE ${Prisma.join(entryWhere, ' AND ')}
     `;
 
     const exitSelect = Prisma.sql`
       SELECT
-        'EXIT' AS kind,
-        x.id AS movementId,
-        x.exitDate AS movementDate,
-        x.createdAt AS createdAt,
-        x.itemId AS itemId,
-        i.name AS itemName,
-        i.\`group\` AS itemGroup,
-        x.sector AS sector,
-        x.quantity AS quantity,
-        x.unit AS unit,
-        x.notes AS notes,
-        NULL AS expiryDate,
-        NULL AS donorName,
-        x.type AS exitType,
-        x.destinationName AS destinationName
-      FROM \`DepositExit\` x
-      JOIN \`DepositItem\` i ON i.id = x.itemId
+        'EXIT' AS "kind",
+        x."id" AS "movementId",
+        x."exitDate" AS "movementDate",
+        x."createdAt" AS "createdAt",
+        x."itemId" AS "itemId",
+        i."name" AS "itemName",
+        i."group" AS "itemGroup",
+        x."sector" AS "sector",
+        x."quantity" AS "quantity",
+        x."unit" AS "unit",
+        x."internalNotes" AS "notes",
+        NULL AS "expiryDate",
+        NULL AS "donorName",
+        x."type" AS "exitType",
+        x."destinationName" AS "destinationName"
+      FROM "DepositExit" x
+      JOIN "DepositItem" i ON i."id" = x."itemId"
       WHERE ${Prisma.join(exitWhere, ' AND ')}
     `;
 
@@ -670,7 +675,7 @@ export class DepositService {
     type CountRow = { total: bigint | number };
 
     const countRows = await this.prisma.$queryRaw<CountRow[]>(Prisma.sql`
-      SELECT COUNT(*) AS total
+      SELECT COUNT(*) AS "total"
       FROM (${unionSql}) u
     `);
 
@@ -703,7 +708,7 @@ export class DepositService {
     const rows = await this.prisma.$queryRaw<HistoryRow[]>(Prisma.sql`
       SELECT *
       FROM (${unionSql}) u
-      ORDER BY u.movementDate DESC, u.createdAt DESC, u.kind DESC, u.movementId DESC
+      ORDER BY u."movementDate" DESC, u."createdAt" DESC, u."kind" DESC, u."movementId" DESC
       ${paginationSql}
     `);
 
@@ -1157,7 +1162,6 @@ export class DepositService {
         defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
-        notes: normalizeString(dto.notes),
         tags: serializeTags(dto.tags),
         internalNotes: normalizeString(dto.internalNotes),
       },
@@ -1194,7 +1198,6 @@ export class DepositService {
         defaultSector,
         unit: dto.unit,
         minStock: dto.minStock,
-        notes: dto.notes !== undefined ? normalizeString(dto.notes) : undefined,
         tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
         internalNotes:
           dto.internalNotes !== undefined
@@ -1706,7 +1709,6 @@ export class DepositService {
         unit: dto.unit,
         entryDate: parseDateInput(dto.entryDate) ?? new Date(),
         expiryDate: parseDateInput(dto.expiryDate) ?? null,
-        notes: dto.notes ?? null,
         tags: serializeTags(dto.tags),
         internalNotes: normalizeString(dto.internalNotes),
       },
@@ -1739,18 +1741,38 @@ export class DepositService {
       where: { tenantId, entryId: id },
     });
 
-    if (
-      allocations > 0 &&
-      (dto.itemId !== undefined ||
-        dto.sector !== undefined ||
-        dto.quantity !== undefined ||
-        dto.unit !== undefined ||
-        dto.entryDate !== undefined ||
-        dto.expiryDate !== undefined)
-    ) {
-      throw new BadRequestException(
-        'Entrada possui saidas vinculadas e nao pode ter lote/quantidade alterados.',
-      );
+    // Compara valor contra valor, nao so presenca no payload - o
+    // autosave do front sempre reenvia o rascunho inteiro a cada campo
+    // editado (ver useDetailAutoSaveController/commitField), entao
+    // sector/quantity/unit/datas sempre vem no DTO mesmo quando o usuario
+    // so editou Notas/Fonte. Checar so "dto.campo !== undefined" bloqueava
+    // qualquer edicao nesse caso - a regra real e nao deixar MUDAR o lote
+    // depois que ja existe saida vinculada, nao proibir reenviar o mesmo
+    // valor.
+    if (allocations > 0) {
+      const entryDateChanged =
+        dto.entryDate !== undefined &&
+        parseDateInput(dto.entryDate)?.getTime() !== entry.entryDate.getTime();
+      const expiryDateChanged =
+        dto.expiryDate !== undefined &&
+        (parseDateInput(dto.expiryDate)?.getTime() ?? null) !==
+          (entry.expiryDate?.getTime() ?? null);
+
+      const wouldChangeLockedField =
+        (dto.itemId !== undefined && dto.itemId !== entry.itemId) ||
+        (dto.sector !== undefined &&
+          normalizeSector(dto.sector) !== normalizeSector(entry.sector)) ||
+        (dto.quantity !== undefined &&
+          Number(dto.quantity) !== toNumber(entry.quantity)) ||
+        (dto.unit !== undefined && dto.unit !== entry.unit) ||
+        entryDateChanged ||
+        expiryDateChanged;
+
+      if (wouldChangeLockedField) {
+        throw new BadRequestException(
+          'Entrada possui saidas vinculadas e nao pode ter lote/quantidade alterados.',
+        );
+      }
     }
 
     if (dto.itemId) {
@@ -1780,7 +1802,6 @@ export class DepositService {
             : dto.expiryDate
               ? parseDateInput(dto.expiryDate)
               : undefined,
-        notes: dto.notes ?? undefined,
         tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
         internalNotes:
           dto.internalNotes !== undefined
@@ -2060,7 +2081,6 @@ export class DepositService {
           returnedAt,
           returnedQuantity,
           returnNotes,
-          notes: dto.notes ?? null,
           tags: serializeTags(dto.tags),
           internalNotes: normalizeString(dto.internalNotes),
         },
@@ -2152,6 +2172,7 @@ export class DepositService {
   async updateExit(tenantId: string, id: string, dto: UpdateDepositExitDto) {
     const exit = await this.prisma.depositExit.findFirst({
       where: { id, tenantId },
+      include: { allocations: true },
     });
     if (!exit) {
       throw new NotFoundException('Saida nao encontrada');
@@ -2164,6 +2185,8 @@ export class DepositService {
     const currentQuantity = toNumber(exit.quantity);
     const currentItemId = exit.itemId;
     const currentSector = normalizeSector(exit.sector);
+    const currentSingleEntryId =
+      exit.allocations.length === 1 ? exit.allocations[0].entryId : null;
 
     const nextItemId = dto.itemId ?? currentItemId;
     const nextSector = normalizeSector(dto.sector ?? exit.sector);
@@ -2206,13 +2229,25 @@ export class DepositService {
       returnedQuantity,
     });
 
+    // So reatribui o lote (apaga + recria DepositExitAllocation) quando
+    // um campo que realmente afeta a alocacao mudou de valor - o front
+    // reenvia o rascunho inteiro a cada campo editado (autosave), entao
+    // sector/quantity/entryId sempre vem no DTO mesmo numa edicao so de
+    // Notas; sem essa checagem, toda edicao reconstruia a alocacao do
+    // zero (caro e arriscado - "Saldo insuficiente" podia disparar numa
+    // edicao sem nenhuma relacao com o lote).
+    const needsReallocation =
+      (dto.itemId !== undefined && dto.itemId !== currentItemId) ||
+      (dto.sector !== undefined &&
+        normalizeSector(dto.sector) !== currentSector) ||
+      (dto.quantity !== undefined &&
+        Number(dto.quantity) !== currentQuantity) ||
+      (dto.entryId !== undefined && dto.entryId !== currentSingleEntryId);
+
     const updatedExitId = await this.prisma.$transaction(async (trx) => {
       if (dto.sector !== undefined) {
         await this.ensureSector(tenantId, nextSector, { client: trx });
       }
-      await trx.depositExitAllocation.deleteMany({
-        where: { tenantId, exitId: id },
-      });
 
       const updated = await trx.depositExit.update({
         where: { id },
@@ -2230,7 +2265,6 @@ export class DepositService {
           returnedAt,
           returnedQuantity,
           returnNotes,
-          notes: dto.notes ?? undefined,
           tags: dto.tags !== undefined ? serializeTags(dto.tags) : undefined,
           internalNotes:
             dto.internalNotes !== undefined
@@ -2238,6 +2272,14 @@ export class DepositService {
               : undefined,
         },
         include: { item: true },
+      });
+
+      if (!needsReallocation) {
+        return updated.id;
+      }
+
+      await trx.depositExitAllocation.deleteMany({
+        where: { tenantId, exitId: id },
       });
 
       if (dto.entryId) {
@@ -3127,7 +3169,7 @@ export class DepositService {
         entryDate: entry.entryDate,
         createdAt: entry.createdAt,
         expiryDate: entry.expiryDate,
-        notes: entry.notes,
+        notes: entry.internalNotes ?? null,
         createdBy: createdByMap.get(entry.id) ?? 'Sistema',
       })),
       recentExits: recentExits.map((exit) => ({
@@ -3141,7 +3183,7 @@ export class DepositService {
         createdAt: exit.createdAt,
         type: exit.type,
         destinationName: exit.destinationName,
-        notes: exit.notes,
+        notes: exit.internalNotes ?? null,
         removedBy: removedByMap.get(exit.id) ?? 'Sistema',
       })),
       expiring: expiringSectors.map((row) => ({
@@ -3454,7 +3496,7 @@ export class DepositService {
     }
 
     const exitDate = parseDateInput(dto.date) ?? new Date();
-    const notes =
+    const internalNotes =
       normalizeString(dto.notes) ?? `Estorno da entrada ${entryId} (Correcao).`;
 
     return this.prisma.$transaction(async (trx) => {
@@ -3467,7 +3509,7 @@ export class DepositService {
           unit: entry.unit,
           exitDate,
           type: 'ADJUSTMENT',
-          notes,
+          internalNotes,
           reversalOfEntryId: entryId,
         },
         include: { item: true },
@@ -3510,7 +3552,7 @@ export class DepositService {
     }
 
     const entryDate = parseDateInput(dto.date) ?? new Date();
-    const notes =
+    const internalNotes =
       normalizeString(dto.notes) ?? `Estorno da saida ${exitId} (Correcao).`;
 
     return this.prisma.$transaction(async (trx) => {
@@ -3561,7 +3603,7 @@ export class DepositService {
               unit: exit.unit,
               entryDate,
               expiryDate: group.expiry,
-              notes,
+              internalNotes,
               reversalOfExitId: exitId,
             },
             include: { item: true, donor: true },
@@ -3674,7 +3716,6 @@ export class DepositService {
         defaultSector: normalizeSector(item.defaultSector),
         unit: item.unit,
         minStock,
-        notes: item.notes ?? null,
         tags: parseTags((item as { tags?: string | null }).tags ?? null),
         internalNotes:
           (item as { internalNotes?: string | null }).internalNotes ?? null,

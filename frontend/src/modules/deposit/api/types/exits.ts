@@ -29,7 +29,6 @@ export type ApiDepositExit = {
   returnedAt: string | null;
   returnedQuantity: number | null;
   returnNotes: string | null;
-  notes: string | null;
   tags: string[];
   internalNotes: string | null;
   createdAt: string;
@@ -78,7 +77,6 @@ export type DepositExitInput = {
   returnedAt?: string | null;
   returnedQuantity?: number | null;
   returnNotes?: string | null;
-  notes?: string | null;
   tags?: string[];
   internalNotes?: string | null;
 };

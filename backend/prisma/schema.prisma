@@ -333,6 +333,7 @@ model Tenant {
   projectAttachments                ProjectAttachment[]
   programComments                   ProgramComment[]
   programAttachments                ProgramAttachment[]
+  peopleGroupAttachments            PeopleGroupAttachment[]
   projectPeopleGroups               ProjectPeopleGroup[]
   projectEnrollments                ProjectEnrollment[]
   actionTypes                       ActivityType[]
@@ -411,6 +412,7 @@ model User {
   projectAttachments                  ProjectAttachment[]
   programComments                     ProgramComment[]
   programAttachments                  ProgramAttachment[]
+  peopleGroupAttachments              PeopleGroupAttachment[]
   projectActionComments               ProjectActionComment[]
   projectActionAttachments            ProjectActionAttachment[]
   assignedTaskOrganizerTasks          TaskOrganizerTask[]          @relation("TaskOrganizerAssignedUser")
@@ -1353,6 +1355,7 @@ model PeopleGroup {
   purpose       PeopleGroupPurpose @default(PUBLICO)
   category      String?
   description   String?            @db.Text
+  tags          String?            @db.Text
   ageMin        Int?
   ageMax        Int?
   isActive      Boolean            @default(true)
@@ -1366,6 +1369,7 @@ model PeopleGroup {
   actionPeopleGroups           ActivityPeopleGroup[]
   actionOccurrenceTeamGroups   ActionOccurrenceTeamGroup[]
   actionOccurrencePeopleGroups ActionOccurrencePeopleGroup[]
+  attachments                  PeopleGroupAttachment[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -1374,6 +1378,27 @@ model PeopleGroup {
   @@index([purpose])
   @@index([category])
   @@index([isActive])
+}
+
+model PeopleGroupAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  peopleGroupId    String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  peopleGroup    PeopleGroup @relation(fields: [peopleGroupId], references: [id], onDelete: Cascade)
+  uploadedByUser User?       @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([peopleGroupId, createdAt])
+  @@index([uploadedByUserId])
 }
 
 model PeopleGroupParticipation {

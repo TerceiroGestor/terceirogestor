@@ -10,7 +10,6 @@ export type ApiPantryEntry = {
   unit: string;
   entryDate: string;
   expiryDate: string | null;
-  notes: string | null;
   tags: string[];
   internalNotes: string | null;
   allocatedTotal?: number;
@@ -59,7 +58,6 @@ export type PantryEntryInput = {
   unit: string;
   entryDate?: string;
   expiryDate?: string | null;
-  notes?: string | null;
   tags?: string[];
   internalNotes?: string | null;
 };

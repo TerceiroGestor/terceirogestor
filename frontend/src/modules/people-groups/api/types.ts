@@ -8,15 +8,33 @@ export type ApiPeopleGroup = {
   purpose: "PUBLICO" | "EQUIPE";
   category: string | null;
   description: string | null;
+  tags: string[];
   ageMin: number | null;
   ageMax: number | null;
   isActive: boolean;
   internalNotes: string | null;
   createdAt: string;
   updatedAt: string;
+  attachments: ApiPeopleGroupAttachment[];
   _count?: {
     participations?: number;
   };
+};
+
+export type ApiPeopleGroupAttachment = {
+  id: string;
+  label: string;
+  filePath: string;
+  mimeType: string | null;
+  fileSizeBytes: number | null;
+  uploadedBy: {
+    id: string | null;
+    name: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PeopleGroupInput = {
@@ -25,10 +43,18 @@ export type PeopleGroupInput = {
   purpose?: ApiPeopleGroup["purpose"];
   category?: string | null;
   description?: string | null;
+  tags?: string[];
   ageMin?: number | null;
   ageMax?: number | null;
   isActive?: boolean;
   internalNotes?: string | null;
+};
+
+export type PeopleGroupAttachmentInput = {
+  label: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSizeBytes?: number | null;
 };
 
 export type ApiPeopleGroupParticipation = {

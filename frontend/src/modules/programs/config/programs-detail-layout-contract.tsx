@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,6 +26,7 @@ import {
 } from "@/modules/programs/shared/domain/programs.constants";
 import type { ApiProject } from "@/modules/projects/api/types/projects";
 import { PROJECT_STATUS_LABELS } from "@/modules/projects/shared/domain/projects.constants";
+import { ProgramProjectsSection } from "@/modules/programs/features/detail/ui/program-projects-section";
 import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
 import {
@@ -103,53 +102,14 @@ function formatProgramStatus(value: ProgramStatus | string | null | undefined) {
   return PROGRAM_STATUS_LABELS[value as ProgramStatus] ?? String(value);
 }
 
-function formatProjectStatus(value: string | null | undefined) {
+export function formatProjectStatus(value: string | null | undefined) {
   if (!value) return "-";
   return PROJECT_STATUS_LABELS[value as keyof typeof PROJECT_STATUS_LABELS] ?? value;
 }
 
-function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
+export function formatPeriod(startsAt: string | null | undefined, endsAt: string | null | undefined) {
   if (!startsAt && !endsAt) return "Não informada";
   return `${startsAt ? formatDateOnlyPtBR(startsAt) : "-"} até ${endsAt ? formatDateOnlyPtBR(endsAt) : "-"}`;
-}
-
-function resolveStatusBadge(status: ProgramStatus) {
-  const label = formatProgramStatus(status);
-  switch (status) {
-    case "ACTIVE":
-      return <Badge variant="secondary">{label}</Badge>;
-    case "CLOSED":
-      return <Badge variant="outline">{label}</Badge>;
-    default:
-      return <Badge className="border-transparent bg-blue-600 text-white">{label}</Badge>;
-  }
-}
-
-function projectRelationColumns(): ColumnDef<ApiProject, unknown>[] {
-  return [
-    {
-      accessorKey: "name",
-      header: "Projeto",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-foreground">{row.original.name}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.description?.trim() || "Sem descrição"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => formatProjectStatus(row.original.status),
-    },
-    {
-      accessorKey: "startsAt",
-      header: "Período",
-      cell: ({ row }) => formatPeriod(row.original.startsAt, row.original.endsAt),
-    },
-  ];
 }
 
 function resolveProgramHistoryTitle(sourceLabel: string, action: "CREATE" | "UPDATE" | "DELETE") {
@@ -443,6 +403,7 @@ function ProgramsDetailSide({
       auditVisibleCount={auditVisibleCount}
       onAuditVisibleCountChange={onAuditVisibleCountChange}
       canAudit={canAudit}
+      tabOrder={["tags", "notes", "attachments", "activity"]}
       comments={{
         items: program?.comments ?? [],
         draft: commentDraft,
@@ -507,29 +468,8 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
   header: {
     title: ({ program, draft, mode }) =>
       mode === "create" ? "Novo programa" : ((program?.name ?? draft.name) || "Programa"),
-    slot: ({ draft, projectRows }) => (
-      <div className="border-y border-border/60 bg-transparent px-0 py-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Status</div>
-            <div>{resolveStatusBadge(draft.status)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Tipo</div>
-            <div className="font-medium text-foreground">{formatProgramType(draft.type)}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Projetos</div>
-            <div className="font-medium text-foreground">{projectRows.length}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-muted-foreground">Tags</div>
-            <div className="font-medium text-foreground">{draft.tags.length}</div>
-          </div>
-        </div>
-      </div>
-    ),
   },
+  mainTab: true,
   main: ({ draft, setDraft, readOnly, onCommitField }) => (
     <ProgramsDetailMain
       draft={draft}
@@ -592,43 +532,16 @@ export const programsDetailLayout: DetailLayoutConfig<ProgramsDetailLayoutContex
       key: "projects",
       label: "Projetos",
       badge: ({ projectRows }) => projectRows.length,
-      relations: [
-        {
-          key: "program.projects",
-          label: "Projetos vinculados",
-          loading: ({ projectsLoading }) => projectsLoading,
-          rows: ({ mode, projectRows }) => (mode === "edit" ? projectRows : []),
-          columns: projectRelationColumns(),
-          getRowId: (row) => row.id,
-          filterRows: (rows, query) => {
-            const needle = query.trim().toLocaleLowerCase();
-            if (!needle) return rows;
-            return rows.filter((row) => {
-              const haystack = [
-                row.name,
-                row.description ?? "",
-                formatProjectStatus(row.status),
-                formatPeriod(row.startsAt, row.endsAt),
-                ...(row.tags ?? []),
-              ]
-                .join(" ")
-                .toLocaleLowerCase();
-              return haystack.includes(needle);
-            });
-          },
-          searchPlaceholder: "Pesquisar",
-          onRowClick: (row, context) => context.onOpenProject(row.id),
-          action: {
-            label: "Novo projeto",
-            onClick: (context) => context.onCreateProject(),
-            hidden: ({ readOnly, mode }) => readOnly || mode !== "edit",
-          },
-          emptyLabel: ({ mode }) =>
-            mode === "create"
-              ? "Salve o programa para vincular projetos."
-              : "Nenhum projeto vinculado.",
-        },
-      ],
+      flushContent: true,
+      content: ({ mode, readOnly, projectRows, projectsLoading, onOpenProject, onCreateProject }) => (
+        <ProgramProjectsSection
+          rows={mode === "edit" ? projectRows : []}
+          loading={projectsLoading}
+          canAdd={!readOnly && mode === "edit"}
+          onOpenProject={onOpenProject}
+          onAddProject={onCreateProject}
+        />
+      ),
     },
   ],
   auditSources: {

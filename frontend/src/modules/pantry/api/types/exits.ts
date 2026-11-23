@@ -17,7 +17,6 @@ export type ApiPantryExit = {
   exitDate: string;
   type: "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
   eventName: string | null;
-  notes: string | null;
   tags: string[];
   internalNotes: string | null;
   createdAt: string;
@@ -61,7 +60,6 @@ export type PantryExitInput = {
   exitDate?: string;
   type?: "ATTENDED" | "DONATION" | "EVENT" | "PARTY" | "CORRECTION";
   eventName?: string | null;
-  notes?: string | null;
   tags?: string[];
   internalNotes?: string | null;
 };

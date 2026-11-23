@@ -503,7 +503,6 @@ const PANTRY_ENTRY_DOMAIN_ADAPTER: RecordDomainAdapter = {
       type: "date",
       emptyValueLabel: "Sem validade",
     },
-    notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
   validations: {
     sector: { required: true, minLength: 1 },
@@ -533,7 +532,6 @@ const PANTRY_EXIT_DOMAIN_ADAPTER: RecordDomainAdapter = {
     exitDate: { label: "Data da saída", type: "date" },
     type: { label: "Tipo de saída" },
     eventName: { label: "Evento", emptyValueLabel: "Sem evento" },
-    notes: { label: "Notas", placeholder: "Notas (opcional)" },
   },
   validations: {
     sector: { required: true, minLength: 1 },
@@ -1223,7 +1221,7 @@ export const pantryEntryDetailModuleDefinition = defineRecordModule<
   relatedSources: [
     {
       key: "allocatedExits",
-      label: "Saídas vinculadas",
+      label: "Saídas",
       viewType: "list",
       dataSource: "pantry.exits",
       count: (context) => context.allocatedExits.length,
@@ -1256,16 +1254,6 @@ export const pantryExitDetailModuleDefinition = defineRecordModule<
   defaultView: "detail",
   defaultQueryState: DETAIL_DEFAULT_QUERY_STATE,
   detailLayout: pantryExitDetailLayout,
-  relatedSources: [
-    {
-      key: "allocations",
-      label: "Lotes vinculados",
-      viewType: "list",
-      dataSource: "pantry.entries",
-      count: (context) => context.exit?.allocations?.length ?? 0,
-      onOpen: (context, entityId) => context.onOpenEntry(entityId),
-    },
-  ],
 });
 
 export type PantryModuleDefinition =

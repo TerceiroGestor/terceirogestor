@@ -7,5 +7,5 @@ export default async function DepositItemsPage({
   params: Promise<{ tenant: string }>;
 }) {
   const { tenant } = await params;
-  redirect(withTenantPath("/Deposit/stock", tenant));
+  redirect(withTenantPath("/deposit/stock", tenant));
 }

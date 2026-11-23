@@ -14,6 +14,12 @@ export const tasksManifest: ModuleManifest = {
       icon: ListTodo,
       permissions: ["tasks.read"],
       order: 99,
+      // Modulo criado so pra testar a padronizacao visual, nao faz parte
+      // do modelo de negocio - desativado (cinza, sem clique - mesmo
+      // mecanismo de `comingSoon()` em sidebar-placeholders.ts) em vez de
+      // removido, pra nao esquecer que ele existe se for reaproveitado.
+      disabled: true,
+      badge: "Desativado",
     },
   ],
 };

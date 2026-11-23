@@ -7,58 +7,41 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { resolveMediaUrl } from "@/lib/api";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
+import { medicationReasonOptions } from "@/modules/people/features/medications/config/medication-form-config";
 import { useMedications } from "@/modules/people/features/medications/data/use-medications";
+import { MedicationQuickCreateDialog } from "@/modules/people/features/medications/ui/medication-quick-create-dialog";
 import { buildPeopleMedicationPath } from "@/modules/people/shared/domain/people-relation-routes";
 import type { Medication } from "@/modules/people/shared/domain/types";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
-
-function truncate(value: string | null | undefined, size = 44) {
-  const text = (value ?? "").trim();
-  if (!text) return "-";
-  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
-}
+import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 
 export function MedicationsPanel({ personId }: { personId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const tenantSlug = getTenantSlugFromPath(pathname);
-  const { medications, isLoading, error, remove } = useMedications(personId);
+  const { medications, isLoading, error, create, remove } = useMedications(personId);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<Medication, unknown>[]>(
     () => [
       {
         accessorKey: "medication",
         header: "Medicacao",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{row.original.medication}</span>
-        ),
       },
       {
         accessorKey: "reason",
         header: "Motivo",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.reason)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.reason} className="text-sm" />,
       },
       {
         accessorKey: "dosage",
         header: "Dosagem",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.dosage, 24)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.dosage} className="text-sm" />,
       },
       {
         accessorKey: "schedule",
         header: "Frequencia",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">
-            {truncate(row.original.schedule, 24)}
-          </span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.schedule} className="text-sm" />,
       },
       {
         accessorKey: "startDate",
@@ -72,16 +55,14 @@ export function MedicationsPanel({ personId }: { personId: string }) {
       {
         accessorKey: "notes",
         header: "Notas",
-        cell: ({ row }) => (
-          <span className="block truncate whitespace-nowrap">{truncate(row.original.notes)}</span>
-        ),
+        cell: ({ row }) => <TruncatedTextCell text={row.original.notes} className="text-sm" />,
       },
       {
         id: "document",
         header: "Documento",
         cell: ({ row }) =>
           !row.original.documentUrl ? (
-            <span className="block truncate whitespace-nowrap text-muted-foreground">-</span>
+            <span className="text-muted-foreground">-</span>
           ) : (
             <a
               href={resolveMediaUrl(row.original.documentUrl)}
@@ -125,40 +106,44 @@ export function MedicationsPanel({ personId }: { personId: string }) {
   }, []);
 
   return (
-    <DetailRelationTablePanel
-      data={medications}
-      columns={columns}
-      getRowId={(row) => row.id}
-      onRowClick={(row) =>
-        router.push(
-          withTenantPath(buildPeopleMedicationPath(personId, row.id), tenantSlug),
-        )
-      }
-      searchPlaceholder="Pesquisar medicacoes"
-      filterRow={filterRow}
-      addHref={withTenantPath(buildPeopleMedicationPath(personId), tenantSlug)}
-      loading={isLoading}
-      error={error}
-      emptyMessage="Nenhuma medicacao cadastrada."
-      tableMinWidthClassName="min-w-[1140px]"
-      tableInitialColumnPinning={{ right: ["actions"] }}
-      filterFields={[
-        { name: "medicacao", label: "Medicacao", type: "text" },
-        { name: "motivo", label: "Motivo", type: "text" },
-        { name: "dosagem", label: "Dosagem", type: "text" },
-        { name: "frequencia", label: "Frequencia", type: "text" },
-        { name: "inicio", label: "Inicio", type: "date" },
-        { name: "notas", label: "Notas", type: "text" },
-      ]}
-      buildSearchRecord={(row) => ({
-        medicacao: row.medication,
-        motivo: row.reason ?? null,
-        dosagem: row.dosage ?? null,
-        frequencia: row.schedule ?? null,
-        inicio: row.startDate ?? null,
-        notas: row.notes ?? null,
-      })}
-      searchActionId="people.medications"
-    />
+    <>
+      <DetailRelationTablePanel
+        data={medications}
+        columns={columns}
+        getRowId={(row) => row.id}
+        onRowClick={(row) =>
+          router.push(
+            withTenantPath(buildPeopleMedicationPath(personId, row.id), tenantSlug),
+          )
+        }
+        searchPlaceholder="Pesquisar medicacoes"
+        filterRow={filterRow}
+        onAdd={() => setCreateOpen(true)}
+        loading={isLoading}
+        error={error}
+        emptyMessage="Nenhuma medicacao cadastrada."
+        tableInitialColumnPinning={{ left: ["medication"], right: ["actions"] }}
+        filterFields={[
+          { name: "motivo", label: "Motivo", type: "select", options: medicationReasonOptions },
+          { name: "inicio", label: "Inicio", type: "date" },
+        ]}
+        buildSearchRecord={(row) => ({
+          motivo: row.reason ?? null,
+          inicio: row.startDate ?? null,
+        })}
+        searchActionId="people.medications"
+      />
+      <MedicationQuickCreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSubmit={async (payload) => {
+          await create({
+            medication: payload.medication,
+            reason: payload.reason ?? null,
+            dosage: payload.dosage ?? null,
+          });
+        }}
+      />
+    </>
   );
 }

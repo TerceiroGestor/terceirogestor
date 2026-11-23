@@ -38,10 +38,6 @@ export class UpdateDepositEntryDto {
   expiryDate?: string | null;
 
   @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
   @Transform(({ value }) => (Array.isArray(value) ? value : []))
   tags?: string[];
 
