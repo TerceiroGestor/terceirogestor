@@ -4,6 +4,76 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Seed de homologação, Fase 1 - Pessoas (2026-11-22)
+
+Usuário pediu um seed grande e realista (Faker) pra testar todos os
+módulos, em 4 fases: 1) Pessoas, 2) Atendimentos/Ocorrências, 3)
+Programas/Projetos/Atividades, 4) Encontros. Esta rodada implementa só a
+Fase 1.
+
+**Decisão de escopo:** o `seed.ts` antigo tinha um bloco estático único
+(Pessoas → Programas → Projetos → Atividades → Encontros → AuditLog, ~650
+linhas) referenciando `people[N]` por índice fixo. Como a Fase 1 troca o
+array de Pessoas inteiro por um gerado aleatoriamente, esse bloco
+downstream ficaria com índices inexistentes - removido por completo (não
+dava pra manter "funcionando pela metade"). Fases 2-4 recriam esse
+histórico nas próximas rodadas, consumindo o resultado tipado que a Fase
+1 devolve (`PeopleFase1Result` - IDs por categoria: atendidos ativos/
+desligados/em espera, familiares, equipe, + mapa dos 12 grupos) em vez de
+IDs fixos.
+
+**`@faker-js/faker` adicionado como dependência de desenvolvimento**
+(`fakerPT_BR`, `faker.seed(20260101)` fixo - reprodutível a cada
+`db seed`, mesma convenção de IDs fixos do resto do projeto).
+
+**Novo: `backend/prisma/seed/`** (3 arquivos, chamados por `seed.ts`):
+- `faker-helpers.ts` - instância do Faker, gerador de CPF com dígito
+  verificador real (mesmo algoritmo de `src/core/utils/cpf.ts`), RG/NIS/
+  CNS (sem dígito verificador - o backend não valida esses, só tamanho),
+  endereço (pool fixo de bairros de uma única região - uma organização
+  atende uma região, não o Brasil inteiro), telefone, pickers com peso.
+- `pii-crypto-for-seed.ts` - cópia deliberada (não import) das 3 funções
+  puras de `src/core/pii/pii-crypto.ts`. **Achado:** `build:seed` compila
+  `prisma/seed.ts` como arquivo único sem tsconfig próprio (ver
+  `package.json`); um import de **valor** (não só tipo) de fora de
+  `prisma/` faz o `tsc` recalcular o rootDir pra `backend/` inteiro e
+  aninhar a saída (`prisma/prisma/seed.js`, `prisma/src/...`) em vez de
+  gerar `prisma/seed.js` no lugar esperado por `prisma.seed`
+  (`package.json`) - por isso a cópia local, com comentário explicando o
+  motivo pra não "corrigir" de volta um dia achando que é redundante.
+  `import type` de `src/generated/prisma` (só tipos dos models/enums)
+  continua são, não aninha nada - confirmado testando.
+- `people-fase1.ts` - o gerador: Person + 7 sub-entidades (contato,
+  Household/HouseholdProfile/HouseholdMember, documentos sensíveis
+  **criptografados de verdade** via `pii-crypto-for-seed.ts`, financeiro,
+  saúde, medicação, escolaridade, reclusão), vínculos familiares
+  bidirecionais (`PersonRelation`, tipo coerente com o sexo do familiar -
+  achado corrigido depois do 1º teste, "Pai"/"Mãe" sorteados batendo com
+  `sex`) e os 12 `PeopleGroup` (6 ciclos C1-3 manhã/tarde + Familiares/
+  Funcionarios/Voluntarios/Oficineiros/Parceiros/Doadores).
+
+**Volumes gerados** (confirmados rodando o seed de verdade, não só lendo
+o código): 459 Pessoas - 120 Atendidos ativos + 30 desligados (com
+`departureReason`) + 50 em espera, 200 Familiares, 15 Funcionários + 10
+Parceiros + 10 Voluntários + 10 Oficineiros + 10 Doadores + 2 Assistentes
+Sociais + 2 Psicólogas (como Funcionário + tag). 6 ciclos com 20
+atendidos ativos cada (≥15 pedido). 400 vínculos familiares (200 pares ×
+2 direções), famílias que "moram junto" compartilham o mesmo
+`Household`/endereço (confirmado por query direta). 459 documentos
+sensíveis criptografados (decriptografia testada - volta exatamente o
+CPF/RG/NIS/CNS gerado). ~230 lançamentos financeiros, 111 condições de
+saúde, 78 medicações (correlacionadas com quem tem condição de saúde),
+371 registros de escolaridade, 10 de reclusão.
+
+**Evidência:** `tsc --noEmit -p tsconfig.build.json` (app principal,
+`prisma/**/*.ts` fica fora desse projeto de propósito, igual já era) → 0
+erros; `npm run build:seed` → compila sem erro, `prisma/seed.js` no lugar
+certo (confirmado - sem pasta aninhada); `npm run db:seed` rodado de
+verdade contra o Postgres local → sucesso, contagens pós-seed confirmadas
+por query direta (ver acima) batendo com o pedido do usuário. Fases 2
+(Atendimentos/Ocorrências), 3 (Programas/Projetos/Atividades) e 4
+(Encontros) pendentes - próximas rodadas.
+
 ## Fase 5 (revisão) - Motor de abas único com visual "fichário" + ícones pra todos os módulos, People migrado pro motor genérico (2026-11-22)
 
 Usuário revisou a decisão da rodada anterior (manter o sistema de abas
