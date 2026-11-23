@@ -2,6 +2,7 @@
 import { seedPeopleFase1 } from './seed/people-fase1';
 import { seedAttendancesOccurrencesFase2 } from './seed/attendances-occurrences-fase2';
 import { seedProgramsProjectsActivitiesFase3 } from './seed/programs-projects-activities-fase3';
+import { seedMeetingsFase4 } from './seed/meetings-fase4';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createPrismaClientFromEnv } = require('../scripts/prisma-runtime');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -479,6 +480,11 @@ async function main() {
   // (Encontros) ainda nao foi implementada - proxima rodada.
   const fase3 = await seedProgramsProjectsActivitiesFase3(prisma, ids.tenant, peopleFase1);
 
+  // Fase 4 (Encontros) - instancia concreta de cada Atividade que ja
+  // aconteceu, com presenca (ver prisma/seed/meetings-fase4.ts). Ultima
+  // fase do seed grande pedido pelo usuario.
+  const fase4 = await seedMeetingsFase4(prisma, ids.tenant);
+
   await seedPantryLikeDomain(ids.tenant, PANTRY_SEED_CONFIG);
   await seedPantryLikeDomain(ids.tenant, DEPOSIT_SEED_CONFIG);
 
@@ -519,6 +525,10 @@ async function main() {
   console.log(`  Matriculas (ProjectEnrollment): ${fase3.enrollments}`);
   console.log(`  Equipe de projeto (ProjectTeamParticipation): ${fase3.teamParticipations}`);
   console.log(`  Metas (Goal): ${fase3.goals}`);
+  console.log('Encontros (Fase 4):');
+  console.log(`  Encontros (Meeting): ${fase4.meetings}`);
+  console.log(`  Presencas (MeetingAttendance): ${fase4.attendances}`);
+  console.log(`  Equipe por encontro (MeetingTeamParticipation): ${fase4.teamParticipations}`);
 }
 
 main()

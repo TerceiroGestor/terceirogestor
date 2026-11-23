@@ -4,6 +4,59 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Seed de homologação, Fase 4 - Encontros (2026-11-23)
+
+Última fase do seed grande pedido pelo usuário (1 Pessoas, 2
+Atendimentos/Ocorrências, 3 Programas/Projetos/Atividades, 4
+Encontros). Diferente das fases anteriores, não recebe o
+`PeopleFase1Result` - consulta direto o que a Fase 3 já gravou no banco
+(`Activity`, `ProjectEnrollment`, `ProjectActionPeopleParticipation`),
+o mesmo dado que o app real leria (`upsertProjectActionAttendances`
+valida matrícula pelo `projectId`, não pela Atividade - confirmado lendo
+`actions.service.ts` antes de implementar).
+
+**Novo: `backend/prisma/seed/meetings-fase4.ts`**, chamado por
+`seed.ts` depois da Fase 3. Só gera `Meeting` ("Encontro") pras
+Atividades que **já aconteceram** (status `EXECUTED`, e a fatia das
+`INACTIVE` que chegou a começar antes de ser descontinuada,
+`executedStartAt` preenchido) - `PLANNED` fica sem Encontro, mesmo
+comportamento do app real. Frequência por tipo da Atividade
+(`ActivityType.name`, catálogo fixo da Fase 3): os 4 tipos "regulares"
+(turma/oficina contínua) geram Encontros **semanais** no período
+executado (com `recurrenceBatchId` compartilhado, como um agendamento em
+lote faria); os 2 tipos `ENROLLMENT` (visita/acompanhamento individual)
+geram **1** Encontro; os demais ("evento") geram **1-3**. `status`
+(SCHEDULED/DONE/CANCELED) por peso (90% DONE/10% CANCELED pros que já
+passaram). Título no mesmo formato de `buildDefaultMeetingTitle`
+("Encontro - dd/mm/aaaa") em 85% dos casos, variação com o nome do tipo
+nos demais.
+
+`MeetingAttendance`: todo Encontro `DONE` (nunca `CANCELED`) recebe
+presença (PRESENT 80/ABSENT 15/EXCUSED 5) pra cada matrícula
+`PUBLICO_ATENDIDO` do **projeto** ainda válida naquela data
+(`startsAt`/`endsAt` da matrícula respeitados) - mesmo escopo que o
+service usa pra validar (projeto, não atividade). `MeetingTeamParticipation`:
+reaproveita a equipe já escolhida na Fase 3 pra aquela Atividade
+(`ProjectActionPeopleParticipation`) - os vínculos em cascata que o
+service cria ao adicionar equipe a um Encontro
+(`ensurePersonOnActivityTeam`/`ensurePersonOnProjectTeam`) já existem
+desde a Fase 3, só faltava o registro por Encontro.
+
+**Volumes gerados** (rodando o seed de verdade contra o Postgres local):
+3053 Encontros (2738 DONE/312 CANCELED/3 SCHEDULED), 44934
+`MeetingAttendance` (35981 PRESENT/6688 ABSENT/2265 EXCUSED), 3860
+`MeetingTeamParticipation`. Confirmado por query direta: 0 presença em
+Encontro cancelado, 0 referência de matrícula pendurada, 0 presença
+cruzando projeto diferente da atividade, 0 Encontro em Atividade
+`PLANNED`, 0 duplicata de equipe por encontro.
+
+**Evidência:** `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm run
+build:seed` → compila sem erro, sem pasta aninhada; `npm run db:seed`
+rodado de verdade contra o Postgres local → sucesso, contagens e checks
+de consistência confirmados por query direta (ver acima); `npm test` →
+30 suítes/159 testes sem regressão; `npm run build` → sem erro. **Seed
+grande de homologação (4 fases) concluído.**
+
 ## Seed de homologação, Fase 3 - Programas/Projetos/Atividades (2026-11-23)
 
 Continuação da Fase 2, a pedido explícito do usuário: 5 Programas, média
