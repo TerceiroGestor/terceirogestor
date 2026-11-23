@@ -82,6 +82,8 @@ export type PeopleFase1Result = {
     assistentesSociais: string[];
     psicologas: string[];
     cycleAssignments: Record<(typeof CYCLES)[number]['key'], string[]>;
+    familiaresByAtendido: Record<string, string[]>;
+    householdSiblingsByAtendido: Record<string, string[]>;
 };
 export declare function seedPeopleFase1(prisma: PrismaClient, tenantId: string): Promise<PeopleFase1Result>;
 export {};

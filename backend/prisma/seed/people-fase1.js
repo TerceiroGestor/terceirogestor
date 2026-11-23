@@ -623,6 +623,28 @@ async function seedPeopleFase1(prisma, tenantId) {
     parceiros.forEach((spec) => addParticipation('parceiros', spec.row.id));
     doadores.forEach((spec) => addParticipation('doadores', spec.row.id));
     await insertInChunks(participationRows, 500, (chunk) => prisma.peopleGroupParticipation.createMany({ data: chunk }));
+    // Familiar -> atendido(s) vinculado(s) (so o sentido familiar->atendido,
+    // o que a Fase 2 precisa pra sortear um FAMILIAR como AttendancePeople/
+    // testemunha de uma Occurrence).
+    const familiaresByAtendido = {};
+    for (const plan of relationPlans) {
+        const atendidoId = plan.atendido.row.id;
+        const familiarId = plan.familiar.row.id;
+        (familiaresByAtendido[atendidoId] ??= []).push(familiarId);
+    }
+    // Atendidos que moram no mesmo household (irmaos, por exemplo) - usado
+    // pela Fase 2 pra sortear um segundo atendido (ATENDIDO_SECUNDARIO) no
+    // mesmo caso.
+    const householdSiblingsByAtendido = {};
+    const atendidoIdSet = new Set(allAtendidos.map((s) => s.row.id));
+    for (const household of households) {
+        const atendidosInHousehold = household.memberIds.filter((id) => atendidoIdSet.has(id));
+        if (atendidosInHousehold.length < 2)
+            continue;
+        for (const id of atendidosInHousehold) {
+            householdSiblingsByAtendido[id] = atendidosInHousehold.filter((other) => other !== id);
+        }
+    }
     return {
         groups: groupIds,
         atendidosAtivos: atendidosAtivos.map((s) => s.row.id),
@@ -637,6 +659,8 @@ async function seedPeopleFase1(prisma, tenantId) {
         assistentesSociais: assistentesSociais.map((s) => s.row.id),
         psicologas: psicologas.map((s) => s.row.id),
         cycleAssignments,
+        familiaresByAtendido,
+        householdSiblingsByAtendido,
     };
 }
 //# sourceMappingURL=people-fase1.js.map

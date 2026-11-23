@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const bcrypt = __importStar(require("bcrypt"));
 const people_fase1_1 = require("./seed/people-fase1");
+const attendances_occurrences_fase2_1 = require("./seed/attendances-occurrences-fase2");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createPrismaClientFromEnv } = require('../scripts/prisma-runtime');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -412,9 +413,12 @@ async function main() {
     // gerado via Faker (ver prisma/seed/people-fase1.ts). O resultado
     // (IDs por categoria) fica disponivel pras proximas fases.
     const peopleFase1 = await (0, people_fase1_1.seedPeopleFase1)(prisma, ids.tenant);
-    // Fase 2 (Atendimentos/Ocorrencias), Fase 3 (Programas/Projetos/
-    // Atividades) e Fase 4 (Encontros) ainda nao foram implementadas -
-    // proximas rodadas, usando `peopleFase1` em vez de IDs fixos.
+    // Fase 2 (Atendimentos/Ocorrencias) - historico de 3 anos (2024-2026)
+    // em cima dos 120 atendidos ativos da Fase 1 (ver
+    // prisma/seed/attendances-occurrences-fase2.ts). Fase 3 (Programas/
+    // Projetos/Atividades) e Fase 4 (Encontros) ainda nao foram
+    // implementadas - proximas rodadas.
+    const fase2 = await (0, attendances_occurrences_fase2_1.seedAttendancesOccurrencesFase2)(prisma, ids.tenant, peopleFase1);
     await seedPantryLikeDomain(ids.tenant, PANTRY_SEED_CONFIG);
     await seedPantryLikeDomain(ids.tenant, DEPOSIT_SEED_CONFIG);
     console.log('Seed executado com sucesso.');
@@ -436,6 +440,11 @@ async function main() {
         peopleFase1.assistentesSociais.length +
         peopleFase1.psicologas.length}`);
     console.log('Pantry/Deposit seed: 10 itens, 10 doadores/fontes, 20 entradas e 15 saidas em cada modulo.');
+    console.log('Atendimentos/Ocorrencias (Fase 2):');
+    console.log(`  Ocorrencias: ${fase2.occurrences}`);
+    console.log(`  Atendimentos: ${fase2.attendances}`);
+    console.log(`  Evolucoes: ${fase2.evolutions}`);
+    console.log(`  Beneficios: ${fase2.benefits}`);
 }
 main()
     .catch((error) => {

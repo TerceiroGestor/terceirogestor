@@ -81,6 +81,11 @@ export type PeopleFase1Result = {
   assistentesSociais: string[];
   psicologas: string[];
   cycleAssignments: Record<(typeof CYCLES)[number]['key'], string[]>;
+  // Usado pela Fase 2 (Atendimentos/Ocorrencias) pra vincular familiares e
+  // atendidos do mesmo household como AttendancePeople/OccurrencePeople,
+  // sem precisar reconsultar PersonRelation/HouseholdMember do banco.
+  familiaresByAtendido: Record<string, string[]>;
+  householdSiblingsByAtendido: Record<string, string[]>;
 };
 
 type PersonRow = {
@@ -800,6 +805,29 @@ export async function seedPeopleFase1(
     prisma.peopleGroupParticipation.createMany({ data: chunk }),
   );
 
+  // Familiar -> atendido(s) vinculado(s) (so o sentido familiar->atendido,
+  // o que a Fase 2 precisa pra sortear um FAMILIAR como AttendancePeople/
+  // testemunha de uma Occurrence).
+  const familiaresByAtendido: Record<string, string[]> = {};
+  for (const plan of relationPlans) {
+    const atendidoId = plan.atendido.row.id;
+    const familiarId = plan.familiar.row.id;
+    (familiaresByAtendido[atendidoId] ??= []).push(familiarId);
+  }
+
+  // Atendidos que moram no mesmo household (irmaos, por exemplo) - usado
+  // pela Fase 2 pra sortear um segundo atendido (ATENDIDO_SECUNDARIO) no
+  // mesmo caso.
+  const householdSiblingsByAtendido: Record<string, string[]> = {};
+  const atendidoIdSet = new Set(allAtendidos.map((s) => s.row.id));
+  for (const household of households) {
+    const atendidosInHousehold = household.memberIds.filter((id) => atendidoIdSet.has(id));
+    if (atendidosInHousehold.length < 2) continue;
+    for (const id of atendidosInHousehold) {
+      householdSiblingsByAtendido[id] = atendidosInHousehold.filter((other) => other !== id);
+    }
+  }
+
   return {
     groups: groupIds,
     atendidosAtivos: atendidosAtivos.map((s) => s.row.id),
@@ -814,5 +842,7 @@ export async function seedPeopleFase1(
     assistentesSociais: assistentesSociais.map((s) => s.row.id),
     psicologas: psicologas.map((s) => s.row.id),
     cycleAssignments,
+    familiaresByAtendido,
+    householdSiblingsByAtendido,
   };
 }

@@ -4,6 +4,62 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Seed de homologação, Fase 2 - Atendimentos/Ocorrências (2026-11-23)
+
+Continuação da Fase 1 (Pessoas), a pedido do usuário: histórico de 3 anos
+(2024, 2025, 2026) de `Attendance`/`Occurrence` em cima dos 120 atendidos
+ativos gerados na Fase 1, pelo menos ~15 `Attendance` ("atendimentos") por
+ano por atendido ativo, mais `Occurrence` ("ocorrências") esporádicas.
+Fora de escopo de propósito (número fixo "120 atendidos" pedido pelo
+usuário): atendidos desligados/em espera não ganham histórico nesta
+rodada; `meetingId` sempre nulo (Fase 4/Encontros ainda não existe).
+
+**Novo: `backend/prisma/seed/attendances-occurrences-fase2.ts`**, chamado
+por `seed.ts` depois da Fase 1 - consome o `PeopleFase1Result` (em vez de
+IDs fixos). `people-fase1.ts` ganhou 2 campos novos no retorno pra isso:
+`familiaresByAtendido` (familiar → atendido(s) vinculado(s), construído a
+partir dos `relationPlans` já calculados na Fase 1) e
+`householdSiblingsByAtendido` (atendidos que moram no mesmo household,
+pra um segundo atendido no mesmo caso - `ATENDIDO_SECUNDARIO`).
+
+**Geração, por atendido ativo (120) × ano (2024-2026, 2026 limitado a
+"hoje"):**
+- `Occurrence`: 25% de chance por atendido/ano (título/descrição de um
+  pool de 10 cenários realistas - conflito, falta recorrente,
+  comportamento agressivo etc.), status sorteado pela "idade" do registro
+  (recente → REGISTRADA/EM_ANALISE, antigo → DESFECHO_DEFINIDO com
+  `outcomeNotes`), `OccurrencePeople` com o atendido (ENVOLVIDO) e 30% de
+  chance de testemunha (familiar vinculado ou funcionário).
+- `Attendance`: 13-18 por ano (média ~15,5, "pelo menos ~15" pedido),
+  tipo SOCIAL/PSICOLOGICO (peso 65/35) com profissional sorteado do pool
+  certo (`assistentesSociais`/`psicologas` da Fase 1), status
+  ABERTO/ENCERRADO pela idade do registro (só os mais recentes ficam
+  abertos), `closingNotes` quando encerrado. 40% das `Occurrence` geram
+  1 `Attendance` extra de acompanhamento (`occurrenceId` setado, poucos
+  dias depois). `AttendancePeople`: atendido sempre (ATENDIDO_PRINCIPAL),
+  40% de chance de um familiar vinculado (FAMILIAR), 8% de chance de um
+  atendido do mesmo household (ATENDIDO_SECUNDARIO).
+- `AttendanceEvolution`: 1-3 por `Attendance`, datadas entre a data do
+  atendimento e o encerramento (ou "hoje", se ainda aberto).
+- `AttendanceBenefit`: 12% de chance de 1 por `Attendance` (cesta básica,
+  kit de higiene etc.).
+
+**Volumes gerados** (confirmados rodando o seed de verdade contra o
+Postgres local, não só lendo o código): 102 `Occurrence` (88
+DESFECHO_DEFINIDO, 12 EM_ANALISE, 2 REGISTRADA), 5576 `Attendance`
+(~1850/ano, 13-18 por atendido/ano confirmado por query direta - mínimo
+observado 13 -, 5514 ENCERRADO / 62 ABERTO), 11164 `AttendanceEvolution`,
+682 `AttendanceBenefit`. Nenhuma referência órfã (`Attendance.occurrenceId`
+→ `Occurrence.id` confirmado por query direta).
+
+**Evidência:** `tsc --noEmit -p tsconfig.build.json` (app principal,
+`prisma/**/*.ts` fora desse projeto de propósito, igual Fase 1) → 0
+erros; `npm run build:seed` → compila sem erro, sem pasta aninhada;
+`npm run db:seed` rodado de verdade contra o Postgres local → sucesso,
+contagens pós-seed confirmadas por query direta (ver acima); `npm test`
+→ 30 suítes/159 testes sem regressão. Fase 3 (Programas/Projetos/
+Atividades) e Fase 4 (Encontros) pendentes - próximas rodadas.
+
 ## Seed de homologação, Fase 1 - Pessoas (2026-11-22)
 
 Usuário pediu um seed grande e realista (Faker) pra testar todos os
