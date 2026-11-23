@@ -1,6 +1,7 @@
 ﻿import * as bcrypt from 'bcrypt';
 import { seedPeopleFase1 } from './seed/people-fase1';
 import { seedAttendancesOccurrencesFase2 } from './seed/attendances-occurrences-fase2';
+import { seedProgramsProjectsActivitiesFase3 } from './seed/programs-projects-activities-fase3';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createPrismaClientFromEnv } = require('../scripts/prisma-runtime');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -472,6 +473,12 @@ async function main() {
   // implementadas - proximas rodadas.
   const fase2 = await seedAttendancesOccurrencesFase2(prisma, ids.tenant, peopleFase1);
 
+  // Fase 3 (Programas/Projetos/Atividades) - 5 programas, media de 10
+  // projetos por programa, media de 30 atividades por projeto (ver
+  // prisma/seed/programs-projects-activities-fase3.ts). Fase 4
+  // (Encontros) ainda nao foi implementada - proxima rodada.
+  const fase3 = await seedProgramsProjectsActivitiesFase3(prisma, ids.tenant, peopleFase1);
+
   await seedPantryLikeDomain(ids.tenant, PANTRY_SEED_CONFIG);
   await seedPantryLikeDomain(ids.tenant, DEPOSIT_SEED_CONFIG);
 
@@ -505,6 +512,13 @@ async function main() {
   console.log(`  Atendimentos: ${fase2.attendances}`);
   console.log(`  Evolucoes: ${fase2.evolutions}`);
   console.log(`  Beneficios: ${fase2.benefits}`);
+  console.log('Programas/Projetos/Atividades (Fase 3):');
+  console.log(`  Programas: ${fase3.programs}`);
+  console.log(`  Projetos: ${fase3.projects}`);
+  console.log(`  Atividades: ${fase3.activities}`);
+  console.log(`  Matriculas (ProjectEnrollment): ${fase3.enrollments}`);
+  console.log(`  Equipe de projeto (ProjectTeamParticipation): ${fase3.teamParticipations}`);
+  console.log(`  Metas (Goal): ${fase3.goals}`);
 }
 
 main()

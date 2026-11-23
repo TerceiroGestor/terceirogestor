@@ -4,6 +4,84 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Seed de homologação, Fase 3 - Programas/Projetos/Atividades (2026-11-23)
+
+Continuação da Fase 2, a pedido explícito do usuário: 5 Programas, média
+de 10 Projetos por Programa, média de 30 Atividades por Projeto,
+cobrindo serviços diversos (SCFV, PAIF, PAEFI, Cultura, Esporte/Lazer).
+Fica de fora de propósito (fase seguinte): `Meeting`/"Encontro" (instância
+concreta de uma Atividade numa data, com presença) e tudo que depende
+dele - Fase 4. Comentários/anexos (`ProgramComment`/`ProjectAttachment`/
+etc.) também ficam de fora, mesmo padrão da Fase 1 pra Pessoas (recurso
+de uso manual, não faz parte do cenário de dados).
+
+**Novo: `backend/prisma/seed/programs-projects-activities-fase3.ts`**,
+chamado por `seed.ts` depois da Fase 2 - consome o `PeopleFase1Result`
+(grupos/ciclos, `familiaresByAtendido`, pools de equipe) em vez de IDs
+fixos.
+
+**5 Programas** (tipo do enum `ProgramType` mapeado por tema -
+"Assistencialismo" cobre PAIF/PAEFI, "Fortalecimento de Vínculo
+Familiar" cai dentro do SCFV, "Esporte/Lazer" usa `OTHER` por não ter
+enum próprio): SCFV ("Serviço de Convivência e Fortalecimento de
+Vínculos"), PAIF ("Proteção e Atendimento Integral à Família"), PAEFI
+("Proteção e Atendimento Especializado a Famílias e Indivíduos"),
+CULTURAL ("Cultura e Arte"), OTHER ("Esporte e Lazer"). Todos `ACTIVE`,
+`startsAt` entre 2018-2021 (serviços já estabelecidos).
+
+**10 Projetos por Programa (50 no total)**, nomes curados por tema (não
+genéricos) - os 6 primeiros Projetos do SCFV mapeiam 1:1 pros 6
+ciclos/grupo já existentes da Fase 1 (`Convivência Ciclo 1-3 Manhã/
+Tarde`), reaproveitando exatamente os 20 atendidos de cada ciclo
+(`cycleAssignments`) em vez de sortear de novo. Status por peso (ACTIVE
+65/PLANNED 15/CLOSED 20), com janela de datas coerente com o status
+(`startsAt`/`endsAt` antes/depois de "hoje" conforme o caso).
+`ProjectFundingSource` em 40% dos projetos (Municipal/Estadual/Federal/
+Terceiro). `ProjectPeopleGroup`: todo projeto ganha 1 grupo TEAM
+(oficineiros/funcionários conforme o tema) + 1 grupo PARTICIPANT quando
+existe um natural (ciclo pro SCFV, "familiares" alternado pro PAIF/
+PAEFI). `ProjectEnrollment`: atendidos (ciclo fixo pro SCFV, amostra de
+10-25 atendidos ativos pros demais) + familiar vinculado (`chance`
+maior em PAIF/PAEFI) + 2-5 da equipe certa pro tema (`funcionarios`/
+`voluntarios`/`oficineiros`, mais `assistentesSociais`/`psicologas` em
+PAIF/PAEFI e `parceiros`/`doadores` em Cultural/Esporte).
+`ProjectTeamParticipation` (equipe hierárquica do projeto, com
+`activeKey` no mesmo formato do `actions.service.ts`) a partir da
+mesma equipe matriculada como TEAM.
+
+**~30 Atividades por Projeto (1480 no total)**, catálogo fixo de 10
+`ActivityType` (5 `PROJECT`, 3 `PEOPLE_GROUP`, 2 `ENROLLMENT`) sorteado
+por peso (50/30/20) - quando o tipo exige escopo (`PEOPLE_GROUP` →
+`ActivityPeopleGroup` com o grupo do projeto; `ENROLLMENT` →
+`targetEnrollmentId` de uma matrícula `PUBLICO_ATENDIDO` do próprio
+projeto), o gerador sempre preenche o vínculo certo (confirmado por
+query direta, ver evidência) - essa é a mesma regra que
+`actions.service.ts` valida ao criar pelo formulário real
+(`resolveScopeFromTarget`). Título de um pool de 25 variações por
+Programa + sufixo opcional ("Turma A", "Edição 2025" etc.). Status por
+peso dependente do status do Projeto (ACTIVE→EXECUTED 55/PLANNED 30/
+INACTIVE 15; CLOSED→EXECUTED 80/INACTIVE 20; PLANNED→PLANNED 90/
+INACTIVE 10), com `planned*`/`executed*`/`completionPercent` coerentes
+com o status. `goalId` em 50% das atividades (`Goal`, 2 por projeto, 100
+no total). `ProjectActionPeopleParticipation` (1-2 da equipe do projeto
+por atividade, TEAM, mesmo formato de `activeKey`).
+
+**Volumes gerados** (rodando o seed de verdade contra o Postgres local):
+5 Programas, 50 Projetos (39 ACTIVE/6 CLOSED/5 PLANNED), 1480 Atividades
+(783 EXECUTED/479 PLANNED/218 INACTIVE), 1223 `ProjectEnrollment`, 170
+`ProjectTeamParticipation`, 100 `Goal`. Confirmado por query direta: 0
+atividades `PEOPLE_GROUP` sem vínculo de grupo, 0 `ENROLLMENT` sem
+`targetEnrollmentId`, 0 referência pendurada, 0 projeto sem nenhum
+atendido matriculado, os 6 projetos de ciclo do SCFV com exatamente 20
+atendidos cada (bate com a Fase 1).
+
+**Evidência:** `tsc --noEmit -p tsconfig.build.json` → 0 erros;
+`npm run build:seed` → compila sem erro, sem pasta aninhada; `npm run
+db:seed` rodado de verdade contra o Postgres local → sucesso, contagens
+e checks de consistência confirmados por query direta (ver acima); `npm
+test` → 30 suítes/159 testes sem regressão; `npm run build` → sem erro.
+Fase 4 (Encontros) pendente - próxima rodada.
+
 ## Seed de homologação, Fase 2 - Atendimentos/Ocorrências (2026-11-23)
 
 Continuação da Fase 1 (Pessoas), a pedido do usuário: histórico de 3 anos
