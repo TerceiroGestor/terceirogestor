@@ -157,8 +157,6 @@ export function PeopleListModuleClientPage() {
   const [rows, setRows] = React.useState<PeopleTableItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [pageCount, setPageCount] = React.useState(1);
-  const [totalCount, setTotalCount] = React.useState(0);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
 
   const tagSuggestions = React.useMemo(() => {
@@ -280,22 +278,23 @@ export function PeopleListModuleClientPage() {
     setError(null);
 
     try {
+      // Busca o conjunto completo (nao so a pagina atual) - visões de
+      // análise (Gráfico/Kanban/Timeline/Calendário/agrupamento) precisam
+      // calcular sobre todos os registros do tenant, não só a página
+      // renderizada na Tabela; a paginação da Tabela passa a ser só um
+      // slice client-side (`pagedRows`) - ver "Dados completos para
+      // análise" em docs/canonical-web-client-standard.md.
       const response = await dataProvider.search<ApiPerson>(
         peopleListModuleDefinition.queryAdapters.listDataProvider.model,
         {
           searchText: debouncedSearch,
           domain: state.domain,
           groupBy: state.groupBy,
-          pagination: {
-            pageIndex: state.pageIndex,
-            pageSize: state.pageSize,
-          },
+          all: true,
         },
       );
 
       setRows(response.data.map(mapApiPersonToTableItem));
-      setPageCount(Math.max(response.pagination?.pages ?? 1, 1));
-      setTotalCount(response.pagination?.total ?? response.data.length);
     } catch (nextError) {
       const message =
         nextError && typeof nextError === "object" && "message" in nextError
@@ -303,22 +302,11 @@ export function PeopleListModuleClientPage() {
           : "Falha ao carregar pessoas.";
 
       setRows([]);
-      setPageCount(1);
-      setTotalCount(0);
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [
-    canRead,
-    dataProvider,
-    debouncedSearch,
-    state.domain,
-    state.groupBy,
-    state.pageIndex,
-    state.pageSize,
-    token,
-  ]);
+  }, [canRead, dataProvider, debouncedSearch, state.domain, state.groupBy, token]);
 
   React.useEffect(() => {
     void loadRows();
@@ -423,6 +411,15 @@ export function PeopleListModuleClientPage() {
     [rows, state],
   );
 
+  // `rows` já é o conjunto completo (ver `loadRows`) - a paginação da
+  // Tabela é só um slice client-side; Kanban/Timeline/Calendário/Gráfico
+  // continuam recebendo `rows` inteiro.
+  const pagedRows = React.useMemo(() => {
+    const start = state.pageIndex * state.pageSize;
+    return rows.slice(start, start + state.pageSize);
+  }, [rows, state.pageIndex, state.pageSize]);
+  const pageCount = Math.max(Math.ceil(Math.max(rows.length, 1) / state.pageSize), 1);
+
   if (!canRead) {
     return (
       <div className="px-4 py-6 text-sm text-muted-foreground">
@@ -443,7 +440,7 @@ export function PeopleListModuleClientPage() {
       mapFavoriteToState={(snapshot) => snapshot}
       isLoading={loading}
       onRefresh={loadRows}
-      totalCount={totalCount}
+      totalCount={rows.length}
       onCreate={openCreate}
       canCreate={canCreate}
       analysisSlot={analysisSlot}
@@ -520,7 +517,7 @@ export function PeopleListModuleClientPage() {
       ) : (
         <>
           <ListView<PeopleTableItem>
-            data={rows}
+            data={pagedRows}
             columns={columns as ColumnDef<PeopleTableItem, unknown>[]}
             getRowId={(row) => row.id}
             groupByFields={state.groupBy}

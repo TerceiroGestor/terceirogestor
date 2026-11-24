@@ -69,6 +69,35 @@ Quando o mÃ³dulo suportar visualizaÃ§Ã£o analÃ­tica, usar somente a base
 
 NÃ£o criar typeview alternativo fora desses componentes.
 
+### Dados completos para análise (padrão a partir de 2026-11-24)
+
+Toda tela de lista que oferece Gráfico/Kanban/Timeline/Calendário/Gantt
+ou agrupamento (`groupBy`) busca o conjunto filtrado **completo**
+(`all: true` no backend - `resolvePagination`/`buildPaginationMeta` já
+honram esse parâmetro em todo módulo, basta repassar `query.all` em vez
+de hardcodar `all: false`). A paginação client-side (slice de
+`rows`/`filteredRows` num `pagedRows`) é só para a visão **Tabela** -
+nunca alimentar Gráfico/Kanban/Timeline/Calendário/agrupamento com a
+página atual da paginação do backend.
+
+Referência correta (`frontend/src/modules/projects/features/list/ui/projects-list-module-client-page.tsx`):
+busca tudo uma vez (`all: true`), filtra (`filteredRows`) e só então
+corta pra tabela (`pagedRows = filteredRows.slice(...)`); Gráfico/
+Kanban/Timeline/Calendário recebem `rows`/`filteredRows` (completo),
+nunca `pagedRows`.
+
+Achado de 2026-11-24 (usuário testou e confirmou o bug): `People` e os
+Doadores de Pantry/Deposit buscavam só a página atual e alimentavam
+Gráfico/Kanban/`groupBy` com ela - corrigido pra esse padrão. `Actions`
+já buscava tudo, mas via um loop manual de N páginas porque o backend
+desse módulo nunca aceitava `all: true` - corrigido na raiz (backend
+honra `all` de verdade agora, frontend virou uma chamada só).
+
+Isso busca linha por linha pro navegador - funciona bem na escala atual
+(baixos milhares de registros por tenant). Se um tenant real crescer
+muito além disso, a evolução correta é um endpoint de agregação real
+(contagens via SQL, sem trazer linha nenhuma) - ver `docs/backlog.md`.
+
 ### Colunas base
 
 Todo list principal deve expor, quando fizer sentido:

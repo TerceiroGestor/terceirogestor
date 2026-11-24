@@ -30,7 +30,6 @@ import {
   deleteActivity,
   listActions,
   type ApiActivity,
-  type ActivitiesListResponse,
 } from "@/modules/actions/api";
 import {
   actionsListModuleDefinition,
@@ -457,37 +456,16 @@ function resolveGanttGroupValue(action: ApiActivity, field: string) {
   }
 }
 
+// Busca o conjunto completo numa unica chamada (`all: true`, honrado de
+// verdade pelo backend desde a revisao de 2026-11-24 - antes o backend
+// de Actions nunca aceitava esse parametro, e esta funcao simulava
+// "buscar tudo" com um loop de N paginas em paralelo). Analises
+// (Grafico/Kanban/agrupamento) precisam do dataset inteiro, nao so a
+// pagina - ver "Dados completos para analise" em
+// docs/canonical-web-client-standard.md.
 async function fetchAllActions(token: string, searchText: string) {
-  const limit = 200;
-  const firstPage = await listActions(token, {
-    q: searchText || undefined,
-    page: 1,
-    limit,
-  });
-  const allRows = [...(firstPage.data ?? [])];
-  const totalPages = firstPage.pagination?.pages ?? 1;
-
-  if (totalPages <= 1) {
-    return allRows;
-  }
-
-  const requests: Promise<ActivitiesListResponse>[] = [];
-  for (let page = 2; page <= totalPages; page += 1) {
-    requests.push(
-      listActions(token, {
-        q: searchText || undefined,
-        page,
-        limit,
-      }),
-    );
-  }
-
-  const pages = await Promise.all(requests);
-  for (const page of pages) {
-    allRows.push(...(page.data ?? []));
-  }
-
-  return allRows;
+  const result = await listActions(token, { q: searchText || undefined, all: true });
+  return result.data ?? [];
 }
 
 function resolveListGroupFieldKey(field: string) {

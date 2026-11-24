@@ -150,20 +150,17 @@ export function PantryDonorsModuleClientPage() {
 
   const [loading, setLoading] = React.useState(false);
   const [rows, setRows] = React.useState<ApiPantryDonor[]>([]);
-  const [totalCount, setTotalCount] = React.useState(0);
-  const [pageCount, setPageCount] = React.useState(0);
 
   const requestKey = React.useMemo(
-    () =>
-      JSON.stringify({
-        q: state.searchText,
-        d: state.domain,
-        p: state.pageIndex,
-        l: state.pageSize,
-      }),
-    [state.domain, state.pageIndex, state.pageSize, state.searchText],
+    () => JSON.stringify({ q: state.searchText, d: state.domain }),
+    [state.domain, state.searchText],
   );
 
+  // Busca o conjunto completo (nao so a pagina atual) - groupBy/analise
+  // precisam calcular sobre todos os doadores, nao so a pagina
+  // renderizada na Tabela; a paginação da Tabela passa a ser só um slice
+  // client-side (`pagedRows`) - ver "Dados completos para análise" em
+  // docs/canonical-web-client-standard.md.
   const loadRows = React.useCallback(async () => {
     if (!token || !canRead) return;
     setLoading(true);
@@ -175,32 +172,26 @@ export function PantryDonorsModuleClientPage() {
           searchText: state.searchText.trim()
             ? state.searchText.trim()
             : undefined,
-          pagination: {
-            pageIndex: state.pageIndex,
-            pageSize: state.pageSize,
-          },
+          all: true,
         },
       );
 
       setRows(response.data ?? []);
-      setTotalCount(response.pagination.total);
-      setPageCount(response.pagination.pages);
     } finally {
       setLoading(false);
     }
-  }, [
-    canRead,
-    dataProvider,
-    state.domain,
-    state.pageIndex,
-    state.pageSize,
-    state.searchText,
-    token,
-  ]);
+  }, [canRead, dataProvider, state.domain, state.searchText, token]);
 
   React.useEffect(() => {
     void loadRows();
   }, [loadRows, requestKey]);
+
+  const pagedRows = React.useMemo(() => {
+    const start = state.pageIndex * state.pageSize;
+    return rows.slice(start, start + state.pageSize);
+  }, [rows, state.pageIndex, state.pageSize]);
+  const totalCount = rows.length;
+  const pageCount = Math.max(Math.ceil(Math.max(rows.length, 1) / state.pageSize), 1);
 
   const openDonor = React.useCallback(
     (row: ApiPantryDonor) => {
@@ -371,7 +362,7 @@ export function PantryDonorsModuleClientPage() {
     >
       <div className="flex flex-col gap-2">
         <ListView<ApiPantryDonor>
-          data={rows}
+          data={pagedRows}
           columns={columns}
           groupByFields={state.groupBy}
           resolveGroupLabel={(field, value) =>

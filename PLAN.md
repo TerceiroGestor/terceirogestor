@@ -4,6 +4,55 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Análises (Gráfico/Kanban/Timeline/Calendário/agrupamento) sobre o dataset completo, não a página (2026-11-24)
+
+Usuário suspeitou, testando as telas de lista, que as ferramentas de
+análise calculavam só sobre a página atual da paginação do backend, não
+todos os registros do tenant - rejeitou "aumentar o limite de página"
+como solução, pediu revisão de escopo + plano (aprovado via
+`EnterPlanMode`/`ExitPlanMode`). Auditoria em 18 telas de lista
+confirmou: bug real, mas só em 2 módulos - a maioria já buscava o
+conjunto completo (`all: true`) e paginava só a Tabela no cliente.
+
+**Corrigido:**
+- `people-list-module-client-page.tsx` - trocou fetch paginado por
+  `all: true` (backend já honrava, `MAX_LIMIT` 1000); `pagedRows` novo
+  faz o slice client-side só pra Tabela, Kanban/Timeline/Calendário/
+  Gráfico passam a receber `rows` completo.
+- `pantry-donors-module-client-page.tsx` e
+  `deposit-donors-module-client-page.tsx` - mesma troca (o data-provider
+  `searchPantryDonors`/`searchDepositDonors` já suportava `all: true` de
+  verdade, só a chamada da tela não usava).
+- `Actions` corrigido na raiz, não no workaround: `actions.service.ts`
+  (`listProjectActions`/`listActions`) nunca aceitava `all: true`
+  (hardcoded `all: false`) - `ListProjectActionsQueryDto` ganhou o campo
+  `all`, serviço passou a honrar via `resolvePagination`/`isAll`, mesmo
+  padrão de `projects.service.ts`. `fetchAllActions` (loop de N páginas
+  em paralelo) virou 1 chamada `listActions(token, { all: true })`.
+
+**Regra documentada** (`docs/canonical-web-client-standard.md`, nova
+subseção "Dados completos para análise" depois de "Typeviews padrão"):
+toda tela com Gráfico/Kanban/Timeline/Calendário/Gantt/`groupBy` busca o
+conjunto completo via `all: true`; paginação client-side é só pra
+Tabela. Referência: `projects-list-module-client-page.tsx`.
+
+**Backlog com gatilho** (`docs/backlog.md`): buscar tudo pro navegador
+funciona na escala atual (baixos milhares/tenant) mas não escala
+indefinidamente - evolução correta pra escala maior é agregação real no
+backend (SQL), gatilho = quando um tenant real passar de alguns milhares
+de registros numa lista.
+
+Registrado também no backlog (seção Atendimento/Gestão de Projetos):
+usuário ainda achou inconsistências na revisão de Projetos de mais
+cedo hoje (status/participante direto/Encontro) - sem detalhar quais -
+pediu pra revisar com calma numa rodada futura, gatilho = quando puder
+descrever o que encontrou.
+
+**Evidência:** `cd frontend && npx tsc --noEmit` → 0 erros; `cd backend
+&& npx tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test`
+(backend) → 30 suítes/159 testes sem regressão; `npm run build` nos dois
+apps → sem erro.
+
 ## Revisão da estrutura de Projetos - participante direto, status (4 valores), ruído removido (2026-11-24)
 
 Usuário revisou o módulo de Projetos depois de testar o seed e pediu 5

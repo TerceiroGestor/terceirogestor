@@ -263,6 +263,18 @@ adiado sem gatilho. Formato do Alicerce.
 
 ## Módulos Atendimento / Gestão de Projetos
 
+- **Revisar o processo de gestão de Projetos (Programa→Projeto→Atividade→Encontro)
+  com mais calma** — depois da revisão de 2026-11-24 (status com 4
+  valores, participante direto por fan-out de Grupo, "Responsáveis" na
+  criação do Encontro), o usuário testou de novo e ainda achou
+  inconsistências, sem detalhar quais ainda. A rodada anterior foi feita
+  sob pressão de already-in-progress (vários ajustes de uma vez, plano
+  aprovado rápido) - vale uma revisão mais devagar, possivelmente
+  cobrindo também a nomenclatura ainda pendente de validação (Programa/
+  Projeto/"Oficina"/Encontro, discutida em 2026-11-24 mas não decidida).
+  **Gatilho:** quando o usuário retomar o módulo de Projetos e puder
+  descrever as inconsistências encontradas em detalhe.
+
 - **Encontro (`Meeting`) com múltiplos Grupos de uma vez (N:N), para
   eventos especiais** — achado 4.14 do teste manual da Fase 4
   (2026-11-16). Decisão do usuário: por ora só a Atividade ganha
@@ -303,6 +315,24 @@ adiado sem gatilho. Formato do Alicerce.
   catálogo de permissões.
 
 ## Infraestrutura de UI (web-client)
+
+- **Análise (Gráfico/Kanban/Timeline/Calendário/agrupamento) busca o
+  conjunto completo linha por linha pro navegador (`all: true`), não uma
+  agregação real no backend** — corrigido em 2026-11-24 (ver "Dados
+  completos para análise" em `docs/canonical-web-client-standard.md`):
+  `People`/Doadores de Pantry/Deposit paginavam de verdade e alimentavam
+  análise só com a página atual; `Actions` já buscava tudo mas via um
+  loop de N páginas porque o backend nunca aceitava `all: true`. Ambos
+  corrigidos pro padrão de `projects-list-module-client-page.tsx`
+  (buscar tudo uma vez, paginar só a Tabela no cliente). Isso funciona
+  bem na escala atual (baixos milhares de registros por tenant, pelos
+  `MAX_LIMIT` do backend e pela seed), mas não escala indefinidamente -
+  cada troca de filtro/visão refaz o fetch completo.
+  **Gatilho:** quando uma lista de um tenant real passar de alguns
+  milhares de registros e o carregamento da visão de análise ficar
+  perceptível — trocar por um endpoint de agregação real (contagens via
+  SQL, sem trazer linha nenhuma pro navegador) pros módulos que
+  precisarem.
 
 - **`ListView.tsx` (`enableRowSelection`/`onSelectionChange`): o efeito
   que notifica a seleção recalcula `selectedRows` com `.map()` a cada

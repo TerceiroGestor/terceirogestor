@@ -14,6 +14,11 @@ import { ActionStatus } from '../../../generated/prisma';
 
 export class ListProjectActionsQueryDto {
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === '1' || value === true)
+  @IsBoolean()
+  all?: boolean;
+
+  @IsOptional()
   @IsUUID('4')
   projectId?: string;
 

@@ -945,10 +945,10 @@ export class ActionsService {
       'actions.manage',
     );
 
-    const { page, limit, skip, take } = resolvePagination({
+    const { page, limit, skip, take, isAll } = resolvePagination({
       page: query.page,
       limit: query.limit,
-      all: false,
+      all: query.all,
       defaultLimit: DEFAULT_LIMIT,
       maxLimit: MAX_LIMIT,
     });
@@ -966,15 +966,14 @@ export class ActionsService {
         where,
         include: projectActionInclude,
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
-        skip,
-        take,
+        ...(isAll ? {} : { skip, take }),
       }),
       this.prisma.activity.count({ where }),
     ]);
 
     return {
       data: data.map((item) => serializeProjectAction(item)),
-      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+      pagination: buildPaginationMeta({ page, limit, total, isAll }),
     };
   }
 
@@ -985,10 +984,10 @@ export class ActionsService {
       'actions.manage',
     );
 
-    const { page, limit, skip, take } = resolvePagination({
+    const { page, limit, skip, take, isAll } = resolvePagination({
       page: query.page,
       limit: query.limit,
-      all: false,
+      all: query.all,
       defaultLimit: DEFAULT_LIMIT,
       maxLimit: MAX_LIMIT,
     });
@@ -1005,15 +1004,14 @@ export class ActionsService {
         where,
         include: projectActionInclude,
         orderBy: [{ plannedStartAt: 'desc' }, { createdAt: 'desc' }],
-        skip,
-        take,
+        ...(isAll ? {} : { skip, take }),
       }),
       this.prisma.activity.count({ where }),
     ]);
 
     return {
       data: data.map((item) => serializeProjectAction(item)),
-      pagination: buildPaginationMeta({ page, limit, total, isAll: false }),
+      pagination: buildPaginationMeta({ page, limit, total, isAll }),
     };
   }
 

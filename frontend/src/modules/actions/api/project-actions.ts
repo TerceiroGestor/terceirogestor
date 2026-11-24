@@ -43,6 +43,7 @@ export async function listActions(
     targetEnrollmentId?: string;
     page?: number;
     limit?: number;
+    all?: boolean;
   },
 ) {
   const query = buildQuery(params);
