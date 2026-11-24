@@ -265,6 +265,10 @@ function serializeProjectAction(action: any) {
     ),
     comments: action.comments?.map(mapProjectActionCommentItem) ?? [],
     attachments: action.attachments?.map(mapProjectActionAttachmentItem) ?? [],
+    // Total de Encontros (Meeting, relacao `occurrences`) dessa Atividade -
+    // coluna "Encontros" na lista (actions-list-module-client-page.tsx).
+    meetingsCount: action._count?.occurrences ?? 0,
+    _count: undefined,
   };
 }
 
@@ -339,6 +343,7 @@ const projectActionInclude = {
       },
     },
   },
+  _count: { select: { occurrences: true } },
 } satisfies Prisma.ActivityInclude;
 
 const actionOccurrenceInclude = {

@@ -45,6 +45,7 @@ export type ApiActivity = {
   tags: string[];
   internalNotes: string | null;
   completionPercent: number | null;
+  meetingsCount: number;
   status: ActionStatus;
   plannedStartAt: string | null;
   plannedEndAt: string | null;

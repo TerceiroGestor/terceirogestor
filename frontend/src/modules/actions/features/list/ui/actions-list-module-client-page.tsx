@@ -253,6 +253,8 @@ function resolveRecordValue(record: ApiActivity, field: string): unknown {
       return record.executedEndAt?.slice(0, 10) ?? null;
     case "completionPercent":
       return record.completionPercent ?? 0;
+    case "meetingsCount":
+      return record.meetingsCount ?? 0;
     default:
       return (record as Record<string, unknown>)[field];
   }
@@ -363,6 +365,13 @@ function actionColumns(): ColumnDef<ApiActivity>[] {
       header: "Cadastro",
       cell: ({ row }) => (
         <span>{row.original.createdAt ? formatDateOnlyPtBR(row.original.createdAt.slice(0, 10)) : "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "meetingsCount",
+      header: "Encontros",
+      cell: ({ row }) => (
+        <span className="font-mono text-sm tabular-nums">{row.original.meetingsCount ?? 0}</span>
       ),
     },
     {

@@ -4,6 +4,72 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Atividades ganham coluna "Encontros" + correção do seed da Fase 4 (2026-11-24)
+
+Usuário testou a Fase 4 (Encontros) e relatou 2 pontos: (1) pediu uma
+coluna na lista de Atividades somando quantos Encontros cada uma tem,
+pra avaliar os dados; (2) depois de olhar os dados, achou "diversas
+atividades com 0 encontros" dentro de projetos em andamento e pediu
+revisão do seed pra testar o fluxo de verdade. Nomenclatura (Programa/
+Projeto/Atividade/Encontro) foi discutida à parte - usuário vai validar
+nomes antes ("Oficina" no lugar de "Atividade" foi a recomendação) e
+pediu pra não tocar em código de nomenclatura por enquanto.
+
+**Coluna "Encontros" (`backend/src/modules/actions/actions.service.ts`,
+`frontend/.../actions-list-module-client-page.tsx`):** `projectActionInclude`
+ganhou `_count: { select: { occurrences: true } }`; `serializeProjectAction`
+expõe como `meetingsCount` (campo novo em `ApiActivity`). Mesmo include
+compartilhado por `listActions`/`listProjectActions`/detalhe, então a
+contagem aparece em todo lugar que já usa esse serializer, não só na
+lista. Coluna nova "Encontros" (`font-mono tabular-nums`, mesmo padrão
+de outras colunas numéricas do projeto) entre "Cadastro" e "Status".
+
+**Causa raiz do "0 encontros" reportado - 2 bugs, não 1 só:**
+1. **Bug real** em `pickActivityStatus` (`programs-projects-activities-fase3.ts`):
+   atividades de um Projeto `PLANNED` (ainda não começou - janela no
+   futuro) podiam sair `INACTIVE` (10% de chance). Isso é logicamente
+   impossível (nada "foi descontinuado" antes de começar) e gerava, via
+   `activityDates`, uma atividade com `executedStartAt` no **futuro** -
+   que a Fase 4 então usava pra criar um Encontro `SCHEDULED` também no
+   futuro (3 encontros assim, confirmados por query antes da correção).
+   **Corrigido:** Projeto `PLANNED` agora força toda atividade a ficar
+   `PLANNED` (sem exceção). Fase 4 ganhou também uma rede de segurança
+   (`if (start.getTime() > NOW.getTime()) continue;`) pra nunca mais gerar
+   Encontro com data no futuro, mesmo se outro bug parecido aparecer.
+2. **Não era bug, mas estava mal calibrado** pra testar o fluxo: dentro
+   de Projetos `ACTIVE`, só 55% das atividades saíam `EXECUTED` (as
+   únicas que ganham Encontro na Fase 4) - 45% ficavam `PLANNED`/
+   `INACTIVE` sem nenhum Encontro, o que criava "paredes" de atividades
+   vazias ao navegar. **Ajustado:** peso de `EXECUTED` subiu de 55→75
+   (Projeto `ACTIVE`) e 80→90 (Projeto `CLOSED`) - a maioria das
+   atividades de um projeto em andamento/concluído deveria mesmo já ter
+   acontecido.
+
+**Volumes após a correção** (seed rodado de verdade): Atividades
+`EXECUTED` 783→1027 (100% com >=1 Encontro, igual antes e depois - a
+Fase 4 já cobria 100% das `EXECUTED` corretamente, o problema era a
+proporção baixa de `EXECUTED`); dentro de Projetos `ACTIVE`, atividades
+com Encontro subiu de 64% (741/1157) pra 80% (904/1136); `CLOSED` subiu
+de 90% (157/174) pra 94% (180/191); Projetos `PLANNED` continuam 100%
+sem Encontro (correto - não começaram) mas agora **sem** a distorção de
+status `INACTIVE` (158 atividades, todas `PLANNED`, confirmado por
+query). 0 Encontro com data no futuro (era 3). Totais: 1485 Atividades,
+3988 Encontros, 57285 Presenças, 5019 vínculos de equipe por encontro.
+
+**Evidência:** `tsc --noEmit` (backend `-p tsconfig.build.json` e
+frontend) → 0 erros nos dois; `npm run build:seed` → compila sem erro;
+`npm run db:seed` rodado de verdade contra o Postgres local → sucesso,
+contagens e os 2 checks de regressão (atividade `INACTIVE` dentro de
+Projeto `PLANNED`, Encontro com data no futuro) confirmados em 0 por
+query direta; `npm test` (backend) → 30 suítes/159 testes sem
+regressão; `npm run build` (backend) → sem erro.
+
+**Nota pro usuário ao continuar testando:** os 5 Projetos ainda
+`Planejado` (ex.: "Oficina de Música", "Judô e Artes Marciais") vão
+continuar mostrando 0 Encontro em todas as atividades - é esperado
+(projeto não começou). Pra testar o fluxo de Encontros, abra um Projeto
+`Ativo` ou `Concluído`.
+
 ## Seed de homologação, Fase 4 - Encontros (2026-11-23)
 
 Última fase do seed grande pedido pelo usuário (1 Pessoas, 2
