@@ -366,18 +366,29 @@ function projectWindow(programStart, status) {
 }
 function pickActivityStatus(projectStatus) {
     if (projectStatus === 'PLANNED') {
-        return (0, faker_helpers_1.chance)(0.9) ? 'PLANNED' : 'INACTIVE';
+        // Projeto ainda nao comecou (janela no futuro, ver `projectWindow`) -
+        // nenhuma atividade pode ja ter rodado nem ter sido descontinuada
+        // ainda. Usar INACTIVE aqui era o bug que gerava Encontro datado no
+        // futuro (corrigido 2026-11-24, ver PLAN.md): a atividade "nunca
+        // comecou" precisa ficar sempre PLANNED, sem excecao.
+        return 'PLANNED';
     }
     if (projectStatus === 'CLOSED') {
         return (0, faker_helpers_1.pickWeighted)([
-            { value: 'EXECUTED', weight: 8 },
-            { value: 'INACTIVE', weight: 2 },
+            { value: 'EXECUTED', weight: 9 },
+            { value: 'INACTIVE', weight: 1 },
         ]);
     }
+    // Pesos revisados (2026-11-24): EXECUTED mais alto que antes (55->75) -
+    // o usuario testando a Fase 4 (Encontros) encontrava "paredes" de
+    // atividades sem nenhum Encontro dentro de projetos ACTIVE porque quase
+    // metade ficava PLANNED/INACTIVE. A proporcao real de atividades ja
+    // executadas num projeto em andamento deveria ser a maioria, nao a
+    // metade.
     return (0, faker_helpers_1.pickWeighted)([
-        { value: 'EXECUTED', weight: 55 },
-        { value: 'PLANNED', weight: 30 },
-        { value: 'INACTIVE', weight: 15 },
+        { value: 'EXECUTED', weight: 75 },
+        { value: 'PLANNED', weight: 15 },
+        { value: 'INACTIVE', weight: 10 },
     ]);
 }
 function activityDates(window, status) {

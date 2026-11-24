@@ -183,6 +183,12 @@ export async function seedMeetingsFase4(
     if (activity.status === 'INACTIVE' && !activity.executedStartAt) continue;
     const start = activity.executedStartAt ?? activity.plannedStartAt;
     if (!start) continue;
+    // Rede de seguranca: uma atividade "ja aconteceu" nunca deveria ter
+    // data no futuro - se acontecer (ex.: dado antigo gerado antes da
+    // correcao de 2026-11-24 em pickActivityStatus), pula em vez de gerar
+    // um Encontro inconsistente (status aconteceu no passado, data no
+    // futuro).
+    if (start.getTime() > NOW.getTime()) continue;
     const end = activity.executedEndAt ?? (activity.status === 'INACTIVE' ? start : NOW);
     const cappedEnd = end.getTime() > NOW.getTime() ? NOW : end;
 
