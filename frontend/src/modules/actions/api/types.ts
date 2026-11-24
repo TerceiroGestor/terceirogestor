@@ -13,7 +13,7 @@ export type ApiActivityType = {
   updatedAt: string;
 };
 
-export type ActionStatus = "PLANNED" | "EXECUTED" | "INACTIVE";
+export type ActionStatus = "PLANNED" | "EXECUTED" | "COMPLETED" | "INACTIVE";
 
 export type ApiActivityPeopleGroupLink = {
   peopleGroupId: string;
@@ -205,6 +205,7 @@ export type MeetingAttendancesListResponse = {
 
 export type ActionAttendanceSummaryItem = {
   enrollment: import("@/modules/projects/api").ApiProjectEnrollment;
+  participationId: string | null;
   totalMeetings: number;
   presentCount: number;
   attendanceRate: number | null;
@@ -258,6 +259,7 @@ export type ActionPeopleParticipationInput = {
   personId: string;
   enrollmentId?: string | null;
   role?: ActionPeopleParticipationRole;
+  participationKind?: "PARTICIPANT" | "TEAM";
   startsAt?: string | null;
   internalNotes?: string | null;
 };
@@ -404,9 +406,15 @@ export type MeetingUpdateInput = {
   photoPaths?: string[] | null;
 };
 
+export type MeetingTeamParticipantInput = {
+  personId: string;
+  role?: ActionPeopleParticipationRole;
+};
+
 export type BulkCreateMeetingsInput = {
   peopleGroupIds?: string[];
   teamPeopleGroupIds?: string[];
+  teamParticipants?: MeetingTeamParticipantInput[];
   startDate: string;
   endDate: string;
   daysOfWeek: WeekDay[];

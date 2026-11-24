@@ -10,15 +10,19 @@ import type {
 
 export type ActionTarget = "PROJECT" | "PEOPLE_GROUP" | "ENROLLMENT";
 
+// Rotulos revisados (2026-11-24): uma Atividade roda meses gerando varios
+// Encontros, "Executada" (passado) nao refletia isso - ver PLAN.md.
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
-  PLANNED: "Planejada",
-  EXECUTED: "Executada",
-  INACTIVE: "Inativa",
+  PLANNED: "Planejamento",
+  EXECUTED: "Em Execução",
+  COMPLETED: "Finalizada",
+  INACTIVE: "Cancelada",
 };
 
 export const ACTION_STATUS_OPTIONS = [
   { label: ACTION_STATUS_LABELS.PLANNED, value: "PLANNED" },
   { label: ACTION_STATUS_LABELS.EXECUTED, value: "EXECUTED" },
+  { label: ACTION_STATUS_LABELS.COMPLETED, value: "COMPLETED" },
   { label: ACTION_STATUS_LABELS.INACTIVE, value: "INACTIVE" },
 ] satisfies { label: string; value: ActionStatus }[];
 

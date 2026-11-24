@@ -16,12 +16,9 @@ import { RichText } from "@/components/ui/richtext/RichText";
 import { resolveMediaUrl } from "@/lib/api";
 import type {
   ActionAttendanceSummaryItem,
-  ApiMeeting,
   ApiActivity,
   ApiActivityType,
   ApiProjectActionPeopleParticipation,
-  MeetingAttendancesListItem,
-  ActivityInput,
   ActionStatus,
 } from "@/modules/actions/api";
 import { listActivityTypes } from "@/modules/actions/api";
@@ -32,14 +29,7 @@ import {
 import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
 import { ActionOccurrencesSection } from "@/modules/actions/features/manage/ui/action-occurrences-section";
 import { ActionParticipantsSection } from "@/modules/actions/features/manage/ui/action-participants-section";
-import { ActionQualitySection } from "@/modules/actions/features/manage/ui/action-quality-section";
 import { ActionTeamSection } from "@/modules/actions/features/manage/ui/action-team-section";
-import { ActionReportPreview } from "@/modules/actions/features/manage/ui/action-report-preview";
-import type {
-  QualityAttendanceRow,
-  QualityDraft,
-  QualityNotesDialogState,
-} from "@/modules/actions/features/manage/ui/action-operational-relations";
 import {
   getProject,
   listProjectGoals,
@@ -49,7 +39,6 @@ import {
   type ApiProject,
   type ApiProjectPeopleGroup,
 } from "@/modules/projects/api";
-import { SectionCard } from "@/components/section-card";
 import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
 import {
   DetailSectionField,
@@ -192,10 +181,6 @@ function ActivityDetailMain({
       });
   }, [token, projectId]);
 
-  const selectedType =
-    actionTypes.find((type) => type.id === draft.actionTypeId) ?? action?.actionType ?? null;
-  const isPeopleGroupTarget = selectedType?.target === "PEOPLE_GROUP";
-
   return (
     <div className={ACTION_DETAIL_SECTION_CLASS}>
       <div className="grid gap-6 md:grid-cols-[1.5fr_180px_200px_220px] md:items-end">
@@ -284,29 +269,27 @@ function ActivityDetailMain({
       <div className="mt-6 space-y-4">
         <DetailSectionHeading title="Direcionamento" />
         <div className="grid gap-6 xl:grid-cols-2">
-          <DetailSectionField label="Grupos" required={isPeopleGroupTarget}>
-            {!isPeopleGroupTarget ? (
-              <div className="flex h-10 items-center border-b border-border/60 text-sm text-muted-foreground">
-                Esse tipo de atividade não usa Grupos.
-              </div>
-            ) : (
-              <MultiSelectBadges
-                options={peopleGroups.map((row) => ({
-                  value: row.peopleGroupId,
-                  label: row.peopleGroup?.name ?? "",
-                }))}
-                selectedValues={draft.peopleGroupIds}
-                onChange={(next) => {
-                  setDraft((previous) => ({ ...previous, peopleGroupIds: next }));
-                  onCommitField("peopleGroupIds", next);
-                }}
-                disabled={readOnly}
-                addLabel="Adicionar Grupos"
-                searchPlaceholder="Pesquisar Grupos..."
-                noOptionsLabel="Nenhum Grupos disponível neste projeto."
-                emptyLabel="Nenhum Grupos selecionado."
-              />
-            )}
+          <DetailSectionField label="Grupos">
+            {/* Disponível em todo tipo de Atividade (revisão da estrutura de
+                Projetos, 2026-11-24) - adicionar um Grupo aqui já vincula
+                cada membro como participante direto (ver aba
+                "Participantes"), sem exigência por `actionType.target`. */}
+            <MultiSelectBadges
+              options={peopleGroups.map((row) => ({
+                value: row.peopleGroupId,
+                label: row.peopleGroup?.name ?? "",
+              }))}
+              selectedValues={draft.peopleGroupIds}
+              onChange={(next) => {
+                setDraft((previous) => ({ ...previous, peopleGroupIds: next }));
+                onCommitField("peopleGroupIds", next);
+              }}
+              disabled={readOnly}
+              addLabel="Adicionar Grupos"
+              searchPlaceholder="Pesquisar Grupos..."
+              noOptionsLabel="Nenhum Grupos disponível neste projeto."
+              emptyLabel="Nenhum Grupos selecionado."
+            />
           </DetailSectionField>
 
           <DetailSectionField label="Meta (Plano de Trabalho)">
@@ -408,74 +391,6 @@ function ActivityPlanningSection({
   );
 }
 
-function ActionProgressSection({
-  action,
-  readOnly,
-  saving,
-  onSave,
-}: {
-  action: ApiActivity | null;
-  readOnly: boolean;
-  saving: boolean;
-  onSave: (patch: Partial<ActivityInput>) => Promise<void>;
-}) {
-  const [progressDraft, setProgressDraft] = React.useState({
-    completionPercent:
-      action?.completionPercent === null || action?.completionPercent === undefined
-        ? ""
-        : String(action.completionPercent),
-  });
-
-  React.useEffect(() => {
-    setProgressDraft({
-      completionPercent:
-        action?.completionPercent === null || action?.completionPercent === undefined
-          ? ""
-          : String(action.completionPercent),
-    });
-  }, [action]);
-
-  return (
-    <div className="space-y-4">
-      <DetailSectionHeading title="Progresso" />
-      <div className="grid gap-6 xl:grid-cols-[240px_1fr]">
-        <DetailSectionField label="% atingido">
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            value={progressDraft.completionPercent}
-            onChange={(event) =>
-              setProgressDraft((previous) => ({ ...previous, completionPercent: event.target.value }))
-            }
-            className={DETAIL_LINE_INPUT_CLASS_NAME}
-            readOnly={readOnly || saving}
-          />
-        </DetailSectionField>
-        <div />
-      </div>
-
-      {!readOnly ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() =>
-              void onSave({
-                completionPercent: progressDraft.completionPercent.trim()
-                  ? Number(progressDraft.completionPercent)
-                  : null,
-              })
-            }
-            disabled={saving}
-          >
-            {saving ? "Salvando..." : "Salvar progresso"}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   mode: "create" | "edit";
   readOnly: boolean;
@@ -489,8 +404,6 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
   projectId: string;
   onProjectIdChange?: (projectId: string) => void;
   action: ApiActivity | null;
-  occurrences: ApiMeeting[];
-  selectedOccurrence: ApiMeeting | null;
   draft: ActivityDetailDraft;
   setDraft: React.Dispatch<React.SetStateAction<ActivityDetailDraft>>;
   mentionableUsers: Array<{
@@ -500,45 +413,21 @@ export type ActionsDetailLayoutContext = DetailShellAuditContext & {
     avatarUrl?: string | null;
   }>;
   attachmentUploading: boolean;
-  reportRows: MeetingAttendancesListItem[];
   reportPeopleRows: ApiProjectActionPeopleParticipation[];
-  reportLoading: boolean;
-  reportError: string | null;
-  occurrenceId: string | null;
-  occurrenceOptions: Array<{ label: string; value: string }>;
-  onOccurrenceIdChange: (value: string) => void;
-  qualityDrafts: Record<string, QualityDraft>;
-  qualitySaving: boolean;
-  qualityNotesDialog: QualityNotesDialogState | null;
-  qualityAttendanceRows: QualityAttendanceRow[];
-  qualityRowsLoading: boolean;
-  qualityRowsError: string | null;
   attendanceSummaryRows: ActionAttendanceSummaryItem[];
   attendanceSummaryLoading: boolean;
   attendanceSummaryError: string | null;
+  onOpenParticipantPicker: () => void;
+  onRemoveParticipant: (participationId: string) => Promise<void>;
   onCommitField: <K extends keyof ActivityDetailDraft>(
     field: K,
     nextValue?: ActivityDetailDraft[K],
   ) => void;
   onUploadAttachment: () => void;
   onDeleteAttachment: (attachmentId: string) => void;
-  onSaveActionPatch: (patch: Partial<ActivityInput>) => Promise<void>;
   onActionLoaded: (action: ApiActivity) => void;
   onOpenTeamPicker: () => void;
   onEndTeamParticipation: (participationId: string) => Promise<void>;
-  getQualityEffective: (row: QualityAttendanceRow) => {
-    qualityScore: number | null;
-    qualityNotes: string | null;
-    isHighlight: boolean;
-  };
-  setQualityRowDraft: (
-    row: QualityAttendanceRow,
-    patch: QualityDraft,
-    prune?: boolean,
-  ) => void;
-  saveQualityDrafts: () => void;
-  onQualityNotesDialogChange: (state: QualityNotesDialogState | null) => void;
-  applyQualityNotesDialog: (state: QualityNotesDialogState) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -583,11 +472,21 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       visible: ({ mode }) => mode === "edit",
       badge: ({ attendanceSummaryRows }) => attendanceSummaryRows.length || undefined,
       flushContent: true,
-      content: ({ attendanceSummaryRows, attendanceSummaryLoading, attendanceSummaryError }) => (
+      content: ({
+        attendanceSummaryRows,
+        attendanceSummaryLoading,
+        attendanceSummaryError,
+        canUpdate,
+        onOpenParticipantPicker,
+        onRemoveParticipant,
+      }) => (
         <ActionParticipantsSection
           rows={attendanceSummaryRows}
           loading={attendanceSummaryLoading}
           error={attendanceSummaryError}
+          canUpdate={canUpdate}
+          onOpenParticipantPicker={onOpenParticipantPicker}
+          onRemoveParticipant={onRemoveParticipant}
         />
       ),
       emptyLabel: "Sem participantes.",
@@ -596,7 +495,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
       key: "occurrences",
       label: "Encontros",
       visible: ({ mode }) => mode === "edit",
-      badge: ({ occurrences }) => occurrences.length || undefined,
       flushContent: true,
       content: ({ action, projectId, token, readOnly }) =>
         action ? (
@@ -608,47 +506,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
           />
         ) : null,
       emptyLabel: "Sem encontros.",
-    },
-    {
-      key: "quality",
-      label: ACTION_RELATION_TEXT.quality.tabLabel,
-      visible: ({ mode }) => mode === "edit",
-      badge: ({ qualityAttendanceRows }) => qualityAttendanceRows.length || undefined,
-      flushContent: true,
-      content: ({
-        qualityAttendanceRows,
-        qualityRowsLoading,
-        qualityRowsError,
-        canUpdate,
-        canReadPeople,
-        tenantSlug,
-        qualityDrafts,
-        qualitySaving,
-        getQualityEffective,
-        setQualityRowDraft,
-        saveQualityDrafts,
-        qualityNotesDialog,
-        onQualityNotesDialogChange,
-        applyQualityNotesDialog,
-      }) => (
-        <ActionQualitySection
-          rows={qualityAttendanceRows}
-          loading={qualityRowsLoading}
-          error={qualityRowsError}
-          canUpdate={canUpdate}
-          canReadPeople={canReadPeople}
-          tenantSlug={tenantSlug}
-          qualityDrafts={qualityDrafts}
-          qualitySaving={qualitySaving}
-          getQualityEffective={getQualityEffective}
-          setQualityRowDraft={setQualityRowDraft}
-          saveQualityDrafts={saveQualityDrafts}
-          qualityNotesDialog={qualityNotesDialog}
-          onQualityNotesDialogChange={onQualityNotesDialogChange}
-          applyQualityNotesDialog={applyQualityNotesDialog}
-        />
-      ),
-      emptyLabel: "Sem qualidade.",
     },
     {
       key: "team",
@@ -665,76 +522,6 @@ export const actionsDetailLayout: DetailLayoutConfig<ActionsDetailLayoutContext>
         />
       ),
       emptyLabel: "Sem equipe.",
-    },
-    {
-      key: "progress",
-      label: "Progresso e Relatório",
-      visible: ({ mode }) => mode === "edit",
-      content: ({
-        action,
-        readOnly,
-        attachmentUploading,
-        onSaveActionPatch,
-        selectedOccurrence,
-        occurrenceId,
-        occurrenceOptions,
-        onOccurrenceIdChange,
-        reportRows,
-        reportPeopleRows,
-        reportLoading,
-        reportError,
-        canReadPeople,
-      }) => (
-        <div className="space-y-6">
-          <ActionProgressSection
-            action={action}
-            readOnly={readOnly}
-            saving={attachmentUploading}
-            onSave={onSaveActionPatch}
-          />
-          <SectionCard
-            title="Relatório"
-            actions={
-              occurrenceOptions.length ? (
-                <Select value={occurrenceId ?? ""} onValueChange={onOccurrenceIdChange}>
-                  <SelectTrigger className="h-8 w-[160px] text-xs">
-                    <SelectValue placeholder="Encontro" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {occurrenceOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null
-            }
-          >
-            {reportError ? (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {reportError}
-              </div>
-            ) : null}
-            {reportLoading ? <p className="text-xs text-muted-foreground">Carregando...</p> : null}
-            {!reportLoading && !selectedOccurrence ? (
-              <p className="text-xs text-muted-foreground">
-                Nenhum encontro agendado ainda — o relatório é gerado a partir de um Encontro.
-              </p>
-            ) : null}
-            {action && selectedOccurrence ? (
-              <ActionReportPreview
-                action={action}
-                occurrence={selectedOccurrence}
-                rows={reportRows}
-                peopleParticipations={reportPeopleRows}
-                canShowPeople={canReadPeople}
-              />
-            ) : null}
-          </SectionCard>
-        </div>
-      ),
-      emptyLabel: "Sem progresso registrado.",
     },
   ],
   side: ({

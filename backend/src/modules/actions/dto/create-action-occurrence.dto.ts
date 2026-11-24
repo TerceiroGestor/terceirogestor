@@ -1,17 +1,35 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsEnum,
   IsIn,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { ActionPeopleParticipationRole } from '../../../generated/prisma';
 import { WEEK_DAYS } from '../action-occurrence-schedule';
 
 const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * "Responsáveis" na criação do Encontro (revisão da estrutura de
+ * Projetos, 2026-11-24) - evita um passo extra depois pra adicionar quem
+ * vai conduzir o Encontro (`MeetingTeamParticipation`).
+ */
+export class MeetingTeamParticipantInputDto {
+  @IsUUID('4')
+  personId!: string;
+
+  @IsOptional()
+  @IsEnum(ActionPeopleParticipationRole)
+  role?: ActionPeopleParticipationRole;
+}
 
 export class CreateActionOccurrenceDto {
   @IsOptional()
@@ -42,6 +60,12 @@ export class CreateActionOccurrenceDto {
   @IsArray()
   @IsUUID('4', { each: true })
   teamPeopleGroupIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MeetingTeamParticipantInputDto)
+  teamParticipants?: MeetingTeamParticipantInputDto[];
 
   @IsOptional()
   @IsString()
@@ -90,6 +114,12 @@ export class BulkCreateActionOccurrencesDto {
   @IsArray()
   @IsUUID('4', { each: true })
   teamPeopleGroupIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MeetingTeamParticipantInputDto)
+  teamParticipants?: MeetingTeamParticipantInputDto[];
 
   @IsString()
   startDate!: string;

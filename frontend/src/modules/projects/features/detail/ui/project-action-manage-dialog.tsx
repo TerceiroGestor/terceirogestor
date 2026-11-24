@@ -36,6 +36,12 @@ function resolveStatusBadge(status: ActionStatus) {
       return <Badge variant="outline">{label}</Badge>;
     case "EXECUTED":
       return <Badge variant="secondary">{label}</Badge>;
+    case "COMPLETED":
+      return (
+        <Badge className="border-transparent bg-emerald-600 text-white">
+          {label}
+        </Badge>
+      );
     case "PLANNED":
     default:
       return (

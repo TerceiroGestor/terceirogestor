@@ -12,6 +12,7 @@ import type {
   AttendanceStatus,
   ParticipationKind,
   Prisma,
+  ProjectParticipationRole,
 } from '../../generated/prisma';
 import type { JwtUser } from '../../core/auth/strategies/jwt.strategy';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -272,26 +273,23 @@ function serializeProjectAction(action: any) {
   };
 }
 
+/**
+ * Revisao da estrutura de Projetos (2026-11-24): Grupos deixou de ser
+ * exclusivo de `target === 'PEOPLE_GROUP'` - toda Atividade aceita Grupos
+ * agora (so vira um atalho que fan-out em participante direto, ver
+ * `fanOutGroupToDirectParticipants`). `target`/`targetEnrollmentId`
+ * continuam existindo (sem migration de remocao) mas perderam a
+ * obrigatoriedade - por isso essa funcao so dedup/normaliza, nao zera mais
+ * nada com base no `target`.
+ */
 function resolveScopeFromTarget(params: {
   target: ActionTarget;
   peopleGroupIds: string[];
   targetEnrollmentId: string | null;
 }) {
-  if (params.target === 'PEOPLE_GROUP') {
-    return {
-      peopleGroupIds: [...new Set(params.peopleGroupIds)],
-      targetEnrollmentId: null as string | null,
-    };
-  }
-  if (params.target === 'ENROLLMENT') {
-    return {
-      peopleGroupIds: [] as string[],
-      targetEnrollmentId: params.targetEnrollmentId,
-    };
-  }
   return {
-    peopleGroupIds: [] as string[],
-    targetEnrollmentId: null as string | null,
+    peopleGroupIds: [...new Set(params.peopleGroupIds)],
+    targetEnrollmentId: params.target === 'ENROLLMENT' ? params.targetEnrollmentId : null,
   };
 }
 
@@ -704,15 +702,99 @@ export class ActionsService {
   }
 
   /**
+   * Mapa personType -> matricula de projeto (so usado quando um membro de
+   * Grupo adicionado via `fanOutGroupToDirectParticipants` ainda nao tem
+   * `ProjectEnrollment` - revisao da estrutura de Projetos, 2026-11-24).
+   */
+  private static readonly PERSON_TYPE_TO_ENROLLMENT_ROLE: Record<
+    string,
+    { role: ProjectParticipationRole; participationKind: ParticipationKind }
+  > = {
+    Atendido: { role: 'PUBLICO_ATENDIDO', participationKind: 'PARTICIPANT' },
+    Familiar: { role: 'FAMILIAR', participationKind: 'PARTICIPANT' },
+    Funcionario: { role: 'FUNCIONARIO', participationKind: 'TEAM' },
+    Voluntario: { role: 'VOLUNTARIO', participationKind: 'TEAM' },
+    Oficineiro: { role: 'OFICINEIRO', participationKind: 'TEAM' },
+    Parceiro: { role: 'PARCEIRO', participationKind: 'TEAM' },
+    Doador: { role: 'DOADOR', participationKind: 'TEAM' },
+  };
+
+  /**
+   * Grupo -> participante direto (Atividade ou Encontro), com matricula
+   * automatica pra quem ainda nao tem (revisao da estrutura de Projetos,
+   * 2026-11-24): "adicionar Grupo" e so um atalho pra preencher a lista de
+   * vinculos diretos, nao uma fonte de verdade por si - cada membro ativo
+   * do Grupo ganha um registro individual via `linkPerson` (quem chama
+   * decide se isso vira `ProjectActionPeopleParticipation` - Atividade -
+   * ou `MeetingAttendance` - Encontro).
+   */
+  private async fanOutGroupToDirectParticipants(params: {
+    tenantId: string;
+    projectId: string;
+    peopleGroupId: string;
+    linkPerson: (enrollmentId: string, personId: string) => Promise<void>;
+  }) {
+    const members = await this.prisma.peopleGroupParticipation.findMany({
+      where: {
+        tenantId: params.tenantId,
+        peopleGroupId: params.peopleGroupId,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { personId: true, person: { select: { personType: true } } },
+    });
+
+    for (const member of members) {
+      let enrollment = await this.prisma.projectEnrollment.findFirst({
+        where: {
+          tenantId: params.tenantId,
+          projectId: params.projectId,
+          personId: member.personId,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (!enrollment) {
+        const mapping =
+          ActionsService.PERSON_TYPE_TO_ENROLLMENT_ROLE[member.person.personType ?? ''] ?? {
+            role: 'PUBLICO_ATENDIDO' as ProjectParticipationRole,
+            participationKind: 'PARTICIPANT' as ParticipationKind,
+          };
+        enrollment = await this.prisma.projectEnrollment.create({
+          data: {
+            tenantId: params.tenantId,
+            projectId: params.projectId,
+            personId: member.personId,
+            status: 'ACTIVE',
+            participationKind: mapping.participationKind,
+            role: mapping.role,
+            startsAt: new Date(),
+          },
+          select: { id: true },
+        });
+      }
+
+      await params.linkPerson(enrollment.id, member.personId);
+    }
+  }
+
+  /**
    * Chamar depois de validar `peopleGroupIds` (ensurePeopleGroupBelongsToProject
    * em cada um) - este metodo nao revalida, para nao escrever a Activity e
    * so depois falhar com um id invalido, deixando um registro orfao sem
-   * nenhum Grupos-alvo.
+   * nenhum Grupos-alvo. `previousPeopleGroupIds` (so em update) delimita o
+   * fan-out so pros Grupos novos - remover um Grupo da lista nao desfaz os
+   * vinculos diretos ja criados (participante direto e independente do
+   * Grupo de origem a partir daí).
    */
   private async syncParticipantPeopleGroupScope(params: {
     tenantId: string;
+    projectId: string;
     actionId: string;
     peopleGroupIds: string[];
+    previousPeopleGroupIds?: string[];
   }) {
     await this.prisma.activityPeopleGroup.deleteMany({
       where: {
@@ -722,18 +804,54 @@ export class ActionsService {
       },
     });
 
-    if (!params.peopleGroupIds.length) {
-      return;
+    if (params.peopleGroupIds.length) {
+      await this.prisma.activityPeopleGroup.createMany({
+        data: params.peopleGroupIds.map((peopleGroupId) => ({
+          tenantId: params.tenantId,
+          actionId: params.actionId,
+          peopleGroupId,
+          participationKind: 'PARTICIPANT' as const,
+        })),
+      });
     }
 
-    await this.prisma.activityPeopleGroup.createMany({
-      data: params.peopleGroupIds.map((peopleGroupId) => ({
+    const previous = new Set(params.previousPeopleGroupIds ?? []);
+    const newGroupIds = params.peopleGroupIds.filter((id) => !previous.has(id));
+    for (const peopleGroupId of newGroupIds) {
+      await this.fanOutGroupToDirectParticipants({
         tenantId: params.tenantId,
-        actionId: params.actionId,
+        projectId: params.projectId,
         peopleGroupId,
-        participationKind: 'PARTICIPANT' as const,
-      })),
-    });
+        linkPerson: async (enrollmentId, personId) => {
+          const existing =
+            await this.prisma.projectActionPeopleParticipation.findFirst({
+              where: {
+                tenantId: params.tenantId,
+                actionId: params.actionId,
+                personId,
+                role: 'PARTICIPANTE',
+                isActive: true,
+                deletedAt: null,
+              },
+              select: { id: true },
+            });
+          if (existing) return;
+          await this.prisma.projectActionPeopleParticipation.create({
+            data: {
+              tenantId: params.tenantId,
+              actionId: params.actionId,
+              personId,
+              enrollmentId,
+              participationKind: 'PARTICIPANT',
+              role: 'PARTICIPANTE',
+              activeKey: `${params.actionId}:${personId}:PARTICIPANTE`,
+              isActive: true,
+              startsAt: new Date(),
+            },
+          });
+        },
+      });
+    }
   }
 
   async listActionTypes(tenantId: string, query: ListActionTypesQueryDto) {
@@ -974,17 +1092,6 @@ export class ActionsService {
       targetEnrollmentId: dto.targetEnrollmentId ?? null,
     });
 
-    if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
-      throw new BadRequestException(
-        'Grupos e obrigatorio para este tipo de acao',
-      );
-    }
-    if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
-      throw new BadRequestException(
-        'Participante e obrigatorio para este tipo de acao',
-      );
-    }
-
     await Promise.all(
       scope.peopleGroupIds.map((peopleGroupId) =>
         this.ensurePeopleGroupBelongsToProject(
@@ -1052,6 +1159,7 @@ export class ActionsService {
     });
     await this.syncParticipantPeopleGroupScope({
       tenantId: user.tenantId,
+      projectId,
       actionId: created.id,
       peopleGroupIds: scope.peopleGroupIds,
     });
@@ -1093,16 +1201,6 @@ export class ActionsService {
       targetEnrollmentId: targetEnrollmentIdInput,
     });
 
-    if (type.target === 'PEOPLE_GROUP' && scope.peopleGroupIds.length === 0) {
-      throw new BadRequestException(
-        'Grupos e obrigatorio para este tipo de acao',
-      );
-    }
-    if (type.target === 'ENROLLMENT' && !scope.targetEnrollmentId) {
-      throw new BadRequestException(
-        'Participante e obrigatorio para este tipo de acao',
-      );
-    }
 
     await Promise.all(
       scope.peopleGroupIds.map((peopleGroupId) =>
@@ -1224,8 +1322,10 @@ export class ActionsService {
     ) {
       await this.syncParticipantPeopleGroupScope({
         tenantId: user.tenantId,
+        projectId,
         actionId: existing.id,
         peopleGroupIds: scope.peopleGroupIds,
+        previousPeopleGroupIds: (existing.peopleGroupIds as string[] | undefined) ?? [],
       });
     }
     return this.getProjectAction(user, projectId, existing.id);
@@ -1622,7 +1722,119 @@ export class ActionsService {
       include: actionOccurrenceInclude,
     });
 
+    await this.fanOutGroupsToMeetingAttendance({
+      tenantId: user.tenantId,
+      projectId,
+      meetingId: created.id,
+      actionId,
+      peopleGroupIds,
+    });
+
+    await this.addMeetingTeamParticipants({
+      tenantId: user.tenantId,
+      projectId,
+      actionId,
+      meetingIds: [created.id],
+      teamParticipants: dto.teamParticipants ?? [],
+    });
+
     return serializeMeeting(created);
+  }
+
+  /**
+   * "Responsáveis" informados já na criação do Encontro (revisão da
+   * estrutura de Projetos, 2026-11-24) - mesma cascata de
+   * `addMeetingTeamParticipations` (Activity/Project team), só que
+   * aplicada de uma vez pra 1 ou mais Encontros (`bulkCreateActionOccurrences`
+   * cria N encontros com os mesmos responsáveis).
+   */
+  private async addMeetingTeamParticipants(params: {
+    tenantId: string;
+    projectId: string;
+    actionId: string;
+    meetingIds: string[];
+    teamParticipants: { personId: string; role?: ActionPeopleParticipationRole }[];
+  }) {
+    if (!params.teamParticipants.length || !params.meetingIds.length) return;
+
+    for (const participant of params.teamParticipants) {
+      const role = participant.role ?? 'PARTICIPANTE';
+      await this.ensurePersonOnActivityTeam(
+        params.tenantId,
+        params.actionId,
+        participant.personId,
+        role,
+      );
+      await this.ensurePersonOnProjectTeam(
+        params.tenantId,
+        params.projectId,
+        participant.personId,
+        role,
+      );
+      for (const meetingId of params.meetingIds) {
+        const existing = await this.prisma.meetingTeamParticipation.findFirst({
+          where: {
+            tenantId: params.tenantId,
+            meetingId,
+            personId: participant.personId,
+            role,
+          },
+          select: { id: true },
+        });
+        if (existing) continue;
+        await this.prisma.meetingTeamParticipation.create({
+          data: {
+            tenantId: params.tenantId,
+            meetingId,
+            personId: participant.personId,
+            role,
+          },
+        });
+      }
+    }
+  }
+
+  /**
+   * Mesmo princípio do Grupo->participante direto da Atividade (ver
+   * `fanOutGroupToDirectParticipants`), aplicado ao Encontro: selecionar um
+   * Grupo já vincula a presença de cada membro direto (`MeetingAttendance`,
+   * status padrão PRESENT - ajustável depois na "chamada"). Idempotente -
+   * seguro chamar de novo pro mesmo conjunto de Grupos (ex.: numa edição).
+   */
+  private async fanOutGroupsToMeetingAttendance(params: {
+    tenantId: string;
+    projectId: string;
+    meetingId: string;
+    actionId: string;
+    peopleGroupIds: string[];
+  }) {
+    for (const peopleGroupId of params.peopleGroupIds) {
+      await this.fanOutGroupToDirectParticipants({
+        tenantId: params.tenantId,
+        projectId: params.projectId,
+        peopleGroupId,
+        linkPerson: async (enrollmentId) => {
+          const existing = await this.prisma.meetingAttendance.findFirst({
+            where: {
+              tenantId: params.tenantId,
+              occurrenceId: params.meetingId,
+              enrollmentId,
+            },
+            select: { id: true },
+          });
+          if (existing) return;
+          await this.prisma.meetingAttendance.create({
+            data: {
+              tenantId: params.tenantId,
+              actionId: params.actionId,
+              occurrenceId: params.meetingId,
+              enrollmentId,
+              status: 'PRESENT',
+            },
+          });
+        },
+      });
+    }
   }
 
   async previewActionOccurrences(
@@ -1757,7 +1969,7 @@ export class ActionsService {
     });
 
     const createdOccurrenceIds =
-      teamPeopleGroupIds.length || peopleGroupIds.length
+      teamPeopleGroupIds.length || peopleGroupIds.length || dto.teamParticipants?.length
         ? await this.prisma.meeting.findMany({
           where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
           select: { id: true },
@@ -1784,7 +1996,24 @@ export class ActionsService {
           })),
         ),
       });
+      for (const occurrence of createdOccurrenceIds) {
+        await this.fanOutGroupsToMeetingAttendance({
+          tenantId: user.tenantId,
+          projectId,
+          meetingId: occurrence.id,
+          actionId,
+          peopleGroupIds,
+        });
+      }
     }
+
+    await this.addMeetingTeamParticipants({
+      tenantId: user.tenantId,
+      projectId,
+      actionId,
+      meetingIds: createdOccurrenceIds.map((occurrence) => occurrence.id),
+      teamParticipants: dto.teamParticipants ?? [],
+    });
 
     const created = await this.prisma.meeting.findMany({
       where: { tenantId: user.tenantId, actionId, recurrenceBatchId },
@@ -1978,6 +2207,15 @@ export class ActionsService {
           ]
           : []),
       ]);
+      if (toAdd.length) {
+        await this.fanOutGroupsToMeetingAttendance({
+          tenantId: user.tenantId,
+          projectId,
+          meetingId: existing.id,
+          actionId,
+          peopleGroupIds: toAdd,
+        });
+      }
     }
 
     const result = await this.prisma.meeting.findFirst({
@@ -2970,13 +3208,24 @@ export class ActionsService {
     const q = normalizeString(query.q);
     const from = parseDateInput(query.from);
     const to = parseDateInput(query.to, { endOfDay: true });
-    const scopedPeopleGroupIds = (action.peopleGroupIds as string[]) ?? [];
 
+    // Revisao da estrutura de Projetos (2026-11-24): roster deixou de ser
+    // calculado por scope (Grupos/targetEnrollmentId da Atividade) - agora
+    // vem da lista de participantes diretos (`ProjectActionPeopleParticipation`,
+    // kind PARTICIPANT), a mesma fonte que "Novo"/fan-out de Grupo escrevem.
     const where: Prisma.ProjectEnrollmentWhereInput = {
       tenantId: user.tenantId,
       projectId,
       status: 'ACTIVE',
-      ...(action.targetEnrollmentId ? { id: action.targetEnrollmentId } : {}),
+      actionPeopleParticipations: {
+        some: {
+          tenantId: user.tenantId,
+          actionId,
+          participationKind: 'PARTICIPANT',
+          isActive: true,
+          deletedAt: null,
+        },
+      },
       ...(q
         ? {
           OR: [
@@ -2994,20 +3243,6 @@ export class ActionsService {
               },
             },
           ],
-        }
-        : {}),
-      ...(scopedPeopleGroupIds.length
-        ? {
-          person: {
-            peopleGroupParticipations: {
-              some: {
-                tenantId: user.tenantId,
-                peopleGroupId: { in: scopedPeopleGroupIds },
-                isActive: true,
-                deletedAt: null,
-              },
-            },
-          },
         }
         : {}),
     };
@@ -3030,6 +3265,20 @@ export class ActionsService {
                 },
               },
             },
+          },
+          // So pra expor o id do vinculo direto (ProjectActionPeopleParticipation)
+          // pro frontend poder remover ("Remover" na aba Participantes) -
+          // o `where` acima ja garante que existe exatamente esse vinculo.
+          actionPeopleParticipations: {
+            where: {
+              tenantId: user.tenantId,
+              actionId,
+              participationKind: 'PARTICIPANT',
+              isActive: true,
+              deletedAt: null,
+            },
+            select: { id: true },
+            take: 1,
           },
         },
         orderBy: [{ person: { fullName: 'asc' } }],
@@ -3064,6 +3313,7 @@ export class ActionsService {
         action: { id: action.id, title: action.title },
         data: enrollments.map((enrollment) => ({
           enrollment: this.serializeEnrollment(enrollment as any),
+          participationId: (enrollment as any).actionPeopleParticipations?.[0]?.id ?? null,
           totalMeetings: 0,
           presentCount: 0,
           attendanceRate: null as number | null,
@@ -3154,6 +3404,7 @@ export class ActionsService {
 
       return {
         enrollment: this.serializeEnrollment(enrollment as any),
+        participationId: (enrollment as any).actionPeopleParticipations?.[0]?.id ?? null,
         totalMeetings,
         presentCount,
         attendanceRate: totalMeetings > 0 ? presentCount / totalMeetings : null,

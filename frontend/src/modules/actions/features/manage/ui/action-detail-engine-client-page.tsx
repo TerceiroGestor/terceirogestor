@@ -14,15 +14,9 @@ import {
   endProjectActionPeopleParticipation,
   getActivity,
   listActionAttendanceSummary,
-  listMeetings,
-  listMeetingAttendances,
   listProjectActionPeopleParticipations,
-  upsertMeetingAttendances,
   updateActivity,
-  type ApiMeeting,
-  type AttendanceStatus,
   type ApiActivity,
-  type MeetingAttendancesListItem,
 } from "@/modules/actions/api";
 import {
   ACTIONS_ROUTES,
@@ -32,13 +26,6 @@ import {
   type ActivityDetailDraft,
   type ActionsDetailLayoutContext,
 } from "@/modules/actions/config/actions-detail-layout-contract";
-import { ACTION_RELATION_TEXT } from "@/modules/actions/features/manage/config/action-relations.constants";
-import {
-  resolveDefaultOccurrenceId,
-  type QualityAttendanceRow,
-  type QualityDraft,
-  type QualityNotesDialogState,
-} from "@/modules/actions/features/manage/ui/action-operational-relations";
 import { ActionPeopleParticipationPickerDialog } from "@/modules/actions/features/manage/ui/action-people-participation-picker-dialog";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { createRestDataProvider } from "@/web-client/data-provider";
@@ -86,69 +73,6 @@ export function normalizeDraft(draft: ActivityDetailDraft): ActivityDetailDraft 
   };
 }
 
-async function fetchAllAttendances(params: {
-  token: string;
-  projectId: string;
-  actionId: string;
-  occurrenceId: string;
-}) {
-  const limit = 200;
-  let page = 1;
-  const all: MeetingAttendancesListItem[] = [];
-
-  while (true) {
-    const response = await listMeetingAttendances(
-      params.token,
-      params.projectId,
-      params.actionId,
-      params.occurrenceId,
-      { page, limit },
-    );
-    all.push(...(response.data ?? []));
-    const pages = response.pagination?.pages ?? page;
-    if (page >= pages) break;
-    page += 1;
-  }
-
-  return all;
-}
-
-// Qualidade mostra a presenca de todos os Encontros juntos (Encontro virou
-// um filtro/agrupamento normal, como Grupos), entao busca cada Encontro em
-// paralelo (concorrencia limitada pra nao disparar uma chamada por Encontro
-// de uma vez) e marca cada linha com o Encontro de origem.
-async function fetchAllQualityAttendances(params: {
-  token: string;
-  projectId: string;
-  actionId: string;
-  occurrences: ApiMeeting[];
-}): Promise<QualityAttendanceRow[]> {
-  const { token, projectId, actionId, occurrences } = params;
-  const results: QualityAttendanceRow[] = [];
-  let cursor = 0;
-
-  async function worker() {
-    while (cursor < occurrences.length) {
-      const occurrence = occurrences[cursor];
-      cursor += 1;
-      const rows = await fetchAllAttendances({
-        token,
-        projectId,
-        actionId,
-        occurrenceId: occurrence.id,
-      });
-      rows.forEach((row) => {
-        results.push({ ...row, occurrenceId: occurrence.id, scheduledDate: occurrence.scheduledDate });
-      });
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(4, occurrences.length) }, () => worker()),
-  );
-  return results;
-}
-
 export function ActionDetailEngineClientPage() {
   const params = useParams<{ id?: string }>();
   const searchParams = useSearchParams();
@@ -177,32 +101,16 @@ export function ActionDetailEngineClientPage() {
   const [attachmentUploading, setAttachmentUploading] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
   const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
-  const [occurrences, setOccurrences] = React.useState<ApiMeeting[]>([]);
-  const [occurrenceId, setOccurrenceId] = React.useState<string | null>(null);
-  const selectedOccurrence = React.useMemo(
-    () => occurrences.find((item) => item.id === occurrenceId) ?? null,
-    [occurrences, occurrenceId],
-  );
-  const [reportRows, setReportRows] = React.useState<MeetingAttendancesListItem[]>([]);
+  const [participantPickerOpen, setParticipantPickerOpen] = React.useState(false);
   const [reportPeopleRows, setReportPeopleRows] = React.useState<
     ActionsDetailLayoutContext["reportPeopleRows"]
   >([]);
-  const [reportLoading, setReportLoading] = React.useState(false);
-  const [reportError, setReportError] = React.useState<string | null>(null);
   const [attendanceSummaryRows, setAttendanceSummaryRows] = React.useState<
     ActionsDetailLayoutContext["attendanceSummaryRows"]
   >([]);
   const [attendanceSummaryLoading, setAttendanceSummaryLoading] = React.useState(false);
   const [attendanceSummaryError, setAttendanceSummaryError] = React.useState<string | null>(null);
   const attendanceSummaryRequestIdRef = React.useRef(0);
-  const [qualityAttendanceRows, setQualityAttendanceRows] = React.useState<QualityAttendanceRow[]>([]);
-  const [qualityRowsLoading, setQualityRowsLoading] = React.useState(false);
-  const [qualityRowsError, setQualityRowsError] = React.useState<string | null>(null);
-  const qualityRowsRequestIdRef = React.useRef(0);
-  const [qualityDrafts, setQualityDrafts] = React.useState<Record<string, QualityDraft>>({});
-  const [qualitySaving, setQualitySaving] = React.useState(false);
-  const [qualityNotesDialog, setQualityNotesDialog] =
-    React.useState<QualityNotesDialogState | null>(null);
   const attachmentInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const persistDraft = React.useCallback(
@@ -246,50 +154,19 @@ export function ActionDetailEngineClientPage() {
   });
   const { saving, replaceSavedDraft, commitField } = autoSave;
 
-  const refreshReport = React.useCallback(async () => {
+  // Alimenta so o badge/leitura da aba "Equipe" - a aba Qualidade/
+  // Progresso-e-Relatorio que tambem usava isso (via `refreshReport`)
+  // foi removida (revisao da estrutura de Projetos, 2026-11-24).
+  const loadTeamParticipations = React.useCallback(async () => {
     if (!token || !projectId || !id || !canRead) return;
-    setReportLoading(true);
-    setReportError(null);
     try {
-      const [rows, people] = await Promise.all([
-        occurrenceId
-          ? fetchAllAttendances({ token, projectId, actionId: id, occurrenceId })
-          : Promise.resolve([]),
-        listProjectActionPeopleParticipations(token, projectId, id, { page: 1, limit: 200 }),
-      ]);
-      setReportRows(rows);
+      const people = await listProjectActionPeopleParticipations(token, projectId, id, {
+        page: 1,
+        limit: 200,
+      });
       setReportPeopleRows(people.data ?? []);
-      if (!occurrenceId) {
-        setReportError(
-          "Nenhum encontro agendado ainda. Agende um encontro na aba \"Encontros\" para registrar presença.",
-        );
-      }
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao carregar relatório.";
-      setReportRows([]);
-      setReportPeopleRows([]);
-      setReportError(message);
-    } finally {
-      setReportLoading(false);
-    }
-  }, [canRead, id, occurrenceId, projectId, token]);
-
-  const loadOccurrences = React.useCallback(async () => {
-    if (!token || !projectId || !id || !canRead) return;
-    try {
-      const response = await listMeetings(token, projectId, id, { limit: 200 });
-      setOccurrences(response.data);
-      setOccurrenceId((previous) =>
-        previous && response.data.some((item) => item.id === previous)
-          ? previous
-          : resolveDefaultOccurrenceId(response.data),
-      );
     } catch {
-      setOccurrences([]);
-      setOccurrenceId(null);
+      setReportPeopleRows([]);
     }
   }, [canRead, id, projectId, token]);
 
@@ -329,40 +206,6 @@ export function ActionDetailEngineClientPage() {
     }
   }, [canRead, id, projectId, token]);
 
-  const loadQualityAttendanceRows = React.useCallback(async () => {
-    if (!token || !projectId || !id || !canRead) return;
-    const requestId = ++qualityRowsRequestIdRef.current;
-    setQualityRowsLoading(true);
-    setQualityRowsError(null);
-    try {
-      const rows = await fetchAllQualityAttendances({
-        token,
-        projectId,
-        actionId: id,
-        occurrences,
-      });
-      if (requestId !== qualityRowsRequestIdRef.current) return;
-      setQualityAttendanceRows(rows.filter((row) => row.attendance !== null));
-      if (occurrences.length === 0) {
-        setQualityRowsError(
-          "Nenhum encontro agendado ainda. Agende um encontro na aba \"Encontros\" para registrar presença.",
-        );
-      }
-    } catch (error) {
-      if (requestId !== qualityRowsRequestIdRef.current) return;
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao carregar qualidade.";
-      setQualityAttendanceRows([]);
-      setQualityRowsError(message);
-    } finally {
-      if (requestId === qualityRowsRequestIdRef.current) {
-        setQualityRowsLoading(false);
-      }
-    }
-  }, [canRead, id, occurrences, projectId, token]);
-
   const applyLoadedAction = React.useCallback(
     (loaded: ApiActivity) => {
       const nextDraft = buildDraft(loaded);
@@ -375,28 +218,13 @@ export function ActionDetailEngineClientPage() {
 
   React.useEffect(() => {
     setAuditVisibleCount(24);
-    setOccurrences([]);
-    setOccurrenceId(null);
     setAttendanceSummaryRows([]);
     setAttendanceSummaryError(null);
-    setQualityAttendanceRows([]);
-    setQualityRowsError(null);
-    setQualityDrafts({});
-    setQualitySaving(false);
-    setQualityNotesDialog(null);
   }, [id]);
-
-  React.useEffect(() => {
-    void loadOccurrences();
-  }, [loadOccurrences]);
 
   React.useEffect(() => {
     void loadAttendanceSummary();
   }, [loadAttendanceSummary]);
-
-  React.useEffect(() => {
-    void loadQualityAttendanceRows();
-  }, [loadQualityAttendanceRows]);
 
   React.useEffect(() => {
     if (!token || !projectId || !canRead) {
@@ -421,19 +249,8 @@ export function ActionDetailEngineClientPage() {
 
   React.useEffect(() => {
     if (!action) return;
-    void refreshReport();
-  }, [action, refreshReport]);
-
-  const handleSaveActionPatch = React.useCallback(
-    async (patch: Parameters<typeof updateActivity>[3]) => {
-      if (!token || !projectId) return;
-      const updated = await updateActivity(token, projectId, id, patch);
-      applyLoadedAction(updated);
-      toast({ title: "Salvo" });
-      await refreshReport();
-    },
-    [applyLoadedAction, id, projectId, refreshReport, toast, token],
-  );
+    void loadTeamParticipations();
+  }, [action, loadTeamParticipations]);
 
   const handleSelectAttachment = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -496,7 +313,7 @@ export function ActionDetailEngineClientPage() {
           role: params.role,
         });
         toast({ title: "Pessoa adicionada" });
-        await refreshReport();
+        await loadTeamParticipations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -505,7 +322,7 @@ export function ActionDetailEngineClientPage() {
         toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
     },
-    [id, projectId, refreshReport, toast, token],
+    [id, loadTeamParticipations, projectId, toast, token],
   );
 
   const handleEndTeamParticipation = React.useCallback(
@@ -515,7 +332,7 @@ export function ActionDetailEngineClientPage() {
       try {
         await endProjectActionPeopleParticipation(token, projectId, id, participationId);
         toast({ title: "Participação encerrada" });
-        await refreshReport();
+        await loadTeamParticipations();
       } catch (error) {
         const message =
           error && typeof error === "object" && "message" in error
@@ -524,167 +341,52 @@ export function ActionDetailEngineClientPage() {
         toast({ variant: "destructive", title: "Falha ao encerrar", description: message });
       }
     },
-    [id, projectId, refreshReport, toast, token],
+    [id, loadTeamParticipations, projectId, toast, token],
   );
 
-  const occurrenceOptions = React.useMemo(
-    () =>
-      occurrences.map((occurrence) => ({
-        label: new Date(occurrence.scheduledDate).toLocaleDateString("pt-BR", {
-          timeZone: "UTC",
-        }),
-        value: occurrence.id,
-      })),
-    [occurrences],
-  );
-
-  // Mesmo enrollment aparece uma vez por Encontro (varias linhas), entao
-  // enrollment.id sozinho nao identifica mais uma linha unica - combina com
-  // o Encontro de origem.
-  const qualityDraftKey = React.useCallback(
-    (occurrenceIdValue: string, enrollmentId: string) => `${occurrenceIdValue}::${enrollmentId}`,
-    [],
-  );
-
-  const getQualityEffective = React.useCallback(
-    (row: QualityAttendanceRow) => {
-      const draftEntry = qualityDrafts[qualityDraftKey(row.occurrenceId, row.enrollment.id)];
-      return {
-        qualityScore:
-          draftEntry?.qualityScore === undefined
-            ? (row.attendance?.qualityScore ?? null)
-            : draftEntry.qualityScore,
-        qualityNotes:
-          draftEntry?.qualityNotes === undefined
-            ? (row.attendance?.qualityNotes ?? null)
-            : draftEntry.qualityNotes,
-        isHighlight:
-          draftEntry?.isHighlight === undefined
-            ? Boolean(row.attendance?.isHighlight)
-            : Boolean(draftEntry.isHighlight),
-      };
-    },
-    [qualityDrafts, qualityDraftKey],
-  );
-
-  const setQualityRowDraft = React.useCallback(
-    (
-      row: QualityAttendanceRow,
-      patch: QualityDraft,
-      prune = false,
-    ) => {
-      const key = qualityDraftKey(row.occurrenceId, row.enrollment.id);
-      setQualityDrafts((previous) => {
-        const next = { ...previous };
-        const merged = { ...(previous[key] ?? {}), ...patch };
-
-        if (prune) {
-          const originalScore = row.attendance?.qualityScore ?? null;
-          const originalNotes = row.attendance?.qualityNotes ?? null;
-          const originalHighlight = Boolean(row.attendance?.isHighlight);
-          const scoreMatches =
-            merged.qualityScore === undefined || merged.qualityScore === originalScore;
-          const notesMatches =
-            merged.qualityNotes === undefined || merged.qualityNotes === originalNotes;
-          const highlightMatches =
-            merged.isHighlight === undefined || merged.isHighlight === originalHighlight;
-
-          if (scoreMatches && notesMatches && highlightMatches) {
-            delete next[key];
-            return next;
-          }
-        }
-
-        next[key] = merged;
-        return next;
-      });
-    },
-    [qualityDraftKey],
-  );
-
-  const saveQualityDrafts = React.useCallback(async () => {
-    if (!token || !projectId) return;
-    const keys = Object.keys(qualityDrafts);
-    if (!keys.length) return;
-
-    const itemsByOccurrence = new Map<
-      string,
-      Array<{
-        enrollmentId: string;
-        status: AttendanceStatus;
-        qualityScore?: number | null;
-        qualityNotes?: string | null;
-        isHighlight?: boolean;
-      }>
-    >();
-
-    keys.forEach((key) => {
-      const [rowOccurrenceId, enrollmentId] = key.split("::");
-      const row = qualityAttendanceRows.find(
-        (item) => item.occurrenceId === rowOccurrenceId && item.enrollment.id === enrollmentId,
-      );
-      if (!row?.attendance) return;
-      const patch = qualityDrafts[key] ?? {};
-      const items = itemsByOccurrence.get(rowOccurrenceId) ?? [];
-      items.push({
-        enrollmentId,
-        status: row.attendance.status,
-        ...(patch.qualityScore !== undefined ? { qualityScore: patch.qualityScore } : {}),
-        ...(patch.qualityNotes !== undefined ? { qualityNotes: patch.qualityNotes } : {}),
-        ...(patch.isHighlight !== undefined ? { isHighlight: patch.isHighlight } : {}),
-      });
-      itemsByOccurrence.set(rowOccurrenceId, items);
-    });
-
-    if (!itemsByOccurrence.size) {
-      toast({
-        title: ACTION_RELATION_TEXT.quality.saveNothingTitle,
-        description: ACTION_RELATION_TEXT.quality.saveNothingDescription,
-      });
-      return;
-    }
-
-    try {
-      await Promise.all(
-        Array.from(itemsByOccurrence.entries()).map(([rowOccurrenceId, items]) =>
-          upsertMeetingAttendances(token, projectId, id, rowOccurrenceId, items),
-        ),
-      );
-      setQualityDrafts({});
-      setQualityNotesDialog(null);
-      toast({ title: ACTION_RELATION_TEXT.quality.saveOkTitle });
-      await loadQualityAttendanceRows();
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message?: string }).message)
-          : "Falha ao salvar qualidade.";
-      toast({ variant: "destructive", title: "Falha ao salvar", description: message });
-    } finally {
-      setQualitySaving(false);
-    }
-  }, [id, loadQualityAttendanceRows, projectId, qualityAttendanceRows, qualityDrafts, toast, token]);
-
-  const applyQualityNotesDialog = React.useCallback(
-    (state: QualityNotesDialogState) => {
-      const row = qualityAttendanceRows.find(
-        (item) => item.occurrenceId === state.occurrenceId && item.enrollment.id === state.enrollmentId,
-      );
-      if (!row) {
-        setQualityNotesDialog(null);
-        return;
+  const handleAddParticipant = React.useCallback(
+    async (params: {
+      enrollment: import("@/modules/projects/api").ApiProjectEnrollment;
+      role: import("@/modules/actions/api").ActionPeopleParticipationRole;
+    }) => {
+      if (!token || !projectId) return;
+      try {
+        await createProjectActionPeopleParticipation(token, projectId, id, {
+          personId: params.enrollment.person.id,
+          enrollmentId: params.enrollment.id,
+          participationKind: "PARTICIPANT",
+          role: "PARTICIPANTE",
+        });
+        toast({ title: "Participante adicionado" });
+        await loadAttendanceSummary();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao adicionar participante.";
+        toast({ variant: "destructive", title: "Falha ao adicionar", description: message });
       }
-
-      setQualityRowDraft(
-        row,
-        {
-          qualityNotes: state.qualityNotes.trim() ? state.qualityNotes.trim() : null,
-        },
-        true,
-      );
-      setQualityNotesDialog(null);
     },
-    [qualityAttendanceRows, setQualityRowDraft],
+    [id, loadAttendanceSummary, projectId, toast, token],
+  );
+
+  const handleRemoveParticipant = React.useCallback(
+    async (participationId: string) => {
+      if (!token || !projectId) return;
+      if (!window.confirm("Remover este participante da atividade?")) return;
+      try {
+        await endProjectActionPeopleParticipation(token, projectId, id, participationId);
+        toast({ title: "Participante removido" });
+        await loadAttendanceSummary();
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: string }).message)
+            : "Falha ao remover participante.";
+        toast({ variant: "destructive", title: "Falha ao remover", description: message });
+      }
+    },
+    [id, loadAttendanceSummary, projectId, toast, token],
   );
 
   if (!authLoading && !userLoading && !token) {
@@ -711,28 +413,14 @@ export function ActionDetailEngineClientPage() {
     token: token ?? "",
     projectId,
     action,
-    occurrences,
-    selectedOccurrence,
     draft,
     setDraft,
     mentionableUsers,
     attachmentUploading,
-    reportRows,
     reportPeopleRows,
-    reportLoading,
-    reportError,
-    occurrenceId,
-    occurrenceOptions,
-    onOccurrenceIdChange: setOccurrenceId,
     attendanceSummaryRows,
     attendanceSummaryLoading,
     attendanceSummaryError,
-    qualityDrafts,
-    qualitySaving,
-    qualityNotesDialog,
-    qualityAttendanceRows,
-    qualityRowsLoading,
-    qualityRowsError,
     onCommitField: (field: keyof ActivityDetailDraft, nextValue?: ActivityDetailDraft[keyof ActivityDetailDraft]) =>
       void commitField(field, nextValue),
     onUploadAttachment: () => {
@@ -744,15 +432,11 @@ export function ActionDetailEngineClientPage() {
       attachmentInputRef.current?.click();
     },
     onDeleteAttachment: handleDeleteAttachment,
-    onSaveActionPatch: handleSaveActionPatch,
     onActionLoaded: applyLoadedAction,
     onOpenTeamPicker: () => setTeamPickerOpen(true),
     onEndTeamParticipation: handleEndTeamParticipation,
-    getQualityEffective,
-    setQualityRowDraft,
-    saveQualityDrafts: () => void saveQualityDrafts(),
-    onQualityNotesDialogChange: setQualityNotesDialog,
-    applyQualityNotesDialog,
+    onOpenParticipantPicker: () => setParticipantPickerOpen(true),
+    onRemoveParticipant: handleRemoveParticipant,
     auditVisibleCount,
     onAuditVisibleCountChange: setAuditVisibleCount,
   } satisfies ActionsDetailLayoutContext;
@@ -777,13 +461,7 @@ export function ActionDetailEngineClientPage() {
           { label: "Atividades", href: withTenantPath(ACTIONS_ROUTES.list, tenantSlug) },
           { label: action?.title || id || "Atividade" },
         ]}
-        saving={
-          saving ||
-          attachmentUploading ||
-          reportLoading ||
-          attendanceSummaryLoading ||
-          qualitySaving
-        }
+        saving={saving || attachmentUploading || attendanceSummaryLoading}
         loading={loading || authLoading || userLoading}
         readOnly={!canEdit}
         onClose={() => router.push(closeHref)}
@@ -795,6 +473,16 @@ export function ActionDetailEngineClientPage() {
         projectId={projectId}
         actionId={id}
         onPick={(params) => void handleAddTeamParticipation(params)}
+      />
+      <ActionPeopleParticipationPickerDialog
+        open={participantPickerOpen}
+        onOpenChange={setParticipantPickerOpen}
+        token={token ?? ""}
+        projectId={projectId}
+        actionId={id}
+        participationKind="PARTICIPANT"
+        title="Adicionar participante"
+        onPick={(params) => void handleAddParticipant(params)}
       />
     </>
   );

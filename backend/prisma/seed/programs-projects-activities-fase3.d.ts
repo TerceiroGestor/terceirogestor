@@ -7,5 +7,6 @@ export type ProgramsProjectsActivitiesFase3Result = {
     enrollments: number;
     teamParticipations: number;
     goals: number;
+    directParticipants: number;
 };
 export declare function seedProgramsProjectsActivitiesFase3(prisma: PrismaClient, tenantId: string, people: PeopleFase1Result): Promise<ProgramsProjectsActivitiesFase3Result>;

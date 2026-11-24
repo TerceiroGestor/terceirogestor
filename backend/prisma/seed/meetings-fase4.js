@@ -99,7 +99,7 @@ function pickAttendanceStatus() {
 }
 async function seedMeetingsFase4(prisma, tenantId) {
     const activities = await prisma.activity.findMany({
-        where: { tenantId, status: { in: ['EXECUTED', 'INACTIVE'] } },
+        where: { tenantId, status: { in: ['EXECUTED', 'COMPLETED', 'INACTIVE'] } },
         select: {
             id: true,
             projectId: true,
@@ -132,9 +132,11 @@ async function seedMeetingsFase4(prisma, tenantId) {
     }
     const meetingPlans = [];
     for (const activity of activities) {
-        // Janela "real" da atividade: EXECUTED sempre tem executedStartAt/
-        // executedEndAt (ver Fase 3); INACTIVE so gera Encontro quando
-        // chegou a comecar antes de ser descontinuada (executedStartAt
+        // Janela "real" da atividade: COMPLETED sempre tem executedStartAt/
+        // executedEndAt fechados (ver Fase 3); EXECUTED ("Em Execucao") tem
+        // executedStartAt mas executedEndAt nulo - janela aberta, gera
+        // Encontro ate "agora" (ver `end` abaixo); INACTIVE so gera Encontro
+        // quando chegou a comecar antes de ser descontinuada (executedStartAt
         // preenchido) - sem isso, nao houve nenhum Encontro de verdade.
         if (activity.status === 'INACTIVE' && !activity.executedStartAt)
             continue;

@@ -4,6 +4,110 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Revisão da estrutura de Projetos - participante direto, status (4 valores), ruído removido (2026-11-24)
+
+Usuário revisou o módulo de Projetos depois de testar o seed e pediu 5
+ajustes de uma vez (plano aprovado via `EnterPlanMode`/`ExitPlanMode`,
+com 4 perguntas de esclarecimento respondidas antes de implementar -
+ver histórico da conversa). Nomenclatura (Programa/Projeto/Atividade/
+Encontro) discutida à parte, sem mudança de código - usuário vai validar
+nomes antes.
+
+**1 - Abas removidas da Atividade:** "Qualidade" e "Progresso e
+Relatório" (bundlava Progresso + Relatório numa aba só) saem do
+`tabTemplates` de `actions-detail-layout-contract.tsx` - a aba
+Participantes já resume frequência/avaliação. Arquivos 100% mortos
+depois disso (`action-quality-section.tsx`, `action-report-preview.tsx`)
+deletados; `ActionProgressSection` (função local) e todo o estado/efeitos
+exclusivos dessas 2 abas (`qualityDrafts`, `occurrenceId`,
+`reportRows` etc.) removidos de `action-detail-engine-client-page.tsx` e
+do tipo `ActionsDetailLayoutContext`. `reportPeopleRows` (usado também
+pelo badge da aba Equipe) ficou, só trocou de fonte
+(`refreshReport` → `loadTeamParticipations`, mais simples).
+
+**2 - Status da Atividade: 3 → 4 valores.** Motivo do usuário: uma
+Atividade roda meses gerando vários Encontros, "Executada" (passado) não
+refletia isso. Migration aditiva `20261124164621_add_activity_completed_status`
+- enum `ActionStatus` ganha `COMPLETED`, chaves internas das 3 antigas
+mantidas (só rótulo mudou, evita migration de rename em cima do que o
+seed já gerou): Planejamento (`PLANNED`) / Em Execução (`EXECUTED`,
+janela aberta - `executedEndAt` nulo) / Finalizada (`COMPLETED`, novo -
+janela fechada no passado) / Cancelada (`INACTIVE`, continua a única
+exclusível). `programs-projects-activities-fase3.ts`/`meetings-fase4.ts`
+atualizados pra gerar e tratar o 4º valor.
+
+**3 - Participante de Atividade por vínculo direto.** Antes: "quem
+participa" era sempre calculado na hora (scope por Grupo/`targetEnrollmentId`
+da Atividade batendo contra `ProjectEnrollment`) - nunca existia um
+registro "esta pessoa participa desta Atividade". Agora:
+`ProjectActionPeopleParticipation` (`participationKind: 'PARTICIPANT'`,
+role sempre `PARTICIPANTE`) é a fonte de verdade.
+- `resolveScopeFromTarget`/`createProjectAction`/`updateProjectAction`
+  (`actions.service.ts`) não zeram mais `peopleGroupIds` por causa do
+  `ActivityType.target` - **todo tipo de Atividade aceita Grupos agora**
+  (`target`/`targetEnrollmentId` continuam no schema, só perderam a
+  obrigatoriedade - sem migration de remoção).
+- Novo helper `fanOutGroupToDirectParticipants`: ao adicionar um Grupo,
+  cria 1 `ProjectActionPeopleParticipation` por membro ativo do Grupo,
+  matriculando (`ProjectEnrollment`) automaticamente quem ainda não tinha
+  (role inferido do `Person.personType` - Atendido→PUBLICO_ATENDIDO,
+  Funcionario→FUNCIONARIO/TEAM etc.). `syncParticipantPeopleGroupScope`
+  virou diff (só fan-out nos Grupos **novos** da lista - remover um Grupo
+  não desfaz vínculo direto já criado).
+- Aba Participantes (`action-participants-section.tsx`) ganhou botão
+  "Novo" (reaproveita `ActionPeopleParticipationPickerDialog`, agora com
+  prop `participationKind` - "PARTICIPANT" esconde o seletor de Papel) e
+  "Remover" por linha. `listProjectActionAttendanceSummary` trocou o
+  roster de scope-matching pra `actionPeopleParticipations: { some: {...} }`
+  (participação direta) - resto do cálculo (frequência/avaliação) igual.
+  Resposta novo-id exposta como `participationId` pro botão Remover
+  funcionar.
+
+**4 - Mesmo princípio no Encontro.** `createActionOccurrence`/
+`updateActionOccurrence`/`bulkCreateActionOccurrences` chamam o mesmo
+`fanOutGroupToDirectParticipants` pros Grupos do Encontro, só que o
+vínculo criado é `MeetingAttendance` (status PRESENT, ajustável depois na
+"chamada") em vez de `ProjectActionPeopleParticipation`. Grupos
+disponíveis continuam restritos aos já vinculados à Atividade
+(`ensureParticipantPeopleGroupsBelongToAction`, sem mudança - já não
+dependia de `target`).
+
+**5 - "Responsáveis" na criação do Encontro.** Usuário esclareceu que não
+há divisão visual única/lote hoje - é 1 dialog só
+(`BulkScheduleOccurrencesDialog`, um range de 1 dia já gera 1 Encontro).
+Ganhou campo "Responsáveis" (reaproveita `MeetingTeamPickerDialog` pra
+buscar pessoa, acumula `{personId, role}[]` localmente com chips
+removíveis). Backend: `teamParticipants?: {personId, role?}[]` novo em
+`CreateActionOccurrenceDto`/`BulkCreateActionOccurrencesDto`, novo helper
+`addMeetingTeamParticipants` cria `MeetingTeamParticipation` por
+Encontro × pessoa e cascateia pra `ProjectActionPeopleParticipation`/
+`ProjectTeamParticipation` uma vez por pessoa (não por Encontro) -
+mesma cascata de `addMeetingTeamParticipations` (pós-criação).
+
+**Seed também atualizado** (ainda sem dado real de tenant, só
+regeneração, sem backfill): `programs-projects-activities-fase3.ts`
+ganhou um passo novo (9b) que já cria os
+`ProjectActionPeopleParticipation` diretos pras Atividades com Grupo
+vinculado (mesma aproximação de fidelidade que a Fase 4 já usa pra
+presença - usa todo o público matriculado no projeto, não só os membros
+exatos do Grupo).
+
+**Volumes gerados** (seed rodado de verdade): 1519 Atividades (343
+Planejamento/446 Em Execução/599 Finalizada/131 Cancelada), 8398
+participantes diretos, 10548 Encontros, 152149 Presenças, 14371 vínculos
+de equipe por encontro. Confirmado por query direta: 0 participante com
+`enrollmentId` pendurado; distribuição de `participationKind`/`role` em
+`ProjectActionPeopleParticipation` bate (TEAM nos 4 papéis de equipe,
+PARTICIPANT só com papel PARTICIPANTE).
+
+**Evidência:** `tsc --noEmit` (backend `-p tsconfig.build.json` e
+frontend) → 0 erros nos dois; `npx prisma migrate dev` → aplicada sem
+drift; `npm run build:seed` → compila sem erro; `npm run db:seed` rodado
+de verdade contra o Postgres local → sucesso, contagens e checks de
+consistência confirmados por query direta (ver acima); `npm test`
+(backend) → 30 suítes/159 testes sem regressão; `npm run build` nos dois
+apps → sem erro.
+
 ## Atividades ganham coluna "Encontros" + correção do seed da Fase 4 (2026-11-24)
 
 Usuário testou a Fase 4 (Encontros) e relatou 2 pontos: (1) pediu uma

@@ -209,6 +209,8 @@ function resolveStatusBadge(status: ApiActivity["status"]) {
   switch (status) {
     case "EXECUTED":
       return <Badge variant="secondary">{label}</Badge>;
+    case "COMPLETED":
+      return <Badge className="border-transparent bg-emerald-600 text-white">{label}</Badge>;
     case "INACTIVE":
       return <Badge variant="outline">{label}</Badge>;
     default:

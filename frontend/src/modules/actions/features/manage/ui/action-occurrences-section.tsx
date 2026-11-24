@@ -19,16 +19,21 @@ import {
   listMeetings,
   listActivityPeopleGroups,
   previewBulkMeetings,
+  type ActionPeopleParticipationRole,
   type ApiMeeting,
   type ApiActivityPeopleGroup,
+  type MeetingTeamParticipantInput,
   type OccurrenceStatus,
   type WeekDay,
 } from "@/modules/actions/api";
+import { getPerson } from "@/modules/people/api";
 import {
+  ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS,
   OCCURRENCE_STATUS_LABELS,
   OCCURRENCE_STATUS_OPTIONS,
   WEEK_DAY_OPTIONS,
 } from "@/modules/actions/shared/domain/actions.constants";
+import { MeetingTeamPickerDialog } from "@/modules/actions/features/manage/ui/meeting-team-picker-dialog";
 import { MultiSelectBadges } from "@/web-client/ui/MultiSelectBadges";
 import { TruncatedTextCell } from "@/web-client/ui/TruncatedTextCell";
 import { CalendarView } from "@/web-client/views/CalendarView";
@@ -212,6 +217,10 @@ function BulkScheduleOccurrencesDialog({
   const [step, setStep] = React.useState<"form" | "preview">("form");
   const [peopleGroupIds, setPeopleGroupIds] = React.useState<string[]>([]);
   const [teamPeopleGroupIds, setTeamPeopleGroupIds] = React.useState<string[]>([]);
+  const [teamParticipants, setTeamParticipants] = React.useState<
+    Array<{ personId: string; role: ActionPeopleParticipationRole; fullName: string }>
+  >([]);
+  const [teamPickerOpen, setTeamPickerOpen] = React.useState(false);
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [daysOfWeek, setDaysOfWeek] = React.useState<WeekDay[]>([]);
@@ -229,6 +238,7 @@ function BulkScheduleOccurrencesDialog({
     setStep("form");
     setPeopleGroupIds([]);
     setTeamPeopleGroupIds([]);
+    setTeamParticipants([]);
     setStartDate("");
     setEndDate("");
     setDaysOfWeek([]);
@@ -288,9 +298,13 @@ function BulkScheduleOccurrencesDialog({
     setSaving(true);
     setError(null);
     try {
+      const teamParticipantsPayload: MeetingTeamParticipantInput[] = teamParticipants.map(
+        (participant) => ({ personId: participant.personId, role: participant.role }),
+      );
       const result = await bulkCreateMeetings(token, projectId, actionId, {
         peopleGroupIds: peopleGroupIds.length ? peopleGroupIds : undefined,
         teamPeopleGroupIds: teamPeopleGroupIds.length ? teamPeopleGroupIds : undefined,
+        teamParticipants: teamParticipantsPayload.length ? teamParticipantsPayload : undefined,
         startDate,
         endDate,
         daysOfWeek,
@@ -312,6 +326,21 @@ function BulkScheduleOccurrencesDialog({
     }
   };
 
+  const handleAddResponsibles = async (
+    personIds: string[],
+    role: ActionPeopleParticipationRole,
+  ) => {
+    const people = await Promise.all(personIds.map((personId) => getPerson(token, personId)));
+    setTeamParticipants((previous) => {
+      const next = [...previous];
+      for (const person of people) {
+        if (next.some((item) => item.personId === person.id && item.role === role)) continue;
+        next.push({ personId: person.id, role, fullName: person.fullName });
+      }
+      return next;
+    });
+  };
+
   const includedCount = previewDates.length - excludedDates.size;
 
   const errorBanner = error ? (
@@ -321,6 +350,7 @@ function BulkScheduleOccurrencesDialog({
   ) : null;
 
   return (
+    <>
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
@@ -389,6 +419,31 @@ function BulkScheduleOccurrencesDialog({
                 selectedIds={teamPeopleGroupIds}
                 onChange={setTeamPeopleGroupIds}
               />
+            </div>
+
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label>Responsáveis</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                {teamParticipants.map((participant) => (
+                  <Badge key={`${participant.personId}:${participant.role}`} variant="secondary" className="gap-1">
+                    {participant.fullName} ({ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[participant.role]})
+                    <button
+                      type="button"
+                      className="ml-1 text-muted-foreground hover:text-foreground"
+                      onClick={() =>
+                        setTeamParticipants((previous) =>
+                          previous.filter((item) => item.personId !== participant.personId),
+                        )
+                      }
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+                <Button type="button" size="sm" variant="outline" onClick={() => setTeamPickerOpen(true)}>
+                  Adicionar responsável
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -478,6 +533,13 @@ function BulkScheduleOccurrencesDialog({
         </div>
       )}
     </SectionDialog>
+    <MeetingTeamPickerDialog
+      open={teamPickerOpen}
+      onOpenChange={setTeamPickerOpen}
+      maxSelectable={10}
+      onConfirm={handleAddResponsibles}
+    />
+    </>
   );
 }
 

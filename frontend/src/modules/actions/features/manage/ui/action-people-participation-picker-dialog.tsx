@@ -44,6 +44,13 @@ type ActionPeopleParticipationPickerDialogProps = {
     enrollment: ApiProjectEnrollment;
     role: ActionPeopleParticipationRole;
   }) => void;
+  /**
+   * "PARTICIPANT" (aba Participantes, revisão da estrutura de Projetos,
+   * 2026-11-24) esconde o seletor de Papel - participante direto não tem
+   * papel variável, sempre PARTICIPANTE. Default "TEAM" (aba Equipe).
+   */
+  participationKind?: "PARTICIPANT" | "TEAM";
+  title?: string;
 };
 
 export function ActionPeopleParticipationPickerDialog({
@@ -53,9 +60,12 @@ export function ActionPeopleParticipationPickerDialog({
   projectId,
   actionId,
   onPick,
+  participationKind = "TEAM",
+  title = "Adicionar pessoa",
 }: ActionPeopleParticipationPickerDialogProps) {
   const pathname = usePathname();
   const tenantSlug = getTenantSlugFromPath(pathname);
+  const isParticipant = participationKind === "PARTICIPANT";
 
   const [rows, setRows] = React.useState<ApiProjectEnrollment[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -65,7 +75,9 @@ export function ActionPeopleParticipationPickerDialog({
   const [searchText, setSearchText] = React.useState("");
   const [domain, setDomain] = React.useState<Domain>(null);
   const [groupBy, setGroupBy] = React.useState<string[]>([]);
-  const [role, setRole] = React.useState<ActionPeopleParticipationRole>("FACILITADOR");
+  const [role, setRole] = React.useState<ActionPeopleParticipationRole>(
+    isParticipant ? "PARTICIPANTE" : "FACILITADOR",
+  );
   const [selectedRows, setSelectedRows] = React.useState<ApiProjectEnrollment[]>([]);
   const [saving, setSaving] = React.useState(false);
 
@@ -144,16 +156,20 @@ export function ActionPeopleParticipationPickerDialog({
           </span>
         ),
       },
-      {
-        id: "role",
-        header: "Novo papel",
-        accessorFn: () => ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[role],
-        cell: () => (
-          <span className="text-xs text-muted-foreground">
-            {ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[role]}
-          </span>
-        ),
-      },
+      ...(isParticipant
+        ? []
+        : [
+          {
+            id: "role",
+            header: "Novo papel",
+            accessorFn: () => ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[role],
+            cell: () => (
+              <span className="text-xs text-muted-foreground">
+                {ACTION_PEOPLE_PARTICIPATION_ROLE_LABELS[role]}
+              </span>
+            ),
+          } satisfies ColumnDef<ApiProjectEnrollment>,
+        ]),
       {
         id: "actions",
         header: "",
@@ -176,7 +192,7 @@ export function ActionPeopleParticipationPickerDialog({
         ),
       },
     ],
-    [onPick, role, rows, selectedRows, tenantSlug],
+    [isParticipant, onPick, role, rows, selectedRows, tenantSlug],
   );
 
   const load = React.useCallback(async () => {
@@ -187,7 +203,7 @@ export function ActionPeopleParticipationPickerDialog({
       const response = await listEligibleActivityPeople(token, projectId, actionId, {
         q: searchText.trim() || undefined,
         filters: domain,
-        participationKind: "TEAM",
+        participationKind,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
       });
@@ -204,7 +220,7 @@ export function ActionPeopleParticipationPickerDialog({
     } finally {
       setLoading(false);
     }
-  }, [actionId, open, pagination.pageIndex, pagination.pageSize, projectId, searchText, domain, token]);
+  }, [actionId, open, pagination.pageIndex, pagination.pageSize, participationKind, projectId, searchText, domain, token]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -252,7 +268,7 @@ export function ActionPeopleParticipationPickerDialog({
     <SectionDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Adicionar pessoa"
+      title={title}
       contentClassName="max-w-[1100px]"
       headerSlot={
         <div className="flex flex-wrap items-center gap-3">
@@ -306,24 +322,26 @@ export function ActionPeopleParticipationPickerDialog({
             />
           </div>
 
-          <div className="min-w-[240px]">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Papel</div>
-            <Select
-              value={role}
-              onValueChange={(value) => setRole(value as ActionPeopleParticipationRole)}
-            >
-              <SelectTrigger className="h-9 rounded-none border-x-0 border-t-0 border-border/70 bg-transparent px-0 text-sm shadow-none focus:ring-0">
-                <SelectValue placeholder="Papel" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTION_PEOPLE_PARTICIPATION_ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isParticipant ? null : (
+            <div className="min-w-[240px]">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Papel</div>
+              <Select
+                value={role}
+                onValueChange={(value) => setRole(value as ActionPeopleParticipationRole)}
+              >
+                <SelectTrigger className="h-9 rounded-none border-x-0 border-t-0 border-border/70 bg-transparent px-0 text-sm shadow-none focus:ring-0">
+                  <SelectValue placeholder="Papel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTION_PEOPLE_PARTICIPATION_ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {selectedRows.length > 0 ? (
             <div className="min-w-[120px]">

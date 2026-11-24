@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 import type { ActionAttendanceSummaryItem } from "@/modules/actions/api";
 import { RelationListHost } from "@/web-client/relation/RelationListHost";
 import { ListView } from "@/web-client/views/ListView";
@@ -25,7 +26,13 @@ function formatAverageQuality(value: number | null) {
   return value.toFixed(1);
 }
 
-function buildAttendanceSummaryColumns(): ColumnDef<ActionAttendanceSummaryItem>[] {
+function buildAttendanceSummaryColumns({
+  canUpdate,
+  onRemoveParticipant,
+}: {
+  canUpdate: boolean;
+  onRemoveParticipant: (participationId: string) => Promise<void>;
+}): ColumnDef<ActionAttendanceSummaryItem>[] {
   return [
     {
       id: "person",
@@ -79,6 +86,27 @@ function buildAttendanceSummaryColumns(): ColumnDef<ActionAttendanceSummaryItem>
         </span>
       ),
     },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) =>
+        canUpdate && row.original.participationId ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 rounded-none border-b border-border/60 px-1"
+              onClick={(event) => {
+                event.stopPropagation();
+                void onRemoveParticipant(row.original.participationId!);
+              }}
+            >
+              Remover
+            </Button>
+          </div>
+        ) : null,
+    },
   ];
 }
 
@@ -90,15 +118,24 @@ export function ActionParticipantsSection({
   rows,
   loading,
   error,
+  canUpdate,
+  onOpenParticipantPicker,
+  onRemoveParticipant,
 }: {
   rows: ActionAttendanceSummaryItem[];
   loading: boolean;
   error: string | null;
+  canUpdate: boolean;
+  onOpenParticipantPicker: () => void;
+  onRemoveParticipant: (participationId: string) => Promise<void>;
 }) {
   const [searchText, setSearchText] = React.useState("");
   const [domain, setDomain] = React.useState<Domain>(null);
   const [groupBy, setGroupBy] = React.useState<string[]>([]);
-  const columns = React.useMemo(() => buildAttendanceSummaryColumns(), []);
+  const columns = React.useMemo(
+    () => buildAttendanceSummaryColumns({ canUpdate, onRemoveParticipant }),
+    [canUpdate, onRemoveParticipant],
+  );
 
   const groupOptions = React.useMemo(() => {
     const seen = new Map<string, string>();
@@ -174,11 +211,7 @@ export function ActionParticipantsSection({
         buildSearchRecord={buildSearchRecord}
         searchActionId="activity.participants"
         columns={columns}
-        // Ainda nao ha fluxo de criacao de participante por aqui (a
-        // pessoa entra via matricula no projeto) - botao mantido so
-        // pra bater com o padrao visual das outras relations enquanto
-        // isso e testado; remover (ou ligar a um fluxo real) depois.
-        onAdd={() => undefined}
+        onAdd={canUpdate ? onOpenParticipantPicker : undefined}
         viewSwitcherSlot={
           <RecordBrowserViewSwitcher<"list"> value="list" options={VIEW_OPTIONS} onChange={() => undefined} />
         }
@@ -187,7 +220,7 @@ export function ActionParticipantsSection({
           <p className="px-4 py-6 text-sm text-muted-foreground">Carregando...</p>
         ) : filteredRows.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">
-            Sem participantes elegíveis.
+            Sem participantes. Adicione um Grupo (campo "Grupos" no topo) ou use "Novo" aqui.
           </p>
         ) : (
           <ListView<ActionAttendanceSummaryItem>

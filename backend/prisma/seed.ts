@@ -525,6 +525,7 @@ async function main() {
   console.log(`  Matriculas (ProjectEnrollment): ${fase3.enrollments}`);
   console.log(`  Equipe de projeto (ProjectTeamParticipation): ${fase3.teamParticipations}`);
   console.log(`  Metas (Goal): ${fase3.goals}`);
+  console.log(`  Participantes diretos (ProjectActionPeopleParticipation PARTICIPANT): ${fase3.directParticipants}`);
   console.log('Encontros (Fase 4):');
   console.log(`  Encontros (Meeting): ${fase4.meetings}`);
   console.log(`  Presencas (MeetingAttendance): ${fase4.attendances}`);

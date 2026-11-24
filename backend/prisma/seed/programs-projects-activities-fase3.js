@@ -374,19 +374,23 @@ function pickActivityStatus(projectStatus) {
         return 'PLANNED';
     }
     if (projectStatus === 'CLOSED') {
+        // Projeto ja encerrado - nada "ainda em execucao" sobra, so FINALIZADA
+        // (rodou o periodo todo) ou CANCELADA (descontinuada antes).
         return (0, faker_helpers_1.pickWeighted)([
-            { value: 'EXECUTED', weight: 9 },
+            { value: 'COMPLETED', weight: 9 },
             { value: 'INACTIVE', weight: 1 },
         ]);
     }
-    // Pesos revisados (2026-11-24): EXECUTED mais alto que antes (55->75) -
-    // o usuario testando a Fase 4 (Encontros) encontrava "paredes" de
-    // atividades sem nenhum Encontro dentro de projetos ACTIVE porque quase
-    // metade ficava PLANNED/INACTIVE. A proporcao real de atividades ja
-    // executadas num projeto em andamento deveria ser a maioria, nao a
-    // metade.
+    // Pesos revisados (2026-11-24): EXECUTED+COMPLETED mais alto que antes
+    // (55->75 combinado) - o usuario testando a Fase 4 (Encontros) encontrava
+    // "paredes" de atividades sem nenhum Encontro dentro de projetos ACTIVE
+    // porque quase metade ficava PLANNED/INACTIVE. A maioria das atividades
+    // de um projeto em andamento deveria ja ter pelo menos comecado. Metade
+    // do bloco "ja aconteceu" fica EXECUTED (ainda em andamento, gerando
+    // Encontro) e a outra metade COMPLETED (ja rodou o periodo todo).
     return (0, faker_helpers_1.pickWeighted)([
-        { value: 'EXECUTED', weight: 75 },
+        { value: 'EXECUTED', weight: 38 },
+        { value: 'COMPLETED', weight: 37 },
         { value: 'PLANNED', weight: 15 },
         { value: 'INACTIVE', weight: 10 },
     ]);
@@ -407,6 +411,20 @@ function activityDates(window, status) {
     }
     const to = windowEnd.getTime() < NOW.getTime() ? windowEnd : NOW;
     if (status === 'EXECUTED') {
+        // "Em Execucao" - ja comecou, janela aberta (sem executedEndAt) -
+        // continua gerando Encontro (Fase 4 usa "agora" como limite).
+        const executedStartAt = dateBetween(window.startsAt, to);
+        return {
+            plannedStartAt: addDays(executedStartAt, -faker_helpers_1.faker.number.int({ min: 1, max: 10 })),
+            plannedEndAt: null,
+            executedStartAt,
+            executedEndAt: null,
+            completionPercent: faker_helpers_1.faker.number.int({ min: 20, max: 85 }),
+        };
+    }
+    if (status === 'COMPLETED') {
+        // "Finalizada" - rodou o periodo todo, janela fechada no passado -
+        // nao gera mais Encontro novo.
         const executedStartAt = dateBetween(window.startsAt, to);
         const executedEndAt = addDaysCapped(executedStartAt, faker_helpers_1.faker.number.int({ min: 7, max: 90 }), to);
         return {
@@ -571,6 +589,11 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
     await insertInChunks(projectPeopleGroupRows, 500, (chunk) => prisma.projectPeopleGroup.createMany({ data: chunk }));
     // --- 4) ProjectEnrollment (publico + equipe) --------------------------
     const enrollmentRows = [];
+    // Usado la na frente pra fan-out Grupo->participante direto da Atividade
+    // (mesmo principio do app real, ver actions.service.ts
+    // `fanOutGroupToDirectParticipants` - revisao da estrutura de Projetos,
+    // 2026-11-24): precisa do personId de cada enrollmentId.
+    const enrollmentPersonId = new Map();
     const addEnrollment = (project, personId, role, participationKind, enrolledSet) => {
         if (enrolledSet.has(personId))
             return;
@@ -593,6 +616,7 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
             project.atendidoEnrollmentIds.push(id);
         if (participationKind === 'TEAM')
             project.teamPersonIds.push(personId);
+        enrollmentPersonId.set(id, personId);
     };
     for (const project of projectRows) {
         const enrolledSet = new Set();
@@ -671,6 +695,14 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
     const typesByTarget = (target) => activityTypeRows.filter((t) => t.spec.target === target);
     const activityRows = [];
     const pendingPeopleGroupLinks = [];
+    // Participante direto (ProjectActionPeopleParticipation, kind
+    // PARTICIPANT) pra cada Atividade com Grupo vinculado - mesmo fan-out
+    // que o app real faz ao adicionar um Grupo (actions.service.ts,
+    // revisao da estrutura de Projetos, 2026-11-24). Aproximacao: usa todo
+    // o publico matriculado no projeto (atendidoEnrollmentIds), nao so os
+    // membros exatos do Grupo - mesmo nivel de fidelidade que a Fase 4 ja
+    // usa pra presenca.
+    const pendingDirectParticipants = [];
     for (const project of projectRows) {
         const count = faker_helpers_1.faker.number.int({ min: 25, max: 35 });
         for (let i = 0; i < count; i += 1) {
@@ -694,6 +726,12 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
             if (targetCategory === 'PEOPLE_GROUP') {
                 const peopleGroupId = project.participantGroupId ?? project.teamGroupId;
                 pendingPeopleGroupLinks.push({ activityId: id, peopleGroupId });
+                for (const enrollmentId of project.atendidoEnrollmentIds) {
+                    const personId = enrollmentPersonId.get(enrollmentId);
+                    if (!personId)
+                        continue;
+                    pendingDirectParticipants.push({ activityId: id, enrollmentId, personId });
+                }
             }
             activityRows.push({
                 id,
@@ -737,6 +775,20 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
             participationKind: 'PARTICIPANT',
         })),
     }));
+    // --- 9b) ProjectActionPeopleParticipation direto (ver comentario acima) --
+    await insertInChunks(pendingDirectParticipants, 500, (chunk) => prisma.projectActionPeopleParticipation.createMany({
+        data: chunk.map((row) => ({
+            id: (0, faker_helpers_1.newId)(),
+            tenantId,
+            actionId: row.activityId,
+            personId: row.personId,
+            enrollmentId: row.enrollmentId,
+            participationKind: 'PARTICIPANT',
+            role: 'PARTICIPANTE',
+            activeKey: `${row.activityId}:${row.personId}:PARTICIPANTE`,
+            isActive: true,
+        })),
+    }));
     // --- 10) ProjectActionPeopleParticipation (equipe por atividade) -------
     const actionPeopleRows = [];
     const usedActionActiveKeys = new Set();
@@ -772,6 +824,7 @@ async function seedProgramsProjectsActivitiesFase3(prisma, tenantId, people) {
         enrollments: enrollmentRows.length,
         teamParticipations: teamParticipationRows.length,
         goals: goalRows.length,
+        directParticipants: pendingDirectParticipants.length,
     };
 }
 //# sourceMappingURL=programs-projects-activities-fase3.js.map
