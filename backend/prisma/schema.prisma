@@ -69,9 +69,17 @@ enum PeopleGroupPurpose {
   EQUIPE
 }
 
+/// Rotulos pt-BR (revisao da estrutura de Projetos, 2026-11-24): PLANNED
+/// = "Planejamento", EXECUTED = "Em Execucao" (atividade em andamento,
+/// ainda gerando Encontro), COMPLETED = "Finalizada" (periodo todo ja
+/// rodado, nao gera mais Encontro), INACTIVE = "Cancelada" (unica
+/// exclusivel, ver ACTION_DELETABLE_STATUS no frontend). Nomes internos
+/// do enum mantidos - so o rotulo mudou - pra nao precisar de migration
+/// de rename em cima do que o seed ja gerou.
 enum ActionStatus {
   PLANNED
   EXECUTED
+  COMPLETED
   INACTIVE
 }
 
