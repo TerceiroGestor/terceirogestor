@@ -518,6 +518,7 @@ async function main() {
   console.log(`  Atendimentos: ${fase2.attendances}`);
   console.log(`  Evolucoes: ${fase2.evolutions}`);
   console.log(`  Beneficios: ${fase2.benefits}`);
+  console.log(`  Redes de destino (ReferralDestination): ${fase2.referralDestinations}`);
   console.log('Programas/Projetos/Atividades (Fase 3):');
   console.log(`  Programas: ${fase3.programs}`);
   console.log(`  Projetos: ${fase3.projects}`);

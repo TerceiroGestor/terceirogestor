@@ -25,6 +25,7 @@ const MAX_LIMIT = 100;
 
 const attendanceInclude = {
   occurrence: { select: { id: true, title: true } },
+  case: { select: { id: true, title: true, status: true } },
   professional: { select: { id: true, fullName: true } },
   people: {
     include: {
@@ -56,6 +57,9 @@ export function buildAttendanceWhere({
   }
   if (query.occurrenceId) {
     where.occurrenceId = query.occurrenceId;
+  }
+  if (query.caseId) {
+    where.caseId = query.caseId;
   }
   const search = query.q?.trim();
   if (search) {
@@ -114,6 +118,9 @@ export class AttendancesService {
     if (dto.occurrenceId) {
       await this.ensureOccurrenceExists(user.tenantId, dto.occurrenceId);
     }
+    if (dto.caseId) {
+      await this.ensureCaseExists(user.tenantId, dto.caseId);
+    }
 
     const status = dto.status ?? 'ABERTO';
     assertClosingNotesRequiredForClosing(status, dto.closingNotes);
@@ -122,6 +129,7 @@ export class AttendancesService {
       data: {
         tenantId: user.tenantId,
         occurrenceId: dto.occurrenceId ?? null,
+        caseId: dto.caseId ?? null,
         type: dto.type,
         scheduledDate: new Date(dto.scheduledDate),
         professionalId: dto.professionalId,
@@ -146,6 +154,9 @@ export class AttendancesService {
     if (dto.occurrenceId !== undefined && dto.occurrenceId !== null) {
       await this.ensureOccurrenceExists(user.tenantId, dto.occurrenceId);
     }
+    if (dto.caseId !== undefined && dto.caseId !== null) {
+      await this.ensureCaseExists(user.tenantId, dto.caseId);
+    }
 
     const nextStatus = dto.status ?? existing.status;
     const nextClosingNotes =
@@ -157,6 +168,7 @@ export class AttendancesService {
       data: {
         occurrenceId:
           dto.occurrenceId !== undefined ? dto.occurrenceId : undefined,
+        caseId: dto.caseId !== undefined ? dto.caseId : undefined,
         type: dto.type,
         scheduledDate: dto.scheduledDate
           ? new Date(dto.scheduledDate)
@@ -301,6 +313,13 @@ export class AttendancesService {
     dto: CreateAttendanceBenefitDto,
   ) {
     await this.ensureAttendanceExists(user.tenantId, attendanceId);
+    const evolution = await this.prisma.attendanceEvolution.findFirst({
+      where: { id: dto.evolutionId, tenantId: user.tenantId, attendanceId },
+      select: { id: true },
+    });
+    if (!evolution) {
+      throw new BadRequestException('Evolucao invalida para este atendimento');
+    }
 
     const name = dto.name.trim();
     if (!name) {
@@ -311,6 +330,7 @@ export class AttendancesService {
       data: {
         tenantId: user.tenantId,
         attendanceId,
+        evolutionId: dto.evolutionId,
         name,
         date: new Date(dto.date),
         quantity: dto.quantity ?? null,
@@ -393,5 +413,16 @@ export class AttendancesService {
       throw new BadRequestException('Ocorrencia invalida');
     }
     return occurrence;
+  }
+
+  private async ensureCaseExists(tenantId: string, caseId: string) {
+    const found = await this.prisma.case.findFirst({
+      where: { id: caseId, tenantId },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new BadRequestException('Caso invalido');
+    }
+    return found;
   }
 }

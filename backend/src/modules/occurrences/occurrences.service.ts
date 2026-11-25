@@ -30,6 +30,9 @@ const occurrenceInclude = {
       action: { select: { id: true, title: true, projectId: true } },
     },
   },
+  case: {
+    select: { id: true, title: true, status: true },
+  },
   people: {
     include: {
       person: { select: { id: true, fullName: true } },
@@ -52,6 +55,9 @@ export function buildOccurrenceWhere({
   }
   if (query.meetingId) {
     where.meetingId = query.meetingId;
+  }
+  if (query.caseId) {
+    where.caseId = query.caseId;
   }
   const search = query.q?.trim();
   if (search) {
@@ -103,6 +109,9 @@ export class OccurrencesService {
     if (dto.meetingId) {
       await this.ensureMeetingExists(user.tenantId, dto.meetingId);
     }
+    if (dto.caseId) {
+      await this.ensureCaseExists(user.tenantId, dto.caseId);
+    }
 
     const title = dto.title.trim();
     if (!title) {
@@ -116,6 +125,7 @@ export class OccurrencesService {
       data: {
         tenantId: user.tenantId,
         meetingId: dto.meetingId ?? null,
+        caseId: dto.caseId ?? null,
         title,
         description: dto.description?.trim() ? dto.description.trim() : null,
         status,
@@ -135,6 +145,9 @@ export class OccurrencesService {
     if (dto.meetingId !== undefined && dto.meetingId !== null) {
       await this.ensureMeetingExists(user.tenantId, dto.meetingId);
     }
+    if (dto.caseId !== undefined && dto.caseId !== null) {
+      await this.ensureCaseExists(user.tenantId, dto.caseId);
+    }
 
     const nextStatus = dto.status ?? existing.status;
     if (dto.status) {
@@ -148,6 +161,7 @@ export class OccurrencesService {
       where: { id: occurrenceId },
       data: {
         meetingId: dto.meetingId !== undefined ? dto.meetingId : undefined,
+        caseId: dto.caseId !== undefined ? dto.caseId : undefined,
         title: dto.title?.trim() ? dto.title.trim() : undefined,
         description:
           dto.description !== undefined
@@ -243,5 +257,16 @@ export class OccurrencesService {
       throw new BadRequestException('Encontro invalido');
     }
     return meeting;
+  }
+
+  private async ensureCaseExists(tenantId: string, caseId: string) {
+    const found = await this.prisma.case.findFirst({
+      where: { id: caseId, tenantId },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new BadRequestException('Caso invalido');
+    }
+    return found;
   }
 }

@@ -53,6 +53,20 @@ import {
   updateAttendanceRecord,
 } from "@/web-client/data-provider/rest/attendances";
 import {
+  createReferralRecord,
+  deleteReferralRecord,
+  readReferral,
+  searchReferrals,
+  updateReferralRecord,
+} from "@/web-client/data-provider/rest/referrals";
+import {
+  createCaseRecord,
+  deleteCaseRecord,
+  readCase,
+  searchCases,
+  updateCaseRecord,
+} from "@/web-client/data-provider/rest/cases";
+import {
   createProjectRecord,
   deleteProjectRecord,
   readProject,
@@ -328,6 +342,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await searchOccurrences(authToken, args)) as unknown as SearchResult<T>;
           case "attendances.list":
             return (await searchAttendances(authToken, args)) as unknown as SearchResult<T>;
+          case "referrals.list":
+            return (await searchReferrals(authToken, args)) as unknown as SearchResult<T>;
+          case "cases.list":
+            return (await searchCases(authToken, args)) as unknown as SearchResult<T>;
           case "projects.list":
             return (await searchProjects(authToken, args)) as unknown as SearchResult<T>;
           case "actions.list":
@@ -480,6 +498,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
             return (await readOccurrence(authToken, id)) as unknown as T;
           case "attendances.detail":
             return (await readAttendance(authToken, id)) as unknown as T;
+          case "referrals.detail":
+            return (await readReferral(authToken, id)) as unknown as T;
+          case "cases.detail":
+            return (await readCase(authToken, id)) as unknown as T;
           case "projects.detail":
             return (await readProject(authToken, id)) as unknown as T;
           case "tasks.detail":
@@ -522,6 +544,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await createOccurrenceRecord(authToken, payload as never)) as unknown as T;
         case "attendances.detail":
           return (await createAttendanceRecord(authToken, payload as never)) as unknown as T;
+        case "referrals.detail":
+          return (await createReferralRecord(authToken, payload as never)) as unknown as T;
+        case "cases.detail":
+          return (await createCaseRecord(authToken, payload as never)) as unknown as T;
         case "projects.detail":
           return (await createProjectRecord(authToken, payload as never)) as unknown as T;
         case "tasks.detail":
@@ -565,6 +591,10 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return (await updateOccurrenceRecord(authToken, id, payload as never)) as unknown as T;
         case "attendances.detail":
           return (await updateAttendanceRecord(authToken, id, payload as never)) as unknown as T;
+        case "referrals.detail":
+          return (await updateReferralRecord(authToken, id, payload as never)) as unknown as T;
+        case "cases.detail":
+          return (await updateCaseRecord(authToken, id, payload as never)) as unknown as T;
         case "projects.detail":
           return (await updateProjectRecord(authToken, id, payload as never)) as unknown as T;
         case "tasks.detail":
@@ -620,6 +650,12 @@ export function createRestDataProvider({ token }: { token: string | null }): Dat
           return;
         case "attendances.detail":
           await deleteAttendanceRecord(authToken, id);
+          return;
+        case "referrals.detail":
+          await deleteReferralRecord(authToken, id);
+          return;
+        case "cases.detail":
+          await deleteCaseRecord(authToken, id);
           return;
         case "projects.detail":
           await deleteProjectRecord(authToken, id);

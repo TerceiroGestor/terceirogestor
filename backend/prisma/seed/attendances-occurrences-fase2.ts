@@ -183,7 +183,46 @@ export type AttendancesOccurrencesFase2Result = {
   attendances: number;
   evolutions: number;
   benefits: number;
+  referralDestinations: number;
 };
+
+const REFERRAL_DESTINATIONS: {
+  name: string;
+  contactInfo: string;
+  responsibleName: string;
+  address: string;
+}[] = [
+  {
+    name: 'CRAS Vila Nova',
+    contactInfo: '(11) 4000-1001',
+    responsibleName: 'Coordenacao CRAS Vila Nova',
+    address: 'Rua das Acacias, 120 - Vila Nova',
+  },
+  {
+    name: 'CREAS Centro',
+    contactInfo: '(11) 4000-1002',
+    responsibleName: 'Coordenacao CREAS Centro',
+    address: 'Av. Central, 450 - Centro',
+  },
+  {
+    name: 'Hospital Municipal',
+    contactInfo: '(11) 4000-1003',
+    responsibleName: 'Servico Social Hospitalar',
+    address: 'Av. da Saude, 800 - Centro',
+  },
+  {
+    name: 'Conselho Tutelar',
+    contactInfo: '(11) 4000-1004',
+    responsibleName: 'Conselheiro de turno',
+    address: 'Rua da Justica, 55 - Centro',
+  },
+  {
+    name: 'Escola Municipal Jardim das Flores',
+    contactInfo: '(11) 4000-1005',
+    responsibleName: 'Direcao Escolar',
+    address: 'Rua das Flores, 300 - Jardim das Flores',
+  },
+];
 
 export async function seedAttendancesOccurrencesFase2(
   prisma: PrismaClient,
@@ -372,18 +411,25 @@ export async function seedAttendancesOccurrencesFase2(
   );
 
   // --- 4) AttendanceEvolution ----------------------------------------------
+  // Captura o(s) id(s) de evolucao gerados por atendimento - Beneficio e
+  // (futuramente) Encaminhamento vinculam na Evolucao, nao mais direto no
+  // Attendance (revisao de arquitetura de 2026-11-25, ver PLAN.md).
 
   const evolutionRows: Prisma.AttendanceEvolutionCreateManyInput[] = [];
+  const evolutionIdsByAttendance = new Map<string, string[]>();
   for (const a of attendancePlans) {
     const windowEnd = a.status === 'ENCERRADO' ? a.updatedAt : now;
     const evolutionCount = faker.number.int({ min: 1, max: 3 });
+    const ids: string[] = [];
     for (let i = 0; i < evolutionCount; i += 1) {
       const date =
         windowEnd.getTime() > a.scheduledDate.getTime()
           ? faker.date.between({ from: a.scheduledDate, to: windowEnd })
           : a.scheduledDate;
+      const id = newId();
+      ids.push(id);
       evolutionRows.push({
-        id: newId(),
+        id,
         tenantId,
         attendanceId: a.id,
         date,
@@ -392,16 +438,22 @@ export async function seedAttendancesOccurrencesFase2(
         updatedAt: date,
       });
     }
+    evolutionIdsByAttendance.set(a.id, ids);
   }
   await insertInChunks(evolutionRows, 500, (chunk) =>
     prisma.attendanceEvolution.createMany({ data: chunk }),
   );
 
   // --- 5) AttendanceBenefit -------------------------------------------------
+  // Vinculado a uma Evolucao especifica (nao mais direto ao Attendance) -
+  // attendanceId fica denormalizado, derivado da propria evolucao escolhida.
 
   const benefitRows: Prisma.AttendanceBenefitCreateManyInput[] = [];
   for (const a of attendancePlans) {
     if (!chance(0.12)) continue;
+    const evolutionIds = evolutionIdsByAttendance.get(a.id) ?? [];
+    if (!evolutionIds.length) continue;
+    const evolutionId = pick(evolutionIds);
     const windowEnd = a.status === 'ENCERRADO' ? a.updatedAt : now;
     const date =
       windowEnd.getTime() > a.scheduledDate.getTime()
@@ -411,6 +463,7 @@ export async function seedAttendancesOccurrencesFase2(
       id: newId(),
       tenantId,
       attendanceId: a.id,
+      evolutionId,
       name: pick(BENEFIT_NAMES),
       date,
       quantity: faker.number.int({ min: 1, max: 3 }),
@@ -423,10 +476,27 @@ export async function seedAttendancesOccurrencesFase2(
     prisma.attendanceBenefit.createMany({ data: chunk }),
   );
 
+  // --- 6) ReferralDestination ------------------------------------------------
+  // Cadastro de rede de destino (Fase 7, revisao de 2026-11-25) - catalogo
+  // fixo de exemplo, independente de attendancePlans.
+
+  const referralDestinationRows: Prisma.ReferralDestinationCreateManyInput[] =
+    REFERRAL_DESTINATIONS.map((destination) => ({
+      id: newId(),
+      tenantId,
+      name: destination.name,
+      contactInfo: destination.contactInfo,
+      responsibleName: destination.responsibleName,
+      address: destination.address,
+      isActive: true,
+    }));
+  await prisma.referralDestination.createMany({ data: referralDestinationRows });
+
   return {
     occurrences: occurrencePlans.length,
     attendances: attendancePlans.length,
     evolutions: evolutionRows.length,
     benefits: benefitRows.length,
+    referralDestinations: referralDestinationRows.length,
   };
 }

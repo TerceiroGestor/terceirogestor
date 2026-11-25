@@ -4,6 +4,362 @@ Só o que está em andamento. Plano completo: `docs/Terceiro Gestor — Plano de
 Revisão e Produção.md`. Regras do projeto: `AGENTS.md`. Auditoria de riscos
 (Parte 3 detalhada, tarefa por tarefa): `docs/auditoria-riscos.md`.
 
+## Fase 8 — Caso (agrupador consolidado) (2026-11-25)
+
+Mesmo padrão de Occurrence/Attendance/Referral. `Case`/`CasePeople`
+novos (migration `20261125162448_case_aggregator`, aditiva); `caseId`
+opcional em `Occurrence` e `Attendance` (não em Evolution/Referral/
+Benefit — herdam por transitividade, decisão já registrada na revisão
+da Fase 7). Módulo backend `cases` (CRUD + pessoas N:N + `GET
+/cases/:id/report` com contagem de atendimentos/ocorrências/evoluções/
+encaminhamentos/benefícios). Permissões `cases.*` espelhando
+`referrals.*`. Ciclo reabrível (como Attendance), `closingNotes`
+obrigatório pra encerrar.
+
+Frontend: módulo `cases` (lista Tabela + Detail: Pessoas, Relatório),
+mesmo molde de `occurrences`. Campo "Caso" (picker + criação rápida)
+adicionado ao formulário do **Atendimento** (essencial pro critério de
+teste da Fase 8). **Não adicionado ao formulário da Ocorrência nesta
+rodada** (backend já suporta `caseId` em Occurrence; só a UI ficou de
+fora, por objetividade — gatilho: se precisar vincular Ocorrência a
+Caso direto pela UI).
+
+**Evidência:** backend `tsc` 0 erros, `npm test` 33 suítes/177 testes
+(sem regressão), `eslint` 0 problemas nos arquivos tocados/novos.
+Frontend `tsc` 0 erros, `npm run build` ok, `eslint` só a categoria já
+tolerada no projeto (`react-hooks/set-state-in-effect`), nenhuma nova.
+Não testado manualmente no navegador.
+
+## Revisão da Fase 7 — ajustes de UI da lista de Encaminhamentos — etapa 2 (2026-11-25)
+
+Última etapa da revisão da Fase 7 antes da Fase 8. Cobre os 2 pontos que
+tinham ficado pra trás das etapas Migration/Frontend: o card fora do
+padrão canônico e a falta de views de análise na lista de
+Encaminhamentos.
+
+- **`ModuleMetricsStrip` removido** da lista (`referrals-list-module-client-page.tsx`)
+  — era exatamente o padrão já rejeitado de propósito em 2026-11-21 pra
+  Pantry/Deposit (`docs/backlog.md`). O endpoint `GET /referrals/dashboard`
+  continua existindo; só a UI do card saiu.
+- **Kanban/Calendário/Gráfico adicionados** à lista
+  (`referrals-module-contract.tsx` + `referrals-list-module-client-page.tsx`,
+  copiando o padrão mecânico já usado em `programs`/`actions`, só sem
+  Timeline/Gantt — não pedidos e sem campo de data com significado de
+  intervalo no Encaminhamento):
+  - Kanban: coluna por `status` (Aberto/Em acompanhamento/Encerrado).
+  - Calendário: por `createdAt` (Cadastro) ou `closedAt` (Encerramento),
+    selecionável.
+  - Gráfico: contagem por `status`/`type`, com os labels em português já
+    usados no resto do módulo.
+- Import não usado (`canUseModuleAction`, ficou órfão depois que o botão
+  "Novo" virou `canCreate = false` fixo) removido.
+
+**Evidência:** `tsc --noEmit` → 0 erros; `npm run build` → ok; `eslint`
+no módulo `referrals` → só a categoria já tolerada
+(`react-hooks/set-state-in-effect`), nenhuma categoria nova, nenhum
+warning restante.
+
+**Revisão da Fase 7 encerrada** (3 etapas: Migration, Frontend, Ajustes
+de UI). Próximo passo: Fase 8 (Caso), quando o usuário pedir.
+
+## Revisão da Fase 7 — rastreio por Evolução, Rede de destino como cadastro — etapa 1/Frontend (2026-11-25)
+
+Continuação da etapa 1 (ver entrada "etapa 1/Migration" logo abaixo, que
+cobriu schema + backend). Esta entrada cobre o rework do frontend:
+pontos de entrada movidos pra Evolução, diálogo de Rede de destino.
+**Ajustes de lista (remover card, Kanban/Calendário/Gráfico) ficam pra
+etapa 2**, ainda não feitos.
+
+**Módulo `referrals`:**
+- `api/types.ts`: `ApiReferral` troca `destinationName` por
+  `destination: {id,name}` + `evolution: {id,date,notes}`;
+  `ReferralInput.evolutionId` só é enviado na criação.
+- `api/referral-destinations.ts` (novo): CRUD de `ReferralDestination`.
+- `config/referrals-detail-layout-contract.tsx`: campo "Rede de destino"
+  virou picker (botão Selecionar/Alterar, mesmo padrão do "Profissional
+  responsável" do Atendimento) em vez de texto livre; "Origem" resolve
+  da Evolução (tipo do atendimento + data + trecho da nota), não mais
+  do Atendimento direto.
+- `features/detail/ui/referral-destination-picker-dialog.tsx` (novo):
+  busca + seleciona uma `ReferralDestination` existente, ou cria uma
+  nova inline ("+ Nova rede": nome, responsável, contatos, endereço) e
+  já seleciona.
+- `features/detail/ui/referrals-detail-engine-client-page.tsx`:
+  `prefillEvolutionId` (era `prefillAttendanceId`); tela de criação sem
+  `?evolutionId=` na URL mostra aviso orientando a abrir pela Evolução,
+  em vez de permitir um create malformado.
+- `features/list/ui/referrals-list-module-client-page.tsx`: botão "Novo"
+  da lista desativado (`canCreate = false`, comentado o porquê) - sem
+  contexto de Evolução ali, criação genérica não faz sentido mais;
+  criação real é sempre via Evolução.
+
+**Módulo `attendances`:**
+- `config/attendances-detail-layout-contract.tsx`: header perde o botão
+  "Registrar encaminhamento" (mudou de lugar); aba "Benefícios" virou
+  resumo agregado somente-leitura (sem "Novo", sem `AttendanceBenefitDialog`
+  aqui); aba nova "Encaminhamentos" (somente-leitura, mesmo princípio),
+  lendo via a nova prop `referrals` do contexto.
+- `features/detail/ui/attendances-detail-engine-client-page.tsx`:
+  busca `referrals` do atendimento (`listReferrals({attendanceId, all:
+  true})`, usa o campo denormalizado) pra alimentar a aba nova; removido
+  `handleAddBenefit`/`onAddBenefit` (criação saiu daqui).
+- `features/detail/ui/attendance-evolution-detail-page.tsx`: ganhou
+  `headerActionsSlot` com 2 botões - "Lançar benefício" (abre
+  `AttendanceBenefitDialog` aqui, enviando `evolutionId` desta evolução)
+  e "Registrar encaminhamento" (`Link` pra `/referrals/new?evolutionId=`).
+- `shared/ui/attendance-relation-detail-shell.tsx`: ganhou prop
+  `headerActionsSlot` (repassada pro `DetailShellEngine`) - é o que
+  tornou o item acima possível sem duplicar o shell inteiro.
+
+**Evidência:**
+- `tsc --noEmit` → 0 erros; `npm run build` → ok, rotas de atendimentos/
+  encaminhamentos presentes (incl. `/attendances/[id]/evolutions/[evolutionId]`);
+  `eslint` nos arquivos novos/tocados → 9 ocorrências, **todas** da
+  categoria já tolerada no projeto inteiro (`react-hooks/set-state-in-effect`,
+  mesmo padrão dos templates copiados), nenhuma categoria nova.
+- Backend inalterado nesta entrada (já tinha fechado tsc/test/lint na
+  etapa Migration).
+- **Não testado manualmente no navegador nesta rodada** - usuário pediu
+  pra parar os servidores e vai testar por conta própria.
+
+**Pendente (etapa 2):** remover `ModuleMetricsStrip` da lista de
+Encaminhamentos (viola padrão canônico, já documentado); adicionar
+Kanban/Calendário/Gráfico à lista.
+
+## Revisão da Fase 7 — rastreio por Evolução, Rede de destino como cadastro — etapa 1/Migration (2026-11-25)
+
+Continuação da Fase 7, a pedido do usuário depois de testar manualmente
+e revisar 4 pontos (card fora do padrão, faltam views de análise, Rede
+de destino devia ser cadastro, Encaminhamento/Benefício devem vincular
+na Evolução, não no Atendimento). Decisão de arquitetura completa
+registrada em
+`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`
+(seção "Revisão da Fase 7"). **Esta entrada cobre só a etapa 1 (Migration
++ rework mínimo de backend pra manter tudo compilando/testado)** — UI
+(mover entrypoint pra Evolução, diálogo de Rede de destino, abas
+agregadas, ajustes de lista) fica pra próxima etapa.
+
+**Schema:** migration `20261125152406_referral_destination_and_evolution_links`.
+- Model novo `ReferralDestination` (`name`, `contactInfo`,
+  `responsibleName`, `address`, `isActive`).
+- `Referral`: `destinationName` (texto livre) → `destinationId` (FK);
+  ganha `evolutionId` (FK obrigatória em `AttendanceEvolution`, o vínculo
+  de origem real agora); `attendanceId` continua, mas denormalizado
+  (derivado de `evolution.attendanceId` na criação).
+- `AttendanceBenefit`: ganha `evolutionId` (FK obrigatória, mesmo
+  princípio), `attendanceId` idem denormalizado.
+- `AttendanceEvolution` ganha `referrals`/`benefits` (relações inversas).
+- **Dados fictícios limpos antes da migration** (não é dado de
+  produção — nada deste trabalho saiu do `develop` local ainda):
+  682 `AttendanceBenefit` do seed + 1 `Referral`/0 `ReferralAttachment`
+  de teste manual do usuário, todos sem `evolutionId` possível de
+  derivar automaticamente.
+
+**Backend:**
+- `referrals.service.ts`/DTOs: `create`/`update` passam a exigir
+  `evolutionId`+`destinationId` (valida ambos existem no tenant antes de
+  criar; `attendanceId` é derivado da evolução, nunca recebido direto).
+  `buildReferralWhere`: busca livre (`q`) agora filtra pelo nome da
+  `ReferralDestination` vinculada (relation filter), não mais texto
+  livre no próprio `Referral`.
+- Módulo novo `referral-destinations.*` (controller/service/DTOs) dentro
+  de `backend/src/modules/referrals/` — CRUD simples (list/get/create/
+  update, sem delete pra não quebrar FK de Encaminhamentos já existentes),
+  reaproveitando as permissões `referrals.read/create/update` (sem
+  permissão nova). Rota `/referral-destinations`.
+- `attendances.service.ts#addBenefit`: exige `evolutionId` no DTO,
+  valida que a evolução pertence ao mesmo atendimento antes de criar o
+  benefício.
+- `prisma/seed/attendances-occurrences-fase2.ts`: geração de
+  `AttendanceBenefit` passa a escolher uma evolução real daquele
+  atendimento (mapa `evolutionIdsByAttendance` construído junto da
+  geração de `AttendanceEvolution`); novo bloco de seed pra
+  `ReferralDestination` (5 redes fictícias fixas: CRAS, CREAS, Hospital
+  Municipal, Conselho Tutelar, Escola Municipal).
+
+**Evidência:**
+- `npx prisma migrate dev` → aplicada sem drift (SQL revisado: `DROP
+  COLUMN destinationName`, `ADD COLUMN evolutionId/destinationId NOT
+  NULL` nas 2 tabelas, `CREATE TABLE ReferralDestination`, FKs e índices
+  corretos).
+- `npm run build:seed && npm run db:seed` → sem erro de tipo, dados
+  regenerados: `Beneficios: 672`, `Redes de destino: 5`, resto dos
+  números igual à rodada anterior (dentro da variância aleatória do
+  faker).
+- Backend: `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test` →
+  **32 suítes/172 testes** (+1 suíte/+3 testes:
+  `referral-destinations.service.spec.ts` novo, `referrals.service.spec.ts`
+  ganhou 2 casos pra `evolutionId`/`destinationId`/busca por nome da
+  Rede de destino), sem regressão; `eslint` nos arquivos novos/tocados →
+  0 problemas (2 arquivos corrigidos com `--fix` escopado só a eles).
+  (`prisma/seed.ts`/`prisma/seed/attendances-occurrences-fase2.ts` dão
+  erro de parsing no ESLint — limitação de tooling pré-existente, já
+  documentada em `docs/backlog.md`, não deste trabalho.)
+
+**Pendente (próxima etapa, UI):** mover os pontos de entrada de
+Encaminhamento/Benefício pra tela de Evolução; diálogo de picker/criação
+rápida de Rede de destino no formulário; abas "Evoluções"/"Benefícios"/
+"Encaminhamentos" do Atendimento virando resumo agregado somente-leitura;
+remover `ModuleMetricsStrip` da lista de Encaminhamentos; adicionar
+Kanban/Calendário/Gráfico. **Estado atual do frontend:** ainda chama a
+API antiga (`attendanceId`+`destinationName`) — criar/editar
+Encaminhamento ou lançar Benefício pela UI vai falhar (400) até a
+próxima etapa ser feita. Não testar manualmente esses 2 fluxos até lá.
+
+## Fase 7 — Encaminhamento (Referral) (2026-11-25)
+
+Continuação explícita do plano mestre SCFV
+(`docs/terceiro-gestor-plano-de-desenvolvimento-modulos-atendimento-e-projetos.md`),
+a pedido do usuário ("continuar o SCFV, Fases 7-9") — plano revisado e
+aprovado via `EnterPlanMode`/`ExitPlanMode` antes de codificar. Só a
+Fase 7 nesta rodada (incremento testável isolado, mesmo princípio do
+plano mestre); Fases 8 (Caso) e 9 (Relatórios) ficam para depois.
+
+**Modelo:** `Referral` (ciclo **avanço-só** ABERTO→EM_ACOMPANHAMENTO→
+ENCERRADO, igual Occurrence/Fase 5 — decisão justificada pelo próprio
+critério de teste da fase, que abre um 2º encaminhamento em vez de
+reabrir o 1º), vinculado obrigatoriamente a um `Attendance` de origem
+(`attendanceId`, imutável). Enums `ReferralType` (SAUDE/EDUCACAO/
+CONSELHO_TUTELAR/ASSISTENCIA_SOCIAL/JURIDICO/OUTRO — taxonomia SUAS,
+sem precedente contrário em `docs/pesquisa-de-mercado-modulo-scfv.md`)
+e `ReferralStatus`, sem colisão de nome com nada existente. Anexos
+reais desde o início (`ReferralAttachment`) — primeira entidade da
+família Ocorrência/Atendimento/Encaminhamento a nascer com isso (os
+outros dois ainda têm o gap "Fase B" registrado em `docs/backlog.md`).
+Migration `20261125132604_add_referral`, aplicada sem drift.
+
+**Backend:** módulo novo `backend/src/modules/referrals/` (controller/
+service/DTOs/`referral-status.ts`), espelhando `occurrences/` (mais
+próximo estruturalmente que `attendances/`, por não ter sub-recurso
+N:N). `GET /referrals/dashboard` (contagem de abertos + tempo médio de
+fechamento em dias, igual padrão `summary`/`dashboard` de deposit/
+pantry) declarado antes de `GET /referrals/:id` pra não cair no
+`ParseUUIDPipe`. Upload de anexo: categoria nova `referral-attachments`
+em `upload-paths.ts` + endpoint `POST /files/referral-attachments` em
+`files.controller.ts` (cópia exata do padrão de `action-attachments`).
+Permissões `referrals.read/create/update/delete` em
+`core-permissions.ts`, mesmo mapeamento de `attendances`/`occurrences`
+(Admin/Gestor tudo, papel Atendimento sem delete, Leitor só read).
+`ReferralsModule` registrado em `app.module.ts`.
+
+**Frontend:** módulo novo `frontend/src/modules/referrals/` (api/
+config/features/shared, espelhando `occurrences/`), com aba Anexos de
+verdade via `StandardDetailMetadataSide` (`tabOrder=["attachments",
+"activity"]`) e `ModuleMetricsStrip` no topo da lista (2 métricas do
+dashboard). Ponto de entrada real: `Attendance` ganhou `header.actions`
+(não tinha nenhum antes) com o botão "Registrar encaminhamento" →
+`/referrals/new?attendanceId=`, mesmo mecanismo que Occurrence já usa
+pra abrir Attendance. Fiação completa de registry (`actions/`,
+`searchViews/`, `data-provider/rest/`, `modules/registry.ts`, 3 rotas
+Next.js novas, entrada no nav "Operações").
+
+**Gap conhecido reencontrado (mesmo das Fases 5/6):** papéis já
+existentes no tenant de teste não ganharam `referrals.*` até rodar
+`npm run build:seed && npm run db:seed` de novo (upsert idempotente,
+nenhum dado alterado — confirmado, só a permissão nova passou a existir
+em `RolePermission`).
+
+**Evidência:**
+- `npx prisma migrate dev --name add_referral` → aplicada sem drift.
+- Backend: `tsc --noEmit -p tsconfig.build.json` → 0 erros; `npm test`
+  → 31 suítes/169 testes (+1 suíte/+10 testes de
+  `referrals.service.spec.ts`: `buildReferralWhere` isolado por tenant,
+  `assertReferralStatusTransition` avança/pula/rejeita regressão,
+  `assertOutcomeNotesRequiredForClosing`), sem regressão; `eslint` nos
+  arquivos novos/tocados → 0 problemas (2 problemas de formatação
+  corrigidos com `--fix` escopado só aos 2 arquivos novos afetados,
+  nenhum arquivo pré-existente tocado).
+- Frontend: `tsc --noEmit` → 0 erros; `npm run build` → ok, as 3 rotas
+  novas (`/referrals`, `/referrals/new`, `/referrals/[id]`) aparecem no
+  output; `eslint` nos arquivos novos/tocados → só a categoria já
+  tolerada no projeto inteiro (`react-hooks/set-state-in-effect`,
+  idêntica à dos templates `occurrences`/`attendances`/`people-groups`
+  copiados), nenhuma categoria nova (o `react-hooks/preserve-manual-memoization`
+  que apareceu numa primeira leva foi corrigido adicionando o setter
+  estável `setReferral` nas dependências dos 2 `useCallback` de anexo —
+  mesma correção já documentada nas Fases 5/6).
+- **Teste de ponta a ponta via API real** (backend subido localmente,
+  Postgres real, dados de teste removidos ao final): criado 1
+  Atendimento espontâneo → criado Encaminhamento #1 (Saúde, "Hospital
+  Municipal Teste") → tentativa de encerrar sem `outcomeNotes` → `400`
+  ("Informe o desfecho antes de encerrar o encaminhamento") → `createdAt`
+  do #1 ajustado -30 dias direto no banco (simulação de "aberto por 30
+  dias", já que não há viagem no tempo real) → encerrado com desfecho
+  preenchido → `closedAt` gravado corretamente → tentativa de reabrir
+  (`ABERTO`) → `400` ("Nao e possivel voltar o status de ENCERRADO para
+  ABERTO") → criado Encaminhamento #2 pro mesmo Atendimento → `GET
+  /referrals/dashboard` → `{"openCount":1,"averageClosingDays":30.00...}`
+  — bate exatamente com o critério de teste da Fase 7 (só o #2 conta
+  como aberto; a média reflete os ~30 dias do #1). Fluxo de anexo
+  testado à parte: upload via `/files/referral-attachments` → vínculo
+  via `POST /referrals/:id/attachments` → exclusão via `DELETE
+  .../attachments/:attachmentId`, todos `200`. Dados de teste (2
+  encaminhamentos, 1 atendimento, 1 anexo) removidos via API ao final;
+  dashboard confirmado de volta a `{"openCount":0,"averageClosingDays":null}`.
+
+**Pendente (fora do escopo desta rodada):** validação manual real de
+UI no navegador (não feita nesta sessão — só API); Fases 8 (Caso) e 9
+(Relatórios por financiador) do plano mestre.
+
+## Documentação de arquitetura para manutenção (`docs/architecture/`) (2026-11-25)
+
+Pedido explícito do usuário, fora da sequência de Partes (confirmado via
+`AskUserQuestion` antes de começar, conforme regra do `AGENTS.md` pra
+tarefa fora do `PLAN.md`): criar um Documento de Arquitetura de
+Software + Manual do Desenvolvedor, pra qualquer manutenção pontual
+futura saber rapidamente quais arquivos estão no escopo de um problema
+específico, sem precisar ler o projeto inteiro.
+
+Formato escolhido pelo usuário: vários arquivos por área/camada (não um
+único arquivo grande), com nível de detalhe "mapa por módulo/camada"
+(lista arquivos-chave e o que cada um faz, não todo arquivo
+individualmente).
+
+**Criado `docs/architecture/`** (7 arquivos, índice em `README.md` com
+tabela "sintoma → documento"):
+- `00-overview.md` — stack, invariante de `tenantId`, fluxo de uma
+  requisição/tela.
+- `01-backend-core.md` — `backend/src/core/` (auth, MFA, authorization/
+  RBAC, tenancy, pii, audit, files/upload assinado, request-context,
+  prisma, rate-limit, config, email, cep).
+- `02-backend-modules.md` — `backend/src/modules/*` (17 módulos),
+  incluindo tabela "achei um bug, onde eu olho?" e as 2 armadilhas de
+  nomenclatura (Activity/Meeting mapeados pra tabelas ProjectAction/
+  ActionOccurrence; Occurrence vs. Attendance com enums de status que
+  colidiriam de nome).
+- `03-database.md` — ~99 models do Prisma agrupados por família de
+  negócio, convenções de schema/migration/seed.
+- `04-frontend-web-client.md` — `frontend/src/web-client/` (List
+  Principal, Detail, Relation, registry, data-provider) + a camada
+  `frontend/src/components/` abaixo dela.
+- `05-frontend-modules.md` — `frontend/src/modules/*` (12 módulos) e o
+  que resta válido de `frontend/src/features/` (legado).
+- `06-infra-deploy.md` — Docker, variáveis de ambiente, CI, resumo
+  navegável da auditoria de riscos.
+
+**Levantamento feito por 4 agentes de exploração em paralelo** (backend/
+core, backend/modules, frontend/web-client, frontend/modules+features),
+cada um com leitura direta de código (não só grep) — relatórios brutos
+usados como insumo, texto final escrito/sintetizado nesta sessão, não
+colado direto. Achados técnicos relevantes descobertos/confirmados no
+processo, já existentes no código (não introduzidos agora): o bug de
+loop de seleção do `ListView.tsx` (linhas ~851-856, `selectedRows` sem
+memoização) e o footgun de autosave do `useDetailAutoSaveController.ts`
+(`commitField`, linha ~187) foram localizados com precisão de linha —
+ambos já registrados em `docs/backlog.md` sem o número de linha exato;
+e `frontend/src/features/contacts/` foi confirmado morto por grep (zero
+importador fora de si mesmo) — candidato a limpeza da Parte 1, ainda
+não estava no backlog.
+
+**Natureza do documento:** apoio à navegação, não normativo — em caso de
+conflito com o código ou com `docs/canonical-web-client-standard.md`/
+`docs/auditoria-riscos.md`, estes vencem. Não tem obrigação de
+manutenção automática (registrado no próprio `README.md` da pasta).
+
+**Evidência:** nenhum código alterado (só arquivos novos em
+`docs/architecture/` + esta entrada no `PLAN.md`) — não se aplica
+checkpoint de `tsc`/`test`/`build`.
+
 ## Análises (Gráfico/Kanban/Timeline/Calendário/agrupamento) sobre o dataset completo, não a página (2026-11-24)
 
 Usuário suspeitou, testando as telas de lista, que as ferramentas de

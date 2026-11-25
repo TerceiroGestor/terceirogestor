@@ -34,6 +34,7 @@ type AttendanceRelationDetailShellProps = {
   relationId: string | null;
   onClose: () => void;
   children: React.ReactNode;
+  headerActionsSlot?: React.ReactNode;
 };
 
 /**
@@ -51,6 +52,7 @@ export function AttendanceRelationDetailShell({
   relationId,
   onClose,
   children,
+  headerActionsSlot,
 }: AttendanceRelationDetailShellProps) {
   const { token } = useAuth();
   const dataProvider = React.useMemo(() => createRestDataProvider({ token }), [token]);
@@ -85,6 +87,7 @@ export function AttendanceRelationDetailShell({
       readOnly={false}
       loading={false}
       onClose={onClose}
+      headerActionsSlot={headerActionsSlot}
       fallbackSideSlot={
         <StandardDetailMetadataSide
           mode="edit"

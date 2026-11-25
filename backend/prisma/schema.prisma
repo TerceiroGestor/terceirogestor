@@ -364,6 +364,11 @@ model Tenant {
   attendancePeople                  AttendancePeople[]
   attendanceEvolutions              AttendanceEvolution[]
   attendanceBenefits                AttendanceBenefit[]
+  referrals                         Referral[]
+  referralAttachments               ReferralAttachment[]
+  referralDestinations              ReferralDestination[]
+  cases                              Case[]
+  casePeople                         CasePeople[]
 
   @@index([status])
 }
@@ -423,6 +428,7 @@ model User {
   peopleGroupAttachments              PeopleGroupAttachment[]
   projectActionComments               ProjectActionComment[]
   projectActionAttachments            ProjectActionAttachment[]
+  referralAttachments                 ReferralAttachment[]
   assignedTaskOrganizerTasks          TaskOrganizerTask[]          @relation("TaskOrganizerAssignedUser")
   assignedTaskOrganizerChecklistItems TaskOrganizerChecklistItem[] @relation("TaskOrganizerChecklistAssignedUser")
   assignedTaskOrganizerSubtasks       TaskOrganizerSubtask[]       @relation("TaskOrganizerSubtaskAssignedUser")
@@ -546,6 +552,7 @@ model Person {
   meetingTeamParticipations  MeetingTeamParticipation[]
   attendanceLinks            AttendancePeople[]
   attendancesAsProfessional  Attendance[]                       @relation("AttendanceProfessional")
+  caseLinks                  CasePeople[]
 
   @@index([tenantId])
   @@index([fullName])
@@ -1691,6 +1698,7 @@ model Occurrence {
   id           String               @id @default(uuid()) @db.Char(36)
   tenantId     String               @db.Char(36)
   meetingId    String?              @db.Char(36)
+  caseId       String?              @db.Char(36)
   title        String
   description  String?              @db.Text
   status       OccurrenceCaseStatus @default(REGISTRADA)
@@ -1700,11 +1708,13 @@ model Occurrence {
 
   tenant      Tenant             @relation(fields: [tenantId], references: [id])
   meeting     Meeting?           @relation(fields: [meetingId], references: [id])
+  case        Case?              @relation(fields: [caseId], references: [id])
   people      OccurrencePeople[]
   attendances Attendance[]
 
   @@index([tenantId])
   @@index([meetingId])
+  @@index([caseId])
   @@index([status])
 }
 
@@ -1852,6 +1862,7 @@ model Attendance {
   id             String               @id @default(uuid()) @db.Char(36)
   tenantId       String               @db.Char(36)
   occurrenceId   String?              @db.Char(36)
+  caseId         String?              @db.Char(36)
   type           AttendanceType
   scheduledDate  DateTime             @db.Date
   professionalId String               @db.Char(36)
@@ -1863,13 +1874,16 @@ model Attendance {
 
   tenant       Tenant                @relation(fields: [tenantId], references: [id])
   occurrence   Occurrence?           @relation(fields: [occurrenceId], references: [id])
+  case         Case?                 @relation(fields: [caseId], references: [id])
   professional Person                @relation("AttendanceProfessional", fields: [professionalId], references: [id])
   people       AttendancePeople[]
   evolutions   AttendanceEvolution[]
   benefits     AttendanceBenefit[]
+  referrals    Referral[]
 
   @@index([tenantId])
   @@index([occurrenceId])
+  @@index([caseId])
   @@index([professionalId])
   @@index([status])
   @@index([type])
@@ -1894,6 +1908,10 @@ model AttendancePeople {
 }
 
 /// Registro de evolucao - texto livre datado, multiplos por Attendance.
+/// Ponto real de rastreio desde a revisao de 2026-11-25: Encaminhamento e
+/// Beneficio vinculam aqui, nao mais direto no Attendance - captura o
+/// momento exato em que a decisao foi tomada, nao so "em algum momento
+/// deste atendimento".
 model AttendanceEvolution {
   id           String     @id @default(uuid()) @db.Char(36)
   tenantId     String     @db.Char(36)
@@ -1903,21 +1921,29 @@ model AttendanceEvolution {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  attendance Attendance          @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  benefits   AttendanceBenefit[]
+  referrals  Referral[]
 
   @@index([tenantId])
   @@index([attendanceId])
 }
 
-/// Beneficio concreto (cesta basica etc.) vinculado ao Attendance. Nome do
-/// model nao pode ser "Benefit" generico porque colide em intencao com
-/// "PersonBenefit" (beneficio social/financeiro continuo da pessoa, ja
-/// existente) - sao conceitos diferentes, por isso "AttendanceBenefit".
+/// Beneficio concreto (cesta basica etc.) vinculado a Evolucao (revisao de
+/// 2026-11-25 - mesma Evolucao pode gerar mais de um Beneficio, rastreio
+/// melhor que vincular no Attendance inteiro). `attendanceId` continua
+/// denormalizado (derivado de `evolution.attendanceId` na criacao, nunca
+/// editado depois) - evita join extra pra "todos os beneficios deste
+/// atendimento". Nome do model nao pode ser "Benefit" generico porque
+/// colide em intencao com "PersonBenefit" (beneficio social/financeiro
+/// continuo da pessoa, ja existente) - sao conceitos diferentes, por isso
+/// "AttendanceBenefit".
 model AttendanceBenefit {
   id           String     @id @default(uuid()) @db.Char(36)
   tenantId     String     @db.Char(36)
   attendanceId String     @db.Char(36)
+  evolutionId  String     @db.Char(36)
   name         String
   date         DateTime   @db.Date
   quantity     Int?
@@ -1925,11 +1951,154 @@ model AttendanceBenefit {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  attendance Attendance          @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  evolution  AttendanceEvolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([attendanceId])
+  @@index([evolutionId])
+}
+
+enum ReferralType {
+  SAUDE
+  EDUCACAO
+  CONSELHO_TUTELAR
+  ASSISTENCIA_SOCIAL
+  JURIDICO
+  OUTRO
+}
+
+enum ReferralStatus {
+  ABERTO
+  EM_ACOMPANHAMENTO
+  ENCERRADO
+}
+
+/// Cadastro de rede de destino (revisao de 2026-11-25) - mesmo papel que
+/// PantryDonor/DepositDonor cumprem hoje: entidade propria por tenant, em
+/// vez de texto livre repetido em cada Referral.
+model ReferralDestination {
+  id              String   @id @default(uuid()) @db.Char(36)
+  tenantId        String   @db.Char(36)
+  name            String
+  contactInfo     String?  @db.Text
+  responsibleName String?
+  address         String?  @db.Text
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  referrals Referral[]
+
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+/// Fase 7 (Encaminhamento): ciclo de vida independente do Attendance de
+/// origem, com alertas de pendencia (dashboard). Ciclo e avanco-so, igual
+/// Occurrence (Fase 5) - encerrar sem solucao abre um segundo Referral
+/// para a mesma situacao, nao reabre o primeiro. Revisao de 2026-11-25:
+/// vincula na AttendanceEvolution (nao mais direto no Attendance) - mesmo
+/// raciocinio de rastreio do AttendanceBenefit acima; `attendanceId`
+/// continua denormalizado, derivado de `evolution.attendanceId`.
+/// `destinationId` substitui o antigo `destinationName` (texto livre) -
+/// ver `ReferralDestination`.
+model Referral {
+  id            String         @id @default(uuid()) @db.Char(36)
+  tenantId      String         @db.Char(36)
+  attendanceId  String         @db.Char(36)
+  evolutionId   String         @db.Char(36)
+  destinationId String         @db.Char(36)
+  type          ReferralType
+  status        ReferralStatus @default(ABERTO)
+  outcomeNotes  String?        @db.Text
+  closedAt      DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  attendance  Attendance           @relation(fields: [attendanceId], references: [id])
+  evolution   AttendanceEvolution  @relation(fields: [evolutionId], references: [id])
+  destination ReferralDestination  @relation(fields: [destinationId], references: [id])
+  attachments ReferralAttachment[]
+
+  @@index([tenantId])
+  @@index([attendanceId])
+  @@index([evolutionId])
+  @@index([destinationId])
+  @@index([status])
+}
+
+model ReferralAttachment {
+  id               String   @id @default(uuid()) @db.Char(36)
+  tenantId         String   @db.Char(36)
+  referralId       String   @db.Char(36)
+  uploadedByUserId String?  @db.Char(36)
+  label            String
+  filePath         String
+  mimeType         String?
+  fileSizeBytes    Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  referral       Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  uploadedByUser User?    @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([referralId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+enum CaseStatus {
+  ABERTO
+  ENCERRADO
+}
+
+/// Fase 8 (Caso): agrupador consolidado de uma mesma situacao - amarra
+/// multiplos Atendimentos/Ocorrencias pra visao historica. Ciclo e
+/// reabrivel (mesmo principio do Attendance) - um parecer de encerramento
+/// nao impede a situacao de voltar depois. `caseId` so existe em
+/// Occurrence/Attendance (pontos de entrada reais da hierarquia) -
+/// Evolution/Referral/Benefit chegam ao Caso por transitividade via
+/// Attendance, nunca por FK propria (decisao de 2026-11-25, evita duas
+/// fontes de verdade que podem discordar).
+model Case {
+  id           String     @id @default(uuid()) @db.Char(36)
+  tenantId     String     @db.Char(36)
+  title        String
+  summary      String?    @db.Text
+  status       CaseStatus @default(ABERTO)
+  closingNotes String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  people      CasePeople[]
+  occurrences Occurrence[]
+  attendances Attendance[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model CasePeople {
+  id        String   @id @default(uuid()) @db.Char(36)
+  tenantId  String   @db.Char(36)
+  caseId    String   @db.Char(36)
+  personId  String   @db.Char(36)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id])
+
+  @@unique([caseId, personId])
+  @@index([tenantId])
+  @@index([caseId])
+  @@index([personId])
 }
 
 model PantryItem {

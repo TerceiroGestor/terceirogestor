@@ -15,6 +15,16 @@ import {
   attendancesListAction,
 } from "@/web-client/registry/actions/attendances";
 import {
+  referralsCreateAction,
+  referralsDetailAction,
+  referralsListAction,
+} from "@/web-client/registry/actions/referrals";
+import {
+  casesCreateAction,
+  casesDetailAction,
+  casesListAction,
+} from "@/web-client/registry/actions/cases";
+import {
   meetingsCreateAction,
   meetingsDetailAction,
 } from "@/web-client/registry/actions/meetings";
@@ -100,6 +110,14 @@ import {
   attendancesSearchView,
 } from "@/web-client/registry/searchViews/attendances";
 import {
+  referralsDetailSearchView,
+  referralsSearchView,
+} from "@/web-client/registry/searchViews/referrals";
+import {
+  casesDetailSearchView,
+  casesSearchView,
+} from "@/web-client/registry/searchViews/cases";
+import {
   pantryDonorsSearchView,
   pantryEntriesSearchView,
   pantryExitsSearchView,
@@ -150,6 +168,12 @@ const WINDOW_ACTIONS: WindowAction[] = [
   attendancesListAction,
   attendancesDetailAction,
   attendancesCreateAction,
+  referralsListAction,
+  referralsDetailAction,
+  referralsCreateAction,
+  casesListAction,
+  casesDetailAction,
+  casesCreateAction,
   meetingsDetailAction,
   meetingsCreateAction,
   adminOverviewAction,
@@ -210,6 +234,10 @@ const SEARCH_VIEWS: SearchViewDefinition[] = [
   occurrencesDetailSearchView,
   attendancesSearchView,
   attendancesDetailSearchView,
+  referralsSearchView,
+  referralsDetailSearchView,
+  casesSearchView,
+  casesDetailSearchView,
   adminSingletonSearchView,
   adminUsersSearchView,
   adminRolesSearchView,

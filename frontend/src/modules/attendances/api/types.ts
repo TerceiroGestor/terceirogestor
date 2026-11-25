@@ -46,6 +46,7 @@ export type ApiAttendance = {
   id: string;
   tenantId: string;
   occurrenceId: string | null;
+  caseId: string | null;
   type: AttendanceType;
   scheduledDate: string;
   professionalId: string;
@@ -57,6 +58,11 @@ export type ApiAttendance = {
   occurrence: {
     id: string;
     title: string;
+  } | null;
+  case: {
+    id: string;
+    title: string;
+    status: string;
   } | null;
   professional: {
     id: string;
@@ -72,6 +78,7 @@ export type AttendanceInput = {
   scheduledDate: string;
   professionalId: string;
   occurrenceId?: string | null;
+  caseId?: string | null;
   status?: AttendanceCaseStatus;
   notes?: string | null;
   closingNotes?: string | null;
@@ -88,6 +95,7 @@ export type AttendanceEvolutionInput = {
 };
 
 export type AttendanceBenefitInput = {
+  evolutionId: string;
   name: string;
   date: string;
   quantity?: number | null;

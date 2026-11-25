@@ -25,6 +25,8 @@ import { RegistrationModule } from './modules/registration/registration.module';
 import { ActionsModule } from './modules/actions/actions.module';
 import { OccurrencesModule } from './modules/occurrences/occurrences.module';
 import { AttendancesModule } from './modules/attendances/attendances.module';
+import { ReferralsModule } from './modules/referrals/referrals.module';
+import { CasesModule } from './modules/cases/cases.module';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { FilesModule } from './core/files/files.module';
 import { existsSync } from 'fs';
@@ -71,6 +73,8 @@ const rootEnvFilePaths = [
     ActionsModule,
     OccurrencesModule,
     AttendancesModule,
+    ReferralsModule,
+    CasesModule,
     RegistrationModule,
     DashboardModule,
     TasksModule,

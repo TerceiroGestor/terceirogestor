@@ -31,8 +31,12 @@ import {
   ATTENDANCE_TYPE_LABELS,
   ATTENDANCE_TYPE_OPTIONS,
 } from "@/modules/attendances/shared/domain/attendances.constants";
-import { AttendanceBenefitDialog } from "@/modules/attendances/features/detail/ui/attendance-benefit-dialog";
 import { AttendanceEvolutionDialog } from "@/modules/attendances/features/detail/ui/attendance-evolution-dialog";
+import type { ApiReferral } from "@/modules/referrals/api";
+import {
+  REFERRAL_STATUS_LABELS,
+  REFERRAL_TYPE_LABELS,
+} from "@/modules/referrals/shared/domain/referrals.constants";
 import { DetailSectionField, DetailSectionHeading } from "@/web-client/detail/DetailFormSection";
 import { DetailRelationTablePanel } from "@/web-client/detail/DetailRelationTablePanel";
 import { StandardDetailMetadataSide } from "@/web-client/detail/StandardDetailMetadataSide";
@@ -64,6 +68,7 @@ export type AttendanceDetailDraft = {
   scheduledDate: string;
   professionalId: string;
   occurrenceId: string | null;
+  caseId: string | null;
   status: AttendanceCaseStatus;
   notes: string;
   closingNotes: string;
@@ -79,13 +84,16 @@ export type AttendancesDetailLayoutContext = DetailShellAuditContext & {
   draft: AttendanceDetailDraft;
   setDraft: React.Dispatch<React.SetStateAction<AttendanceDetailDraft>>;
   professionalName: string;
+  caseName: string;
   people: ApiAttendancePerson[];
   evolutions: ApiAttendanceEvolution[];
   benefits: ApiAttendanceBenefit[];
+  referrals: ApiReferral[];
   onCommitField: <K extends keyof AttendanceDetailDraft>(
     field: K,
     nextValue?: AttendanceDetailDraft[K],
   ) => void;
+  onPickCase: () => void;
   onOpenPerson: (personId: string) => void;
   onAddPerson: () => void;
   onRemovePerson: (link: ApiAttendancePerson) => void;
@@ -93,14 +101,9 @@ export type AttendancesDetailLayoutContext = DetailShellAuditContext & {
   onAddEvolution: (payload: { date: string; notes: string }) => Promise<void>;
   onRemoveEvolution: (evolution: ApiAttendanceEvolution) => void;
   onOpenEvolution: (evolutionId: string) => void;
-  onAddBenefit: (payload: {
-    name: string;
-    date: string;
-    quantity: number | null;
-    notes: string | null;
-  }) => Promise<void>;
   onRemoveBenefit: (benefit: ApiAttendanceBenefit) => void;
   onOpenBenefit: (benefitId: string) => void;
+  onOpenReferral: (referralId: string) => void;
   auditVisibleCount: number;
   onAuditVisibleCountChange: React.Dispatch<React.SetStateAction<number>>;
 };
@@ -251,6 +254,8 @@ function AttendanceDetailMain({
   attendance,
   professionalName,
   onPickProfessional,
+  caseName,
+  onPickCase,
   canEdit,
 }: Pick<
   AttendancesDetailLayoutContext,
@@ -261,6 +266,8 @@ function AttendanceDetailMain({
   | "attendance"
   | "professionalName"
   | "onPickProfessional"
+  | "caseName"
+  | "onPickCase"
   | "canEdit"
 >) {
   return (
@@ -316,6 +323,19 @@ function AttendanceDetailMain({
         <DetailSectionField label="Origem">
           <div className="flex h-10 items-center border-b border-border/70 text-sm text-muted-foreground">
             {resolveOriginLabel(attendance?.occurrence ?? null, draft.occurrenceId)}
+          </div>
+        </DetailSectionField>
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2 md:items-end">
+        <DetailSectionField label="Caso">
+          <div className="flex h-10 items-center justify-between border-b border-border/70">
+            <span className="text-sm text-foreground">{caseName || "Nenhum caso vinculado"}</span>
+            {!readOnly && canEdit ? (
+              <Button type="button" size="sm" variant="ghost" onClick={onPickCase}>
+                {caseName ? "Alterar" : "Vincular"}
+              </Button>
+            ) : null}
           </div>
         </DetailSectionField>
       </div>
@@ -461,19 +481,22 @@ function AttendanceEvolutionsTab({
   );
 }
 
+/**
+ * Somente-leitura desde a revisao de 2026-11-25: Beneficio agora nasce de
+ * uma Evolucao especifica (botao "Lancar beneficio" na tela da Evolucao),
+ * nao mais daqui - esta aba virou um resumo agregado, so pra navegar/
+ * conferir o que ja foi lancado.
+ */
 function AttendanceBenefitsTab({
   mode,
   canEdit,
-  readOnly,
   benefits,
-  onAddBenefit,
   onRemoveBenefit,
   onOpenBenefit,
 }: Pick<
   AttendancesDetailLayoutContext,
-  "mode" | "canEdit" | "readOnly" | "benefits" | "onAddBenefit" | "onRemoveBenefit" | "onOpenBenefit"
+  "mode" | "canEdit" | "benefits" | "onRemoveBenefit" | "onOpenBenefit"
 >) {
-  const [dialogOpen, setDialogOpen] = React.useState(false);
   const columns = React.useMemo(
     () => benefitColumns({ canEdit, onRemoveBenefit }),
     [canEdit, onRemoveBenefit],
@@ -482,25 +505,75 @@ function AttendanceBenefitsTab({
   if (mode === "create") {
     return (
       <div className={ATTENDANCE_DETAIL_SECTION_CLASS}>
-        <p className="text-sm text-muted-foreground">Salve o atendimento para lançar benefícios.</p>
+        <p className="text-sm text-muted-foreground">Salve o atendimento para ver benefícios.</p>
       </div>
     );
   }
 
   return (
-    <>
-      <DetailRelationTablePanel
-        data={benefits}
-        columns={columns}
-        getRowId={(row) => row.id}
-        onRowClick={(row) => onOpenBenefit(row.id)}
-        onAdd={!readOnly && canEdit ? () => setDialogOpen(true) : undefined}
-        searchPlaceholder="Pesquisar benefício"
-        filterRow={(row, query) => row.name.toLocaleLowerCase().includes(query)}
-        emptyMessage="Nenhum benefício lançado."
-        />
-      <AttendanceBenefitDialog open={dialogOpen} onOpenChange={setDialogOpen} onSubmit={onAddBenefit} />
-    </>
+    <DetailRelationTablePanel
+      data={benefits}
+      columns={columns}
+      getRowId={(row) => row.id}
+      onRowClick={(row) => onOpenBenefit(row.id)}
+      searchPlaceholder="Pesquisar benefício"
+      filterRow={(row, query) => row.name.toLocaleLowerCase().includes(query)}
+      emptyMessage="Nenhum benefício lançado ainda - lance pela tela da Evolução."
+    />
+  );
+}
+
+function referralColumns(): ColumnDef<ApiReferral, unknown>[] {
+  return [
+    {
+      accessorKey: "destination.name",
+      header: "Rede de destino",
+      cell: ({ row }) => <div className="font-medium text-foreground">{row.original.destination.name}</div>,
+    },
+    {
+      accessorKey: "type",
+      header: "Tipo",
+      cell: ({ row }) => REFERRAL_TYPE_LABELS[row.original.type] ?? row.original.type,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant="outline">{REFERRAL_STATUS_LABELS[row.original.status] ?? row.original.status}</Badge>
+      ),
+    },
+  ];
+}
+
+/**
+ * Somente-leitura, mesmo motivo da aba Beneficios: Encaminhamento nasce da
+ * Evolucao ("Registrar encaminhamento"), nunca direto do Atendimento.
+ */
+function AttendanceReferralsTab({
+  mode,
+  referrals,
+  onOpenReferral,
+}: Pick<AttendancesDetailLayoutContext, "mode" | "referrals" | "onOpenReferral">) {
+  const columns = React.useMemo(() => referralColumns(), []);
+
+  if (mode === "create") {
+    return (
+      <div className={ATTENDANCE_DETAIL_SECTION_CLASS}>
+        <p className="text-sm text-muted-foreground">Salve o atendimento para ver encaminhamentos.</p>
+      </div>
+    );
+  }
+
+  return (
+    <DetailRelationTablePanel
+      data={referrals}
+      columns={columns}
+      getRowId={(row) => row.id}
+      onRowClick={(row) => onOpenReferral(row.id)}
+      searchPlaceholder="Pesquisar encaminhamento"
+      filterRow={(row, query) => row.destination.name.toLocaleLowerCase().includes(query)}
+      emptyMessage="Nenhum encaminhamento registrado ainda - registre pela tela da Evolução."
+    />
   );
 }
 
@@ -523,6 +596,8 @@ export const attendancesDetailLayout: DetailLayoutConfig<AttendancesDetailLayout
       attendance={context.attendance}
       professionalName={context.professionalName}
       onPickProfessional={context.onPickProfessional}
+      caseName={context.caseName}
+      onPickCase={context.onPickCase}
       canEdit={context.canEdit}
     />
   ),
@@ -594,11 +669,22 @@ export const attendancesDetailLayout: DetailLayoutConfig<AttendancesDetailLayout
         <AttendanceBenefitsTab
           mode={context.mode}
           canEdit={context.canEdit}
-          readOnly={context.readOnly}
           benefits={context.benefits}
-          onAddBenefit={context.onAddBenefit}
           onRemoveBenefit={context.onRemoveBenefit}
           onOpenBenefit={context.onOpenBenefit}
+        />
+      ),
+    },
+    {
+      key: "referrals",
+      label: "Encaminhamentos",
+      badge: ({ referrals }) => referrals.length,
+      flushContent: true,
+      content: (context) => (
+        <AttendanceReferralsTab
+          mode={context.mode}
+          referrals={context.referrals}
+          onOpenReferral={context.onOpenReferral}
         />
       ),
     },
@@ -643,6 +729,18 @@ export const attendancesDetailLayout: DetailLayoutConfig<AttendancesDetailLayout
         label: "Benefício",
         fieldLabels: { name: "Nome", date: "Data", quantity: "Quantidade", notes: "Observações" },
         resolveEntityIds: ({ benefits }) => benefits.map((benefit) => benefit.id),
+      },
+      {
+        key: "referral",
+        entity: "Referral",
+        model: "audit.logs",
+        label: "Encaminhamento",
+        fieldLabels: { type: "Tipo", status: "Status", outcomeNotes: "Desfecho" },
+        valueFormatters: {
+          type: (value) => REFERRAL_TYPE_LABELS[value as string] ?? String(value),
+          status: (value) => REFERRAL_STATUS_LABELS[value as string] ?? String(value),
+        },
+        resolveEntityIds: ({ referrals }) => referrals.map((referral) => referral.id),
       },
     ],
     sort: [{ field: "createdAt", direction: "desc" }],

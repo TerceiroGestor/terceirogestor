@@ -1,6 +1,16 @@
-import { IsInt, IsOptional, IsString, Min, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateAttendanceBenefitDto {
+  @IsUUID('4')
+  evolutionId!: string;
+
   @IsString()
   @MaxLength(160)
   name!: string;

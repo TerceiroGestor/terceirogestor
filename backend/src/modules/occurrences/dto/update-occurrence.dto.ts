@@ -13,6 +13,10 @@ export class UpdateOccurrenceDto {
   meetingId?: string | null;
 
   @IsOptional()
+  @IsUUID('4')
+  caseId?: string | null;
+
+  @IsOptional()
   @IsString()
   @MaxLength(160)
   title?: string;

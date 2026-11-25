@@ -11,13 +11,15 @@ import { useCurrentUser } from "@/features/auth/current-user-context";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import type { ApiAttendance, ApiAttendanceBenefit, ApiAttendanceEvolution, ApiAttendancePerson } from "@/modules/attendances/api";
 import {
-  addAttendanceBenefit,
   addAttendanceEvolution,
   addAttendancePerson,
   removeAttendanceBenefit,
   removeAttendanceEvolution,
   removeAttendancePerson,
 } from "@/modules/attendances/api";
+import { listReferrals, type ApiReferral } from "@/modules/referrals/api";
+import { CasePickerDialog } from "@/modules/cases/features/detail/ui/case-picker-dialog";
+import type { ApiCase } from "@/modules/cases/api";
 import {
   ATTENDANCES_ROUTES,
   attendancesDetailModuleDefinition,
@@ -51,6 +53,7 @@ function buildDraft(attendance?: ApiAttendance | null, occurrenceId?: string | n
     scheduledDate: attendance?.scheduledDate ? attendance.scheduledDate.slice(0, 10) : "",
     professionalId: attendance?.professionalId ?? "",
     occurrenceId: attendance?.occurrenceId ?? occurrenceId ?? null,
+    caseId: attendance?.caseId ?? null,
     status: attendance?.status ?? "ABERTO",
     notes: attendance?.notes ?? "",
     closingNotes: attendance?.closingNotes ?? "",
@@ -63,6 +66,7 @@ function normalizeDraft(draft: AttendanceDetailDraft): AttendanceDetailDraft {
     scheduledDate: draft.scheduledDate,
     professionalId: draft.professionalId,
     occurrenceId: draft.occurrenceId,
+    caseId: draft.caseId,
     status: draft.status,
     notes: draft.notes.trim(),
     closingNotes: draft.closingNotes.trim(),
@@ -76,6 +80,7 @@ function toPayload(draft: AttendanceDetailDraft) {
     scheduledDate: normalized.scheduledDate,
     professionalId: normalized.professionalId,
     occurrenceId: normalized.occurrenceId,
+    caseId: normalized.caseId,
     status: normalized.status,
     notes: normalized.notes || null,
     closingNotes: normalized.closingNotes || null,
@@ -109,11 +114,14 @@ export function AttendancesDetailEngineClientPage() {
   const [attendance, setAttendance] = React.useState<ApiAttendance | null>(null);
   const [draft, setDraft] = React.useState<AttendanceDetailDraft>(buildDraft(null, prefillOccurrenceId));
   const [professionalName, setProfessionalName] = React.useState("");
+  const [caseName, setCaseName] = React.useState("");
   const [loading, setLoading] = React.useState(isEdit);
   const [busy, setBusy] = React.useState(false);
   const [peoplePickerOpen, setPeoplePickerOpen] = React.useState(false);
   const [professionalPickerOpen, setProfessionalPickerOpen] = React.useState(false);
+  const [casePickerOpen, setCasePickerOpen] = React.useState(false);
   const [auditVisibleCount, setAuditVisibleCount] = React.useState(24);
+  const [referrals, setReferrals] = React.useState<ApiReferral[]>([]);
 
   const usageItems = React.useMemo(
     () => buildUsageDocumentationItems("attendances-detail", ATTENDANCE_USAGE_TEXT.detail.sections),
@@ -135,6 +143,7 @@ export function AttendancesDetailEngineClientPage() {
       const savedDraft = buildDraft(updated);
       setAttendance(updated);
       setProfessionalName(updated.professional.fullName);
+      setCaseName(updated.case?.title ?? "");
       setDraft(savedDraft);
       return savedDraft;
     },
@@ -175,6 +184,7 @@ export function AttendancesDetailEngineClientPage() {
         const nextDraft = buildDraft(loaded);
         setAttendance(loaded);
         setProfessionalName(loaded.professional.fullName);
+        setCaseName(loaded.case?.title ?? "");
         setDraft(nextDraft);
         replaceSavedDraft(nextDraft);
       })
@@ -187,6 +197,16 @@ export function AttendancesDetailEngineClientPage() {
       })
       .finally(() => setLoading(false));
   }, [canAccessPage, dataProvider, id, isEdit, replaceSavedDraft, toast, token]);
+
+  React.useEffect(() => {
+    if (!token || !isEdit || !id) {
+      setReferrals([]);
+      return;
+    }
+    listReferrals(token, { attendanceId: id, all: true })
+      .then((result) => setReferrals(result.data))
+      .catch(() => setReferrals([]));
+  }, [id, isEdit, token]);
 
   const handleCreate = React.useCallback(async () => {
     if (!canCreate) return;
@@ -223,6 +243,18 @@ export function AttendancesDetailEngineClientPage() {
       setProfessionalPickerOpen(false);
       if (isEdit) {
         commitField("professionalId", person.id);
+      }
+    },
+    [commitField, isEdit],
+  );
+
+  const handlePickCase = React.useCallback(
+    async (caseItem: ApiCase) => {
+      setDraft((previous) => ({ ...previous, caseId: caseItem.id }));
+      setCaseName(caseItem.title);
+      setCasePickerOpen(false);
+      if (isEdit) {
+        commitField("caseId", caseItem.id);
       }
     },
     [commitField, isEdit],
@@ -315,16 +347,6 @@ export function AttendancesDetailEngineClientPage() {
     [canEdit, confirm, id, setAttendance, toast, token],
   );
 
-  const handleAddBenefit = React.useCallback(
-    async (payload: { name: string; date: string; quantity: number | null; notes: string | null }) => {
-      if (!token || !id) return;
-      const updated = await addAttendanceBenefit(token, id, payload);
-      setAttendance(updated);
-      toast({ title: "Benefício lançado" });
-    },
-    [id, setAttendance, toast, token],
-  );
-
   const handleRemoveBenefit = React.useCallback(
     async (benefit: ApiAttendanceBenefit) => {
       if (!token || !id || !canEdit) return;
@@ -362,22 +384,25 @@ export function AttendancesDetailEngineClientPage() {
       draft,
       setDraft,
       professionalName,
+      caseName,
       people: attendance?.people ?? [],
       evolutions: attendance?.evolutions ?? [],
       benefits: attendance?.benefits ?? [],
+      referrals,
       onCommitField: (field, nextValue) => void commitField(field, nextValue),
       onOpenPerson: (personId) => router.push(withTenantPath(`/people/${personId}`, tenantSlug)),
       onAddPerson: handleAddPerson,
       onRemovePerson: (link) => void handleRemovePerson(link),
       onPickProfessional: () => setProfessionalPickerOpen(true),
+      onPickCase: () => setCasePickerOpen(true),
       onAddEvolution: handleAddEvolution,
       onRemoveEvolution: (evolution) => void handleRemoveEvolution(evolution),
       onOpenEvolution: (evolutionId) =>
         router.push(withTenantPath(buildAttendanceEvolutionPath(id, evolutionId), tenantSlug)),
-      onAddBenefit: handleAddBenefit,
       onRemoveBenefit: (benefit) => void handleRemoveBenefit(benefit),
       onOpenBenefit: (benefitId) =>
         router.push(withTenantPath(buildAttendanceBenefitPath(id, benefitId), tenantSlug)),
+      onOpenReferral: (referralId) => router.push(withTenantPath(`/referrals/${referralId}`, tenantSlug)),
       auditVisibleCount,
       onAuditVisibleCountChange: setAuditVisibleCount,
     }),
@@ -387,9 +412,9 @@ export function AttendancesDetailEngineClientPage() {
       canAudit,
       canCreate,
       canEdit,
+      caseName,
       commitField,
       draft,
-      handleAddBenefit,
       handleAddEvolution,
       handleAddPerson,
       handleRemoveBenefit,
@@ -398,6 +423,7 @@ export function AttendancesDetailEngineClientPage() {
       id,
       mode,
       professionalName,
+      referrals,
       router,
       tenantSlug,
     ],
@@ -442,6 +468,7 @@ export function AttendancesDetailEngineClientPage() {
         onOpenChange={setProfessionalPickerOpen}
         onPick={handlePickProfessional}
       />
+      <CasePickerDialog open={casePickerOpen} onOpenChange={setCasePickerOpen} onPick={handlePickCase} />
     </>
   );
 }

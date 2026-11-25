@@ -29,6 +29,7 @@ const MAX_PEOPLE_GROUP_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PROJECT_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_ACTION_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_REFERRAL_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_AVATAR_EXTENSIONS = new Set([
   '.jpg',
   '.jpeg',
@@ -482,6 +483,43 @@ export class FilesController {
 
     return {
       path: `/uploads/people-groups/${tenantId}/${filename}`,
+      mimeType: file.mimetype || null,
+      size: file.size ?? null,
+      originalName: file.originalname || filename,
+    };
+  }
+
+  @Post('referral-attachments')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_REFERRAL_ATTACHMENT_FILE_SIZE },
+      fileFilter: extensionAllowlistFilter(ALLOWED_ATTACHMENT_EXTENSIONS),
+    }),
+  )
+  async uploadReferralAttachment(
+    @UploadedFile() file?: Express.Multer.File,
+    @CurrentUser() user?: JwtUser,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Arquivo obrigatorio.');
+    }
+    const tenantId = this.getTenantId(user);
+    assertFileContentMatchesExtension(file, ALLOWED_ATTACHMENT_EXTENSIONS);
+    const filename = buildFilename(
+      file.originalname,
+      ALLOWED_ATTACHMENT_EXTENSIONS,
+    );
+    await this.storage.put(
+      'referral-attachments',
+      tenantId,
+      filename,
+      file.buffer,
+    );
+
+    return {
+      path: `/uploads/referral-attachments/${tenantId}/${filename}`,
       mimeType: file.mimetype || null,
       size: file.size ?? null,
       originalName: file.originalname || filename,

@@ -1,17 +1,22 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { Gift, Send } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/auth-context";
 import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
 import { getTenantSlugFromPath, withTenantPath } from "@/lib/tenant-path";
 import { formatDateOnlyPtBR } from "@/lib/date";
 import {
+  addAttendanceBenefit,
   getAttendance,
   updateAttendanceEvolution,
   type ApiAttendanceEvolution,
 } from "@/modules/attendances/api";
 import { ATTENDANCE_TYPE_LABELS } from "@/modules/attendances/shared/domain/attendances.constants";
+import { AttendanceBenefitDialog } from "@/modules/attendances/features/detail/ui/attendance-benefit-dialog";
 import { AttendanceRelationDetailShell } from "@/modules/attendances/shared/ui/attendance-relation-detail-shell";
 import { DetailSectionField } from "@/web-client/detail/DetailFormSection";
 import { Input } from "@/components/ui/input";
@@ -67,8 +72,19 @@ export function AttendanceEvolutionDetailPage() {
   const [evolution, setEvolution] = React.useState<ApiAttendanceEvolution | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [draft, setDraft] = React.useState<EvolutionDraft>({ date: "", notes: "" });
+  const [benefitDialogOpen, setBenefitDialogOpen] = React.useState(false);
 
   const parentHref = withTenantPath(`/attendances/${attendanceId}`, tenantSlug);
+  const referralHref = withTenantPath(`/referrals/new?evolutionId=${evolutionId}`, tenantSlug);
+
+  const handleAddBenefit = React.useCallback(
+    async (payload: { name: string; date: string; quantity: number | null; notes: string | null }) => {
+      if (!token || !attendanceId || !evolutionId) return;
+      await addAttendanceBenefit(token, attendanceId, { ...payload, evolutionId });
+      toast({ title: "Benefício lançado" });
+    },
+    [attendanceId, evolutionId, toast, token],
+  );
 
   const { saving, replaceSavedDraft, commitField } = useDetailAutoSaveController<EvolutionDraft>({
     draft,
@@ -116,6 +132,19 @@ export function AttendanceEvolutionDetailPage() {
 
   const title = evolution ? `Evolução de ${formatDateOnlyPtBR(evolution.date)}` : "Evolução";
 
+  const headerActionsSlot = evolution ? (
+    <>
+      <Button type="button" variant="default" size="icon-sm" title="Lançar benefício" aria-label="Lançar benefício" onClick={() => setBenefitDialogOpen(true)}>
+        <Gift className="h-4 w-4" />
+      </Button>
+      <Button type="button" variant="default" size="icon-sm" title="Registrar encaminhamento a partir desta evolução" aria-label="Registrar encaminhamento" asChild>
+        <Link href={referralHref}>
+          <Send className="h-4 w-4" />
+        </Link>
+      </Button>
+    </>
+  ) : null;
+
   return (
     <AttendanceRelationDetailShell
       parentLabel={attendanceType ? ATTENDANCE_TYPE_LABELS[attendanceType] ?? attendanceType : "Atendimento"}
@@ -125,6 +154,7 @@ export function AttendanceEvolutionDetailPage() {
       auditConfig={EVOLUTION_AUDIT_CONFIG}
       relationId={evolutionId}
       onClose={() => router.push(parentHref)}
+      headerActionsSlot={headerActionsSlot}
     >
       {loading ? <p className="text-sm text-muted-foreground">Carregando...</p> : null}
       {!loading && !evolution ? (
@@ -153,6 +183,11 @@ export function AttendanceEvolutionDetailPage() {
           </div>
         </>
       ) : null}
+      <AttendanceBenefitDialog
+        open={benefitDialogOpen}
+        onOpenChange={setBenefitDialogOpen}
+        onSubmit={handleAddBenefit}
+      />
     </AttendanceRelationDetailShell>
   );
 }

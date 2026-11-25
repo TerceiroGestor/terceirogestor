@@ -22,6 +22,10 @@ export class UpdateAttendanceDto {
   occurrenceId?: string | null;
 
   @IsOptional()
+  @IsUUID('4')
+  caseId?: string | null;
+
+  @IsOptional()
   @IsEnum(AttendanceCaseStatus)
   status?: AttendanceCaseStatus;
 

@@ -67,7 +67,10 @@ este texto.
 | Planejamento/relatório/fotos do Encontro | `planHtml`/`executedHtml`/`conclusionHtml`/`photoPaths` em `ActionOccurrence` + Grupos de equipe (`ActionOccurrenceTeamGroup`) | Fase 2 | ✅ já existe (Fase R3 do plano anterior) |
 | `DailyAttendance` (derivada, dedup por dia) | **não existe** | Fase 3 | ❌ trabalho novo de verdade — é o único ponto real da Fase 3 |
 | Geração automática de agenda anual + preview | geração em lote já existe; **preview antes de confirmar** e exceções/feriados não foram confirmados como implementados | Fase 4 | ⚠️ confirmar o que falta exatamente antes de iniciar (ver Fase 4) |
-| `Attendance`/`AttendancePeople`/`Benefit`/`Referral`/`Occurrence`/`OccurrencePeople`/`Case` | **não existem** | Fases 5-8 | ❌ trabalho novo — módulo de Atendimento inteiro |
+| `Occurrence`/`OccurrencePeople` | `Occurrence`/`OccurrencePeople` | Fase 5 | ✅ já existe (linha desatualizada — ver seção da Fase 5 acima) |
+| `Attendance`/`AttendancePeople`/`AttendanceBenefit` | `Attendance`/`AttendancePeople`/`AttendanceBenefit` (`Benefit` renomeado por colisão com `PersonBenefit`) | Fase 6 | ✅ já existe (linha desatualizada — ver seção da Fase 6 acima) |
+| `Referral` | `Referral`/`ReferralAttachment` | Fase 7 | ✅ já existe (2026-11-25, ver seção da Fase 7 acima) |
+| `Case` | **não existe** | Fase 8 | ❌ trabalho novo |
 | `Goal`/`Objective` | **não existem** | Fase 1/9 | ❌ trabalho novo |
 
 ### Fase 1.0 — Rename de nomenclatura no código (pré-requisito, antes da Fase 1) `[x concluída]`
@@ -753,7 +756,7 @@ alterado (14 pessoas, 0 ocorrências/atendimentos residuais confirmado).
 
 ---
 
-### **Fase 7 — Encaminhamento** `[ não iniciada]`
+### **Fase 7 — Encaminhamento** `[x concluída]`
 
 **Objetivo:** ciclo de vida independente, com alertas de pendência.
 
@@ -762,18 +765,147 @@ alterado (14 pessoas, 0 ocorrências/atendimentos residuais confirmado).
 
 **✅ Critério de teste:** abrir 1 encaminhamento a partir de um atendimento, deixá-lo "aberto" por simulação de 30 dias, depois encerrar sem solução, abrir um segundo encaminhamento para a mesma situação, e verificar se o dashboard reflete corretamente a contagem.
 
+**Feito em 2026-11-25**, a pedido explícito do usuário ("continuar o
+SCFV, Fases 7-9" — plano revisado via `EnterPlanMode`/`ExitPlanMode`
+antes de codificar). **Decisão de escopo:** ciclo avanço-só (ABERTO→
+EM_ACOMPANHAMENTO→ENCERRADO), não reabrível como Attendance —
+justificado pelo próprio critério de teste (abre um 2º encaminhamento
+em vez de reabrir o 1º). `attendanceId` obrigatório e imutável
+(diferente de Occurrence, que aceita origem externa). Anexos reais
+(`ReferralAttachment`) desde o nascimento do módulo. Detalhe completo
+da implementação, decisões de nomenclatura e evidência (migration,
+tsc/test/build/eslint dos dois apps, teste de ponta a ponta via API
+real reproduzindo o critério de teste exato) em `PLAN.md`.
+**Não feito nesta rodada:** validação manual no navegador (só API) e
+Fases 8/9.
+
 ---
 
-### **Fase 8 — Caso (agrupador consolidado)** `[ não iniciada]`
+### Revisão da Fase 7 — rastreio por Evolução e Rede de destino como cadastro `[x concluída]`
+
+**Decisão de arquitetura em 2026-11-25**, a pedido do usuário, depois de
+testar a Fase 7 e revisar visualmente o resultado. Quatro pontos
+levantados, analisados e decididos em conversa (sem código ainda nesse
+momento — decisão registrada aqui antes de implementar):
+
+1. **Card de métrica no topo da lista do Encaminhamento viola o padrão
+   canônico.** O `ModuleMetricsStrip` adicionado na implementação
+   original repete exatamente o padrão já rejeitado de propósito em
+   2026-11-21 (ver `docs/backlog.md`, "Métricas calculadas de Pantry/
+   Deposit... descartadas junto com a barra de header"). **Decisão:**
+   remover da lista. O endpoint `GET /referrals/dashboard` continua
+   existindo (o critério de teste da fase é sobre o dado, não sobre ter
+   um card na tela); exibição futura, se pedida, é decisão separada.
+2. **Outras views de análise (Kanban/Calendário/Gráfico) faltavam** na
+   lista do Encaminhamento (a fase só entregou Tabela). **Decisão:**
+   adicionar Kanban (por `status`), Calendário (por `createdAt`) e
+   Gráfico (contagem por tipo/status) — a lista já busca `all: true`,
+   pré-requisito já atendido. Gantt (barra `createdAt`→`closedAt`,
+   visualiza "há quanto tempo está parado") fica como ideia registrada,
+   não decidida ainda.
+3. **"Rede de destino" vira cadastro próprio, não texto livre.**
+   Mesmo papel que `PantryDonor`/`DepositDonor` já cumprem hoje — model
+   novo `ReferralDestination` (`name`, `contactInfo`, `responsibleName`,
+   `address`, `isActive`), `Referral.destinationId` substitui
+   `destinationName`. **Decisão (UI):** por agora, só diálogo de
+   picker + "+ Nova rede" inline no formulário do Encaminhamento — sem
+   tela de lista própria (cresce pra isso quando a quantidade de redes
+   justificar).
+4. **O vínculo de origem do Encaminhamento (e, por simetria, do
+   Benefício) deixa de ser o Atendimento e passa a ser a Evolução**
+   (`AttendanceEvolution`) — rastreio do momento exato em que a decisão
+   foi tomada, não só "em algum momento deste atendimento". Justificativa
+   do usuário pro Benefício: a mesma evolução pode gerar mais de um
+   benefício, e vincular na evolução dá rastreio melhor que vincular no
+   atendimento inteiro. **Decisão de schema:** `Referral.evolutionId` e
+   `AttendanceBenefit.evolutionId` (ambos obrigatórios, FK em
+   `AttendanceEvolution`), mantendo `attendanceId` **denormalizado** nos
+   dois (derivado de `evolution.attendanceId` na criação, nunca editado
+   depois) — evita join extra pra consultas tipo "todos os
+   encaminhamentos/benefícios deste atendimento".
+   **Decisão de UX (como resolver o caso de ainda não existir nenhuma
+   Evolução quando o Encaminhamento/Benefício precisa ser registrado):**
+   fundir as duas ações no fluxo, não num formulário só — os botões
+   "Registrar encaminhamento"/"Lançar benefício" saem do header/abas do
+   Atendimento e passam a viver na tela de Detail da própria Evolução
+   (rota que já existe, `attendance-evolution-detail-page.tsx`). As abas
+   "Evoluções"/"Benefícios"/"Encaminhamentos" no Detail do Atendimento
+   passam a ser **resumos agregados somente-leitura** (mesmo padrão já
+   usado na aba "Participantes" da Atividade, Fase 4 Ciclo 2) — criar/
+   editar sempre a partir da Evolução específica.
+
+**Impacto direto na Fase 8 (ver seção revisada abaixo):** como o
+Encaminhamento e o Benefício agora chegam ao Atendimento só por
+transitividade via Evolução, dar um `caseId` próprio a eles (como o
+texto original da Fase 8 propunha) criaria duas fontes de verdade que
+podem discordar. O `caseId` fica só nos dois pontos de entrada reais da
+hierarquia — `Occurrence` e `Attendance` — nunca em `Evolution`/
+`Referral`/`Benefit`.
+
+```
+Caso (Fase 8 - agrupador, N:N pessoas, parecer de encerramento)
+ ├─ Ocorrência  [caseId opcional]
+ └─ Atendimento [caseId opcional]
+     └─ Evolução (nota datada - ponto de rastreio real)
+         ├─ Encaminhamento (tipo, Rede de destino, status, anexos)
+         └─ Benefício (nome, data, quantidade)
+```
+
+**Sequência de implementação decidida** (etapa por etapa, a partir de
+2026-11-25). **As 4 etapas foram concluídas e testadas (tsc/build/eslint
+nos dois apps) na mesma data** — evidência completa em `PLAN.md`
+(entradas "etapa 1/Migration", "etapa 1/Frontend" e "etapa 2"):
+1. `[x]` Migration (schema: `ReferralDestination` novo; `Referral` e
+   `AttendanceBenefit` ganham `evolutionId`; `Referral` troca
+   `destinationName` por `destinationId`) + rework mínimo do backend/
+   seed pra manter tudo compilando e testado.
+2. `[x]` Rework de frontend: pontos de entrada movidos pra tela de
+   Evolução (botões "Lançar benefício"/"Registrar encaminhamento"),
+   diálogo de picker/criação rápida de Rede de destino, abas
+   "Benefícios"/"Encaminhamentos" do Atendimento viraram resumo
+   agregado somente-leitura.
+3. `[x]` Ajustes de UI da lista do Encaminhamento: `ModuleMetricsStrip`
+   removido (violava o padrão canônico), Kanban (por status)/
+   Calendário (cadastro ou encerramento)/Gráfico (contagem por status/
+   tipo) adicionados.
+4. Fase 8 (Caso) — próximo passo, ainda não iniciada, já em cima do
+   modelo certo.
+**Não testado manualmente no navegador** (só API + checkpoints
+automatizados) — validação manual fica a critério do usuário antes de
+avançar pra Fase 8.
+
+**Não é migration de produção** (regra do "expandir depois contrair" do
+`AGENTS.md` não se aplica aqui) — nada deste trabalho foi além do
+`develop` local ainda; os dados de seed afetados (`AttendanceBenefit`,
+fictícios) são regerados por `npm run db:seed`, não preservados.
+
+---
+
+### **Fase 8 — Caso (agrupador consolidado)** `[x concluída]`
 
 **Objetivo:** amarrar múltiplos atendimentos/encaminhamentos de uma mesma situação, para visão histórica e advocacy junto à rede.
 
 - Cadastro de `Case`: título/resumo, status, N:N com pessoas.
-- Campo opcional `case_id` em `Attendance` e `Referral`.
+- Campo opcional `case_id` **só em `Occurrence` e `Attendance`**
+  (revisão de 2026-11-25, ver seção acima — não em `Referral`/
+  `AttendanceEvolution`/`AttendanceBenefit`, que herdam o Caso por
+  transitividade via `Attendance`, nunca por FK própria, pra não existir
+  duas fontes de verdade que podem discordar).
 - Parecer consolidado no encerramento do Caso.
-- Relatório: "Caso X gerou N atendimentos e M encaminhamentos, com desfecho Y."
+- Relatório: "Caso X gerou N atendimentos, P evoluções e M encaminhamentos, com desfecho Y."
 
 **✅ Critério de teste:** recriar o cenário da "menina com situação de menstruação" — 2 atendimentos, 2 encaminhamentos (1 sem resposta), tudo vinculado ao mesmo `Case`, e gerar o relatório consolidado a partir dele.
+
+**Feito em 2026-11-25.** Schema aditivo (migration `20261125162448_case_aggregator`);
+módulo backend `cases` (CRUD + `CasePeople` N:N + `GET /cases/:id/report`);
+ciclo reabrível (`closingNotes` obrigatório pra encerrar, mesmo princípio
+do Attendance). Frontend: módulo `cases` (lista + Detail com abas
+Pessoas/Relatório) + campo "Caso" (picker/criação rápida) no formulário
+do Atendimento. **Não adicionado à UI da Ocorrência nesta rodada**
+(backend já aceita `caseId` em Occurrence) — gatilho: quando precisar
+vincular Ocorrência a Caso direto pela tela. Evidência completa
+(tsc/test/build/eslint dos dois apps) em `PLAN.md`. Não testado
+manualmente no navegador.
 
 ---
 

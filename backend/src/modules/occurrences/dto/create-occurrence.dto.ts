@@ -12,6 +12,10 @@ export class CreateOccurrenceDto {
   @IsUUID('4')
   meetingId?: string | null;
 
+  @IsOptional()
+  @IsUUID('4')
+  caseId?: string | null;
+
   @IsString()
   @MaxLength(160)
   title!: string;

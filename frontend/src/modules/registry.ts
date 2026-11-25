@@ -3,6 +3,8 @@ import { coreManifest } from "@/modules/core/manifest";
 import { actionsManifest } from "@/modules/actions/manifest";
 import { occurrencesManifest } from "@/modules/occurrences/manifest";
 import { attendancesManifest } from "@/modules/attendances/manifest";
+import { casesManifest } from "@/modules/cases/manifest";
+import { referralsManifest } from "@/modules/referrals/manifest";
 import { peopleManifest } from "@/modules/people/manifest";
 import { peopleGroupsManifest } from "@/modules/people-groups/manifest";
 import { pantryManifest } from "@/modules/pantry/manifest";
@@ -21,6 +23,8 @@ export const moduleManifests: ModuleManifest[] = [
   actionsManifest,
   occurrencesManifest,
   attendancesManifest,
+  referralsManifest,
+  casesManifest,
   pantryManifest,
   depositManifest,
   tasksManifest,

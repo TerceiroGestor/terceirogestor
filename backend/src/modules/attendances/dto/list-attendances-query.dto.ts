@@ -37,6 +37,10 @@ export class ListAttendancesQueryDto {
   occurrenceId?: string;
 
   @IsOptional()
+  @IsUUID('4')
+  caseId?: string;
+
+  @IsOptional()
   @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
   @IsInt()
   @Min(1)
